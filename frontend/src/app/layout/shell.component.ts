@@ -32,6 +32,7 @@ export class ShellComponent {
     { label: 'Finance', path: '/finance' },
     { label: 'Finance ERP', path: '/finance-erp' },
     { label: 'Procurement', path: '/procurement' },
+    { label: 'Assets', path: '/assets' },
     { label: 'Compliance', path: '/compliance' },
     { label: 'Tasks', path: '/tasks' },
     { label: 'Products', path: '/products' },

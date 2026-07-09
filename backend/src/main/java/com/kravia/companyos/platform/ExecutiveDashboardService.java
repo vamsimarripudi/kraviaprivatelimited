@@ -1,6 +1,9 @@
 package com.kravia.companyos.platform;
 
 import com.kravia.companyos.common.Role;
+import com.kravia.companyos.asset.AssetEnums.AssetStatus;
+import com.kravia.companyos.asset.CompanyAssetRepository;
+import com.kravia.companyos.asset.SoftwareLicenseRepository;
 import com.kravia.companyos.company.CompanyProfile;
 import com.kravia.companyos.company.CompanyProfileRepository;
 import com.kravia.companyos.compliance.ComplianceItem;
@@ -65,6 +68,8 @@ public class ExecutiveDashboardService {
     private final PurchaseOrderRepository purchaseOrders;
     private final VendorBillRepository vendorBills;
     private final ProcurementSubscriptionRepository procurementSubscriptions;
+    private final CompanyAssetRepository assetRepository;
+    private final SoftwareLicenseRepository softwareLicenseRepository;
     private final PermissionService permissions;
 
     public ExecutiveDashboardService(
@@ -85,6 +90,8 @@ public class ExecutiveDashboardService {
         PurchaseOrderRepository purchaseOrders,
         VendorBillRepository vendorBills,
         ProcurementSubscriptionRepository procurementSubscriptions,
+        CompanyAssetRepository assetRepository,
+        SoftwareLicenseRepository softwareLicenseRepository,
         PermissionService permissions
     ) {
         this.companyProfiles = companyProfiles;
@@ -104,6 +111,8 @@ public class ExecutiveDashboardService {
         this.purchaseOrders = purchaseOrders;
         this.vendorBills = vendorBills;
         this.procurementSubscriptions = procurementSubscriptions;
+        this.assetRepository = assetRepository;
+        this.softwareLicenseRepository = softwareLicenseRepository;
         this.permissions = permissions;
     }
 
@@ -139,6 +148,12 @@ public class ExecutiveDashboardService {
         long unpaidVendorBills = vendorBills.findAll().stream().filter(this::isUnpaidVendorBill).count();
         long upcomingSubscriptionRenewals = procurementSubscriptions.findAll().stream().filter(subscription -> isUpcomingSubscriptionRenewal(subscription, today, nextMonth)).count();
         long overduePayments = vendorBills.findAll().stream().filter(bill -> isUnpaidVendorBill(bill) && bill.getDueDate().isBefore(today)).count();
+        long totalAssets = assetRepository.findAll().stream().filter(asset -> asset.getArchivedAt() == null && asset.getStatus() != AssetStatus.ARCHIVED).count();
+        long assignedAssets = assetRepository.findAll().stream().filter(asset -> asset.getArchivedAt() == null && asset.getStatus() == AssetStatus.ASSIGNED).count();
+        long unassignedAssets = assetRepository.findAll().stream().filter(asset -> asset.getArchivedAt() == null && asset.getStatus() == AssetStatus.UNASSIGNED).count();
+        long expiringLicenses = softwareLicenseRepository.findAll().stream().filter(license -> license.getArchivedAt() == null && license.getRenewalDate() != null && !license.getRenewalDate().isBefore(today) && !license.getRenewalDate().isAfter(nextMonth)).count();
+        long warrantyExpiring = assetRepository.findAll().stream().filter(asset -> asset.getArchivedAt() == null && asset.getWarrantyEndDate() != null && !asset.getWarrantyEndDate().isBefore(today) && !asset.getWarrantyEndDate().isAfter(nextMonth)).count();
+        long assetsUnderMaintenance = assetRepository.findAll().stream().filter(asset -> asset.getArchivedAt() == null && asset.getStatus() == AssetStatus.UNDER_MAINTENANCE).count();
 
         List<ExecutiveDashboardResponse.DashboardMetric> metrics = List.of(
             new ExecutiveDashboardResponse.DashboardMetric("Pending approvals", pendingApprovalCount),
@@ -159,7 +174,13 @@ public class ExecutiveDashboardService {
             new ExecutiveDashboardResponse.DashboardMetric("Approved purchase orders", approvedPurchaseOrders),
             new ExecutiveDashboardResponse.DashboardMetric("Unpaid vendor bills", unpaidVendorBills),
             new ExecutiveDashboardResponse.DashboardMetric("Upcoming subscription renewals", upcomingSubscriptionRenewals),
-            new ExecutiveDashboardResponse.DashboardMetric("Overdue payments", overduePayments)
+            new ExecutiveDashboardResponse.DashboardMetric("Overdue payments", overduePayments),
+            new ExecutiveDashboardResponse.DashboardMetric("Total assets", totalAssets),
+            new ExecutiveDashboardResponse.DashboardMetric("Assigned assets", assignedAssets),
+            new ExecutiveDashboardResponse.DashboardMetric("Unassigned assets", unassignedAssets),
+            new ExecutiveDashboardResponse.DashboardMetric("Expiring licenses", expiringLicenses),
+            new ExecutiveDashboardResponse.DashboardMetric("Warranty expiring", warrantyExpiring),
+            new ExecutiveDashboardResponse.DashboardMetric("Assets under maintenance", assetsUnderMaintenance)
         );
 
         return new ExecutiveDashboardResponse(

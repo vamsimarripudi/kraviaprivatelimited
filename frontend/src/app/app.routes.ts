@@ -43,6 +43,7 @@ export const routes: Routes = [
       { path: 'finance', component: FinanceComponent, title: 'Financial Dashboard' },
       { path: 'finance-erp', loadComponent: () => import('./finance-erp/finance-erp.component').then((m) => m.FinanceErpComponent), title: 'Finance ERP' },
       { path: 'procurement', loadComponent: () => import('./procurement/procurement.component').then((m) => m.ProcurementComponent), title: 'Procurement' },
+      { path: 'assets', loadComponent: () => import('./assets/assets.component').then((m) => m.AssetsComponent), title: 'Asset Management' },
       { path: 'compliance', component: ComplianceComponent, title: 'Compliance Center' },
       { path: 'tasks', component: TasksComponent, title: 'Company Tasks' },
       { path: 'products', component: ProductsComponent, title: 'Products Portfolio' },

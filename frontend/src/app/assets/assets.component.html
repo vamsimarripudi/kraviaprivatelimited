@@ -1,0 +1,131 @@
+<section class="workspace-page assets-page">
+  <div class="page-heading">
+    <div>
+      <p class="overline">KRAVIA Company OS</p>
+      <h2>Asset Management</h2>
+      <p>Track physical, digital, software, cloud, and infrastructure assets in one controlled register.</p>
+    </div>
+    <button class="secondary-button" type="button" (click)="load()">Refresh</button>
+  </div>
+
+  <div class="finance-erp-tabs">
+    @for (tab of tabs; track tab.value) {
+      <button class="secondary-button" type="button" [class.is-active]="activeTab() === tab.value" (click)="setTab(tab.value)">{{ tab.label }}</button>
+    }
+  </div>
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading asset records..." />
+  } @else {
+    @if (summary(); as summary) {
+      <div class="finance-summary-grid">
+        <article class="finance-card"><span>Total assets</span><strong>{{ summary.totalAssets }}</strong></article>
+        <article class="finance-card"><span>Assigned</span><strong>{{ summary.assignedAssets }}</strong></article>
+        <article class="finance-card"><span>Unassigned</span><strong>{{ summary.unassignedAssets }}</strong></article>
+        <article class="finance-card"><span>Expiring licenses</span><strong>{{ summary.expiringLicenses }}</strong></article>
+        <article class="finance-card"><span>Warranty expiring</span><strong>{{ summary.warrantyExpiring }}</strong></article>
+        <article class="finance-card"><span>Maintenance</span><strong>{{ summary.assetsUnderMaintenance }}</strong></article>
+      </div>
+    }
+
+    @if (activeTab() === 'dashboard') {
+      <div class="panel">
+        <div class="section-subheading"><div><p class="overline">Asset Signals</p><h3>Current status</h3></div></div>
+        @if (summary()?.metrics?.length) {
+          <div class="report-metric-grid">
+            @for (metric of summary()?.metrics; track metric.label) {
+              <article class="report-metric" [class.positive]="metric.tone === 'positive'" [class.critical]="metric.tone === 'negative'"><span>{{ metric.label }}</span><strong>{{ metric.value }}</strong></article>
+            }
+          </div>
+        } @else {
+          <kravia-empty-state label="Asset Management" message="No information has been added yet." />
+        }
+      </div>
+    }
+
+    @if (activeTab() === 'register') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="assetForm" (ngSubmit)="saveAsset()">
+          <div class="section-subheading"><div><p class="overline">Asset Register</p><h3>{{ editingAssetId() ? 'Edit asset' : 'Add asset' }}</h3></div></div>
+          <div class="form-grid compact-form-grid">
+            <label>Asset name<input formControlName="assetName"></label>
+            <label>Asset code<input formControlName="assetCode"></label>
+            <label>Category<select formControlName="category">@for (category of categories; track category) { <option [value]="category">{{ label(category) }}</option> }</select></label>
+            <label>Status<select formControlName="status">@for (status of statuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label>
+            <label>Purchase date<input type="date" formControlName="purchaseDate"></label>
+            <label>Purchase cost<input type="number" min="0" step="0.01" formControlName="purchaseCost"></label>
+            <label>Vendor<select formControlName="vendorId"><option value="">No vendor selected</option>@for (vendor of vendors(); track vendor.id) { <option [value]="vendor.id">{{ vendor.vendorName }}</option> }</select></label>
+            <label>Assigned to<input formControlName="assignedTo"></label>
+            <label>Location<input formControlName="location"></label>
+            <label>Warranty start<input type="date" formControlName="warrantyStartDate"></label>
+            <label>Warranty end<input type="date" formControlName="warrantyEndDate"></label>
+            <label>Renewal date<input type="date" formControlName="renewalDate"></label>
+            <label>Related document ID<input formControlName="relatedDocumentId"></label>
+            <label class="full-span">Description<textarea formControlName="description"></textarea></label>
+            <label class="full-span">Notes<textarea formControlName="notes"></textarea></label>
+          </div>
+          <button class="primary-button" type="submit" [disabled]="assetForm.invalid || saving()">{{ editingAssetId() ? 'Save asset' : 'Add asset' }}</button>
+          @if (editingAssetId()) { <button class="secondary-button" type="button" (click)="resetAssetForm()">Cancel edit</button> }
+        </form>
+      }
+      <form class="panel enterprise-form" [formGroup]="assetFilterForm" (ngSubmit)="load()">
+        <div class="form-grid compact-form-grid"><label>Search<input formControlName="query"></label><label>Category<select formControlName="category"><option value="">All categories</option>@for (category of categories; track category) { <option [value]="category">{{ label(category) }}</option> }</select></label><label>Status<select formControlName="status"><option value="">All statuses</option>@for (status of statuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label></div>
+        <button class="secondary-button" type="submit">Apply filters</button>
+      </form>
+      <div class="panel table-scroll">
+        @if (assetRecords().length === 0) { <kravia-empty-state label="Asset Register" message="No assets have been added yet." /> } @else {
+          <table><thead><tr><th>Asset</th><th>Owner / Location</th><th>Vendor</th><th>Warranty</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+            @for (asset of assetRecords(); track asset.id) {
+              <tr><td>{{ asset.assetName }}<small>{{ asset.assetCode }} - {{ label(asset.category) }}</small></td><td>{{ asset.assignedTo || 'No information has been added yet.' }}<small>{{ asset.location || 'No information has been added yet.' }}</small></td><td>{{ asset.vendorName || vendorName(asset.vendorId) }}</td><td [class.negative-text]="upcoming(asset.warrantyEndDate)">{{ asset.warrantyEndDate || 'No information has been added yet.' }}</td><td><span class="status-badge">{{ label(asset.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editAsset(asset)">Edit</button> } @if (canArchive() && asset.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('register', asset.id)">Archive</button> }</td></tr>
+            }
+          </tbody></table>
+        }
+      </div>
+    }
+
+    @if (activeTab() === 'assignments') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="assignmentForm" (ngSubmit)="saveAssignment()"><div class="section-subheading"><div><p class="overline">Asset Assignment</p><h3>{{ editingAssignmentId() ? 'Edit assignment' : 'Assign asset' }}</h3></div></div><div class="form-grid compact-form-grid"><label>Asset<select formControlName="assetId"><option value="">Select asset</option>@for (asset of assetRecords(); track asset.id) { <option [value]="asset.id">{{ asset.assetCode }} - {{ asset.assetName }}</option> }</select></label><label>Assigned to<input formControlName="assignedTo"></label><label>Assigned by<input formControlName="assignedBy"></label><label>Assigned date<input type="date" formControlName="assignedDate"></label><label>Return date<input type="date" formControlName="returnDate"></label><label>Location<input formControlName="location"></label><label>Status<select formControlName="status">@for (status of statuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label class="full-span">Notes<textarea formControlName="notes"></textarea></label></div><button class="primary-button" type="submit" [disabled]="assignmentForm.invalid || saving()">{{ editingAssignmentId() ? 'Save assignment' : 'Assign asset' }}</button> @if (editingAssignmentId()) { <button class="secondary-button" type="button" (click)="resetAssignmentForm()">Cancel edit</button> }</form>
+      }
+      <div class="panel table-scroll">@if (assignments().length === 0) { <kravia-empty-state label="Asset Assignment" message="No information has been added yet." /> } @else { <table><thead><tr><th>Asset</th><th>Assigned to</th><th>Dates</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (assignment of assignments(); track assignment.id) { <tr><td>{{ assignment.assetName || assetName(assignment.assetId) }}<small>{{ assignment.assetCode }}</small></td><td>{{ assignment.assignedTo }}<small>{{ assignment.assignedBy }}</small></td><td>{{ assignment.assignedDate }}<small>{{ assignment.returnDate || 'No return date' }}</small></td><td>{{ assignment.location || 'No information has been added yet.' }}</td><td><span class="status-badge">{{ label(assignment.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editAssignment(assignment)">Edit</button> } @if (canArchive() && assignment.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('assignments', assignment.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'maintenance') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="maintenanceForm" (ngSubmit)="saveMaintenance()"><div class="section-subheading"><div><p class="overline">Maintenance</p><h3>{{ editingMaintenanceId() ? 'Edit maintenance' : 'Add maintenance' }}</h3></div></div><div class="form-grid compact-form-grid"><label>Asset<select formControlName="assetId"><option value="">Select asset</option>@for (asset of assetRecords(); track asset.id) { <option [value]="asset.id">{{ asset.assetCode }} - {{ asset.assetName }}</option> }</select></label><label>Title<input formControlName="maintenanceTitle"></label><label>Type<input formControlName="maintenanceType"></label><label>Service provider<input formControlName="serviceProvider"></label><label>Date<input type="date" formControlName="maintenanceDate"></label><label>Next maintenance<input type="date" formControlName="nextMaintenanceDate"></label><label>Cost<input type="number" min="0" step="0.01" formControlName="cost"></label><label>Status<select formControlName="status">@for (status of statuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label class="full-span">Notes<textarea formControlName="notes"></textarea></label></div><button class="primary-button" type="submit" [disabled]="maintenanceForm.invalid || saving()">{{ editingMaintenanceId() ? 'Save maintenance' : 'Add maintenance' }}</button> @if (editingMaintenanceId()) { <button class="secondary-button" type="button" (click)="resetMaintenanceForm()">Cancel edit</button> }</form>
+      }
+      <div class="panel table-scroll">@if (maintenanceRecords().length === 0) { <kravia-empty-state label="Maintenance Records" message="No information has been added yet." /> } @else { <table><thead><tr><th>Maintenance</th><th>Asset</th><th>Date</th><th>Cost</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (record of maintenanceRecords(); track record.id) { <tr><td>{{ record.maintenanceTitle }}<small>{{ record.serviceProvider || 'No information has been added yet.' }}</small></td><td>{{ record.assetName || assetName(record.assetId) }}</td><td>{{ record.maintenanceDate }}<small>{{ record.nextMaintenanceDate || 'No next date' }}</small></td><td>{{ currency(record.cost) }}</td><td><span class="status-badge">{{ label(record.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editMaintenance(record)">Edit</button> } @if (canArchive() && record.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('maintenance', record.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'licenses') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="licenseForm" (ngSubmit)="saveLicense()"><div class="section-subheading"><div><p class="overline">Software Licenses</p><h3>{{ editingLicenseId() ? 'Edit license' : 'Add license' }}</h3></div></div><div class="form-grid compact-form-grid"><label>Asset<select formControlName="assetId"><option value="">No asset selected</option>@for (asset of assetRecords(); track asset.id) { <option [value]="asset.id">{{ asset.assetCode }} - {{ asset.assetName }}</option> }</select></label><label>License name<input formControlName="licenseName"></label><label>Provider<input formControlName="provider"></label><label>Key reference<input formControlName="licenseKeyReference"></label><label>Seats<input type="number" min="0" formControlName="seats"></label><label>Assigned seats<input type="number" min="0" formControlName="assignedSeats"></label><label>Renewal date<input type="date" formControlName="renewalDate"></label><label>Status<select formControlName="status">@for (status of statuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label>Related document ID<input formControlName="relatedDocumentId"></label><label class="full-span">Notes<textarea formControlName="notes"></textarea></label></div><button class="primary-button" type="submit" [disabled]="licenseForm.invalid || saving()">{{ editingLicenseId() ? 'Save license' : 'Add license' }}</button> @if (editingLicenseId()) { <button class="secondary-button" type="button" (click)="resetLicenseForm()">Cancel edit</button> }</form>
+      }
+      <div class="panel table-scroll">@if (licenses().length === 0) { <kravia-empty-state label="Software Licenses" message="No licenses have been added yet." /> } @else { <table><thead><tr><th>License</th><th>Asset</th><th>Seats</th><th>Renewal</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (license of licenses(); track license.id) { <tr><td>{{ license.licenseName }}<small>{{ license.provider || 'No information has been added yet.' }}</small></td><td>{{ license.assetName || assetName(license.assetId) }}</td><td>{{ license.assignedSeats || 0 }} / {{ license.seats || 0 }}</td><td [class.negative-text]="upcoming(license.renewalDate)">{{ license.renewalDate || 'No information has been added yet.' }}</td><td><span class="status-badge">{{ label(license.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editLicense(license)">Edit</button> } @if (canArchive() && license.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('licenses', license.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'cloud') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="cloudForm" (ngSubmit)="saveCloudResource()"><div class="section-subheading"><div><p class="overline">Cloud Resources</p><h3>{{ editingCloudId() ? 'Edit cloud resource' : 'Add cloud resource' }}</h3></div></div><div class="form-grid compact-form-grid"><label>Asset<select formControlName="assetId"><option value="">No asset selected</option>@for (asset of assetRecords(); track asset.id) { <option [value]="asset.id">{{ asset.assetCode }} - {{ asset.assetName }}</option> }</select></label><label>Resource name<input formControlName="resourceName"></label><label>Provider<input formControlName="provider"></label><label>Resource type<input formControlName="resourceType"></label><label>Region<input formControlName="region"></label><label>Environment<input formControlName="environment"></label><label>Monthly cost<input type="number" min="0" step="0.01" formControlName="monthlyCost"></label><label>Owner<input formControlName="owner"></label><label>Status<select formControlName="status">@for (status of statuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label>Related document ID<input formControlName="relatedDocumentId"></label><label class="full-span">Notes<textarea formControlName="notes"></textarea></label></div><button class="primary-button" type="submit" [disabled]="cloudForm.invalid || saving()">{{ editingCloudId() ? 'Save cloud resource' : 'Add cloud resource' }}</button> @if (editingCloudId()) { <button class="secondary-button" type="button" (click)="resetCloudForm()">Cancel edit</button> }</form>
+      }
+      <div class="panel table-scroll">@if (cloudResources().length === 0) { <kravia-empty-state label="Cloud Resources" message="No information has been added yet." /> } @else { <table><thead><tr><th>Resource</th><th>Asset</th><th>Environment</th><th>Monthly cost</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (resource of cloudResources(); track resource.id) { <tr><td>{{ resource.resourceName }}<small>{{ resource.provider || 'No information has been added yet.' }}</small></td><td>{{ resource.assetName || assetName(resource.assetId) }}</td><td>{{ resource.environment || 'No information has been added yet.' }}<small>{{ resource.region || '' }}</small></td><td>{{ currency(resource.monthlyCost) }}</td><td><span class="status-badge">{{ label(resource.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editCloudResource(resource)">Edit</button> } @if (canArchive() && resource.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('cloud', resource.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'documents') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="documentForm" (ngSubmit)="saveDocument()"><div class="section-subheading"><div><p class="overline">Asset Documents</p><h3>{{ editingDocumentId() ? 'Edit document link' : 'Link document' }}</h3></div></div><div class="form-grid compact-form-grid"><label>Asset<select formControlName="assetId"><option value="">Select asset</option>@for (asset of assetRecords(); track asset.id) { <option [value]="asset.id">{{ asset.assetCode }} - {{ asset.assetName }}</option> }</select></label><label>Document ID<input formControlName="documentId"></label><label>Purpose<input formControlName="documentPurpose"></label><label>Status<select formControlName="status">@for (status of statuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label></div><button class="primary-button" type="submit" [disabled]="documentForm.invalid || saving()">{{ editingDocumentId() ? 'Save document link' : 'Link document' }}</button> @if (editingDocumentId()) { <button class="secondary-button" type="button" (click)="resetDocumentForm()">Cancel edit</button> }</form>
+      }
+      <div class="panel table-scroll">@if (assetDocuments().length === 0) { <kravia-empty-state label="Asset Documents" message="No information has been added yet." /> } @else { <table><thead><tr><th>Asset</th><th>Document</th><th>Purpose</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (document of assetDocuments(); track document.id) { <tr><td>{{ document.assetName || assetName(document.assetId) }}<small>{{ document.assetCode }}</small></td><td>{{ document.documentTitle || document.documentId }}</td><td>{{ document.documentPurpose || 'No information has been added yet.' }}</td><td><span class="status-badge">{{ label(document.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editDocument(document)">Edit</button> } @if (canArchive() && document.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('documents', document.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'reports') {
+      <form class="panel enterprise-form" [formGroup]="reportForm" (ngSubmit)="generateReport()"><div class="section-subheading"><div><p class="overline">Asset Reports</p><h3>Generate report</h3></div></div><div class="form-grid"><label>Report type<select formControlName="reportType">@for (type of reportTypes; track type) { <option [value]="type">{{ label(type) }}</option> }</select></label></div><button class="primary-button" type="submit">Generate report</button></form>
+      @if (report(); as report) {
+        <div class="panel report-preview"><div class="report-header"><div><p class="overline">Report Preview</p><h3>{{ label(report.reportType) }}</h3><p>Generated {{ report.generatedAt }}</p></div><button class="secondary-button" type="button" (click)="print()">Print</button></div>@if (report.metrics.length) { <div class="report-metric-grid">@for (metric of report.metrics; track metric.label) { <article class="report-metric" [class.positive]="metric.tone === 'positive'" [class.critical]="metric.tone === 'negative'"><span>{{ metric.label }}</span><strong>{{ metric.value }}</strong></article> }</div> } @else { <kravia-empty-state label="Asset Report" message="No information has been added yet." /> } @if (report.notes.length) { <ul class="report-notes">@for (note of report.notes; track note) { <li>{{ note }}</li> }</ul> }</div>
+      }
+    }
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>
