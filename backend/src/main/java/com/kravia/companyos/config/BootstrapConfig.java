@@ -1,7 +1,9 @@
-package com.kravia.companyos.config;
+﻿package com.kravia.companyos.config;
 
 import com.kravia.companyos.common.Role;
 import com.kravia.companyos.user.AppUser;
+import com.kravia.companyos.user.RoleEntity;
+import com.kravia.companyos.user.RoleRepository;
 import com.kravia.companyos.user.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -15,6 +17,7 @@ public class BootstrapConfig {
     @Bean
     CommandLineRunner bootstrapFounder(
         UserRepository users,
+        RoleRepository roles,
         PasswordEncoder passwordEncoder,
         @Value("${kravia.bootstrap.founder-email:}") String founderEmail,
         @Value("${kravia.bootstrap.founder-password:}") String founderPassword,
@@ -23,12 +26,13 @@ public class BootstrapConfig {
         return args -> {
             if (!StringUtils.hasText(founderEmail) || !StringUtils.hasText(founderPassword)) return;
             users.findByEmailIgnoreCase(founderEmail).orElseGet(() -> {
+                RoleEntity founderRole = roles.findById(Role.FOUNDER).orElseThrow(() -> new IllegalStateException("FOUNDER role is missing from the database."));
                 AppUser user = new AppUser();
                 user.setEmail(founderEmail.trim().toLowerCase());
-                user.setDisplayName(founderName);
-                user.setRole(Role.FOUNDER);
+                user.setDisplayName(StringUtils.hasText(founderName) ? founderName.trim() : "Founder");
                 user.setPasswordHash(passwordEncoder.encode(founderPassword));
                 user.setEnabled(true);
+                user.getRoles().add(founderRole);
                 return users.save(user);
             });
         };

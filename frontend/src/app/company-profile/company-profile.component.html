@@ -3,15 +3,15 @@
     <div>
       <p class="overline">Company Profile</p>
       <h2>Legal and Statutory Details</h2>
-      <p>Single source of truth for KRAVIA PRIVATE LIMITED company information.</p>
+      <p>Private source of truth for KRAVIA company profile information.</p>
     </div>
-    @if (canEdit() && !editing()) {
+    @if (canEdit() && !editing() && !loading()) {
       <button class="primary-button" type="button" (click)="startEdit()">Edit profile</button>
     }
   </div>
 
   @if (loading()) {
-    <div class="panel muted-panel">Loading company profile...</div>
+    <kravia-loading-state message="Loading company profile..." />
   } @else if (editing()) {
     <form class="panel enterprise-form" [formGroup]="form" (ngSubmit)="save()">
       <div class="form-grid">
@@ -51,6 +51,6 @@
     <kravia-empty-state label="Company Profile" message="No information has been added yet." />
   }
 
-  @if (error()) { <p class="form-error">{{ error() }}</p> }
+  @if (error()) { <kravia-error-state [message]="error()" /> }
   @if (success()) { <p class="form-success">{{ success() }}</p> }
 </section>

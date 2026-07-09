@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+﻿import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Observable, tap } from 'rxjs';
@@ -14,35 +14,56 @@ export class AuthService {
   private readonly userState = signal<UserSession | null>(this.loadUser());
 
   readonly user = this.userState.asReadonly();
-  readonly isAuthenticated = computed(() => Boolean(this.userState()));
-  readonly role = computed<Role | null>(() => this.userState()?.role ?? null);
+  readonly isAuthenticated = computed(() => Boolean(this.userState() && this.token()));
+  readonly roles = computed<Role[]>(() => this.userState()?.roles ?? []);
 
   login(email: string, password: string): Observable<AuthResponse> {
     return this.http.post<AuthResponse>('/api/auth/login', { email, password }).pipe(
-      tap((response) => {
-        localStorage.setItem(TOKEN_KEY, response.token);
-        localStorage.setItem(USER_KEY, JSON.stringify(response.user));
-        this.userState.set(response.user);
+      tap((response) => this.storeSession(response))
+    );
+  }
+
+  refreshCurrentUser(): Observable<UserSession> {
+    return this.http.get<UserSession>('/api/auth/me').pipe(
+      tap((user) => {
+        sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+        this.userState.set(user);
       })
     );
   }
 
-  token(): string | null { return localStorage.getItem(TOKEN_KEY); }
-
-  hasAnyRole(roles: Role[]): boolean {
-    const current = this.role();
-    return Boolean(current && roles.includes(current));
+  logout(): void {
+    let cleared = false;
+    const finish = () => {
+      if (cleared) return;
+      cleared = true;
+      this.clearSession();
+    };
+    this.http.post<void>('/api/auth/logout', {}).subscribe({ next: finish, error: finish, complete: finish });
   }
 
-  logout(): void {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
+  token(): string | null { return sessionStorage.getItem(TOKEN_KEY); }
+
+  hasAnyRole(roles: Role[]): boolean {
+    const current = this.roles();
+    return roles.some((role) => current.includes(role));
+  }
+
+  private storeSession(response: AuthResponse): void {
+    sessionStorage.setItem(TOKEN_KEY, response.token);
+    sessionStorage.setItem(USER_KEY, JSON.stringify(response.user));
+    this.userState.set(response.user);
+  }
+
+  private clearSession(): void {
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(USER_KEY);
     this.userState.set(null);
     void this.router.navigateByUrl('/login');
   }
 
   private loadUser(): UserSession | null {
-    const raw = localStorage.getItem(USER_KEY);
+    const raw = sessionStorage.getItem(USER_KEY);
     if (!raw) return null;
     try { return JSON.parse(raw) as UserSession; } catch { return null; }
   }

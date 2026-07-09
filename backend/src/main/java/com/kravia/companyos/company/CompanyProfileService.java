@@ -1,7 +1,6 @@
 ﻿package com.kravia.companyos.company;
 
 import com.kravia.companyos.audit.AuditService;
-import com.kravia.companyos.common.ModuleType;
 import com.kravia.companyos.security.PermissionService;
 import com.kravia.companyos.user.AppUser;
 import jakarta.transaction.Transactional;
@@ -26,7 +25,7 @@ public class CompanyProfileService {
 
     @Transactional
     public CompanyProfileResponse save(CompanyProfileRequest request, AppUser actor) {
-        permissions.requireOperationalWrite(actor, "Viewers cannot edit company profile.");
+        permissions.requireCompanyProfileEditor(actor);
         CompanyProfile profile = repository.findAll().stream().findFirst().orElseGet(CompanyProfile::new);
         profile.setCompanyName(request.companyName());
         profile.setCin(request.cin());
@@ -43,7 +42,7 @@ public class CompanyProfileService {
         profile.setCompanyStatus(request.companyStatus());
         profile.setLastUpdatedDate(request.lastUpdatedDate());
         CompanyProfile saved = repository.save(profile);
-        auditService.record(actor, ModuleType.COMPANY_PROFILE, "PROFILE_UPDATED", "Updated company profile.", "IMPORTANT");
+        auditService.record(actor, "COMPANY_PROFILE", "PROFILE_UPDATED", "Company profile was updated.", "IMPORTANT");
         return CompanyProfileResponse.from(saved);
     }
 }

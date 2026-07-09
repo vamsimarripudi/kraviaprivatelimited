@@ -2,83 +2,70 @@
 
 Base path: `/api`
 
-All endpoints require `Authorization: Bearer <jwt>` except `POST /auth/login` and health checks.
+All endpoints except `POST /auth/login` and `/actuator/health` require:
 
-## Authentication
+```http
+Authorization: Bearer <jwt>
+```
 
-| Method | Path | Body | Response |
+## Auth
+
+| Method | Path | Access | Purpose |
 | --- | --- | --- | --- |
-| POST | `/auth/login` | `{ email, password }` | `{ token, user }` |
-| GET | `/auth/me` | none | authenticated user |
+| POST | `/auth/login` | Public | Authenticate with email/password and receive JWT |
+| POST | `/auth/logout` | Authenticated | Stateless logout endpoint; client removes JWT |
+| GET | `/auth/me` | Authenticated | Return current user session and roles |
 
-## Users and Roles
+### Login Request
 
-Founder-only.
+```json
+{
+  "email": "founder@kravia.local",
+  "password": "strong-password"
+}
+```
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/users` | List user accounts |
-| POST | `/users` | Create user account with BCrypt-hashed password |
-| DELETE | `/users/{id}` | Disable user account |
+### Login Response
+
+```json
+{
+  "token": "jwt-token",
+  "user": {
+    "id": "uuid",
+    "email": "founder@kravia.local",
+    "displayName": "Founder",
+    "roles": ["FOUNDER"]
+  }
+}
+```
 
 ## Company Profile
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/company-profile` | Read company profile |
-| PUT | `/company-profile` | Founder/Director update profile |
+| Method | Path | Access | Purpose |
+| --- | --- | --- | --- |
+| GET | `/company-profile` | Founder, Director, Viewer | Load company profile from PostgreSQL |
+| PUT | `/company-profile` | Founder, Director | Save company profile and write audit log |
 
-## Documents
+Viewer users can read the company profile but cannot edit it.
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/documents` | List document metadata |
-| POST | `/documents` | Founder upload multipart document |
-| GET | `/documents/{id}/download` | Download stored document |
+## Audit Logs
 
-## Operational Record Modules
+| Method | Path | Access | Purpose |
+| --- | --- | --- | --- |
+| GET | `/audit-logs` | Founder, Director | Return audit logs newest first |
 
-These modules share the same record shape: `title`, `status`, `ownerName`, `dueDate`, `category`, `referenceCode`, `amount`, `details`, `notes`.
+Profile edits create audit entries with module `COMPANY_PROFILE` and action `PROFILE_UPDATED`.
 
-| Module | Base Path |
-| --- | --- |
-| Board meetings | `/board-meetings` |
-| Financial records | `/financial-records` |
-| Compliance center | `/compliance-items` |
-| Tasks | `/tasks` |
-| Products portfolio | `/products` |
-| Contacts and partners | `/contacts` |
-| Settings | `/settings` |
-| Announcements | `/announcements` |
-| Notifications | `/notifications` |
-| Reports | `/reports` |
-| AI assistant data layer | `/ai/context` |
+## Database Tables
 
-Each base path supports:
+- `users`
+- `roles`
+- `user_roles`
+- `company_profile`
+- `audit_logs`
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `{base}` | List records |
-| GET | `{base}/{id}` | Read one record |
-| POST | `{base}` | Create record |
-| PUT | `{base}/{id}` | Update record |
-| DELETE | `{base}/{id}` | Archive record |
+## Data Rules
 
-Role rules:
-
-- Founder: create, update, archive, view.
-- Director: create, update, view operational records.
-- Viewer: view only.
-- Settings writes are founder-only.
-
-## Audit, Dashboard, Search
-
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/audit-logs` | Founder/Director read audit log entries |
-| GET | `/dashboard/summary` | Real record counts for workspace summary cards |
-| GET | `/search?q={term}` | Search company profile, documents, products, contacts, and tasks |
-
-## Empty Data Rule
-
-The backend does not seed fake financial, meeting, product, contact, or document records. Empty database tables produce empty arrays, and the Angular UI renders professional empty states.
+- No dummy company profile data is seeded.
+- The migration inserts only role names: `FOUNDER`, `DIRECTOR`, `VIEWER`.
+- The only user bootstrap is the optional founder account from environment variables.

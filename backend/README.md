@@ -1,6 +1,6 @@
 ﻿# Backend
 
-Spring Boot backend for KRAVIA Company OS.
+Spring Boot foundation backend for KRAVIA Company OS.
 
 ## Stack
 
@@ -12,6 +12,16 @@ Spring Boot backend for KRAVIA Company OS.
 - Flyway
 - Bean Validation
 - BCrypt password hashing
+- Global exception handling
+- Audit logging base
+
+## Tables
+
+- `users`
+- `roles`
+- `user_roles`
+- `company_profile`
+- `audit_logs`
 
 ## Environment
 
@@ -25,12 +35,11 @@ Required:
 Optional:
 
 - `PORT`
-- `KRAVIA_STORAGE_ROOT`
-- `KRAVIA_CORS_ALLOWED_ORIGINS`
+- `KRAVIA_ALLOWED_ORIGINS`
 - `KRAVIA_BOOTSTRAP_FOUNDER_EMAIL`
 - `KRAVIA_BOOTSTRAP_FOUNDER_PASSWORD`
 - `KRAVIA_BOOTSTRAP_FOUNDER_NAME`
-- `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM`
+- `KRAVIA_JWT_EXPIRATION_MINUTES`
 
 ## Run
 
@@ -38,4 +47,4 @@ Optional:
 mvn spring-boot:run
 ```
 
-The API is served under `/api` because `server.servlet.context-path` is set in `application.yml`.
+The API is served under `/api`.

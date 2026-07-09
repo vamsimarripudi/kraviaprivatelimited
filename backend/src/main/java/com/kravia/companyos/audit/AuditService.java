@@ -1,6 +1,5 @@
-package com.kravia.companyos.audit;
+﻿package com.kravia.companyos.audit;
 
-import com.kravia.companyos.common.ModuleType;
 import com.kravia.companyos.user.AppUser;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
@@ -12,12 +11,12 @@ public class AuditService {
     public AuditService(AuditLogRepository repository) { this.repository = repository; }
 
     @Transactional
-    public void record(AppUser actor, ModuleType module, String action, String description, String severity) {
+    public void record(AppUser actor, String module, String action, String description, String severity) {
         if (actor == null) return;
         AuditLog log = new AuditLog();
         log.setActorEmail(actor.getEmail());
         log.setActorName(actor.getDisplayName());
-        log.setActorRole(actor.getRole().name());
+        log.setActorRoles(actor.roleSummary());
         log.setModule(module);
         log.setAction(action);
         log.setDescription(description);

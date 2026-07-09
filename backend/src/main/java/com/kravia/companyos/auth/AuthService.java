@@ -1,8 +1,7 @@
-package com.kravia.companyos.auth;
+﻿package com.kravia.companyos.auth;
 
 import com.kravia.companyos.audit.AuditService;
 import com.kravia.companyos.common.ForbiddenOperationException;
-import com.kravia.companyos.common.ModuleType;
 import com.kravia.companyos.security.JwtService;
 import com.kravia.companyos.user.AppUser;
 import com.kravia.companyos.user.UserRepository;
@@ -29,7 +28,15 @@ public class AuthService {
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new ForbiddenOperationException("Invalid email or password.");
         }
-        auditService.record(user, ModuleType.SETTING, "LOGIN", "User logged in.", "INFO");
-        return new AuthResponse(jwtService.createToken(user), new AuthResponse.UserSession(user.getId(), user.getEmail(), user.getDisplayName(), user.getRole()));
+        auditService.record(user, "AUTH", "LOGIN", "User signed in.", "INFO");
+        return responseFor(user, jwtService.createToken(user));
+    }
+
+    public AuthResponse.UserSession currentUser(AppUser user) {
+        return new AuthResponse.UserSession(user.getId(), user.getEmail(), user.getDisplayName(), user.getRoleNames());
+    }
+
+    private AuthResponse responseFor(AppUser user, String token) {
+        return new AuthResponse(token, currentUser(user));
     }
 }

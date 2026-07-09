@@ -1,7 +1,8 @@
-package com.kravia.companyos.auth;
+﻿package com.kravia.companyos.auth;
 
 import com.kravia.companyos.user.AppUser;
 import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,8 +20,9 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request) { return authService.login(request); }
 
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout() { return ResponseEntity.noContent().build(); }
+
     @GetMapping("/me")
-    public AuthResponse.UserSession me(@AuthenticationPrincipal AppUser user) {
-        return new AuthResponse.UserSession(user.getId(), user.getEmail(), user.getDisplayName(), user.getRole());
-    }
+    public AuthResponse.UserSession me(@AuthenticationPrincipal AppUser user) { return authService.currentUser(user); }
 }

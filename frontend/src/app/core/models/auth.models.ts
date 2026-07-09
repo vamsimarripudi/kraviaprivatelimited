@@ -4,11 +4,7 @@ export interface UserSession {
   id: string;
   email: string;
   displayName: string;
-  role: Role;
-}
-
-export interface UserAccount extends UserSession {
-  enabled: boolean;
+  roles: Role[];
 }
 
 export interface AuthResponse {

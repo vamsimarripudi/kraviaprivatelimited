@@ -1,6 +1,6 @@
 ﻿# Frontend
 
-Angular frontend for KRAVIA Company OS.
+Angular foundation frontend for KRAVIA Company OS.
 
 ## Stack
 
@@ -10,7 +10,11 @@ Angular frontend for KRAVIA Company OS.
 - Reactive Forms
 - Angular Signals
 - Functional HTTP interceptors
-- Custom enterprise UI components
+- Auth guard
+- Role guard
+- Enterprise shell with sidebar and top bar
+- Dark/light mode
+- Empty, loading, and error state components
 
 ## Run
 
@@ -19,10 +23,16 @@ npm install
 npm start
 ```
 
-The Angular dev server uses `proxy.conf.json` to send `/api` requests to `http://localhost:8080`.
+The dev server proxies `/api` to `http://localhost:8080` through `proxy.conf.json`.
 
-## Roles
+## Pages
 
-- Founder: full access, user management, settings, document upload, archive actions.
-- Director: create/edit/view operational records, view documents and audit logs.
-- Viewer: read-only workspace access.
+- Login
+- Company Profile
+- Audit Logs
+
+## Role Behavior
+
+- Founder: can view and edit company profile; can view audit logs.
+- Director: can view and edit company profile; can view audit logs.
+- Viewer: can view company profile only.

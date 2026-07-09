@@ -15,24 +15,10 @@ export class ShellComponent {
   private readonly auth = inject(AuthService);
   readonly dark = signal(false);
   readonly user = this.auth.user;
+  readonly roles = this.auth.roles;
   readonly navItems: NavItem[] = [
-    { label: 'Dashboard', path: '/' },
     { label: 'Company Profile', path: '/company-profile' },
-    { label: 'Documents', path: '/documents' },
-    { label: 'Board Meetings', path: '/board-meetings' },
-    { label: 'Finance', path: '/finance' },
-    { label: 'Compliance', path: '/compliance' },
-    { label: 'Tasks', path: '/tasks' },
-    { label: 'Products', path: '/products' },
-    { label: 'Contacts', path: '/contacts' },
-    { label: 'Audit', path: '/audit', roles: ['FOUNDER', 'DIRECTOR'] },
-    { label: 'Users', path: '/users', roles: ['FOUNDER'] },
-    { label: 'Settings', path: '/settings', roles: ['FOUNDER', 'DIRECTOR'] },
-    { label: 'Announcements', path: '/announcements' },
-    { label: 'Notifications', path: '/notifications' },
-    { label: 'Reports', path: '/reports' },
-    { label: 'Search', path: '/search' },
-    { label: 'AI Assistant', path: '/ai-assistant' }
+    { label: 'Audit Logs', path: '/audit-logs', roles: ['FOUNDER', 'DIRECTOR'] }
   ];
   readonly visibleNav = computed(() => this.navItems.filter((item) => !item.roles || this.auth.hasAnyRole(item.roles)));
 
@@ -44,5 +30,3 @@ export class ShellComponent {
   print(): void { window.print(); }
   logout(): void { this.auth.logout(); }
 }
-
-

@@ -1,4 +1,4 @@
-package com.kravia.companyos.security;
+﻿package com.kravia.companyos.security;
 
 import com.kravia.companyos.user.AppUser;
 import com.kravia.companyos.user.UserRepository;
@@ -8,7 +8,6 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.List;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -33,8 +32,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String email = jwtService.parse(header.substring(7)).getSubject();
                 AppUser user = users.findByEmailIgnoreCase(email).filter(AppUser::isEnabled).orElse(null);
                 if (user != null) {
-                    var auth = new UsernamePasswordAuthenticationToken(user, null, List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())));
-                    SecurityContextHolder.getContext().setAuthentication(auth);
+                    var authorities = user.getRoleNames().stream()
+                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role.name()))
+                        .toList();
+                    var authentication = new UsernamePasswordAuthenticationToken(user, null, authorities);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             } catch (JwtException ignored) {
                 SecurityContextHolder.clearContext();

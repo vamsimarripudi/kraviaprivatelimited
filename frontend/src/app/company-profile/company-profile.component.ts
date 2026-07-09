@@ -4,13 +4,15 @@ import { ApiService } from '../core/http/api.service';
 import { AuthService } from '../core/auth/auth.service';
 import { CompanyProfile } from '../core/models/api.models';
 import { EmptyStateComponent } from '../shared/empty-state/empty-state.component';
+import { LoadingStateComponent } from '../shared/loading-state/loading-state.component';
+import { ErrorStateComponent } from '../shared/error-state/error-state.component';
 
 type ProfileFormKey = Exclude<keyof CompanyProfile, 'id'>;
 
 @Component({
   selector: 'kravia-company-profile',
   standalone: true,
-  imports: [ReactiveFormsModule, EmptyStateComponent],
+  imports: [ReactiveFormsModule, EmptyStateComponent, LoadingStateComponent, ErrorStateComponent],
   templateUrl: './company-profile.component.html'
 })
 export class CompanyProfileComponent {
@@ -123,3 +125,4 @@ export class CompanyProfileComponent {
     };
   }
 }
+

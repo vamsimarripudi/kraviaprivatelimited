@@ -1,4 +1,4 @@
-package com.kravia.companyos.security;
+﻿package com.kravia.companyos.security;
 
 import com.kravia.companyos.user.AppUser;
 import io.jsonwebtoken.Claims;
@@ -27,7 +27,7 @@ public class JwtService {
             .subject(user.getEmail())
             .claim("uid", user.getId().toString())
             .claim("name", user.getDisplayName())
-            .claim("role", user.getRole().name())
+            .claim("roles", user.getRoleNames().stream().map(Enum::name).sorted().toList())
             .issuedAt(Date.from(now))
             .expiration(Date.from(now.plusSeconds(expirationMinutes * 60)))
             .signWith(key)

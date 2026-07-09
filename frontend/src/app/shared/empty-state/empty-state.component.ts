@@ -1,9 +1,9 @@
-import { Component, input } from '@angular/core';
+﻿import { Component, input } from '@angular/core';
 
 @Component({
   selector: 'kravia-empty-state',
   standalone: true,
-  template: '<div class="empty-block"><p>{{ label() }}</p><strong>{{ message() }}</strong></div>'
+  template: '<div class="state-panel empty-state"><p>{{ label() }}</p><strong>{{ message() }}</strong></div>'
 })
 export class EmptyStateComponent {
   label = input.required<string>();

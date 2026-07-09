@@ -1,33 +1,24 @@
-<header class="portal-header">
+﻿<header class="top-bar">
   <div>
-    <p class="overline">Secure Internal Workspace</p>
+    <p class="overline">KRAVIA Company OS</p>
     <h1>KRAVIA PRIVATE LIMITED</h1>
-    <p>Building the next generation of software products.</p>
   </div>
-  <dl>
-    <div><dt>Signed in</dt><dd>{{ user()?.displayName }}</dd></div>
-    <div><dt>Role</dt><dd>{{ user()?.role }}</dd></div>
-  </dl>
-</header>
-
-<section class="control-bar">
-  <nav class="workspace-tabs" aria-label="Workspace sections">
-    @for (item of visibleNav(); track item.path) {
-      <a [routerLink]="item.path" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: item.path === '/' }">{{ item.label }}</a>
-    }
-  </nav>
-  <div class="action-group">
-    <button class="icon-button" type="button" (click)="print()">Print</button>
+  <div class="top-bar-actions">
+    <dl>
+      <div><dt>User</dt><dd>{{ user()?.displayName }}</dd></div>
+      <div><dt>Roles</dt><dd>{{ roles().join(', ') }}</dd></div>
+    </dl>
     <button class="icon-button" type="button" (click)="toggleTheme()">{{ dark() ? 'Light' : 'Dark' }}</button>
+    <button class="icon-button" type="button" (click)="print()">Print</button>
     <button class="icon-button" type="button" (click)="logout()">Logout</button>
   </div>
-</section>
+</header>
 
-<div class="content-layout">
-  <aside class="section-sidebar">
+<div class="workspace-layout">
+  <aside class="sidebar" aria-label="Workspace navigation">
     <nav>
       @for (item of visibleNav(); track item.path) {
-        <a [routerLink]="item.path" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: item.path === '/' }">{{ item.label }}</a>
+        <a [routerLink]="item.path" routerLinkActive="is-active">{{ item.label }}</a>
       }
     </nav>
   </aside>

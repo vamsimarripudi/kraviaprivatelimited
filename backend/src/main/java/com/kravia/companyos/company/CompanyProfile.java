@@ -7,7 +7,7 @@ import jakarta.persistence.Table;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "company_profiles")
+@Table(name = "company_profile")
 public class CompanyProfile extends BaseEntity {
     private String companyName;
     private String cin;
@@ -56,4 +56,3 @@ public class CompanyProfile extends BaseEntity {
     public LocalDate getLastUpdatedDate() { return lastUpdatedDate; }
     public void setLastUpdatedDate(LocalDate lastUpdatedDate) { this.lastUpdatedDate = lastUpdatedDate; }
 }
-

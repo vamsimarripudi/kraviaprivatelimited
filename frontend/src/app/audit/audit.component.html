@@ -1,25 +1,26 @@
 ﻿<section class="portal-section">
   <div class="section-heading">
     <div>
-      <p class="overline">Audit Logs</p>
-      <h2>Important System Actions</h2>
-      <p>Security-relevant and operational actions are recorded by the backend.</p>
+      <p class="overline">Audit Log Base</p>
+      <h2>Profile Edit History</h2>
+      <p>Backend-recorded audit entries for important Company OS actions.</p>
     </div>
   </div>
 
   @if (loading()) {
-    <div class="panel muted-panel">Loading audit logs...</div>
+    <kravia-loading-state message="Loading audit logs..." />
   } @else if (logs().length === 0) {
     <kravia-empty-state label="Audit Logs" message="No audit logs have been added yet." />
   } @else {
     <div class="panel table-scroll">
       <table>
-        <thead><tr><th>Time</th><th>Actor</th><th>Module</th><th>Action</th><th>Severity</th><th>Description</th></tr></thead>
+        <thead><tr><th>Time</th><th>Actor</th><th>Roles</th><th>Module</th><th>Action</th><th>Severity</th><th>Description</th></tr></thead>
         <tbody>
           @for (log of logs(); track log.id) {
             <tr>
               <td>{{ log.createdAt }}</td>
               <td>{{ log.actorName || log.actorEmail }}</td>
+              <td>{{ log.actorRoles }}</td>
               <td>{{ log.module }}</td>
               <td>{{ log.action }}</td>
               <td><span class="status-badge">{{ log.severity }}</span></td>
@@ -31,5 +32,5 @@
     </div>
   }
 
-  @if (error()) { <p class="form-error">{{ error() }}</p> }
+  @if (error()) { <kravia-error-state [message]="error()" /> }
 </section>
