@@ -1,0 +1,189 @@
+<section class="workspace-page workflow-engine-page">
+  <div class="page-heading">
+    <div>
+      <p class="overline">Workflow Automation</p>
+      <h1>Enterprise Workflow Engine</h1>
+      <p>Centralized templates, approvals, automations, schedules, execution status, and workflow audit visibility.</p>
+    </div>
+    <button class="secondary-button" type="button" (click)="load()">Refresh</button>
+  </div>
+
+  <div class="finance-erp-tabs">
+    @for (tab of tabs; track tab.key) {
+      <button type="button" [class.active]="activeTab() === tab.key" (click)="activeTab.set(tab.key)">{{ tab.label }}</button>
+    }
+  </div>
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading workflow engine records..." />
+  } @else {
+    @if (activeTab() === 'monitor') {
+      @if (summary(); as data) {
+        @if (data.emptyStates.length) {
+          <kravia-empty-state label="Workflow Engine" [message]="data.emptyStates[0]" />
+        }
+        <div class="report-metric-grid">
+          @for (metric of data.metrics; track metric.label) {
+            <article class="report-metric" [class.positive]="metric.tone === 'positive'" [class.warning]="metric.tone === 'warning'" [class.critical]="metric.tone === 'negative'">
+              <span>{{ metric.label }}</span>
+              <strong>{{ metric.value }}</strong>
+            </article>
+          }
+          <article class="report-metric"><span>Templates</span><strong>{{ data.templates }}</strong></article>
+          <article class="report-metric"><span>Active Rules</span><strong>{{ data.activeRules }}</strong></article>
+          <article class="report-metric"><span>Scheduled Jobs</span><strong>{{ data.activeScheduledJobs }}</strong></article>
+          <article class="report-metric"><span>Average Completion</span><strong>{{ data.averageCompletionTime }}</strong></article>
+        </div>
+      }
+    }
+
+    @if (activeTab() === 'templates') {
+      @if (canAdmin()) {
+        <form class="panel enterprise-form" [formGroup]="templateForm" (ngSubmit)="saveTemplate()">
+          <div class="compact-form-grid">
+            <label>Template name<input formControlName="templateName" /></label>
+            <label>Workflow type<select formControlName="workflowType">@for (type of workflowTypes; track type) { <option [value]="type">{{ label(type) }}</option> }</select></label>
+            <label>Status<select formControlName="status"><option value="DRAFT">Draft</option><option value="ACTIVE">Active</option><option value="PAUSED">Paused</option></select></label>
+            <label>Trigger<select formControlName="triggerType"><option value="MANUAL">Manual</option><option value="RECORD_CREATED">Record created</option><option value="RECORD_UPDATED">Record updated</option><option value="STATUS_CHANGED">Status changed</option><option value="SCHEDULED">Scheduled</option><option value="DATE_BASED">Date based</option></select></label>
+            <label>Trigger module<input formControlName="triggerModule" /></label>
+            <label>Description<input formControlName="description" /></label>
+          </div>
+          <label>Conditions summary<textarea formControlName="conditionsSummary"></textarea></label>
+          <label>Completion rules<textarea formControlName="completionRules"></textarea></label>
+          <button class="primary-button" type="submit" [disabled]="saving()">Create Template</button>
+        </form>
+
+        <form class="panel enterprise-form" [formGroup]="stepForm" (ngSubmit)="addStep()">
+          <div class="compact-form-grid">
+            <label>Template<select formControlName="templateId"><option value="">Select template</option>@for (template of templates(); track template.id) { <option [value]="template.id">{{ template.templateName }}</option> }</select></label>
+            <label>Step order<input type="number" formControlName="stepOrder" /></label>
+            <label>Step name<input formControlName="stepName" /></label>
+            <label>Step type<select formControlName="stepType"><option value="APPROVAL">Approval</option><option value="REVIEW">Review</option><option value="TASK">Task</option><option value="NOTIFICATION">Notification</option><option value="AUTOMATION">Automation</option><option value="CONDITION">Condition</option><option value="DOCUMENT">Document</option><option value="WAIT">Wait</option></select></label>
+            <label>Approval mode<select formControlName="approvalMode"><option [ngValue]="null">None</option><option value="SINGLE">Single</option><option value="SEQUENTIAL">Sequential</option><option value="PARALLEL">Parallel</option><option value="MULTI_LEVEL">Multi-level</option><option value="QUORUM">Quorum</option><option value="CONDITIONAL">Conditional</option></select></label>
+            <label>Approver role<input formControlName="approverRole" /></label>
+            <label>Approver user<input formControlName="approverUser" /></label>
+            <label>Escalation hours<input type="number" formControlName="escalationAfterHours" /></label>
+          </div>
+          <label>Conditions<textarea formControlName="conditionsSummary"></textarea></label>
+          <label>Completion rule<textarea formControlName="completionRule"></textarea></label>
+          <button class="secondary-button" type="submit" [disabled]="saving()">Add Step</button>
+        </form>
+      }
+
+      <div class="panel table-scroll">
+        @if (templates().length === 0) {
+          <kravia-empty-state label="Workflow Designer" message="No workflow templates have been added yet." />
+        } @else {
+          <table>
+            <thead><tr><th>Template</th><th>Trigger</th><th>Steps</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>
+              @for (template of templates(); track template.id) {
+                <tr>
+                  <td>{{ template.templateName }}<small>{{ label(template.workflowType) }}</small></td>
+                  <td>{{ label(template.triggerType) }}<small>{{ template.triggerModule || 'No trigger module' }}</small></td>
+                  <td>{{ template.steps.length }}</td>
+                  <td><span class="status-badge">{{ label(template.status) }}</span></td>
+                  <td>@if (canAdmin() && template.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archiveTemplate(template.id)">Archive</button> }</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+    }
+
+    @if (activeTab() === 'instances') {
+      @if (canRun()) {
+        <form class="panel enterprise-form" [formGroup]="startForm" (ngSubmit)="startWorkflow()">
+          <div class="compact-form-grid">
+            <label>Template<select formControlName="templateId"><option value="">No template</option>@for (template of templates(); track template.id) { <option [value]="template.id">{{ template.templateName }}</option> }</select></label>
+            <label>Workflow type<select formControlName="workflowType">@for (type of workflowTypes; track type) { <option [value]="type">{{ label(type) }}</option> }</select></label>
+            <label>Title<input formControlName="title" /></label>
+            <label>Assignee<input formControlName="assignee" /></label>
+            <label>Related module<input formControlName="relatedModule" /></label>
+            <label>Related record ID<input formControlName="relatedRecordId" /></label>
+          </div>
+          <label>Start note<textarea formControlName="note"></textarea></label>
+          <button class="primary-button" type="submit" [disabled]="saving()">Start Workflow</button>
+        </form>
+      }
+
+      <div class="panel table-scroll">
+        @if (instances().length === 0) {
+          <kravia-empty-state label="Workflow Execution" message="No workflow records have been added yet." />
+        } @else {
+          <table>
+            <thead><tr><th>Workflow</th><th>Assignee</th><th>Related</th><th>Steps</th><th>Status</th><th>Commands</th></tr></thead>
+            <tbody>
+              @for (instance of instances(); track instance.id) {
+                <tr>
+                  <td>{{ instance.title }}<small>{{ label(instance.workflowType) }}</small></td>
+                  <td>{{ instance.assignee || 'No information has been added yet.' }}</td>
+                  <td>{{ instance.relatedModule || 'No module' }}<small>{{ instance.relatedRecordId || '' }}</small></td>
+                  <td>{{ instance.steps.length }}</td>
+                  <td><span class="status-badge">{{ label(instance.state) }}</span></td>
+                  <td>@if (canRun()) { @for (command of commands; track command) { <button class="secondary-button" type="button" (click)="executeCommand(instance, command)">{{ label(command) }}</button> } }</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+    }
+
+    @if (activeTab() === 'rules') {
+      @if (canAdmin()) {
+        <form class="panel enterprise-form" [formGroup]="ruleForm" (ngSubmit)="saveRule()">
+          <div class="compact-form-grid">
+            <label>Rule name<input formControlName="ruleName" /></label>
+            <label>Trigger module<input formControlName="triggerModule" /></label>
+            <label>Trigger event<input formControlName="triggerEvent" /></label>
+            <label>Status<select formControlName="status"><option value="DRAFT">Draft</option><option value="ACTIVE">Active</option><option value="PAUSED">Paused</option></select></label>
+          </div>
+          <label>Condition summary<textarea formControlName="conditionSummary"></textarea></label>
+          <label>Action summary<textarea formControlName="actionSummary"></textarea></label>
+          <button class="primary-button" type="submit" [disabled]="saving()">Create Rule</button>
+        </form>
+      }
+      <div class="panel table-scroll">@if (rules().length === 0) { <kravia-empty-state label="Business Rules" message="No workflow rules have been added yet." /> } @else { <table><thead><tr><th>Rule</th><th>Trigger</th><th>Action</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (rule of rules(); track rule.id) { <tr><td>{{ rule.ruleName }}<small>{{ rule.conditionSummary || 'No condition summary' }}</small></td><td>{{ rule.triggerModule }}<small>{{ rule.triggerEvent }}</small></td><td>{{ rule.actionSummary || 'No action summary' }}</td><td><span class="status-badge">{{ label(rule.status) }}</span></td><td>@if (canAdmin() && rule.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archiveRule(rule.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'scheduler') {
+      @if (canAdmin()) {
+        <form class="panel enterprise-form" [formGroup]="jobForm" (ngSubmit)="saveJob()">
+          <div class="compact-form-grid">
+            <label>Job name<input formControlName="jobName" /></label>
+            <label>Job key<input formControlName="jobKey" /></label>
+            <label>Frequency<select formControlName="frequency"><option value="DAILY">Daily</option><option value="WEEKLY">Weekly</option><option value="MONTHLY">Monthly</option><option value="QUARTERLY">Quarterly</option><option value="ANNUALLY">Annually</option><option value="CRON">Cron</option></select></label>
+            <label>Cron expression<input formControlName="cronExpression" /></label>
+            <label>Next run<input type="datetime-local" formControlName="nextRunAt" /></label>
+            <label>Status<select formControlName="status"><option value="ACTIVE">Active</option><option value="PAUSED">Paused</option><option value="FAILED">Failed</option></select></label>
+          </div>
+          <label>Action summary<textarea formControlName="actionSummary"></textarea></label>
+          <button class="primary-button" type="submit" [disabled]="saving()">Create Scheduled Job</button>
+        </form>
+      }
+      <div class="panel table-scroll">@if (jobs().length === 0) { <kravia-empty-state label="Scheduler" message="No scheduled workflow jobs have been added yet." /> } @else { <table><thead><tr><th>Job</th><th>Frequency</th><th>Next Run</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (job of jobs(); track job.id) { <tr><td>{{ job.jobName }}<small>{{ job.jobKey }}</small></td><td>{{ label(job.frequency) }}<small>{{ job.cronExpression || '' }}</small></td><td>{{ job.nextRunAt || 'No information has been added yet.' }}</td><td><span class="status-badge">{{ label(job.status) }}</span></td><td>@if (canAdmin() && job.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archiveJob(job.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'reports') {
+      <div class="panel form-actions">
+        @for (type of reportTypes; track type) {
+          <button class="secondary-button" type="button" (click)="generateReport(type)">{{ label(type) }}</button>
+        }
+      </div>
+      @if (report(); as item) {
+        <div class="panel report-preview">
+          <div class="report-header"><div><p class="overline">Workflow Report</p><h3>{{ label(item.reportType) }}</h3><p>Generated {{ item.generatedAt }}</p></div></div>
+          <div class="report-metric-grid">@for (metric of item.metrics; track metric.label) { <article class="report-metric" [class.positive]="metric.tone === 'positive'" [class.warning]="metric.tone === 'warning'" [class.critical]="metric.tone === 'negative'"><span>{{ metric.label }}</span><strong>{{ metric.value }}</strong></article> }</div>
+          @if (item.notes.length) { <ul class="report-notes">@for (note of item.notes; track note) { <li>{{ note }}</li> }</ul> }
+        </div>
+      } @else {
+        <kravia-empty-state label="Workflow Reports" message="No workflow report has been generated yet." />
+      }
+    }
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>

@@ -1082,3 +1082,38 @@ export interface AnalyticsDataset { title: string; metrics: AnalyticsMetric[]; t
 export interface AnalyticsDashboard { module: AnalyticsModule; generatedAt: string; from?: string; to?: string; kpis: AnalyticsMetric[]; sections: AnalyticsDataset[]; risks: AnalyticsRiskIndicator[]; emptyStates: string[]; }
 export interface AnalyticsExportRequest { module: AnalyticsModule; format: AnalyticsExportFormat; from?: string; to?: string; }
 export interface AnalyticsExportResponse { module: AnalyticsModule; format: AnalyticsExportFormat; requestedAt: string; status: string; message: string; }
+export type WorkflowEngineType = 'BOARD_MEETING_APPROVAL' | 'DOCUMENT_REVIEW' | 'COMPLIANCE_SUBMISSION' | 'TASK_ASSIGNMENT' | 'PRODUCT_RELEASE_APPROVAL' | 'PURCHASE_APPROVAL' | 'VENDOR_ONBOARDING' | 'EXPENSE_APPROVAL' | 'CONTRACT_REVIEW' | 'COMPLIANCE_FILING' | 'LEAVE_APPROVAL' | 'RECRUITMENT_APPROVAL' | 'CUSTOMER_ONBOARDING' | 'GENERAL';
+export type WorkflowEngineState = 'DRAFT' | 'ASSIGNED' | 'RUNNING' | 'IN_REVIEW' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'PAUSED' | 'ESCALATED' | 'FAILED' | 'CANCELLED' | 'COMPLETED' | 'ARCHIVED';
+export type WorkflowTemplateStatus = 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'ARCHIVED';
+export type WorkflowTriggerType = 'MANUAL' | 'RECORD_CREATED' | 'RECORD_UPDATED' | 'STATUS_CHANGED' | 'SCHEDULED' | 'DATE_BASED';
+export type WorkflowStepType = 'APPROVAL' | 'REVIEW' | 'TASK' | 'NOTIFICATION' | 'AUTOMATION' | 'CONDITION' | 'DOCUMENT' | 'WAIT';
+export type WorkflowApprovalMode = 'SINGLE' | 'SEQUENTIAL' | 'PARALLEL' | 'MULTI_LEVEL' | 'QUORUM' | 'CONDITIONAL';
+export type WorkflowStepStatus = 'PENDING' | 'IN_PROGRESS' | 'APPROVED' | 'REJECTED' | 'COMPLETED' | 'SKIPPED' | 'FAILED' | 'ESCALATED';
+export type WorkflowActionType = 'CREATE_TASK' | 'SEND_NOTIFICATION' | 'SEND_EMAIL' | 'CREATE_APPROVAL' | 'GENERATE_DOCUMENT' | 'UPDATE_STATUS' | 'CREATE_AUDIT_LOG' | 'SCHEDULE_REMINDER' | 'LINK_RECORDS';
+export type WorkflowActionStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+export type WorkflowRuleStatus = 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'ARCHIVED';
+export type ScheduledJobFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'ANNUALLY' | 'CRON';
+export type ScheduledJobStatus = 'ACTIVE' | 'PAUSED' | 'FAILED' | 'ARCHIVED';
+export type WorkflowExecutionCommand = 'START' | 'PAUSE' | 'RESUME' | 'CANCEL' | 'COMPLETE' | 'RESTART' | 'FAIL' | 'ESCALATE';
+export type WorkflowReportType = 'WORKFLOW_PERFORMANCE' | 'APPROVAL' | 'AUTOMATION' | 'SLA' | 'ESCALATION' | 'WORKFLOW_AUDIT';
+export interface WorkflowMetric { label: string; value: string; tone: string; }
+export interface WorkflowEngineSummary { templates: number; activeTemplates: number; runningWorkflows: number; pausedWorkflows: number; completedWorkflows: number; failedWorkflows: number; escalatedWorkflows: number; pendingActions: number; activeRules: number; activeScheduledJobs: number; averageCompletionTime: string; metrics: WorkflowMetric[]; emptyStates: string[]; }
+export interface WorkflowConditionRecord { id: string; templateId?: string; ruleId?: string; fieldName: string; operator: string; expectedValue?: string; description?: string; }
+export interface WorkflowTemplateStepRecord { id: string; templateId: string; stepOrder: number; stepName: string; stepType: WorkflowStepType; approvalMode?: WorkflowApprovalMode; approverRole?: string; approverUser?: string; actionType?: WorkflowActionType; notificationAudience?: string; escalationAfterHours?: number; conditionsSummary?: string; completionRule?: string; requiredStep: boolean; }
+export interface WorkflowTemplateRecord { id: string; templateName: string; workflowType: WorkflowEngineType; description?: string; status: WorkflowTemplateStatus; triggerType: WorkflowTriggerType; triggerModule?: string; conditionsSummary?: string; completionRules?: string; createdBy: string; createdAt: string; updatedAt: string; steps: WorkflowTemplateStepRecord[]; conditions: WorkflowConditionRecord[]; }
+export interface WorkflowTemplatePayload { templateName: string; workflowType: WorkflowEngineType; description?: string; status: WorkflowTemplateStatus; triggerType: WorkflowTriggerType; triggerModule?: string; conditionsSummary?: string; completionRules?: string; }
+export interface WorkflowStepPayload { stepOrder: number; stepName: string; stepType: WorkflowStepType; approvalMode?: WorkflowApprovalMode; approverRole?: string; approverUser?: string; actionType?: WorkflowActionType; notificationAudience?: string; escalationAfterHours?: number; conditionsSummary?: string; completionRule?: string; requiredStep?: boolean; }
+export interface WorkflowInstanceStepRecord { id: string; workflowInstanceId: string; templateStepId?: string; stepOrder: number; stepName: string; stepType: WorkflowStepType; approvalMode?: WorkflowApprovalMode; approver?: string; status: WorkflowStepStatus; startedAt?: string; completedAt?: string; note?: string; }
+export interface WorkflowActionRecord { id: string; templateId?: string; workflowInstanceId?: string; instanceStepId?: string; actionType: WorkflowActionType; actionName: string; payload?: string; status: WorkflowActionStatus; executedAt?: string; createdBy: string; createdAt: string; updatedAt: string; }
+export interface WorkflowNotificationEngineRecord { id: string; workflowInstanceId?: string; title: string; message: string; recipient?: string; status: string; sentAt?: string; createdAt: string; }
+export interface WorkflowHistoryEngineRecord { id: string; actor: string; fromState?: string; toState: string; note?: string; createdAt: string; }
+export interface WorkflowInstanceRecord { id: string; workflowType: WorkflowEngineType; title: string; state: WorkflowEngineState; assignee?: string; relatedModule?: string; relatedRecordId?: string; createdBy: string; createdAt: string; updatedAt: string; steps: WorkflowInstanceStepRecord[]; actions: WorkflowActionRecord[]; notifications: WorkflowNotificationEngineRecord[]; history: WorkflowHistoryEngineRecord[]; }
+export interface WorkflowStartPayload { templateId?: string; workflowType: WorkflowEngineType; title: string; assignee?: string; relatedModule?: string; relatedRecordId?: string; note?: string; }
+export interface WorkflowCommandPayload { command: WorkflowExecutionCommand; note?: string; }
+export interface WorkflowInstanceStepPayload { status: WorkflowStepStatus; note?: string; }
+export interface WorkflowActionPayload { templateId?: string; workflowInstanceId?: string; instanceStepId?: string; actionType: WorkflowActionType; actionName: string; payload?: string; status?: WorkflowActionStatus; }
+export interface WorkflowRuleRecord { id: string; ruleName: string; triggerModule: string; triggerEvent: string; conditionSummary?: string; actionSummary?: string; status: WorkflowRuleStatus; createdBy: string; createdAt: string; updatedAt: string; conditions: WorkflowConditionRecord[]; }
+export interface WorkflowRulePayload { ruleName: string; triggerModule: string; triggerEvent: string; conditionSummary?: string; actionSummary?: string; status: WorkflowRuleStatus; }
+export interface ScheduledJobRecord { id: string; jobName: string; jobKey: string; frequency: ScheduledJobFrequency; cronExpression?: string; nextRunAt?: string; lastRunAt?: string; status: ScheduledJobStatus; actionSummary?: string; createdBy: string; createdAt: string; updatedAt: string; }
+export interface ScheduledJobPayload { jobName: string; jobKey: string; frequency: ScheduledJobFrequency; cronExpression?: string; nextRunAt?: string; status: ScheduledJobStatus; actionSummary?: string; }
+export interface WorkflowReportRecord { reportType: WorkflowReportType; generatedAt: string; metrics: WorkflowMetric[]; notes: string[]; }
