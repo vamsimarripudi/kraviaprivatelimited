@@ -439,3 +439,112 @@ tr.is-selected td { background: var(--surface-muted); }
   .meeting-detail { position: static; }
   .meeting-sections details { break-inside: avoid; }
 }
+
+.finance-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.finance-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 18px;
+}
+
+.finance-card span,
+.calculation-strip span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.finance-card strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--text);
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.finance-card.positive strong,
+.positive-text {
+  color: var(--success) !important;
+}
+
+.finance-card.negative strong,
+.negative-text {
+  color: var(--error) !important;
+}
+
+.calculation-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.calculation-strip div {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-muted);
+  padding: 14px;
+}
+
+.calculation-strip strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 18px;
+}
+
+.finance-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+  gap: 18px;
+  align-items: start;
+}
+
+.finance-detail {
+  position: sticky;
+  top: 128px;
+  display: grid;
+  gap: 18px;
+}
+
+.finance-notes {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.finance-notes summary {
+  cursor: pointer;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.finance-notes p {
+  margin: 12px 0 0;
+  color: var(--secondary);
+  white-space: pre-wrap;
+}
+
+@media (max-width: 980px) {
+  .finance-layout { grid-template-columns: 1fr; }
+  .finance-detail { position: static; }
+}
+
+@media (max-width: 720px) {
+  .calculation-strip { grid-template-columns: 1fr; }
+}
+
+@media print {
+  .finance-layout { display: block; }
+  .finance-detail { position: static; }
+  .finance-summary-grid,
+  .finance-notes,
+  .metadata-list { break-inside: avoid; }
+}

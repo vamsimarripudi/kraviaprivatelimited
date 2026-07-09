@@ -1,7 +1,7 @@
 import { HttpClient, HttpEvent, HttpParams, HttpRequest, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { AuditLogRecord, BoardMeetingRecord, BoardMeetingRequest, CompanyProfile, DocumentCategory, DocumentMetadataRequest, DocumentRecord, DocumentStatus, MeetingActionItemRecord, MeetingActionItemRequest, MeetingStatus, MeetingType } from '../models/api.models';
+import { AuditLogRecord, BoardMeetingRecord, BoardMeetingRequest, CompanyProfile, DocumentCategory, DocumentMetadataRequest, DocumentRecord, DocumentStatus, FinancialRecord, FinancialRecordRequest, MeetingActionItemRecord, MeetingActionItemRequest, MeetingStatus, MeetingType } from '../models/api.models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -63,4 +63,24 @@ export class ApiService {
   updateMeetingActionItem(meetingId: string, actionItemId: string, payload: MeetingActionItemRequest): Observable<MeetingActionItemRecord> {
     return this.http.put<MeetingActionItemRecord>(`/api/board-meetings/${meetingId}/action-items/${actionItemId}`, payload);
   }
+
+  financialRecords(filters: { query?: string; reportingYear?: string; reportingMonth?: string }): Observable<FinancialRecord[]> {
+    let params = new HttpParams();
+    if (filters.query?.trim()) params = params.set('query', filters.query.trim());
+    if (filters.reportingYear) params = params.set('reportingYear', filters.reportingYear);
+    if (filters.reportingMonth) params = params.set('reportingMonth', filters.reportingMonth);
+    return this.http.get<FinancialRecord[]>('/api/financial-records', { params });
+  }
+
+  financialRecord(id: string): Observable<FinancialRecord> { return this.http.get<FinancialRecord>(`/api/financial-records/${id}`); }
+
+  createFinancialRecord(payload: FinancialRecordRequest): Observable<FinancialRecord> {
+    return this.http.post<FinancialRecord>('/api/financial-records', payload);
+  }
+
+  updateFinancialRecord(id: string, payload: FinancialRecordRequest): Observable<FinancialRecord> {
+    return this.http.put<FinancialRecord>(`/api/financial-records/${id}`, payload);
+  }
+
+  archiveFinancialRecord(id: string): Observable<void> { return this.http.delete<void>(`/api/financial-records/${id}`); }
 }

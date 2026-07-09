@@ -29,6 +29,7 @@ Spring Boot foundation backend for KRAVIA Company OS.
 - `meeting_decisions`
 - `meeting_resolutions`
 - `meeting_action_items`
+- `financial_records`
 - `audit_logs`
 
 ## Environment
@@ -53,6 +54,16 @@ Optional:
 - `KRAVIA_DOCUMENT_ALLOWED_CONTENT_TYPES`
 - `KRAVIA_DOCUMENT_MULTIPART_MAX_SIZE`
 - `KRAVIA_DOCUMENT_MULTIPART_MAX_REQUEST_SIZE`
+
+## Financial Records
+
+Financial records are stored in `financial_records`. The backend enforces Founder/Director write access, Founder-only archive access, and Viewer read-only access. Profit/loss and net GST position are calculated by the service on every create and update request.
+
+Financial actions write audit logs:
+
+- `FINANCIAL_RECORD_CREATED`
+- `FINANCIAL_RECORD_UPDATED`
+- `FINANCIAL_RECORD_ARCHIVED`
 
 ## Board Meetings
 

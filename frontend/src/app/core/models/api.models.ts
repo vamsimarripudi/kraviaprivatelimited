@@ -117,6 +117,48 @@ export interface BoardMeetingRequest {
   actionItems?: MeetingActionItemRequest[];
 }
 
+
+export type FinancialRecordStatus = 'DRAFT' | 'FINAL' | 'ARCHIVED';
+
+export interface FinancialRecord {
+  id: string;
+  reportingMonth: string;
+  revenue: number;
+  expenses: number;
+  profitOrLoss: number;
+  cashBalance: number;
+  receivables: number;
+  payables: number;
+  gstCollected: number;
+  gstPaid: number;
+  netGstPosition: number;
+  cloudSubscriptions: number;
+  vendorPayments: number;
+  directorRemuneration: number;
+  founderNotes?: string;
+  status: FinancialRecordStatus;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  archivedAt?: string;
+}
+
+export interface FinancialRecordRequest {
+  reportingMonth: string;
+  revenue: number;
+  expenses: number;
+  cashBalance?: number;
+  receivables?: number;
+  payables?: number;
+  gstCollected: number;
+  gstPaid: number;
+  cloudSubscriptions?: number;
+  vendorPayments?: number;
+  directorRemuneration?: number;
+  founderNotes?: string;
+  status: FinancialRecordStatus;
+}
+
 export interface AuditLogRecord {
   id: string;
   actorEmail: string;

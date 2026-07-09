@@ -67,14 +67,23 @@ Frontend runs at `http://localhost:4200` and proxies `/api` to Spring Boot.
 4. Save profile data.
 5. Open Documents to upload, search, filter, view metadata, download, or archive documents according to role.
 6. Open Board Meetings to create, search, filter, edit, archive, and manage action items according to role.
-7. Open Audit Logs to confirm profile, document, and meeting actions were recorded.
+7. Open Finance to create, search, filter, edit, archive, and review monthly financial records according to role.
+8. Open Audit Logs to confirm profile, document, meeting, and finance actions were recorded.
 
 ## Role Checks
 
-- Founder can view and edit company profile, upload/download/edit/archive documents, create/edit/archive board meetings, and view audit logs.
-- Director can view and edit company profile, upload/download/edit documents, create/edit board meetings, and view audit logs.
-- Viewer can view company profile, view/download documents, and read board meetings only.
+- Founder can view and edit company profile, upload/download/edit/archive documents, create/edit/archive board meetings, create/edit/archive financial records, and view audit logs.
+- Director can view and edit company profile, upload/download/edit documents, create/edit board meetings, create/edit financial records, and view audit logs.
+- Viewer can view company profile, view/download documents, read board meetings, and read financial records only.
 - Audit Logs route is visible only to Founder and Director.
+
+## Financial Records Checks
+
+- Financial create/update rejects missing reporting month, revenue, expenses, GST collected, GST paid, or status.
+- Currency values must be non-negative numbers with no more than 2 decimal places.
+- Zero values are valid.
+- Profit/loss and net GST position are calculated by the backend.
+- Financial APIs are protected by backend role checks; Viewer users are read-only.
 
 ## Document Vault Checks
 

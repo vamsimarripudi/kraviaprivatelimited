@@ -169,6 +169,43 @@ Action item create/update requests include:
 - `dueDate` required unless status is `DONE`
 - `status` required: `TODO`, `IN_PROGRESS`, `WAITING`, `DONE`, or `BLOCKED`
 
+
+## Financial Records
+
+| Method | Path | Access | Purpose |
+| --- | --- | --- | --- |
+| POST | `/financial-records` | Founder, Director | Create a monthly financial record |
+| GET | `/financial-records` | Founder, Director, Viewer | List financial records with optional search/year/month filters |
+| GET | `/financial-records/{id}` | Founder, Director, Viewer | View financial record details |
+| PUT | `/financial-records/{id}` | Founder, Director | Update a financial record |
+| DELETE | `/financial-records/{id}` | Founder | Archive a financial record |
+
+### Financial Filters
+
+- `query`: searches reporting month, founder notes, and creator.
+- `reportingYear`: four-digit year.
+- `reportingMonth`: month number from `1` to `12`; single-digit values are normalized by the backend.
+
+### Financial Payload Fields
+
+Financial record create/update requests include:
+
+- `reportingMonth` required, `YYYY-MM`
+- `revenue` required, non-negative currency value
+- `expenses` required, non-negative currency value
+- `cashBalance` optional, non-negative currency value
+- `receivables` optional, non-negative currency value
+- `payables` optional, non-negative currency value
+- `gstCollected` required, non-negative currency value
+- `gstPaid` required, non-negative currency value
+- `cloudSubscriptions` optional, non-negative currency value
+- `vendorPayments` optional, non-negative currency value
+- `directorRemuneration` optional, non-negative currency value
+- `founderNotes` optional
+- `status` required: `DRAFT`, `FINAL`, or `ARCHIVED`
+
+The backend calculates `profitOrLoss = revenue - expenses` and `netGstPosition = gstCollected - gstPaid` for every create and update request.
+
 ## Audit Logs
 
 | Method | Path | Access | Purpose |
@@ -178,6 +215,7 @@ Action item create/update requests include:
 Profile edits create audit entries with module `COMPANY_PROFILE` and action `PROFILE_UPDATED`.
 Document actions create audit entries with module `DOCUMENT_VAULT` and actions `DOCUMENT_UPLOADED`, `DOCUMENT_UPDATED`, `DOCUMENT_DOWNLOADED`, and `DOCUMENT_ARCHIVED`.
 Board meeting actions create audit entries with module `BOARD_MEETINGS` and actions `MEETING_CREATED`, `MEETING_UPDATED`, `MEETING_STATUS_CHANGED`, `MEETING_ARCHIVED`, `MEETING_ACTION_ITEM_CREATED`, `MEETING_ACTION_ITEM_UPDATED`, and `MEETING_ACTION_STATUS_CHANGED`.
+Financial record actions create audit entries with module `FINANCIAL_RECORDS` and actions `FINANCIAL_RECORD_CREATED`, `FINANCIAL_RECORD_UPDATED`, and `FINANCIAL_RECORD_ARCHIVED`.
 
 ## Database Tables
 
@@ -192,6 +230,7 @@ Board meeting actions create audit entries with module `BOARD_MEETINGS` and acti
 - `meeting_decisions`
 - `meeting_resolutions`
 - `meeting_action_items`
+- `financial_records`
 - `audit_logs`
 
 ## Data Rules
@@ -199,6 +238,7 @@ Board meeting actions create audit entries with module `BOARD_MEETINGS` and acti
 - No dummy company profile data is seeded.
 - No dummy document records or files are seeded.
 - No dummy board meeting records, discussions, decisions, resolutions, or action items are seeded.
+- No dummy financial records or metrics are seeded.
 - The migration inserts only role names: `FOUNDER`, `DIRECTOR`, `VIEWER`.
 - The only user bootstrap is the optional founder account from environment variables.
 - Document files are stored in private local storage for development and downloaded only through protected APIs.

@@ -1,0 +1,240 @@
+<section class="portal-section">
+  <div class="section-heading">
+    <div>
+      <p class="overline">Financial Dashboard</p>
+      <h2>Monthly Financial Records</h2>
+      <p>Founder-level visibility into revenue, expenses, cash position, receivables, payables, and GST position.</p>
+    </div>
+  </div>
+
+  @if (latest(); as record) {
+    <div class="finance-summary-grid">
+      @for (card of summaryCards(record); track card.label) {
+        <article class="finance-card" [class.positive]="card.tone === 'positive'" [class.negative]="card.tone === 'negative'">
+          <span>{{ card.label }}</span>
+          <strong>{{ currency(card.value) }}</strong>
+        </article>
+      }
+    </div>
+  }
+
+  @if (canEdit()) {
+    <form class="panel enterprise-form" [formGroup]="form" (ngSubmit)="submit()">
+      <div class="section-subheading">
+        <div>
+          <p class="overline">{{ editingId() ? 'Edit' : 'Create' }}</p>
+          <h3>{{ editingId() ? 'Edit financial record' : 'Add monthly financial record' }}</h3>
+        </div>
+        @if (editingId()) {
+          <button class="secondary-button" type="button" (click)="cancelEdit()">Cancel edit</button>
+        }
+      </div>
+
+      <div class="form-grid">
+        <label>
+          Reporting month
+          <input type="month" formControlName="reportingMonth">
+        </label>
+        <label>
+          Status
+          <select formControlName="status">
+            @for (status of statuses; track status.value) {
+              @if (canArchive() || status.value !== 'ARCHIVED') {
+                <option [value]="status.value">{{ status.label }}</option>
+              }
+            }
+          </select>
+        </label>
+        <label>
+          Revenue
+          <input type="number" min="0" step="0.01" formControlName="revenue">
+        </label>
+        <label>
+          Expenses
+          <input type="number" min="0" step="0.01" formControlName="expenses">
+        </label>
+        <label>
+          Cash balance
+          <input type="number" min="0" step="0.01" formControlName="cashBalance">
+        </label>
+        <label>
+          Receivables
+          <input type="number" min="0" step="0.01" formControlName="receivables">
+        </label>
+        <label>
+          Payables
+          <input type="number" min="0" step="0.01" formControlName="payables">
+        </label>
+        <label>
+          GST collected
+          <input type="number" min="0" step="0.01" formControlName="gstCollected">
+        </label>
+        <label>
+          GST paid
+          <input type="number" min="0" step="0.01" formControlName="gstPaid">
+        </label>
+        <label>
+          Cloud/software subscriptions
+          <input type="number" min="0" step="0.01" formControlName="cloudSubscriptions">
+        </label>
+        <label>
+          Vendor payments
+          <input type="number" min="0" step="0.01" formControlName="vendorPayments">
+        </label>
+        <label>
+          Director remuneration
+          <input type="number" min="0" step="0.01" formControlName="directorRemuneration">
+        </label>
+        <label class="full-span">
+          Founder notes
+          <textarea formControlName="founderNotes"></textarea>
+        </label>
+      </div>
+
+      <div class="calculation-strip">
+        <div>
+          <span>Calculated profit / loss</span>
+          <strong [class.positive-text]="calculatedProfit() > 0" [class.negative-text]="calculatedProfit() < 0">{{ currency(calculatedProfit()) }}</strong>
+        </div>
+        <div>
+          <span>Calculated net GST position</span>
+          <strong [class.positive-text]="calculatedGst() > 0" [class.negative-text]="calculatedGst() < 0">{{ currency(calculatedGst()) }}</strong>
+        </div>
+      </div>
+
+      @if (form.controls.reportingMonth.invalid && form.controls.reportingMonth.touched) {
+        <p class="form-error">Reporting month is required.</p>
+      }
+      @if (form.invalid && form.touched) {
+        <p class="form-error">Currency values must be valid non-negative numbers.</p>
+      }
+      <div class="form-actions">
+        <button class="primary-button" type="submit" [disabled]="form.invalid">{{ editingId() ? 'Save financial record' : 'Add financial record' }}</button>
+      </div>
+    </form>
+  } @else {
+    <p class="access-note">Viewer role can read financial records only.</p>
+  }
+
+  <div class="panel toolbar-panel finance-toolbar">
+    <label>
+      Search records
+      <input type="search" [value]="query()" (input)="applySearch($any($event.target).value)" placeholder="Search month, notes, or creator">
+    </label>
+    <label>
+      Year
+      <input type="number" min="2000" max="2100" [value]="reportingYear()" (input)="applyYear($any($event.target).value)" placeholder="YYYY">
+    </label>
+    <label>
+      Month
+      <select [value]="reportingMonth()" (change)="applyMonth($any($event.target).value)">
+        <option value="">All months</option>
+        <option value="01">January</option>
+        <option value="02">February</option>
+        <option value="03">March</option>
+        <option value="04">April</option>
+        <option value="05">May</option>
+        <option value="06">June</option>
+        <option value="07">July</option>
+        <option value="08">August</option>
+        <option value="09">September</option>
+        <option value="10">October</option>
+        <option value="11">November</option>
+        <option value="12">December</option>
+      </select>
+    </label>
+    @if (activeFilters()) {
+      <button class="secondary-button" type="button" (click)="clearFilters()">Clear filters</button>
+    }
+  </div>
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading financial records..." />
+  } @else if (records().length === 0) {
+    <kravia-empty-state label="Financial Records" message="No financial records have been added yet." />
+  } @else {
+    <div class="finance-layout">
+      <div class="panel table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th>Revenue</th>
+              <th>Expenses</th>
+              <th>Profit / Loss</th>
+              <th>Net GST</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (record of records(); track record.id) {
+              <tr [class.is-selected]="selected()?.id === record.id">
+                <td>
+                  <button class="text-button" type="button" (click)="select(record)">{{ monthLabel(record.reportingMonth) }}</button>
+                  <small>{{ record.createdBy }}</small>
+                </td>
+                <td>{{ currency(record.revenue) }}</td>
+                <td>{{ currency(record.expenses) }}</td>
+                <td><span [class.positive-text]="record.profitOrLoss > 0" [class.negative-text]="record.profitOrLoss < 0">{{ currency(record.profitOrLoss) }}</span></td>
+                <td><span [class.positive-text]="record.netGstPosition > 0" [class.negative-text]="record.netGstPosition < 0">{{ currency(record.netGstPosition) }}</span></td>
+                <td><span class="status-badge">{{ statusLabel(record.status) }}</span></td>
+                <td>
+                  <div class="row-actions">
+                    <button class="secondary-button" type="button" (click)="select(record)">View</button>
+                    @if (canEditRecord(record)) {
+                      <button class="secondary-button" type="button" (click)="startEdit(record)">Edit</button>
+                    }
+                    @if (canArchive() && record.status !== 'ARCHIVED') {
+                      <button class="secondary-button" type="button" (click)="archive(record)">Archive</button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (selected(); as record) {
+        <aside class="panel finance-detail">
+          <div class="meeting-detail-header">
+            <div>
+              <p class="overline">Monthly Summary</p>
+              <h3>{{ monthLabel(record.reportingMonth) }}</h3>
+              <p>Last updated {{ record.updatedAt }}</p>
+            </div>
+            <span class="status-badge">{{ statusLabel(record.status) }}</span>
+          </div>
+
+          <dl class="metadata-list">
+            <div><dt>Revenue</dt><dd>{{ currency(record.revenue) }}</dd></div>
+            <div><dt>Expenses</dt><dd>{{ currency(record.expenses) }}</dd></div>
+            <div><dt>Profit / Loss</dt><dd [class.positive-text]="record.profitOrLoss > 0" [class.negative-text]="record.profitOrLoss < 0">{{ currency(record.profitOrLoss) }}</dd></div>
+            <div><dt>Cash balance</dt><dd>{{ currency(record.cashBalance) }}</dd></div>
+            <div><dt>Receivables</dt><dd>{{ currency(record.receivables) }}</dd></div>
+            <div><dt>Payables</dt><dd>{{ currency(record.payables) }}</dd></div>
+            <div><dt>GST collected</dt><dd>{{ currency(record.gstCollected) }}</dd></div>
+            <div><dt>GST paid</dt><dd>{{ currency(record.gstPaid) }}</dd></div>
+            <div><dt>Net GST position</dt><dd [class.positive-text]="record.netGstPosition > 0" [class.negative-text]="record.netGstPosition < 0">{{ currency(record.netGstPosition) }}</dd></div>
+            <div><dt>Cloud/software subscriptions</dt><dd>{{ currency(record.cloudSubscriptions) }}</dd></div>
+            <div><dt>Vendor payments</dt><dd>{{ currency(record.vendorPayments) }}</dd></div>
+            <div><dt>Director remuneration</dt><dd>{{ currency(record.directorRemuneration) }}</dd></div>
+            <div><dt>Created by</dt><dd>{{ record.createdBy }}</dd></div>
+            @if (record.archivedAt) {
+              <div><dt>Archived</dt><dd>{{ record.archivedAt }}</dd></div>
+            }
+          </dl>
+
+          <details class="finance-notes" open>
+            <summary>Founder notes</summary>
+            <p>{{ record.founderNotes || 'No information has been added yet.' }}</p>
+          </details>
+        </aside>
+      }
+    </div>
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>

@@ -31,7 +31,12 @@ The dev server proxies `/api` to `http://localhost:8080` through `proxy.conf.jso
 - Company Profile
 - Documents
 - Board Meetings
+- Finance
 - Audit Logs
+
+## Financial Dashboard UI
+
+The Finance page includes monthly summary cards, search, month/year filters, add/edit financial record forms, calculated profit/loss and net GST preview, a professional record table, detail view, and the empty state `No financial records have been added yet.`.
 
 ## Document Vault UI
 
@@ -43,6 +48,6 @@ The Board Meetings page includes create/edit forms, search, meeting type/status 
 
 ## Role Behavior
 
-- Founder: can view and edit company profile; can upload, edit, download, and archive documents; can create, edit, and archive board meetings; can view audit logs.
-- Director: can view and edit company profile; can upload, edit, and download documents; can create and edit board meetings; can view audit logs.
-- Viewer: can view company profile, view/download documents, and read board meetings only.
+- Founder: can view and edit company profile; can upload, edit, download, and archive documents; can create, edit, and archive board meetings; can create, edit, and archive financial records; can view audit logs.
+- Director: can view and edit company profile; can upload, edit, and download documents; can create and edit board meetings; can create and edit financial records; can view audit logs.
+- Viewer: can view company profile, view/download documents, read board meetings, and read financial records only.
