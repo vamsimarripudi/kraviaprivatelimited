@@ -1410,3 +1410,38 @@ tr.is-unread td {
   .ai-layout { display: block; }
   .ai-response-panel { box-shadow: none; }
 }
+.finance-erp-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.finance-erp-tabs .secondary-button.is-active {
+  border-color: color-mix(in srgb, var(--text) 32%, var(--border));
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.finance-erp-two-column {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.compact-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 980px) {
+  .finance-erp-two-column { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 720px) {
+  .finance-erp-tabs { overflow-x: auto; flex-wrap: nowrap; }
+  .compact-form-grid { grid-template-columns: 1fr; }
+}
+
+@media print {
+  .finance-erp-tabs { display: none !important; }
+  .finance-erp-two-column { display: block; }
+}

@@ -1,0 +1,227 @@
+<section class="portal-section finance-erp-section">
+  <div class="section-heading">
+    <div>
+      <p class="overline">Finance ERP</p>
+      <h2>Enterprise Finance Operations</h2>
+      <p>Internal finance control plane for accounts, journals, banking, receivables, payables, GST, budgets, approvals, and reports.</p>
+    </div>
+    <button class="secondary-button" type="button" (click)="load()">Refresh</button>
+  </div>
+
+  <div class="finance-erp-tabs">
+    @for (tab of tabs; track tab.value) {
+      <button class="secondary-button" type="button" [class.is-active]="activeTab() === tab.value" (click)="setTab(tab.value)">{{ tab.label }}</button>
+    }
+  </div>
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading finance ERP records..." />
+  } @else {
+    @if (summary(); as summary) {
+      <div class="finance-summary-grid">
+        <article class="finance-card"><span>Cash Position</span><strong>{{ currency(summary.cashPosition) }}</strong></article>
+        <article class="finance-card"><span>Bank Balances</span><strong>{{ currency(summary.bankBalances) }}</strong></article>
+        <article class="finance-card"><span>Monthly Revenue</span><strong>{{ currency(summary.monthlyRevenue) }}</strong></article>
+        <article class="finance-card"><span>Monthly Expenses</span><strong>{{ currency(summary.monthlyExpenses) }}</strong></article>
+        <article class="finance-card" [class.positive]="summary.profitOrLoss > 0" [class.negative]="summary.profitOrLoss < 0"><span>Profit / Loss</span><strong>{{ currency(summary.profitOrLoss) }}</strong></article>
+        <article class="finance-card"><span>Accounts Receivable</span><strong>{{ currency(summary.accountsReceivable) }}</strong></article>
+        <article class="finance-card"><span>Accounts Payable</span><strong>{{ currency(summary.accountsPayable) }}</strong></article>
+        <article class="finance-card"><span>Upcoming Payments</span><strong>{{ summary.upcomingPayments }}</strong></article>
+        <article class="finance-card"><span>Upcoming Receipts</span><strong>{{ summary.upcomingReceipts }}</strong></article>
+        <article class="finance-card"><span>GST Summary</span><strong>{{ currency(summary.gstSummary) }}</strong></article>
+      </div>
+    }
+
+    @if (activeTab() === 'dashboard') {
+      <div class="panel">
+        <div class="section-subheading">
+          <div>
+            <p class="overline">Financial Health Indicators</p>
+            <h3>Current ERP Signals</h3>
+          </div>
+        </div>
+        @if (summary()?.financialHealthIndicators?.length) {
+          <div class="report-metric-grid">
+            @for (metric of summary()?.financialHealthIndicators; track metric.label) {
+              <article class="report-metric" [class.positive]="metric.tone === 'positive'" [class.critical]="metric.tone === 'negative'">
+                <span>{{ metric.label }}</span>
+                <strong>{{ currency(metric.value) }}</strong>
+              </article>
+            }
+          </div>
+        } @else {
+          <kravia-empty-state label="Finance ERP" message="No information has been added yet." />
+        }
+      </div>
+    }
+
+    @if (activeTab() === 'accounts') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="accountForm" (ngSubmit)="createAccount()">
+          <div class="section-subheading"><div><p class="overline">Chart of Accounts</p><h3>Add account</h3></div></div>
+          <div class="form-grid">
+            <label>Account code<input formControlName="accountCode"></label>
+            <label>Account name<input formControlName="accountName"></label>
+            <label>Account type<select formControlName="accountType">@for (type of accountTypes; track type.value) { <option [value]="type.value">{{ type.label }}</option> }</select></label>
+            <label>Parent account<select formControlName="parentAccountId"><option value="">None</option>@for (account of accounts(); track account.id) { <option [value]="account.id">{{ account.accountCode }} - {{ account.accountName }}</option> }</select></label>
+            <label>Status<select formControlName="status">@for (status of recordStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label>
+          </div>
+          <button class="primary-button" type="submit" [disabled]="accountForm.invalid">Add account</button>
+        </form>
+      }
+      <div class="panel table-scroll">
+        @if (accounts().length === 0) { <kravia-empty-state label="Chart of Accounts" message="No information has been added yet." /> } @else {
+          <table><thead><tr><th>Code</th><th>Name</th><th>Type</th><th>Parent</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+            @for (account of accounts(); track account.id) {
+              <tr><td>{{ account.accountCode }}</td><td>{{ account.accountName }}</td><td><span class="category-badge">{{ label(account.accountType) }}</span></td><td>{{ account.parentAccountName || 'No information has been added yet.' }}</td><td><span class="status-badge">{{ label(account.status) }}</span></td><td>@if (canArchive() && account.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('account', account.id)">Archive</button> }</td></tr>
+            }
+          </tbody></table>
+        }
+      </div>
+    }
+
+    @if (activeTab() === 'ledger') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="journalForm" (ngSubmit)="createJournal()">
+          <div class="section-subheading"><div><p class="overline">General Ledger</p><h3>Record journal entry</h3></div></div>
+          <div class="form-grid">
+            <label>Voucher number<input formControlName="voucherNumber"></label>
+            <label>Posting date<input type="date" formControlName="postingDate"></label>
+            <label>Status<select formControlName="approvalStatus">@for (status of journalStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label>
+            <label>Linked document ID<input formControlName="linkedDocumentId"></label>
+            <label class="full-span">Narration<textarea formControlName="narration"></textarea></label>
+            <label>Debit account<select formControlName="debitAccountId"><option value="">Select account</option>@for (account of accounts(); track account.id) { <option [value]="account.id">{{ account.accountCode }} - {{ account.accountName }}</option> }</select></label>
+            <label>Debit<input type="number" min="0" step="0.01" formControlName="debit"></label>
+            <label>Credit account<select formControlName="creditAccountId"><option value="">Select account</option>@for (account of accounts(); track account.id) { <option [value]="account.id">{{ account.accountCode }} - {{ account.accountName }}</option> }</select></label>
+            <label>Credit<input type="number" min="0" step="0.01" formControlName="credit"></label>
+          </div>
+          <button class="primary-button" type="submit" [disabled]="journalForm.invalid">Record journal entry</button>
+        </form>
+      }
+      <div class="panel table-scroll">
+        @if (journals().length === 0) { <kravia-empty-state label="General Ledger" message="No information has been added yet." /> } @else {
+          <table><thead><tr><th>Voucher</th><th>Date</th><th>Debit</th><th>Credit</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+            @for (entry of journals(); track entry.id) {
+              <tr><td>{{ entry.voucherNumber }}<small>{{ entry.narration }}</small></td><td>{{ entry.postingDate }}</td><td>{{ currency(entry.totalDebit) }}</td><td>{{ currency(entry.totalCredit) }}</td><td><span class="status-badge">{{ label(entry.approvalStatus) }}</span></td><td>@if (canArchive() && entry.approvalStatus !== 'POSTED' && entry.approvalStatus !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('journal', entry.id)">Archive</button> }</td></tr>
+            }
+          </tbody></table>
+        }
+      </div>
+    }
+
+    @if (activeTab() === 'banking') {
+      @if (canEdit()) {
+        <div class="finance-erp-two-column">
+          <form class="panel enterprise-form" [formGroup]="bankAccountForm" (ngSubmit)="createBankAccount()">
+            <div class="section-subheading"><div><p class="overline">Bank Management</p><h3>Add bank account</h3></div></div>
+            <div class="form-grid compact-form-grid">
+              <label>Bank name<input formControlName="bankName"></label><label>Account name<input formControlName="accountName"></label><label>Account number<input formControlName="accountNumberMasked"></label><label>IFSC<input formControlName="ifscCode"></label><label>Branch<input formControlName="branch"></label><label>Current balance<input type="number" min="0" step="0.01" formControlName="currentBalance"></label>
+            </div>
+            <button class="primary-button" type="submit" [disabled]="bankAccountForm.invalid">Add bank account</button>
+          </form>
+          <form class="panel enterprise-form" [formGroup]="bankTransactionForm" (ngSubmit)="createBankTransaction()">
+            <div class="section-subheading"><div><p class="overline">Statements</p><h3>Add transaction</h3></div></div>
+            <div class="form-grid compact-form-grid">
+              <label>Bank account<select formControlName="bankAccountId"><option value="">Select account</option>@for (account of bankAccounts(); track account.id) { <option [value]="account.id">{{ account.bankName }} - {{ account.accountName }}</option> }</select></label><label>Date<input type="date" formControlName="transactionDate"></label><label>Description<input formControlName="description"></label><label>Amount<input type="number" min="0" step="0.01" formControlName="amount"></label><label>Type<select formControlName="transactionType"><option value="DEBIT">Debit</option><option value="CREDIT">Credit</option></select></label><label>Reconciliation<select formControlName="reconciliationStatus">@for (status of reconciliationStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label>
+            </div>
+            <button class="primary-button" type="submit" [disabled]="bankTransactionForm.invalid">Add transaction</button>
+          </form>
+        </div>
+      }
+      <div class="panel table-scroll">
+        @if (bankAccounts().length === 0 && bankTransactions().length === 0) { <kravia-empty-state label="Bank Management" message="No information has been added yet." /> } @else {
+          <table><thead><tr><th>Bank / Transaction</th><th>Date</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+            @for (account of bankAccounts(); track account.id) { <tr><td>{{ account.bankName }}<small>{{ account.accountName }} - {{ account.accountNumberMasked }}</small></td><td>Account</td><td>{{ currency(account.currentBalance) }}</td><td><span class="status-badge">{{ label(account.status) }}</span></td><td>@if (canArchive() && account.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('bankAccount', account.id)">Archive</button> }</td></tr> }
+            @for (transaction of bankTransactions(); track transaction.id) { <tr><td>{{ transaction.description }}<small>{{ transaction.bankName }} - {{ transaction.accountName }}</small></td><td>{{ transaction.transactionDate }}</td><td>{{ currency(transaction.amount) }}</td><td><span class="status-badge">{{ label(transaction.reconciliationStatus) }}</span></td><td>@if (canArchive() && transaction.reconciliationStatus !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('bankTransaction', transaction.id)">Archive</button> }</td></tr> }
+          </tbody></table>
+        }
+      </div>
+    }
+
+    @if (activeTab() === 'receivables') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="invoiceForm" (ngSubmit)="createInvoice()">
+          <div class="section-subheading"><div><p class="overline">Invoices</p><h3>Create invoice</h3></div></div>
+          <div class="form-grid"><label>Invoice number<input formControlName="invoiceNumber"></label><label>Customer<input formControlName="customerName"></label><label>Invoice date<input type="date" formControlName="invoiceDate"></label><label>Due date<input type="date" formControlName="dueDate"></label><label>Total amount<input type="number" min="0" step="0.01" formControlName="totalAmount"></label><label>Outstanding amount<input type="number" min="0" step="0.01" formControlName="outstandingAmount"></label><label>Status<select formControlName="status">@for (status of invoiceStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label></div>
+          <button class="primary-button" type="submit" [disabled]="invoiceForm.invalid">Create invoice</button>
+        </form>
+        <form class="panel enterprise-form" [formGroup]="receivableForm" (ngSubmit)="createReceivable()">
+          <div class="section-subheading"><div><p class="overline">Receivables</p><h3>Add receivable</h3></div></div>
+          <div class="form-grid"><label>Customer<input formControlName="customerName"></label><label>Invoice<select formControlName="invoiceId"><option value="">No linked invoice</option>@for (invoice of invoices(); track invoice.id) { <option [value]="invoice.id">{{ invoice.invoiceNumber }} - {{ invoice.customerName }}</option> }</select></label><label>Due date<input type="date" formControlName="dueDate"></label><label>Outstanding<input type="number" min="0" step="0.01" formControlName="outstandingAmount"></label><label>Status<select formControlName="status">@for (status of receivableStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label>Reminder status<input formControlName="reminderStatus"></label></div>
+          <button class="primary-button" type="submit" [disabled]="receivableForm.invalid">Add receivable</button>
+        </form>
+      }
+      <div class="panel table-scroll">
+        @if (invoices().length === 0 && receivables().length === 0) { <kravia-empty-state label="Receivables" message="No information has been added yet." /> } @else {
+          <table><thead><tr><th>Customer / Invoice</th><th>Due</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+            @for (invoice of invoices(); track invoice.id) { <tr><td>{{ invoice.customerName }}<small>{{ invoice.invoiceNumber }}</small></td><td [class.negative-text]="overdue(invoice.dueDate)">{{ invoice.dueDate }}</td><td>{{ currency(invoice.outstandingAmount) }}</td><td><span class="status-badge">{{ label(invoice.status) }}</span></td><td>@if (canArchive() && invoice.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('invoice', invoice.id)">Archive</button> }</td></tr> }
+            @for (receivable of receivables(); track receivable.id) { <tr><td>{{ receivable.customerName }}<small>{{ receivable.invoiceNumber || 'No linked invoice' }}</small></td><td [class.negative-text]="overdue(receivable.dueDate)">{{ receivable.dueDate }}</td><td>{{ currency(receivable.outstandingAmount) }}</td><td><span class="status-badge">{{ label(receivable.status) }}</span></td><td>@if (canArchive() && receivable.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('receivable', receivable.id)">Archive</button> }</td></tr> }
+          </tbody></table>
+        }
+      </div>
+    }
+
+    @if (activeTab() === 'payables') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="payableForm" (ngSubmit)="createPayable()">
+          <div class="section-subheading"><div><p class="overline">Payables</p><h3>Add vendor payable</h3></div></div>
+          <div class="form-grid"><label>Vendor<input formControlName="vendorName"></label><label>Bill number<input formControlName="billNumber"></label><label>Due date<input type="date" formControlName="dueDate"></label><label>Amount<input type="number" min="0" step="0.01" formControlName="amount"></label><label>Status<select formControlName="paymentStatus">@for (status of paymentStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label></div>
+          <button class="primary-button" type="submit" [disabled]="payableForm.invalid">Add payable</button>
+        </form>
+      }
+      <div class="panel table-scroll">@if (payables().length === 0) { <kravia-empty-state label="Payables" message="No information has been added yet." /> } @else { <table><thead><tr><th>Vendor</th><th>Due</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (payable of payables(); track payable.id) { <tr><td>{{ payable.vendorName }}<small>{{ payable.billNumber }}</small></td><td [class.negative-text]="overdue(payable.dueDate)">{{ payable.dueDate }}</td><td>{{ currency(payable.amount) }}</td><td><span class="status-badge">{{ label(payable.paymentStatus) }}</span></td><td>@if (canArchive() && payable.paymentStatus !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('payable', payable.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'gst') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="gstForm" (ngSubmit)="createGstRecord()">
+          <div class="section-subheading"><div><p class="overline">GST Management</p><h3>Add GST record</h3></div></div>
+          <div class="form-grid"><label>Filing period<input type="month" formControlName="filingPeriod"></label><label>GST collected<input type="number" min="0" step="0.01" formControlName="gstCollected"></label><label>GST paid<input type="number" min="0" step="0.01" formControlName="gstPaid"></label><label>Input tax credit<input type="number" min="0" step="0.01" formControlName="inputTaxCredit"></label><label>Output tax<input type="number" min="0" step="0.01" formControlName="outputTax"></label><label>Status<select formControlName="filingStatus">@for (status of gstStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label></div>
+          <button class="primary-button" type="submit" [disabled]="gstForm.invalid">Add GST record</button>
+        </form>
+      }
+      <div class="panel table-scroll">@if (gstRecords().length === 0) { <kravia-empty-state label="GST Management" message="No information has been added yet." /> } @else { <table><thead><tr><th>Period</th><th>Collected</th><th>Paid</th><th>Net GST</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (record of gstRecords(); track record.id) { <tr><td>{{ record.filingPeriod }}</td><td>{{ currency(record.gstCollected) }}</td><td>{{ currency(record.gstPaid) }}</td><td>{{ currency(record.netGstPosition) }}</td><td><span class="status-badge">{{ label(record.filingStatus) }}</span></td><td>@if (canArchive() && record.filingStatus !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('gst', record.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'budgets') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="budgetForm" (ngSubmit)="createBudget()">
+          <div class="section-subheading"><div><p class="overline">Budgeting</p><h3>Add budget</h3></div></div>
+          <div class="form-grid"><label>Budget name<input formControlName="budgetName"></label><label>Type<select formControlName="budgetType"><option value="ANNUAL">Annual</option><option value="DEPARTMENT">Department</option><option value="PRODUCT">Product</option></select></label><label>Financial year<input formControlName="financialYear" placeholder="2026-2027"></label><label>Department<input formControlName="department"></label><label>Product<input formControlName="product"></label><label>Annual budget<input type="number" min="0" step="0.01" formControlName="annualBudget"></label><label>Status<select formControlName="status">@for (status of budgetStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label>Line name<input formControlName="lineName"></label><label>Line account<select formControlName="lineAccountId"><option value="">No account</option>@for (account of accounts(); track account.id) { <option [value]="account.id">{{ account.accountCode }} - {{ account.accountName }}</option> }</select></label><label>Planned<input type="number" min="0" step="0.01" formControlName="plannedAmount"></label><label>Actual<input type="number" min="0" step="0.01" formControlName="actualAmount"></label></div>
+          <button class="primary-button" type="submit" [disabled]="budgetForm.invalid">Add budget</button>
+        </form>
+      }
+      <div class="panel table-scroll">@if (budgets().length === 0) { <kravia-empty-state label="Budgets" message="No information has been added yet." /> } @else { <table><thead><tr><th>Budget</th><th>Year</th><th>Annual</th><th>Lines</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (budget of budgets(); track budget.id) { <tr><td>{{ budget.budgetName }}<small>{{ label(budget.budgetType) }}</small></td><td>{{ budget.financialYear }}</td><td>{{ currency(budget.annualBudget) }}</td><td>{{ budget.lines.length }}</td><td><span class="status-badge">{{ label(budget.status) }}</span></td><td>@if (canArchive() && budget.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('budget', budget.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'approvals') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="approvalForm" (ngSubmit)="createApproval()">
+          <div class="section-subheading"><div><p class="overline">Financial Approvals</p><h3>Create approval request</h3></div></div>
+          <div class="form-grid"><label>Type<select formControlName="approvalType"><option value="LARGE_EXPENSE">Large Expense</option><option value="VENDOR_PAYMENT">Vendor Payment</option><option value="BUDGET_CHANGE">Budget Change</option><option value="JOURNAL_ENTRY">Journal Entry</option></select></label><label>Title<input formControlName="title"></label><label>Amount<input type="number" min="0" step="0.01" formControlName="amount"></label><label>Status<select formControlName="status">@for (status of approvalStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label>Approver<input formControlName="approver"></label><label>Approval date<input type="date" formControlName="approvalDate"></label><label>Linked record type<input formControlName="linkedRecordType"></label><label>Linked record ID<input formControlName="linkedRecordId"></label><label class="full-span">Approval notes<textarea formControlName="approvalNotes"></textarea></label><label class="full-span">Rejection reason<textarea formControlName="rejectionReason"></textarea></label></div>
+          <button class="primary-button" type="submit" [disabled]="approvalForm.invalid">Create approval</button>
+        </form>
+      }
+      <div class="panel table-scroll">@if (approvals().length === 0) { <kravia-empty-state label="Financial Approvals" message="No information has been added yet." /> } @else { <table><thead><tr><th>Approval</th><th>Amount</th><th>Requested By</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (approval of approvals(); track approval.id) { <tr><td>{{ approval.title }}<small>{{ label(approval.approvalType) }}</small></td><td>{{ currency(approval.amount) }}</td><td>{{ approval.requestedBy }}</td><td><span class="status-badge">{{ label(approval.status) }}</span></td><td>@if (canArchive() && approval.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('approval', approval.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'reports') {
+      <form class="panel enterprise-form" [formGroup]="reportForm" (ngSubmit)="generateReport()">
+        <div class="section-subheading"><div><p class="overline">Reports</p><h3>Generate finance report</h3></div></div>
+        <div class="form-grid"><label>Report type<select formControlName="reportType">@for (type of reportTypes; track type) { <option [value]="type">{{ label(type) }}</option> }</select></label></div>
+        <button class="primary-button" type="submit">Generate report</button>
+      </form>
+      @if (report(); as report) {
+        <div class="panel report-preview">
+          <div class="report-header"><div><p class="overline">Report Preview</p><h3>{{ label(report.reportType) }}</h3><p>Generated {{ report.generatedAt }}</p></div></div>
+          @if (report.metrics.length || report.counts.length) {
+            <div class="report-metric-grid">@for (metric of report.metrics; track metric.label) { <article class="report-metric" [class.positive]="metric.tone === 'positive'" [class.critical]="metric.tone === 'negative'"><span>{{ metric.label }}</span><strong>{{ currency(metric.value) }}</strong></article> } @for (count of report.counts; track count.label) { <article class="report-metric" [class.positive]="count.tone === 'positive'" [class.critical]="count.tone === 'negative'"><span>{{ count.label }}</span><strong>{{ count.value }}</strong></article> }</div>
+          } @else { <kravia-empty-state label="Finance Report" message="No information has been added yet." /> }
+        </div>
+      }
+    }
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>

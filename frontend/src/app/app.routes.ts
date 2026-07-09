@@ -41,6 +41,7 @@ export const routes: Routes = [
       { path: 'documents', component: DocumentsComponent, title: 'Documents' },
       { path: 'board-meetings', component: BoardMeetingsComponent, title: 'Board Meetings' },
       { path: 'finance', component: FinanceComponent, title: 'Financial Dashboard' },
+      { path: 'finance-erp', loadComponent: () => import('./finance-erp/finance-erp.component').then((m) => m.FinanceErpComponent), title: 'Finance ERP' },
       { path: 'compliance', component: ComplianceComponent, title: 'Compliance Center' },
       { path: 'tasks', component: TasksComponent, title: 'Company Tasks' },
       { path: 'products', component: ProductsComponent, title: 'Products Portfolio' },

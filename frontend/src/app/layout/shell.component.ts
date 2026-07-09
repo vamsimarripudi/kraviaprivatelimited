@@ -30,6 +30,7 @@ export class ShellComponent {
     { label: 'Documents', path: '/documents' },
     { label: 'Board Meetings', path: '/board-meetings' },
     { label: 'Finance', path: '/finance' },
+    { label: 'Finance ERP', path: '/finance-erp' },
     { label: 'Compliance', path: '/compliance' },
     { label: 'Tasks', path: '/tasks' },
     { label: 'Products', path: '/products' },

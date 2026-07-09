@@ -929,3 +929,46 @@ export interface PlatformOverview {
   moduleDependencies: PlatformModuleDependency[];
   securityCenter: PlatformSecurityCenter;
 }
+export type FinanceAccountType = 'ASSETS' | 'LIABILITIES' | 'EQUITY' | 'INCOME' | 'EXPENSES' | 'OTHER_INCOME' | 'OTHER_EXPENSES';
+export type FinanceRecordStatus = 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
+export type JournalApprovalStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'POSTED' | 'REJECTED' | 'ARCHIVED';
+export type TransactionType = 'DEBIT' | 'CREDIT';
+export type ReconciliationStatus = 'UNRECONCILED' | 'RECONCILED' | 'REVIEW_REQUIRED' | 'ARCHIVED';
+export type InvoiceStatus = 'DRAFT' | 'SENT' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'ARCHIVED';
+export type ReceivableStatus = 'OPEN' | 'PARTIAL' | 'RECEIVED' | 'OVERDUE' | 'WRITTEN_OFF' | 'ARCHIVED';
+export type PaymentStatus = 'PENDING' | 'SCHEDULED' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'ARCHIVED';
+export type GstFilingStatus = 'DRAFT' | 'READY' | 'FILED' | 'OVERDUE' | 'NOT_APPLICABLE' | 'ARCHIVED';
+export type BudgetType = 'ANNUAL' | 'DEPARTMENT' | 'PRODUCT';
+export type BudgetStatus = 'DRAFT' | 'ACTIVE' | 'CLOSED' | 'ARCHIVED';
+export type FinancialApprovalType = 'LARGE_EXPENSE' | 'VENDOR_PAYMENT' | 'BUDGET_CHANGE' | 'JOURNAL_ENTRY';
+export type FinancialApprovalStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'ARCHIVED';
+export type FinanceReportType = 'TRIAL_BALANCE' | 'BALANCE_SHEET' | 'PROFIT_LOSS' | 'CASH_FLOW' | 'GST_SUMMARY' | 'RECEIVABLES_AGING' | 'PAYABLES_AGING' | 'BUDGET_VARIANCE' | 'BANK_RECONCILIATION_SUMMARY';
+
+export interface FinanceMetric { label: string; value: number; tone: string; }
+export interface FinanceCountMetric { label: string; value: number; tone: string; }
+export interface FinanceErpSummary { cashPosition: number; bankBalances: number; monthlyRevenue: number; monthlyExpenses: number; profitOrLoss: number; accountsReceivable: number; accountsPayable: number; upcomingPayments: number; upcomingReceipts: number; gstSummary: number; financialHealthIndicators: FinanceMetric[]; }
+export interface FinanceAccountRecord { id: string; accountCode: string; accountName: string; accountType: FinanceAccountType; parentAccountId?: string; parentAccountName?: string; status: FinanceRecordStatus; createdBy: string; createdAt: string; updatedAt: string; archivedAt?: string; }
+export interface FinanceAccountRequest { accountCode: string; accountName: string; accountType: FinanceAccountType; parentAccountId?: string; status: FinanceRecordStatus; }
+export interface JournalLineRequest { accountId: string; debit: number; credit: number; narration?: string; }
+export interface JournalLineRecord extends JournalLineRequest { id: string; accountCode: string; accountName: string; }
+export interface JournalEntryRecord { id: string; voucherNumber: string; postingDate: string; narration: string; approvalStatus: JournalApprovalStatus; linkedDocumentId?: string; createdBy: string; postedAt?: string; createdAt: string; updatedAt: string; archivedAt?: string; totalDebit: number; totalCredit: number; lines: JournalLineRecord[]; }
+export interface JournalEntryRequest { voucherNumber: string; postingDate: string; narration: string; approvalStatus: JournalApprovalStatus; linkedDocumentId?: string; lines: JournalLineRequest[]; }
+export interface BankAccountRecord { id: string; bankName: string; accountName: string; accountNumberMasked: string; ifscCode?: string; branch?: string; currentBalance: number; status: FinanceRecordStatus; createdBy: string; createdAt: string; updatedAt: string; archivedAt?: string; }
+export interface BankAccountRequest { bankName: string; accountName: string; accountNumberMasked: string; ifscCode?: string; branch?: string; currentBalance: number; status: FinanceRecordStatus; }
+export interface BankTransactionRecord { id: string; bankAccountId: string; bankName: string; accountName: string; transactionDate: string; description: string; amount: number; transactionType: TransactionType; reconciliationStatus: ReconciliationStatus; linkedJournalEntryId?: string; createdBy: string; createdAt: string; updatedAt: string; archivedAt?: string; }
+export interface BankTransactionRequest { bankAccountId: string; transactionDate: string; description: string; amount: number; transactionType: TransactionType; reconciliationStatus: ReconciliationStatus; linkedJournalEntryId?: string; }
+export interface InvoiceRecord { id: string; invoiceNumber: string; customerName: string; invoiceDate: string; dueDate: string; totalAmount: number; outstandingAmount: number; status: InvoiceStatus; createdBy: string; createdAt: string; updatedAt: string; archivedAt?: string; }
+export interface InvoiceRequest { invoiceNumber: string; customerName: string; invoiceDate: string; dueDate: string; totalAmount: number; outstandingAmount: number; status: InvoiceStatus; }
+export interface ReceivableRecord { id: string; customerName: string; invoiceId?: string; invoiceNumber?: string; dueDate: string; outstandingAmount: number; status: ReceivableStatus; reminderStatus?: string; createdBy: string; createdAt: string; updatedAt: string; archivedAt?: string; }
+export interface ReceivableRequest { customerName: string; invoiceId?: string; dueDate: string; outstandingAmount: number; status: ReceivableStatus; reminderStatus?: string; }
+export interface PayableRecord { id: string; vendorName: string; billNumber: string; dueDate: string; amount: number; paymentStatus: PaymentStatus; createdBy: string; createdAt: string; updatedAt: string; archivedAt?: string; }
+export interface PayableRequest { vendorName: string; billNumber: string; dueDate: string; amount: number; paymentStatus: PaymentStatus; }
+export interface GstRecordErp { id: string; filingPeriod: string; gstCollected: number; gstPaid: number; inputTaxCredit: number; outputTax: number; netGstPosition: number; filingStatus: GstFilingStatus; createdBy: string; createdAt: string; updatedAt: string; archivedAt?: string; }
+export interface GstRecordRequest { filingPeriod: string; gstCollected: number; gstPaid: number; inputTaxCredit: number; outputTax: number; filingStatus: GstFilingStatus; }
+export interface BudgetLineRequest { accountId?: string; lineName: string; plannedAmount: number; actualAmount: number; }
+export interface BudgetLineRecord extends BudgetLineRequest { id: string; accountCode?: string; varianceAmount: number; }
+export interface BudgetRecord { id: string; budgetName: string; budgetType: BudgetType; financialYear: string; department?: string; product?: string; annualBudget: number; status: BudgetStatus; createdBy: string; createdAt: string; updatedAt: string; archivedAt?: string; lines: BudgetLineRecord[]; }
+export interface BudgetRequest { budgetName: string; budgetType: BudgetType; financialYear: string; department?: string; product?: string; annualBudget: number; status: BudgetStatus; lines: BudgetLineRequest[]; }
+export interface FinancialApprovalRecord { id: string; approvalType: FinancialApprovalType; title: string; amount: number; status: FinancialApprovalStatus; requestedBy: string; approver?: string; approvalNotes?: string; approvalDate?: string; linkedRecordType?: string; linkedRecordId?: string; rejectionReason?: string; createdAt: string; updatedAt: string; archivedAt?: string; }
+export interface FinancialApprovalRequest { approvalType: FinancialApprovalType; title: string; amount: number; status: FinancialApprovalStatus; approver?: string; approvalNotes?: string; approvalDate?: string; linkedRecordType?: string; linkedRecordId?: string; rejectionReason?: string; }
+export interface FinanceErpReport { reportType: string; generatedAt: string; metrics: FinanceMetric[]; counts: FinanceCountMetric[]; notes: string[]; }
