@@ -1,0 +1,35 @@
+﻿<section class="portal-section">
+  <div class="section-heading">
+    <div>
+      <p class="overline">Global Search</p>
+      <h2>Find Company Records</h2>
+      <p>Search across company profile, documents, products, contacts, and tasks.</p>
+    </div>
+  </div>
+
+  <form class="panel search-panel" (ngSubmit)="search()">
+    <label>Search query<input name="query" [ngModel]="query()" (ngModelChange)="query.set($event); search()" placeholder="Type at least two characters"></label>
+    <button class="primary-button" type="submit">Search</button>
+  </form>
+
+  @if (loading()) {
+    <div class="panel muted-panel">Searching...</div>
+  } @else if (!hasQuery()) {
+    <kravia-empty-state label="Search" message="No search query has been entered yet." />
+  } @else if (results().length === 0) {
+    <kravia-empty-state label="Search Results" message="No matching records were found." />
+  } @else {
+    <div class="panel table-scroll">
+      <table>
+        <thead><tr><th>Module</th><th>Title</th><th>Status</th><th>Record ID</th></tr></thead>
+        <tbody>
+          @for (result of results(); track result.module + result.id) {
+            <tr><td>{{ result.module }}</td><td>{{ result.title }}</td><td>{{ result.status }}</td><td>{{ result.id }}</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  @if (error()) { <p class="form-error">{{ error() }}</p> }
+</section>

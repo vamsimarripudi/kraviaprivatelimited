@@ -1,0 +1,339 @@
+{
+    "company":  {
+                    "name":  "KRAVIA PRIVATE LIMITED",
+                    "subtitle":  "Building the next generation of software products.",
+                    "profile":  {
+                                    "companyName":  "KRAVIA PRIVATE LIMITED",
+                                    "cin":  "",
+                                    "pan":  "",
+                                    "tan":  "",
+                                    "registeredOfficeAddress":  "",
+                                    "email":  "",
+                                    "phone":  "",
+                                    "dateOfIncorporation":  "",
+                                    "authorizedCapital":  "",
+                                    "paidUpCapital":  "",
+                                    "directors":  [
+
+                                                  ],
+                                    "shareholders":  [
+
+                                                     ],
+                                    "companyStatus":  "",
+                                    "lastUpdatedDate":  ""
+                                }
+                },
+    "documents":  {
+                      "categories":  [
+                                         {
+                                             "id":  "incorporation-certificate",
+                                             "name":  "Incorporation Certificate"
+                                         },
+                                         {
+                                             "id":  "moa",
+                                             "name":  "MOA"
+                                         },
+                                         {
+                                             "id":  "aoa",
+                                             "name":  "AOA"
+                                         },
+                                         {
+                                             "id":  "company-pan",
+                                             "name":  "Company PAN"
+                                         },
+                                         {
+                                             "id":  "tan",
+                                             "name":  "TAN"
+                                         },
+                                         {
+                                             "id":  "gst",
+                                             "name":  "GST"
+                                         },
+                                         {
+                                             "id":  "board-resolutions",
+                                             "name":  "Board Resolutions"
+                                         },
+                                         {
+                                             "id":  "rental-agreement",
+                                             "name":  "Rental Agreement"
+                                         },
+                                         {
+                                             "id":  "bank-documents",
+                                             "name":  "Bank Documents"
+                                         },
+                                         {
+                                             "id":  "trademark-documents",
+                                             "name":  "Trademark Documents"
+                                         },
+                                         {
+                                             "id":  "startup-india-documents",
+                                             "name":  "Startup India Documents"
+                                         },
+                                         {
+                                             "id":  "agreements",
+                                             "name":  "Agreements"
+                                         },
+                                         {
+                                             "id":  "other-documents",
+                                             "name":  "Other Documents"
+                                         }
+                                     ],
+                      "records":  [
+
+                                  ]
+                  },
+    "boardMeetings":  {
+                          "meetingTypes":  [
+                                               "Board Meeting",
+                                               "Founder Meeting",
+                                               "Finance Review",
+                                               "Compliance Review",
+                                               "Product Review",
+                                               "Bank Meeting",
+                                               "Investor Meeting",
+                                               "Other"
+                                           ],
+                          "statusOptions":  [
+                                                "Draft",
+                                                "Scheduled",
+                                                "Completed",
+                                                "Action Pending",
+                                                "Archived"
+                                            ],
+                          "records":  [
+
+                                      ]
+                      },
+    "financials":  {
+                       "records":  [
+
+                                   ]
+                   },
+    "compliance":  {
+                       "categories":  [
+                                          "MCA",
+                                          "ROC",
+                                          "INC-22",
+                                          "Auditor Appointment",
+                                          "GST Registration",
+                                          "GST Filing",
+                                          "Startup India",
+                                          "Trademark",
+                                          "MSME / Udyam",
+                                          "EPFO",
+                                          "ESIC",
+                                          "Bank KYC",
+                                          "Annual Compliance",
+                                          "Board Resolution",
+                                          "Legal Agreement",
+                                          "Other"
+                                      ],
+                       "statusOptions":  [
+                                             "Not Started",
+                                             "In Progress",
+                                             "Waiting for CA",
+                                             "Waiting for Director",
+                                             "Submitted",
+                                             "Approved",
+                                             "Rejected",
+                                             "Completed",
+                                             "Not Applicable"
+                                         ],
+                       "priorityOptions":  [
+                                               "Low",
+                                               "Medium",
+                                               "High",
+                                               "Critical"
+                                           ],
+                       "records":  [
+
+                                   ]
+                   },
+    "tasks":  {
+                  "categories":  [
+                                     "Founder Task",
+                                     "Director Task",
+                                     "CA Task",
+                                     "Lawyer Task",
+                                     "Bank Task",
+                                     "Product Task",
+                                     "Finance Task",
+                                     "Compliance Task",
+                                     "Document Task",
+                                     "Investor Task",
+                                     "Customer Task",
+                                     "Other"
+                                 ],
+                  "statusOptions":  [
+                                        "To Do",
+                                        "In Progress",
+                                        "Waiting",
+                                        "Blocked",
+                                        "Done",
+                                        "Archived"
+                                    ],
+                  "priorityOptions":  [
+                                          "Low",
+                                          "Medium",
+                                          "High",
+                                          "Critical"
+                                      ],
+                  "records":  [
+
+                              ]
+              },
+    "products":  {
+                     "categories":  [
+                                        "VidyaLuma",
+                                        "VaanMeet",
+                                        "VFormix",
+                                        "Future Products"
+                                    ],
+                     "statusOptions":  [
+                                           "Idea",
+                                           "Planning",
+                                           "Design",
+                                           "Development",
+                                           "Testing",
+                                           "Launch Ready",
+                                           "Live",
+                                           "Paused"
+                                       ],
+                     "stageOptions":  [
+                                          "Discovery",
+                                          "Planning",
+                                          "Design",
+                                          "Prototype",
+                                          "Development",
+                                          "Testing",
+                                          "Launch Preparation",
+                                          "Live Operations",
+                                          "Paused"
+                                      ],
+                     "records":  [
+
+                                 ]
+                 },
+    "contacts":  {
+                     "categories":  [
+                                        "CA",
+                                        "Lawyer",
+                                        "Bank Manager",
+                                        "Vendor",
+                                        "Investor",
+                                        "Government Contact",
+                                        "Customer",
+                                        "Advisor",
+                                        "Consultant",
+                                        "Other"
+                                    ],
+                     "statusOptions":  [
+                                           "Active",
+                                           "Waiting",
+                                           "Follow-up Needed",
+                                           "Closed",
+                                           "Archived"
+                                       ],
+                     "records":  [
+
+                                 ]
+                 },
+    "audit":  {
+                  "records":  [
+
+                              ]
+              },
+    "settings":  {
+                     "branding":  {
+                                      "companyDisplayName":  "KRAVIA PRIVATE LIMITED",
+                                      "companyShortName":  "",
+                                      "logoPlaceholder":  "",
+                                      "brandColorPlaceholder":  "",
+                                      "footerText":  ""
+                                  },
+                     "security":  {
+                                      "sessionTimeoutMinutes":  480,
+                                      "passwordPolicyPlaceholder":  "",
+                                      "twoFactorAuthenticationPlaceholder":  "",
+                                      "protectedRouteStatus":  "Enabled"
+                                  },
+                     "notifications":  {
+                                           "complianceReminders":  false,
+                                           "taskReminders":  false,
+                                           "boardMeetingReminders":  false,
+                                           "financialMonthlyReviewReminders":  false,
+                                           "emailNotificationPlaceholder":  ""
+                                       },
+                     "dataBackup":  {
+                                        "exportDataPlaceholder":  "",
+                                        "importDataPlaceholder":  "",
+                                        "backupStatusPlaceholder":  "",
+                                        "restorePlaceholder":  "",
+                                        "lastBackupPlaceholder":  ""
+                                    },
+                     "displayPreferences":  {
+                                                "displayMode":  "system",
+                                                "compactLayout":  false,
+                                                "printFriendlyMode":  false
+                                            },
+                     "users":  [
+
+                               ]
+                 },
+    "ecosystem":  {
+                      "statusOptions":  [
+                                            "IDEA",
+                                            "DEVELOPMENT",
+                                            "TESTING",
+                                            "STAGING",
+                                            "LAUNCH_READY",
+                                            "LIVE",
+                                            "PAUSED",
+                                            "ARCHIVED"
+                                        ],
+                      "launchStatusOptions":  [
+                                                  "NOT_STARTED",
+                                                  "PLANNED",
+                                                  "IN_PROGRESS",
+                                                  "BLOCKED",
+                                                  "LAUNCH_READY",
+                                                  "LAUNCHED",
+                                                  "NOT_APPLICABLE"
+                                              ],
+                      "revenueStatusOptions":  [
+                                                   "NOT_STARTED",
+                                                   "NOT_VISIBLE",
+                                                   "TRACKING_READY",
+                                                   "REVENUE_ACTIVE",
+                                                   "PAUSED",
+                                                   "NOT_APPLICABLE"
+                                               ],
+                      "complianceStatusOptions":  [
+                                                      "NOT_REVIEWED",
+                                                      "REVIEW_REQUIRED",
+                                                      "IN_REVIEW",
+                                                      "COMPLIANT",
+                                                      "BLOCKED",
+                                                      "NOT_APPLICABLE"
+                                                  ],
+                      "securityStatusOptions":  [
+                                                    "NOT_REVIEWED",
+                                                    "REVIEW_REQUIRED",
+                                                    "IN_REVIEW",
+                                                    "SECURE",
+                                                    "RISK_IDENTIFIED",
+                                                    "NOT_APPLICABLE"
+                                                ],
+                      "deploymentStatusOptions":  [
+                                                      "NOT_DEPLOYED",
+                                                      "LOCAL",
+                                                      "STAGING",
+                                                      "PRODUCTION",
+                                                      "FAILED",
+                                                      "PAUSED"
+                                                  ],
+                      "products":  [
+
+                                   ]
+                  }
+}

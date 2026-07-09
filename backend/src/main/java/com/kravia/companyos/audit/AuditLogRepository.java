@@ -1,0 +1,10 @@
+package com.kravia.companyos.audit;
+
+import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
+    Page<AuditLog> findByModuleAndSeverityContainingIgnoreCase(com.kravia.companyos.common.ModuleType module, String severity, Pageable pageable);
+}

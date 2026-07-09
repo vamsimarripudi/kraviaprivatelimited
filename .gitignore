@@ -1,0 +1,10 @@
+﻿.env
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+backend/target/
+storage/
+*.log
+portal-desktop.png
+portal-mobile.png

@@ -1,0 +1,13 @@
+{
+    "name":  "kravia-internal-company-workspace",
+    "version":  "1.0.0",
+    "private":  true,
+    "type":  "module",
+    "scripts":  {
+                    "start":  "node server.mjs",
+                    "create-user":  "node scripts/create-user.mjs"
+                },
+    "dependencies":  {
+                         "pg":  "^8.13.1"
+                     }
+}

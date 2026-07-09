@@ -1,0 +1,35 @@
+﻿<section class="portal-section">
+  <div class="section-heading">
+    <div>
+      <p class="overline">Audit Logs</p>
+      <h2>Important System Actions</h2>
+      <p>Security-relevant and operational actions are recorded by the backend.</p>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="panel muted-panel">Loading audit logs...</div>
+  } @else if (logs().length === 0) {
+    <kravia-empty-state label="Audit Logs" message="No audit logs have been added yet." />
+  } @else {
+    <div class="panel table-scroll">
+      <table>
+        <thead><tr><th>Time</th><th>Actor</th><th>Module</th><th>Action</th><th>Severity</th><th>Description</th></tr></thead>
+        <tbody>
+          @for (log of logs(); track log.id) {
+            <tr>
+              <td>{{ log.createdAt }}</td>
+              <td>{{ log.actorName || log.actorEmail }}</td>
+              <td>{{ log.module }}</td>
+              <td>{{ log.action }}</td>
+              <td><span class="status-badge">{{ log.severity }}</span></td>
+              <td>{{ log.description }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  @if (error()) { <p class="form-error">{{ error() }}</p> }
+</section>

@@ -1,0 +1,28 @@
+﻿<section class="portal-section">
+  <div class="section-heading">
+    <div>
+      <p class="overline">Company OS</p>
+      <h2>Executive Workspace</h2>
+      <p>Private operating system for KRAVIA company records, governance, finance, compliance, products, and internal knowledge.</p>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="panel muted-panel">Loading workspace summary...</div>
+  } @else if (error()) {
+    <div class="panel error-panel">{{ error() }}</div>
+  } @else if (cards().length === 0) {
+    <kravia-empty-state label="Workspace" message="No information has been added yet." />
+  } @else {
+    <div class="summary-grid">
+      @for (card of cards(); track card.label) {
+        <a class="summary-card" [routerLink]="card.path">
+          <span>{{ card.note }}</span>
+          <strong>{{ card.value }}</strong>
+          <p>{{ card.label }}</p>
+          @if (card.value === 0) { <em>No information has been added yet.</em> }
+        </a>
+      }
+    </div>
+  }
+</section>

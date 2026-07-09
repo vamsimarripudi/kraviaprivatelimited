@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: kravia-company-os
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/kravia_companyos}
+    username: ${DATABASE_USERNAME:kravia}
+    password: ${DATABASE_PASSWORD:kravia}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 25MB
+
+server:
+  port: ${PORT:8080}
+  servlet:
+    context-path: /api
+
+kravia:
+  security:
+    jwt-secret: ${KRAVIA_JWT_SECRET:change-this-local-development-secret-change-this}
+    jwt-expiration-minutes: ${KRAVIA_JWT_EXPIRATION_MINUTES:480}
+  storage:
+    local-root: ${KRAVIA_STORAGE_ROOT:./storage/private-documents}
+  bootstrap:
+    founder-email: ${KRAVIA_BOOTSTRAP_FOUNDER_EMAIL:}
+    founder-password: ${KRAVIA_BOOTSTRAP_FOUNDER_PASSWORD:}
+    founder-name: ${KRAVIA_BOOTSTRAP_FOUNDER_NAME:KRAVIA Founder}
+  cors:
+    allowed-origins: ${KRAVIA_ALLOWED_ORIGINS:http://localhost:4200}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

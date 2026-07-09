@@ -1,0 +1,56 @@
+﻿<section class="portal-section">
+  <div class="section-heading">
+    <div>
+      <p class="overline">Company Profile</p>
+      <h2>Legal and Statutory Details</h2>
+      <p>Single source of truth for KRAVIA PRIVATE LIMITED company information.</p>
+    </div>
+    @if (canEdit() && !editing()) {
+      <button class="primary-button" type="button" (click)="startEdit()">Edit profile</button>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="panel muted-panel">Loading company profile...</div>
+  } @else if (editing()) {
+    <form class="panel enterprise-form" [formGroup]="form" (ngSubmit)="save()">
+      <div class="form-grid">
+        @for (field of fields; track field.key) {
+          <label [class.full-span]="field.multiline">
+            {{ field.label }}
+            @if (field.multiline) {
+              <textarea [formControlName]="field.key"></textarea>
+            } @else {
+              <input [type]="field.type || 'text'" [formControlName]="field.key">
+            }
+          </label>
+        }
+      </div>
+      @if (form.controls.companyName.invalid && form.controls.companyName.touched) {
+        <p class="form-error">Company name is required.</p>
+      }
+      @if (form.controls.email.invalid && form.controls.email.touched) {
+        <p class="form-error">Enter a valid email address.</p>
+      }
+      <div class="form-actions">
+        <button class="primary-button" type="submit" [disabled]="form.invalid">Save changes</button>
+        <button class="secondary-button" type="button" (click)="cancel()">Cancel</button>
+      </div>
+    </form>
+  } @else if (profile()) {
+    <div class="detail-grid">
+      @for (field of fields; track field.key) {
+        <article class="detail-card" [class.wide]="field.multiline">
+          <span>{{ field.label }}</span>
+          <strong>{{ displayValue(field.key) }}</strong>
+        </article>
+      }
+    </div>
+    @if (!canEdit()) { <p class="access-note">Viewer role is read-only.</p> }
+  } @else {
+    <kravia-empty-state label="Company Profile" message="No information has been added yet." />
+  }
+
+  @if (error()) { <p class="form-error">{{ error() }}</p> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>

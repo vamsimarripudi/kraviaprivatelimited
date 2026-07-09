@@ -1,0 +1,41 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Secure login for the KRAVIA PRIVATE LIMITED internal workspace.">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Login | KRAVIA PRIVATE LIMITED</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script defer src="/login.js"></script>
+  </head>
+  <body>
+    <main class="auth-page" aria-labelledby="login-title">
+      <section class="auth-card">
+        <div class="auth-heading">
+          <p class="overline">Private Company Workspace</p>
+          <h1 id="login-title">KRAVIA PRIVATE LIMITED</h1>
+          <p>Sign in with an authorized founder, director, or viewer account.</p>
+        </div>
+
+        <form id="login-form" class="auth-form" novalidate>
+          <div class="form-field">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" autocomplete="username" required>
+            <p class="field-error" id="email-error"></p>
+          </div>
+
+          <div class="form-field">
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" autocomplete="current-password" required>
+            <p class="field-error" id="password-error"></p>
+          </div>
+
+          <div id="login-message" class="form-message" role="status" aria-live="polite"></div>
+
+          <button class="primary-button" type="submit" id="login-submit">Sign in</button>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>

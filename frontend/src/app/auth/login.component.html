@@ -1,0 +1,14 @@
+<main class="auth-page">
+  <section class="auth-card">
+    <p class="overline">Private Company Workspace</p>
+    <h1>KRAVIA PRIVATE LIMITED</h1>
+    <p>Sign in with an authorized founder, director, or viewer account.</p>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="enterprise-form">
+      <label>Email<input type="email" formControlName="email" autocomplete="username"></label>
+      <label>Password<input type="password" formControlName="password" autocomplete="current-password"></label>
+      @if (error()) { <p class="form-error">{{ error() }}</p> }
+      <button class="primary-button" type="submit" [disabled]="loading() || form.invalid">{{ loading() ? 'Signing in' : 'Sign in' }}</button>
+    </form>
+  </section>
+</main>
