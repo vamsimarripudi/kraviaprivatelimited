@@ -19,6 +19,7 @@ export class ShellComponent {
   readonly navItems: NavItem[] = [
     { label: 'Company Profile', path: '/company-profile' },
     { label: 'Documents', path: '/documents' },
+    { label: 'Board Meetings', path: '/board-meetings' },
     { label: 'Audit Logs', path: '/audit-logs', roles: ['FOUNDER', 'DIRECTOR'] }
   ];
   readonly visibleNav = computed(() => this.navItems.filter((item) => !item.roles || this.auth.hasAnyRole(item.roles)));

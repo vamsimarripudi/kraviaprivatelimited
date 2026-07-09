@@ -24,6 +24,11 @@ Spring Boot foundation backend for KRAVIA Company OS.
 - `company_profile`
 - `documents`
 - `document_versions`
+- `board_meetings`
+- `meeting_agenda_items`
+- `meeting_decisions`
+- `meeting_resolutions`
+- `meeting_action_items`
 - `audit_logs`
 
 ## Environment
@@ -48,6 +53,20 @@ Optional:
 - `KRAVIA_DOCUMENT_ALLOWED_CONTENT_TYPES`
 - `KRAVIA_DOCUMENT_MULTIPART_MAX_SIZE`
 - `KRAVIA_DOCUMENT_MULTIPART_MAX_REQUEST_SIZE`
+
+## Board Meetings
+
+Board meeting records are stored in normalized meeting, agenda, decision, resolution, and action item tables. The backend enforces Founder/Director write access, Founder-only archive access, and Viewer read-only access.
+
+Meeting actions write audit logs:
+
+- `MEETING_CREATED`
+- `MEETING_UPDATED`
+- `MEETING_STATUS_CHANGED`
+- `MEETING_ARCHIVED`
+- `MEETING_ACTION_ITEM_CREATED`
+- `MEETING_ACTION_ITEM_UPDATED`
+- `MEETING_ACTION_STATUS_CHANGED`
 
 ## Document Vault
 

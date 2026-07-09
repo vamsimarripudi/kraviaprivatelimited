@@ -1,4 +1,4 @@
-﻿export interface CompanyProfile {
+export interface CompanyProfile {
   id?: string;
   companyName?: string;
   cin?: string;
@@ -54,6 +54,67 @@ export interface DocumentMetadataRequest {
   category: DocumentCategory;
   description?: string;
   status: DocumentStatus;
+}
+
+
+export type MeetingType =
+  | 'BOARD_MEETING'
+  | 'FOUNDER_MEETING'
+  | 'FINANCE_REVIEW'
+  | 'COMPLIANCE_REVIEW'
+  | 'PRODUCT_REVIEW'
+  | 'BANK_MEETING'
+  | 'INVESTOR_MEETING'
+  | 'OTHER';
+
+export type MeetingStatus = 'DRAFT' | 'SCHEDULED' | 'COMPLETED' | 'ARCHIVED';
+
+export type MeetingActionItemStatus = 'TODO' | 'IN_PROGRESS' | 'WAITING' | 'DONE' | 'BLOCKED';
+
+export interface MeetingActionItemRecord {
+  id: string;
+  actionText: string;
+  owner: string;
+  dueDate?: string;
+  status: MeetingActionItemStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MeetingActionItemRequest {
+  actionText: string;
+  owner: string;
+  dueDate?: string;
+  status: MeetingActionItemStatus;
+}
+
+export interface BoardMeetingRecord {
+  id: string;
+  title: string;
+  meetingDate: string;
+  meetingType: MeetingType;
+  status: MeetingStatus;
+  agendaItems: string[];
+  discussionNotes?: string;
+  decisions: string[];
+  resolutions: string[];
+  actionItems: MeetingActionItemRecord[];
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  archivedAt?: string;
+}
+
+export interface BoardMeetingRequest {
+  title: string;
+  meetingDate: string;
+  meetingType: MeetingType;
+  status: MeetingStatus;
+  agendaItems: string[];
+  discussionNotes?: string;
+  decisions: string[];
+  resolutions: string[];
+  actionItems?: MeetingActionItemRequest[];
 }
 
 export interface AuditLogRecord {

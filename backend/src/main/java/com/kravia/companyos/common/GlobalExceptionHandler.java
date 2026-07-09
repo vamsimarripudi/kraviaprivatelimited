@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -46,6 +47,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     ResponseEntity<ApiError> typeMismatch(MethodArgumentTypeMismatchException exception) {
         return ResponseEntity.badRequest().body(new ApiError("VALIDATION_FAILED", "Request contains an invalid value.", null));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ResponseEntity<ApiError> unreadable(HttpMessageNotReadableException exception) {
+        return ResponseEntity.badRequest().body(new ApiError("VALIDATION_FAILED", "Request body contains an invalid value.", null));
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)

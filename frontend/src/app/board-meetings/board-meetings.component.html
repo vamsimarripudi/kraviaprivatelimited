@@ -1,0 +1,286 @@
+<section class="portal-section">
+  <div class="section-heading">
+    <div>
+      <p class="overline">Board Meetings</p>
+      <h2>Meeting Records and Resolutions</h2>
+      <p>Record agenda items, discussions, decisions, resolutions, and action ownership for KRAVIA board-level work.</p>
+    </div>
+  </div>
+
+  @if (canEdit()) {
+    <form class="panel enterprise-form" [formGroup]="meetingForm" (ngSubmit)="submitMeeting()">
+      <div class="section-subheading">
+        <div>
+          <p class="overline">{{ editingId() ? 'Edit' : 'Create' }}</p>
+          <h3>{{ editingId() ? 'Edit meeting' : 'Create meeting' }}</h3>
+        </div>
+        @if (editingId()) {
+          <button class="secondary-button" type="button" (click)="cancelMeetingEdit()">Cancel edit</button>
+        }
+      </div>
+
+      <div class="form-grid">
+        <label>
+          Meeting title
+          <input type="text" formControlName="title" autocomplete="off">
+        </label>
+        <label>
+          Meeting date
+          <input type="datetime-local" formControlName="meetingDate">
+        </label>
+        <label>
+          Meeting type
+          <select formControlName="meetingType">
+            @for (type of meetingTypes; track type.value) {
+              <option [value]="type.value">{{ type.label }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Status
+          <select formControlName="status">
+            @for (status of meetingStatuses; track status.value) {
+              @if (canArchive() || status.value !== 'ARCHIVED') {
+                <option [value]="status.value">{{ status.label }}</option>
+              }
+            }
+          </select>
+        </label>
+        <label class="full-span">
+          Agenda items
+          <textarea formControlName="agendaItems" placeholder="One agenda item per line"></textarea>
+        </label>
+        <label class="full-span">
+          Discussion notes
+          <textarea formControlName="discussionNotes"></textarea>
+        </label>
+        <label class="full-span">
+          Decisions taken
+          <textarea formControlName="decisions" placeholder="One decision per line"></textarea>
+        </label>
+        <label class="full-span">
+          Board resolutions
+          <textarea formControlName="resolutions" placeholder="One resolution per line"></textarea>
+        </label>
+      </div>
+      @if (meetingForm.controls.title.invalid && meetingForm.controls.title.touched) {
+        <p class="form-error">Meeting title is required.</p>
+      }
+      @if (meetingForm.controls.meetingDate.invalid && meetingForm.controls.meetingDate.touched) {
+        <p class="form-error">Meeting date is required.</p>
+      }
+      <div class="form-actions">
+        <button class="primary-button" type="submit" [disabled]="meetingForm.invalid">{{ editingId() ? 'Save meeting' : 'Create meeting' }}</button>
+      </div>
+    </form>
+  } @else {
+    <p class="access-note">Viewer role can read board meeting records only.</p>
+  }
+
+  <div class="panel toolbar-panel">
+    <label>
+      Search meetings
+      <input type="search" [value]="query()" (input)="applySearch($any($event.target).value)" placeholder="Search title or discussion notes">
+    </label>
+    <label>
+      Meeting type
+      <select [value]="meetingType()" (change)="applyType($any($event.target).value)">
+        <option value="">All types</option>
+        @for (type of meetingTypes; track type.value) {
+          <option [value]="type.value">{{ type.label }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Status
+      <select [value]="status()" (change)="applyStatus($any($event.target).value)">
+        <option value="">All statuses</option>
+        @for (status of meetingStatuses; track status.value) {
+          <option [value]="status.value">{{ status.label }}</option>
+        }
+      </select>
+    </label>
+    @if (activeFilters()) {
+      <button class="secondary-button" type="button" (click)="clearFilters()">Clear filters</button>
+    }
+  </div>
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading board meetings..." />
+  } @else {
+    <div class="category-grid">
+      @for (type of meetingTypes; track type.value) {
+        <article class="category-card">
+          <span>{{ type.label }}</span>
+          <strong>{{ typeCount(type.value) }}</strong>
+        </article>
+      }
+    </div>
+
+    @if (meetings().length === 0) {
+      <kravia-empty-state label="Board Meetings" message="No board meeting records have been added yet." />
+    } @else {
+      <div class="meeting-layout">
+        <div class="meeting-list">
+          @for (meeting of meetings(); track meeting.id) {
+            <article class="panel meeting-card" [class.is-selected]="selected()?.id === meeting.id">
+              <button class="text-button" type="button" (click)="select(meeting)">{{ meeting.title }}</button>
+              <div class="meeting-card-meta">
+                <span class="category-badge">{{ typeLabel(meeting.meetingType) }}</span>
+                <span class="status-badge">{{ statusLabel(meeting.status) }}</span>
+              </div>
+              <dl class="compact-meta">
+                <div><dt>Date</dt><dd>{{ formatDate(meeting.meetingDate) }}</dd></div>
+                <div><dt>Agenda</dt><dd>{{ meeting.agendaItems.length }}</dd></div>
+                <div><dt>Open actions</dt><dd>{{ openActionCount(meeting) }}</dd></div>
+              </dl>
+              <div class="form-actions">
+                <button class="secondary-button" type="button" (click)="select(meeting)">View</button>
+                @if (canEditMeeting(meeting)) {
+                  <button class="secondary-button" type="button" (click)="startEdit(meeting)">Edit</button>
+                }
+                @if (canArchive() && meeting.status !== 'ARCHIVED') {
+                  <button class="secondary-button" type="button" (click)="archive(meeting)">Archive</button>
+                }
+              </div>
+            </article>
+          }
+        </div>
+
+        @if (selected(); as meeting) {
+          <aside class="panel meeting-detail">
+            <div class="meeting-detail-header">
+              <div>
+                <p class="overline">Meeting Details</p>
+                <h3>{{ meeting.title }}</h3>
+                <p>{{ typeLabel(meeting.meetingType) }} - {{ formatDate(meeting.meetingDate) }}</p>
+              </div>
+              <span class="status-badge">{{ statusLabel(meeting.status) }}</span>
+            </div>
+
+            <dl class="metadata-list">
+              <div><dt>Created by</dt><dd>{{ meeting.createdBy }}</dd></div>
+              <div><dt>Last updated</dt><dd>{{ meeting.updatedAt }}</dd></div>
+              @if (meeting.archivedAt) {
+                <div><dt>Archived</dt><dd>{{ meeting.archivedAt }}</dd></div>
+              }
+            </dl>
+
+            <div class="meeting-sections">
+              <details open>
+                <summary>Agenda</summary>
+                @if (meeting.agendaItems.length === 0) {
+                  <p class="muted-copy">No information has been added yet.</p>
+                } @else {
+                  <ol class="block-list">
+                    @for (item of meeting.agendaItems; track item) { <li>{{ item }}</li> }
+                  </ol>
+                }
+              </details>
+
+              <details open>
+                <summary>Discussion notes</summary>
+                <p class="notes-copy">{{ emptyText(meeting.discussionNotes) }}</p>
+              </details>
+
+              <details open>
+                <summary>Decisions</summary>
+                @if (meeting.decisions.length === 0) {
+                  <p class="muted-copy">No information has been added yet.</p>
+                } @else {
+                  <ul class="block-list">
+                    @for (decision of meeting.decisions; track decision) { <li>{{ decision }}</li> }
+                  </ul>
+                }
+              </details>
+
+              <details open>
+                <summary>Resolutions</summary>
+                @if (meeting.resolutions.length === 0) {
+                  <p class="muted-copy">No information has been added yet.</p>
+                } @else {
+                  <ul class="block-list">
+                    @for (resolution of meeting.resolutions; track resolution) { <li>{{ resolution }}</li> }
+                  </ul>
+                }
+              </details>
+
+              <details open>
+                <summary>Action items</summary>
+                @if (meeting.actionItems.length === 0) {
+                  <p class="muted-copy">No information has been added yet.</p>
+                } @else {
+                  <div class="action-list">
+                    @for (item of meeting.actionItems; track item.id) {
+                      <article class="action-item">
+                        <div>
+                          <strong>{{ item.actionText }}</strong>
+                          <span>Owner: {{ item.owner }}</span>
+                          <span>Due: {{ item.dueDate || 'No information has been added yet.' }}</span>
+                        </div>
+                        <div class="action-item-controls">
+                          <span class="status-badge">{{ actionStatusLabel(item.status) }}</span>
+                          @if (canEditMeeting(meeting)) {
+                            <button class="secondary-button" type="button" (click)="startActionEdit(item)">Edit</button>
+                          }
+                        </div>
+                      </article>
+                    }
+                  </div>
+                }
+              </details>
+            </div>
+
+            @if (canEditMeeting(meeting)) {
+              <form class="enterprise-form action-form" [formGroup]="actionForm" (ngSubmit)="submitAction()">
+                <div class="section-subheading">
+                  <div>
+                    <p class="overline">Action Item</p>
+                    <h3>{{ actionEditingId() ? 'Edit action item' : 'Add action item' }}</h3>
+                  </div>
+                  @if (actionEditingId()) {
+                    <button class="secondary-button" type="button" (click)="cancelActionEdit()">Cancel</button>
+                  }
+                </div>
+                <label>
+                  Action item
+                  <input type="text" formControlName="actionText">
+                </label>
+                <label>
+                  Owner
+                  <input type="text" formControlName="owner">
+                </label>
+                <label>
+                  Due date
+                  <input type="date" formControlName="dueDate">
+                </label>
+                <label>
+                  Status
+                  <select formControlName="status">
+                    @for (status of actionStatuses; track status.value) {
+                      <option [value]="status.value">{{ status.label }}</option>
+                    }
+                  </select>
+                </label>
+                @if (actionForm.controls.actionText.invalid && actionForm.controls.actionText.touched) {
+                  <p class="form-error">Action item title is required.</p>
+                }
+                @if (actionForm.controls.owner.invalid && actionForm.controls.owner.touched) {
+                  <p class="form-error">Action owner is required.</p>
+                }
+                @if (actionError()) { <p class="form-error">{{ actionError() }}</p> }
+                <div class="form-actions">
+                  <button class="primary-button" type="submit" [disabled]="actionForm.invalid">{{ actionEditingId() ? 'Save action item' : 'Add action item' }}</button>
+                </div>
+              </form>
+            }
+          </aside>
+        }
+      </div>
+    }
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>
+

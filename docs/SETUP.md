@@ -66,13 +66,14 @@ Frontend runs at `http://localhost:4200` and proxies `/api` to Spring Boot.
 3. Open Company Profile.
 4. Save profile data.
 5. Open Documents to upload, search, filter, view metadata, download, or archive documents according to role.
-6. Open Audit Logs to confirm profile and document actions were recorded.
+6. Open Board Meetings to create, search, filter, edit, archive, and manage action items according to role.
+7. Open Audit Logs to confirm profile, document, and meeting actions were recorded.
 
 ## Role Checks
 
-- Founder can view and edit company profile, upload/download/edit/archive documents, and view audit logs.
-- Director can view and edit company profile, upload/download/edit documents, and view audit logs.
-- Viewer can view company profile and view/download documents only.
+- Founder can view and edit company profile, upload/download/edit/archive documents, create/edit/archive board meetings, and view audit logs.
+- Director can view and edit company profile, upload/download/edit documents, create/edit board meetings, and view audit logs.
+- Viewer can view company profile, view/download documents, and read board meetings only.
 - Audit Logs route is visible only to Founder and Director.
 
 ## Document Vault Checks
@@ -80,3 +81,10 @@ Frontend runs at `http://localhost:4200` and proxies `/api` to Spring Boot.
 - Upload rejects missing title, missing category, missing file, unsafe file names, disallowed file types, and files over the configured size limit.
 - File paths are never returned by the API.
 - Download uses `GET /api/documents/{id}/download`; do not serve document storage as a static public folder.
+
+## Board Meetings Checks
+
+- Meeting create/update rejects missing title, date, type, or status.
+- Completed meetings require at least one agenda item.
+- Active action items require an owner and due date.
+- Board meeting APIs are protected by backend role checks; Viewer users are read-only.

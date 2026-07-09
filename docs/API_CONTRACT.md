@@ -114,6 +114,61 @@ Document responses include:
 
 The response never exposes `storagePath`.
 
+
+## Board Meetings
+
+| Method | Path | Access | Purpose |
+| --- | --- | --- | --- |
+| POST | `/board-meetings` | Founder, Director | Create a board meeting record |
+| GET | `/board-meetings` | Founder, Director, Viewer | List meetings with optional search/type/status filters |
+| GET | `/board-meetings/{id}` | Founder, Director, Viewer | View meeting details |
+| PUT | `/board-meetings/{id}` | Founder, Director | Update meeting details |
+| DELETE | `/board-meetings/{id}` | Founder | Archive a meeting |
+| POST | `/board-meetings/{id}/action-items` | Founder, Director | Add an action item to a meeting |
+| PUT | `/board-meetings/{id}/action-items/{actionItemId}` | Founder, Director | Update an action item |
+
+### Meeting Filters
+
+- `query`: searches meeting title and discussion notes.
+- `meetingType`: one of the configured meeting type enum values.
+- `status`: `DRAFT`, `SCHEDULED`, `COMPLETED`, or `ARCHIVED`.
+
+### Meeting Types
+
+- `BOARD_MEETING`
+- `FOUNDER_MEETING`
+- `FINANCE_REVIEW`
+- `COMPLIANCE_REVIEW`
+- `PRODUCT_REVIEW`
+- `BANK_MEETING`
+- `INVESTOR_MEETING`
+- `OTHER`
+
+### Meeting Payload Fields
+
+Meeting create/update requests include:
+
+- `title` required
+- `meetingDate` required, ISO local date-time
+- `meetingType` required
+- `status` required
+- `agendaItems` list
+- `discussionNotes`
+- `decisions` list
+- `resolutions` list
+- `actionItems` list, optional
+
+A meeting cannot be marked `COMPLETED` until at least one agenda item exists.
+
+### Action Item Fields
+
+Action item create/update requests include:
+
+- `actionText` required
+- `owner` required
+- `dueDate` required unless status is `DONE`
+- `status` required: `TODO`, `IN_PROGRESS`, `WAITING`, `DONE`, or `BLOCKED`
+
 ## Audit Logs
 
 | Method | Path | Access | Purpose |
@@ -122,6 +177,7 @@ The response never exposes `storagePath`.
 
 Profile edits create audit entries with module `COMPANY_PROFILE` and action `PROFILE_UPDATED`.
 Document actions create audit entries with module `DOCUMENT_VAULT` and actions `DOCUMENT_UPLOADED`, `DOCUMENT_UPDATED`, `DOCUMENT_DOWNLOADED`, and `DOCUMENT_ARCHIVED`.
+Board meeting actions create audit entries with module `BOARD_MEETINGS` and actions `MEETING_CREATED`, `MEETING_UPDATED`, `MEETING_STATUS_CHANGED`, `MEETING_ARCHIVED`, `MEETING_ACTION_ITEM_CREATED`, `MEETING_ACTION_ITEM_UPDATED`, and `MEETING_ACTION_STATUS_CHANGED`.
 
 ## Database Tables
 
@@ -131,12 +187,18 @@ Document actions create audit entries with module `DOCUMENT_VAULT` and actions `
 - `company_profile`
 - `documents`
 - `document_versions`
+- `board_meetings`
+- `meeting_agenda_items`
+- `meeting_decisions`
+- `meeting_resolutions`
+- `meeting_action_items`
 - `audit_logs`
 
 ## Data Rules
 
 - No dummy company profile data is seeded.
 - No dummy document records or files are seeded.
+- No dummy board meeting records, discussions, decisions, resolutions, or action items are seeded.
 - The migration inserts only role names: `FOUNDER`, `DIRECTOR`, `VIEWER`.
 - The only user bootstrap is the optional founder account from environment variables.
 - Document files are stored in private local storage for development and downloaded only through protected APIs.
