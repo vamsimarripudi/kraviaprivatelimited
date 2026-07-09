@@ -2,7 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ApiService } from '../core/http/api.service';
 import { AuthService } from '../core/auth/auth.service';
-import { CompanyProfile, CompanyTask } from '../core/models/api.models';
+import { CompanyProfile, CompanyTask, ProductRecord } from '../core/models/api.models';
 import { EmptyStateComponent } from '../shared/empty-state/empty-state.component';
 import { LoadingStateComponent } from '../shared/loading-state/loading-state.component';
 import { ErrorStateComponent } from '../shared/error-state/error-state.component';
@@ -26,6 +26,7 @@ export class CompanyProfileComponent {
   readonly error = signal('');
   readonly success = signal('');
   readonly taskSummary = signal<CompanyTask[]>([]);
+  readonly productSummary = signal<ProductRecord[]>([]);
   readonly canEdit = computed(() => this.auth.hasAnyRole(['FOUNDER', 'DIRECTOR']));
   readonly taskSummaryCards = computed(() => {
     const tasks = this.taskSummary();
@@ -38,6 +39,15 @@ export class CompanyProfileComponent {
     ];
   });
 
+  readonly productSummaryCards = computed(() => {
+    const products = this.productSummary();
+    return [
+      { label: 'Active products', value: products.filter((product) => !['PAUSED', 'ARCHIVED'].includes(product.status)).length, tone: 'neutral' },
+      { label: 'Launch-ready products', value: products.filter((product) => product.status === 'LAUNCH_READY').length, tone: 'positive' },
+      { label: 'Paused products', value: products.filter((product) => product.status === 'PAUSED').length, tone: 'warning' },
+      { label: 'Products with risks', value: products.filter((product) => Boolean(product.risks?.trim())).length, tone: 'critical' }
+    ];
+  });
   readonly fields: Array<{ key: ProfileFormKey; label: string; type?: string; multiline?: boolean }> = [
     { key: 'companyName', label: 'Company name' },
     { key: 'cin', label: 'CIN' },
@@ -75,6 +85,7 @@ export class CompanyProfileComponent {
   constructor() {
     this.load();
     this.loadTaskSummary();
+    this.loadProductSummary();
   }
 
   load(): void {
@@ -127,6 +138,12 @@ export class CompanyProfileComponent {
     });
   }
 
+  loadProductSummary(): void {
+    this.api.products({}).subscribe({
+      next: (products) => this.productSummary.set(products),
+      error: () => this.productSummary.set([])
+    });
+  }
   private sameMonth(value: Date, now: Date): boolean {
     return value.getFullYear() === now.getFullYear() && value.getMonth() === now.getMonth();
   }

@@ -1,7 +1,7 @@
 import { HttpClient, HttpEvent, HttpParams, HttpRequest, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { AuditLogRecord, BoardMeetingRecord, BoardMeetingRequest, CompanyProfile, CompanyTask, CompanyTaskRequest, ComplianceCategory, ComplianceItem, ComplianceItemRequest, CompliancePriority, ComplianceStatus, DocumentCategory, DocumentMetadataRequest, DocumentRecord, DocumentStatus, FinancialRecord, FinancialRecordRequest, MeetingActionItemRecord, MeetingActionItemRequest, MeetingStatus, MeetingType, TaskCategory, TaskPriority, TaskStatus, TaskStatusRequest } from '../models/api.models';
+import { AuditLogRecord, BoardMeetingRecord, BoardMeetingRequest, CompanyProfile, CompanyTask, CompanyTaskRequest, ComplianceCategory, ComplianceItem, ComplianceItemRequest, CompliancePriority, ComplianceStatus, DocumentCategory, DocumentMetadataRequest, DocumentRecord, DocumentStatus, FinancialRecord, FinancialRecordRequest, MeetingActionItemRecord, MeetingActionItemRequest, MeetingStatus, MeetingType, ProductRecord, ProductRequest, ProductStatus, TaskCategory, TaskPriority, TaskStatus, TaskStatusRequest } from '../models/api.models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -133,4 +133,23 @@ export class ApiService {
   }
 
   archiveTask(id: string): Observable<void> { return this.http.delete<void>(`/api/tasks/${id}`); }
+  products(filters: { query?: string; status?: ProductStatus | ''; developmentStage?: string }): Observable<ProductRecord[]> {
+    let params = new HttpParams();
+    if (filters.query?.trim()) params = params.set('query', filters.query.trim());
+    if (filters.status) params = params.set('status', filters.status);
+    if (filters.developmentStage?.trim()) params = params.set('developmentStage', filters.developmentStage.trim());
+    return this.http.get<ProductRecord[]>('/api/products', { params });
+  }
+
+  product(id: string): Observable<ProductRecord> { return this.http.get<ProductRecord>(`/api/products/${id}`); }
+
+  createProduct(payload: ProductRequest): Observable<ProductRecord> {
+    return this.http.post<ProductRecord>('/api/products', payload);
+  }
+
+  updateProduct(id: string, payload: ProductRequest): Observable<ProductRecord> {
+    return this.http.put<ProductRecord>(`/api/products/${id}`, payload);
+  }
+
+  archiveProduct(id: string): Observable<void> { return this.http.delete<void>(`/api/products/${id}`); }
 }

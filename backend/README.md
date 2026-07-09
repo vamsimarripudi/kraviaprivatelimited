@@ -55,6 +55,16 @@ Optional:
 - `KRAVIA_DOCUMENT_MULTIPART_MAX_SIZE`
 - `KRAVIA_DOCUMENT_MULTIPART_MAX_REQUEST_SIZE`
 
+## Products Portfolio
+
+Product records are stored in `products`. The backend enforces Founder/Director write access, Founder-only archive access, and Viewer read-only access. Product status, development stage, launch readiness, risks, milestone, and ownership are persisted without seeded dummy records.
+
+Product actions write audit logs:
+
+- `PRODUCT_CREATED`
+- `PRODUCT_UPDATED`
+- `PRODUCT_STATUS_CHANGED`
+- `PRODUCT_ARCHIVED`
 ## Company Tasks
 
 Company tasks are stored in `company_tasks`. The backend enforces Founder/Director write and complete access, Founder-only archive access, and Viewer read-only access. The service calculates overdue indicators from each task due date on read.

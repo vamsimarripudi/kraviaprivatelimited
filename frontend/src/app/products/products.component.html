@@ -1,0 +1,239 @@
+<section class="portal-section">
+  <div class="section-heading">
+    <div>
+      <p class="overline">Products Portfolio</p>
+      <h2>KRAVIA Product Register</h2>
+      <p>Track product status, development stage, launch readiness, risks, ownership, and next milestones without fake metrics.</p>
+    </div>
+  </div>
+
+  <div class="product-summary-grid">
+    @for (card of summaryCards(); track card.label) {
+      <article class="product-card" [class.warning]="card.tone === 'warning'" [class.critical]="card.tone === 'critical'" [class.positive]="card.tone === 'positive'">
+        <span>{{ card.label }}</span>
+        <strong>{{ card.value }}</strong>
+      </article>
+    }
+  </div>
+
+  @if (canEdit()) {
+    <form class="panel enterprise-form" [formGroup]="form" (ngSubmit)="submit()">
+      <div class="section-subheading">
+        <div>
+          <p class="overline">{{ editingId() ? 'Edit' : 'Create' }}</p>
+          <h3>{{ editingId() ? 'Edit product record' : 'Add product record' }}</h3>
+        </div>
+        @if (editingId()) {
+          <button class="secondary-button" type="button" (click)="cancelEdit()">Cancel edit</button>
+        }
+      </div>
+
+      <div class="form-grid">
+        <label>
+          Product name
+          <input type="text" formControlName="name" autocomplete="off">
+        </label>
+        <label>
+          Category
+          <select formControlName="category">
+            @for (category of categories; track category.value) {
+              <option [value]="category.value">{{ category.label }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Status
+          <select formControlName="status">
+            @for (status of statuses; track status.value) {
+              @if (canArchive() || status.value !== 'ARCHIVED') {
+                <option [value]="status.value">{{ status.label }}</option>
+              }
+            }
+          </select>
+        </label>
+        <label>
+          Development stage
+          <input type="text" formControlName="developmentStage" autocomplete="off">
+        </label>
+        <label>
+          Launch readiness %
+          <input type="number" min="0" max="100" step="1" formControlName="launchReadinessPercentage">
+        </label>
+        <label>
+          Responsible person
+          <input type="text" formControlName="responsiblePerson" autocomplete="off">
+        </label>
+        <label class="full-span">
+          Description
+          <textarea formControlName="description"></textarea>
+        </label>
+        <label>
+          Target users
+          <textarea formControlName="targetUsers"></textarea>
+        </label>
+        <label>
+          Next milestone
+          <input type="text" formControlName="nextMilestone" autocomplete="off">
+        </label>
+        <label>
+          Pricing notes
+          <textarea formControlName="pricingNotes"></textarea>
+        </label>
+        <label>
+          Revenue notes
+          <textarea formControlName="revenueNotes"></textarea>
+        </label>
+        <label class="full-span">
+          Key features
+          <textarea formControlName="keyFeatures"></textarea>
+        </label>
+        <label class="full-span">
+          Pending work
+          <textarea formControlName="pendingWork"></textarea>
+        </label>
+        <label class="full-span">
+          Risks
+          <textarea formControlName="risks"></textarea>
+        </label>
+      </div>
+
+      @if (form.controls.name.invalid && form.controls.name.touched) {
+        <p class="form-error">Product name is required.</p>
+      }
+      @if (form.controls.developmentStage.invalid && form.controls.developmentStage.touched) {
+        <p class="form-error">Development stage is required.</p>
+      }
+      @if (isActive(form.controls.status.value) && !form.controls.responsiblePerson.value.trim() && form.touched) {
+        <p class="form-error">Responsible person is required when product is active.</p>
+      }
+      @if (form.controls.launchReadinessPercentage.invalid && form.controls.launchReadinessPercentage.touched) {
+        <p class="form-error">Launch readiness must be between 0 and 100.</p>
+      }
+      <div class="form-actions">
+        <button class="primary-button" type="submit" [disabled]="form.invalid">{{ editingId() ? 'Save product' : 'Add product' }}</button>
+      </div>
+    </form>
+  } @else {
+    <p class="access-note">Viewer role can read product records only.</p>
+  }
+
+  <div class="panel toolbar-panel product-toolbar">
+    <label>
+      Search products
+      <input type="search" [value]="query()" (input)="applySearch($any($event.target).value)" placeholder="Search product, owner, risks">
+    </label>
+    <label>
+      Status
+      <select [value]="status()" (change)="applyStatus($any($event.target).value)">
+        <option value="">All statuses</option>
+        @for (status of statuses; track status.value) {
+          <option [value]="status.value">{{ status.label }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Development stage
+      <input type="search" [value]="developmentStage()" (input)="applyDevelopmentStage($any($event.target).value)" placeholder="Stage">
+    </label>
+    @if (activeFilters()) {
+      <button class="secondary-button" type="button" (click)="clearFilters()">Clear filters</button>
+    }
+  </div>
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading product records..." />
+  } @else if (products().length === 0) {
+    <kravia-empty-state label="Products Portfolio" message="No product records have been added yet." />
+  } @else {
+    <div class="product-layout">
+      <div class="panel table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Category</th>
+              <th>Status</th>
+              <th>Stage</th>
+              <th>Readiness</th>
+              <th>Owner</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (product of products(); track product.id) {
+              <tr [class.is-selected]="selected()?.id === product.id">
+                <td>
+                  <button class="text-button" type="button" (click)="select(product)">{{ product.name }}</button>
+                  <small>Updated {{ formatDateTime(product.updatedAt) }}</small>
+                </td>
+                <td><span class="category-badge">{{ categoryLabel(product.category) }}</span></td>
+                <td><span class="status-badge">{{ statusLabel(product.status) }}</span></td>
+                <td>{{ product.developmentStage }}</td>
+                <td>
+                  <div class="readiness-cell">
+                    <div class="progress-track"><span class="progress-fill" [style.width.%]="product.launchReadinessPercentage"></span></div>
+                    <small>{{ product.launchReadinessPercentage }}%</small>
+                  </div>
+                </td>
+                <td>{{ emptyText(product.responsiblePerson) }}</td>
+                <td>
+                  <div class="row-actions">
+                    <button class="secondary-button" type="button" (click)="select(product)">View</button>
+                    @if (canEditProduct(product)) {
+                      <button class="secondary-button" type="button" (click)="startEdit(product)">Edit</button>
+                    }
+                    @if (canArchive() && product.status !== 'ARCHIVED') {
+                      <button class="secondary-button" type="button" (click)="archive(product)">Archive</button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (selected(); as product) {
+        <aside class="panel product-detail">
+          <div class="meeting-detail-header">
+            <div>
+              <p class="overline">Product Detail</p>
+              <h3>{{ product.name }}</h3>
+              <p>{{ categoryLabel(product.category) }}</p>
+            </div>
+            <span class="status-badge">{{ statusLabel(product.status) }}</span>
+          </div>
+
+          <div class="product-readiness">
+            <div>
+              <span>Launch readiness</span>
+              <strong>{{ product.launchReadinessPercentage }}%</strong>
+            </div>
+            <div class="progress-track"><span class="progress-fill" [style.width.%]="product.launchReadinessPercentage"></span></div>
+          </div>
+
+          <dl class="metadata-list">
+            <div><dt>Development stage</dt><dd>{{ product.developmentStage }}</dd></div>
+            <div><dt>Responsible person</dt><dd>{{ emptyText(product.responsiblePerson) }}</dd></div>
+            <div><dt>Next milestone</dt><dd>{{ emptyText(product.nextMilestone) }}</dd></div>
+            <div><dt>Target users</dt><dd>{{ emptyText(product.targetUsers) }}</dd></div>
+            <div><dt>Created by</dt><dd>{{ product.createdBy }}</dd></div>
+            <div><dt>Created</dt><dd>{{ formatDateTime(product.createdAt) }}</dd></div>
+            <div><dt>Last updated</dt><dd>{{ formatDateTime(product.updatedAt) }}</dd></div>
+            @if (product.archivedAt) { <div><dt>Archived</dt><dd>{{ formatDateTime(product.archivedAt) }}</dd></div> }
+          </dl>
+
+          <details class="product-notes" open><summary>Description</summary><p>{{ emptyText(product.description) }}</p></details>
+          <details class="product-notes" open><summary>Key features</summary><p>{{ emptyText(product.keyFeatures) }}</p></details>
+          <details class="product-notes" open><summary>Pending work</summary><p>{{ emptyText(product.pendingWork) }}</p></details>
+          <details class="product-notes" open><summary>Risks</summary><p>{{ emptyText(product.risks) }}</p></details>
+          <details class="product-notes"><summary>Pricing notes</summary><p>{{ emptyText(product.pricingNotes) }}</p></details>
+          <details class="product-notes"><summary>Revenue notes</summary><p>{{ emptyText(product.revenueNotes) }}</p></details>
+        </aside>
+      }
+    </div>
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>

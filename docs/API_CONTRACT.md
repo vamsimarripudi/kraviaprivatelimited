@@ -206,6 +206,60 @@ Financial record create/update requests include:
 
 The backend calculates `profitOrLoss = revenue - expenses` and `netGstPosition = gstCollected - gstPaid` for every create and update request.
 
+## Products Portfolio
+
+| Method | Path | Access | Purpose |
+| --- | --- | --- | --- |
+| POST | `/products` | Founder, Director | Create a product record |
+| GET | `/products` | Founder, Director, Viewer | List products with optional search/status/development-stage filters |
+| GET | `/products/{id}` | Founder, Director, Viewer | View product details |
+| PUT | `/products/{id}` | Founder, Director | Update a product record |
+| DELETE | `/products/{id}` | Founder | Archive a product record |
+
+### Product Filters
+
+- `query`: searches product name, description, features, pending work, risks, milestone, and responsible person.
+- `status`: one of the configured product status enum values.
+- `developmentStage`: partial development stage match.
+
+### Product Categories
+
+- `VIDYALUMA`
+- `VAANMEET`
+- `VFORMIX`
+- `FUTURE_PRODUCT`
+- `OTHER`
+
+### Product Statuses
+
+- `IDEA`
+- `PLANNING`
+- `DESIGN`
+- `DEVELOPMENT`
+- `TESTING`
+- `LAUNCH_READY`
+- `LIVE`
+- `PAUSED`
+- `ARCHIVED`
+
+### Product Payload Fields
+
+Product create/update requests include:
+
+- `name` required
+- `category` required
+- `description` optional
+- `status` required
+- `developmentStage` required
+- `launchReadinessPercentage` required, between `0` and `100`
+- `targetUsers` optional
+- `pricingNotes` optional
+- `revenueNotes` optional
+- `keyFeatures` optional
+- `pendingWork` optional
+- `risks` optional
+- `nextMilestone` optional
+- `responsiblePerson` required when product is active
 ## Company Tasks
 
 | Method | Path | Access | Purpose |
@@ -322,6 +376,7 @@ Board meeting actions create audit entries with module `BOARD_MEETINGS` and acti
 Financial record actions create audit entries with module `FINANCIAL_RECORDS` and actions `FINANCIAL_RECORD_CREATED`, `FINANCIAL_RECORD_UPDATED`, and `FINANCIAL_RECORD_ARCHIVED`.
 Compliance actions create audit entries with module `COMPLIANCE_CENTER` and actions `COMPLIANCE_ITEM_CREATED`, `COMPLIANCE_ITEM_UPDATED`, `COMPLIANCE_STATUS_CHANGED`, and `COMPLIANCE_ITEM_ARCHIVED`.
 Task actions create audit entries with module `COMPANY_TASKS` and actions `TASK_CREATED`, `TASK_UPDATED`, `TASK_STATUS_CHANGED`, `TASK_COMPLETED`, and `TASK_ARCHIVED`.
+Product actions create audit entries with module `PRODUCTS_PORTFOLIO` and actions `PRODUCT_CREATED`, `PRODUCT_UPDATED`, `PRODUCT_STATUS_CHANGED`, and `PRODUCT_ARCHIVED`.
 
 ## Database Tables
 
@@ -347,6 +402,7 @@ Task actions create audit entries with module `COMPANY_TASKS` and actions `TASK_
 - No dummy financial records or metrics are seeded.
 - No dummy compliance records or statutory obligations are seeded.
 - No dummy task records are seeded.
+- No dummy product records or product metrics are seeded.
 - The migration inserts only role names: `FOUNDER`, `DIRECTOR`, `VIEWER`.
 - The only user bootstrap is the optional founder account from environment variables.
 - Document files are stored in private local storage for development and downloaded only through protected APIs.

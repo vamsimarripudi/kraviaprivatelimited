@@ -72,11 +72,17 @@ Frontend runs at `http://localhost:4200` and proxies `/api` to Spring Boot.
 
 ## Role Checks
 
-- Founder can view and edit company profile, upload/download/edit/archive documents, create/edit/archive board meetings, create/edit/archive financial records, create/edit/archive compliance items, create/edit/complete/archive tasks, and view audit logs.
-- Director can view and edit company profile, upload/download/edit documents, create/edit board meetings, create/edit financial records, create/edit compliance items, create/edit/complete tasks, and view audit logs.
-- Viewer can view company profile, view/download documents, read board meetings, read financial records, and read compliance items, and read tasks only.
+- Founder can view and edit company profile, upload/download/edit/archive documents, create/edit/archive board meetings, create/edit/archive financial records, create/edit/archive compliance items, create/edit/complete/archive tasks, create/edit/archive products, and view audit logs.
+- Director can view and edit company profile, upload/download/edit documents, create/edit board meetings, create/edit financial records, create/edit compliance items, create/edit/complete tasks, create/edit products, and view audit logs.
+- Viewer can view company profile, view/download documents, read board meetings, read financial records, and read compliance items, read tasks, and read products only.
 - Audit Logs route is visible only to Founder and Director.
 
+## Products Portfolio Checks
+
+- Product create/update rejects missing name, category, status, development stage, invalid launch readiness values, and missing responsible person for active products.
+- Search, status filter, and development-stage filter are handled by the backend.
+- Launch readiness and product risks are visible without fake metrics.
+- Product APIs are protected by backend role checks; Viewer users are read-only.
 ## Company Tasks Checks
 
 - Task create/update rejects missing title, category, status, priority, assignee for active tasks, and due date for high or critical tasks.

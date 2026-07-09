@@ -19,6 +19,15 @@
       </article>
     }
   </div>
+
+  <div class="product-summary-grid executive-summary-grid">
+    @for (card of productSummaryCards(); track card.label) {
+      <article class="product-card" [class.warning]="card.tone === 'warning'" [class.critical]="card.tone === 'critical'" [class.positive]="card.tone === 'positive'">
+        <span>{{ card.label }}</span>
+        <strong>{{ card.value }}</strong>
+      </article>
+    }
+  </div>
   @if (loading()) {
     <kravia-loading-state message="Loading company profile..." />
   } @else if (editing()) {

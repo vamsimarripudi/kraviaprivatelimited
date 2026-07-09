@@ -276,6 +276,48 @@ export interface CompanyTaskRequest {
 }
 
 export interface TaskStatusRequest { status: TaskStatus; }
+export type ProductCategory = 'VIDYALUMA' | 'VAANMEET' | 'VFORMIX' | 'FUTURE_PRODUCT' | 'OTHER';
+
+export type ProductStatus = 'IDEA' | 'PLANNING' | 'DESIGN' | 'DEVELOPMENT' | 'TESTING' | 'LAUNCH_READY' | 'LIVE' | 'PAUSED' | 'ARCHIVED';
+
+export interface ProductRecord {
+  id: string;
+  name: string;
+  category: ProductCategory;
+  description?: string;
+  status: ProductStatus;
+  developmentStage: string;
+  launchReadinessPercentage: number;
+  targetUsers?: string;
+  pricingNotes?: string;
+  revenueNotes?: string;
+  keyFeatures?: string;
+  pendingWork?: string;
+  risks?: string;
+  nextMilestone?: string;
+  responsiblePerson?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  archivedAt?: string;
+}
+
+export interface ProductRequest {
+  name: string;
+  category: ProductCategory;
+  description?: string;
+  status: ProductStatus;
+  developmentStage: string;
+  launchReadinessPercentage: number;
+  targetUsers?: string;
+  pricingNotes?: string;
+  revenueNotes?: string;
+  keyFeatures?: string;
+  pendingWork?: string;
+  risks?: string;
+  nextMilestone?: string;
+  responsiblePerson?: string;
+}
 export interface AuditLogRecord {
   id: string;
   actorEmail: string;
