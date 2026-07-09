@@ -18,6 +18,11 @@ export class ShellComponent {
   readonly roles = this.auth.roles;
   readonly navItems: NavItem[] = [
     { label: 'Executive Dashboard', path: '/dashboard' },
+    { label: 'Governance', path: '/governance' },
+    { label: 'Privacy Center', path: '/privacy-center' },
+    { label: 'Approvals', path: '/approvals' },
+    { label: 'Risk Register', path: '/risk-register' },
+    { label: 'Evidence Packs', path: '/evidence-packs' },
     { label: 'Company Profile', path: '/company-profile' },
     { label: 'Documents', path: '/documents' },
     { label: 'Board Meetings', path: '/board-meetings' },

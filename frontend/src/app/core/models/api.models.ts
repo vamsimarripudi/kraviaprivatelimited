@@ -591,3 +591,167 @@ export interface ProductProgressSummary {
   productsWithRisks: number;
   averageLaunchReadiness: number;
 }
+
+export type DataClassification = 'PUBLIC' | 'INTERNAL' | 'CONFIDENTIAL' | 'RESTRICTED';
+
+export interface DataPrivacyRecord {
+  id: string;
+  moduleName: string;
+  recordId?: string;
+  classification: DataClassification;
+  sensitiveDocument: boolean;
+  accessVisibility?: string;
+  retentionRule?: string;
+  exportRequestedAt?: string;
+  deletionRequestedAt?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DataPrivacyRequest {
+  moduleName: string;
+  recordId?: string;
+  classification: DataClassification;
+  sensitiveDocument: boolean;
+  accessVisibility?: string;
+  retentionRule?: string;
+}
+
+export type ApprovalStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+
+export interface ApprovalRecord {
+  id: string;
+  title: string;
+  description?: string;
+  status: ApprovalStatus;
+  approver?: string;
+  approvalNotes?: string;
+  approvalDate?: string;
+  rejectionReason?: string;
+  linkedModule?: string;
+  linkedRecordId?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApprovalRequestPayload {
+  title: string;
+  description?: string;
+  status: ApprovalStatus;
+  approver?: string;
+  approvalNotes?: string;
+  rejectionReason?: string;
+  linkedModule?: string;
+  linkedRecordId?: string;
+}
+
+export interface ApprovalDecisionPayload {
+  status: ApprovalStatus;
+  approvalNotes?: string;
+  rejectionReason?: string;
+}
+
+export type RiskCategory = 'LEGAL' | 'FINANCIAL' | 'COMPLIANCE' | 'SECURITY' | 'PRODUCT' | 'OPERATIONAL' | 'REPUTATION' | 'OTHER';
+export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type RiskStatus = 'OPEN' | 'MITIGATING' | 'MONITORING' | 'CLOSED' | 'ARCHIVED';
+
+export interface RiskRecord {
+  id: string;
+  title: string;
+  category: RiskCategory;
+  description?: string;
+  severity: RiskLevel;
+  likelihood: RiskLevel;
+  owner?: string;
+  mitigationPlan?: string;
+  status: RiskStatus;
+  reviewDate?: string;
+  relatedRecords?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RiskRequestPayload {
+  title: string;
+  category: RiskCategory;
+  description?: string;
+  severity: RiskLevel;
+  likelihood: RiskLevel;
+  owner?: string;
+  mitigationPlan?: string;
+  status: RiskStatus;
+  reviewDate?: string;
+  relatedRecords?: string;
+}
+
+export type EvidencePackType = 'BOARD_MEETINGS' | 'COMPLIANCE_FILINGS' | 'FINANCIAL_RECORDS' | 'DOCUMENT_VAULT' | 'USER_ACCESS' | 'AUDIT_LOGS';
+
+export interface EvidencePackRecord {
+  id: string;
+  packType: EvidencePackType;
+  title: string;
+  status: 'GENERATED' | 'ARCHIVED';
+  sourceSummary?: string;
+  generatedBy: string;
+  generatedAt: string;
+  pdfExportAvailable: boolean;
+  zipExportAvailable: boolean;
+  excelExportAvailable: boolean;
+}
+
+export interface EvidenceTimelineItem {
+  id: string;
+  source: string;
+  module: string;
+  action: string;
+  actor: string;
+  description: string;
+  timestamp: string;
+}
+
+export interface EvidencePackRequestPayload {
+  packType: EvidencePackType;
+  title?: string;
+}
+
+export type AccessReviewStatus = 'PENDING_REVIEW' | 'REVIEWED' | 'NEEDS_CHANGE' | 'NOT_REQUIRED';
+
+export interface AccessReviewRecord {
+  userId: string;
+  email: string;
+  displayName: string;
+  roles: string;
+  enabled: boolean;
+  lastLoginAt?: string;
+  inactive: boolean;
+  quarterLabel: string;
+  reviewStatus: AccessReviewStatus;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  notes?: string;
+}
+
+export interface GovernanceMetric {
+  label: string;
+  value: number;
+}
+
+export interface GovernanceActivityItem {
+  id: string;
+  module: string;
+  action: string;
+  description: string;
+  actor: string;
+  timestamp: string;
+}
+
+export interface GovernanceDashboard {
+  metrics: GovernanceMetric[];
+  recentGovernanceActivity: GovernanceActivityItem[];
+  accessReviewQuarter: string;
+  accessReviewStatus: string;
+  complianceEvidenceStatus: string;
+}

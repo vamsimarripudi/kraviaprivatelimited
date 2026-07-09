@@ -1,0 +1,52 @@
+<section class="portal-section">
+  <div class="section-heading">
+    <div><p class="overline">Compliance Evidence Pack</p><h2>Legal Evidence Trail</h2><p>Generate evidence pack records and review audit-backed activity.</p></div>
+  </div>
+
+  <form class="panel enterprise-form" [formGroup]="form" (ngSubmit)="generate()">
+    <div class="form-grid">
+      <label>Evidence pack type <select formControlName="packType">@for (type of packTypes; track type) { <option [value]="type">{{ type }}</option> }</select></label>
+      <label>Title <input formControlName="title"></label>
+    </div>
+    <div class="form-actions"><button class="primary-button" type="submit" [disabled]="form.invalid">Generate evidence pack</button></div>
+  </form>
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading evidence packs..." />
+  } @else if (packs().length === 0) {
+    <kravia-empty-state label="Evidence Packs" message="No information has been added yet." />
+  } @else {
+    <section class="panel table-panel">
+      <table>
+        <thead><tr><th>Title</th><th>Type</th><th>Summary</th><th>Generated</th><th>Exports</th></tr></thead>
+        <tbody>
+          @for (pack of packs(); track pack.id) {
+            <tr>
+              <td>{{ pack.title }}</td>
+              <td>{{ pack.packType }}</td>
+              <td>{{ pack.sourceSummary }}</td>
+              <td>{{ pack.generatedBy }}<br><span>{{ formatDate(pack.generatedAt) }}</span></td>
+              <td>PDF: Placeholder<br>ZIP: Placeholder<br>Excel: Placeholder</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  }
+
+  <section class="panel">
+    <div class="section-subheading"><div><p class="overline">Legal Evidence Trail</p><h3>Recent timestamped activity</h3></div></div>
+    @if (timeline().length === 0) {
+      <p class="muted-copy">No information has been added yet.</p>
+    } @else {
+      <div class="activity-list">
+        @for (item of timeline(); track item.id) {
+          <article class="activity-item"><strong>{{ item.action }}</strong><span>{{ item.module }} · {{ item.actor }} · {{ formatDate(item.timestamp) }}</span></article>
+        }
+      </div>
+    }
+  </section>
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>

@@ -1,6 +1,7 @@
 import { HttpClient, HttpEvent, HttpParams, HttpRequest, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { AccessReviewRecord, ApprovalDecisionPayload, ApprovalRecord, ApprovalRequestPayload, DataClassification, DataPrivacyRecord, DataPrivacyRequest, EvidencePackRecord, EvidencePackRequestPayload, EvidenceTimelineItem, GovernanceDashboard, RiskCategory, RiskLevel, RiskRecord, RiskRequestPayload, RiskStatus } from '../models/api.models';
 import { AiQueryRecord, AiQueryRequest, AnnouncementRecord, AnnouncementRequest, AuditLogRecord, BoardMeetingRecord, BoardMeetingRequest, CompanyProfile, CompanyTask, CompanyTaskRequest, ContactCategory, ContactRecord, ContactRequest, ContactStatus, ComplianceCategory, ComplianceItem, ComplianceItemRequest, CompliancePriority, ComplianceStatus, DocumentCategory, DocumentMetadataRequest, DocumentRecord, DocumentStatus, ExecutiveDashboard, FinancialRecord, FinancialRecordRequest, MeetingActionItemRecord, MeetingActionItemRequest, MeetingStatus, MeetingType, NotificationRecord, ProductRecord, ProductRequest, ProductStatus, ReportFilters, ReportResponse, ReportType, SearchResponse, TaskCategory, TaskPriority, TaskStatus, TaskStatusRequest } from '../models/api.models';
 
 @Injectable({ providedIn: 'root' })
@@ -201,4 +202,40 @@ export class ApiService {
     const params = new HttpParams().set('q', query.trim());
     return this.http.get<SearchResponse>('/api/search', { params });
   }
-}
+
+  governanceDashboard(): Observable<GovernanceDashboard> { return this.http.get<GovernanceDashboard>('/api/governance/dashboard'); }
+  accessReview(): Observable<AccessReviewRecord[]> { return this.http.get<AccessReviewRecord[]>('/api/governance/access-review'); }
+
+  privacyRecords(filters: { moduleName?: string; classification?: DataClassification | '' }): Observable<DataPrivacyRecord[]> {
+    let params = new HttpParams();
+    if (filters.moduleName?.trim()) params = params.set('moduleName', filters.moduleName.trim());
+    if (filters.classification) params = params.set('classification', filters.classification);
+    return this.http.get<DataPrivacyRecord[]>('/api/privacy/records', { params });
+  }
+  createPrivacyRecord(payload: DataPrivacyRequest): Observable<DataPrivacyRecord> { return this.http.post<DataPrivacyRecord>('/api/privacy/records', payload); }
+  requestPrivacyExport(id: string): Observable<DataPrivacyRecord> { return this.http.patch<DataPrivacyRecord>(`/api/privacy/records/${id}/export-request`, {}); }
+  requestPrivacyDeletion(id: string): Observable<DataPrivacyRecord> { return this.http.patch<DataPrivacyRecord>(`/api/privacy/records/${id}/deletion-request`, {}); }
+
+  approvals(filters: { query?: string; status?: string; linkedModule?: string }): Observable<ApprovalRecord[]> {
+    let params = new HttpParams();
+    if (filters.query?.trim()) params = params.set('q', filters.query.trim());
+    if (filters.status) params = params.set('status', filters.status);
+    if (filters.linkedModule?.trim()) params = params.set('linkedModule', filters.linkedModule.trim());
+    return this.http.get<ApprovalRecord[]>('/api/approvals', { params });
+  }
+  createApproval(payload: ApprovalRequestPayload): Observable<ApprovalRecord> { return this.http.post<ApprovalRecord>('/api/approvals', payload); }
+  decideApproval(id: string, payload: ApprovalDecisionPayload): Observable<ApprovalRecord> { return this.http.patch<ApprovalRecord>(`/api/approvals/${id}/decision`, payload); }
+
+  risks(filters: { query?: string; category?: RiskCategory | ''; severity?: RiskLevel | ''; status?: RiskStatus | '' }): Observable<RiskRecord[]> {
+    let params = new HttpParams();
+    if (filters.query?.trim()) params = params.set('q', filters.query.trim());
+    if (filters.category) params = params.set('category', filters.category);
+    if (filters.severity) params = params.set('severity', filters.severity);
+    if (filters.status) params = params.set('status', filters.status);
+    return this.http.get<RiskRecord[]>('/api/risks', { params });
+  }
+  createRisk(payload: RiskRequestPayload): Observable<RiskRecord> { return this.http.post<RiskRecord>('/api/risks', payload); }
+
+  evidencePacks(): Observable<EvidencePackRecord[]> { return this.http.get<EvidencePackRecord[]>('/api/evidence/packs'); }
+  generateEvidencePack(payload: EvidencePackRequestPayload): Observable<EvidencePackRecord> { return this.http.post<EvidencePackRecord>('/api/evidence/packs/generate', payload); }
+  evidenceTimeline(): Observable<EvidenceTimelineItem[]> { return this.http.get<EvidenceTimelineItem[]>('/api/evidence/timeline'); }}

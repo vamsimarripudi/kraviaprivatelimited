@@ -1,0 +1,41 @@
+<section class="portal-section">
+  <div class="section-heading">
+    <div><p class="overline">Risk Register</p><h2>Governance Risks</h2><p>Track legal, financial, compliance, security, product, and operational risks.</p></div>
+  </div>
+
+  <form class="panel enterprise-form" [formGroup]="form" (ngSubmit)="create()">
+    <div class="form-grid">
+      <label>Risk title <input formControlName="title"></label>
+      <label>Category <select formControlName="category">@for (item of categories; track item) { <option [value]="item">{{ item }}</option> }</select></label>
+      <label>Severity <select formControlName="severity">@for (item of levels; track item) { <option [value]="item">{{ item }}</option> }</select></label>
+      <label>Likelihood <select formControlName="likelihood">@for (item of levels; track item) { <option [value]="item">{{ item }}</option> }</select></label>
+      <label>Owner <input formControlName="owner"></label>
+      <label>Status <select formControlName="status">@for (item of statuses; track item) { <option [value]="item">{{ item }}</option> }</select></label>
+      <label>Review date <input type="date" formControlName="reviewDate"></label>
+      <label class="full-span">Description <textarea formControlName="description"></textarea></label>
+      <label class="full-span">Mitigation plan <textarea formControlName="mitigationPlan"></textarea></label>
+      <label class="full-span">Related records <textarea formControlName="relatedRecords"></textarea></label>
+    </div>
+    <div class="form-actions"><button class="primary-button" type="submit" [disabled]="form.invalid">Save risk</button></div>
+  </form>
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading risk register..." />
+  } @else if (risks().length === 0) {
+    <kravia-empty-state label="Risk Register" message="No information has been added yet." />
+  } @else {
+    <section class="panel table-panel">
+      <table>
+        <thead><tr><th>Risk</th><th>Category</th><th>Severity</th><th>Likelihood</th><th>Owner</th><th>Status</th></tr></thead>
+        <tbody>
+          @for (risk of risks(); track risk.id) {
+            <tr><td>{{ risk.title }}</td><td>{{ risk.category }}</td><td>{{ risk.severity }}</td><td>{{ risk.likelihood }}</td><td>{{ risk.owner || 'No information has been added yet.' }}</td><td>{{ risk.status }}</td></tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>

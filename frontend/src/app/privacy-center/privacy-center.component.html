@@ -1,0 +1,48 @@
+<section class="portal-section">
+  <div class="section-heading">
+    <div><p class="overline">Data Privacy Center</p><h2>Classification and Retention</h2><p>Mark sensitive records and track privacy request placeholders.</p></div>
+  </div>
+
+  <form class="panel enterprise-form" [formGroup]="form" (ngSubmit)="create()">
+    <div class="form-grid">
+      <label>Module name <input formControlName="moduleName"></label>
+      <label>Record ID <input formControlName="recordId"></label>
+      <label>Classification
+        <select formControlName="classification">
+          @for (item of classifications; track item) { <option [value]="item">{{ item }}</option> }
+        </select>
+      </label>
+      <label><input type="checkbox" formControlName="sensitiveDocument"> Sensitive document</label>
+      <label class="full-span">Access visibility <textarea formControlName="accessVisibility"></textarea></label>
+      <label class="full-span">Retention rule <textarea formControlName="retentionRule"></textarea></label>
+    </div>
+    <div class="form-actions"><button class="primary-button" type="submit" [disabled]="form.invalid">Save privacy record</button></div>
+  </form>
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading privacy records..." />
+  } @else if (records().length === 0) {
+    <kravia-empty-state label="Data Privacy Center" message="No information has been added yet." />
+  } @else {
+    <section class="panel table-panel">
+      <table>
+        <thead><tr><th>Module</th><th>Classification</th><th>Sensitive</th><th>Retention</th><th>Requests</th><th>Actions</th></tr></thead>
+        <tbody>
+          @for (record of records(); track record.id) {
+            <tr>
+              <td>{{ record.moduleName }}</td>
+              <td>{{ record.classification }}</td>
+              <td>{{ record.sensitiveDocument ? 'Yes' : 'No' }}</td>
+              <td>{{ record.retentionRule || 'No information has been added yet.' }}</td>
+              <td>Export: {{ record.exportRequestedAt ? 'Requested' : 'Not requested' }}<br>Deletion: {{ record.deletionRequestedAt ? 'Requested' : 'Not requested' }}</td>
+              <td><button class="secondary-button" type="button" (click)="requestExport(record.id)">Export request</button><button class="secondary-button" type="button" (click)="requestDeletion(record.id)">Deletion request</button></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>

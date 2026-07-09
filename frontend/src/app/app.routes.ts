@@ -29,6 +29,11 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
       { path: 'dashboard', loadComponent: () => import('./dashboard/executive-dashboard.component').then((m) => m.ExecutiveDashboardComponent), title: 'Executive Dashboard' },
+      { path: 'governance', loadComponent: () => import('./governance/governance.component').then((m) => m.GovernanceComponent), title: 'Governance Dashboard' },
+      { path: 'privacy-center', loadComponent: () => import('./privacy-center/privacy-center.component').then((m) => m.PrivacyCenterComponent), title: 'Privacy Center' },
+      { path: 'approvals', loadComponent: () => import('./approvals/approvals.component').then((m) => m.ApprovalsComponent), title: 'Approvals' },
+      { path: 'risk-register', loadComponent: () => import('./risk-register/risk-register.component').then((m) => m.RiskRegisterComponent), title: 'Risk Register' },
+      { path: 'evidence-packs', loadComponent: () => import('./evidence-packs/evidence-packs.component').then((m) => m.EvidencePacksComponent), title: 'Evidence Packs' },
       { path: 'company-profile', component: CompanyProfileComponent, title: 'Company Profile' },
       { path: 'documents', component: DocumentsComponent, title: 'Documents' },
       { path: 'board-meetings', component: BoardMeetingsComponent, title: 'Board Meetings' },

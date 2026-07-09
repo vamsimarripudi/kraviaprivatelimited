@@ -1,0 +1,46 @@
+<section class="portal-section">
+  <div class="section-heading">
+    <div><p class="overline">Approval Governance</p><h2>Approval Requests</h2><p>Track approvals linked to company records.</p></div>
+  </div>
+
+  <form class="panel enterprise-form" [formGroup]="form" (ngSubmit)="create()">
+    <div class="form-grid">
+      <label>Title <input formControlName="title"></label>
+      <label>Status
+        <select formControlName="status">@for (status of statuses; track status) { <option [value]="status">{{ status }}</option> }</select>
+      </label>
+      <label>Approver <input formControlName="approver"></label>
+      <label>Linked module <input formControlName="linkedModule"></label>
+      <label>Linked record ID <input formControlName="linkedRecordId"></label>
+      <label class="full-span">Description <textarea formControlName="description"></textarea></label>
+      <label class="full-span">Approval notes <textarea formControlName="approvalNotes"></textarea></label>
+    </div>
+    <div class="form-actions"><button class="primary-button" type="submit" [disabled]="form.invalid">Save approval</button></div>
+  </form>
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading approvals..." />
+  } @else if (approvals().length === 0) {
+    <kravia-empty-state label="Approval Governance" message="No information has been added yet." />
+  } @else {
+    <section class="panel table-panel">
+      <table>
+        <thead><tr><th>Title</th><th>Status</th><th>Approver</th><th>Linked record</th><th>Action</th></tr></thead>
+        <tbody>
+          @for (approval of approvals(); track approval.id) {
+            <tr>
+              <td>{{ approval.title }}</td>
+              <td>{{ approval.status }}</td>
+              <td>{{ approval.approver || 'No information has been added yet.' }}</td>
+              <td>{{ approval.linkedModule || 'No information has been added yet.' }}</td>
+              <td>@if (approval.status === 'PENDING_APPROVAL') { <button class="secondary-button" type="button" (click)="approve(approval)">Approve</button> }</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>
