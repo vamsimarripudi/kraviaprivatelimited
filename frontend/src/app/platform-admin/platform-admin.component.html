@@ -1,0 +1,194 @@
+<section class="portal-section">
+  <div class="section-heading">
+    <div>
+      <p class="overline">Platform Administration</p>
+      <h2>Infrastructure Control Center</h2>
+      <p>Operational view for environments, services, releases, backups, jobs, APIs, health, and security.</p>
+    </div>
+    <button class="secondary-button" type="button" (click)="load()">Refresh</button>
+  </div>
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading platform administration..." />
+  } @else if (overview()) {
+    @let data = overview()!;
+
+    <div class="task-summary-grid executive-summary-grid">
+      @for (metric of data.engineeringMetrics; track metric.label) {
+        <article class="task-card"><span>{{ metric.label }}</span><strong>{{ metric.value }}</strong></article>
+      }
+    </div>
+
+    <section class="panel table-panel">
+      <div class="section-subheading"><div><p class="overline">System Health</p><h3>Actuator and platform components</h3></div></div>
+      <table>
+        <thead><tr><th>Component</th><th>Health</th><th>Detail</th></tr></thead>
+        <tbody>
+          @for (item of data.health; track item.name) {
+            <tr><td>{{ item.name }}</td><td>{{ item.health }}</td><td>{{ item.detail }}</td></tr>
+          }
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel">
+      <div class="section-subheading"><div><p class="overline">Module Dependencies</p><h3>ERP dependency graph</h3></div></div>
+      <div class="activity-list">
+        @for (node of data.moduleDependencies; track node.module) {
+          <article class="activity-item"><strong>{{ node.module }}</strong><span>{{ node.dependsOn.length ? node.dependsOn.join(' -> ') : 'Root module' }}</span></article>
+        }
+      </div>
+    </section>
+
+    <section class="panel table-panel">
+      <div class="section-subheading"><div><p class="overline">Security Center</p><h3>Authentication and access signals</h3></div></div>
+      <div class="detail-grid compact">
+        <article class="detail-card"><span>Failed login attempts</span><strong>{{ data.securityCenter.failedLoginAttempts }}</strong></article>
+        <article class="detail-card"><span>Locked accounts</span><strong>{{ data.securityCenter.lockedAccounts }}</strong></article>
+        <article class="detail-card"><span>Active users</span><strong>{{ data.securityCenter.activeUsers }}</strong></article>
+      </div>
+      @if (data.securityCenter.recentSecurityEvents.length === 0) {
+        <p class="muted-copy">No information has been added yet.</p>
+      } @else {
+        <div class="activity-list">
+          @for (event of data.securityCenter.recentSecurityEvents; track event) {
+            <article class="activity-item"><strong>{{ event }}</strong></article>
+          }
+        </div>
+      }
+    </section>
+
+    @if (canManage()) {
+      <section class="panel enterprise-form">
+        <div class="section-subheading"><div><p class="overline">Founder Controls</p><h3>Create administration records</h3></div></div>
+        <form [formGroup]="environmentForm" (ngSubmit)="saveEnvironment()">
+          <h3>Environment</h3>
+          <div class="form-grid">
+            <label>Name <input formControlName="name"></label>
+            <label>Type <select formControlName="environmentType">@for (item of environmentTypes; track item) { <option [value]="item">{{ item }}</option> }</select></label>
+            <label>URL <input formControlName="url"></label>
+            <label>Version <input formControlName="version"></label>
+            <label>Build number <input formControlName="buildNumber"></label>
+            <label>Status <select formControlName="status">@for (item of operationalStatuses; track item) { <option [value]="item">{{ item }}</option> }</select></label>
+            <label>Health <select formControlName="health">@for (item of healthStates; track item) { <option [value]="item">{{ item }}</option> }</select></label>
+            <label>Region <input formControlName="region"></label>
+          </div>
+          <button class="primary-button" type="submit" [disabled]="environmentForm.invalid">Save environment</button>
+        </form>
+
+        <form [formGroup]="serviceForm" (ngSubmit)="saveService()">
+          <h3>Service</h3>
+          <div class="form-grid">
+            <label>Service name <input formControlName="serviceName"></label>
+            <label>Version <input formControlName="version"></label>
+            <label>Status <select formControlName="status">@for (item of operationalStatuses; track item) { <option [value]="item">{{ item }}</option> }</select></label>
+            <label>Health <select formControlName="health">@for (item of healthStates; track item) { <option [value]="item">{{ item }}</option> }</select></label>
+            <label>API base URL <input formControlName="apiBaseUrl"></label>
+            <label>Owner <input formControlName="owner"></label>
+            <label class="full-span">Dependencies <textarea formControlName="dependencies"></textarea></label>
+          </div>
+          <button class="primary-button" type="submit" [disabled]="serviceForm.invalid">Save service</button>
+        </form>
+
+        <form [formGroup]="releaseForm" (ngSubmit)="saveRelease()">
+          <h3>Release</h3>
+          <div class="form-grid">
+            <label>Version <input formControlName="version"></label>
+            <label>Release name <input formControlName="releaseName"></label>
+            <label>Release date <input type="date" formControlName="releaseDate"></label>
+            <label>Migration version <input formControlName="databaseMigrationVersion"></label>
+            <label>Rollback status <select formControlName="rollbackStatus">@for (item of rollbackStatuses; track item) { <option [value]="item">{{ item }}</option> }</select></label>
+            <label class="full-span">Modules included <textarea formControlName="modulesIncluded"></textarea></label>
+            <label class="full-span">Breaking changes <textarea formControlName="breakingChanges"></textarea></label>
+          </div>
+          <button class="primary-button" type="submit" [disabled]="releaseForm.invalid">Save release</button>
+        </form>
+
+        <form [formGroup]="backupForm" (ngSubmit)="saveBackup()">
+          <h3>Backup</h3>
+          <div class="form-grid">
+            <label>Backup type <select formControlName="backupType">@for (item of backupTypes; track item) { <option [value]="item">{{ item }}</option> }</select></label>
+            <label>Status <select formControlName="backupStatus">@for (item of backupStatuses; track item) { <option [value]="item">{{ item }}</option> }</select></label>
+            <label>Size bytes <input formControlName="backupSizeBytes"></label>
+            <label>Restore test <select formControlName="restoreTestStatus">@for (item of restoreStatuses; track item) { <option [value]="item">{{ item }}</option> }</select></label>
+            <label class="full-span">Notes <textarea formControlName="notes"></textarea></label>
+          </div>
+          <button class="primary-button" type="submit" [disabled]="backupForm.invalid">Save backup</button>
+        </form>
+
+        <form [formGroup]="jobForm" (ngSubmit)="saveJob()">
+          <h3>Job</h3>
+          <div class="form-grid">
+            <label>Job name <input formControlName="jobName"></label>
+            <label>Job type <input formControlName="jobType"></label>
+            <label>Status <select formControlName="status">@for (item of jobStatuses; track item) { <option [value]="item">{{ item }}</option> }</select></label>
+            <label>Owner <input formControlName="owner"></label>
+            <label class="full-span">Notes <textarea formControlName="notes"></textarea></label>
+          </div>
+          <button class="primary-button" type="submit" [disabled]="jobForm.invalid">Save job</button>
+        </form>
+
+        <form [formGroup]="apiForm" (ngSubmit)="saveApi()">
+          <h3>API</h3>
+          <div class="form-grid">
+            <label>API name <input formControlName="apiName"></label>
+            <label>Base path <input formControlName="basePath"></label>
+            <label>Endpoint count <input type="number" formControlName="endpointCount"></label>
+            <label>Version <input formControlName="version"></label>
+            <label>Status <select formControlName="status">@for (item of apiStatuses; track item) { <option [value]="item">{{ item }}</option> }</select></label>
+            <label>Average response time ms <input formControlName="averageResponseTimeMs"></label>
+            <label><input type="checkbox" formControlName="authenticationRequired"> Authentication required</label>
+          </div>
+          <button class="primary-button" type="submit" [disabled]="apiForm.invalid">Save API</button>
+        </form>
+      </section>
+    }
+
+    <section class="panel table-panel">
+      <div class="section-subheading"><div><p class="overline">Environment Management</p><h3>Registered environments</h3></div></div>
+      @if (data.environments.length === 0) { <kravia-empty-state label="Environments" message="No information has been added yet." /> } @else {
+        <table><thead><tr><th>Name</th><th>Type</th><th>Status</th><th>Health</th><th>Version</th><th>Region</th></tr></thead><tbody>@for (item of data.environments; track item.id) { <tr><td>{{ item.name }}</td><td>{{ item.environmentType }}</td><td>{{ item.status }}</td><td>{{ item.health }}</td><td>{{ item.version || 'No information has been added yet.' }}</td><td>{{ item.region || 'No information has been added yet.' }}</td></tr> }</tbody></table>
+      }
+    </section>
+
+    <section class="panel table-panel">
+      <div class="section-subheading"><div><p class="overline">Service Registry</p><h3>Registered backend services</h3></div></div>
+      @if (data.services.length === 0) { <kravia-empty-state label="Services" message="No information has been added yet." /> } @else {
+        <table><thead><tr><th>Service</th><th>Status</th><th>Health</th><th>Owner</th><th>Dependencies</th></tr></thead><tbody>@for (item of data.services; track item.id) { <tr><td>{{ item.serviceName }}</td><td>{{ item.status }}</td><td>{{ item.health }}</td><td>{{ item.owner || 'No information has been added yet.' }}</td><td>{{ item.dependencies || 'No information has been added yet.' }}</td></tr> }</tbody></table>
+      }
+    </section>
+
+    <section class="panel table-panel">
+      <div class="section-subheading"><div><p class="overline">Release Management</p><h3>Release history</h3></div></div>
+      @if (data.releases.length === 0) { <kravia-empty-state label="Releases" message="No information has been added yet." /> } @else {
+        <table><thead><tr><th>Version</th><th>Name</th><th>Date</th><th>Migration</th><th>Rollback</th></tr></thead><tbody>@for (item of data.releases; track item.id) { <tr><td>{{ item.version }}</td><td>{{ item.releaseName }}</td><td>{{ item.releaseDate || 'No information has been added yet.' }}</td><td>{{ item.databaseMigrationVersion || 'No information has been added yet.' }}</td><td>{{ item.rollbackStatus }}</td></tr> }</tbody></table>
+      }
+    </section>
+
+    <section class="panel table-panel">
+      <div class="section-subheading"><div><p class="overline">Backup Management</p><h3>Backup and restore status</h3></div></div>
+      @if (data.backups.length === 0) { <kravia-empty-state label="Backups" message="No information has been added yet." /> } @else {
+        <table><thead><tr><th>Type</th><th>Status</th><th>Last backup</th><th>Next backup</th><th>Restore test</th></tr></thead><tbody>@for (item of data.backups; track item.id) { <tr><td>{{ item.backupType }}</td><td>{{ item.backupStatus }}</td><td>{{ formatDate(item.lastBackupAt) }}</td><td>{{ formatDate(item.nextScheduledBackupAt) }}</td><td>{{ item.restoreTestStatus }}</td></tr> }</tbody></table>
+      }
+    </section>
+
+    <section class="panel table-panel">
+      <div class="section-subheading"><div><p class="overline">Job Scheduler</p><h3>Background jobs</h3></div></div>
+      @if (data.jobs.length === 0) { <kravia-empty-state label="Jobs" message="No information has been added yet." /> } @else {
+        <table><thead><tr><th>Job</th><th>Type</th><th>Status</th><th>Owner</th><th>Next run</th></tr></thead><tbody>@for (item of data.jobs; track item.id) { <tr><td>{{ item.jobName }}</td><td>{{ item.jobType }}</td><td>{{ item.status }}</td><td>{{ item.owner || 'No information has been added yet.' }}</td><td>{{ formatDate(item.nextRunAt) }}</td></tr> }</tbody></table>
+      }
+    </section>
+
+    <section class="panel table-panel">
+      <div class="section-subheading"><div><p class="overline">API Management</p><h3>Registered APIs</h3></div></div>
+      @if (data.apis.length === 0) { <kravia-empty-state label="APIs" message="No information has been added yet." /> } @else {
+        <table><thead><tr><th>API</th><th>Base path</th><th>Endpoints</th><th>Auth</th><th>Status</th><th>Avg response</th></tr></thead><tbody>@for (item of data.apis; track item.id) { <tr><td>{{ item.apiName }}</td><td>{{ item.basePath }}</td><td>{{ item.endpointCount }}</td><td>{{ item.authenticationRequired ? 'Required' : 'Not required' }}</td><td>{{ item.status }}</td><td>{{ item.averageResponseTimeMs ?? 'No information has been added yet.' }}</td></tr> }</tbody></table>
+      }
+    </section>
+  } @else {
+    <kravia-empty-state label="Platform Administration" message="No information has been added yet." />
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>

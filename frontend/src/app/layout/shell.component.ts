@@ -19,6 +19,7 @@ export class ShellComponent {
   readonly navItems: NavItem[] = [
     { label: 'Executive Dashboard', path: '/dashboard' },
     { label: 'Governance', path: '/governance' },
+    { label: 'Platform Admin', path: '/platform-admin', roles: ['FOUNDER', 'DIRECTOR'] },
     { label: 'Privacy Center', path: '/privacy-center' },
     { label: 'Approvals', path: '/approvals' },
     { label: 'Risk Register', path: '/risk-register' },

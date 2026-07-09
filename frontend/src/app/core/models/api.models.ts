@@ -755,3 +755,38 @@ export interface GovernanceDashboard {
   accessReviewStatus: string;
   complianceEvidenceStatus: string;
 }
+
+export type PlatformEnvironmentType = 'DEVELOPMENT' | 'TESTING' | 'STAGING' | 'PRODUCTION' | 'DISASTER_RECOVERY';
+export type PlatformOperationalStatus = 'ACTIVE' | 'DEGRADED' | 'DOWN' | 'MAINTENANCE' | 'UNKNOWN';
+export type PlatformHealthState = 'UP' | 'DEGRADED' | 'DOWN' | 'UNKNOWN' | 'NOT_CONFIGURED';
+export type BackupType = 'DATABASE' | 'FILE' | 'CONFIGURATION';
+export type BackupStatus = 'NOT_CONFIGURED' | 'SCHEDULED' | 'COMPLETED' | 'FAILED' | 'WARNING';
+export type RestoreTestStatus = 'NOT_TESTED' | 'PASSED' | 'FAILED' | 'SCHEDULED';
+export type PlatformJobStatus = 'ENABLED' | 'DISABLED' | 'RUNNING' | 'FAILED' | 'NOT_CONFIGURED';
+export type ApiRegistryStatus = 'ACTIVE' | 'DEPRECATED' | 'DISABLED' | 'UNKNOWN';
+export type RollbackStatus = 'NOT_REQUIRED' | 'AVAILABLE' | 'TESTED' | 'BLOCKED' | 'UNKNOWN';
+
+export interface PlatformMetric { label: string; value: string; }
+export interface PlatformHealthComponent { name: string; health: PlatformHealthState; detail: string; }
+export interface PlatformModuleDependency { module: string; dependsOn: string[]; }
+export interface PlatformSecurityCenter { failedLoginAttempts: number; lockedAccounts: number; activeUsers: number; recentSecurityEvents: string[]; }
+
+export interface PlatformEnvironmentRecord { id: string; name: string; environmentType: PlatformEnvironmentType; url?: string; version?: string; buildNumber?: string; deploymentDate?: string; status: PlatformOperationalStatus; health: PlatformHealthState; region?: string; updatedAt: string; }
+export interface PlatformServiceRecord { id: string; serviceName: string; version?: string; status: PlatformOperationalStatus; health: PlatformHealthState; apiBaseUrl?: string; owner?: string; lastDeployment?: string; dependencies?: string; updatedAt: string; }
+export interface PlatformReleaseRecord { id: string; version: string; releaseName: string; releaseDate?: string; modulesIncluded?: string; breakingChanges?: string; databaseMigrationVersion?: string; rollbackStatus: RollbackStatus; updatedAt: string; }
+export interface PlatformBackupRecord { id: string; backupType: BackupType; lastBackupAt?: string; nextScheduledBackupAt?: string; backupStatus: BackupStatus; backupSizeBytes?: number; restoreTestStatus: RestoreTestStatus; notes?: string; updatedAt: string; }
+export interface PlatformJobRecord { id: string; jobName: string; jobType: string; status: PlatformJobStatus; lastRunAt?: string; nextRunAt?: string; owner?: string; notes?: string; updatedAt: string; }
+export interface PlatformApiRecord { id: string; apiName: string; basePath: string; endpointCount: number; version?: string; authenticationRequired: boolean; status: ApiRegistryStatus; averageResponseTimeMs?: number; updatedAt: string; }
+
+export interface PlatformOverview {
+  engineeringMetrics: PlatformMetric[];
+  health: PlatformHealthComponent[];
+  environments: PlatformEnvironmentRecord[];
+  services: PlatformServiceRecord[];
+  releases: PlatformReleaseRecord[];
+  backups: PlatformBackupRecord[];
+  jobs: PlatformJobRecord[];
+  apis: PlatformApiRecord[];
+  moduleDependencies: PlatformModuleDependency[];
+  securityCenter: PlatformSecurityCenter;
+}

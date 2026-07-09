@@ -1,6 +1,7 @@
 import { HttpClient, HttpEvent, HttpParams, HttpRequest, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { PlatformApiRecord, PlatformBackupRecord, PlatformEnvironmentRecord, PlatformJobRecord, PlatformOverview, PlatformReleaseRecord, PlatformServiceRecord } from '../models/api.models';
 import { AccessReviewRecord, ApprovalDecisionPayload, ApprovalRecord, ApprovalRequestPayload, DataClassification, DataPrivacyRecord, DataPrivacyRequest, EvidencePackRecord, EvidencePackRequestPayload, EvidenceTimelineItem, GovernanceDashboard, RiskCategory, RiskLevel, RiskRecord, RiskRequestPayload, RiskStatus } from '../models/api.models';
 import { AiQueryRecord, AiQueryRequest, AnnouncementRecord, AnnouncementRequest, AuditLogRecord, BoardMeetingRecord, BoardMeetingRequest, CompanyProfile, CompanyTask, CompanyTaskRequest, ContactCategory, ContactRecord, ContactRequest, ContactStatus, ComplianceCategory, ComplianceItem, ComplianceItemRequest, CompliancePriority, ComplianceStatus, DocumentCategory, DocumentMetadataRequest, DocumentRecord, DocumentStatus, ExecutiveDashboard, FinancialRecord, FinancialRecordRequest, MeetingActionItemRecord, MeetingActionItemRequest, MeetingStatus, MeetingType, NotificationRecord, ProductRecord, ProductRequest, ProductStatus, ReportFilters, ReportResponse, ReportType, SearchResponse, TaskCategory, TaskPriority, TaskStatus, TaskStatusRequest } from '../models/api.models';
 
@@ -238,4 +239,11 @@ export class ApiService {
 
   evidencePacks(): Observable<EvidencePackRecord[]> { return this.http.get<EvidencePackRecord[]>('/api/evidence/packs'); }
   generateEvidencePack(payload: EvidencePackRequestPayload): Observable<EvidencePackRecord> { return this.http.post<EvidencePackRecord>('/api/evidence/packs/generate', payload); }
-  evidenceTimeline(): Observable<EvidenceTimelineItem[]> { return this.http.get<EvidenceTimelineItem[]>('/api/evidence/timeline'); }}
+  evidenceTimeline(): Observable<EvidenceTimelineItem[]> { return this.http.get<EvidenceTimelineItem[]>('/api/evidence/timeline'); }
+  platformOverview(): Observable<PlatformOverview> { return this.http.get<PlatformOverview>('/api/platform-admin/overview'); }
+  createPlatformEnvironment(payload: Partial<PlatformEnvironmentRecord>): Observable<PlatformEnvironmentRecord> { return this.http.post<PlatformEnvironmentRecord>('/api/platform-admin/environments', payload); }
+  createPlatformService(payload: Partial<PlatformServiceRecord>): Observable<PlatformServiceRecord> { return this.http.post<PlatformServiceRecord>('/api/platform-admin/services', payload); }
+  createPlatformRelease(payload: Partial<PlatformReleaseRecord>): Observable<PlatformReleaseRecord> { return this.http.post<PlatformReleaseRecord>('/api/platform-admin/releases', payload); }
+  createPlatformBackup(payload: Partial<PlatformBackupRecord>): Observable<PlatformBackupRecord> { return this.http.post<PlatformBackupRecord>('/api/platform-admin/backups', payload); }
+  createPlatformJob(payload: Partial<PlatformJobRecord>): Observable<PlatformJobRecord> { return this.http.post<PlatformJobRecord>('/api/platform-admin/jobs', payload); }
+  createPlatformApi(payload: Partial<PlatformApiRecord>): Observable<PlatformApiRecord> { return this.http.post<PlatformApiRecord>('/api/platform-admin/apis', payload); }}
