@@ -1,7 +1,7 @@
 import { HttpClient, HttpEvent, HttpParams, HttpRequest, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { AuditLogRecord, BoardMeetingRecord, BoardMeetingRequest, CompanyProfile, DocumentCategory, DocumentMetadataRequest, DocumentRecord, DocumentStatus, FinancialRecord, FinancialRecordRequest, MeetingActionItemRecord, MeetingActionItemRequest, MeetingStatus, MeetingType } from '../models/api.models';
+import { AuditLogRecord, BoardMeetingRecord, BoardMeetingRequest, CompanyProfile, ComplianceCategory, ComplianceItem, ComplianceItemRequest, CompliancePriority, ComplianceStatus, DocumentCategory, DocumentMetadataRequest, DocumentRecord, DocumentStatus, FinancialRecord, FinancialRecordRequest, MeetingActionItemRecord, MeetingActionItemRequest, MeetingStatus, MeetingType } from '../models/api.models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -83,4 +83,25 @@ export class ApiService {
   }
 
   archiveFinancialRecord(id: string): Observable<void> { return this.http.delete<void>(`/api/financial-records/${id}`); }
+
+  complianceItems(filters: { query?: string; category?: ComplianceCategory | ''; status?: ComplianceStatus | ''; priority?: CompliancePriority | '' }): Observable<ComplianceItem[]> {
+    let params = new HttpParams();
+    if (filters.query?.trim()) params = params.set('query', filters.query.trim());
+    if (filters.category) params = params.set('category', filters.category);
+    if (filters.status) params = params.set('status', filters.status);
+    if (filters.priority) params = params.set('priority', filters.priority);
+    return this.http.get<ComplianceItem[]>('/api/compliance-items', { params });
+  }
+
+  complianceItem(id: string): Observable<ComplianceItem> { return this.http.get<ComplianceItem>(`/api/compliance-items/${id}`); }
+
+  createComplianceItem(payload: ComplianceItemRequest): Observable<ComplianceItem> {
+    return this.http.post<ComplianceItem>('/api/compliance-items', payload);
+  }
+
+  updateComplianceItem(id: string, payload: ComplianceItemRequest): Observable<ComplianceItem> {
+    return this.http.put<ComplianceItem>(`/api/compliance-items/${id}`, payload);
+  }
+
+  archiveComplianceItem(id: string): Observable<void> { return this.http.delete<void>(`/api/compliance-items/${id}`); }
 }

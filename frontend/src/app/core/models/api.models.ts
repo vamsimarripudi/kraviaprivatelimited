@@ -159,6 +159,70 @@ export interface FinancialRecordRequest {
   status: FinancialRecordStatus;
 }
 
+export type ComplianceCategory =
+  | 'MCA'
+  | 'ROC'
+  | 'INC_22'
+  | 'AUDITOR_APPOINTMENT'
+  | 'GST_REGISTRATION'
+  | 'GST_FILING'
+  | 'STARTUP_INDIA'
+  | 'TRADEMARK'
+  | 'MSME_UDYAM'
+  | 'EPFO'
+  | 'ESIC'
+  | 'BANK_KYC'
+  | 'ANNUAL_COMPLIANCE'
+  | 'BOARD_RESOLUTION'
+  | 'LEGAL_AGREEMENT'
+  | 'OTHER';
+
+export type ComplianceStatus =
+  | 'NOT_STARTED'
+  | 'IN_PROGRESS'
+  | 'WAITING_FOR_CA'
+  | 'WAITING_FOR_DIRECTOR'
+  | 'SUBMITTED'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'COMPLETED'
+  | 'NOT_APPLICABLE'
+  | 'ARCHIVED';
+
+export type CompliancePriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+export interface ComplianceItem {
+  id: string;
+  title: string;
+  category: ComplianceCategory;
+  description?: string;
+  dueDate?: string;
+  status: ComplianceStatus;
+  priority: CompliancePriority;
+  responsiblePerson?: string;
+  relatedDocumentId?: string;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  archivedAt?: string;
+  overdue: boolean;
+  upcomingDue: boolean;
+  daysUntilDue?: number;
+}
+
+export interface ComplianceItemRequest {
+  title: string;
+  category: ComplianceCategory;
+  description?: string;
+  dueDate?: string;
+  status: ComplianceStatus;
+  priority: CompliancePriority;
+  responsiblePerson?: string;
+  relatedDocumentId?: string;
+  notes?: string;
+}
+
 export interface AuditLogRecord {
   id: string;
   actorEmail: string;

@@ -72,11 +72,17 @@ Frontend runs at `http://localhost:4200` and proxies `/api` to Spring Boot.
 
 ## Role Checks
 
-- Founder can view and edit company profile, upload/download/edit/archive documents, create/edit/archive board meetings, create/edit/archive financial records, and view audit logs.
-- Director can view and edit company profile, upload/download/edit documents, create/edit board meetings, create/edit financial records, and view audit logs.
-- Viewer can view company profile, view/download documents, read board meetings, and read financial records only.
+- Founder can view and edit company profile, upload/download/edit/archive documents, create/edit/archive board meetings, create/edit/archive financial records, create/edit/archive compliance items, and view audit logs.
+- Director can view and edit company profile, upload/download/edit documents, create/edit board meetings, create/edit financial records, create/edit compliance items, and view audit logs.
+- Viewer can view company profile, view/download documents, read board meetings, read financial records, and read compliance items only.
 - Audit Logs route is visible only to Founder and Director.
 
+## Compliance Center Checks
+
+- Compliance create/update rejects missing title, category, status, priority, due date when applicable, and responsible person for active items.
+- Search, category/status/priority filters, and due-date sorting are handled by the backend.
+- Overdue and upcoming-due indicators are calculated by the backend from the item due date.
+- Compliance APIs are protected by backend role checks; Viewer users are read-only.
 ## Financial Records Checks
 
 - Financial create/update rejects missing reporting month, revenue, expenses, GST collected, GST paid, or status.

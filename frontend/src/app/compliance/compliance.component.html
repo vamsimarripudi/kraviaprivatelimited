@@ -1,0 +1,226 @@
+<section class="portal-section">
+  <div class="section-heading">
+    <div>
+      <p class="overline">Compliance Center</p>
+      <h2>Company Compliance Records</h2>
+      <p>Track statutory filings, registrations, legal obligations, due dates, ownership, and status changes in one protected workspace.</p>
+    </div>
+  </div>
+
+  <div class="compliance-summary-grid">
+    @for (card of summaryCards(); track card.label) {
+      <article class="compliance-card" [class.warning]="card.tone === 'warning'" [class.critical]="card.tone === 'critical'">
+        <span>{{ card.label }}</span>
+        <strong>{{ card.value }}</strong>
+      </article>
+    }
+  </div>
+
+  @if (canEdit()) {
+    <form class="panel enterprise-form" [formGroup]="form" (ngSubmit)="submit()">
+      <div class="section-subheading">
+        <div>
+          <p class="overline">{{ editingId() ? 'Edit' : 'Create' }}</p>
+          <h3>{{ editingId() ? 'Edit compliance item' : 'Add compliance item' }}</h3>
+        </div>
+        @if (editingId()) {
+          <button class="secondary-button" type="button" (click)="cancelEdit()">Cancel edit</button>
+        }
+      </div>
+
+      <div class="form-grid">
+        <label>
+          Title
+          <input type="text" formControlName="title" autocomplete="off">
+        </label>
+        <label>
+          Category
+          <select formControlName="category">
+            @for (category of categories; track category.value) {
+              <option [value]="category.value">{{ category.label }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Status
+          <select formControlName="status">
+            @for (status of statuses; track status.value) {
+              @if (canArchive() || status.value !== 'ARCHIVED') {
+                <option [value]="status.value">{{ status.label }}</option>
+              }
+            }
+          </select>
+        </label>
+        <label>
+          Priority
+          <select formControlName="priority">
+            @for (priority of priorities; track priority.value) {
+              <option [value]="priority.value">{{ priority.label }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Due date
+          <input type="date" formControlName="dueDate">
+        </label>
+        <label>
+          Responsible person
+          <input type="text" formControlName="responsiblePerson" autocomplete="off">
+        </label>
+        <label class="full-span">
+          Description
+          <textarea formControlName="description"></textarea>
+        </label>
+        <label>
+          Related document ID
+          <input type="text" formControlName="relatedDocumentId" autocomplete="off">
+        </label>
+        <label class="full-span">
+          Notes
+          <textarea formControlName="notes"></textarea>
+        </label>
+      </div>
+
+      @if (form.controls.title.invalid && form.controls.title.touched) {
+        <p class="form-error">Title is required.</p>
+      }
+      @if (form.controls.status.value !== 'NOT_APPLICABLE' && !form.controls.dueDate.value && form.touched) {
+        <p class="form-error">Due date is required unless status is not applicable.</p>
+      }
+      @if (requiresResponsiblePerson(form.controls.status.value) && !form.controls.responsiblePerson.value.trim() && form.touched) {
+        <p class="form-error">Responsible person is required for active compliance items.</p>
+      }
+      <div class="form-actions">
+        <button class="primary-button" type="submit" [disabled]="form.invalid">{{ editingId() ? 'Save compliance item' : 'Add compliance item' }}</button>
+      </div>
+    </form>
+  } @else {
+    <p class="access-note">Viewer role can read compliance records only.</p>
+  }
+
+  <div class="panel toolbar-panel compliance-toolbar">
+    <label>
+      Search compliance
+      <input type="search" [value]="query()" (input)="applySearch($any($event.target).value)" placeholder="Search title, notes, owner">
+    </label>
+    <label>
+      Category
+      <select [value]="category()" (change)="applyCategory($any($event.target).value)">
+        <option value="">All categories</option>
+        @for (category of categories; track category.value) {
+          <option [value]="category.value">{{ category.label }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Status
+      <select [value]="status()" (change)="applyStatus($any($event.target).value)">
+        <option value="">All statuses</option>
+        @for (status of statuses; track status.value) {
+          <option [value]="status.value">{{ status.label }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Priority
+      <select [value]="priority()" (change)="applyPriority($any($event.target).value)">
+        <option value="">All priorities</option>
+        @for (priority of priorities; track priority.value) {
+          <option [value]="priority.value">{{ priority.label }}</option>
+        }
+      </select>
+    </label>
+    @if (activeFilters()) {
+      <button class="secondary-button" type="button" (click)="clearFilters()">Clear filters</button>
+    }
+  </div>
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading compliance items..." />
+  } @else if (items().length === 0) {
+    <kravia-empty-state label="Compliance Center" message="No compliance items have been added yet." />
+  } @else {
+    <div class="compliance-layout">
+      <div class="panel table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Compliance item</th>
+              <th>Category</th>
+              <th>Priority</th>
+              <th>Status</th>
+              <th>Due date</th>
+              <th>Owner</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of items(); track item.id) {
+              <tr [class.is-selected]="selected()?.id === item.id">
+                <td>
+                  <button class="text-button" type="button" (click)="select(item)">{{ item.title }}</button>
+                  <small>Updated {{ formatDateTime(item.updatedAt) }}</small>
+                </td>
+                <td><span class="category-badge">{{ categoryLabel(item.category) }}</span></td>
+                <td><span class="priority-badge" [class.high]="item.priority === 'HIGH'" [class.critical]="item.priority === 'CRITICAL'">{{ priorityLabel(item.priority) }}</span></td>
+                <td><span class="status-badge">{{ statusLabel(item.status) }}</span></td>
+                <td><span class="due-indicator" [class.overdue]="dueClass(item) === 'overdue'" [class.upcoming]="dueClass(item) === 'upcoming'">{{ dueLabel(item) }}</span></td>
+                <td>{{ emptyText(item.responsiblePerson) }}</td>
+                <td>
+                  <div class="row-actions">
+                    <button class="secondary-button" type="button" (click)="select(item)">View</button>
+                    @if (canEditItem(item)) {
+                      <button class="secondary-button" type="button" (click)="startEdit(item)">Edit</button>
+                    }
+                    @if (canArchive() && item.status !== 'ARCHIVED') {
+                      <button class="secondary-button" type="button" (click)="archive(item)">Archive</button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (selected(); as item) {
+        <aside class="panel compliance-detail">
+          <div class="meeting-detail-header">
+            <div>
+              <p class="overline">Compliance Detail</p>
+              <h3>{{ item.title }}</h3>
+              <p>{{ categoryLabel(item.category) }}</p>
+            </div>
+            <span class="status-badge">{{ statusLabel(item.status) }}</span>
+          </div>
+
+          <dl class="metadata-list">
+            <div><dt>Priority</dt><dd>{{ priorityLabel(item.priority) }}</dd></div>
+            <div><dt>Due date</dt><dd>{{ dueLabel(item) }}</dd></div>
+            <div><dt>Responsible person</dt><dd>{{ emptyText(item.responsiblePerson) }}</dd></div>
+            <div><dt>Related document</dt><dd>{{ emptyText(item.relatedDocumentId) }}</dd></div>
+            <div><dt>Created by</dt><dd>{{ item.createdBy }}</dd></div>
+            <div><dt>Created</dt><dd>{{ formatDateTime(item.createdAt) }}</dd></div>
+            <div><dt>Last updated</dt><dd>{{ formatDateTime(item.updatedAt) }}</dd></div>
+            @if (item.archivedAt) {
+              <div><dt>Archived</dt><dd>{{ formatDateTime(item.archivedAt) }}</dd></div>
+            }
+          </dl>
+
+          <details class="compliance-notes" open>
+            <summary>Description</summary>
+            <p>{{ emptyText(item.description) }}</p>
+          </details>
+
+          <details class="compliance-notes" open>
+            <summary>Notes</summary>
+            <p>{{ emptyText(item.notes) }}</p>
+          </details>
+        </aside>
+      }
+    </div>
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>

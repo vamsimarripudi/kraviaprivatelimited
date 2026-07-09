@@ -206,6 +206,72 @@ Financial record create/update requests include:
 
 The backend calculates `profitOrLoss = revenue - expenses` and `netGstPosition = gstCollected - gstPaid` for every create and update request.
 
+## Compliance Center
+
+| Method | Path | Access | Purpose |
+| --- | --- | --- | --- |
+| POST | `/compliance-items` | Founder, Director | Create a compliance item |
+| GET | `/compliance-items` | Founder, Director, Viewer | List compliance items with optional search/category/status/priority filters |
+| GET | `/compliance-items/{id}` | Founder, Director, Viewer | View compliance item details |
+| PUT | `/compliance-items/{id}` | Founder, Director | Update a compliance item |
+| DELETE | `/compliance-items/{id}` | Founder | Archive a compliance item |
+
+### Compliance Filters
+
+- `query`: searches title, description, notes, and responsible person.
+- `category`: one of the configured compliance category enum values.
+- `status`: one of the configured compliance status enum values.
+- `priority`: `LOW`, `MEDIUM`, `HIGH`, or `CRITICAL`.
+
+Results are sorted by due date ascending, with items that have no due date after dated items.
+
+### Compliance Categories
+
+- `MCA`
+- `ROC`
+- `INC_22`
+- `AUDITOR_APPOINTMENT`
+- `GST_REGISTRATION`
+- `GST_FILING`
+- `STARTUP_INDIA`
+- `TRADEMARK`
+- `MSME_UDYAM`
+- `EPFO`
+- `ESIC`
+- `BANK_KYC`
+- `ANNUAL_COMPLIANCE`
+- `BOARD_RESOLUTION`
+- `LEGAL_AGREEMENT`
+- `OTHER`
+
+### Compliance Statuses
+
+- `NOT_STARTED`
+- `IN_PROGRESS`
+- `WAITING_FOR_CA`
+- `WAITING_FOR_DIRECTOR`
+- `SUBMITTED`
+- `APPROVED`
+- `REJECTED`
+- `COMPLETED`
+- `NOT_APPLICABLE`
+- `ARCHIVED`
+
+### Compliance Payload Fields
+
+Compliance item create/update requests include:
+
+- `title` required
+- `category` required
+- `description` optional
+- `dueDate` required unless status is `NOT_APPLICABLE`
+- `status` required
+- `priority` required: `LOW`, `MEDIUM`, `HIGH`, or `CRITICAL`
+- `responsiblePerson` required for active compliance items
+- `relatedDocumentId` optional UUID
+- `notes` optional
+
+Responses include computed `overdue`, `upcomingDue`, and `daysUntilDue` fields. Upcoming due means an open item due in the next 14 days.
 ## Audit Logs
 
 | Method | Path | Access | Purpose |
@@ -216,6 +282,7 @@ Profile edits create audit entries with module `COMPANY_PROFILE` and action `PRO
 Document actions create audit entries with module `DOCUMENT_VAULT` and actions `DOCUMENT_UPLOADED`, `DOCUMENT_UPDATED`, `DOCUMENT_DOWNLOADED`, and `DOCUMENT_ARCHIVED`.
 Board meeting actions create audit entries with module `BOARD_MEETINGS` and actions `MEETING_CREATED`, `MEETING_UPDATED`, `MEETING_STATUS_CHANGED`, `MEETING_ARCHIVED`, `MEETING_ACTION_ITEM_CREATED`, `MEETING_ACTION_ITEM_UPDATED`, and `MEETING_ACTION_STATUS_CHANGED`.
 Financial record actions create audit entries with module `FINANCIAL_RECORDS` and actions `FINANCIAL_RECORD_CREATED`, `FINANCIAL_RECORD_UPDATED`, and `FINANCIAL_RECORD_ARCHIVED`.
+Compliance actions create audit entries with module `COMPLIANCE_CENTER` and actions `COMPLIANCE_ITEM_CREATED`, `COMPLIANCE_ITEM_UPDATED`, `COMPLIANCE_STATUS_CHANGED`, and `COMPLIANCE_ITEM_ARCHIVED`.
 
 ## Database Tables
 
@@ -239,6 +306,7 @@ Financial record actions create audit entries with module `FINANCIAL_RECORDS` an
 - No dummy document records or files are seeded.
 - No dummy board meeting records, discussions, decisions, resolutions, or action items are seeded.
 - No dummy financial records or metrics are seeded.
+- No dummy compliance records or statutory obligations are seeded.
 - The migration inserts only role names: `FOUNDER`, `DIRECTOR`, `VIEWER`.
 - The only user bootstrap is the optional founder account from environment variables.
 - Document files are stored in private local storage for development and downloaded only through protected APIs.

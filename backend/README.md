@@ -55,6 +55,16 @@ Optional:
 - `KRAVIA_DOCUMENT_MULTIPART_MAX_SIZE`
 - `KRAVIA_DOCUMENT_MULTIPART_MAX_REQUEST_SIZE`
 
+## Compliance Center
+
+Compliance records are stored in `compliance_items`. The backend enforces Founder/Director write access, Founder-only archive access, and Viewer read-only access. The service calculates overdue and upcoming-due indicators from each item due date on read.
+
+Compliance actions write audit logs:
+
+- `COMPLIANCE_ITEM_CREATED`
+- `COMPLIANCE_ITEM_UPDATED`
+- `COMPLIANCE_STATUS_CHANGED`
+- `COMPLIANCE_ITEM_ARCHIVED`
 ## Financial Records
 
 Financial records are stored in `financial_records`. The backend enforces Founder/Director write access, Founder-only archive access, and Viewer read-only access. Profit/loss and net GST position are calculated by the service on every create and update request.

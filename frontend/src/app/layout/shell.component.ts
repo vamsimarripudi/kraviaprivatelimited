@@ -21,6 +21,7 @@ export class ShellComponent {
     { label: 'Documents', path: '/documents' },
     { label: 'Board Meetings', path: '/board-meetings' },
     { label: 'Finance', path: '/finance' },
+    { label: 'Compliance', path: '/compliance' },
     { label: 'Audit Logs', path: '/audit-logs', roles: ['FOUNDER', 'DIRECTOR'] }
   ];
   readonly visibleNav = computed(() => this.navItems.filter((item) => !item.roles || this.auth.hasAnyRole(item.roles)));

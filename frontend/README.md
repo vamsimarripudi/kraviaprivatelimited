@@ -34,6 +34,9 @@ The dev server proxies `/api` to `http://localhost:8080` through `proxy.conf.jso
 - Finance
 - Audit Logs
 
+## Compliance Center UI
+
+The Compliance page includes summary cards, search, category/status/priority filters, due-date sorting from the backend, add/edit compliance item forms, overdue and upcoming due indicators, a professional compliance table, detail view, and the empty state `No compliance items have been added yet.`.
 ## Financial Dashboard UI
 
 The Finance page includes monthly summary cards, search, month/year filters, add/edit financial record forms, calculated profit/loss and net GST preview, a professional record table, detail view, and the empty state `No financial records have been added yet.`.
@@ -48,6 +51,6 @@ The Board Meetings page includes create/edit forms, search, meeting type/status 
 
 ## Role Behavior
 
-- Founder: can view and edit company profile; can upload, edit, download, and archive documents; can create, edit, and archive board meetings; can create, edit, and archive financial records; can view audit logs.
-- Director: can view and edit company profile; can upload, edit, and download documents; can create and edit board meetings; can create and edit financial records; can view audit logs.
-- Viewer: can view company profile, view/download documents, read board meetings, and read financial records only.
+- Founder: can view and edit company profile; can upload, edit, download, and archive documents; can create, edit, and archive board meetings; can create, edit, and archive financial records; can create, edit, and archive compliance items; can view audit logs.
+- Director: can view and edit company profile; can upload, edit, and download documents; can create and edit board meetings; can create and edit financial records; can create and edit compliance items; can view audit logs.
+- Viewer: can view company profile, view/download documents, read board meetings, read financial records, and read compliance items only.

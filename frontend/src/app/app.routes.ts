@@ -8,6 +8,7 @@ import { AuditComponent } from './audit/audit.component';
 import { DocumentsComponent } from './documents/documents.component';
 import { BoardMeetingsComponent } from './board-meetings/board-meetings.component';
 import { FinanceComponent } from './finance/finance.component';
+import { ComplianceComponent } from './compliance/compliance.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent, title: 'Sign in' },
@@ -21,6 +22,7 @@ export const routes: Routes = [
       { path: 'documents', component: DocumentsComponent, title: 'Documents' },
       { path: 'board-meetings', component: BoardMeetingsComponent, title: 'Board Meetings' },
       { path: 'finance', component: FinanceComponent, title: 'Financial Dashboard' },
+      { path: 'compliance', component: ComplianceComponent, title: 'Compliance Center' },
       { path: 'audit-logs', component: AuditComponent, title: 'Audit Logs', canActivate: [roleGuard], data: { roles: ['FOUNDER', 'DIRECTOR'] } }
     ]
   },
