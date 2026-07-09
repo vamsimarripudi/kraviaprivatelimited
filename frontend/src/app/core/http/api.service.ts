@@ -1,7 +1,7 @@
 import { HttpClient, HttpEvent, HttpParams, HttpRequest, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { AuditLogRecord, BoardMeetingRecord, BoardMeetingRequest, CompanyProfile, ComplianceCategory, ComplianceItem, ComplianceItemRequest, CompliancePriority, ComplianceStatus, DocumentCategory, DocumentMetadataRequest, DocumentRecord, DocumentStatus, FinancialRecord, FinancialRecordRequest, MeetingActionItemRecord, MeetingActionItemRequest, MeetingStatus, MeetingType } from '../models/api.models';
+import { AuditLogRecord, BoardMeetingRecord, BoardMeetingRequest, CompanyProfile, CompanyTask, CompanyTaskRequest, ComplianceCategory, ComplianceItem, ComplianceItemRequest, CompliancePriority, ComplianceStatus, DocumentCategory, DocumentMetadataRequest, DocumentRecord, DocumentStatus, FinancialRecord, FinancialRecordRequest, MeetingActionItemRecord, MeetingActionItemRequest, MeetingStatus, MeetingType, TaskCategory, TaskPriority, TaskStatus, TaskStatusRequest } from '../models/api.models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -104,4 +104,33 @@ export class ApiService {
   }
 
   archiveComplianceItem(id: string): Observable<void> { return this.http.delete<void>(`/api/compliance-items/${id}`); }
+  tasks(filters: { query?: string; category?: TaskCategory | ''; assignee?: string; status?: TaskStatus | ''; priority?: TaskPriority | '' }): Observable<CompanyTask[]> {
+    let params = new HttpParams();
+    if (filters.query?.trim()) params = params.set('query', filters.query.trim());
+    if (filters.category) params = params.set('category', filters.category);
+    if (filters.assignee?.trim()) params = params.set('assignee', filters.assignee.trim());
+    if (filters.status) params = params.set('status', filters.status);
+    if (filters.priority) params = params.set('priority', filters.priority);
+    return this.http.get<CompanyTask[]>('/api/tasks', { params });
+  }
+
+  task(id: string): Observable<CompanyTask> { return this.http.get<CompanyTask>(`/api/tasks/${id}`); }
+
+  createTask(payload: CompanyTaskRequest): Observable<CompanyTask> {
+    return this.http.post<CompanyTask>('/api/tasks', payload);
+  }
+
+  updateTask(id: string, payload: CompanyTaskRequest): Observable<CompanyTask> {
+    return this.http.put<CompanyTask>(`/api/tasks/${id}`, payload);
+  }
+
+  updateTaskStatus(id: string, payload: TaskStatusRequest): Observable<CompanyTask> {
+    return this.http.patch<CompanyTask>(`/api/tasks/${id}/status`, payload);
+  }
+
+  completeTask(id: string): Observable<CompanyTask> {
+    return this.http.patch<CompanyTask>(`/api/tasks/${id}/complete`, {});
+  }
+
+  archiveTask(id: string): Observable<void> { return this.http.delete<void>(`/api/tasks/${id}`); }
 }

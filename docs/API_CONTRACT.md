@@ -206,6 +206,44 @@ Financial record create/update requests include:
 
 The backend calculates `profitOrLoss = revenue - expenses` and `netGstPosition = gstCollected - gstPaid` for every create and update request.
 
+## Company Tasks
+
+| Method | Path | Access | Purpose |
+| --- | --- | --- | --- |
+| POST | `/tasks` | Founder, Director | Create a company task |
+| GET | `/tasks` | Founder, Director, Viewer | List tasks with optional search/category/assignee/status/priority filters |
+| GET | `/tasks/{id}` | Founder, Director, Viewer | View task details |
+| PUT | `/tasks/{id}` | Founder, Director | Update a task |
+| PATCH | `/tasks/{id}/status` | Founder, Director | Update task status |
+| PATCH | `/tasks/{id}/complete` | Founder, Director | Mark task as done |
+| DELETE | `/tasks/{id}` | Founder | Archive a task |
+
+### Task Filters
+
+- `query`: searches title, description, notes, and assignee.
+- `category`: one of the configured task category enum values.
+- `assignee`: partial assigned person match.
+- `status`: `TODO`, `IN_PROGRESS`, `WAITING`, `BLOCKED`, `DONE`, or `ARCHIVED`.
+- `priority`: `LOW`, `MEDIUM`, `HIGH`, or `CRITICAL`.
+
+Results are sorted by due date ascending, with tasks that have no due date after dated tasks.
+
+### Task Payload Fields
+
+Task create/update requests include:
+
+- `title` required
+- `category` required
+- `description` optional
+- `assignedTo` required when task is active
+- `dueDate` required when priority is `HIGH` or `CRITICAL`
+- `priority` required
+- `status` required
+- `relatedSection` optional
+- `relatedDocumentId` optional UUID
+- `notes` optional
+
+Responses include computed `overdue` and `daysUntilDue` fields.
 ## Compliance Center
 
 | Method | Path | Access | Purpose |
@@ -283,6 +321,7 @@ Document actions create audit entries with module `DOCUMENT_VAULT` and actions `
 Board meeting actions create audit entries with module `BOARD_MEETINGS` and actions `MEETING_CREATED`, `MEETING_UPDATED`, `MEETING_STATUS_CHANGED`, `MEETING_ARCHIVED`, `MEETING_ACTION_ITEM_CREATED`, `MEETING_ACTION_ITEM_UPDATED`, and `MEETING_ACTION_STATUS_CHANGED`.
 Financial record actions create audit entries with module `FINANCIAL_RECORDS` and actions `FINANCIAL_RECORD_CREATED`, `FINANCIAL_RECORD_UPDATED`, and `FINANCIAL_RECORD_ARCHIVED`.
 Compliance actions create audit entries with module `COMPLIANCE_CENTER` and actions `COMPLIANCE_ITEM_CREATED`, `COMPLIANCE_ITEM_UPDATED`, `COMPLIANCE_STATUS_CHANGED`, and `COMPLIANCE_ITEM_ARCHIVED`.
+Task actions create audit entries with module `COMPANY_TASKS` and actions `TASK_CREATED`, `TASK_UPDATED`, `TASK_STATUS_CHANGED`, `TASK_COMPLETED`, and `TASK_ARCHIVED`.
 
 ## Database Tables
 
@@ -307,6 +346,7 @@ Compliance actions create audit entries with module `COMPLIANCE_CENTER` and acti
 - No dummy board meeting records, discussions, decisions, resolutions, or action items are seeded.
 - No dummy financial records or metrics are seeded.
 - No dummy compliance records or statutory obligations are seeded.
+- No dummy task records are seeded.
 - The migration inserts only role names: `FOUNDER`, `DIRECTOR`, `VIEWER`.
 - The only user bootstrap is the optional founder account from environment variables.
 - Document files are stored in private local storage for development and downloaded only through protected APIs.

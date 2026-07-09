@@ -72,11 +72,17 @@ Frontend runs at `http://localhost:4200` and proxies `/api` to Spring Boot.
 
 ## Role Checks
 
-- Founder can view and edit company profile, upload/download/edit/archive documents, create/edit/archive board meetings, create/edit/archive financial records, create/edit/archive compliance items, and view audit logs.
-- Director can view and edit company profile, upload/download/edit documents, create/edit board meetings, create/edit financial records, create/edit compliance items, and view audit logs.
-- Viewer can view company profile, view/download documents, read board meetings, read financial records, and read compliance items only.
+- Founder can view and edit company profile, upload/download/edit/archive documents, create/edit/archive board meetings, create/edit/archive financial records, create/edit/archive compliance items, create/edit/complete/archive tasks, and view audit logs.
+- Director can view and edit company profile, upload/download/edit documents, create/edit board meetings, create/edit financial records, create/edit compliance items, create/edit/complete tasks, and view audit logs.
+- Viewer can view company profile, view/download documents, read board meetings, read financial records, and read compliance items, and read tasks only.
 - Audit Logs route is visible only to Founder and Director.
 
+## Company Tasks Checks
+
+- Task create/update rejects missing title, category, status, priority, assignee for active tasks, and due date for high or critical tasks.
+- Search, category/assignee/status/priority filters, and due-date sorting are handled by the backend.
+- Overdue indicators are calculated by the backend from the task due date.
+- Task APIs are protected by backend role checks; Viewer users are read-only.
 ## Compliance Center Checks
 
 - Compliance create/update rejects missing title, category, status, priority, due date when applicable, and responsible person for active items.

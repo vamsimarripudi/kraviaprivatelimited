@@ -55,6 +55,17 @@ Optional:
 - `KRAVIA_DOCUMENT_MULTIPART_MAX_SIZE`
 - `KRAVIA_DOCUMENT_MULTIPART_MAX_REQUEST_SIZE`
 
+## Company Tasks
+
+Company tasks are stored in `company_tasks`. The backend enforces Founder/Director write and complete access, Founder-only archive access, and Viewer read-only access. The service calculates overdue indicators from each task due date on read.
+
+Task actions write audit logs:
+
+- `TASK_CREATED`
+- `TASK_UPDATED`
+- `TASK_STATUS_CHANGED`
+- `TASK_COMPLETED`
+- `TASK_ARCHIVED`
 ## Compliance Center
 
 Compliance records are stored in `compliance_items`. The backend enforces Founder/Director write access, Founder-only archive access, and Viewer read-only access. The service calculates overdue and upcoming-due indicators from each item due date on read.

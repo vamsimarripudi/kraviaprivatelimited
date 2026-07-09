@@ -1,0 +1,237 @@
+<section class="portal-section">
+  <div class="section-heading">
+    <div>
+      <p class="overline">Company Tasks</p>
+      <h2>Operational Task Register</h2>
+      <p>Track founder, director, finance, compliance, legal, product, document, and partner actions with ownership and due dates.</p>
+    </div>
+  </div>
+
+  <div class="task-summary-grid">
+    @for (card of summaryCards(); track card.label) {
+      <article class="task-card" [class.warning]="card.tone === 'warning'" [class.critical]="card.tone === 'critical'" [class.positive]="card.tone === 'positive'">
+        <span>{{ card.label }}</span>
+        <strong>{{ card.value }}</strong>
+      </article>
+    }
+  </div>
+
+  @if (canEdit()) {
+    <form class="panel enterprise-form" [formGroup]="form" (ngSubmit)="submit()">
+      <div class="section-subheading">
+        <div>
+          <p class="overline">{{ editingId() ? 'Edit' : 'Create' }}</p>
+          <h3>{{ editingId() ? 'Edit company task' : 'Add company task' }}</h3>
+        </div>
+        @if (editingId()) {
+          <button class="secondary-button" type="button" (click)="cancelEdit()">Cancel edit</button>
+        }
+      </div>
+
+      <div class="form-grid">
+        <label>
+          Title
+          <input type="text" formControlName="title" autocomplete="off">
+        </label>
+        <label>
+          Category
+          <select formControlName="category">
+            @for (category of categories; track category.value) {
+              <option [value]="category.value">{{ category.label }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Assigned to
+          <input type="text" formControlName="assignedTo" autocomplete="off">
+        </label>
+        <label>
+          Due date
+          <input type="date" formControlName="dueDate">
+        </label>
+        <label>
+          Status
+          <select formControlName="status">
+            @for (status of statuses; track status.value) {
+              @if (canArchive() || status.value !== 'ARCHIVED') {
+                <option [value]="status.value">{{ status.label }}</option>
+              }
+            }
+          </select>
+        </label>
+        <label>
+          Priority
+          <select formControlName="priority">
+            @for (priority of priorities; track priority.value) {
+              <option [value]="priority.value">{{ priority.label }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Related section
+          <input type="text" formControlName="relatedSection" autocomplete="off">
+        </label>
+        <label>
+          Related document ID
+          <input type="text" formControlName="relatedDocumentId" autocomplete="off">
+        </label>
+        <label class="full-span">
+          Description
+          <textarea formControlName="description"></textarea>
+        </label>
+        <label class="full-span">
+          Notes
+          <textarea formControlName="notes"></textarea>
+        </label>
+      </div>
+
+      @if (form.controls.title.invalid && form.controls.title.touched) {
+        <p class="form-error">Task title is required.</p>
+      }
+      @if (requiresAssignee(form.controls.status.value) && !form.controls.assignedTo.value.trim() && form.touched) {
+        <p class="form-error">Assigned person is required when task is active.</p>
+      }
+      @if (requiresDueDate(form.controls.priority.value) && !form.controls.dueDate.value && form.touched) {
+        <p class="form-error">Due date is required for high or critical priority tasks.</p>
+      }
+      <div class="form-actions">
+        <button class="primary-button" type="submit" [disabled]="form.invalid">{{ editingId() ? 'Save task' : 'Add task' }}</button>
+      </div>
+    </form>
+  } @else {
+    <p class="access-note">Viewer role can read company tasks only.</p>
+  }
+
+  <div class="panel toolbar-panel task-toolbar">
+    <label>
+      Search tasks
+      <input type="search" [value]="query()" (input)="applySearch($any($event.target).value)" placeholder="Search title, notes, assignee">
+    </label>
+    <label>
+      Category
+      <select [value]="category()" (change)="applyCategory($any($event.target).value)">
+        <option value="">All categories</option>
+        @for (category of categories; track category.value) {
+          <option [value]="category.value">{{ category.label }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Assignee
+      <input type="search" [value]="assignee()" (input)="applyAssignee($any($event.target).value)" placeholder="Person">
+    </label>
+    <label>
+      Status
+      <select [value]="status()" (change)="applyStatus($any($event.target).value)">
+        <option value="">All statuses</option>
+        @for (status of statuses; track status.value) {
+          <option [value]="status.value">{{ status.label }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Priority
+      <select [value]="priority()" (change)="applyPriority($any($event.target).value)">
+        <option value="">All priorities</option>
+        @for (priority of priorities; track priority.value) {
+          <option [value]="priority.value">{{ priority.label }}</option>
+        }
+      </select>
+    </label>
+    @if (activeFilters()) {
+      <button class="secondary-button" type="button" (click)="clearFilters()">Clear filters</button>
+    }
+  </div>
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading company tasks..." />
+  } @else if (tasks().length === 0) {
+    <kravia-empty-state label="Company Tasks" message="No company tasks have been added yet." />
+  } @else {
+    <div class="task-layout">
+      <div class="panel table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Task</th>
+              <th>Category</th>
+              <th>Assignee</th>
+              <th>Priority</th>
+              <th>Status</th>
+              <th>Due date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (task of tasks(); track task.id) {
+              <tr [class.is-selected]="selected()?.id === task.id">
+                <td>
+                  <button class="text-button" type="button" (click)="select(task)">{{ task.title }}</button>
+                  <small>Updated {{ formatDateTime(task.updatedAt) }}</small>
+                </td>
+                <td><span class="category-badge">{{ categoryLabel(task.category) }}</span></td>
+                <td>{{ emptyText(task.assignedTo) }}</td>
+                <td><span class="priority-badge" [class.high]="task.priority === 'HIGH'" [class.critical]="task.priority === 'CRITICAL'">{{ priorityLabel(task.priority) }}</span></td>
+                <td><span class="status-badge">{{ statusLabel(task.status) }}</span></td>
+                <td><span class="due-indicator" [class.overdue]="task.overdue">{{ dueLabel(task) }}</span></td>
+                <td>
+                  <div class="row-actions">
+                    <button class="secondary-button" type="button" (click)="select(task)">View</button>
+                    @if (canEditTask(task)) {
+                      <button class="secondary-button" type="button" (click)="startEdit(task)">Edit</button>
+                    }
+                    @if (canEditTask(task) && task.status !== 'DONE') {
+                      <button class="secondary-button" type="button" (click)="complete(task)">Done</button>
+                    }
+                    @if (canArchive() && task.status !== 'ARCHIVED') {
+                      <button class="secondary-button" type="button" (click)="archive(task)">Archive</button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (selected(); as task) {
+        <aside class="panel task-detail">
+          <div class="meeting-detail-header">
+            <div>
+              <p class="overline">Task Detail</p>
+              <h3>{{ task.title }}</h3>
+              <p>{{ categoryLabel(task.category) }}</p>
+            </div>
+            <span class="status-badge">{{ statusLabel(task.status) }}</span>
+          </div>
+
+          <dl class="metadata-list">
+            <div><dt>Assigned to</dt><dd>{{ emptyText(task.assignedTo) }}</dd></div>
+            <div><dt>Priority</dt><dd>{{ priorityLabel(task.priority) }}</dd></div>
+            <div><dt>Due date</dt><dd>{{ dueLabel(task) }}</dd></div>
+            <div><dt>Related section</dt><dd>{{ emptyText(task.relatedSection) }}</dd></div>
+            <div><dt>Related document</dt><dd>{{ emptyText(task.relatedDocumentId) }}</dd></div>
+            <div><dt>Created by</dt><dd>{{ task.createdBy }}</dd></div>
+            <div><dt>Created</dt><dd>{{ formatDateTime(task.createdAt) }}</dd></div>
+            <div><dt>Last updated</dt><dd>{{ formatDateTime(task.updatedAt) }}</dd></div>
+            @if (task.completedAt) { <div><dt>Completed</dt><dd>{{ formatDateTime(task.completedAt) }}</dd></div> }
+            @if (task.archivedAt) { <div><dt>Archived</dt><dd>{{ formatDateTime(task.archivedAt) }}</dd></div> }
+          </dl>
+
+          <details class="task-notes" open>
+            <summary>Description</summary>
+            <p>{{ emptyText(task.description) }}</p>
+          </details>
+
+          <details class="task-notes" open>
+            <summary>Notes</summary>
+            <p>{{ emptyText(task.notes) }}</p>
+          </details>
+        </aside>
+      }
+    </div>
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>

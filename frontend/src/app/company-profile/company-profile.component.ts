@@ -1,8 +1,8 @@
-﻿import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ApiService } from '../core/http/api.service';
 import { AuthService } from '../core/auth/auth.service';
-import { CompanyProfile } from '../core/models/api.models';
+import { CompanyProfile, CompanyTask } from '../core/models/api.models';
 import { EmptyStateComponent } from '../shared/empty-state/empty-state.component';
 import { LoadingStateComponent } from '../shared/loading-state/loading-state.component';
 import { ErrorStateComponent } from '../shared/error-state/error-state.component';
@@ -25,7 +25,18 @@ export class CompanyProfileComponent {
   readonly loading = signal(true);
   readonly error = signal('');
   readonly success = signal('');
+  readonly taskSummary = signal<CompanyTask[]>([]);
   readonly canEdit = computed(() => this.auth.hasAnyRole(['FOUNDER', 'DIRECTOR']));
+  readonly taskSummaryCards = computed(() => {
+    const tasks = this.taskSummary();
+    const now = new Date();
+    return [
+      { label: 'Open tasks', value: tasks.filter((task) => !['DONE', 'ARCHIVED'].includes(task.status)).length, tone: 'neutral' },
+      { label: 'Overdue tasks', value: tasks.filter((task) => task.overdue).length, tone: 'critical' },
+      { label: 'Blocked tasks', value: tasks.filter((task) => task.status === 'BLOCKED').length, tone: 'warning' },
+      { label: 'Completed this month', value: tasks.filter((task) => task.completedAt && this.sameMonth(new Date(task.completedAt), now)).length, tone: 'positive' }
+    ];
+  });
 
   readonly fields: Array<{ key: ProfileFormKey; label: string; type?: string; multiline?: boolean }> = [
     { key: 'companyName', label: 'Company name' },
@@ -61,7 +72,10 @@ export class CompanyProfileComponent {
     lastUpdatedDate: ['']
   });
 
-  constructor() { this.load(); }
+  constructor() {
+    this.load();
+    this.loadTaskSummary();
+  }
 
   load(): void {
     this.loading.set(true);
@@ -106,6 +120,16 @@ export class CompanyProfileComponent {
     return value ? String(value) : 'No information has been added yet.';
   }
 
+  loadTaskSummary(): void {
+    this.api.tasks({}).subscribe({
+      next: (tasks) => this.taskSummary.set(tasks),
+      error: () => this.taskSummary.set([])
+    });
+  }
+
+  private sameMonth(value: Date, now: Date): boolean {
+    return value.getFullYear() === now.getFullYear() && value.getMonth() === now.getMonth();
+  }
   private normalize(profile: CompanyProfile): Record<ProfileFormKey, string> {
     return {
       companyName: profile.companyName ?? '',

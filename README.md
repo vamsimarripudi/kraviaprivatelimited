@@ -4,8 +4,8 @@ Foundation full-stack internal company workspace for KRAVIA PRIVATE LIMITED.
 
 ## Structure
 
-- `frontend`: Angular, TypeScript, Router, Reactive Forms, Signals, guards, interceptors, enterprise shell, document workspace, board meeting workspace, financial dashboard, compliance center.
-- `backend`: Java 21, Spring Boot 3.5, Spring Security, JWT, BCrypt, JPA, PostgreSQL, Flyway, validation, audit logging, secure local document storage, board meeting records, financial records, compliance tracking.
+- `frontend`: Angular, TypeScript, Router, Reactive Forms, Signals, guards, interceptors, enterprise shell, document workspace, board meeting workspace, financial dashboard, compliance center, company tasks.
+- `backend`: Java 21, Spring Boot 3.5, Spring Security, JWT, BCrypt, JPA, PostgreSQL, Flyway, validation, audit logging, secure local document storage, board meeting records, financial records, compliance tracking, company tasks.
 - `docs`: API contract and local setup guide.
 
 ## Modules
@@ -36,6 +36,7 @@ Foundation full-stack internal company workspace for KRAVIA PRIVATE LIMITED.
 - Board meeting APIs are backend-protected by role and important meeting actions create audit logs.
 - Financial record APIs are backend-protected by role and create, update, and archive actions create audit logs.
 - Compliance APIs are backend-protected by role and create, update, status change, and archive actions create audit logs.
+- Task APIs are backend-protected by role and create, update, status change, complete, and archive actions create audit logs.
 
 ## Local Setup
 

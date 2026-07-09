@@ -223,6 +223,59 @@ export interface ComplianceItemRequest {
   notes?: string;
 }
 
+export type TaskCategory =
+  | 'FOUNDER_TASK'
+  | 'DIRECTOR_TASK'
+  | 'CA_TASK'
+  | 'LAWYER_TASK'
+  | 'BANK_TASK'
+  | 'PRODUCT_TASK'
+  | 'FINANCE_TASK'
+  | 'COMPLIANCE_TASK'
+  | 'DOCUMENT_TASK'
+  | 'INVESTOR_TASK'
+  | 'CUSTOMER_TASK'
+  | 'OTHER';
+
+export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'WAITING' | 'BLOCKED' | 'DONE' | 'ARCHIVED';
+
+export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+export interface CompanyTask {
+  id: string;
+  title: string;
+  category: TaskCategory;
+  description?: string;
+  assignedTo?: string;
+  dueDate?: string;
+  priority: TaskPriority;
+  status: TaskStatus;
+  relatedSection?: string;
+  relatedDocumentId?: string;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  archivedAt?: string;
+  overdue: boolean;
+  daysUntilDue?: number;
+}
+
+export interface CompanyTaskRequest {
+  title: string;
+  category: TaskCategory;
+  description?: string;
+  assignedTo?: string;
+  dueDate?: string;
+  priority: TaskPriority;
+  status: TaskStatus;
+  relatedSection?: string;
+  relatedDocumentId?: string;
+  notes?: string;
+}
+
+export interface TaskStatusRequest { status: TaskStatus; }
 export interface AuditLogRecord {
   id: string;
   actorEmail: string;
