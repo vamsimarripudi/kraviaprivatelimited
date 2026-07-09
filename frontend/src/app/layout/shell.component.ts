@@ -34,6 +34,7 @@ export class ShellComponent {
     { label: 'Procurement', path: '/procurement' },
     { label: 'Assets', path: '/assets' },
     { label: 'HR', path: '/hr' },
+    { label: 'Legal', path: '/legal' },
     { label: 'Compliance', path: '/compliance' },
     { label: 'Tasks', path: '/tasks' },
     { label: 'Products', path: '/products' },

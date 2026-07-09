@@ -1,0 +1,114 @@
+<section class="workspace-page legal-page">
+  <div class="page-heading">
+    <div>
+      <p class="overline">KRAVIA Company OS</p>
+      <h2>Legal & Contract Management</h2>
+      <p>Manage contracts, agreements, obligations, approvals, notices, renewals, signatures, and legal risk.</p>
+    </div>
+    <button class="secondary-button" type="button" (click)="load()">Refresh</button>
+  </div>
+
+  <div class="finance-erp-tabs">
+    @for (tab of tabs; track tab.value) {
+      <button class="secondary-button" type="button" [class.is-active]="activeTab() === tab.value" (click)="setTab(tab.value)">{{ tab.label }}</button>
+    }
+  </div>
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading legal records..." />
+  } @else {
+    @if (summary(); as summary) {
+      <div class="finance-summary-grid">
+        <article class="finance-card"><span>Active contracts</span><strong>{{ summary.activeContracts }}</strong></article>
+        <article class="finance-card"><span>Under review</span><strong>{{ summary.contractsUnderReview }}</strong></article>
+        <article class="finance-card"><span>Pending signatures</span><strong>{{ summary.pendingSignatures }}</strong></article>
+        <article class="finance-card"><span>Upcoming renewals</span><strong>{{ summary.upcomingRenewals }}</strong></article>
+        <article class="finance-card"><span>Expiring agreements</span><strong>{{ summary.expiringAgreements }}</strong></article>
+        <article class="finance-card"><span>Legal risks</span><strong>{{ summary.legalRisks }}</strong></article>
+      </div>
+    }
+
+    @if (activeTab() === 'dashboard') {
+      <div class="panel">
+        <div class="section-subheading"><div><p class="overline">Legal Signals</p><h3>Current status</h3></div></div>
+        @if (summary()?.metrics?.length) {
+          <div class="report-metric-grid">
+            @for (metric of summary()?.metrics; track metric.label) {
+              <article class="report-metric" [class.positive]="metric.tone === 'positive'" [class.critical]="metric.tone === 'warning'"><span>{{ metric.label }}</span><strong>{{ metric.value }}</strong></article>
+            }
+          </div>
+        } @else {
+          <kravia-empty-state label="Legal Management" message="No information has been added yet." />
+        }
+      </div>
+    }
+
+    @if (activeTab() === 'contracts') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="contractForm" (ngSubmit)="saveContract()">
+          <div class="section-subheading"><div><p class="overline">Contract Repository</p><h3>{{ editingContractId() ? 'Edit contract' : 'Add contract' }}</h3></div></div>
+          <div class="form-grid compact-form-grid">
+            <label>Contract title<input formControlName="contractTitle"></label>
+            <label>Type<select formControlName="contractType">@for (type of contractTypes; track type) { <option [value]="type">{{ label(type) }}</option> }</select></label>
+            <label>Effective date<input type="date" formControlName="effectiveDate"></label>
+            <label>Expiry date<input type="date" formControlName="expiryDate"></label>
+            <label>Renewal date<input type="date" formControlName="renewalDate"></label>
+            <label>Contract value<input type="number" min="0" step="0.01" formControlName="contractValue"></label>
+            <label>Status<select formControlName="status">@for (status of legalStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label>
+            <label>Approval status<select formControlName="approvalStatus">@for (status of legalStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label>
+            <label>Signature status<select formControlName="signatureStatus">@for (status of signatureStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label>
+            <label>Responsible person<input formControlName="responsiblePerson"></label>
+            <label>Related document ID<input formControlName="relatedDocumentId"></label>
+            <label class="full-span">Parties involved<textarea formControlName="partiesInvolved"></textarea></label>
+            <label class="full-span">Notes<textarea formControlName="notes"></textarea></label>
+          </div>
+          <button class="primary-button" type="submit" [disabled]="contractForm.invalid || saving()">{{ editingContractId() ? 'Save contract' : 'Add contract' }}</button>
+          @if (editingContractId()) { <button class="secondary-button" type="button" (click)="resetContractForm()">Cancel edit</button> }
+        </form>
+      }
+      <form class="panel enterprise-form" [formGroup]="contractFilterForm" (ngSubmit)="load()"><div class="form-grid compact-form-grid"><label>Search<input formControlName="query"></label><label>Type<select formControlName="type"><option value="">All types</option>@for (type of contractTypes; track type) { <option [value]="type">{{ label(type) }}</option> }</select></label><label>Status<select formControlName="status"><option value="">All statuses</option>@for (status of legalStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label></div><button class="secondary-button" type="submit">Apply filters</button></form>
+      <div class="panel table-scroll">@if (contracts().length === 0) { <kravia-empty-state label="Contracts" message="No legal contracts have been added yet." /> } @else { <table><thead><tr><th>Contract</th><th>Parties</th><th>Renewal / Expiry</th><th>Value</th><th>Status</th><th>Signature</th><th>Actions</th></tr></thead><tbody>@for (contract of contracts(); track contract.id) { <tr><td>{{ contract.contractTitle }}<small>{{ label(contract.contractType) }}</small></td><td>{{ contract.partiesInvolved || 'No information has been added yet.' }}</td><td [class.negative-text]="upcoming(contract.renewalDate) || upcoming(contract.expiryDate)">{{ contract.renewalDate || 'No renewal date' }}<small>{{ contract.expiryDate || 'No expiry date' }}</small></td><td>{{ currency(contract.contractValue) }}</td><td><span class="status-badge">{{ label(contract.status) }}</span></td><td><span class="status-badge">{{ label(contract.signatureStatus) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editContract(contract)">Edit</button> } @if (canArchive() && contract.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('contracts', contract.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'obligations') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="obligationForm" (ngSubmit)="saveObligation()"><div class="section-subheading"><div><p class="overline">Legal Obligations</p><h3>{{ editingObligationId() ? 'Edit obligation' : 'Add obligation' }}</h3></div></div><div class="form-grid compact-form-grid"><label>Contract<select formControlName="contractId"><option value="">No contract selected</option>@for (contract of contracts(); track contract.id) { <option [value]="contract.id">{{ contract.contractTitle }}</option> }</select></label><label>Title<input formControlName="obligationTitle"></label><label>Responsible person<input formControlName="responsiblePerson"></label><label>Due date<input type="date" formControlName="dueDate"></label><label>Status<select formControlName="status">@for (status of legalStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label>Priority<select formControlName="priority">@for (priority of priorities; track priority) { <option [value]="priority">{{ label(priority) }}</option> }</select></label><label>Related document ID<input formControlName="relatedDocumentId"></label><label class="full-span">Description<textarea formControlName="description"></textarea></label><label class="full-span">Notes<textarea formControlName="notes"></textarea></label></div><button class="primary-button" type="submit" [disabled]="obligationForm.invalid || saving()">{{ editingObligationId() ? 'Save obligation' : 'Add obligation' }}</button> @if (editingObligationId()) { <button class="secondary-button" type="button" (click)="resetObligationForm()">Cancel edit</button> }</form>
+      }
+      <form class="panel enterprise-form" [formGroup]="obligationFilterForm" (ngSubmit)="load()"><div class="form-grid compact-form-grid"><label>Search<input formControlName="query"></label><label>Status<select formControlName="status"><option value="">All statuses</option>@for (status of legalStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label>Priority<select formControlName="priority"><option value="">All priorities</option>@for (priority of priorities; track priority) { <option [value]="priority">{{ label(priority) }}</option> }</select></label></div><button class="secondary-button" type="submit">Apply filters</button></form>
+      <div class="panel table-scroll">@if (obligations().length === 0) { <kravia-empty-state label="Legal Obligations" message="No legal obligations have been added yet." /> } @else { <table><thead><tr><th>Obligation</th><th>Contract</th><th>Owner</th><th>Due</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (obligation of obligations(); track obligation.id) { <tr><td>{{ obligation.obligationTitle }}<small>{{ obligation.description || 'No information has been added yet.' }}</small></td><td>{{ obligation.contractTitle || contractTitle(obligation.contractId) }}</td><td>{{ obligation.responsiblePerson }}</td><td [class.negative-text]="upcoming(obligation.dueDate)">{{ obligation.dueDate || 'No due date' }}</td><td>{{ label(obligation.priority) }}</td><td><span class="status-badge">{{ label(obligation.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editObligation(obligation)">Edit</button> } @if (canArchive() && obligation.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('obligations', obligation.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'approvals') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="approvalForm" (ngSubmit)="saveApproval()"><div class="section-subheading"><div><p class="overline">Legal Approvals</p><h3>{{ editingApprovalId() ? 'Edit approval' : 'Add approval' }}</h3></div></div><div class="form-grid compact-form-grid"><label>Contract<select formControlName="contractId"><option value="">No contract selected</option>@for (contract of contracts(); track contract.id) { <option [value]="contract.id">{{ contract.contractTitle }}</option> }</select></label><label>Title<input formControlName="approvalTitle"></label><label>Status<select formControlName="approvalStatus">@for (status of legalStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label>Approver<input formControlName="approver"></label><label>Approval date<input type="date" formControlName="approvalDate"></label><label>Related document ID<input formControlName="relatedDocumentId"></label><label class="full-span">Approval notes<textarea formControlName="approvalNotes"></textarea></label><label class="full-span">Rejection reason<textarea formControlName="rejectionReason"></textarea></label><label class="full-span">Notes<textarea formControlName="notes"></textarea></label></div><button class="primary-button" type="submit" [disabled]="approvalForm.invalid || saving()">{{ editingApprovalId() ? 'Save approval' : 'Add approval' }}</button> @if (editingApprovalId()) { <button class="secondary-button" type="button" (click)="resetApprovalForm()">Cancel edit</button> }</form>
+      }
+      <form class="panel enterprise-form" [formGroup]="statusFilterForm" (ngSubmit)="load()"><div class="form-grid compact-form-grid"><label>Search<input formControlName="query"></label><label>Status<select formControlName="status"><option value="">All statuses</option>@for (status of legalStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label></div><button class="secondary-button" type="submit">Apply filters</button></form>
+      <div class="panel table-scroll">@if (approvals().length === 0) { <kravia-empty-state label="Legal Approvals" message="No legal approvals have been added yet." /> } @else { <table><thead><tr><th>Approval</th><th>Contract</th><th>Approver</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (approval of approvals(); track approval.id) { <tr><td>{{ approval.approvalTitle }}<small>{{ approval.approvalNotes || 'No information has been added yet.' }}</small></td><td>{{ approval.contractTitle || contractTitle(approval.contractId) }}</td><td>{{ approval.approver || 'No information has been added yet.' }}</td><td>{{ approval.approvalDate || 'No approval date' }}</td><td><span class="status-badge">{{ label(approval.approvalStatus) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editApproval(approval)">Edit</button> } @if (canArchive() && approval.approvalStatus !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('approvals', approval.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'notices') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="noticeForm" (ngSubmit)="saveNotice()"><div class="section-subheading"><div><p class="overline">Legal Notices</p><h3>{{ editingNoticeId() ? 'Edit notice' : 'Add notice' }}</h3></div></div><div class="form-grid compact-form-grid"><label>Notice title<input formControlName="noticeTitle"></label><label>Notice type<input formControlName="noticeType"></label><label>Issued by<input formControlName="issuedBy"></label><label>Issued to<input formControlName="issuedTo"></label><label>Notice date<input type="date" formControlName="noticeDate"></label><label>Response due<input type="date" formControlName="responseDueDate"></label><label>Status<select formControlName="status">@for (status of legalStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label>Responsible person<input formControlName="responsiblePerson"></label><label>Related document ID<input formControlName="relatedDocumentId"></label><label class="full-span">Notes<textarea formControlName="notes"></textarea></label></div><button class="primary-button" type="submit" [disabled]="noticeForm.invalid || saving()">{{ editingNoticeId() ? 'Save notice' : 'Add notice' }}</button> @if (editingNoticeId()) { <button class="secondary-button" type="button" (click)="resetNoticeForm()">Cancel edit</button> }</form>
+      }
+      <div class="panel table-scroll">@if (notices().length === 0) { <kravia-empty-state label="Legal Notices" message="No legal notices have been added yet." /> } @else { <table><thead><tr><th>Notice</th><th>Parties</th><th>Dates</th><th>Owner</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (notice of notices(); track notice.id) { <tr><td>{{ notice.noticeTitle }}<small>{{ notice.noticeType || 'No information has been added yet.' }}</small></td><td>{{ notice.issuedBy || 'No issuer' }}<small>{{ notice.issuedTo }}</small></td><td>{{ notice.noticeDate }}<small [class.negative-text]="upcoming(notice.responseDueDate)">{{ notice.responseDueDate || 'No response due date' }}</small></td><td>{{ notice.responsiblePerson || 'No information has been added yet.' }}</td><td><span class="status-badge">{{ label(notice.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editNotice(notice)">Edit</button> } @if (canArchive() && notice.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('notices', notice.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'risks') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="riskForm" (ngSubmit)="saveRisk()"><div class="section-subheading"><div><p class="overline">Legal Risk Register</p><h3>{{ editingRiskId() ? 'Edit legal risk' : 'Add legal risk' }}</h3></div></div><div class="form-grid compact-form-grid"><label>Contract<select formControlName="contractId"><option value="">No contract selected</option>@for (contract of contracts(); track contract.id) { <option [value]="contract.id">{{ contract.contractTitle }}</option> }</select></label><label>Risk register entry ID<input formControlName="riskRegisterEntryId"></label><label>Risk title<input formControlName="riskTitle"></label><label>Severity<select formControlName="severity">@for (severity of riskSeverities; track severity) { <option [value]="severity">{{ label(severity) }}</option> }</select></label><label>Status<select formControlName="status">@for (status of legalStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label>Owner<input formControlName="owner"></label><label>Review date<input type="date" formControlName="reviewDate"></label><label class="full-span">Mitigation plan<textarea formControlName="mitigationPlan"></textarea></label><label class="full-span">Notes<textarea formControlName="notes"></textarea></label></div><button class="primary-button" type="submit" [disabled]="riskForm.invalid || saving()">{{ editingRiskId() ? 'Save risk' : 'Add risk' }}</button> @if (editingRiskId()) { <button class="secondary-button" type="button" (click)="resetRiskForm()">Cancel edit</button> }</form>
+      }
+      <form class="panel enterprise-form" [formGroup]="riskFilterForm" (ngSubmit)="load()"><div class="form-grid compact-form-grid"><label>Search<input formControlName="query"></label><label>Severity<select formControlName="severity"><option value="">All severities</option>@for (severity of riskSeverities; track severity) { <option [value]="severity">{{ label(severity) }}</option> }</select></label><label>Status<select formControlName="status"><option value="">All statuses</option>@for (status of legalStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label></div><button class="secondary-button" type="submit">Apply filters</button></form>
+      <div class="panel table-scroll">@if (risks().length === 0) { <kravia-empty-state label="Legal Risks" message="No legal risks have been added yet." /> } @else { <table><thead><tr><th>Risk</th><th>Contract</th><th>Risk register</th><th>Owner</th><th>Review</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (risk of risks(); track risk.id) { <tr><td>{{ risk.riskTitle }}<small>{{ label(risk.severity) }}</small></td><td>{{ risk.contractTitle || contractTitle(risk.contractId) }}</td><td>{{ risk.riskRegisterTitle || risk.riskRegisterEntryId || 'No risk register link' }}</td><td>{{ risk.owner || 'No information has been added yet.' }}</td><td [class.negative-text]="upcoming(risk.reviewDate)">{{ risk.reviewDate || 'No review date' }}</td><td><span class="status-badge">{{ label(risk.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editRisk(risk)">Edit</button> } @if (canArchive() && risk.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('risks', risk.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'reports') {
+      <form class="panel enterprise-form" [formGroup]="reportForm" (ngSubmit)="generateReport()"><div class="section-subheading"><div><p class="overline">Contract Reports</p><h3>Generate report</h3></div></div><div class="form-grid"><label>Report type<select formControlName="reportType">@for (type of reportTypes; track type) { <option [value]="type">{{ label(type) }}</option> }</select></label></div><button class="primary-button" type="submit">Generate report</button></form>
+      @if (report(); as report) {
+        <div class="panel report-preview"><div class="report-header"><div><p class="overline">Report Preview</p><h3>{{ label(report.reportType) }}</h3><p>Generated {{ report.generatedAt }}</p></div><button class="secondary-button" type="button" (click)="print()">Print</button></div>@if (report.metrics.length) { <div class="report-metric-grid">@for (metric of report.metrics; track metric.label) { <article class="report-metric" [class.positive]="metric.tone === 'positive'" [class.critical]="metric.tone === 'warning'"><span>{{ metric.label }}</span><strong>{{ metric.value }}</strong></article> }</div> } @else { <kravia-empty-state label="Legal Report" message="No information has been added yet." /> } @if (report.notes.length) { <ul class="report-notes">@for (note of report.notes; track note) { <li>{{ note }}</li> }</ul> }</div>
+      }
+    }
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>

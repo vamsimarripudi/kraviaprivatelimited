@@ -26,6 +26,10 @@ import com.kravia.companyos.hr.HrEnums.LeaveStatus;
 import com.kravia.companyos.hr.HrEnums.PayrollStatus;
 import com.kravia.companyos.hr.LeaveRequestRepository;
 import com.kravia.companyos.hr.PayrollSummaryRepository;
+import com.kravia.companyos.legal.LegalContractRepository;
+import com.kravia.companyos.legal.LegalEnums.LegalStatus;
+import com.kravia.companyos.legal.LegalEnums.SignatureStatus;
+import com.kravia.companyos.legal.LegalRiskLinkRepository;
 import com.kravia.companyos.meeting.BoardMeeting;
 import com.kravia.companyos.meeting.BoardMeetingRepository;
 import com.kravia.companyos.meeting.MeetingStatus;
@@ -86,8 +90,9 @@ public class ExecutiveDashboardService {
     private final AttendanceRecordRepository attendanceRecordRepository;
     private final PayrollSummaryRepository payrollSummaryRepository;
     private final ExitRecordRepository exitRecordRepository;
+    private final LegalContractRepository legalContractRepository;
+    private final LegalRiskLinkRepository legalRiskLinkRepository;
     private final PermissionService permissions;
-
     public ExecutiveDashboardService(
         CompanyProfileRepository companyProfiles,
         FinancialRecordRepository financialRecords,
@@ -114,6 +119,8 @@ public class ExecutiveDashboardService {
         AttendanceRecordRepository attendanceRecordRepository,
         PayrollSummaryRepository payrollSummaryRepository,
         ExitRecordRepository exitRecordRepository,
+        LegalContractRepository legalContractRepository,
+        LegalRiskLinkRepository legalRiskLinkRepository,
         PermissionService permissions
     ) {
         this.companyProfiles = companyProfiles;
@@ -141,6 +148,8 @@ public class ExecutiveDashboardService {
         this.attendanceRecordRepository = attendanceRecordRepository;
         this.payrollSummaryRepository = payrollSummaryRepository;
         this.exitRecordRepository = exitRecordRepository;
+        this.legalContractRepository = legalContractRepository;
+        this.legalRiskLinkRepository = legalRiskLinkRepository;
         this.permissions = permissions;
     }
 
@@ -188,7 +197,12 @@ public class ExecutiveDashboardService {
         long todayAttendanceRecords = attendanceRecordRepository.findAll().stream().filter(record -> record.getArchivedAt() == null && today.equals(record.getAttendanceDate())).count();
         long payrollSummaryCount = payrollSummaryRepository.findAll().stream().filter(payroll -> payroll.getArchivedAt() == null && payroll.getStatus() != PayrollStatus.ARCHIVED).count();
         long openExitRecords = exitRecordRepository.findAll().stream().filter(exit -> exit.getArchivedAt() == null && exit.getStatus() != ExitStatus.COMPLETED && exit.getStatus() != ExitStatus.CANCELLED && exit.getStatus() != ExitStatus.ARCHIVED).count();
-        List<ExecutiveDashboardResponse.DashboardMetric> metrics = List.of(
+        long activeContracts = legalContractRepository.findAll().stream().filter(contract -> contract.getArchivedAt() == null && contract.getStatus() == LegalStatus.ACTIVE).count();
+        long contractsUnderReview = legalContractRepository.findAll().stream().filter(contract -> contract.getArchivedAt() == null && contract.getStatus() == LegalStatus.UNDER_REVIEW).count();
+        long pendingSignatures = legalContractRepository.findAll().stream().filter(contract -> contract.getArchivedAt() == null && (contract.getSignatureStatus() == SignatureStatus.PENDING_SIGNATURE || contract.getSignatureStatus() == SignatureStatus.PARTIALLY_SIGNED)).count();
+        long upcomingLegalRenewals = legalContractRepository.findAll().stream().filter(contract -> contract.getArchivedAt() == null && contract.getRenewalDate() != null && !contract.getRenewalDate().isBefore(today) && !contract.getRenewalDate().isAfter(nextMonth)).count();
+        long expiringAgreements = legalContractRepository.findAll().stream().filter(contract -> contract.getArchivedAt() == null && contract.getExpiryDate() != null && !contract.getExpiryDate().isBefore(today) && !contract.getExpiryDate().isAfter(nextMonth)).count();
+        long legalRisks = legalRiskLinkRepository.findAll().stream().filter(risk -> risk.getArchivedAt() == null && risk.getStatus() != LegalStatus.ARCHIVED).count();        List<ExecutiveDashboardResponse.DashboardMetric> metrics = List.of(
             new ExecutiveDashboardResponse.DashboardMetric("Pending approvals", pendingApprovalCount),
             new ExecutiveDashboardResponse.DashboardMetric("Compliance alerts", overdueComplianceCount),
             new ExecutiveDashboardResponse.DashboardMetric("Open tasks", openTaskCount),
@@ -219,7 +233,13 @@ public class ExecutiveDashboardService {
             new ExecutiveDashboardResponse.DashboardMetric("Pending leave requests", pendingLeaveRequests),
             new ExecutiveDashboardResponse.DashboardMetric("Today attendance records", todayAttendanceRecords),
             new ExecutiveDashboardResponse.DashboardMetric("Payroll summaries", payrollSummaryCount),
-            new ExecutiveDashboardResponse.DashboardMetric("Open exit records", openExitRecords)
+            new ExecutiveDashboardResponse.DashboardMetric("Open exit records", openExitRecords),
+            new ExecutiveDashboardResponse.DashboardMetric("Active contracts", activeContracts),
+            new ExecutiveDashboardResponse.DashboardMetric("Contracts under review", contractsUnderReview),
+            new ExecutiveDashboardResponse.DashboardMetric("Pending signatures", pendingSignatures),
+            new ExecutiveDashboardResponse.DashboardMetric("Upcoming legal renewals", upcomingLegalRenewals),
+            new ExecutiveDashboardResponse.DashboardMetric("Expiring agreements", expiringAgreements),
+            new ExecutiveDashboardResponse.DashboardMetric("Legal risks", legalRisks)
         );
 
         return new ExecutiveDashboardResponse(

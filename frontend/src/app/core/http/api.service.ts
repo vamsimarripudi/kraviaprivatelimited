@@ -1,6 +1,7 @@
 import { HttpClient, HttpEvent, HttpParams, HttpRequest, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { ContractType, LegalApprovalRecord, LegalApprovalRequest, LegalContractRecord, LegalContractRequest, LegalNoticeRecord, LegalNoticeRequest, LegalObligationRecord, LegalObligationRequest, LegalPriority, LegalReport, LegalReportType, LegalRiskRecord, LegalRiskRequest, LegalRiskSeverity, LegalStatus, LegalSummary } from '../models/api.models';
 import { AttendanceRecord, AttendanceRequest, AttendanceStatus, CertificationRecord, CertificationRequest, DepartmentRecord, DepartmentRequest, DesignationRecord, DesignationRequest, EmployeeContactRecord, EmployeeContactRequest, EmployeeRecord, EmployeeRequest, EmploymentStatus, ExitRecord, ExitRequestPayload, ExitStatus, HolidayRecord, HolidayRequest, HrReport, HrReportType, HrSummary, LeaveRecord, LeaveRequestPayload, LeaveStatus, PayrollRecord, PayrollRequest, PayrollStatus, PerformanceReviewRecord, PerformanceReviewRequest, TrainingRecord, TrainingRequest, TrainingStatus } from '../models/api.models';
 import { PlatformApiRecord, PlatformBackupRecord, PlatformEnvironmentRecord, PlatformJobRecord, PlatformOverview, PlatformReleaseRecord, PlatformServiceRecord } from '../models/api.models';
 import { AssetAssignmentPayload, AssetAssignmentRecord, AssetCategory, AssetDocumentPayload, AssetDocumentRecord, AssetMaintenancePayload, AssetMaintenanceRecord, AssetRecord, AssetReport, AssetReportType, AssetRequestPayload, AssetStatus, AssetSummary, CloudResourcePayload, CloudResourceRecord, SoftwareLicensePayload, SoftwareLicenseRecord } from '../models/api.models';
@@ -449,4 +450,27 @@ export class ApiService {
   updateHrExitRecord(id: string, payload: ExitRequestPayload): Observable<ExitRecord> { return this.http.put<ExitRecord>(`/api/hr/exit-records/${id}`, payload); }
   archiveHrExitRecord(id: string): Observable<void> { return this.http.delete<void>(`/api/hr/exit-records/${id}`); }
   hrReport(type: HrReportType): Observable<HrReport> { return this.http.get<HrReport>('/api/hr/reports', { params: new HttpParams().set('type', type) }); }
+
+  legalSummary(): Observable<LegalSummary> { return this.http.get<LegalSummary>('/api/legal/summary'); }
+  legalContracts(filters: { query?: string; type?: ContractType | ''; status?: LegalStatus | '' }): Observable<LegalContractRecord[]> { let params = new HttpParams(); if (filters.query?.trim()) params = params.set('query', filters.query.trim()); if (filters.type) params = params.set('type', filters.type); if (filters.status) params = params.set('status', filters.status); return this.http.get<LegalContractRecord[]>('/api/legal/contracts', { params }); }
+  createLegalContract(payload: LegalContractRequest): Observable<LegalContractRecord> { return this.http.post<LegalContractRecord>('/api/legal/contracts', payload); }
+  updateLegalContract(id: string, payload: LegalContractRequest): Observable<LegalContractRecord> { return this.http.put<LegalContractRecord>(`/api/legal/contracts/${id}`, payload); }
+  archiveLegalContract(id: string): Observable<void> { return this.http.delete<void>(`/api/legal/contracts/${id}`); }
+  legalObligations(filters: { query?: string; status?: LegalStatus | ''; priority?: LegalPriority | '' }): Observable<LegalObligationRecord[]> { let params = new HttpParams(); if (filters.query?.trim()) params = params.set('query', filters.query.trim()); if (filters.status) params = params.set('status', filters.status); if (filters.priority) params = params.set('priority', filters.priority); return this.http.get<LegalObligationRecord[]>('/api/legal/obligations', { params }); }
+  createLegalObligation(payload: LegalObligationRequest): Observable<LegalObligationRecord> { return this.http.post<LegalObligationRecord>('/api/legal/obligations', payload); }
+  updateLegalObligation(id: string, payload: LegalObligationRequest): Observable<LegalObligationRecord> { return this.http.put<LegalObligationRecord>(`/api/legal/obligations/${id}`, payload); }
+  archiveLegalObligation(id: string): Observable<void> { return this.http.delete<void>(`/api/legal/obligations/${id}`); }
+  legalApprovals(filters: { query?: string; status?: LegalStatus | '' }): Observable<LegalApprovalRecord[]> { let params = new HttpParams(); if (filters.query?.trim()) params = params.set('query', filters.query.trim()); if (filters.status) params = params.set('status', filters.status); return this.http.get<LegalApprovalRecord[]>('/api/legal/approvals', { params }); }
+  createLegalApproval(payload: LegalApprovalRequest): Observable<LegalApprovalRecord> { return this.http.post<LegalApprovalRecord>('/api/legal/approvals', payload); }
+  updateLegalApproval(id: string, payload: LegalApprovalRequest): Observable<LegalApprovalRecord> { return this.http.put<LegalApprovalRecord>(`/api/legal/approvals/${id}`, payload); }
+  archiveLegalApproval(id: string): Observable<void> { return this.http.delete<void>(`/api/legal/approvals/${id}`); }
+  legalNotices(filters: { query?: string; status?: LegalStatus | '' }): Observable<LegalNoticeRecord[]> { let params = new HttpParams(); if (filters.query?.trim()) params = params.set('query', filters.query.trim()); if (filters.status) params = params.set('status', filters.status); return this.http.get<LegalNoticeRecord[]>('/api/legal/notices', { params }); }
+  createLegalNotice(payload: LegalNoticeRequest): Observable<LegalNoticeRecord> { return this.http.post<LegalNoticeRecord>('/api/legal/notices', payload); }
+  updateLegalNotice(id: string, payload: LegalNoticeRequest): Observable<LegalNoticeRecord> { return this.http.put<LegalNoticeRecord>(`/api/legal/notices/${id}`, payload); }
+  archiveLegalNotice(id: string): Observable<void> { return this.http.delete<void>(`/api/legal/notices/${id}`); }
+  legalRisks(filters: { query?: string; severity?: LegalRiskSeverity | ''; status?: LegalStatus | '' }): Observable<LegalRiskRecord[]> { let params = new HttpParams(); if (filters.query?.trim()) params = params.set('query', filters.query.trim()); if (filters.severity) params = params.set('severity', filters.severity); if (filters.status) params = params.set('status', filters.status); return this.http.get<LegalRiskRecord[]>('/api/legal/risks', { params }); }
+  createLegalRisk(payload: LegalRiskRequest): Observable<LegalRiskRecord> { return this.http.post<LegalRiskRecord>('/api/legal/risks', payload); }
+  updateLegalRisk(id: string, payload: LegalRiskRequest): Observable<LegalRiskRecord> { return this.http.put<LegalRiskRecord>(`/api/legal/risks/${id}`, payload); }
+  archiveLegalRisk(id: string): Observable<void> { return this.http.delete<void>(`/api/legal/risks/${id}`); }
+  legalReport(type: LegalReportType): Observable<LegalReport> { return this.http.get<LegalReport>('/api/legal/reports', { params: new HttpParams().set('type', type) }); }
 }
