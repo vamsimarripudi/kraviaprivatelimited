@@ -1073,3 +1073,12 @@ export interface LegalNoticeRequest { noticeTitle: string; noticeType?: string; 
 export interface LegalRiskRecord { id: string; contractId?: string; contractTitle?: string; riskRegisterEntryId?: string; riskRegisterTitle?: string; riskTitle: string; severity: LegalRiskSeverity; status: LegalStatus; owner?: string; mitigationPlan?: string; reviewDate?: string; notes?: string; createdBy: string; createdAt: string; updatedAt: string; archivedAt?: string; }
 export interface LegalRiskRequest { contractId?: string; riskRegisterEntryId?: string; riskTitle: string; severity: LegalRiskSeverity; status: LegalStatus; owner?: string; mitigationPlan?: string; reviewDate?: string; notes?: string; }
 export interface LegalReport { reportType: LegalReportType; generatedAt: string; metrics: LegalMetric[]; notes: string[]; }
+export type AnalyticsModule = 'EXECUTIVE' | 'FINANCE' | 'SALES' | 'PRODUCTS' | 'COMPLIANCE' | 'HR' | 'LEGAL' | 'PROCUREMENT' | 'OPERATIONS';
+export type AnalyticsExportFormat = 'PDF' | 'EXCEL' | 'CSV';
+export interface AnalyticsMetric { label: string; value: number; unit: string; tone: string; }
+export interface AnalyticsTrendPoint { label: string; value: number; tone: string; }
+export interface AnalyticsRiskIndicator { label: string; value: number; severity: string; description: string; }
+export interface AnalyticsDataset { title: string; metrics: AnalyticsMetric[]; trends: AnalyticsTrendPoint[]; risks: AnalyticsRiskIndicator[]; notes: string[]; }
+export interface AnalyticsDashboard { module: AnalyticsModule; generatedAt: string; from?: string; to?: string; kpis: AnalyticsMetric[]; sections: AnalyticsDataset[]; risks: AnalyticsRiskIndicator[]; emptyStates: string[]; }
+export interface AnalyticsExportRequest { module: AnalyticsModule; format: AnalyticsExportFormat; from?: string; to?: string; }
+export interface AnalyticsExportResponse { module: AnalyticsModule; format: AnalyticsExportFormat; requestedAt: string; status: string; message: string; }

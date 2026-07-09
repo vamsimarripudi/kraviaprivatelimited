@@ -9,12 +9,20 @@ import { AccessReviewRecord, ApprovalDecisionPayload, ApprovalRecord, ApprovalRe
 import { BankAccountRecord, BankAccountRequest, BankTransactionRecord, BankTransactionRequest, BudgetRecord, BudgetRequest, BudgetStatus, FinanceAccountRecord, FinanceAccountRequest, FinanceAccountType, FinanceErpReport, FinanceErpSummary, FinanceRecordStatus, FinanceReportType, FinancialApprovalRecord, FinancialApprovalRequest, FinancialApprovalStatus, GstFilingStatus, GstRecordErp, GstRecordRequest, InvoiceRecord, InvoiceRequest, InvoiceStatus, JournalApprovalStatus, JournalEntryRecord, JournalEntryRequest, PayableRecord, PayableRequest, PaymentStatus, ReceivableRecord, ReceivableRequest, ReceivableStatus, ReconciliationStatus } from '../models/api.models';
 import { ProcurementApprovalPayload, ProcurementApprovalRecord, ProcurementReport, ProcurementReportType, ProcurementStatus, ProcurementSubscriptionPayload, ProcurementSubscriptionRecord, ProcurementSummary, ProcurementVendorRecord, ProcurementVendorRequest, PurchaseOrderPayload, PurchaseOrderRecord, PurchaseRequestPayload, PurchaseRequestRecord, VendorBillPayload, VendorBillRecord, VendorCategory, VendorDocumentPayload, VendorDocumentRecord } from '../models/api.models';
 import { AiQueryRecord, AiQueryRequest, AnnouncementRecord, AnnouncementRequest, AuditLogRecord, BoardMeetingRecord, BoardMeetingRequest, CompanyProfile, CompanyTask, CompanyTaskRequest, ContactCategory, ContactRecord, ContactRequest, ContactStatus, ComplianceCategory, ComplianceItem, ComplianceItemRequest, CompliancePriority, ComplianceStatus, DocumentCategory, DocumentMetadataRequest, DocumentRecord, DocumentStatus, EcosystemProductRecord, EcosystemProductRequest, EcosystemProductStatus, EcosystemSummary, ExecutiveDashboard, FinancialRecord, FinancialRecordRequest, MeetingActionItemRecord, MeetingActionItemRequest, MeetingStatus, MeetingType, NotificationRecord, LeadPriority, LeadStage, ProductRecord, ProductRequest, ProductStatus, ReportFilters, ReportResponse, ReportType, SalesCustomerRecord, SalesCustomerRequest, SalesLeadRecord, SalesLeadRequest, SearchResponse, TaskCategory, TaskPriority, TaskStatus, TaskStatusRequest } from '../models/api.models';
+import { AnalyticsDashboard, AnalyticsExportRequest, AnalyticsExportResponse, AnalyticsModule } from '../models/api.models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly http = inject(HttpClient);
 
   executiveDashboard(): Observable<ExecutiveDashboard> { return this.http.get<ExecutiveDashboard>('/api/platform/dashboard'); }
+  analyticsDashboard(module: AnalyticsModule, filters: { from?: string | null; to?: string | null }): Observable<AnalyticsDashboard> {
+    let params = new HttpParams();
+    if (filters.from) params = params.set('from', filters.from);
+    if (filters.to) params = params.set('to', filters.to);
+    return this.http.get<AnalyticsDashboard>(`/api/analytics/${module.toLowerCase()}`, { params });
+  }
+  requestAnalyticsExport(payload: AnalyticsExportRequest): Observable<AnalyticsExportResponse> { return this.http.post<AnalyticsExportResponse>('/api/analytics/export', payload); }
 
   getCompanyProfile(): Observable<CompanyProfile> { return this.http.get<CompanyProfile>('/api/company-profile'); }
   saveCompanyProfile(payload: CompanyProfile): Observable<CompanyProfile> { return this.http.put<CompanyProfile>('/api/company-profile', payload); }

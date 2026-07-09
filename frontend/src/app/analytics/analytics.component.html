@@ -1,0 +1,165 @@
+<section class="workspace-page analytics-page">
+  <div class="page-heading">
+    <div>
+      <p class="overline">Business Intelligence</p>
+      <h1>{{ selectedModuleLabel() }}</h1>
+      <p>{{ selectedModuleDescription() }}</p>
+    </div>
+    <button class="secondary-button" type="button" (click)="print()">Print</button>
+  </div>
+
+  <form class="toolbar-panel enterprise-form" [formGroup]="filterForm" (ngSubmit)="load()">
+    <div class="compact-form-grid">
+      <label>
+        Module
+        <select formControlName="module">
+          @for (module of modules; track module.value) {
+            <option [value]="module.value">{{ module.label }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        From
+        <input type="date" formControlName="from" />
+      </label>
+      <label>
+        To
+        <input type="date" formControlName="to" />
+      </label>
+    </div>
+    <div class="form-actions">
+      <button class="primary-button" type="submit">Generate</button>
+      <button class="secondary-button" type="button" (click)="requestExport('PDF')" [disabled]="exporting()">PDF Export</button>
+      <button class="secondary-button" type="button" (click)="requestExport('EXCEL')" [disabled]="exporting()">Excel Export</button>
+      <button class="secondary-button" type="button" (click)="requestExport('CSV')" [disabled]="exporting()">CSV Export</button>
+    </div>
+  </form>
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading analytics from stored records..." />
+  } @else {
+    @if (dashboard(); as data) {
+      @if (data.emptyStates.length) {
+        @for (state of data.emptyStates; track state) {
+          <kravia-empty-state label="Analytics" [message]="state" />
+        }
+      } @else {
+        <div class="report-metric-grid">
+          @for (metric of data.kpis; track metric.label) {
+            <article class="report-metric" [class.positive]="metric.tone === 'positive'" [class.warning]="metric.tone === 'warning'" [class.critical]="metric.tone === 'negative' || metric.tone === 'critical'">
+              <span>{{ metric.label }}</span>
+              <strong>{{ metricValue(metric) }}</strong>
+            </article>
+          }
+        </div>
+
+        @if (data.risks.length) {
+          <div class="panel table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Risk Indicator</th>
+                  <th>Count</th>
+                  <th>Severity</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (risk of data.risks; track risk.label) {
+                  <tr>
+                    <td>{{ risk.label }}</td>
+                    <td>{{ risk.value }}</td>
+                    <td><span class="status-badge">{{ label(risk.severity) }}</span></td>
+                    <td>{{ risk.description }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+
+        @for (section of data.sections; track section.title) {
+          <article class="panel report-preview">
+            <div class="report-header">
+              <div>
+                <p class="overline">Analytics Section</p>
+                <h3>{{ section.title }}</h3>
+                <p>Generated {{ data.generatedAt }}</p>
+              </div>
+            </div>
+
+            @if (section.metrics.length) {
+              <div class="report-metric-grid">
+                @for (metric of section.metrics; track metric.label) {
+                  <article class="report-metric" [class.positive]="metric.tone === 'positive'" [class.warning]="metric.tone === 'warning'" [class.critical]="metric.tone === 'negative' || metric.tone === 'critical'">
+                    <span>{{ metric.label }}</span>
+                    <strong>{{ metricValue(metric) }}</strong>
+                  </article>
+                }
+              </div>
+            }
+
+            @if (section.trends.length) {
+              <div class="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Trend</th>
+                      <th>Value</th>
+                      <th>State</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (point of section.trends; track point.label) {
+                      <tr>
+                        <td>{{ label(point.label) }}</td>
+                        <td>{{ trendValue(point) }}</td>
+                        <td><span class="status-badge">{{ label(point.tone) }}</span></td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+
+            @if (section.risks.length) {
+              <div class="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Risk</th>
+                      <th>Count</th>
+                      <th>Severity</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (risk of section.risks; track risk.label) {
+                      <tr>
+                        <td>{{ risk.label }}<small>{{ risk.description }}</small></td>
+                        <td>{{ risk.value }}</td>
+                        <td><span class="status-badge">{{ label(risk.severity) }}</span></td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+
+            @if (section.notes.length) {
+              <ul class="report-notes">
+                @for (note of section.notes; track note) {
+                  <li>{{ note }}</li>
+                }
+              </ul>
+            }
+          </article>
+        }
+      }
+    } @else {
+      <kravia-empty-state label="Analytics" message="No information has been added yet." />
+    }
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>

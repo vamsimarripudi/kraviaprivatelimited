@@ -46,6 +46,7 @@ export const routes: Routes = [
       { path: 'assets', loadComponent: () => import('./assets/assets.component').then((m) => m.AssetsComponent), title: 'Asset Management' },
       { path: 'hr', loadComponent: () => import('./hr/hr.component').then((m) => m.HrComponent), title: 'HR & Organization' },
       { path: 'legal', loadComponent: () => import('./legal/legal.component').then((m) => m.LegalComponent), title: 'Legal & Contracts' },
+      { path: 'analytics', loadComponent: () => import('./analytics/analytics.component').then((m) => m.AnalyticsComponent), title: 'Business Intelligence & Analytics' },
       { path: 'compliance', component: ComplianceComponent, title: 'Compliance Center' },
       { path: 'tasks', component: TasksComponent, title: 'Company Tasks' },
       { path: 'products', component: ProductsComponent, title: 'Products Portfolio' },
