@@ -450,6 +450,61 @@ Compliance item create/update requests include:
 - `notes` optional
 
 Responses include computed `overdue`, `upcomingDue`, and `daysUntilDue` fields. Upcoming due means an open item due in the next 14 days.
+## Reports & Global Search
+
+All report and search endpoints require authentication and enforce backend role permissions.
+
+### Report Endpoints
+
+| Method | Path | Access | Purpose |
+| --- | --- | --- | --- |
+| GET | `/reports/company-summary` | Founder, Director, Viewer | Generate company summary report |
+| GET | `/reports/financial-summary` | Founder, Director, Viewer | Generate financial summary report |
+| GET | `/reports/profit-loss` | Founder, Director, Viewer | Generate profit and loss report |
+| GET | `/reports/board-meetings` | Founder, Director, Viewer | Generate board meeting report |
+| GET | `/reports/compliance` | Founder, Director, Viewer | Generate compliance report |
+| GET | `/reports/tasks` | Founder, Director, Viewer | Generate task report |
+| GET | `/reports/products` | Founder, Director, Viewer | Generate product status report |
+| GET | `/reports/documents` | Founder, Director, Viewer | Generate document report |
+| GET | `/reports/contacts` | Founder, Director, Viewer | Generate contact report |
+| GET | `/reports/activity` | Founder, Director | Generate activity report from permitted audit logs |
+
+### Report Query Parameters
+
+- `from`: optional ISO date, inclusive.
+- `to`: optional ISO date, inclusive.
+- `module`: optional module key such as `DOCUMENTS`, `TASKS`, `PRODUCTS`, `CONTACTS`, `ANNOUNCEMENTS`, or `AUDIT_LOGS`.
+
+Report responses contain:
+
+- `key`
+- `title`
+- `description`
+- `generatedAt`
+- `filters`
+- `metrics`
+- `sections`
+- `pdfExportAvailable`
+- `excelExportAvailable`
+
+PDF and Excel exports are intentionally placeholders in this phase. Report generation creates an audit log with module `REPORTS` and action `REPORT_GENERATED`.
+
+### Global Search
+
+| Method | Path | Access | Purpose |
+| --- | --- | --- | --- |
+| GET | `/search?q={query}` | Founder, Director, Viewer | Search permitted workspace records grouped by module |
+
+Search covers company profile, documents, board meetings, financial records, compliance items, tasks, products, contacts, announcements, and audit logs. Viewer users do not receive audit log results or private announcement drafts. Director users do not receive restricted auth/security/settings audit log entries.
+
+Search responses contain:
+
+- `query`
+- `searchedAt`
+- `totalResults`
+- `groups`
+
+Each group contains `module`, `label`, `count`, and `results`. Each result contains `id`, `title`, `description`, `status`, `route`, and `updatedAt`.
 ## Audit Logs
 
 | Method | Path | Access | Purpose |
@@ -464,7 +519,7 @@ Compliance actions create audit entries with module `COMPLIANCE_CENTER` and acti
 Task actions create audit entries with module `COMPANY_TASKS` and actions `TASK_CREATED`, `TASK_UPDATED`, `TASK_STATUS_CHANGED`, `TASK_COMPLETED`, and `TASK_ARCHIVED`.
 Product actions create audit entries with module `PRODUCTS_PORTFOLIO` and actions `PRODUCT_CREATED`, `PRODUCT_UPDATED`, `PRODUCT_STATUS_CHANGED`, and `PRODUCT_ARCHIVED`.
 Contact actions create audit entries with module `CONTACTS_PARTNERS` and actions `CONTACT_CREATED`, `CONTACT_UPDATED`, `CONTACT_STATUS_CHANGED`, and `CONTACT_ARCHIVED`.
-Announcement actions create audit entries with module `ANNOUNCEMENTS`; notification actions create audit entries with module `NOTIFICATIONS`.
+Announcement actions create audit entries with module `ANNOUNCEMENTS`; notification actions create audit entries with module `NOTIFICATIONS`. Report generation creates audit entries with module `REPORTS` and action `REPORT_GENERATED`.
 
 ## Database Tables
 
@@ -480,6 +535,12 @@ Announcement actions create audit entries with module `ANNOUNCEMENTS`; notificat
 - `meeting_resolutions`
 - `meeting_action_items`
 - `financial_records`
+- `compliance_items`
+- `company_tasks`
+- `products`
+- `contacts`
+- `announcements`
+- `notifications`
 - `audit_logs`
 
 ## Data Rules
@@ -493,6 +554,7 @@ Announcement actions create audit entries with module `ANNOUNCEMENTS`; notificat
 - No dummy product records or product metrics are seeded.
 - No dummy contact or partner records are seeded.
 - No dummy announcements or notifications are seeded.
+- Reports and global search never synthesize fake records; empty results remain empty.
 - The migration inserts only role names: `FOUNDER`, `DIRECTOR`, `VIEWER`.
 - The only user bootstrap is the optional founder account from environment variables.
 - Document files are stored in private local storage for development and downloaded only through protected APIs.

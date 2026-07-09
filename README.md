@@ -4,8 +4,8 @@ Foundation full-stack internal company workspace for KRAVIA PRIVATE LIMITED.
 
 ## Structure
 
-- `frontend`: Angular, TypeScript, Router, Reactive Forms, Signals, guards, interceptors, enterprise shell, document workspace, board meeting workspace, financial dashboard, compliance center, company tasks, products portfolio, contacts and partners, announcements, notifications.
-- `backend`: Java 21, Spring Boot 3.5, Spring Security, JWT, BCrypt, JPA, PostgreSQL, Flyway, validation, audit logging, secure local document storage, board meeting records, financial records, compliance tracking, company tasks, products portfolio, contacts and partners, announcements, notifications.
+- `frontend`: Angular, TypeScript, Router, Reactive Forms, Signals, guards, interceptors, enterprise shell, document workspace, board meeting workspace, financial dashboard, compliance center, company tasks, products portfolio, contacts and partners, announcements, notifications, reports, global search.
+- `backend`: Java 21, Spring Boot 3.5, Spring Security, JWT, BCrypt, JPA, PostgreSQL, Flyway, validation, audit logging, secure local document storage, board meeting records, financial records, compliance tracking, company tasks, products portfolio, contacts and partners, announcements, notifications, reports, global search.
 - `docs`: API contract and local setup guide.
 
 ## Modules
@@ -16,7 +16,15 @@ Foundation full-stack internal company workspace for KRAVIA PRIVATE LIMITED.
 4. Document Vault
 5. Board Meetings
 6. Financial Records
-7. Audit Log base
+7. Compliance Center
+8. Company Tasks
+9. Products Portfolio
+10. Contacts & Partners
+11. Announcements
+12. Notifications
+13. Reports
+14. Global Search
+15. Audit Log base
 
 ## Roles
 
@@ -40,6 +48,8 @@ Foundation full-stack internal company workspace for KRAVIA PRIVATE LIMITED.
 - Product APIs are backend-protected by role and create, update, status change, and archive actions create audit logs.
 - Contact APIs are backend-protected by role and create, update, status change, and archive actions create audit logs.
 - Announcement and notification APIs are backend-protected by role, and published/pinned announcements generate real notifications for their audience.
+- Report APIs generate print-friendly output from existing records only and audit every report generation.
+- Global search is backend-protected and filters results by role, including restricted audit/security visibility.
 
 ## Local Setup
 

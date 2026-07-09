@@ -1,0 +1,114 @@
+<section class="portal-section">
+  <div class="section-heading">
+    <div>
+      <p class="overline">Reports</p>
+      <h2>Company Reports</h2>
+      <p>Generate print-friendly reports from existing KRAVIA Company OS records. Export actions are placeholders for future PDF and Excel generation.</p>
+    </div>
+  </div>
+
+  <form class="panel enterprise-form report-controls" [formGroup]="form" (ngSubmit)="generate()">
+    <label>
+      Report type
+      <select formControlName="reportType">
+        @for (type of reportTypes; track type.value) {
+          <option [value]="type.value">{{ type.label }}</option>
+        }
+      </select>
+      <small>{{ reportDescription(form.controls.reportType.value) }}</small>
+    </label>
+    <label>
+      From
+      <input type="date" formControlName="from">
+    </label>
+    <label>
+      To
+      <input type="date" formControlName="to">
+    </label>
+    <label>
+      Module
+      <select formControlName="module">
+        @for (module of modules; track module.value) {
+          <option [value]="module.value">{{ module.label }}</option>
+        }
+      </select>
+    </label>
+    <div class="form-actions report-actions">
+      <button class="primary-button" type="submit">Generate report</button>
+      <button class="secondary-button" type="button" (click)="clearFilters()">Clear filters</button>
+      @if (report()) {
+        <button class="secondary-button" type="button" (click)="print()">Print</button>
+        <button class="secondary-button" type="button" (click)="exportPlaceholder('PDF')">Export PDF</button>
+        <button class="secondary-button" type="button" (click)="exportPlaceholder('Excel')">Export Excel</button>
+      }
+    </div>
+  </form>
+
+  @if (loading()) {
+    <kravia-loading-state message="Generating report..." />
+  } @else if (generated() && report() && totalRows() === 0) {
+    <kravia-empty-state label="Reports" message="No matching records found." />
+  }
+
+  @if (report(); as currentReport) {
+    <article class="panel report-preview">
+      <header class="report-header">
+        <div>
+          <p class="overline">Report Preview</p>
+          <h3>{{ currentReport.title }}</h3>
+          <p>{{ currentReport.description }}</p>
+        </div>
+        <dl class="metadata-list compact-report-meta">
+          <div><dt>Generated</dt><dd>{{ formatDateTime(currentReport.generatedAt) }}</dd></div>
+          <div><dt>PDF Export</dt><dd>{{ currentReport.pdfExportAvailable ? 'Available' : 'Placeholder' }}</dd></div>
+          <div><dt>Excel Export</dt><dd>{{ currentReport.excelExportAvailable ? 'Available' : 'Placeholder' }}</dd></div>
+        </dl>
+      </header>
+
+      <div class="report-metric-grid">
+        @for (metric of currentReport.metrics; track metric.label) {
+          <article class="report-metric" [class.positive]="metric.tone === 'positive'" [class.warning]="metric.tone === 'warning'" [class.critical]="metric.tone === 'critical'">
+            <span>{{ metric.label }}</span>
+            <strong>{{ metric.value }}</strong>
+          </article>
+        }
+      </div>
+
+      <div class="report-sections">
+        @for (section of currentReport.sections; track section.title) {
+          <section class="report-section">
+            <div class="section-subheading">
+              <div>
+                <p class="overline">{{ section.title }}</p>
+                <h3>{{ section.rows.length }} record(s)</h3>
+              </div>
+            </div>
+            @if (section.rows.length === 0) {
+              <kravia-empty-state label="Report Section" message="No matching records found." />
+            } @else {
+              <div class="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      @for (column of section.columns; track column) { <th>{{ column }}</th> }
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (row of section.rows; track $index) {
+                      <tr>
+                        @for (column of section.columns; track column) { <td>{{ cell(row, column) }}</td> }
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </section>
+        }
+      </div>
+    </article>
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>

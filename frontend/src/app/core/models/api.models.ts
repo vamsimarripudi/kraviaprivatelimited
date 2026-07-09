@@ -412,6 +412,70 @@ export interface NotificationRecord {
   archivedAt?: string;
   read: boolean;
 }
+export type ReportType =
+  | 'company-summary'
+  | 'financial-summary'
+  | 'profit-loss'
+  | 'board-meetings'
+  | 'compliance'
+  | 'tasks'
+  | 'products'
+  | 'documents'
+  | 'contacts'
+  | 'activity';
+
+export interface ReportFilters {
+  from?: string;
+  to?: string;
+  module?: string;
+}
+
+export interface ReportMetric {
+  label: string;
+  value: string;
+  tone: 'neutral' | 'positive' | 'warning' | 'critical' | string;
+}
+
+export interface ReportSection {
+  title: string;
+  columns: string[];
+  rows: Array<Record<string, string>>;
+}
+
+export interface ReportResponse {
+  key: ReportType;
+  title: string;
+  description: string;
+  generatedAt: string;
+  filters: ReportFilters;
+  metrics: ReportMetric[];
+  sections: ReportSection[];
+  pdfExportAvailable: boolean;
+  excelExportAvailable: boolean;
+}
+
+export interface SearchResult {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  route: string;
+  updatedAt: string;
+}
+
+export interface SearchGroup {
+  module: string;
+  label: string;
+  count: number;
+  results: SearchResult[];
+}
+
+export interface SearchResponse {
+  query: string;
+  searchedAt: string;
+  totalResults: number;
+  groups: SearchGroup[];
+}
 export interface AuditLogRecord {
   id: string;
   actorEmail: string;

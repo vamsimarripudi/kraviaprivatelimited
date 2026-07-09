@@ -30,6 +30,12 @@ Spring Boot foundation backend for KRAVIA Company OS.
 - `meeting_resolutions`
 - `meeting_action_items`
 - `financial_records`
+- `compliance_items`
+- `company_tasks`
+- `products`
+- `contacts`
+- `announcements`
+- `notifications`
 - `audit_logs`
 
 ## Environment
@@ -70,6 +76,12 @@ Important actions write audit logs:
 - `NOTIFICATION_READ`
 - `NOTIFICATIONS_READ_ALL`
 - `NOTIFICATION_ARCHIVED`
+## Reports & Global Search
+
+Reports are generated from existing PostgreSQL records only. The backend exposes print-friendly report responses with metrics and tabular sections, supports date range and module filters, and writes `REPORT_GENERATED` audit logs. PDF and Excel export flags are placeholders for future export endpoints.
+
+Global search queries company profile, documents, board meetings, financial records, compliance items, tasks, products, contacts, announcements, and permitted audit logs. Search results are grouped by module and filtered by role permissions; Viewer users do not receive audit log results, and Director users do not receive restricted auth/security/settings audit log entries.
+
 ## Contacts & Partners
 
 Contact records are stored in `contacts`. The backend enforces Founder/Director write access, Founder-only archive access, and Viewer read-only access. The service calculates follow-up due indicators from each contact next follow-up date on read.

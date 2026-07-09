@@ -1,0 +1,60 @@
+<section class="portal-section">
+  <div class="section-heading">
+    <div>
+      <p class="overline">Global Search</p>
+      <h2>Search Company OS</h2>
+      <p>Search across permitted company profile, documents, meetings, financial records, compliance, tasks, products, contacts, announcements, and audit logs.</p>
+    </div>
+  </div>
+
+  <form class="panel search-panel" (ngSubmit)="search()">
+    <label>
+      Search records
+      <input type="search" [value]="query()" (input)="updateQuery($any($event.target).value)" placeholder="Search by title, owner, status, notes, document, contact, or action">
+    </label>
+    <button class="primary-button" type="submit">Search</button>
+  </form>
+
+  @if (loading()) {
+    <kravia-loading-state message="Searching records..." />
+  } @else if (searched() && totalResults() === 0) {
+    <kravia-empty-state label="Global Search" message="No matching records found." />
+  }
+
+  @if (response(); as results) {
+    @if (results.totalResults > 0) {
+      <div class="search-summary panel">
+        <div>
+          <p class="overline">Search Results</p>
+          <h3>{{ results.totalResults }} matching record(s)</h3>
+          <p>Last searched {{ formatDateTime(results.searchedAt) }}</p>
+        </div>
+      </div>
+
+      <div class="search-groups">
+        @for (group of results.groups; track group.module) {
+          <section class="panel search-group">
+            <div class="section-subheading">
+              <div>
+                <p class="overline">{{ group.label }}</p>
+                <h3>{{ group.count }} result(s)</h3>
+              </div>
+            </div>
+            <div class="search-result-list">
+              @for (result of group.results; track result.id) {
+                <a class="search-result" [routerLink]="result.route">
+                  <span class="status-badge">{{ result.status }}</span>
+                  <strong>{{ result.title }}</strong>
+                  <p>{{ result.description }}</p>
+                  <small>Updated {{ formatDateTime(result.updatedAt) }}</small>
+                </a>
+              }
+            </div>
+          </section>
+        }
+      </div>
+    }
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+</section>

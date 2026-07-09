@@ -68,14 +68,25 @@ Frontend runs at `http://localhost:4200` and proxies `/api` to Spring Boot.
 5. Open Documents to upload, search, filter, view metadata, download, or archive documents according to role.
 6. Open Board Meetings to create, search, filter, edit, archive, and manage action items according to role.
 7. Open Finance to create, search, filter, edit, archive, and review monthly financial records according to role.
-8. Open Audit Logs to confirm profile, document, meeting, and finance actions were recorded.
+8. Open Reports to generate print-friendly summaries from existing records.
+9. Open Global Search to search across permitted workspace records.
+10. Open Audit Logs to confirm profile, document, meeting, finance, and report actions were recorded.
 
 ## Role Checks
 
-- Founder can view and edit company profile, upload/download/edit/archive documents, create/edit/archive board meetings, create/edit/archive financial records, create/edit/archive compliance items, create/edit/complete/archive tasks, create/edit/archive products, create/edit/archive contacts, create/edit/pin/archive announcements, manage notifications, and view audit logs.
-- Director can view and edit company profile, upload/download/edit documents, create/edit board meetings, create/edit financial records, create/edit compliance items, create/edit/complete tasks, create/edit products, create/edit contacts, create/edit/pin announcements, view notifications, and view audit logs.
-- Viewer can view company profile, view/download documents, read board meetings, read financial records, and read compliance items, read tasks, read products, read contacts, read published announcements, and manage own notifications only.
+- Founder can view and edit company profile, upload/download/edit/archive documents, create/edit/archive board meetings, create/edit/archive financial records, create/edit/archive compliance items, create/edit/complete/archive tasks, create/edit/archive products, create/edit/archive contacts, create/edit/pin/archive announcements, manage notifications, generate all reports, search all permitted records, and view audit logs.
+- Director can view and edit company profile, upload/download/edit documents, create/edit board meetings, create/edit financial records, create/edit compliance items, create/edit/complete tasks, create/edit products, create/edit contacts, create/edit/pin announcements, view notifications, generate operational reports, search permitted records, and view audit logs excluding restricted auth/security/settings entries.
+- Viewer can view company profile, view/download documents, read board meetings, read financial records, and read compliance items, read tasks, read products, read contacts, read published announcements, and manage own notifications only, generate permitted reports, and search permitted records only.
 - Audit Logs route is visible only to Founder and Director.
+
+## Reports & Global Search Checks
+
+- Reports are generated from stored records only and show empty sections when no records match.
+- Report generation writes `REPORT_GENERATED` audit logs.
+- Date range and module filters are enforced by the backend report service.
+- PDF and Excel buttons are frontend placeholders for future export endpoints.
+- Global Search groups results by module and returns `No matching records found.` when empty.
+- Viewer search results exclude audit logs and private announcement drafts.
 
 ## Announcements & Notifications Checks
 
