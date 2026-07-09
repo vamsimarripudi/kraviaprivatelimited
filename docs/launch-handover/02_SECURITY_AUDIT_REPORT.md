@@ -42,7 +42,7 @@ Result: no app-source secrets, fake records, dummy data, lorem ipsum, or console
 ## Critical Blockers
 
 1. Settings is missing from the required launch scope, so security and permission behavior for that module cannot be audited.
-2. Backend security tests were not executed locally because Java 21 and Maven are unavailable.
+2. Backend security tests were not executed locally because Java 21 was unavailable in the audit environment. Use the backend Maven Wrapper in a Java 21 environment.
 
 ## High-Priority Security Issues
 

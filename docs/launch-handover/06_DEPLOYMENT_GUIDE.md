@@ -9,7 +9,7 @@ Do not deploy to internal production until launch blockers are closed.
 ## Prerequisites
 
 - Java 21
-- Maven 3.9 or newer
+- Maven Wrapper included in backend; no global Maven install required
 - Node.js 22 or current Angular-supported LTS
 - PostgreSQL 15 or newer
 - Docker and Docker Compose for local production testing
@@ -30,11 +30,11 @@ Do not deploy to internal production until launch blockers are closed.
 
 ```bash
 cd backend
-mvn clean test
-mvn spring-boot:run
+./mvnw clean verify
+./mvnw spring-boot:run
 ```
 
-Local audit note: these commands were not run during final QA because Maven is unavailable and local Java is 17 while the backend targets Java 21.
+Local audit note: these commands were not run during final QA because local Java is 17 and backend verification requires Java 21 while the backend targets Java 21.
 
 ## Frontend Commands
 
@@ -90,5 +90,5 @@ Current storage is local development storage. For internal production:
 ## Deployment Blockers
 
 - Settings module is missing.
-- Backend Java 21/Maven compile and test verification has not been completed.
+- Backend Java 21/Maven Wrapper compile and test verification has not been completed.
 - End-to-end role verification has not been completed in a running production-like environment.

@@ -5,7 +5,7 @@ Date: July 9, 2026
 ## Immediate Improvements
 
 1. Implement the Settings module or remove it from launch scope.
-2. Run full backend verification with Java 21 and Maven.
+2. Run full backend verification with Java 21 and Maven Wrapper.
 3. Add integration tests for authentication, permissions, document access, and audit logging.
 4. Run end-to-end tests for Founder, Director, and Viewer workflows.
 5. Execute Docker compose production test with PostgreSQL.

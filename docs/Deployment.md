@@ -9,7 +9,7 @@ This document defines the deployment engineering standard for KRAVIA Company OS.
 Backend:
 
 - Java 21
-- Maven 3.9 or newer
+- Maven Wrapper included in backend; no global Maven install required
 - Spring Boot 3.x
 - PostgreSQL 15 or newer
 
@@ -134,7 +134,7 @@ For high-risk migrations:
 
 Deployment assets exist, but production readiness is blocked until:
 
-- Java 21 and Maven backend verification is completed
+- Java 21 and Maven Wrapper backend verification is completed
 - Settings scope is resolved
 - Docker production test is run
 - role permission tests pass

@@ -18,7 +18,7 @@ Flyway migrations run automatically on backend startup. To validate migrations d
 
 ```powershell
 cd backend
-mvn flyway:validate
+./mvnw flyway:validate
 ```
 
 ## Backup

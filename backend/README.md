@@ -172,7 +172,7 @@ Important document actions write audit logs:
 ## Run
 
 ```powershell
-mvn spring-boot:run
+./mvnw spring-boot:run
 ```
 
 The API is served under `/api`.

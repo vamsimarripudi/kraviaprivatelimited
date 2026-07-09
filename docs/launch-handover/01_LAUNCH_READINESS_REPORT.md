@@ -42,16 +42,16 @@ This report covers the Angular frontend, Spring Boot backend, PostgreSQL migrati
 - Static scan found no app-source lorem ipsum, fake records, dummy records, exposed secrets, or console logging.
 - Placeholder values exist only in documentation and environment templates.
 - Frontend production build passed in the previous hardening phase after the latest code changes.
-- Backend compile and tests could not be run locally because Maven is unavailable and local Java is 17 while the backend targets Java 21.
+- Backend compile and tests could not be run locally because local Java is 17 and backend verification requires Java 21 while the backend targets Java 21.
 
 ## Critical Blockers
 
 1. Settings module is absent from the implemented application.
-2. Backend final compile/test/API verification was not possible in the local environment because Java 21 and Maven are not available.
+2. Backend final compile/test/API verification was not possible in the local environment because Java 21 was not available. Use the backend Maven Wrapper in a Java 21 environment.
 
 ## High-Priority Issues
 
-- Full role-based API permission tests must be run in a Java 21 + Maven environment.
+- Full role-based API permission tests must be run in a Java 21 + Maven Wrapper environment.
 - End-to-end browser verification across Founder, Director, and Viewer roles has not been completed after the final module set.
 - Docker production build was not executed locally.
 - Refresh token revocation on logout should be verified or added if logout remains stateless.
@@ -73,7 +73,7 @@ This report covers the Angular frontend, Spring Boot backend, PostgreSQL migrati
 ## Recommended Next Actions
 
 1. Implement or explicitly remove Settings from the launch scope.
-2. Run backend compile, unit tests, integration tests, and API permission tests with Java 21 and Maven.
+2. Run backend compile, unit tests, integration tests, and API permission tests with Java 21 and Maven Wrapper.
 3. Run Docker compose production test with PostgreSQL and local storage.
 4. Perform browser QA for Founder, Director, and Viewer journeys.
 5. Confirm logout refresh-token revocation behavior.

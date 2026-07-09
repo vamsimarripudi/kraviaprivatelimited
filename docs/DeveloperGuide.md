@@ -18,7 +18,7 @@ Use:
 
 - Java 21
 - Spring Boot 3.x
-- Maven
+- Maven Wrapper included in backend; no global Maven install required
 - Spring Security
 - Spring Data JPA
 - Flyway
@@ -107,8 +107,8 @@ Backend:
 
 ```bash
 cd backend
-mvn clean test
-mvn spring-boot:run
+./mvnw clean verify
+./mvnw spring-boot:run
 ```
 
 Frontend:
@@ -137,4 +137,4 @@ Before merging:
 
 ## Current Engineering Note
 
-The local environment used during the final audit did not have Maven available and had Java 17 instead of Java 21. Backend verification must be run in a correct developer or CI environment.
+The local environment used during the final audit had Java 17 instead of Java 21. Backend verification must be run with Java 21 through the backend Maven Wrapper.

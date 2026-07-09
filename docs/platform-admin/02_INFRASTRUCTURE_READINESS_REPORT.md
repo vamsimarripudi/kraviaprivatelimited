@@ -2,7 +2,7 @@
 
 ## Current Readiness
 
-Phase 16 establishes an infrastructure administration foundation, but production infrastructure readiness still depends on running backend verification in a Java 21 and Maven environment.
+Phase 16 establishes an infrastructure administration foundation, but production infrastructure readiness still depends on running backend verification in a Java 21 and Maven Wrapper environment.
 
 ## Implemented
 
@@ -20,7 +20,7 @@ Phase 16 establishes an infrastructure administration foundation, but production
 
 ## Readiness Gaps
 
-- Backend compile could not be verified locally because Maven is not installed in this environment.
+- Backend compile could not be verified locally in that audit environment. Use `cd backend` and `./mvnw clean verify` in a Java 21 environment.
 - Real scheduler integration is not yet connected.
 - Real queue worker integration is not yet connected.
 - Email service health is marked not configured until email infrastructure is connected.
@@ -31,7 +31,7 @@ Phase 16 establishes an infrastructure administration foundation, but production
 
 Before controlled internal production:
 
-1. Run `mvn clean compile`.
+1. Run `./mvnw clean verify`.
 2. Run backend tests.
 3. Run Flyway migrations on a clean PostgreSQL database.
 4. Validate `/api/platform-admin/overview`.

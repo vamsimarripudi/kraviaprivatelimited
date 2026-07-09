@@ -1,0 +1,50 @@
+#!/bin/sh
+set -e
+
+BASE_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+WRAPPER_DIR="$BASE_DIR/.mvn/wrapper"
+PROPERTIES_FILE="$WRAPPER_DIR/maven-wrapper.properties"
+DIST_ROOT="$WRAPPER_DIR/dists"
+
+if [ ! -f "$PROPERTIES_FILE" ]; then
+  echo "Missing Maven Wrapper properties: $PROPERTIES_FILE" >&2
+  exit 1
+fi
+
+DIST_URL=$(sed -n 's/^distributionUrl=//p' "$PROPERTIES_FILE" | tail -n 1)
+if [ -z "$DIST_URL" ]; then
+  echo "Missing distributionUrl in $PROPERTIES_FILE" >&2
+  exit 1
+fi
+
+DIST_FILE=$(basename "$DIST_URL")
+DIST_NAME=$(basename "$DIST_URL" -bin.zip)
+DIST_DIR="$DIST_ROOT/$DIST_NAME"
+DIST_ZIP="$DIST_ROOT/$DIST_FILE"
+
+if [ ! -x "$DIST_DIR/bin/mvn" ]; then
+  mkdir -p "$DIST_ROOT"
+
+  if [ ! -f "$DIST_ZIP" ]; then
+    if command -v curl >/dev/null 2>&1; then
+      curl -fsSL "$DIST_URL" -o "$DIST_ZIP"
+    elif command -v wget >/dev/null 2>&1; then
+      wget -q "$DIST_URL" -O "$DIST_ZIP"
+    else
+      echo "Maven distribution is not cached and neither curl nor wget is available." >&2
+      exit 1
+    fi
+  fi
+
+  rm -rf "$DIST_DIR"
+  if command -v unzip >/dev/null 2>&1; then
+    unzip -q "$DIST_ZIP" -d "$DIST_ROOT"
+  elif command -v jar >/dev/null 2>&1; then
+    (cd "$DIST_ROOT" && jar xf "$DIST_ZIP")
+  else
+    echo "Cannot extract Maven distribution; install unzip or use a JDK with jar." >&2
+    exit 1
+  fi
+fi
+
+exec "$DIST_DIR/bin/mvn" "$@"

@@ -44,7 +44,7 @@
 
 ## Testing Coverage
 
-- CI is prepared to run backend Maven tests and frontend production builds.
+- CI is prepared to run backend Maven Wrapper tests and frontend production builds.
 - This phase adds initial hardening tests as a baseline.
 - Additional integration tests should be added for every module before broader rollout.
 
@@ -60,7 +60,7 @@
 
 - In-memory rate limiting resets on backend restart and is not cluster-wide.
 - Refresh token revocation is implemented, but logout remains client-side token clearing unless refresh token revocation is added to logout payloads.
-- Backend tests cannot be verified in the current local environment without Maven and Java 21.
+- Backend tests cannot be verified in the current local environment without Java 21 and wrapper dependency download access.
 - Production observability should be connected to a log/metrics platform.
 - Backups need real encrypted offsite storage and restore drills.
 

@@ -249,12 +249,12 @@ This phase intentionally avoids a mass rewrite of existing modules. Existing mod
 - Reporting should move to provider-based report sections.
 - Settings remains planned, not fully implemented as a UI module.
 - Existing modules should gradually adopt explicit module interfaces.
-- Backend verification still requires Java 21 and Maven.
+- Backend verification still requires Java 21 and Maven Wrapper.
 - Workflow UI is not yet exposed as a full user page; workflow APIs and dashboard aggregation exist.
 
 ## Recommended Next Engineering Sequence
 
-1. Run backend verification in Java 21 + Maven.
+1. Run backend verification in Java 21 + Maven Wrapper.
 2. Add tests for platform services.
 3. Add pagination and API envelope standards.
 4. Add provider interfaces for search and reporting.

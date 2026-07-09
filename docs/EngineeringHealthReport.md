@@ -43,7 +43,7 @@ Estimated engineering readiness: 68%
 ## Critical Blockers
 
 1. Settings module is still missing from the final required module list.
-2. Backend compile and tests have not been run in a Java 21 + Maven environment.
+2. Backend compile and tests have not been run in a Java 21 + Maven Wrapper environment.
 3. Role permission tests are not broad enough for internal production approval.
 
 ## High-Priority Recommendations

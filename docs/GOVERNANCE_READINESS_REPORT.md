@@ -227,7 +227,7 @@ Viewer:
 
 High priority:
 
-- Run backend verification in Java 21 and Maven environment.
+- Run backend verification in Java 21 and Maven Wrapper environment.
 - Add backend permission tests for Founder, Director, and Viewer.
 - Add integration tests for governance APIs.
 - Connect approvals directly to module detail pages.
@@ -252,4 +252,4 @@ Low priority:
 
 Phase 15 establishes a practical governance foundation suitable for internal company records, auditor review preparation, director accountability, legal traceability, and future due diligence preparation.
 
-Production readiness still depends on backend Java 21/Maven verification and permission test coverage.
+Production readiness still depends on backend Java 21/Maven Wrapper verification and permission test coverage.

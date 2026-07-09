@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Java 21
-- Maven 3.9+
+- Maven Wrapper included in backend; no global Maven install required
 - Node.js 22+
 - npm 11+
 - PostgreSQL 15+
@@ -44,7 +44,7 @@ Document storage defaults to `./storage/private-documents` under the backend wor
 
 ```powershell
 cd backend
-mvn spring-boot:run
+./mvnw spring-boot:run
 ```
 
 Backend API runs at `http://localhost:8080/api`.

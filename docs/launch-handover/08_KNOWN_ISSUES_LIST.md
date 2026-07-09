@@ -5,7 +5,7 @@ Date: July 9, 2026
 ## Critical Blockers
 
 1. Settings module is missing from both frontend and backend.
-2. Backend final compile, tests, and runtime API checks were not completed locally because Maven is unavailable and the local Java version is 17 instead of required Java 21.
+2. Backend final compile, tests, and runtime API checks were not completed locally because the local Java version is 17 instead of required Java 21. The backend Maven Wrapper removes the need for a global Maven install.
 
 ## High-Priority Issues
 

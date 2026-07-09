@@ -31,7 +31,7 @@ Roles:
 
 ## Permission Review Findings
 
-- Backend enforcement exists structurally, but role-bypass tests must be run in Java 21/Maven environment.
+- Backend enforcement exists structurally, but role-bypass tests must be run in Java 21/Maven Wrapper environment.
 - Frontend guards exist structurally, but final browser QA across all roles was not completed during this launch audit.
 - Settings cannot be reviewed because the module is absent.
 

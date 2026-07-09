@@ -1,9 +1,10 @@
-﻿.env
+.env
 node_modules/
 frontend/node_modules/
 frontend/dist/
 frontend/.angular/
 backend/target/
+backend/.mvn/wrapper/dists/
 storage/
 *.log
 portal-desktop.png

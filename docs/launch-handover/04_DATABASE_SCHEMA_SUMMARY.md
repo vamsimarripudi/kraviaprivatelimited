@@ -104,4 +104,4 @@ No Settings table was found in the observed migration set.
 
 ## Database Readiness Verdict
 
-The database schema covers implemented modules and production hardening basics, but final approval requires running Flyway migrations against a clean PostgreSQL database and verifying backend tests with Java 21 and Maven.
+The database schema covers implemented modules and production hardening basics, but final approval requires running Flyway migrations against a clean PostgreSQL database and verifying backend tests with Java 21 and Maven Wrapper.

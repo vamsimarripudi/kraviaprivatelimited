@@ -15,9 +15,12 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - name: Run backend tests
+          cache: maven
+      - name: Run backend verification
         working-directory: backend
-        run: mvn test
+        run: |
+          chmod +x ./mvnw
+          ./mvnw clean verify
 
   frontend:
     runs-on: ubuntu-latest
