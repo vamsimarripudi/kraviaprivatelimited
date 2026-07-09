@@ -17,6 +17,8 @@ import { NotificationsComponent } from './notifications/notifications.component'
 import { ReportsComponent } from './reports/reports.component';
 import { SearchComponent } from './search/search.component';
 import { AiAssistantComponent } from './ai-assistant/ai-assistant.component';
+import { ErrorPageComponent } from './fallback/error-page.component';
+import { NotFoundComponent } from './fallback/not-found.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent, title: 'Sign in' },
@@ -39,8 +41,10 @@ export const routes: Routes = [
       { path: 'reports', component: ReportsComponent, title: 'Reports' },
       { path: 'search', component: SearchComponent, title: 'Global Search' },
       { path: 'ai-assistant', component: AiAssistantComponent, title: 'Executive AI Assistant', canActivate: [roleGuard], data: { roles: ['FOUNDER', 'DIRECTOR'] } },
-      { path: 'audit-logs', component: AuditComponent, title: 'Audit Logs', canActivate: [roleGuard], data: { roles: ['FOUNDER', 'DIRECTOR'] } }
+      { path: 'audit-logs', component: AuditComponent, title: 'Audit Logs', canActivate: [roleGuard], data: { roles: ['FOUNDER', 'DIRECTOR'] } },
+      { path: 'error', component: ErrorPageComponent, title: 'Application Error' },
+      { path: 'not-found', component: NotFoundComponent, title: 'Not Found' }
     ]
   },
-  { path: '**', redirectTo: '' }
+  { path: '**', redirectTo: 'not-found' }
 ];

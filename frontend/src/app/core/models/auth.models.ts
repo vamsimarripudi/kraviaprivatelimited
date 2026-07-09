@@ -1,4 +1,4 @@
-﻿export type Role = 'FOUNDER' | 'DIRECTOR' | 'VIEWER';
+export type Role = 'FOUNDER' | 'DIRECTOR' | 'VIEWER';
 
 export interface UserSession {
   id: string;
@@ -9,5 +9,7 @@ export interface UserSession {
 
 export interface AuthResponse {
   token: string;
+  refreshToken: string;
+  expiresAt: string;
   user: UserSession;
 }

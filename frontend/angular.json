@@ -1,41 +1,73 @@
-﻿{
-  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
-  "version": 1,
-  "newProjectRoot": "projects",
-  "projects": {
-    "kravia-company-os-frontend": {
-      "projectType": "application",
-      "schematics": {},
-      "root": "",
-      "sourceRoot": "src",
-      "prefix": "kravia",
-      "architect": {
-        "build": {
-          "builder": "@angular/build:application",
-          "options": {
-            "outputPath": "dist/kravia-company-os-frontend",
-            "index": "src/index.html",
-            "browser": "src/main.ts",
-            "polyfills": ["zone.js"],
-            "tsConfig": "tsconfig.app.json",
-            "assets": [{ "glob": "**/*", "input": "public" }],
-            "styles": ["src/styles.css"]
-          }
-        },
-        "serve": {
-          "builder": "@angular/build:dev-server",
-          "options": { "buildTarget": "kravia-company-os-frontend:build", "proxyConfig": "proxy.conf.json" }
-        },
-        "test": {
-          "builder": "@angular/build:karma",
-          "options": {
-            "polyfills": ["zone.js", "zone.js/testing"],
-            "tsConfig": "tsconfig.spec.json",
-            "styles": ["src/styles.css"]
-          }
-        }
-      }
-    }
-  }
-}
+{
+    "$schema":  "./node_modules/@angular/cli/lib/config/schema.json",
+    "version":  1,
+    "newProjectRoot":  "projects",
+    "projects":  {
+                     "kravia-company-os-frontend":  {
+                                                        "projectType":  "application",
+                                                        "schematics":  {
 
+                                                                       },
+                                                        "root":  "",
+                                                        "sourceRoot":  "src",
+                                                        "prefix":  "kravia",
+                                                        "architect":  {
+                                                                          "build":  {
+                                                                                        "builder":  "@angular/build:application",
+                                                                                        "options":  {
+                                                                                                        "outputPath":  "dist/kravia-company-os-frontend",
+                                                                                                        "index":  "src/index.html",
+                                                                                                        "browser":  "src/main.ts",
+                                                                                                        "polyfills":  [
+                                                                                                                          "zone.js"
+                                                                                                                      ],
+                                                                                                        "tsConfig":  "tsconfig.app.json",
+                                                                                                        "assets":  [
+                                                                                                                       {
+                                                                                                                           "glob":  "**/*",
+                                                                                                                           "input":  "public"
+                                                                                                                       }
+                                                                                                                   ],
+                                                                                                        "styles":  [
+                                                                                                                       "src/styles.css"
+                                                                                                                   ]
+                                                                                                    },
+                                                                                        "configurations":  {
+                                                                                                               "production":  {
+                                                                                                                                  "fileReplacements":  [
+                                                                                                                                                           {
+                                                                                                                                                               "replace":  "src/environments/environment.ts",
+                                                                                                                                                               "with":  "src/environments/environment.prod.ts"
+                                                                                                                                                           }
+                                                                                                                                                       ],
+                                                                                                                                  "optimization":  true,
+                                                                                                                                  "sourceMap":  false,
+                                                                                                                                  "outputHashing":  "all"
+                                                                                                                              }
+                                                                                                           },
+                                                                                        "defaultConfiguration":  "production"
+                                                                                    },
+                                                                          "serve":  {
+                                                                                        "builder":  "@angular/build:dev-server",
+                                                                                        "options":  {
+                                                                                                        "buildTarget":  "kravia-company-os-frontend:build",
+                                                                                                        "proxyConfig":  "proxy.conf.json"
+                                                                                                    }
+                                                                                    },
+                                                                          "test":  {
+                                                                                       "builder":  "@angular/build:karma",
+                                                                                       "options":  {
+                                                                                                       "polyfills":  [
+                                                                                                                         "zone.js",
+                                                                                                                         "zone.js/testing"
+                                                                                                                     ],
+                                                                                                       "tsConfig":  "tsconfig.spec.json",
+                                                                                                       "styles":  [
+                                                                                                                      "src/styles.css"
+                                                                                                                  ]
+                                                                                                   }
+                                                                                   }
+                                                                      }
+                                                    }
+                 }
+}

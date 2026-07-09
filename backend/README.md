@@ -176,3 +176,9 @@ mvn spring-boot:run
 ```
 
 The API is served under `/api`.
+
+## Production Hardening
+
+Production profile `application-prod.yml` enables Flyway validation, secure servlet cookie defaults, structured request logs, rate limit settings, and production logging levels. Health endpoints are available at `/api/health`, `/api/health/database`, and `/api/health/storage`.
+
+Refresh tokens are stored hashed in `refresh_tokens`. Failed login attempts and account lockouts are stored on `users`. Backup run metadata can be recorded in `backup_runs`.

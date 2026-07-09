@@ -1,10 +1,12 @@
-﻿import { HttpClient } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Observable, tap } from 'rxjs';
 import { AuthResponse, Role, UserSession } from '../models/auth.models';
 
 const TOKEN_KEY = 'kravia.companyos.token';
+const REFRESH_TOKEN_KEY = 'kravia.companyos.refreshToken';
+const TOKEN_EXPIRES_AT_KEY = 'kravia.companyos.tokenExpiresAt';
 const USER_KEY = 'kravia.companyos.user';
 
 @Injectable({ providedIn: 'root' })
@@ -19,6 +21,12 @@ export class AuthService {
 
   login(email: string, password: string): Observable<AuthResponse> {
     return this.http.post<AuthResponse>('/api/auth/login', { email, password }).pipe(
+      tap((response) => this.storeSession(response))
+    );
+  }
+
+  refreshToken(): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>('/api/auth/refresh', { refreshToken: this.refreshTokenValue() }).pipe(
       tap((response) => this.storeSession(response))
     );
   }
@@ -43,6 +51,8 @@ export class AuthService {
   }
 
   token(): string | null { return sessionStorage.getItem(TOKEN_KEY); }
+  refreshTokenValue(): string | null { return sessionStorage.getItem(REFRESH_TOKEN_KEY); }
+  tokenExpiresAt(): string | null { return sessionStorage.getItem(TOKEN_EXPIRES_AT_KEY); }
 
   hasAnyRole(roles: Role[]): boolean {
     const current = this.roles();
@@ -51,12 +61,16 @@ export class AuthService {
 
   private storeSession(response: AuthResponse): void {
     sessionStorage.setItem(TOKEN_KEY, response.token);
+    sessionStorage.setItem(REFRESH_TOKEN_KEY, response.refreshToken);
+    sessionStorage.setItem(TOKEN_EXPIRES_AT_KEY, response.expiresAt);
     sessionStorage.setItem(USER_KEY, JSON.stringify(response.user));
     this.userState.set(response.user);
   }
 
   private clearSession(): void {
     sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_EXPIRES_AT_KEY);
     sessionStorage.removeItem(USER_KEY);
     this.userState.set(null);
     void this.router.navigateByUrl('/login');

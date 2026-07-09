@@ -1,4 +1,4 @@
-﻿package com.kravia.companyos.security;
+package com.kravia.companyos.security;
 
 import com.kravia.companyos.user.AppUser;
 import io.jsonwebtoken.Claims;
@@ -17,6 +17,8 @@ public class JwtService {
     private final long expirationMinutes;
 
     public JwtService(@Value("${kravia.security.jwt-secret}") String secret, @Value("${kravia.security.jwt-expiration-minutes}") long expirationMinutes) {
+        if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < 32) throw new IllegalStateException("KRAVIA_JWT_SECRET must be at least 32 bytes.");
+        if (expirationMinutes < 5) throw new IllegalStateException("JWT expiration must be at least 5 minutes.");
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMinutes = expirationMinutes;
     }
@@ -29,12 +31,16 @@ public class JwtService {
             .claim("name", user.getDisplayName())
             .claim("roles", user.getRoleNames().stream().map(Enum::name).sorted().toList())
             .issuedAt(Date.from(now))
-            .expiration(Date.from(now.plusSeconds(expirationMinutes * 60)))
+            .expiration(Date.from(expiresAt(now)))
             .signWith(key)
             .compact();
     }
 
+    public Instant expiresAt() { return expiresAt(Instant.now()); }
+
     public Claims parse(String token) {
         return Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
     }
+
+    private Instant expiresAt(Instant now) { return now.plusSeconds(expirationMinutes * 60); }
 }

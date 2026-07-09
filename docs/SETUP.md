@@ -146,3 +146,13 @@ Frontend runs at `http://localhost:4200` and proxies `/api` to Spring Boot.
 - Completed meetings require at least one agenda item.
 - Active action items require an owner and due date.
 - Board meeting APIs are protected by backend role checks; Viewer users are read-only.
+
+## Production Hardening Checks
+
+- Copy `.env.production.example` to `.env.production` and replace all placeholders before local production testing.
+- Run `docker compose --env-file .env.production -f docker-compose.prod.yml up --build` for local production validation.
+- Check `/api/health`, `/api/health/database`, and `/api/health/storage` after startup.
+- Confirm weak bootstrap passwords fail startup validation.
+- Confirm repeated failed logins lock the account temporarily.
+- Confirm document downloads still require authenticated backend access.
+- Review [deployment guide](deployment/DEPLOYMENT.md) and [production readiness report](deployment/PRODUCTION_READINESS_REPORT.md).

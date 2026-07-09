@@ -25,7 +25,8 @@ Foundation full-stack internal company workspace for KRAVIA PRIVATE LIMITED.
 13. Reports
 14. Global Search
 15. Executive AI Assistant
-16. Audit Log base
+16. Production Hardening
+17. Audit Log base
 
 ## Roles
 
@@ -52,6 +53,7 @@ Foundation full-stack internal company workspace for KRAVIA PRIVATE LIMITED.
 - Report APIs generate print-friendly output from existing records only and audit every report generation.
 - Global search is backend-protected and filters results by role, including restricted audit/security visibility.
 - Executive AI Assistant APIs are Founder/Director-only, store query history and context snapshots, use stored company records only, and audit every query.
+- Production hardening adds refresh tokens, account lockout, rate limiting, health checks, Docker deployment files, CI, and backup/restore documentation.
 
 ## Local Setup
 

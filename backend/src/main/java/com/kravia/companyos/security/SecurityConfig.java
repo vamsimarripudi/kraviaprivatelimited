@@ -1,4 +1,4 @@
-﻿package com.kravia.companyos.security;
+package com.kravia.companyos.security;
 
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,14 +21,21 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableMethodSecurity
 public class SecurityConfig {
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtFilter) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtFilter, RateLimitingFilter rateLimitingFilter, RequestLoggingFilter requestLoggingFilter) throws Exception {
         http.csrf(csrf -> csrf.disable())
             .cors(cors -> {})
+            .headers(headers -> headers
+                .contentTypeOptions(options -> {})
+                .frameOptions(frame -> frame.deny())
+                .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).preload(true).maxAgeInSeconds(31536000))
+            )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/auth/login", "/actuator/health").permitAll()
+                .requestMatchers("/auth/login", "/auth/refresh", "/health", "/health/database", "/health/storage", "/actuator/health").permitAll()
                 .anyRequest().authenticated()
             )
+            .addFilterBefore(requestLoggingFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
@@ -47,6 +54,8 @@ public class SecurityConfig {
         config.setAllowedOrigins(List.of(origins.split(",")));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        config.setExposedHeaders(List.of("Content-Disposition"));
+        config.setAllowCredentials(false);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;

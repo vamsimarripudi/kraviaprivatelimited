@@ -13,6 +13,7 @@ Authorization: Bearer <jwt>
 | Method | Path | Access | Purpose |
 | --- | --- | --- | --- |
 | POST | `/auth/login` | Public | Authenticate with email/password and receive JWT |
+| POST | `/auth/refresh` | Public with valid refresh token | Rotate refresh token and issue a new JWT |
 | POST | `/auth/logout` | Authenticated | Stateless logout endpoint; client removes JWT |
 | GET | `/auth/me` | Authenticated | Return current user session and roles |
 
@@ -30,6 +31,8 @@ Authorization: Bearer <jwt>
 ```json
 {
   "token": "jwt-token",
+  "refreshToken": "opaque-refresh-token",
+  "expiresAt": "2026-07-09T12:00:00Z",
   "user": {
     "id": "uuid",
     "email": "founder@kravia.local",
@@ -39,6 +42,15 @@ Authorization: Bearer <jwt>
 }
 ```
 
+## Health
+
+| Method | Path | Access | Purpose |
+| --- | --- | --- | --- |
+| GET | `/health` | Public | Service health summary |
+| GET | `/health/database` | Public | Database and migration health |
+| GET | `/health/storage` | Public | Private document storage health |
+
+Health responses expose status only and do not reveal secrets or private storage paths.
 ## Company Profile
 
 | Method | Path | Access | Purpose |
@@ -582,6 +594,7 @@ Announcement actions create audit entries with module `ANNOUNCEMENTS`; notificat
 ## Database Tables
 
 - `users`
+- `refresh_tokens`
 - `roles`
 - `user_roles`
 - `company_profile`
@@ -602,6 +615,7 @@ Announcement actions create audit entries with module `ANNOUNCEMENTS`; notificat
 - `ai_queries`
 - `ai_context_snapshots`
 - `audit_logs`
+- `backup_runs`
 
 ## Data Rules
 

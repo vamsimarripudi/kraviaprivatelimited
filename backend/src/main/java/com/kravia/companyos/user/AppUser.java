@@ -1,4 +1,4 @@
-﻿package com.kravia.companyos.user;
+package com.kravia.companyos.user;
 
 import com.kravia.companyos.common.BaseEntity;
 import com.kravia.companyos.common.Role;
@@ -9,6 +9,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -28,6 +29,13 @@ public class AppUser extends BaseEntity {
     @Column(nullable = false)
     private boolean enabled = true;
 
+    @Column(nullable = false)
+    private int failedLoginAttempts = 0;
+
+    private Instant lockedUntil;
+
+    private Instant lastLoginAt;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "user_roles",
@@ -44,6 +52,12 @@ public class AppUser extends BaseEntity {
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
+    public int getFailedLoginAttempts() { return failedLoginAttempts; }
+    public void setFailedLoginAttempts(int failedLoginAttempts) { this.failedLoginAttempts = failedLoginAttempts; }
+    public Instant getLockedUntil() { return lockedUntil; }
+    public void setLockedUntil(Instant lockedUntil) { this.lockedUntil = lockedUntil; }
+    public Instant getLastLoginAt() { return lastLoginAt; }
+    public void setLastLoginAt(Instant lastLoginAt) { this.lastLoginAt = lastLoginAt; }
     public Set<RoleEntity> getRoles() { return roles; }
     public void setRoles(Set<RoleEntity> roles) { this.roles = roles; }
 

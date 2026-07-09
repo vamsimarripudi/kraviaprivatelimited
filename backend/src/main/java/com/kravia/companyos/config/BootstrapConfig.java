@@ -1,5 +1,6 @@
-﻿package com.kravia.companyos.config;
+package com.kravia.companyos.config;
 
+import com.kravia.companyos.auth.PasswordPolicyService;
 import com.kravia.companyos.common.Role;
 import com.kravia.companyos.user.AppUser;
 import com.kravia.companyos.user.RoleEntity;
@@ -19,12 +20,14 @@ public class BootstrapConfig {
         UserRepository users,
         RoleRepository roles,
         PasswordEncoder passwordEncoder,
+        PasswordPolicyService passwordPolicyService,
         @Value("${kravia.bootstrap.founder-email:}") String founderEmail,
         @Value("${kravia.bootstrap.founder-password:}") String founderPassword,
         @Value("${kravia.bootstrap.founder-name:KRAVIA Founder}") String founderName
     ) {
         return args -> {
             if (!StringUtils.hasText(founderEmail) || !StringUtils.hasText(founderPassword)) return;
+            passwordPolicyService.validate(founderPassword);
             users.findByEmailIgnoreCase(founderEmail).orElseGet(() -> {
                 RoleEntity founderRole = roles.findById(Role.FOUNDER).orElseThrow(() -> new IllegalStateException("FOUNDER role is missing from the database."));
                 AppUser user = new AppUser();
