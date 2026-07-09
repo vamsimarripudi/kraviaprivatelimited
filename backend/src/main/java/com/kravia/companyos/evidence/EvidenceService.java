@@ -91,7 +91,12 @@ public class EvidenceService {
         Stream<EvidenceTimelineItem> auditItems = auditLogs.findAll().stream().map(this::fromAudit);
         Stream<EvidenceTimelineItem> versionItems = documentVersions.findAll().stream().map(this::fromDocumentVersion);
         return Stream.concat(auditItems, versionItems)
-            .sorted((left, right) -> {`r`n                if (left.timestamp() == null && right.timestamp() == null) return 0;`r`n                if (left.timestamp() == null) return 1;`r`n                if (right.timestamp() == null) return -1;`r`n                return right.timestamp().compareTo(left.timestamp());`r`n            })
+            .sorted((left, right) -> {
+                if (left.timestamp() == null && right.timestamp() == null) return 0;
+                if (left.timestamp() == null) return 1;
+                if (right.timestamp() == null) return -1;
+                return right.timestamp().compareTo(left.timestamp());
+            })
             .limit(100)
             .toList();
     }
