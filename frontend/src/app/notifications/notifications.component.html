@@ -1,0 +1,56 @@
+<section class="portal-section">
+  <div class="section-heading">
+    <div>
+      <p class="overline">Notifications</p>
+      <h2>System Notifications</h2>
+      <p>Generated from real company system events and announcement publishing activity.</p>
+    </div>
+    @if (unreadCount() > 0) { <button class="secondary-button" type="button" (click)="markAllRead()">Mark all read</button> }
+  </div>
+
+  <div class="notification-summary-grid">
+    <article class="notification-card"><span>Unread</span><strong>{{ unreadCount() }}</strong></article>
+    <article class="notification-card"><span>Total</span><strong>{{ notifications().length }}</strong></article>
+  </div>
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading notifications..." />
+  } @else if (notifications().length === 0) {
+    <kravia-empty-state label="Notifications" message="No notifications have been added yet." />
+  } @else {
+    <div class="notification-layout">
+      <div class="panel table-scroll">
+        <table>
+          <thead><tr><th>Notification</th><th>Type</th><th>State</th><th>Created</th><th>Actions</th></tr></thead>
+          <tbody>
+            @for (record of notifications(); track record.id) {
+              <tr [class.is-selected]="selected()?.id === record.id" [class.is-unread]="!record.read">
+                <td><button class="text-button" type="button" (click)="select(record)">{{ record.title }}</button><small>{{ record.message }}</small></td>
+                <td><span class="category-badge">{{ record.type }}</span></td>
+                <td><span class="status-badge">{{ record.read ? 'Read' : 'Unread' }}</span></td>
+                <td>{{ formatDateTime(record.createdAt) }}</td>
+                <td><div class="row-actions"><button class="secondary-button" type="button" (click)="select(record)">View</button>@if (!record.read) { <button class="secondary-button" type="button" (click)="markRead(record)">Read</button> }<button class="secondary-button" type="button" (click)="archive(record)">Archive</button></div></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (selected(); as record) {
+        <aside class="panel notification-detail">
+          <div class="meeting-detail-header"><div><p class="overline">Notification Detail</p><h3>{{ record.title }}</h3><p>{{ record.type }}</p></div><span class="status-badge">{{ record.read ? 'Read' : 'Unread' }}</span></div>
+          <dl class="metadata-list">
+            <div><dt>Recipient</dt><dd>{{ record.recipientEmail }}</dd></div>
+            <div><dt>Audience</dt><dd>{{ record.audience }}</dd></div>
+            <div><dt>Source</dt><dd>{{ emptyText(record.sourceModule) }}</dd></div>
+            <div><dt>Created</dt><dd>{{ formatDateTime(record.createdAt) }}</dd></div>
+            <div><dt>Read</dt><dd>{{ formatDateTime(record.readAt) }}</dd></div>
+          </dl>
+          <details class="notification-notes" open><summary>Message</summary><p>{{ record.message }}</p></details>
+        </aside>
+      }
+    </div>
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>

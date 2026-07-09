@@ -72,11 +72,17 @@ Frontend runs at `http://localhost:4200` and proxies `/api` to Spring Boot.
 
 ## Role Checks
 
-- Founder can view and edit company profile, upload/download/edit/archive documents, create/edit/archive board meetings, create/edit/archive financial records, create/edit/archive compliance items, create/edit/complete/archive tasks, create/edit/archive products, create/edit/archive contacts, and view audit logs.
-- Director can view and edit company profile, upload/download/edit documents, create/edit board meetings, create/edit financial records, create/edit compliance items, create/edit/complete tasks, create/edit products, create/edit contacts, and view audit logs.
-- Viewer can view company profile, view/download documents, read board meetings, read financial records, and read compliance items, read tasks, read products, and read contacts only.
+- Founder can view and edit company profile, upload/download/edit/archive documents, create/edit/archive board meetings, create/edit/archive financial records, create/edit/archive compliance items, create/edit/complete/archive tasks, create/edit/archive products, create/edit/archive contacts, create/edit/pin/archive announcements, manage notifications, and view audit logs.
+- Director can view and edit company profile, upload/download/edit documents, create/edit board meetings, create/edit financial records, create/edit compliance items, create/edit/complete tasks, create/edit products, create/edit contacts, create/edit/pin announcements, view notifications, and view audit logs.
+- Viewer can view company profile, view/download documents, read board meetings, read financial records, and read compliance items, read tasks, read products, read contacts, read published announcements, and manage own notifications only.
 - Audit Logs route is visible only to Founder and Director.
 
+## Announcements & Notifications Checks
+
+- Announcement create/update rejects missing title, message, audience, or status.
+- Published and pinned announcements generate real `GENERAL` notifications for enabled users in the selected audience.
+- Viewer users only see published/pinned announcements addressed to Viewer or Everyone.
+- Notification read/archive APIs are protected by backend recipient checks; Founder can manage all notifications.
 ## Contacts & Partners Checks
 
 - Contact create/update rejects missing name, category, status, missing contact method, invalid email, and missing next follow-up date when follow-up is needed.

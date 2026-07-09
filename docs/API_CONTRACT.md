@@ -206,6 +206,43 @@ Financial record create/update requests include:
 
 The backend calculates `profitOrLoss = revenue - expenses` and `netGstPosition = gstCollected - gstPaid` for every create and update request.
 
+## Announcements & Notifications
+
+| Method | Path | Access | Purpose |
+| --- | --- | --- | --- |
+| POST | `/announcements` | Founder, Director | Create an announcement |
+| GET | `/announcements` | Founder, Director, Viewer | List visible announcements |
+| GET | `/announcements/{id}` | Founder, Director, Viewer | View an announcement |
+| PUT | `/announcements/{id}` | Founder, Director | Update an announcement |
+| PATCH | `/announcements/{id}/pin` | Founder, Director | Pin an announcement and notify its audience |
+| DELETE | `/announcements/{id}` | Founder | Archive an announcement |
+| GET | `/notifications` | Founder, Director, Viewer | List visible notifications |
+| PATCH | `/notifications/{id}/read` | Founder or notification recipient | Mark notification read |
+| PATCH | `/notifications/read-all` | Founder, Director, Viewer | Mark visible notifications read |
+| DELETE | `/notifications/{id}` | Founder or notification recipient | Archive notification |
+
+### Announcement Fields
+
+- `title` required
+- `message` required
+- `audience` required: `FOUNDER`, `DIRECTOR`, `VIEWER`, or `EVERYONE`
+- `status` required: `DRAFT`, `PUBLISHED`, `PINNED`, `ARCHIVED`, or `EXPIRED`
+- `expiresAt` optional
+
+Published or pinned announcements create `GENERAL` notifications for enabled users matching the selected audience. There is no public API to create arbitrary fake notifications.
+
+### Notification Types
+
+- `COMPLIANCE_DUE`
+- `TASK_ASSIGNED`
+- `TASK_OVERDUE`
+- `MEETING_CREATED`
+- `DOCUMENT_UPLOADED`
+- `FINANCIAL_RECORD_ADDED`
+- `PRODUCT_UPDATED`
+- `SETTINGS_CHANGED`
+- `SECURITY_ALERT`
+- `GENERAL`
 ## Contacts & Partners
 
 | Method | Path | Access | Purpose |
@@ -427,6 +464,7 @@ Compliance actions create audit entries with module `COMPLIANCE_CENTER` and acti
 Task actions create audit entries with module `COMPANY_TASKS` and actions `TASK_CREATED`, `TASK_UPDATED`, `TASK_STATUS_CHANGED`, `TASK_COMPLETED`, and `TASK_ARCHIVED`.
 Product actions create audit entries with module `PRODUCTS_PORTFOLIO` and actions `PRODUCT_CREATED`, `PRODUCT_UPDATED`, `PRODUCT_STATUS_CHANGED`, and `PRODUCT_ARCHIVED`.
 Contact actions create audit entries with module `CONTACTS_PARTNERS` and actions `CONTACT_CREATED`, `CONTACT_UPDATED`, `CONTACT_STATUS_CHANGED`, and `CONTACT_ARCHIVED`.
+Announcement actions create audit entries with module `ANNOUNCEMENTS`; notification actions create audit entries with module `NOTIFICATIONS`.
 
 ## Database Tables
 
@@ -454,6 +492,7 @@ Contact actions create audit entries with module `CONTACTS_PARTNERS` and actions
 - No dummy task records are seeded.
 - No dummy product records or product metrics are seeded.
 - No dummy contact or partner records are seeded.
+- No dummy announcements or notifications are seeded.
 - The migration inserts only role names: `FOUNDER`, `DIRECTOR`, `VIEWER`.
 - The only user bootstrap is the optional founder account from environment variables.
 - Document files are stored in private local storage for development and downloaded only through protected APIs.

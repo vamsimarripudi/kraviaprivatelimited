@@ -37,6 +37,33 @@
       </article>
     }
   </div>
+
+  <div class="executive-activity-grid">
+    <section class="panel activity-panel">
+      <div class="section-subheading"><div><p class="overline">Recent Announcements</p><h3>Published updates</h3></div></div>
+      @if (recentAnnouncements().length === 0) {
+        <p class="muted-copy">No information has been added yet.</p>
+      } @else {
+        <div class="activity-list">
+          @for (announcement of recentAnnouncements(); track announcement.id) {
+            <article class="activity-item"><strong>{{ announcement.title }}</strong><span>{{ formatDateTime(announcement.updatedAt) }}</span></article>
+          }
+        </div>
+      }
+    </section>
+    <section class="panel activity-panel">
+      <div class="section-subheading"><div><p class="overline">Unread Notifications</p><h3>Requires attention</h3></div></div>
+      @if (unreadNotifications().length === 0) {
+        <p class="muted-copy">No information has been added yet.</p>
+      } @else {
+        <div class="activity-list">
+          @for (notification of unreadNotifications(); track notification.id) {
+            <article class="activity-item"><strong>{{ notification.title }}</strong><span>{{ formatDateTime(notification.createdAt) }}</span></article>
+          }
+        </div>
+      }
+    </section>
+  </div>
   @if (loading()) {
     <kravia-loading-state message="Loading company profile..." />
   } @else if (editing()) {

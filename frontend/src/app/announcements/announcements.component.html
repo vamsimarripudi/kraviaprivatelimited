@@ -1,0 +1,88 @@
+<section class="portal-section">
+  <div class="section-heading">
+    <div>
+      <p class="overline">Announcements</p>
+      <h2>Company Announcements</h2>
+      <p>Publish internal company updates for founders, directors, viewers, or everyone.</p>
+    </div>
+  </div>
+
+  <div class="announcement-summary-grid">
+    @for (card of summaryCards(); track card.label) {
+      <article class="announcement-card" [class.warning]="card.tone === 'warning'" [class.critical]="card.tone === 'critical'" [class.positive]="card.tone === 'positive'">
+        <span>{{ card.label }}</span>
+        <strong>{{ card.value }}</strong>
+      </article>
+    }
+  </div>
+
+  @if (canEdit()) {
+    <form class="panel enterprise-form" [formGroup]="form" (ngSubmit)="submit()">
+      <div class="section-subheading">
+        <div>
+          <p class="overline">{{ editingId() ? 'Edit' : 'Create' }}</p>
+          <h3>{{ editingId() ? 'Edit announcement' : 'Create announcement' }}</h3>
+        </div>
+        @if (editingId()) { <button class="secondary-button" type="button" (click)="cancelEdit()">Cancel edit</button> }
+      </div>
+      <div class="form-grid">
+        <label>Title<input type="text" formControlName="title" autocomplete="off"></label>
+        <label>Audience<select formControlName="audience">@for (audience of audiences; track audience.value) { <option [value]="audience.value">{{ audience.label }}</option> }</select></label>
+        <label>Status<select formControlName="status">@for (status of statuses; track status.value) { @if (canArchive() || status.value !== 'ARCHIVED') { <option [value]="status.value">{{ status.label }}</option> } }</select></label>
+        <label>Expires at<input type="date" formControlName="expiresAt"></label>
+        <label class="full-span">Message<textarea formControlName="message"></textarea></label>
+      </div>
+      @if (form.controls.title.invalid && form.controls.title.touched) { <p class="form-error">Title is required.</p> }
+      @if (form.controls.message.invalid && form.controls.message.touched) { <p class="form-error">Message is required.</p> }
+      <div class="form-actions"><button class="primary-button" type="submit" [disabled]="form.invalid">{{ editingId() ? 'Save announcement' : 'Create announcement' }}</button></div>
+    </form>
+  } @else {
+    <p class="access-note">Viewer role can read published announcements only.</p>
+  }
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading announcements..." />
+  } @else if (announcements().length === 0) {
+    <kravia-empty-state label="Announcements" message="No announcements have been added yet." />
+  } @else {
+    <div class="announcement-layout">
+      <div class="panel table-scroll">
+        <table>
+          <thead><tr><th>Announcement</th><th>Audience</th><th>Status</th><th>Updated</th><th>Actions</th></tr></thead>
+          <tbody>
+            @for (record of announcements(); track record.id) {
+              <tr [class.is-selected]="selected()?.id === record.id">
+                <td><button class="text-button" type="button" (click)="select(record)">{{ record.title }}</button><small>{{ emptyText(record.message) }}</small></td>
+                <td><span class="category-badge">{{ audienceLabel(record.audience) }}</span></td>
+                <td><span class="status-badge">{{ statusLabel(record.status) }}</span></td>
+                <td>{{ formatDateTime(record.updatedAt) }}</td>
+                <td><div class="row-actions">
+                  <button class="secondary-button" type="button" (click)="select(record)">View</button>
+                  @if (canEditRecord(record)) { <button class="secondary-button" type="button" (click)="startEdit(record)">Edit</button> }
+                  @if (canEditRecord(record) && record.status !== 'PINNED') { <button class="secondary-button" type="button" (click)="pin(record)">Pin</button> }
+                  @if (canArchive() && record.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive(record)">Archive</button> }
+                </div></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (selected(); as record) {
+        <aside class="panel announcement-detail">
+          <div class="meeting-detail-header"><div><p class="overline">Announcement Detail</p><h3>{{ record.title }}</h3><p>{{ audienceLabel(record.audience) }}</p></div><span class="status-badge">{{ statusLabel(record.status) }}</span></div>
+          <dl class="metadata-list">
+            <div><dt>Created by</dt><dd>{{ record.createdBy }}</dd></div>
+            <div><dt>Published</dt><dd>{{ formatDateTime(record.publishedAt) }}</dd></div>
+            <div><dt>Pinned</dt><dd>{{ formatDateTime(record.pinnedAt) }}</dd></div>
+            <div><dt>Expires</dt><dd>{{ formatDate(record.expiresAt) }}</dd></div>
+            <div><dt>Last updated</dt><dd>{{ formatDateTime(record.updatedAt) }}</dd></div>
+          </dl>
+          <details class="announcement-notes" open><summary>Message</summary><p>{{ record.message }}</p></details>
+        </aside>
+      }
+    </div>
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>

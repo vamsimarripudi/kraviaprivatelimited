@@ -358,6 +358,60 @@ export interface ContactRequest {
   nextFollowUpDate?: string;
   status: ContactStatus;
 }
+export type AnnouncementAudience = 'FOUNDER' | 'DIRECTOR' | 'VIEWER' | 'EVERYONE';
+
+export type AnnouncementStatus = 'DRAFT' | 'PUBLISHED' | 'PINNED' | 'ARCHIVED' | 'EXPIRED';
+
+export interface AnnouncementRecord {
+  id: string;
+  title: string;
+  message: string;
+  audience: AnnouncementAudience;
+  status: AnnouncementStatus;
+  expiresAt?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt?: string;
+  pinnedAt?: string;
+  archivedAt?: string;
+}
+
+export interface AnnouncementRequest {
+  title: string;
+  message: string;
+  audience: AnnouncementAudience;
+  status: AnnouncementStatus;
+  expiresAt?: string;
+}
+
+export type NotificationType =
+  | 'COMPLIANCE_DUE'
+  | 'TASK_ASSIGNED'
+  | 'TASK_OVERDUE'
+  | 'MEETING_CREATED'
+  | 'DOCUMENT_UPLOADED'
+  | 'FINANCIAL_RECORD_ADDED'
+  | 'PRODUCT_UPDATED'
+  | 'SETTINGS_CHANGED'
+  | 'SECURITY_ALERT'
+  | 'GENERAL';
+
+export interface NotificationRecord {
+  id: string;
+  title: string;
+  message: string;
+  type: NotificationType;
+  recipientEmail: string;
+  audience: AnnouncementAudience;
+  sourceModule?: string;
+  sourceId?: string;
+  createdAt: string;
+  updatedAt: string;
+  readAt?: string;
+  archivedAt?: string;
+  read: boolean;
+}
 export interface AuditLogRecord {
   id: string;
   actorEmail: string;

@@ -55,6 +55,21 @@ Optional:
 - `KRAVIA_DOCUMENT_MULTIPART_MAX_SIZE`
 - `KRAVIA_DOCUMENT_MULTIPART_MAX_REQUEST_SIZE`
 
+## Announcements & Notifications
+
+Announcements are stored in `announcements`; generated notification records are stored in `notifications`. Founder and Director users can create and edit announcements, Founder can archive, and Viewer users can only read published/pinned announcements for Viewer or Everyone audiences. Published or pinned announcements generate real `GENERAL` notifications for enabled users in the target audience.
+
+Important actions write audit logs:
+
+- `ANNOUNCEMENT_CREATED`
+- `ANNOUNCEMENT_UPDATED`
+- `ANNOUNCEMENT_PINNED`
+- `ANNOUNCEMENT_ARCHIVED`
+- `ANNOUNCEMENT_STATUS_CHANGED`
+- `NOTIFICATIONS_CREATED`
+- `NOTIFICATION_READ`
+- `NOTIFICATIONS_READ_ALL`
+- `NOTIFICATION_ARCHIVED`
 ## Contacts & Partners
 
 Contact records are stored in `contacts`. The backend enforces Founder/Director write access, Founder-only archive access, and Viewer read-only access. The service calculates follow-up due indicators from each contact next follow-up date on read.

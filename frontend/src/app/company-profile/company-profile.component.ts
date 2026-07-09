@@ -2,7 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ApiService } from '../core/http/api.service';
 import { AuthService } from '../core/auth/auth.service';
-import { CompanyProfile, CompanyTask, ContactRecord, ProductRecord } from '../core/models/api.models';
+import { AnnouncementRecord, CompanyProfile, CompanyTask, ContactRecord, NotificationRecord, ProductRecord } from '../core/models/api.models';
 import { EmptyStateComponent } from '../shared/empty-state/empty-state.component';
 import { LoadingStateComponent } from '../shared/loading-state/loading-state.component';
 import { ErrorStateComponent } from '../shared/error-state/error-state.component';
@@ -28,6 +28,8 @@ export class CompanyProfileComponent {
   readonly taskSummary = signal<CompanyTask[]>([]);
   readonly productSummary = signal<ProductRecord[]>([]);
   readonly contactSummary = signal<ContactRecord[]>([]);
+  readonly announcementSummary = signal<AnnouncementRecord[]>([]);
+  readonly notificationSummary = signal<NotificationRecord[]>([]);
   readonly canEdit = computed(() => this.auth.hasAnyRole(['FOUNDER', 'DIRECTOR']));
   readonly taskSummaryCards = computed(() => {
     const tasks = this.taskSummary();
@@ -58,6 +60,8 @@ export class CompanyProfileComponent {
       { label: 'Active partners', value: contacts.filter((contact) => contact.status === 'ACTIVE').length, tone: 'positive' }
     ];
   });
+  readonly recentAnnouncements = computed(() => this.announcementSummary().filter((item) => item.status === 'PUBLISHED' || item.status === 'PINNED').slice(0, 3));
+  readonly unreadNotifications = computed(() => this.notificationSummary().filter((item) => !item.read).slice(0, 3));
   readonly fields: Array<{ key: ProfileFormKey; label: string; type?: string; multiline?: boolean }> = [
     { key: 'companyName', label: 'Company name' },
     { key: 'cin', label: 'CIN' },
@@ -97,6 +101,8 @@ export class CompanyProfileComponent {
     this.loadTaskSummary();
     this.loadProductSummary();
     this.loadContactSummary();
+    this.loadAnnouncementSummary();
+    this.loadNotificationSummary();
   }
 
   load(): void {
@@ -160,6 +166,23 @@ export class CompanyProfileComponent {
       next: (contacts) => this.contactSummary.set(contacts),
       error: () => this.contactSummary.set([])
     });
+  }
+  loadAnnouncementSummary(): void {
+    this.api.announcements().subscribe({
+      next: (announcements) => this.announcementSummary.set(announcements),
+      error: () => this.announcementSummary.set([])
+    });
+  }
+
+  loadNotificationSummary(): void {
+    this.api.notifications().subscribe({
+      next: (notifications) => this.notificationSummary.set(notifications),
+      error: () => this.notificationSummary.set([])
+    });
+  }
+
+  formatDateTime(value?: string): string {
+    return value ? new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'No information has been added yet.';
   }
   private sameMonth(value: Date, now: Date): boolean {
     return value.getFullYear() === now.getFullYear() && value.getMonth() === now.getMonth();

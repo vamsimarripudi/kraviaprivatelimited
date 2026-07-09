@@ -1,7 +1,7 @@
 import { HttpClient, HttpEvent, HttpParams, HttpRequest, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { AuditLogRecord, BoardMeetingRecord, BoardMeetingRequest, CompanyProfile, CompanyTask, CompanyTaskRequest, ContactCategory, ContactRecord, ContactRequest, ContactStatus, ComplianceCategory, ComplianceItem, ComplianceItemRequest, CompliancePriority, ComplianceStatus, DocumentCategory, DocumentMetadataRequest, DocumentRecord, DocumentStatus, FinancialRecord, FinancialRecordRequest, MeetingActionItemRecord, MeetingActionItemRequest, MeetingStatus, MeetingType, ProductRecord, ProductRequest, ProductStatus, TaskCategory, TaskPriority, TaskStatus, TaskStatusRequest } from '../models/api.models';
+import { AnnouncementRecord, AnnouncementRequest, AuditLogRecord, BoardMeetingRecord, BoardMeetingRequest, CompanyProfile, CompanyTask, CompanyTaskRequest, ContactCategory, ContactRecord, ContactRequest, ContactStatus, ComplianceCategory, ComplianceItem, ComplianceItemRequest, CompliancePriority, ComplianceStatus, DocumentCategory, DocumentMetadataRequest, DocumentRecord, DocumentStatus, FinancialRecord, FinancialRecordRequest, MeetingActionItemRecord, MeetingActionItemRequest, MeetingStatus, MeetingType, NotificationRecord, ProductRecord, ProductRequest, ProductStatus, TaskCategory, TaskPriority, TaskStatus, TaskStatusRequest } from '../models/api.models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -171,4 +171,15 @@ export class ApiService {
   }
 
   archiveContact(id: string): Observable<void> { return this.http.delete<void>(`/api/contacts/${id}`); }
+  announcements(): Observable<AnnouncementRecord[]> { return this.http.get<AnnouncementRecord[]>('/api/announcements'); }
+  announcement(id: string): Observable<AnnouncementRecord> { return this.http.get<AnnouncementRecord>(`/api/announcements/${id}`); }
+  createAnnouncement(payload: AnnouncementRequest): Observable<AnnouncementRecord> { return this.http.post<AnnouncementRecord>('/api/announcements', payload); }
+  updateAnnouncement(id: string, payload: AnnouncementRequest): Observable<AnnouncementRecord> { return this.http.put<AnnouncementRecord>(`/api/announcements/${id}`, payload); }
+  pinAnnouncement(id: string): Observable<AnnouncementRecord> { return this.http.patch<AnnouncementRecord>(`/api/announcements/${id}/pin`, {}); }
+  archiveAnnouncement(id: string): Observable<void> { return this.http.delete<void>(`/api/announcements/${id}`); }
+
+  notifications(): Observable<NotificationRecord[]> { return this.http.get<NotificationRecord[]>('/api/notifications'); }
+  markNotificationRead(id: string): Observable<NotificationRecord> { return this.http.patch<NotificationRecord>(`/api/notifications/${id}/read`, {}); }
+  markAllNotificationsRead(): Observable<void> { return this.http.patch<void>('/api/notifications/read-all', {}); }
+  archiveNotification(id: string): Observable<void> { return this.http.delete<void>(`/api/notifications/${id}`); }
 }

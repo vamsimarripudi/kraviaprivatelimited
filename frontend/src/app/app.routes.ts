@@ -12,6 +12,8 @@ import { ComplianceComponent } from './compliance/compliance.component';
 import { TasksComponent } from './tasks/tasks.component';
 import { ProductsComponent } from './products/products.component';
 import { ContactsComponent } from './contacts/contacts.component';
+import { AnnouncementsComponent } from './announcements/announcements.component';
+import { NotificationsComponent } from './notifications/notifications.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent, title: 'Sign in' },
@@ -29,6 +31,8 @@ export const routes: Routes = [
       { path: 'tasks', component: TasksComponent, title: 'Company Tasks' },
       { path: 'products', component: ProductsComponent, title: 'Products Portfolio' },
       { path: 'contacts', component: ContactsComponent, title: 'Contacts & Partners' },
+      { path: 'announcements', component: AnnouncementsComponent, title: 'Announcements' },
+      { path: 'notifications', component: NotificationsComponent, title: 'Notifications' },
       { path: 'audit-logs', component: AuditComponent, title: 'Audit Logs', canActivate: [roleGuard], data: { roles: ['FOUNDER', 'DIRECTOR'] } }
     ]
   },
