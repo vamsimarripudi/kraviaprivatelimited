@@ -1,0 +1,123 @@
+<section class="portal-section">
+  <div class="section-heading">
+    <div>
+      <p class="overline">Executive AI Assistant</p>
+      <h2>Private Company Intelligence</h2>
+      <p>Ask questions, generate summaries, draft business communication, and identify pending actions using stored KRAVIA Company OS records only.</p>
+    </div>
+  </div>
+
+  <form class="panel enterprise-form ai-query-form" [formGroup]="form" (ngSubmit)="submit()">
+    <label class="full-span">
+      Query
+      <textarea formControlName="query" placeholder="Ask about meetings, finance, GST, compliance, tasks, products, or drafts"></textarea>
+    </label>
+    <label>
+      Module context
+      <select formControlName="module_context">
+        @for (context of moduleContexts; track context.value) {
+          <option [value]="context.value">{{ context.label }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Output type
+      <select formControlName="output_type">
+        @for (type of outputTypes; track type.value) {
+          <option [value]="type.value">{{ type.label }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      From
+      <input type="date" formControlName="from">
+    </label>
+    <label>
+      To
+      <input type="date" formControlName="to">
+    </label>
+    @if (form.controls.query.invalid && form.controls.query.touched) {
+      <p class="form-error full-span">Query is required.</p>
+    }
+    <div class="form-actions full-span">
+      <button class="primary-button" type="submit" [disabled]="submitting() || form.invalid">{{ submitting() ? 'Creating response...' : 'Ask assistant' }}</button>
+      <button class="secondary-button" type="button" (click)="resetForm()">Clear</button>
+    </div>
+  </form>
+
+  @if (submitting()) {
+    <kravia-loading-state message="Creating AI response from stored records..." />
+  }
+
+  <div class="ai-layout">
+    <div class="panel ai-history-panel">
+      <div class="section-subheading">
+        <div>
+          <p class="overline">History</p>
+          <h3>AI Queries</h3>
+        </div>
+      </div>
+      @if (loading()) {
+        <kravia-loading-state message="Loading AI query history..." />
+      } @else if (!hasHistory()) {
+        <kravia-empty-state label="AI Assistant" message="No AI queries have been created yet." />
+      } @else {
+        <div class="ai-history-list">
+          @for (record of history(); track record.id) {
+            <button class="ai-history-item" type="button" [class.is-selected]="selected()?.id === record.id" (click)="select(record)">
+              <span>{{ outputLabel(record.output_type) }}</span>
+              <strong>{{ record.query }}</strong>
+              <small>{{ moduleLabel(record.module_context) }} · {{ formatDateTime(record.createdAt) }}</small>
+            </button>
+          }
+        </div>
+      }
+    </div>
+
+    @if (selected(); as record) {
+      <article class="panel ai-response-panel">
+        <header class="meeting-detail-header">
+          <div>
+            <p class="overline">Response</p>
+            <h3>{{ outputLabel(record.output_type) }}</h3>
+            <p>{{ moduleLabel(record.module_context) }} · {{ formatDateTime(record.createdAt) }}</p>
+          </div>
+          <div class="row-actions">
+            <button class="secondary-button" type="button" (click)="copyResponse(record)">Copy</button>
+            <button class="secondary-button" type="button" (click)="archive(record)">Archive</button>
+          </div>
+        </header>
+
+        <dl class="metadata-list ai-meta-grid">
+          <div><dt>Created by</dt><dd>{{ record.createdBy }}</dd></div>
+          <div><dt>Output type</dt><dd>{{ outputLabel(record.output_type) }}</dd></div>
+          <div><dt>Module context</dt><dd>{{ moduleLabel(record.module_context) }}</dd></div>
+          <div><dt>Date from</dt><dd>{{ formatDate(record.date_range.from) }}</dd></div>
+          <div><dt>Date to</dt><dd>{{ formatDate(record.date_range.to) }}</dd></div>
+          <div><dt>Context snapshots</dt><dd>{{ record.contextSnapshots.length }}</dd></div>
+        </dl>
+
+        <section class="ai-response-copy">
+          <p>{{ record.response }}</p>
+        </section>
+
+        <details class="ai-context-details">
+          <summary>Stored context used</summary>
+          @if (record.contextSnapshots.length === 0) {
+            <p>No information available.</p>
+          } @else {
+            @for (snapshot of record.contextSnapshots; track snapshot.id) {
+              <article>
+                <strong>{{ snapshot.moduleContext }}</strong>
+                <pre>{{ snapshot.snapshotText }}</pre>
+              </article>
+            }
+          }
+        </details>
+      </article>
+    }
+  </div>
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>

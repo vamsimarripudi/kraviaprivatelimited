@@ -450,6 +450,64 @@ Compliance item create/update requests include:
 - `notes` optional
 
 Responses include computed `overdue`, `upcomingDue`, and `daysUntilDue` fields. Upcoming due means an open item due in the next 14 days.
+## Executive AI Assistant
+
+The AI Assistant is private to Founder and Director roles. Viewer users have no AI access by default. The current implementation is a deterministic company-data assistant that uses stored records only and does not expose or require frontend API keys.
+
+| Method | Path | Access | Purpose |
+| --- | --- | --- | --- |
+| POST | `/ai/query` | Founder, Director | Submit an AI query against permitted stored company data |
+| GET | `/ai/history` | Founder, Director | List visible AI query history |
+| GET | `/ai/history/{id}` | Founder, Director | View a single visible AI query with context snapshots |
+| DELETE | `/ai/history/{id}` | Founder, Director | Archive visible AI query history |
+
+Founder can view and archive all AI history. Director can view and archive only their own AI history. Viewer receives forbidden responses for all AI APIs.
+
+### AI Query Request
+
+```json
+{
+  "query": "Summarize upcoming compliance items",
+  "module_context": "COMPLIANCE",
+  "date_range": {
+    "from": "2026-07-01",
+    "to": "2026-07-31"
+  },
+  "output_type": "SUMMARY"
+}
+```
+
+### Module Contexts
+
+- `ALL`
+- `COMPANY_PROFILE`
+- `DOCUMENTS`
+- `BOARD_MEETINGS`
+- `FINANCE`
+- `COMPLIANCE`
+- `TASKS`
+- `PRODUCTS`
+- `CONTACTS`
+- `ANNOUNCEMENTS`
+
+Document context includes metadata only and never private file contents.
+
+### Output Types
+
+- `SUMMARY`
+- `EMAIL_DRAFT`
+- `BOARD_RESOLUTION`
+- `RISK_ANALYSIS`
+- `ACTION_ITEMS`
+- `GENERAL_ANSWER`
+
+If no permitted stored data exists for the selected context and date range, the response is exactly:
+
+```text
+No information available.
+```
+
+AI queries are stored in `ai_queries`; context snapshots are stored in `ai_context_snapshots`. Query submission creates an audit log with module `AI_ASSISTANT` and action `AI_QUERY_CREATED`.
 ## Reports & Global Search
 
 All report and search endpoints require authentication and enforce backend role permissions.
@@ -519,7 +577,7 @@ Compliance actions create audit entries with module `COMPLIANCE_CENTER` and acti
 Task actions create audit entries with module `COMPANY_TASKS` and actions `TASK_CREATED`, `TASK_UPDATED`, `TASK_STATUS_CHANGED`, `TASK_COMPLETED`, and `TASK_ARCHIVED`.
 Product actions create audit entries with module `PRODUCTS_PORTFOLIO` and actions `PRODUCT_CREATED`, `PRODUCT_UPDATED`, `PRODUCT_STATUS_CHANGED`, and `PRODUCT_ARCHIVED`.
 Contact actions create audit entries with module `CONTACTS_PARTNERS` and actions `CONTACT_CREATED`, `CONTACT_UPDATED`, `CONTACT_STATUS_CHANGED`, and `CONTACT_ARCHIVED`.
-Announcement actions create audit entries with module `ANNOUNCEMENTS`; notification actions create audit entries with module `NOTIFICATIONS`. Report generation creates audit entries with module `REPORTS` and action `REPORT_GENERATED`.
+Announcement actions create audit entries with module `ANNOUNCEMENTS`; notification actions create audit entries with module `NOTIFICATIONS`. AI usage creates audit entries with module `AI_ASSISTANT` and action `AI_QUERY_CREATED`. Report generation creates audit entries with module `REPORTS` and action `REPORT_GENERATED`.
 
 ## Database Tables
 
@@ -541,6 +599,8 @@ Announcement actions create audit entries with module `ANNOUNCEMENTS`; notificat
 - `contacts`
 - `announcements`
 - `notifications`
+- `ai_queries`
+- `ai_context_snapshots`
 - `audit_logs`
 
 ## Data Rules
@@ -555,6 +615,7 @@ Announcement actions create audit entries with module `ANNOUNCEMENTS`; notificat
 - No dummy contact or partner records are seeded.
 - No dummy announcements or notifications are seeded.
 - Reports and global search never synthesize fake records; empty results remain empty.
+- AI Assistant responses use stored records only; missing permitted context returns `No information available.`.
 - The migration inserts only role names: `FOUNDER`, `DIRECTOR`, `VIEWER`.
 - The only user bootstrap is the optional founder account from environment variables.
 - Document files are stored in private local storage for development and downloaded only through protected APIs.

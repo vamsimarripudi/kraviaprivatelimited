@@ -36,6 +36,8 @@ Spring Boot foundation backend for KRAVIA Company OS.
 - `contacts`
 - `announcements`
 - `notifications`
+- `ai_queries`
+- `ai_context_snapshots`
 - `audit_logs`
 
 ## Environment
@@ -76,6 +78,15 @@ Important actions write audit logs:
 - `NOTIFICATION_READ`
 - `NOTIFICATIONS_READ_ALL`
 - `NOTIFICATION_ARCHIVED`
+## Executive AI Assistant
+
+AI query history is stored in `ai_queries`; the stored data context used for each response is stored in `ai_context_snapshots`. The current assistant is a private deterministic data layer: it does not call an external model, does not expose API keys, and returns `No information available.` when permitted stored records are unavailable. Founder and Director users can query the assistant; Viewer users have no AI access by default. Directors can only view/archive their own AI history, while Founder can view all AI history.
+
+Important actions write audit logs:
+
+- `AI_QUERY_CREATED`
+- `AI_QUERY_ARCHIVED`
+
 ## Reports & Global Search
 
 Reports are generated from existing PostgreSQL records only. The backend exposes print-friendly report responses with metrics and tabular sections, supports date range and module filters, and writes `REPORT_GENERATED` audit logs. PDF and Excel export flags are placeholders for future export endpoints.

@@ -16,6 +16,7 @@ import { AnnouncementsComponent } from './announcements/announcements.component'
 import { NotificationsComponent } from './notifications/notifications.component';
 import { ReportsComponent } from './reports/reports.component';
 import { SearchComponent } from './search/search.component';
+import { AiAssistantComponent } from './ai-assistant/ai-assistant.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent, title: 'Sign in' },
@@ -37,6 +38,7 @@ export const routes: Routes = [
       { path: 'notifications', component: NotificationsComponent, title: 'Notifications' },
       { path: 'reports', component: ReportsComponent, title: 'Reports' },
       { path: 'search', component: SearchComponent, title: 'Global Search' },
+      { path: 'ai-assistant', component: AiAssistantComponent, title: 'Executive AI Assistant', canActivate: [roleGuard], data: { roles: ['FOUNDER', 'DIRECTOR'] } },
       { path: 'audit-logs', component: AuditComponent, title: 'Audit Logs', canActivate: [roleGuard], data: { roles: ['FOUNDER', 'DIRECTOR'] } }
     ]
   },

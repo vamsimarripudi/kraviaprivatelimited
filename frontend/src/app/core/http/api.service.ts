@@ -1,7 +1,7 @@
 import { HttpClient, HttpEvent, HttpParams, HttpRequest, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { AnnouncementRecord, AnnouncementRequest, AuditLogRecord, BoardMeetingRecord, BoardMeetingRequest, CompanyProfile, CompanyTask, CompanyTaskRequest, ContactCategory, ContactRecord, ContactRequest, ContactStatus, ComplianceCategory, ComplianceItem, ComplianceItemRequest, CompliancePriority, ComplianceStatus, DocumentCategory, DocumentMetadataRequest, DocumentRecord, DocumentStatus, FinancialRecord, FinancialRecordRequest, MeetingActionItemRecord, MeetingActionItemRequest, MeetingStatus, MeetingType, NotificationRecord, ProductRecord, ProductRequest, ProductStatus, ReportFilters, ReportResponse, ReportType, SearchResponse, TaskCategory, TaskPriority, TaskStatus, TaskStatusRequest } from '../models/api.models';
+import { AiQueryRecord, AiQueryRequest, AnnouncementRecord, AnnouncementRequest, AuditLogRecord, BoardMeetingRecord, BoardMeetingRequest, CompanyProfile, CompanyTask, CompanyTaskRequest, ContactCategory, ContactRecord, ContactRequest, ContactStatus, ComplianceCategory, ComplianceItem, ComplianceItemRequest, CompliancePriority, ComplianceStatus, DocumentCategory, DocumentMetadataRequest, DocumentRecord, DocumentStatus, FinancialRecord, FinancialRecordRequest, MeetingActionItemRecord, MeetingActionItemRequest, MeetingStatus, MeetingType, NotificationRecord, ProductRecord, ProductRequest, ProductStatus, ReportFilters, ReportResponse, ReportType, SearchResponse, TaskCategory, TaskPriority, TaskStatus, TaskStatusRequest } from '../models/api.models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -183,6 +183,10 @@ export class ApiService {
   markAllNotificationsRead(): Observable<void> { return this.http.patch<void>('/api/notifications/read-all', {}); }
   archiveNotification(id: string): Observable<void> { return this.http.delete<void>(`/api/notifications/${id}`); }
 
+  aiQuery(payload: AiQueryRequest): Observable<AiQueryRecord> { return this.http.post<AiQueryRecord>('/api/ai/query', payload); }
+  aiHistory(): Observable<AiQueryRecord[]> { return this.http.get<AiQueryRecord[]>('/api/ai/history'); }
+  aiHistoryItem(id: string): Observable<AiQueryRecord> { return this.http.get<AiQueryRecord>(`/api/ai/history/${id}`); }
+  archiveAiHistory(id: string): Observable<void> { return this.http.delete<void>(`/api/ai/history/${id}`); }
   report(type: ReportType, filters: ReportFilters): Observable<ReportResponse> {
     let params = new HttpParams();
     if (filters.from) params = params.set('from', filters.from);

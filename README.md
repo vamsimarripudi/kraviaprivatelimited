@@ -4,8 +4,8 @@ Foundation full-stack internal company workspace for KRAVIA PRIVATE LIMITED.
 
 ## Structure
 
-- `frontend`: Angular, TypeScript, Router, Reactive Forms, Signals, guards, interceptors, enterprise shell, document workspace, board meeting workspace, financial dashboard, compliance center, company tasks, products portfolio, contacts and partners, announcements, notifications, reports, global search.
-- `backend`: Java 21, Spring Boot 3.5, Spring Security, JWT, BCrypt, JPA, PostgreSQL, Flyway, validation, audit logging, secure local document storage, board meeting records, financial records, compliance tracking, company tasks, products portfolio, contacts and partners, announcements, notifications, reports, global search.
+- `frontend`: Angular, TypeScript, Router, Reactive Forms, Signals, guards, interceptors, enterprise shell, document workspace, board meeting workspace, financial dashboard, compliance center, company tasks, products portfolio, contacts and partners, announcements, notifications, reports, global search, executive AI assistant.
+- `backend`: Java 21, Spring Boot 3.5, Spring Security, JWT, BCrypt, JPA, PostgreSQL, Flyway, validation, audit logging, secure local document storage, board meeting records, financial records, compliance tracking, company tasks, products portfolio, contacts and partners, announcements, notifications, reports, global search, executive AI assistant.
 - `docs`: API contract and local setup guide.
 
 ## Modules
@@ -24,7 +24,8 @@ Foundation full-stack internal company workspace for KRAVIA PRIVATE LIMITED.
 12. Notifications
 13. Reports
 14. Global Search
-15. Audit Log base
+15. Executive AI Assistant
+16. Audit Log base
 
 ## Roles
 
@@ -50,6 +51,7 @@ Foundation full-stack internal company workspace for KRAVIA PRIVATE LIMITED.
 - Announcement and notification APIs are backend-protected by role, and published/pinned announcements generate real notifications for their audience.
 - Report APIs generate print-friendly output from existing records only and audit every report generation.
 - Global search is backend-protected and filters results by role, including restricted audit/security visibility.
+- Executive AI Assistant APIs are Founder/Director-only, store query history and context snapshots, use stored company records only, and audit every query.
 
 ## Local Setup
 

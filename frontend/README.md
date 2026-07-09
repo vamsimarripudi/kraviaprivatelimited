@@ -42,6 +42,10 @@ The dev server proxies `/api` to `http://localhost:8080` through `proxy.conf.jso
 - Global Search
 - Audit Logs
 
+## Executive AI Assistant UI
+
+The AI Assistant page is available to Founder and Director roles only. It includes a query box, module context selector, date range selector, output type selector, response panel, query history, copy response action, archive action, and the empty state `No AI queries have been created yet.`. Responses are generated from stored KRAVIA Company OS records only; missing context returns `No information available.`.
+
 ## Reports & Global Search UI
 
 The Reports page includes report type selection, date range and module filters, generate action, print action, PDF/Excel export placeholders, metrics, report sections, and the empty state `No matching records found.`. The Global Search page searches permitted workspace records, groups results by module, links users back to the relevant workspace page, and shows `No matching records found.` when no records match.
@@ -75,6 +79,6 @@ The Board Meetings page includes create/edit forms, search, meeting type/status 
 
 ## Role Behavior
 
-- Founder: can view and edit company profile; can upload, edit, download, and archive documents; can create, edit, and archive board meetings; can create, edit, and archive financial records; can create, edit, and archive compliance items; can create, edit, complete, and archive tasks; can create, edit, and archive products; can create, edit, and archive contacts; can create, edit, pin, and archive announcements; can view and manage notifications; can generate reports, search permitted records, and view audit logs.
-- Director: can view and edit company profile; can upload, edit, and download documents; can create and edit board meetings; can create and edit financial records; can create and edit compliance items; can create, edit, and complete tasks; can create and edit products; can create and edit contacts; can create, edit, and pin announcements; can view notifications; can generate reports, search permitted records, and view audit logs.
-- Viewer: can view company profile, view/download documents, read board meetings, read financial records, read compliance items, read tasks, read products, read contacts, read published announcements, manage own notifications only, generate permitted reports, and search permitted records.
+- Founder: can view and edit company profile; can upload, edit, download, and archive documents; can create, edit, and archive board meetings; can create, edit, and archive financial records; can create, edit, and archive compliance items; can create, edit, complete, and archive tasks; can create, edit, and archive products; can create, edit, and archive contacts; can create, edit, pin, and archive announcements; can view and manage notifications; can generate reports, search permitted records, use the AI Assistant, and view audit logs.
+- Director: can view and edit company profile; can upload, edit, and download documents; can create and edit board meetings; can create and edit financial records; can create and edit compliance items; can create, edit, and complete tasks; can create and edit products; can create and edit contacts; can create, edit, and pin announcements; can view notifications; can generate reports, search permitted records, use the AI Assistant, and view audit logs.
+- Viewer: can view company profile, view/download documents, read board meetings, read financial records, read compliance items, read tasks, read products, read contacts, read published announcements, manage own notifications only, generate permitted reports, and search permitted records. Viewer users cannot access the AI Assistant by default.

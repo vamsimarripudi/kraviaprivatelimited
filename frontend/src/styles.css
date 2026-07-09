@@ -1281,3 +1281,125 @@ tr.is-unread td {
   .report-section,
   .report-metric { break-inside: avoid; }
 }
+.ai-query-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ai-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 420px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.ai-history-panel,
+.ai-response-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.ai-history-panel {
+  position: sticky;
+  top: 128px;
+}
+
+.ai-history-list {
+  display: grid;
+  gap: 10px;
+}
+
+.ai-history-item {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-muted);
+  padding: 12px;
+  color: var(--secondary);
+  text-align: left;
+}
+
+.ai-history-item.is-selected,
+.ai-history-item:hover {
+  border-color: color-mix(in srgb, var(--text) 24%, var(--border));
+  background: var(--surface);
+}
+
+.ai-history-item span,
+.ai-history-item small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ai-history-item strong {
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.ai-response-copy {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-muted);
+  padding: 16px;
+}
+
+.ai-response-copy p {
+  margin: 0;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+.ai-meta-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ai-context-details {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.ai-context-details summary {
+  cursor: pointer;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ai-context-details article {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.ai-context-details pre {
+  overflow-x: auto;
+  margin: 0;
+  border-radius: 8px;
+  background: var(--surface-muted);
+  padding: 12px;
+  color: var(--secondary);
+  white-space: pre-wrap;
+}
+
+@media (max-width: 1100px) {
+  .ai-layout { grid-template-columns: 1fr; }
+  .ai-history-panel { position: static; }
+}
+
+@media (max-width: 720px) {
+  .ai-query-form,
+  .ai-meta-grid { grid-template-columns: 1fr; }
+}
+
+@media print {
+  .ai-query-form,
+  .ai-history-panel,
+  .ai-context-details { display: none !important; }
+  .ai-layout { display: block; }
+  .ai-response-panel { box-shadow: none; }
+}

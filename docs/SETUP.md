@@ -74,10 +74,18 @@ Frontend runs at `http://localhost:4200` and proxies `/api` to Spring Boot.
 
 ## Role Checks
 
-- Founder can view and edit company profile, upload/download/edit/archive documents, create/edit/archive board meetings, create/edit/archive financial records, create/edit/archive compliance items, create/edit/complete/archive tasks, create/edit/archive products, create/edit/archive contacts, create/edit/pin/archive announcements, manage notifications, generate all reports, search all permitted records, and view audit logs.
-- Director can view and edit company profile, upload/download/edit documents, create/edit board meetings, create/edit financial records, create/edit compliance items, create/edit/complete tasks, create/edit products, create/edit contacts, create/edit/pin announcements, view notifications, generate operational reports, search permitted records, and view audit logs excluding restricted auth/security/settings entries.
-- Viewer can view company profile, view/download documents, read board meetings, read financial records, and read compliance items, read tasks, read products, read contacts, read published announcements, and manage own notifications only, generate permitted reports, and search permitted records only.
+- Founder can view and edit company profile, upload/download/edit/archive documents, create/edit/archive board meetings, create/edit/archive financial records, create/edit/archive compliance items, create/edit/complete/archive tasks, create/edit/archive products, create/edit/archive contacts, create/edit/pin/archive announcements, manage notifications, generate all reports, search all permitted records, use the AI Assistant, and view audit logs.
+- Director can view and edit company profile, upload/download/edit documents, create/edit board meetings, create/edit financial records, create/edit compliance items, create/edit/complete tasks, create/edit products, create/edit contacts, create/edit/pin announcements, view notifications, generate operational reports, search permitted records, use the AI Assistant, and view audit logs excluding restricted auth/security/settings entries.
+- Viewer can view company profile, view/download documents, read board meetings, read financial records, and read compliance items, read tasks, read products, read contacts, read published announcements, and manage own notifications only, generate permitted reports, and search permitted records only. Viewer users cannot access the AI Assistant by default.
 - Audit Logs route is visible only to Founder and Director.
+
+## Executive AI Assistant Checks
+
+- AI APIs are protected by backend role checks and allow Founder/Director only.
+- AI responses are generated from stored records only; missing context returns `No information available.`.
+- AI query history is stored in `ai_queries` and context snapshots are stored in `ai_context_snapshots`.
+- AI usage writes `AI_QUERY_CREATED` audit logs.
+- Document context includes document metadata only, never private file contents.
 
 ## Reports & Global Search Checks
 

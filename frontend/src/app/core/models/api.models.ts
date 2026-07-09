@@ -412,6 +412,59 @@ export interface NotificationRecord {
   archivedAt?: string;
   read: boolean;
 }
+export type AiModuleContext =
+  | 'ALL'
+  | 'COMPANY_PROFILE'
+  | 'DOCUMENTS'
+  | 'BOARD_MEETINGS'
+  | 'FINANCE'
+  | 'COMPLIANCE'
+  | 'TASKS'
+  | 'PRODUCTS'
+  | 'CONTACTS'
+  | 'ANNOUNCEMENTS';
+
+export type AiOutputType =
+  | 'SUMMARY'
+  | 'EMAIL_DRAFT'
+  | 'BOARD_RESOLUTION'
+  | 'RISK_ANALYSIS'
+  | 'ACTION_ITEMS'
+  | 'GENERAL_ANSWER';
+
+export interface AiDateRange {
+  from?: string;
+  to?: string;
+}
+
+export interface AiQueryRequest {
+  query: string;
+  module_context: AiModuleContext;
+  date_range?: AiDateRange;
+  output_type: AiOutputType;
+}
+
+export interface AiContextSnapshotRecord {
+  id: string;
+  moduleContext: string;
+  snapshotText: string;
+  createdAt: string;
+}
+
+export interface AiQueryRecord {
+  id: string;
+  query: string;
+  module_context: AiModuleContext;
+  output_type: AiOutputType;
+  date_range: AiDateRange;
+  response: string;
+  createdBy: string;
+  actorEmail: string;
+  createdAt: string;
+  updatedAt: string;
+  archivedAt?: string;
+  contextSnapshots: AiContextSnapshotRecord[];
+}
 export type ReportType =
   | 'company-summary'
   | 'financial-summary'
