@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { PlatformApiRecord, PlatformBackupRecord, PlatformEnvironmentRecord, PlatformJobRecord, PlatformOverview, PlatformReleaseRecord, PlatformServiceRecord } from '../models/api.models';
 import { AccessReviewRecord, ApprovalDecisionPayload, ApprovalRecord, ApprovalRequestPayload, DataClassification, DataPrivacyRecord, DataPrivacyRequest, EvidencePackRecord, EvidencePackRequestPayload, EvidenceTimelineItem, GovernanceDashboard, RiskCategory, RiskLevel, RiskRecord, RiskRequestPayload, RiskStatus } from '../models/api.models';
-import { AiQueryRecord, AiQueryRequest, AnnouncementRecord, AnnouncementRequest, AuditLogRecord, BoardMeetingRecord, BoardMeetingRequest, CompanyProfile, CompanyTask, CompanyTaskRequest, ContactCategory, ContactRecord, ContactRequest, ContactStatus, ComplianceCategory, ComplianceItem, ComplianceItemRequest, CompliancePriority, ComplianceStatus, DocumentCategory, DocumentMetadataRequest, DocumentRecord, DocumentStatus, EcosystemProductRecord, EcosystemProductRequest, EcosystemProductStatus, EcosystemSummary, ExecutiveDashboard, FinancialRecord, FinancialRecordRequest, MeetingActionItemRecord, MeetingActionItemRequest, MeetingStatus, MeetingType, NotificationRecord, ProductRecord, ProductRequest, ProductStatus, ReportFilters, ReportResponse, ReportType, SearchResponse, TaskCategory, TaskPriority, TaskStatus, TaskStatusRequest } from '../models/api.models';
+import { AiQueryRecord, AiQueryRequest, AnnouncementRecord, AnnouncementRequest, AuditLogRecord, BoardMeetingRecord, BoardMeetingRequest, CompanyProfile, CompanyTask, CompanyTaskRequest, ContactCategory, ContactRecord, ContactRequest, ContactStatus, ComplianceCategory, ComplianceItem, ComplianceItemRequest, CompliancePriority, ComplianceStatus, DocumentCategory, DocumentMetadataRequest, DocumentRecord, DocumentStatus, EcosystemProductRecord, EcosystemProductRequest, EcosystemProductStatus, EcosystemSummary, ExecutiveDashboard, FinancialRecord, FinancialRecordRequest, MeetingActionItemRecord, MeetingActionItemRequest, MeetingStatus, MeetingType, NotificationRecord, LeadPriority, LeadStage, ProductRecord, ProductRequest, ProductStatus, ReportFilters, ReportResponse, ReportType, SalesCustomerRecord, SalesCustomerRequest, SalesLeadRecord, SalesLeadRequest, SearchResponse, TaskCategory, TaskPriority, TaskStatus, TaskStatusRequest } from '../models/api.models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -156,6 +156,33 @@ export class ApiService {
   }
 
   archiveProduct(id: string): Observable<void> { return this.http.delete<void>(`/api/products/${id}`); }
+
+
+  salesLeads(filters: { query?: string; stage?: LeadStage | ''; priority?: LeadPriority | '' }): Observable<SalesLeadRecord[]> {
+    let params = new HttpParams();
+    if (filters.query?.trim()) params = params.set('query', filters.query.trim());
+    if (filters.stage) params = params.set('stage', filters.stage);
+    if (filters.priority) params = params.set('priority', filters.priority);
+    return this.http.get<SalesLeadRecord[]>('/api/sales/leads', { params });
+  }
+
+  salesLead(id: string): Observable<SalesLeadRecord> { return this.http.get<SalesLeadRecord>(`/api/sales/leads/${id}`); }
+  createSalesLead(payload: SalesLeadRequest): Observable<SalesLeadRecord> { return this.http.post<SalesLeadRecord>('/api/sales/leads', payload); }
+  updateSalesLead(id: string, payload: SalesLeadRequest): Observable<SalesLeadRecord> { return this.http.put<SalesLeadRecord>(`/api/sales/leads/${id}`, payload); }
+  archiveSalesLead(id: string): Observable<void> { return this.http.delete<void>(`/api/sales/leads/${id}`); }
+
+  salesCustomers(filters: { query?: string; product?: string; subscriptionStatus?: string }): Observable<SalesCustomerRecord[]> {
+    let params = new HttpParams();
+    if (filters.query?.trim()) params = params.set('query', filters.query.trim());
+    if (filters.product?.trim()) params = params.set('product', filters.product.trim());
+    if (filters.subscriptionStatus?.trim()) params = params.set('subscriptionStatus', filters.subscriptionStatus.trim());
+    return this.http.get<SalesCustomerRecord[]>('/api/sales/customers', { params });
+  }
+
+  salesCustomer(id: string): Observable<SalesCustomerRecord> { return this.http.get<SalesCustomerRecord>(`/api/sales/customers/${id}`); }
+  createSalesCustomer(payload: SalesCustomerRequest): Observable<SalesCustomerRecord> { return this.http.post<SalesCustomerRecord>('/api/sales/customers', payload); }
+  updateSalesCustomer(id: string, payload: SalesCustomerRequest): Observable<SalesCustomerRecord> { return this.http.put<SalesCustomerRecord>(`/api/sales/customers/${id}`, payload); }
+  archiveSalesCustomer(id: string): Observable<void> { return this.http.delete<void>(`/api/sales/customers/${id}`); }
 
   ecosystemSummary(): Observable<EcosystemSummary> { return this.http.get<EcosystemSummary>('/api/ecosystem/summary'); }
 

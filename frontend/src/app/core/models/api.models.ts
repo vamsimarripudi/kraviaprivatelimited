@@ -318,6 +318,80 @@ export interface ProductRequest {
   nextMilestone?: string;
   responsiblePerson?: string;
 }
+export type LeadStage = 'NEW' | 'CONTACTED' | 'DEMO_SCHEDULED' | 'DEMO_COMPLETED' | 'PROPOSAL_SENT' | 'NEGOTIATION' | 'WON' | 'LOST' | 'ARCHIVED';
+export type LeadPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+export interface SalesLeadRecord {
+  id: string;
+  leadName: string;
+  organizationName: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  productInterest: string;
+  leadSource?: string;
+  stage: LeadStage;
+  priority: LeadPriority;
+  assignedPerson?: string;
+  lastContactedDate?: string;
+  nextFollowUpDate?: string;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  archivedAt?: string;
+  followUpDue: boolean;
+  daysUntilFollowUp?: number;
+}
+
+export interface SalesLeadRequest {
+  leadName: string;
+  organizationName: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  productInterest: string;
+  leadSource?: string;
+  stage: LeadStage;
+  priority: LeadPriority;
+  assignedPerson?: string;
+  lastContactedDate?: string;
+  nextFollowUpDate?: string;
+  notes?: string;
+}
+
+export interface SalesCustomerRecord {
+  id: string;
+  customerName: string;
+  organizationType?: string;
+  product: string;
+  plan?: string;
+  subscriptionStatus?: string;
+  startDate?: string;
+  renewalDate?: string;
+  paymentStatus?: string;
+  supportStatus?: string;
+  onboardingStatus?: string;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  archivedAt?: string;
+}
+
+export interface SalesCustomerRequest {
+  customerName: string;
+  organizationType?: string;
+  product: string;
+  plan?: string;
+  subscriptionStatus?: string;
+  startDate?: string;
+  renewalDate?: string;
+  paymentStatus?: string;
+  supportStatus?: string;
+  onboardingStatus?: string;
+  notes?: string;
+}
 export type EcosystemProductStatus = 'IDEA' | 'DEVELOPMENT' | 'TESTING' | 'STAGING' | 'LAUNCH_READY' | 'LIVE' | 'PAUSED' | 'ARCHIVED';
 
 export interface EcosystemProductRecord {

@@ -32,6 +32,7 @@ export const routes: Routes = [
       { path: 'governance', loadComponent: () => import('./governance/governance.component').then((m) => m.GovernanceComponent), title: 'Governance Dashboard' },
       { path: 'platform-admin', loadComponent: () => import('./platform-admin/platform-admin.component').then((m) => m.PlatformAdminComponent), title: 'Platform Administration', canActivate: [roleGuard], data: { roles: ['FOUNDER', 'DIRECTOR'] } },
       { path: 'ecosystem', loadComponent: () => import('./ecosystem/ecosystem.component').then((m) => m.EcosystemComponent), title: 'Ecosystem Control Plane' },
+      { path: 'sales', loadComponent: () => import('./sales/sales.component').then((m) => m.SalesComponent), title: 'Sales Pipeline' },
       { path: 'privacy-center', loadComponent: () => import('./privacy-center/privacy-center.component').then((m) => m.PrivacyCenterComponent), title: 'Privacy Center' },
       { path: 'approvals', loadComponent: () => import('./approvals/approvals.component').then((m) => m.ApprovalsComponent), title: 'Approvals' },
       { path: 'risk-register', loadComponent: () => import('./risk-register/risk-register.component').then((m) => m.RiskRegisterComponent), title: 'Risk Register' },

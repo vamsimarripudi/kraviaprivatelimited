@@ -21,6 +21,7 @@ export class ShellComponent {
     { label: 'Governance', path: '/governance' },
     { label: 'Platform Admin', path: '/platform-admin', roles: ['FOUNDER', 'DIRECTOR'] },
     { label: 'Ecosystem', path: '/ecosystem' },
+    { label: 'Sales', path: '/sales' },
     { label: 'Privacy Center', path: '/privacy-center' },
     { label: 'Approvals', path: '/approvals' },
     { label: 'Risk Register', path: '/risk-register' },

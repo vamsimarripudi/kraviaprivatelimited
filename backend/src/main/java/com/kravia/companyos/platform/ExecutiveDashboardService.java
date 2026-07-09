@@ -21,6 +21,10 @@ import com.kravia.companyos.notification.NotificationRepository;
 import com.kravia.companyos.product.CompanyProduct;
 import com.kravia.companyos.product.ProductRepository;
 import com.kravia.companyos.product.ProductStatus;
+import com.kravia.companyos.sales.LeadStage;
+import com.kravia.companyos.sales.SalesCustomerRepository;
+import com.kravia.companyos.sales.SalesLead;
+import com.kravia.companyos.sales.SalesLeadRepository;
 import com.kravia.companyos.security.PermissionService;
 import com.kravia.companyos.task.CompanyTask;
 import com.kravia.companyos.task.CompanyTaskRepository;
@@ -46,6 +50,8 @@ public class ExecutiveDashboardService {
     private final NotificationRepository notifications;
     private final ContactRepository contacts;
     private final WorkflowInstanceRepository workflows;
+    private final SalesLeadRepository salesLeads;
+    private final SalesCustomerRepository salesCustomers;
     private final PermissionService permissions;
 
     public ExecutiveDashboardService(
@@ -59,6 +65,8 @@ public class ExecutiveDashboardService {
         NotificationRepository notifications,
         ContactRepository contacts,
         WorkflowInstanceRepository workflows,
+        SalesLeadRepository salesLeads,
+        SalesCustomerRepository salesCustomers,
         PermissionService permissions
     ) {
         this.companyProfiles = companyProfiles;
@@ -71,6 +79,8 @@ public class ExecutiveDashboardService {
         this.notifications = notifications;
         this.contacts = contacts;
         this.workflows = workflows;
+        this.salesLeads = salesLeads;
+        this.salesCustomers = salesCustomers;
         this.permissions = permissions;
     }
 
@@ -90,6 +100,14 @@ public class ExecutiveDashboardService {
         long blockedTaskCount = taskRecords.stream().filter(task -> task.getStatus() == TaskStatus.BLOCKED).count();
         long unreadNotificationCount = notificationRecords.stream().filter(notification -> notification.getReadAt() == null && notification.getArchivedAt() == null).count();
         long waitingPartnerCount = contactRecords.stream().filter(contact -> contact.getStatus() == ContactStatus.WAITING).count();
+        List<SalesLead> leadRecords = salesLeads.findAll();
+        long totalLeads = leadRecords.stream().filter(lead -> lead.getArchivedAt() == null && lead.getStage() != LeadStage.ARCHIVED).count();
+        long activeOpportunities = leadRecords.stream().filter(this::isActiveOpportunity).count();
+        long demoScheduled = leadRecords.stream().filter(lead -> lead.getArchivedAt() == null && lead.getStage() == LeadStage.DEMO_SCHEDULED).count();
+        long proposalsSent = leadRecords.stream().filter(lead -> lead.getArchivedAt() == null && lead.getStage() == LeadStage.PROPOSAL_SENT).count();
+        long wonCustomers = salesCustomers.findAll().stream().filter(customer -> customer.getArchivedAt() == null).count();
+        long lostLeads = leadRecords.stream().filter(lead -> lead.getArchivedAt() == null && lead.getStage() == LeadStage.LOST).count();
+        long followUpsDue = leadRecords.stream().filter(this::isFollowUpDue).count();
 
         List<ExecutiveDashboardResponse.DashboardMetric> metrics = List.of(
             new ExecutiveDashboardResponse.DashboardMetric("Pending approvals", pendingApprovalCount),
@@ -97,7 +115,14 @@ public class ExecutiveDashboardService {
             new ExecutiveDashboardResponse.DashboardMetric("Open tasks", openTaskCount),
             new ExecutiveDashboardResponse.DashboardMetric("Blocked tasks", blockedTaskCount),
             new ExecutiveDashboardResponse.DashboardMetric("Unread notifications", unreadNotificationCount),
-            new ExecutiveDashboardResponse.DashboardMetric("Waiting partner responses", waitingPartnerCount)
+            new ExecutiveDashboardResponse.DashboardMetric("Waiting partner responses", waitingPartnerCount),
+            new ExecutiveDashboardResponse.DashboardMetric("Total leads", totalLeads),
+            new ExecutiveDashboardResponse.DashboardMetric("Active opportunities", activeOpportunities),
+            new ExecutiveDashboardResponse.DashboardMetric("Demo scheduled", demoScheduled),
+            new ExecutiveDashboardResponse.DashboardMetric("Proposals sent", proposalsSent),
+            new ExecutiveDashboardResponse.DashboardMetric("Won customers", wonCustomers),
+            new ExecutiveDashboardResponse.DashboardMetric("Lost leads", lostLeads),
+            new ExecutiveDashboardResponse.DashboardMetric("Follow-ups due", followUpsDue)
         );
 
         return new ExecutiveDashboardResponse(
@@ -227,6 +252,19 @@ public class ExecutiveDashboardService {
 
     private boolean isOpenTask(CompanyTask task) {
         return task.getArchivedAt() == null && task.getStatus() != TaskStatus.DONE && task.getStatus() != TaskStatus.ARCHIVED;
+    }
+
+    private boolean isActiveOpportunity(SalesLead lead) {
+        return lead.getArchivedAt() == null
+            && lead.getStage() != LeadStage.WON
+            && lead.getStage() != LeadStage.LOST
+            && lead.getStage() != LeadStage.ARCHIVED;
+    }
+
+    private boolean isFollowUpDue(SalesLead lead) {
+        return isActiveOpportunity(lead)
+            && lead.getNextFollowUpDate() != null
+            && !lead.getNextFollowUpDate().isAfter(LocalDate.now());
     }
 
     private boolean isOverdueCompliance(ComplianceItem item) {

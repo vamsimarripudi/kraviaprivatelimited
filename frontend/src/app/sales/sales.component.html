@@ -1,0 +1,299 @@
+<section class="portal-section">
+  <div class="section-heading">
+    <div>
+      <p class="overline">Sales Pipeline</p>
+      <h2>Customer and Sales Pipeline</h2>
+      <p>Track leads, demos, follow-ups, proposals, onboarding, and customer conversion across KRAVIA products without fake revenue or dummy customers.</p>
+    </div>
+  </div>
+
+  <div class="row-actions">
+    <button class="secondary-button" type="button" (click)="setView('leads')">Leads</button>
+    <button class="secondary-button" type="button" (click)="setView('customers')">Customers</button>
+  </div>
+
+  <div class="product-summary-grid">
+    @for (card of summaryCards(); track card.label) {
+      <article class="product-card" [class.warning]="card.tone === 'warning'" [class.positive]="card.tone === 'positive'">
+        <span>{{ card.label }}</span>
+        <strong>{{ card.value }}</strong>
+      </article>
+    }
+  </div>
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading sales records..." />
+  } @else {
+    @if (view() === 'leads') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="leadForm" (ngSubmit)="submitLead()">
+          <div class="section-subheading">
+            <div>
+              <p class="overline">{{ leadEditingId() ? 'Edit' : 'Create' }}</p>
+              <h3>{{ leadEditingId() ? 'Edit lead' : 'Add lead' }}</h3>
+            </div>
+            @if (leadEditingId()) {
+              <button class="secondary-button" type="button" (click)="cancelLeadEdit()">Cancel edit</button>
+            }
+          </div>
+
+          <div class="form-grid">
+            <label>Lead name<input type="text" formControlName="leadName" autocomplete="off"></label>
+            <label>Organization name<input type="text" formControlName="organizationName" autocomplete="off"></label>
+            <label>Contact person<input type="text" formControlName="contactPerson" autocomplete="off"></label>
+            <label>Phone<input type="tel" formControlName="phone" autocomplete="off"></label>
+            <label>Email<input type="email" formControlName="email" autocomplete="off"></label>
+            <label>Product interest<input type="text" formControlName="productInterest" autocomplete="off"></label>
+            <label>Lead source<input type="text" formControlName="leadSource" autocomplete="off"></label>
+            <label>
+              Stage
+              <select formControlName="stage">
+                @for (stage of stages; track stage.value) {
+                  @if (canArchive() || stage.value !== 'ARCHIVED') {
+                    <option [value]="stage.value">{{ stage.label }}</option>
+                  }
+                }
+              </select>
+            </label>
+            <label>
+              Priority
+              <select formControlName="priority">
+                @for (priority of priorities; track priority.value) {
+                  <option [value]="priority.value">{{ priority.label }}</option>
+                }
+              </select>
+            </label>
+            <label>Assigned person<input type="text" formControlName="assignedPerson" autocomplete="off"></label>
+            <label>Last contacted date<input type="date" formControlName="lastContactedDate"></label>
+            <label>Next follow-up date<input type="date" formControlName="nextFollowUpDate"></label>
+            <label class="full-span">Notes<textarea formControlName="notes"></textarea></label>
+          </div>
+
+          @if (leadForm.controls.leadName.invalid && leadForm.controls.leadName.touched) {
+            <p class="form-error">Lead name is required.</p>
+          }
+          @if (leadForm.controls.organizationName.invalid && leadForm.controls.organizationName.touched) {
+            <p class="form-error">Organization name is required.</p>
+          }
+          @if (leadForm.controls.email.invalid && leadForm.controls.email.touched) {
+            <p class="form-error">Email must be valid if entered.</p>
+          }
+          @if (leadForm.controls.productInterest.invalid && leadForm.controls.productInterest.touched) {
+            <p class="form-error">Product interest is required.</p>
+          }
+          <div class="form-actions">
+            <button class="primary-button" type="submit" [disabled]="leadForm.invalid">{{ leadEditingId() ? 'Save lead' : 'Add lead' }}</button>
+          </div>
+        </form>
+      } @else {
+        <p class="access-note">Viewer role can read sales leads only.</p>
+      }
+
+      <div class="panel toolbar-panel product-toolbar">
+        <label>Search leads<input type="search" [value]="leadQuery()" (input)="applyLeadSearch($any($event.target).value)" placeholder="Search lead, organization, product"></label>
+        <label>
+          Stage
+          <select [value]="leadStage()" (change)="applyLeadStage($any($event.target).value)">
+            <option value="">All stages</option>
+            @for (stage of stages; track stage.value) {
+              <option [value]="stage.value">{{ stage.label }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Priority
+          <select [value]="leadPriority()" (change)="applyLeadPriority($any($event.target).value)">
+            <option value="">All priorities</option>
+            @for (priority of priorities; track priority.value) {
+              <option [value]="priority.value">{{ priority.label }}</option>
+            }
+          </select>
+        </label>
+      </div>
+
+      @if (leads().length === 0) {
+        <kravia-empty-state label="Leads" message="No sales leads have been added yet." />
+      } @else {
+        <div class="product-layout">
+          <div class="panel table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Lead</th>
+                  <th>Product</th>
+                  <th>Stage</th>
+                  <th>Priority</th>
+                  <th>Follow-up</th>
+                  <th>Owner</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (lead of leads(); track lead.id) {
+                  <tr [class.is-selected]="selectedLead()?.id === lead.id">
+                    <td><button class="text-button" type="button" (click)="selectLead(lead)">{{ lead.leadName }}</button><small>{{ lead.organizationName }}</small></td>
+                    <td>{{ lead.productInterest }}</td>
+                    <td><span class="status-badge">{{ stageLabel(lead.stage) }}</span></td>
+                    <td><span class="category-badge">{{ priorityLabel(lead.priority) }}</span></td>
+                    <td>{{ formatDate(lead.nextFollowUpDate) }}</td>
+                    <td>{{ emptyText(lead.assignedPerson) }}</td>
+                    <td>
+                      <div class="row-actions">
+                        <button class="secondary-button" type="button" (click)="selectLead(lead)">View</button>
+                        @if (canEdit() && lead.stage !== 'ARCHIVED') {
+                          <button class="secondary-button" type="button" (click)="startLeadEdit(lead)">Edit</button>
+                        }
+                        @if (canArchive() && lead.stage !== 'ARCHIVED') {
+                          <button class="secondary-button" type="button" (click)="archiveLead(lead)">Archive</button>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          @if (selectedLead(); as lead) {
+            <aside class="panel product-detail">
+              <div class="meeting-detail-header">
+                <div>
+                  <p class="overline">Lead Detail</p>
+                  <h3>{{ lead.leadName }}</h3>
+                  <p>{{ lead.organizationName }}</p>
+                </div>
+                <span class="status-badge">{{ stageLabel(lead.stage) }}</span>
+              </div>
+              <dl class="metadata-list">
+                <div><dt>Contact person</dt><dd>{{ emptyText(lead.contactPerson) }}</dd></div>
+                <div><dt>Phone</dt><dd>{{ emptyText(lead.phone) }}</dd></div>
+                <div><dt>Email</dt><dd>{{ emptyText(lead.email) }}</dd></div>
+                <div><dt>Lead source</dt><dd>{{ emptyText(lead.leadSource) }}</dd></div>
+                <div><dt>Last contacted</dt><dd>{{ formatDate(lead.lastContactedDate) }}</dd></div>
+                <div><dt>Next follow-up</dt><dd>{{ formatDate(lead.nextFollowUpDate) }}</dd></div>
+                <div><dt>Notes</dt><dd>{{ emptyText(lead.notes) }}</dd></div>
+              </dl>
+            </aside>
+          }
+        </div>
+      }
+    }
+
+    @if (view() === 'customers') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="customerForm" (ngSubmit)="submitCustomer()">
+          <div class="section-subheading">
+            <div>
+              <p class="overline">{{ customerEditingId() ? 'Edit' : 'Create' }}</p>
+              <h3>{{ customerEditingId() ? 'Edit customer' : 'Add customer' }}</h3>
+            </div>
+            @if (customerEditingId()) {
+              <button class="secondary-button" type="button" (click)="cancelCustomerEdit()">Cancel edit</button>
+            }
+          </div>
+          <div class="form-grid">
+            <label>Customer name<input type="text" formControlName="customerName" autocomplete="off"></label>
+            <label>Organization type<input type="text" formControlName="organizationType" autocomplete="off"></label>
+            <label>Product<input type="text" formControlName="product" autocomplete="off"></label>
+            <label>Plan<input type="text" formControlName="plan" autocomplete="off"></label>
+            <label>Subscription status<input type="text" formControlName="subscriptionStatus" autocomplete="off"></label>
+            <label>Payment status<input type="text" formControlName="paymentStatus" autocomplete="off"></label>
+            <label>Support status<input type="text" formControlName="supportStatus" autocomplete="off"></label>
+            <label>Onboarding status<input type="text" formControlName="onboardingStatus" autocomplete="off"></label>
+            <label>Start date<input type="date" formControlName="startDate"></label>
+            <label>Renewal date<input type="date" formControlName="renewalDate"></label>
+            <label class="full-span">Notes<textarea formControlName="notes"></textarea></label>
+          </div>
+          @if (customerForm.controls.customerName.invalid && customerForm.controls.customerName.touched) {
+            <p class="form-error">Customer name is required.</p>
+          }
+          @if (customerForm.controls.product.invalid && customerForm.controls.product.touched) {
+            <p class="form-error">Product is required.</p>
+          }
+          <div class="form-actions">
+            <button class="primary-button" type="submit" [disabled]="customerForm.invalid">{{ customerEditingId() ? 'Save customer' : 'Add customer' }}</button>
+          </div>
+        </form>
+      } @else {
+        <p class="access-note">Viewer role can read customers only.</p>
+      }
+
+      <div class="panel toolbar-panel product-toolbar">
+        <label>Search customers<input type="search" [value]="customerQuery()" (input)="applyCustomerSearch($any($event.target).value)" placeholder="Search customer, product, plan"></label>
+        <label>Product<input type="search" [value]="customerProduct()" (input)="applyCustomerProduct($any($event.target).value)" placeholder="Product"></label>
+        <label>Subscription<input type="search" [value]="customerSubscription()" (input)="applyCustomerSubscription($any($event.target).value)" placeholder="Status"></label>
+      </div>
+
+      @if (customers().length === 0) {
+        <kravia-empty-state label="Customers" message="No customers have been added yet." />
+      } @else {
+        <div class="product-layout">
+          <div class="panel table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>Product</th>
+                  <th>Plan</th>
+                  <th>Subscription</th>
+                  <th>Onboarding</th>
+                  <th>Renewal</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (customer of customers(); track customer.id) {
+                  <tr [class.is-selected]="selectedCustomer()?.id === customer.id">
+                    <td><button class="text-button" type="button" (click)="selectCustomer(customer)">{{ customer.customerName }}</button><small>{{ emptyText(customer.organizationType) }}</small></td>
+                    <td>{{ customer.product }}</td>
+                    <td>{{ emptyText(customer.plan) }}</td>
+                    <td>{{ emptyText(customer.subscriptionStatus) }}</td>
+                    <td>{{ emptyText(customer.onboardingStatus) }}</td>
+                    <td>{{ formatDate(customer.renewalDate) }}</td>
+                    <td>
+                      <div class="row-actions">
+                        <button class="secondary-button" type="button" (click)="selectCustomer(customer)">View</button>
+                        @if (canEdit() && !customer.archivedAt) {
+                          <button class="secondary-button" type="button" (click)="startCustomerEdit(customer)">Edit</button>
+                        }
+                        @if (canArchive() && !customer.archivedAt) {
+                          <button class="secondary-button" type="button" (click)="archiveCustomer(customer)">Archive</button>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          @if (selectedCustomer(); as customer) {
+            <aside class="panel product-detail">
+              <div class="meeting-detail-header">
+                <div>
+                  <p class="overline">Customer Detail</p>
+                  <h3>{{ customer.customerName }}</h3>
+                  <p>{{ customer.product }}</p>
+                </div>
+              </div>
+              <dl class="metadata-list">
+                <div><dt>Organization type</dt><dd>{{ emptyText(customer.organizationType) }}</dd></div>
+                <div><dt>Plan</dt><dd>{{ emptyText(customer.plan) }}</dd></div>
+                <div><dt>Subscription</dt><dd>{{ emptyText(customer.subscriptionStatus) }}</dd></div>
+                <div><dt>Payment</dt><dd>{{ emptyText(customer.paymentStatus) }}</dd></div>
+                <div><dt>Support</dt><dd>{{ emptyText(customer.supportStatus) }}</dd></div>
+                <div><dt>Onboarding</dt><dd>{{ emptyText(customer.onboardingStatus) }}</dd></div>
+                <div><dt>Start date</dt><dd>{{ formatDate(customer.startDate) }}</dd></div>
+                <div><dt>Renewal date</dt><dd>{{ formatDate(customer.renewalDate) }}</dd></div>
+                <div><dt>Notes</dt><dd>{{ emptyText(customer.notes) }}</dd></div>
+              </dl>
+            </aside>
+          }
+        </div>
+      }
+    }
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>
