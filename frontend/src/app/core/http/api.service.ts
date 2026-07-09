@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { PlatformApiRecord, PlatformBackupRecord, PlatformEnvironmentRecord, PlatformJobRecord, PlatformOverview, PlatformReleaseRecord, PlatformServiceRecord } from '../models/api.models';
 import { AccessReviewRecord, ApprovalDecisionPayload, ApprovalRecord, ApprovalRequestPayload, DataClassification, DataPrivacyRecord, DataPrivacyRequest, EvidencePackRecord, EvidencePackRequestPayload, EvidenceTimelineItem, GovernanceDashboard, RiskCategory, RiskLevel, RiskRecord, RiskRequestPayload, RiskStatus } from '../models/api.models';
-import { AiQueryRecord, AiQueryRequest, AnnouncementRecord, AnnouncementRequest, AuditLogRecord, BoardMeetingRecord, BoardMeetingRequest, CompanyProfile, CompanyTask, CompanyTaskRequest, ContactCategory, ContactRecord, ContactRequest, ContactStatus, ComplianceCategory, ComplianceItem, ComplianceItemRequest, CompliancePriority, ComplianceStatus, DocumentCategory, DocumentMetadataRequest, DocumentRecord, DocumentStatus, ExecutiveDashboard, FinancialRecord, FinancialRecordRequest, MeetingActionItemRecord, MeetingActionItemRequest, MeetingStatus, MeetingType, NotificationRecord, ProductRecord, ProductRequest, ProductStatus, ReportFilters, ReportResponse, ReportType, SearchResponse, TaskCategory, TaskPriority, TaskStatus, TaskStatusRequest } from '../models/api.models';
+import { AiQueryRecord, AiQueryRequest, AnnouncementRecord, AnnouncementRequest, AuditLogRecord, BoardMeetingRecord, BoardMeetingRequest, CompanyProfile, CompanyTask, CompanyTaskRequest, ContactCategory, ContactRecord, ContactRequest, ContactStatus, ComplianceCategory, ComplianceItem, ComplianceItemRequest, CompliancePriority, ComplianceStatus, DocumentCategory, DocumentMetadataRequest, DocumentRecord, DocumentStatus, EcosystemProductRecord, EcosystemProductRequest, EcosystemProductStatus, EcosystemSummary, ExecutiveDashboard, FinancialRecord, FinancialRecordRequest, MeetingActionItemRecord, MeetingActionItemRequest, MeetingStatus, MeetingType, NotificationRecord, ProductRecord, ProductRequest, ProductStatus, ReportFilters, ReportResponse, ReportType, SearchResponse, TaskCategory, TaskPriority, TaskStatus, TaskStatusRequest } from '../models/api.models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -156,6 +156,28 @@ export class ApiService {
   }
 
   archiveProduct(id: string): Observable<void> { return this.http.delete<void>(`/api/products/${id}`); }
+
+  ecosystemSummary(): Observable<EcosystemSummary> { return this.http.get<EcosystemSummary>('/api/ecosystem/summary'); }
+
+  ecosystemProducts(filters: { query?: string; status?: EcosystemProductStatus | ''; owner?: string }): Observable<EcosystemProductRecord[]> {
+    let params = new HttpParams();
+    if (filters.query?.trim()) params = params.set('query', filters.query.trim());
+    if (filters.status) params = params.set('status', filters.status);
+    if (filters.owner?.trim()) params = params.set('owner', filters.owner.trim());
+    return this.http.get<EcosystemProductRecord[]>('/api/ecosystem/products', { params });
+  }
+
+  ecosystemProduct(id: string): Observable<EcosystemProductRecord> { return this.http.get<EcosystemProductRecord>(`/api/ecosystem/products/${id}`); }
+
+  createEcosystemProduct(payload: EcosystemProductRequest): Observable<EcosystemProductRecord> {
+    return this.http.post<EcosystemProductRecord>('/api/ecosystem/products', payload);
+  }
+
+  updateEcosystemProduct(id: string, payload: EcosystemProductRequest): Observable<EcosystemProductRecord> {
+    return this.http.put<EcosystemProductRecord>(`/api/ecosystem/products/${id}`, payload);
+  }
+
+  archiveEcosystemProduct(id: string): Observable<void> { return this.http.delete<void>(`/api/ecosystem/products/${id}`); }
   contacts(filters: { query?: string; category?: ContactCategory | ''; status?: ContactStatus | '' }): Observable<ContactRecord[]> {
     let params = new HttpParams();
     if (filters.query?.trim()) params = params.set('query', filters.query.trim());

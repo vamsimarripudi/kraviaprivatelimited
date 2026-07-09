@@ -318,6 +318,71 @@ export interface ProductRequest {
   nextMilestone?: string;
   responsiblePerson?: string;
 }
+export type EcosystemProductStatus = 'IDEA' | 'DEVELOPMENT' | 'TESTING' | 'STAGING' | 'LAUNCH_READY' | 'LIVE' | 'PAUSED' | 'ARCHIVED';
+
+export interface EcosystemProductRecord {
+  id: string;
+  productName: string;
+  productCode: string;
+  status: EcosystemProductStatus;
+  owner: string;
+  description?: string;
+  domain?: string;
+  backendUrl?: string;
+  frontendUrl?: string;
+  currentVersion?: string;
+  launchStatus?: string;
+  revenueStatus?: string;
+  complianceStatus?: string;
+  securityStatus?: string;
+  deploymentStatus?: string;
+  healthNotes?: string;
+  revenueNotes?: string;
+  roadmapNotes?: string;
+  launchChecklist?: string;
+  riskRegister?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  archivedAt?: string;
+}
+
+export interface EcosystemProductRequest {
+  productName: string;
+  productCode: string;
+  status: EcosystemProductStatus;
+  owner: string;
+  description?: string;
+  domain?: string;
+  backendUrl?: string;
+  frontendUrl?: string;
+  currentVersion?: string;
+  launchStatus?: string;
+  revenueStatus?: string;
+  complianceStatus?: string;
+  securityStatus?: string;
+  deploymentStatus?: string;
+  healthNotes?: string;
+  revenueNotes?: string;
+  roadmapNotes?: string;
+  launchChecklist?: string;
+  riskRegister?: string;
+}
+
+export interface EcosystemSummary {
+  registeredProducts: number;
+  activeProducts: number;
+  launchReadyProducts: number;
+  liveProducts: number;
+  archivedProducts: number;
+  healthTrackedProducts: number;
+  revenueVisibleProducts: number;
+  complianceVisibleProducts: number;
+  securityVisibleProducts: number;
+  deploymentTrackedProducts: number;
+  roadmapTrackedProducts: number;
+  productsWithRisks: number;
+}
 export type ContactCategory = 'CA' | 'LAWYER' | 'BANK_MANAGER' | 'VENDOR' | 'INVESTOR' | 'GOVERNMENT_CONTACT' | 'CUSTOMER' | 'ADVISOR' | 'CONSULTANT' | 'OTHER';
 
 export type ContactStatus = 'ACTIVE' | 'WAITING' | 'FOLLOW_UP_NEEDED' | 'CLOSED' | 'ARCHIVED';

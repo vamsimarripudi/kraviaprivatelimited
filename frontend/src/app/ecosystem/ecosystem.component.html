@@ -1,0 +1,370 @@
+<section class="portal-section">
+  <div class="section-heading">
+    <div>
+      <p class="overline">Ecosystem Control Plane</p>
+      <h2>KRAVIA Product Ecosystem</h2>
+      <p>Connect VidyaLuma, VaanMeet, VFormix, and future KRAVIA products into one controlled registry without fake health, uptime, or revenue data.</p>
+    </div>
+  </div>
+
+  <div class="row-actions">
+    @for (item of views; track item.value) {
+      <button class="secondary-button" type="button" (click)="setView(item.value)">{{ item.label }}</button>
+    }
+  </div>
+
+  <div class="product-summary-grid">
+    @for (card of summaryCards(); track card.label) {
+      <article class="product-card" [class.warning]="card.tone === 'warning'" [class.positive]="card.tone === 'positive'">
+        <span>{{ card.label }}</span>
+        <strong>{{ card.value }}</strong>
+      </article>
+    }
+  </div>
+
+  @if (view() === 'registry') {
+    @if (canCreate()) {
+      <form class="panel enterprise-form" [formGroup]="form" (ngSubmit)="submit()">
+        <div class="section-subheading">
+          <div>
+            <p class="overline">{{ editingId() ? 'Edit' : 'Register' }}</p>
+            <h3>{{ editingId() ? 'Edit ecosystem product' : 'Register ecosystem product' }}</h3>
+          </div>
+          @if (editingId()) {
+            <button class="secondary-button" type="button" (click)="cancelEdit()">Cancel edit</button>
+          }
+        </div>
+
+        <div class="form-grid">
+          <label>
+            Product name
+            <input type="text" formControlName="productName" autocomplete="off">
+          </label>
+          <label>
+            Product code
+            <input type="text" formControlName="productCode" autocomplete="off" placeholder="VIDYALUMA">
+          </label>
+          <label>
+            Status
+            <select formControlName="status">
+              @for (status of statusChoices(); track status.value) {
+                <option [value]="status.value">{{ status.label }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            Owner
+            <input type="text" formControlName="owner" autocomplete="off">
+          </label>
+          <label>
+            Domain
+            <input type="text" formControlName="domain" autocomplete="off">
+          </label>
+          <label>
+            Current version
+            <input type="text" formControlName="currentVersion" autocomplete="off">
+          </label>
+          <label>
+            Backend URL
+            <input type="url" formControlName="backendUrl" autocomplete="off">
+          </label>
+          <label>
+            Frontend URL
+            <input type="url" formControlName="frontendUrl" autocomplete="off">
+          </label>
+          <label>
+            Launch status
+            <input type="text" formControlName="launchStatus" autocomplete="off">
+          </label>
+          <label>
+            Revenue status
+            <input type="text" formControlName="revenueStatus" autocomplete="off">
+          </label>
+          <label>
+            Compliance status
+            <input type="text" formControlName="complianceStatus" autocomplete="off">
+          </label>
+          <label>
+            Security status
+            <input type="text" formControlName="securityStatus" autocomplete="off">
+          </label>
+          <label class="full-span">
+            Description
+            <textarea formControlName="description"></textarea>
+          </label>
+          <label>
+            Deployment status
+            <input type="text" formControlName="deploymentStatus" autocomplete="off">
+          </label>
+          <label>
+            Health notes
+            <textarea formControlName="healthNotes"></textarea>
+          </label>
+          <label>
+            Revenue notes
+            <textarea formControlName="revenueNotes"></textarea>
+          </label>
+          <label>
+            Roadmap notes
+            <textarea formControlName="roadmapNotes"></textarea>
+          </label>
+          <label>
+            Launch checklist
+            <textarea formControlName="launchChecklist"></textarea>
+          </label>
+          <label>
+            Risk register
+            <textarea formControlName="riskRegister"></textarea>
+          </label>
+        </div>
+
+        @if (form.controls.productName.invalid && form.controls.productName.touched) {
+          <p class="form-error">Product name is required.</p>
+        }
+        @if (form.controls.productCode.invalid && form.controls.productCode.touched) {
+          <p class="form-error">Product code is required and must use uppercase letters, numbers, hyphen, or underscore.</p>
+        }
+        @if (form.controls.owner.invalid && form.controls.owner.touched) {
+          <p class="form-error">Product owner is required.</p>
+        }
+        <div class="form-actions">
+          <button class="primary-button" type="submit" [disabled]="form.invalid">{{ editingId() ? 'Save product' : 'Register product' }}</button>
+        </div>
+      </form>
+    } @else if (canUpdateStatus() && selected()) {
+      <form class="panel enterprise-form" [formGroup]="statusForm" (ngSubmit)="submitStatus()">
+        <div class="section-subheading">
+          <div>
+            <p class="overline">Director Action</p>
+            <h3>Update product status</h3>
+          </div>
+        </div>
+        <label>
+          Status for {{ selected()?.productName }}
+          <select formControlName="status">
+            @for (status of statusChoices(); track status.value) {
+              <option [value]="status.value">{{ status.label }}</option>
+            }
+          </select>
+        </label>
+        <div class="form-actions">
+          <button class="primary-button" type="submit">Save status</button>
+        </div>
+      </form>
+    } @else {
+      <p class="access-note">Viewer role can read ecosystem records only.</p>
+    }
+
+    <div class="panel toolbar-panel product-toolbar">
+      <label>
+        Search ecosystem
+        <input type="search" [value]="query()" (input)="applySearch($any($event.target).value)" placeholder="Search product, code, owner, risks">
+      </label>
+      <label>
+        Status
+        <select [value]="status()" (change)="applyStatus($any($event.target).value)">
+          <option value="">All statuses</option>
+          @for (status of statuses; track status.value) {
+            <option [value]="status.value">{{ status.label }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        Owner
+        <input type="search" [value]="owner()" (input)="applyOwner($any($event.target).value)" placeholder="Owner">
+      </label>
+      @if (activeFilters()) {
+        <button class="secondary-button" type="button" (click)="clearFilters()">Clear filters</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading ecosystem records..." />
+  } @else if (products().length === 0) {
+    <kravia-empty-state label="Ecosystem Control Plane" message="No product records have been added yet." />
+  } @else {
+    @if (view() === 'dashboard') {
+      <div class="product-layout">
+        <div class="panel table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Status</th>
+                <th>Owner</th>
+                <th>Launch</th>
+                <th>Revenue</th>
+                <th>Security</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (product of products(); track product.id) {
+                <tr>
+                  <td><button class="text-button" type="button" (click)="select(product)">{{ product.productName }}</button><small>{{ product.productCode }}</small></td>
+                  <td><span class="status-badge">{{ statusLabel(product.status) }}</span></td>
+                  <td>{{ product.owner }}</td>
+                  <td>{{ emptyText(product.launchStatus) }}</td>
+                  <td>{{ emptyText(product.revenueStatus) }}</td>
+                  <td>{{ emptyText(product.securityStatus) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (selected(); as product) {
+          <aside class="panel product-detail">
+            <div class="meeting-detail-header">
+              <div>
+                <p class="overline">Selected Product</p>
+                <h3>{{ product.productName }}</h3>
+                <p>{{ product.productCode }}</p>
+              </div>
+              <span class="status-badge">{{ statusLabel(product.status) }}</span>
+            </div>
+            <dl class="metadata-list">
+              <div><dt>Owner</dt><dd>{{ product.owner }}</dd></div>
+              <div><dt>Domain</dt><dd>{{ emptyText(product.domain) }}</dd></div>
+              <div><dt>Backend URL</dt><dd>{{ emptyText(product.backendUrl) }}</dd></div>
+              <div><dt>Frontend URL</dt><dd>{{ emptyText(product.frontendUrl) }}</dd></div>
+              <div><dt>Current version</dt><dd>{{ emptyText(product.currentVersion) }}</dd></div>
+              <div><dt>Last updated</dt><dd>{{ formatDateTime(product.updatedAt) }}</dd></div>
+            </dl>
+          </aside>
+        }
+      </div>
+    }
+
+    @if (view() === 'registry') {
+      <div class="product-layout">
+        <div class="panel table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Code</th>
+                <th>Status</th>
+                <th>Owner</th>
+                <th>Version</th>
+                <th>Updated</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (product of products(); track product.id) {
+                <tr [class.is-selected]="selected()?.id === product.id">
+                  <td><button class="text-button" type="button" (click)="select(product)">{{ product.productName }}</button></td>
+                  <td><span class="category-badge">{{ product.productCode }}</span></td>
+                  <td><span class="status-badge">{{ statusLabel(product.status) }}</span></td>
+                  <td>{{ product.owner }}</td>
+                  <td>{{ emptyText(product.currentVersion) }}</td>
+                  <td>{{ formatDateTime(product.updatedAt) }}</td>
+                  <td>
+                    <div class="row-actions">
+                      <button class="secondary-button" type="button" (click)="select(product)">View</button>
+                      @if (canCreate() && product.status !== 'ARCHIVED') {
+                        <button class="secondary-button" type="button" (click)="startEdit(product)">Edit</button>
+                      }
+                      @if (!canCreate() && canUpdateStatus() && product.status !== 'ARCHIVED') {
+                        <button class="secondary-button" type="button" (click)="startStatusUpdate(product)">Status</button>
+                      }
+                      @if (canArchive() && product.status !== 'ARCHIVED') {
+                        <button class="secondary-button" type="button" (click)="archive(product)">Archive</button>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (selected(); as product) {
+          <aside class="panel product-detail">
+            <div class="meeting-detail-header">
+              <div>
+                <p class="overline">Registry Detail</p>
+                <h3>{{ product.productName }}</h3>
+                <p>{{ product.productCode }}</p>
+              </div>
+              <span class="status-badge">{{ statusLabel(product.status) }}</span>
+            </div>
+            <dl class="metadata-list">
+              <div><dt>Owner</dt><dd>{{ product.owner }}</dd></div>
+              <div><dt>Description</dt><dd>{{ emptyText(product.description) }}</dd></div>
+              <div><dt>Created by</dt><dd>{{ product.createdBy }}</dd></div>
+              <div><dt>Created</dt><dd>{{ formatDateTime(product.createdAt) }}</dd></div>
+              <div><dt>Last updated</dt><dd>{{ formatDateTime(product.updatedAt) }}</dd></div>
+              @if (product.archivedAt) { <div><dt>Archived</dt><dd>{{ formatDateTime(product.archivedAt) }}</dd></div> }
+            </dl>
+          </aside>
+        }
+      </div>
+    }
+
+    @if (view() === 'health') {
+      <div class="panel table-scroll">
+        <table>
+          <thead><tr><th>Product</th><th>Status</th><th>Health Notes</th><th>Security</th><th>Deployment</th></tr></thead>
+          <tbody>
+            @for (product of products(); track product.id) {
+              <tr><td>{{ product.productName }}</td><td><span class="status-badge">{{ statusLabel(product.status) }}</span></td><td>{{ emptyText(product.healthNotes) }}</td><td>{{ emptyText(product.securityStatus) }}</td><td>{{ emptyText(product.deploymentStatus) }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @if (view() === 'revenue') {
+      <div class="panel table-scroll">
+        <table>
+          <thead><tr><th>Product</th><th>Revenue Status</th><th>Revenue Notes</th><th>Last Updated</th></tr></thead>
+          <tbody>
+            @for (product of products(); track product.id) {
+              <tr><td>{{ product.productName }}</td><td>{{ emptyText(product.revenueStatus) }}</td><td>{{ emptyText(product.revenueNotes) }}</td><td>{{ formatDateTime(product.updatedAt) }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @if (view() === 'roadmap') {
+      <div class="product-layout">
+        @for (product of products(); track product.id) {
+          <article class="panel product-notes">
+            <h3>{{ product.productName }} Roadmap</h3>
+            <p>{{ emptyText(product.roadmapNotes) }}</p>
+          </article>
+        }
+      </div>
+    }
+
+    @if (view() === 'launch') {
+      <div class="panel table-scroll">
+        <table>
+          <thead><tr><th>Product</th><th>Launch Status</th><th>Deployment</th><th>Launch Checklist</th></tr></thead>
+          <tbody>
+            @for (product of products(); track product.id) {
+              <tr><td>{{ product.productName }}</td><td>{{ emptyText(product.launchStatus) }}</td><td>{{ emptyText(product.deploymentStatus) }}</td><td>{{ emptyText(product.launchChecklist) }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @if (view() === 'risks') {
+      <div class="panel table-scroll">
+        <table>
+          <thead><tr><th>Product</th><th>Risk Register</th><th>Compliance</th><th>Security</th></tr></thead>
+          <tbody>
+            @for (product of products(); track product.id) {
+              <tr><td>{{ product.productName }}</td><td>{{ emptyText(product.riskRegister) }}</td><td>{{ emptyText(product.complianceStatus) }}</td><td>{{ emptyText(product.securityStatus) }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>
