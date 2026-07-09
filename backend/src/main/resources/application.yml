@@ -15,6 +15,10 @@
   flyway:
     enabled: true
     locations: classpath:db/migration
+  servlet:
+    multipart:
+      max-file-size: ${KRAVIA_DOCUMENT_MULTIPART_MAX_SIZE:25MB}
+      max-request-size: ${KRAVIA_DOCUMENT_MULTIPART_MAX_REQUEST_SIZE:30MB}
 
 server:
   port: ${PORT:8080}
@@ -31,6 +35,10 @@ kravia:
     founder-name: ${KRAVIA_BOOTSTRAP_FOUNDER_NAME:KRAVIA Founder}
   cors:
     allowed-origins: ${KRAVIA_ALLOWED_ORIGINS:http://localhost:4200}
+  documents:
+    storage-root: ${KRAVIA_DOCUMENT_STORAGE_ROOT:./storage/private-documents}
+    max-file-size-bytes: ${KRAVIA_DOCUMENT_MAX_FILE_SIZE_BYTES:26214400}
+    allowed-content-types: ${KRAVIA_DOCUMENT_ALLOWED_CONTENT_TYPES:application/pdf,image/png,image/jpeg,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain}
 
 management:
   endpoints:

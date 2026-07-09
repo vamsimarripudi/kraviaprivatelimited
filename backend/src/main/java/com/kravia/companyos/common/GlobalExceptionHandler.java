@@ -1,4 +1,4 @@
-﻿package com.kravia.companyos.common;
+package com.kravia.companyos.common;
 
 import jakarta.validation.ConstraintViolationException;
 import java.util.Map;
@@ -7,8 +7,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -32,6 +36,21 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ConstraintViolationException.class)
     ResponseEntity<ApiError> constraint(ConstraintViolationException exception) {
         return ResponseEntity.badRequest().body(new ApiError("VALIDATION_FAILED", exception.getMessage(), null));
+    }
+
+    @ExceptionHandler({MissingServletRequestParameterException.class, MissingServletRequestPartException.class})
+    ResponseEntity<ApiError> missingRequestValue(Exception exception) {
+        return ResponseEntity.badRequest().body(new ApiError("VALIDATION_FAILED", "A required request value is missing.", null));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    ResponseEntity<ApiError> typeMismatch(MethodArgumentTypeMismatchException exception) {
+        return ResponseEntity.badRequest().body(new ApiError("VALIDATION_FAILED", "Request contains an invalid value.", null));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    ResponseEntity<ApiError> uploadTooLarge(MaxUploadSizeExceededException exception) {
+        return ResponseEntity.badRequest().body(new ApiError("VALIDATION_FAILED", "Document file exceeds the configured size limit.", null));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

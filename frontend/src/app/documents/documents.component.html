@@ -1,0 +1,221 @@
+<section class="portal-section">
+  <div class="section-heading">
+    <div>
+      <p class="overline">Document Vault</p>
+      <h2>Protected Company Documents</h2>
+      <p>Organize statutory, banking, legal, and operational files behind authenticated backend access.</p>
+    </div>
+  </div>
+
+  @if (canUploadEdit()) {
+    <form class="panel enterprise-form" [formGroup]="uploadForm" (ngSubmit)="upload()">
+      <div class="section-subheading">
+        <div>
+          <p class="overline">Upload</p>
+          <h3>Add document</h3>
+        </div>
+        @if (uploading()) {
+          <span class="status-badge">Uploading {{ uploadProgress() }}%</span>
+        }
+      </div>
+      <div class="form-grid">
+        <label>
+          Document title
+          <input type="text" formControlName="title" autocomplete="off">
+        </label>
+        <label>
+          Category
+          <select formControlName="category">
+            @for (category of categories; track category.value) {
+              <option [value]="category.value">{{ category.label }}</option>
+            }
+          </select>
+        </label>
+        <label class="full-span">
+          Description
+          <textarea formControlName="description"></textarea>
+        </label>
+        <label class="full-span">
+          File
+          <input type="file" (change)="onFileSelected($event)">
+        </label>
+      </div>
+      @if (uploadForm.controls.title.invalid && uploadForm.controls.title.touched) {
+        <p class="form-error">Document title is required.</p>
+      }
+      @if (!selectedFile() && uploadForm.touched) {
+        <p class="form-error">File is required for upload.</p>
+      }
+      @if (uploading()) {
+        <div class="progress-track" aria-label="Upload progress">
+          <span class="progress-fill" [style.width.%]="uploadProgress()"></span>
+        </div>
+      }
+      <div class="form-actions">
+        <button class="primary-button" type="submit" [disabled]="uploading()">Upload document</button>
+      </div>
+    </form>
+  } @else {
+    <p class="access-note">Viewer role can view and download documents only.</p>
+  }
+
+  <div class="panel toolbar-panel">
+    <label>
+      Search documents
+      <input type="search" [value]="query()" (input)="applySearch($any($event.target).value)" placeholder="Search title, description, or file name">
+    </label>
+    <label>
+      Category
+      <select [value]="category()" (change)="applyCategory($any($event.target).value)">
+        <option value="">All categories</option>
+        @for (category of categories; track category.value) {
+          <option [value]="category.value">{{ category.label }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Status
+      <select [value]="status()" (change)="applyStatus($any($event.target).value)">
+        <option value="">All statuses</option>
+        @for (status of statuses; track status.value) {
+          <option [value]="status.value">{{ status.label }}</option>
+        }
+      </select>
+    </label>
+    @if (activeFilters()) {
+      <button class="secondary-button" type="button" (click)="clearFilters()">Clear filters</button>
+    }
+  </div>
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading documents..." />
+  } @else {
+    <div class="category-grid">
+      @for (category of categories; track category.value) {
+        <article class="category-card">
+          <span>{{ category.label }}</span>
+          <strong>{{ categoryCount(category.value) }}</strong>
+        </article>
+      }
+    </div>
+
+    @if (documents().length === 0) {
+      <kravia-empty-state label="Documents" message="No documents have been added yet." />
+    } @else {
+      <div class="document-layout">
+        <div class="panel table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Document</th>
+                <th>Category</th>
+                <th>Status</th>
+                <th>Version</th>
+                <th>Size</th>
+                <th>Updated</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (document of documents(); track document.id) {
+                <tr [class.is-selected]="selected()?.id === document.id">
+                  <td>
+                    <button class="text-button" type="button" (click)="select(document)">{{ document.title }}</button>
+                    <small>{{ document.fileName }}</small>
+                  </td>
+                  <td><span class="category-badge">{{ categoryLabel(document.category) }}</span></td>
+                  <td><span class="status-badge">{{ statusLabel(document.status) }}</span></td>
+                  <td>v{{ document.version }}</td>
+                  <td>{{ fileSize(document.fileSize) }}</td>
+                  <td>{{ document.updatedAt }}</td>
+                  <td>
+                    <div class="row-actions">
+                      <button class="secondary-button" type="button" (click)="download(document)">Download</button>
+                      @if (canUploadEdit()) {
+                        <button class="secondary-button" type="button" (click)="startEdit(document)">Edit</button>
+                      }
+                      @if (canArchive() && document.status !== 'ARCHIVED') {
+                        <button class="secondary-button" type="button" (click)="archive(document)">Archive</button>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        @if (selected(); as document) {
+          <aside class="panel document-detail">
+            <div>
+              <p class="overline">Details</p>
+              <h3>{{ document.title }}</h3>
+              <p>{{ document.description || 'No information has been added yet.' }}</p>
+            </div>
+
+            @if (editingId() === document.id) {
+              <form class="enterprise-form" [formGroup]="editForm" (ngSubmit)="saveMetadata(document)">
+                <label>
+                  Document title
+                  <input type="text" formControlName="title">
+                </label>
+                <label>
+                  Category
+                  <select formControlName="category">
+                    @for (category of categories; track category.value) {
+                      <option [value]="category.value">{{ category.label }}</option>
+                    }
+                  </select>
+                </label>
+                <label>
+                  Status
+                  <select formControlName="status">
+                    @for (status of statuses; track status.value) {
+                      @if (canArchive() || status.value !== 'ARCHIVED' || document.status === 'ARCHIVED') {
+                        <option [value]="status.value">{{ status.label }}</option>
+                      }
+                    }
+                  </select>
+                </label>
+                <label>
+                  Description
+                  <textarea formControlName="description"></textarea>
+                </label>
+                @if (editForm.controls.title.invalid && editForm.controls.title.touched) {
+                  <p class="form-error">Document title is required.</p>
+                }
+                <div class="form-actions">
+                  <button class="primary-button" type="submit" [disabled]="editForm.invalid">Save metadata</button>
+                  <button class="secondary-button" type="button" (click)="cancelEdit()">Cancel</button>
+                </div>
+              </form>
+            } @else {
+              <dl class="metadata-list">
+                <div><dt>Category</dt><dd>{{ categoryLabel(document.category) }}</dd></div>
+                <div><dt>Status</dt><dd>{{ statusLabel(document.status) }}</dd></div>
+                <div><dt>File type</dt><dd>{{ document.fileType }}</dd></div>
+                <div><dt>File size</dt><dd>{{ fileSize(document.fileSize) }}</dd></div>
+                <div><dt>Version</dt><dd>v{{ document.version }}</dd></div>
+                <div><dt>Uploaded by</dt><dd>{{ document.uploadedBy }}</dd></div>
+                <div><dt>Created</dt><dd>{{ document.createdAt }}</dd></div>
+                <div><dt>Updated</dt><dd>{{ document.updatedAt }}</dd></div>
+                @if (document.archivedAt) {
+                  <div><dt>Archived</dt><dd>{{ document.archivedAt }}</dd></div>
+                }
+              </dl>
+              <div class="form-actions">
+                <button class="primary-button" type="button" (click)="download(document)">Download</button>
+                @if (canUploadEdit()) {
+                  <button class="secondary-button" type="button" (click)="startEdit(document)">Edit metadata</button>
+                }
+              </div>
+            }
+          </aside>
+        }
+      </div>
+    }
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>

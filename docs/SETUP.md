@@ -1,4 +1,4 @@
-﻿# Local Setup Guide
+# Local Setup Guide
 
 ## Prerequisites
 
@@ -31,9 +31,14 @@ $env:KRAVIA_ALLOWED_ORIGINS='http://localhost:4200'
 $env:KRAVIA_BOOTSTRAP_FOUNDER_EMAIL='founder@kravia.local'
 $env:KRAVIA_BOOTSTRAP_FOUNDER_PASSWORD='replace-with-a-strong-temporary-password'
 $env:KRAVIA_BOOTSTRAP_FOUNDER_NAME='Founder'
+$env:KRAVIA_DOCUMENT_STORAGE_ROOT='C:\kravia-companyos\private-documents'
+$env:KRAVIA_DOCUMENT_MAX_FILE_SIZE_BYTES='26214400'
+$env:KRAVIA_DOCUMENT_ALLOWED_CONTENT_TYPES='application/pdf,image/png,image/jpeg,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain'
 ```
 
 Remove the bootstrap founder variables after the first account is created.
+
+Document storage defaults to `./storage/private-documents` under the backend working directory if `KRAVIA_DOCUMENT_STORAGE_ROOT` is not set. The `storage/` directory is intentionally ignored by git.
 
 ## 3. Run Backend
 
@@ -60,10 +65,18 @@ Frontend runs at `http://localhost:4200` and proxies `/api` to Spring Boot.
 2. Sign in with the founder email and password configured above.
 3. Open Company Profile.
 4. Save profile data.
-5. Open Audit Logs to confirm the profile edit was recorded.
+5. Open Documents to upload, search, filter, view metadata, download, or archive documents according to role.
+6. Open Audit Logs to confirm profile and document actions were recorded.
 
 ## Role Checks
 
-- Founder and Director can save company profile data.
-- Viewer can only view the company profile.
+- Founder can view and edit company profile, upload/download/edit/archive documents, and view audit logs.
+- Director can view and edit company profile, upload/download/edit documents, and view audit logs.
+- Viewer can view company profile and view/download documents only.
 - Audit Logs route is visible only to Founder and Director.
+
+## Document Vault Checks
+
+- Upload rejects missing title, missing category, missing file, unsafe file names, disallowed file types, and files over the configured size limit.
+- File paths are never returned by the API.
+- Download uses `GET /api/documents/{id}/download`; do not serve document storage as a static public folder.
