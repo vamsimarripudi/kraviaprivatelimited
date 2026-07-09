@@ -1,0 +1,135 @@
+<section class="workspace-page procurement-page">
+  <div class="page-heading">
+    <div>
+      <p class="overline">KRAVIA Company OS</p>
+      <h2>Procurement & Vendor Management</h2>
+      <p>Manage vendors, purchase approvals, bills, subscriptions, payment status, and procurement records.</p>
+    </div>
+    <button class="secondary-button" type="button" (click)="load()">Refresh</button>
+  </div>
+
+  <div class="finance-erp-tabs">
+    @for (tab of tabs; track tab.value) {
+      <button class="secondary-button" type="button" [class.is-active]="activeTab() === tab.value" (click)="setTab(tab.value)">{{ tab.label }}</button>
+    }
+  </div>
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading procurement records..." />
+  } @else {
+    @if (summary(); as summary) {
+      <div class="finance-summary-grid">
+        <article class="finance-card"><span>Active vendors</span><strong>{{ summary.activeVendors }}</strong></article>
+        <article class="finance-card"><span>Pending requests</span><strong>{{ summary.pendingPurchaseRequests }}</strong></article>
+        <article class="finance-card"><span>Approved POs</span><strong>{{ summary.approvedPurchaseOrders }}</strong></article>
+        <article class="finance-card"><span>Unpaid bills</span><strong>{{ summary.unpaidVendorBills }}</strong></article>
+        <article class="finance-card"><span>Renewals due</span><strong>{{ summary.upcomingSubscriptionRenewals }}</strong></article>
+        <article class="finance-card"><span>Overdue payments</span><strong>{{ summary.overduePayments }}</strong></article>
+      </div>
+    }
+
+    @if (activeTab() === 'dashboard') {
+      <div class="panel">
+        <div class="section-subheading"><div><p class="overline">Procurement Signals</p><h3>Current status</h3></div></div>
+        @if (summary()?.metrics?.length) {
+          <div class="report-metric-grid">
+            @for (metric of summary()?.metrics; track metric.label) {
+              <article class="report-metric" [class.positive]="metric.tone === 'positive'" [class.critical]="metric.tone === 'negative'"><span>{{ metric.label }}</span><strong>{{ metric.value }}</strong></article>
+            }
+          </div>
+        } @else {
+          <kravia-empty-state label="Procurement" message="No information has been added yet." />
+        }
+      </div>
+    }
+
+    @if (activeTab() === 'vendors') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="vendorForm" (ngSubmit)="createVendor()">
+          <div class="section-subheading"><div><p class="overline">Vendor Master</p><h3>{{ editingVendorId() ? 'Edit vendor' : 'Add vendor' }}</h3></div></div>
+          <div class="form-grid compact-form-grid">
+            <label>Vendor name<input formControlName="vendorName"></label>
+            <label>Category<select formControlName="category">@for (category of categories; track category) { <option [value]="category">{{ label(category) }}</option> }</select></label>
+            <label>Contact person<input formControlName="contactPerson"></label>
+            <label>Phone<input formControlName="phone"></label>
+            <label>Email<input type="email" formControlName="email"></label>
+            <label>GSTIN<input formControlName="gstin"></label>
+            <label>PAN<input formControlName="pan"></label>
+            <label>Service type<input formControlName="serviceType"></label>
+            <label>Status<select formControlName="status">@for (status of statuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label>
+            <label class="full-span">Address<textarea formControlName="address"></textarea></label>
+            <label class="full-span">Notes<textarea formControlName="notes"></textarea></label>
+          </div>
+          <button class="primary-button" type="submit" [disabled]="vendorForm.invalid || saving()">{{ editingVendorId() ? 'Save vendor' : 'Add vendor' }}</button> @if (editingVendorId()) { <button class="secondary-button" type="button" (click)="resetVendorForm()">Cancel edit</button> }
+        </form>
+      }
+      <form class="panel enterprise-form" [formGroup]="vendorFilterForm" (ngSubmit)="load()">
+        <div class="form-grid compact-form-grid"><label>Search<input formControlName="query"></label><label>Category<select formControlName="category"><option value="">All categories</option>@for (category of categories; track category) { <option [value]="category">{{ label(category) }}</option> }</select></label><label>Status<select formControlName="status"><option value="">All statuses</option>@for (status of statuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label></div>
+        <button class="secondary-button" type="submit">Apply filters</button>
+      </form>
+      <div class="panel table-scroll">
+        @if (vendors().length === 0) { <kravia-empty-state label="Vendor Master" message="No vendors have been added yet." /> } @else {
+          <table><thead><tr><th>Vendor</th><th>Contact</th><th>Tax</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+            @for (vendor of vendors(); track vendor.id) { <tr><td>{{ vendor.vendorName }}<small>{{ label(vendor.category) }} - {{ vendor.serviceType || 'No information has been added yet.' }}</small></td><td>{{ vendor.contactPerson || 'No information has been added yet.' }}<small>{{ vendor.email || vendor.phone || 'No information has been added yet.' }}</small></td><td>{{ vendor.gstin || 'No GSTIN' }}<small>{{ vendor.pan || 'No PAN' }}</small></td><td><span class="status-badge">{{ label(vendor.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editVendor(vendor)">Edit</button> } @if (canArchive() && vendor.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('vendors', vendor.id)">Archive</button> }</td></tr> }
+          </tbody></table>
+        }
+      </div>
+    }
+
+    @if (activeTab() === 'requests') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="requestForm" (ngSubmit)="createRequest()">
+          <div class="section-subheading"><div><p class="overline">Purchase Requests</p><h3>{{ editingRequestId() ? 'Edit request' : 'Create request' }}</h3></div></div>
+          <div class="form-grid compact-form-grid"><label>Title<input formControlName="requestTitle"></label><label>Vendor<select formControlName="vendorId"><option value="">No vendor selected</option>@for (vendor of vendors(); track vendor.id) { <option [value]="vendor.id">{{ vendor.vendorName }}</option> }</select></label><label>Estimated amount<input type="number" min="0" step="0.01" formControlName="estimatedAmount"></label><label>Priority<select formControlName="priority">@for (priority of priorities; track priority) { <option [value]="priority">{{ label(priority) }}</option> }</select></label><label>Requested by<input formControlName="requestedBy"></label><label>Required date<input type="date" formControlName="requiredDate"></label><label>Status<select formControlName="status">@for (status of statuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label>Approval<select formControlName="approvalStatus">@for (status of statuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label class="full-span">Purpose<textarea formControlName="purpose"></textarea></label><label class="full-span">Notes<textarea formControlName="notes"></textarea></label></div>
+          <button class="primary-button" type="submit" [disabled]="requestForm.invalid || saving()">{{ editingRequestId() ? 'Save request' : 'Create request' }}</button> @if (editingRequestId()) { <button class="secondary-button" type="button" (click)="resetRequestForm()">Cancel edit</button> }
+        </form>
+      }
+      <div class="panel table-scroll">@if (requests().length === 0) { <kravia-empty-state label="Purchase Requests" message="No information has been added yet." /> } @else { <table><thead><tr><th>Request</th><th>Vendor</th><th>Required</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (request of requests(); track request.id) { <tr><td>{{ request.requestTitle }}<small>{{ request.purpose }}</small></td><td>{{ request.vendorName || 'No vendor selected' }}</td><td>{{ request.requiredDate || 'No information has been added yet.' }}</td><td>{{ currency(request.estimatedAmount) }}</td><td><span class="status-badge">{{ label(request.approvalStatus) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editRequest(request)">Edit</button> } @if (canArchive() && request.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('requests', request.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'orders') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="orderForm" (ngSubmit)="createOrder()"><div class="section-subheading"><div><p class="overline">Purchase Orders</p><h3>{{ editingOrderId() ? 'Edit PO' : 'Create PO' }}</h3></div></div><div class="form-grid compact-form-grid"><label>PO number<input formControlName="poNumber"></label><label>Vendor<select formControlName="vendorId"><option value="">Select vendor</option>@for (vendor of vendors(); track vendor.id) { <option [value]="vendor.id">{{ vendor.vendorName }}</option> }</select></label><label>Amount<input type="number" min="0" step="0.01" formControlName="amount"></label><label>Taxes<input type="number" min="0" step="0.01" formControlName="taxes"></label><label>Issue date<input type="date" formControlName="issueDate"></label><label>Due date<input type="date" formControlName="dueDate"></label><label>Status<select formControlName="status">@for (status of statuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label>Linked document ID<input formControlName="linkedDocumentId"></label><label class="full-span">Items / services<textarea formControlName="itemsOrServices"></textarea></label></div><button class="primary-button" type="submit" [disabled]="orderForm.invalid || saving()">{{ editingOrderId() ? 'Save purchase order' : 'Create purchase order' }}</button> @if (editingOrderId()) { <button class="secondary-button" type="button" (click)="resetOrderForm()">Cancel edit</button> }</form>
+      }
+      <div class="panel table-scroll">@if (orders().length === 0) { <kravia-empty-state label="Purchase Orders" message="No information has been added yet." /> } @else { <table><thead><tr><th>PO</th><th>Vendor</th><th>Due</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (order of orders(); track order.id) { <tr><td>{{ order.poNumber }}<small>{{ order.itemsOrServices }}</small></td><td>{{ order.vendorName || vendorName(order.vendorId) }}</td><td>{{ order.dueDate || 'No information has been added yet.' }}</td><td>{{ currency(order.totalAmount) }}</td><td><span class="status-badge">{{ label(order.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editOrder(order)">Edit</button> } @if (canArchive() && order.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('orders', order.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'bills') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="billForm" (ngSubmit)="createBill()"><div class="section-subheading"><div><p class="overline">Vendor Bills</p><h3>{{ editingBillId() ? 'Edit bill' : 'Add bill' }}</h3></div></div><div class="form-grid compact-form-grid"><label>Bill number<input formControlName="billNumber"></label><label>Vendor<select formControlName="vendorId"><option value="">Select vendor</option>@for (vendor of vendors(); track vendor.id) { <option [value]="vendor.id">{{ vendor.vendorName }}</option> }</select></label><label>Bill date<input type="date" formControlName="billDate"></label><label>Due date<input type="date" formControlName="dueDate"></label><label>Amount<input type="number" min="0" step="0.01" formControlName="amount"></label><label>GST<input type="number" min="0" step="0.01" formControlName="gst"></label><label>Payment status<select formControlName="paymentStatus">@for (status of statuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label>Linked PO<select formControlName="linkedPurchaseOrderId"><option value="">No PO linked</option>@for (order of orders(); track order.id) { <option [value]="order.id">{{ order.poNumber }}</option> }</select></label><label>Linked document ID<input formControlName="linkedDocumentId"></label><label>Linked payable ID<input formControlName="linkedFinancePayableId"></label></div><button class="primary-button" type="submit" [disabled]="billForm.invalid || saving()">{{ editingBillId() ? 'Save bill' : 'Add bill' }}</button> @if (editingBillId()) { <button class="secondary-button" type="button" (click)="resetBillForm()">Cancel edit</button> }</form>
+      }
+      <div class="panel table-scroll">@if (bills().length === 0) { <kravia-empty-state label="Vendor Bills" message="No information has been added yet." /> } @else { <table><thead><tr><th>Bill</th><th>Vendor</th><th>Due</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (bill of bills(); track bill.id) { <tr><td>{{ bill.billNumber }}<small>{{ bill.linkedFinancePayableId ? 'Finance payable linked' : 'No linked payable' }}</small></td><td>{{ bill.vendorName || vendorName(bill.vendorId) }}</td><td [class.negative-text]="overdue(bill.dueDate)">{{ bill.dueDate }}</td><td>{{ currency(bill.totalAmount) }}</td><td><span class="status-badge">{{ label(bill.paymentStatus) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editBill(bill)">Edit</button> } @if (canArchive() && bill.paymentStatus !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('bills', bill.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'subscriptions') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="subscriptionForm" (ngSubmit)="createSubscription()"><div class="section-subheading"><div><p class="overline">Subscriptions</p><h3>{{ editingSubscriptionId() ? 'Edit subscription' : 'Add subscription' }}</h3></div></div><div class="form-grid compact-form-grid"><label>Service name<input formControlName="serviceName"></label><label>Vendor<select formControlName="vendorId"><option value="">No vendor selected</option>@for (vendor of vendors(); track vendor.id) { <option [value]="vendor.id">{{ vendor.vendorName }}</option> }</select></label><label>Plan<input formControlName="plan"></label><label>Billing cycle<input formControlName="billingCycle"></label><label>Amount<input type="number" min="0" step="0.01" formControlName="amount"></label><label>Renewal date<input type="date" formControlName="renewalDate"></label><label>Owner<input formControlName="owner"></label><label>Status<select formControlName="status">@for (status of statuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label class="checkbox-label"><input type="checkbox" formControlName="autoRenewalEnabled"> Auto renewal enabled</label></div><button class="primary-button" type="submit" [disabled]="subscriptionForm.invalid || saving()">{{ editingSubscriptionId() ? 'Save subscription' : 'Add subscription' }}</button> @if (editingSubscriptionId()) { <button class="secondary-button" type="button" (click)="resetSubscriptionForm()">Cancel edit</button> }</form>
+      }
+      <div class="panel table-scroll">@if (subscriptions().length === 0) { <kravia-empty-state label="Subscriptions" message="No information has been added yet." /> } @else { <table><thead><tr><th>Service</th><th>Vendor</th><th>Renewal</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (subscription of subscriptions(); track subscription.id) { <tr><td>{{ subscription.serviceName }}<small>{{ subscription.plan || 'No information has been added yet.' }}</small></td><td>{{ subscription.vendorName || vendorName(subscription.vendorId) }}</td><td [class.negative-text]="overdue(subscription.renewalDate)">{{ subscription.renewalDate || 'No information has been added yet.' }}</td><td>{{ currency(subscription.amount) }}</td><td><span class="status-badge">{{ label(subscription.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editSubscription(subscription)">Edit</button> } @if (canArchive() && subscription.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('subscriptions', subscription.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'approvals') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="approvalForm" (ngSubmit)="createApproval()"><div class="section-subheading"><div><p class="overline">Procurement Approvals</p><h3>{{ editingApprovalId() ? 'Edit approval' : 'Create approval' }}</h3></div></div><div class="form-grid compact-form-grid"><label>Approval title<input formControlName="approvalTitle"></label><label>Type<input formControlName="approvalType"></label><label>Status<select formControlName="status">@for (status of statuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label>Approver<input formControlName="approver"></label><label>Approval date<input type="date" formControlName="approvalDate"></label><label>Linked record type<input formControlName="linkedRecordType"></label><label>Linked record ID<input formControlName="linkedRecordId"></label><label class="full-span">Approval notes<textarea formControlName="approvalNotes"></textarea></label><label class="full-span">Rejection reason<textarea formControlName="rejectionReason"></textarea></label></div><button class="primary-button" type="submit" [disabled]="approvalForm.invalid || saving()">{{ editingApprovalId() ? 'Save approval' : 'Create approval' }}</button> @if (editingApprovalId()) { <button class="secondary-button" type="button" (click)="resetApprovalForm()">Cancel edit</button> }</form>
+      }
+      <div class="panel table-scroll">@if (approvals().length === 0) { <kravia-empty-state label="Procurement Approvals" message="No information has been added yet." /> } @else { <table><thead><tr><th>Approval</th><th>Approver</th><th>Linked record</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (approval of approvals(); track approval.id) { <tr><td>{{ approval.approvalTitle }}<small>{{ approval.approvalType }}</small></td><td>{{ approval.approver || 'No information has been added yet.' }}</td><td>{{ approval.linkedRecordType || 'No information has been added yet.' }}<small>{{ approval.linkedRecordId || '' }}</small></td><td><span class="status-badge">{{ label(approval.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editApproval(approval)">Edit</button> } @if (canArchive() && approval.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('approvals', approval.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'documents') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="vendorDocumentForm" (ngSubmit)="createVendorDocument()"><div class="section-subheading"><div><p class="overline">Vendor Documents</p><h3>{{ editingVendorDocumentId() ? 'Edit document link' : 'Link document' }}</h3></div></div><div class="form-grid compact-form-grid"><label>Vendor<select formControlName="vendorId"><option value="">Select vendor</option>@for (vendor of vendors(); track vendor.id) { <option [value]="vendor.id">{{ vendor.vendorName }}</option> }</select></label><label>Document ID<input formControlName="documentId"></label><label>Purpose<input formControlName="documentPurpose"></label><label>Status<select formControlName="status">@for (status of statuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label></div><button class="primary-button" type="submit" [disabled]="vendorDocumentForm.invalid || saving()">{{ editingVendorDocumentId() ? 'Save document link' : 'Link document' }}</button> @if (editingVendorDocumentId()) { <button class="secondary-button" type="button" (click)="resetVendorDocumentForm()">Cancel edit</button> }</form>
+      }
+      <div class="panel table-scroll">@if (vendorDocuments().length === 0) { <kravia-empty-state label="Vendor Documents" message="No information has been added yet." /> } @else { <table><thead><tr><th>Vendor</th><th>Document</th><th>Purpose</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (document of vendorDocuments(); track document.id) { <tr><td>{{ document.vendorName || vendorName(document.vendorId) }}</td><td>{{ document.documentTitle || document.documentId }}</td><td>{{ document.documentPurpose || 'No information has been added yet.' }}</td><td><span class="status-badge">{{ label(document.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editVendorDocument(document)">Edit</button> } @if (canArchive() && document.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('documents', document.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'reports') {
+      <form class="panel enterprise-form" [formGroup]="reportForm" (ngSubmit)="generateReport()"><div class="section-subheading"><div><p class="overline">Procurement Reports</p><h3>Generate report</h3></div></div><div class="form-grid"><label>Report type<select formControlName="reportType">@for (type of reportTypes; track type) { <option [value]="type">{{ label(type) }}</option> }</select></label></div><button class="primary-button" type="submit">Generate report</button></form>
+      @if (report(); as report) {
+        <div class="panel report-preview"><div class="report-header"><div><p class="overline">Report Preview</p><h3>{{ label(report.reportType) }}</h3><p>Generated {{ report.generatedAt }}</p></div><button class="secondary-button" type="button" (click)="print()">Print</button></div>@if (report.metrics.length) { <div class="report-metric-grid">@for (metric of report.metrics; track metric.label) { <article class="report-metric" [class.positive]="metric.tone === 'positive'" [class.critical]="metric.tone === 'negative'"><span>{{ metric.label }}</span><strong>{{ metric.value }}</strong></article> }</div> } @else { <kravia-empty-state label="Procurement Report" message="No information has been added yet." /> } @if (report.notes.length) { <ul class="report-notes">@for (note of report.notes; track note) { <li>{{ note }}</li> }</ul> }</div>
+      }
+    }
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>

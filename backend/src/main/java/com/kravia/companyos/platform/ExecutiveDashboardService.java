@@ -21,6 +21,14 @@ import com.kravia.companyos.notification.NotificationRepository;
 import com.kravia.companyos.product.CompanyProduct;
 import com.kravia.companyos.product.ProductRepository;
 import com.kravia.companyos.product.ProductStatus;
+import com.kravia.companyos.procurement.ProcurementStatus;
+import com.kravia.companyos.procurement.ProcurementSubscription;
+import com.kravia.companyos.procurement.ProcurementSubscriptionRepository;
+import com.kravia.companyos.procurement.ProcurementVendorRepository;
+import com.kravia.companyos.procurement.PurchaseOrderRepository;
+import com.kravia.companyos.procurement.PurchaseRequestRepository;
+import com.kravia.companyos.procurement.VendorBill;
+import com.kravia.companyos.procurement.VendorBillRepository;
 import com.kravia.companyos.sales.LeadStage;
 import com.kravia.companyos.sales.SalesCustomerRepository;
 import com.kravia.companyos.sales.SalesLead;
@@ -52,6 +60,11 @@ public class ExecutiveDashboardService {
     private final WorkflowInstanceRepository workflows;
     private final SalesLeadRepository salesLeads;
     private final SalesCustomerRepository salesCustomers;
+    private final ProcurementVendorRepository procurementVendors;
+    private final PurchaseRequestRepository purchaseRequests;
+    private final PurchaseOrderRepository purchaseOrders;
+    private final VendorBillRepository vendorBills;
+    private final ProcurementSubscriptionRepository procurementSubscriptions;
     private final PermissionService permissions;
 
     public ExecutiveDashboardService(
@@ -67,6 +80,11 @@ public class ExecutiveDashboardService {
         WorkflowInstanceRepository workflows,
         SalesLeadRepository salesLeads,
         SalesCustomerRepository salesCustomers,
+        ProcurementVendorRepository procurementVendors,
+        PurchaseRequestRepository purchaseRequests,
+        PurchaseOrderRepository purchaseOrders,
+        VendorBillRepository vendorBills,
+        ProcurementSubscriptionRepository procurementSubscriptions,
         PermissionService permissions
     ) {
         this.companyProfiles = companyProfiles;
@@ -81,6 +99,11 @@ public class ExecutiveDashboardService {
         this.workflows = workflows;
         this.salesLeads = salesLeads;
         this.salesCustomers = salesCustomers;
+        this.procurementVendors = procurementVendors;
+        this.purchaseRequests = purchaseRequests;
+        this.purchaseOrders = purchaseOrders;
+        this.vendorBills = vendorBills;
+        this.procurementSubscriptions = procurementSubscriptions;
         this.permissions = permissions;
     }
 
@@ -108,6 +131,14 @@ public class ExecutiveDashboardService {
         long wonCustomers = salesCustomers.findAll().stream().filter(customer -> customer.getArchivedAt() == null).count();
         long lostLeads = leadRecords.stream().filter(lead -> lead.getArchivedAt() == null && lead.getStage() == LeadStage.LOST).count();
         long followUpsDue = leadRecords.stream().filter(this::isFollowUpDue).count();
+        LocalDate today = LocalDate.now();
+        LocalDate nextMonth = today.plusDays(30);
+        long activeVendors = procurementVendors.findAll().stream().filter(vendor -> vendor.getArchivedAt() == null && vendor.getStatus() == ProcurementStatus.ACTIVE).count();
+        long pendingPurchaseRequests = purchaseRequests.findAll().stream().filter(request -> request.getArchivedAt() == null && request.getApprovalStatus() == ProcurementStatus.PENDING_APPROVAL).count();
+        long approvedPurchaseOrders = purchaseOrders.findAll().stream().filter(order -> order.getArchivedAt() == null && order.getStatus() == ProcurementStatus.APPROVED).count();
+        long unpaidVendorBills = vendorBills.findAll().stream().filter(this::isUnpaidVendorBill).count();
+        long upcomingSubscriptionRenewals = procurementSubscriptions.findAll().stream().filter(subscription -> isUpcomingSubscriptionRenewal(subscription, today, nextMonth)).count();
+        long overduePayments = vendorBills.findAll().stream().filter(bill -> isUnpaidVendorBill(bill) && bill.getDueDate().isBefore(today)).count();
 
         List<ExecutiveDashboardResponse.DashboardMetric> metrics = List.of(
             new ExecutiveDashboardResponse.DashboardMetric("Pending approvals", pendingApprovalCount),
@@ -122,7 +153,13 @@ public class ExecutiveDashboardService {
             new ExecutiveDashboardResponse.DashboardMetric("Proposals sent", proposalsSent),
             new ExecutiveDashboardResponse.DashboardMetric("Won customers", wonCustomers),
             new ExecutiveDashboardResponse.DashboardMetric("Lost leads", lostLeads),
-            new ExecutiveDashboardResponse.DashboardMetric("Follow-ups due", followUpsDue)
+            new ExecutiveDashboardResponse.DashboardMetric("Follow-ups due", followUpsDue),
+            new ExecutiveDashboardResponse.DashboardMetric("Active vendors", activeVendors),
+            new ExecutiveDashboardResponse.DashboardMetric("Pending purchase requests", pendingPurchaseRequests),
+            new ExecutiveDashboardResponse.DashboardMetric("Approved purchase orders", approvedPurchaseOrders),
+            new ExecutiveDashboardResponse.DashboardMetric("Unpaid vendor bills", unpaidVendorBills),
+            new ExecutiveDashboardResponse.DashboardMetric("Upcoming subscription renewals", upcomingSubscriptionRenewals),
+            new ExecutiveDashboardResponse.DashboardMetric("Overdue payments", overduePayments)
         );
 
         return new ExecutiveDashboardResponse(
@@ -265,6 +302,21 @@ public class ExecutiveDashboardService {
         return isActiveOpportunity(lead)
             && lead.getNextFollowUpDate() != null
             && !lead.getNextFollowUpDate().isAfter(LocalDate.now());
+    }
+
+    private boolean isUnpaidVendorBill(VendorBill bill) {
+        return bill.getArchivedAt() == null
+            && bill.getDueDate() != null
+            && (bill.getPaymentStatus() == ProcurementStatus.UNPAID || bill.getPaymentStatus() == ProcurementStatus.OVERDUE);
+    }
+
+    private boolean isUpcomingSubscriptionRenewal(ProcurementSubscription subscription, LocalDate today, LocalDate nextMonth) {
+        return subscription.getArchivedAt() == null
+            && subscription.getRenewalDate() != null
+            && !subscription.getRenewalDate().isBefore(today)
+            && !subscription.getRenewalDate().isAfter(nextMonth)
+            && subscription.getStatus() != ProcurementStatus.ARCHIVED
+            && subscription.getStatus() != ProcurementStatus.CANCELLED;
     }
 
     private boolean isOverdueCompliance(ComplianceItem item) {
