@@ -27,7 +27,8 @@ export const routes: Routes = [
     component: ShellComponent,
     canActivate: [authGuard],
     children: [
-      { path: '', pathMatch: 'full', redirectTo: 'company-profile' },
+      { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+      { path: 'dashboard', loadComponent: () => import('./dashboard/executive-dashboard.component').then((m) => m.ExecutiveDashboardComponent), title: 'Executive Dashboard' },
       { path: 'company-profile', component: CompanyProfileComponent, title: 'Company Profile' },
       { path: 'documents', component: DocumentsComponent, title: 'Documents' },
       { path: 'board-meetings', component: BoardMeetingsComponent, title: 'Board Meetings' },

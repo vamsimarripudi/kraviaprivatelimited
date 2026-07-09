@@ -17,6 +17,7 @@ export class ShellComponent {
   readonly user = this.auth.user;
   readonly roles = this.auth.roles;
   readonly navItems: NavItem[] = [
+    { label: 'Executive Dashboard', path: '/dashboard' },
     { label: 'Company Profile', path: '/company-profile' },
     { label: 'Documents', path: '/documents' },
     { label: 'Board Meetings', path: '/board-meetings' },

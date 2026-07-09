@@ -1,0 +1,133 @@
+<section class="portal-section">
+  <div class="section-heading">
+    <div>
+      <p class="overline">ERP Control Plane</p>
+      <h2>Executive Dashboard</h2>
+      <p>Unified operating view across company profile, finance, compliance, meetings, tasks, products, documents, notifications, and workflows.</p>
+    </div>
+    <button class="secondary-button" type="button" (click)="load()">Refresh</button>
+  </div>
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading executive dashboard..." />
+  } @else if (dashboard()) {
+    @let data = dashboard()!;
+
+    <div class="detail-grid">
+      <article class="detail-card wide">
+        <span>Company</span>
+        <strong>{{ data.companyOverview.companyName || 'No information has been added yet.' }}</strong>
+      </article>
+      <article class="detail-card">
+        <span>Status</span>
+        <strong>{{ data.companyOverview.companyStatus || 'No information has been added yet.' }}</strong>
+      </article>
+      <article class="detail-card">
+        <span>Last updated</span>
+        <strong>{{ formatDate(data.companyOverview.updatedAt) }}</strong>
+      </article>
+    </div>
+
+    <div class="task-summary-grid executive-summary-grid">
+      @for (metric of data.metrics; track metric.label) {
+        <article class="task-card">
+          <span>{{ metric.label }}</span>
+          <strong>{{ metric.value }}</strong>
+        </article>
+      }
+    </div>
+
+    <section class="panel">
+      <div class="section-subheading">
+        <div>
+          <p class="overline">Financial Highlights</p>
+          <h3>{{ data.financialHighlights.available ? data.financialHighlights.reportingMonth : 'No financial record available' }}</h3>
+        </div>
+      </div>
+      @if (!data.financialHighlights.available) {
+        <kravia-empty-state label="Financial Dashboard" message="No financial records have been added yet." />
+      } @else {
+        <div class="detail-grid compact">
+          <article class="detail-card"><span>Revenue</span><strong>{{ formatMoney(data.financialHighlights.revenue) }}</strong></article>
+          <article class="detail-card"><span>Expenses</span><strong>{{ formatMoney(data.financialHighlights.expenses) }}</strong></article>
+          <article class="detail-card"><span>Profit / Loss</span><strong>{{ formatMoney(data.financialHighlights.profitOrLoss) }}</strong></article>
+          <article class="detail-card"><span>Cash balance</span><strong>{{ formatMoney(data.financialHighlights.cashBalance) }}</strong></article>
+          <article class="detail-card"><span>Net GST position</span><strong>{{ formatMoney(data.financialHighlights.netGstPosition) }}</strong></article>
+        </div>
+      }
+    </section>
+
+    <section class="panel">
+      <div class="section-subheading">
+        <div>
+          <p class="overline">Product Progress</p>
+          <h3>Portfolio readiness</h3>
+        </div>
+      </div>
+      <div class="detail-grid compact">
+        <article class="detail-card"><span>Active products</span><strong>{{ data.productProgress.activeProducts }}</strong></article>
+        <article class="detail-card"><span>Launch ready</span><strong>{{ data.productProgress.launchReadyProducts }}</strong></article>
+        <article class="detail-card"><span>Products with risks</span><strong>{{ data.productProgress.productsWithRisks }}</strong></article>
+        <article class="detail-card"><span>Average readiness</span><strong>{{ data.productProgress.averageLaunchReadiness }}%</strong></article>
+      </div>
+    </section>
+
+    <div class="executive-activity-grid">
+      <ng-container *ngTemplateOutlet="listPanel; context: { title: 'Pending Approvals', eyebrow: 'Workflows', items: data.pendingApprovals }"></ng-container>
+      <ng-container *ngTemplateOutlet="listPanel; context: { title: 'Compliance Alerts', eyebrow: 'Due items', items: data.complianceAlerts }"></ng-container>
+      <ng-container *ngTemplateOutlet="listPanel; context: { title: 'Upcoming Meetings', eyebrow: 'Board and founder calendar', items: data.upcomingMeetings }"></ng-container>
+      <ng-container *ngTemplateOutlet="listPanel; context: { title: 'Open Tasks', eyebrow: 'Execution', items: data.openTasks }"></ng-container>
+      <ng-container *ngTemplateOutlet="listPanel; context: { title: 'Recent Documents', eyebrow: 'Document Vault', items: data.recentDocuments }"></ng-container>
+      <ng-container *ngTemplateOutlet="listPanel; context: { title: 'Notifications', eyebrow: 'Attention', items: data.notifications }"></ng-container>
+    </div>
+
+    <section class="panel">
+      <div class="section-subheading">
+        <div>
+          <p class="overline">AI Insights</p>
+          <h3>Stored-data signals</h3>
+        </div>
+      </div>
+      <div class="activity-list">
+        @for (insight of data.aiInsights; track insight) {
+          <article class="activity-item"><strong>{{ insight }}</strong></article>
+        }
+      </div>
+    </section>
+  } @else {
+    <kravia-empty-state label="Executive Dashboard" message="No information has been added yet." />
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+</section>
+
+<ng-template #listPanel let-title="title" let-eyebrow="eyebrow" let-items="items">
+  <section class="panel activity-panel">
+    <div class="section-subheading">
+      <div>
+        <p class="overline">{{ eyebrow }}</p>
+        <h3>{{ title }}</h3>
+      </div>
+    </div>
+    @if (items.length === 0) {
+      <p class="muted-copy">No information has been added yet.</p>
+    } @else {
+      <div class="activity-list">
+        @for (item of items; track item.id) {
+          @if (routeFor(item); as route) {
+            <a class="activity-item" [routerLink]="route">
+              <strong>{{ item.title }}</strong>
+              <span>{{ item.status }} @if (item.dateLabel) { - {{ formatDate(item.dateLabel) }} }</span>
+            </a>
+          } @else {
+            <article class="activity-item">
+              <strong>{{ item.title }}</strong>
+              <span>{{ item.status }} @if (item.dateLabel) { - {{ formatDate(item.dateLabel) }} }</span>
+            </article>
+          }
+        }
+      </div>
+    }
+  </section>
+</ng-template>
+

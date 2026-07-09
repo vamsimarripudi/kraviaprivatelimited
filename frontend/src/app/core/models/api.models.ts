@@ -540,3 +540,54 @@ export interface AuditLogRecord {
   severity: string;
   createdAt: string;
 }
+
+export interface ExecutiveDashboard {
+  companyOverview: DashboardCompanyOverview;
+  financialHighlights: DashboardFinancialHighlights;
+  metrics: DashboardMetric[];
+  pendingApprovals: DashboardItem[];
+  complianceAlerts: DashboardItem[];
+  upcomingMeetings: DashboardItem[];
+  openTasks: DashboardItem[];
+  productProgress: ProductProgressSummary;
+  recentDocuments: DashboardItem[];
+  notifications: DashboardItem[];
+  aiInsights: string[];
+}
+
+export interface DashboardCompanyOverview {
+  companyName?: string;
+  companyStatus?: string;
+  updatedAt?: string;
+}
+
+export interface DashboardFinancialHighlights {
+  available: boolean;
+  reportingMonth?: string;
+  revenue?: number;
+  expenses?: number;
+  profitOrLoss?: number;
+  cashBalance?: number;
+  netGstPosition?: number;
+}
+
+export interface DashboardMetric {
+  label: string;
+  value: number;
+}
+
+export interface DashboardItem {
+  id: string;
+  module: string;
+  title: string;
+  status: string;
+  dateLabel?: string;
+}
+
+export interface ProductProgressSummary {
+  totalProducts: number;
+  activeProducts: number;
+  launchReadyProducts: number;
+  productsWithRisks: number;
+  averageLaunchReadiness: number;
+}
