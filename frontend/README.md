@@ -34,6 +34,9 @@ The dev server proxies `/api` to `http://localhost:8080` through `proxy.conf.jso
 - Finance
 - Audit Logs
 
+## Contacts & Partners UI
+
+The Contacts page includes summary cards, search, category/status filters, add/edit contact forms, follow-up due indicators, professional contact table, detail view, founder-only archive actions, and the empty state `No contacts have been added yet.`. Company Profile also shows contact summary cards for important contacts, follow-ups due, waiting responses, and active partners.
 ## Products Portfolio UI
 
 The Products page includes summary cards, search, status/development-stage filters, add/edit product forms, launch readiness progress indicators, product table, detail view, risk and milestone sections, founder-only archive actions, and the empty state `No product records have been added yet.`. Company Profile also shows product summary cards for active, launch-ready, paused, and risk-bearing products.
@@ -57,6 +60,6 @@ The Board Meetings page includes create/edit forms, search, meeting type/status 
 
 ## Role Behavior
 
-- Founder: can view and edit company profile; can upload, edit, download, and archive documents; can create, edit, and archive board meetings; can create, edit, and archive financial records; can create, edit, and archive compliance items; can create, edit, complete, and archive tasks; can create, edit, and archive products; can view audit logs.
-- Director: can view and edit company profile; can upload, edit, and download documents; can create and edit board meetings; can create and edit financial records; can create and edit compliance items; can create, edit, and complete tasks; can create and edit products; can view audit logs.
-- Viewer: can view company profile, view/download documents, read board meetings, read financial records, read compliance items, read tasks, and read products only.
+- Founder: can view and edit company profile; can upload, edit, download, and archive documents; can create, edit, and archive board meetings; can create, edit, and archive financial records; can create, edit, and archive compliance items; can create, edit, complete, and archive tasks; can create, edit, and archive products; can create, edit, and archive contacts; can view audit logs.
+- Director: can view and edit company profile; can upload, edit, and download documents; can create and edit board meetings; can create and edit financial records; can create and edit compliance items; can create, edit, and complete tasks; can create and edit products; can create and edit contacts; can view audit logs.
+- Viewer: can view company profile, view/download documents, read board meetings, read financial records, read compliance items, read tasks, read products, and read contacts only.

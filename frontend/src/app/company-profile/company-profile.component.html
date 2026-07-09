@@ -28,6 +28,15 @@
       </article>
     }
   </div>
+
+  <div class="contact-summary-grid executive-summary-grid">
+    @for (card of contactSummaryCards(); track card.label) {
+      <article class="contact-card" [class.warning]="card.tone === 'warning'" [class.critical]="card.tone === 'critical'" [class.positive]="card.tone === 'positive'">
+        <span>{{ card.label }}</span>
+        <strong>{{ card.value }}</strong>
+      </article>
+    }
+  </div>
   @if (loading()) {
     <kravia-loading-state message="Loading company profile..." />
   } @else if (editing()) {

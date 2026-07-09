@@ -1,7 +1,7 @@
 import { HttpClient, HttpEvent, HttpParams, HttpRequest, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { AuditLogRecord, BoardMeetingRecord, BoardMeetingRequest, CompanyProfile, CompanyTask, CompanyTaskRequest, ComplianceCategory, ComplianceItem, ComplianceItemRequest, CompliancePriority, ComplianceStatus, DocumentCategory, DocumentMetadataRequest, DocumentRecord, DocumentStatus, FinancialRecord, FinancialRecordRequest, MeetingActionItemRecord, MeetingActionItemRequest, MeetingStatus, MeetingType, ProductRecord, ProductRequest, ProductStatus, TaskCategory, TaskPriority, TaskStatus, TaskStatusRequest } from '../models/api.models';
+import { AuditLogRecord, BoardMeetingRecord, BoardMeetingRequest, CompanyProfile, CompanyTask, CompanyTaskRequest, ContactCategory, ContactRecord, ContactRequest, ContactStatus, ComplianceCategory, ComplianceItem, ComplianceItemRequest, CompliancePriority, ComplianceStatus, DocumentCategory, DocumentMetadataRequest, DocumentRecord, DocumentStatus, FinancialRecord, FinancialRecordRequest, MeetingActionItemRecord, MeetingActionItemRequest, MeetingStatus, MeetingType, ProductRecord, ProductRequest, ProductStatus, TaskCategory, TaskPriority, TaskStatus, TaskStatusRequest } from '../models/api.models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -152,4 +152,23 @@ export class ApiService {
   }
 
   archiveProduct(id: string): Observable<void> { return this.http.delete<void>(`/api/products/${id}`); }
+  contacts(filters: { query?: string; category?: ContactCategory | ''; status?: ContactStatus | '' }): Observable<ContactRecord[]> {
+    let params = new HttpParams();
+    if (filters.query?.trim()) params = params.set('query', filters.query.trim());
+    if (filters.category) params = params.set('category', filters.category);
+    if (filters.status) params = params.set('status', filters.status);
+    return this.http.get<ContactRecord[]>('/api/contacts', { params });
+  }
+
+  contact(id: string): Observable<ContactRecord> { return this.http.get<ContactRecord>(`/api/contacts/${id}`); }
+
+  createContact(payload: ContactRequest): Observable<ContactRecord> {
+    return this.http.post<ContactRecord>('/api/contacts', payload);
+  }
+
+  updateContact(id: string, payload: ContactRequest): Observable<ContactRecord> {
+    return this.http.put<ContactRecord>(`/api/contacts/${id}`, payload);
+  }
+
+  archiveContact(id: string): Observable<void> { return this.http.delete<void>(`/api/contacts/${id}`); }
 }

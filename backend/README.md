@@ -55,6 +55,16 @@ Optional:
 - `KRAVIA_DOCUMENT_MULTIPART_MAX_SIZE`
 - `KRAVIA_DOCUMENT_MULTIPART_MAX_REQUEST_SIZE`
 
+## Contacts & Partners
+
+Contact records are stored in `contacts`. The backend enforces Founder/Director write access, Founder-only archive access, and Viewer read-only access. The service calculates follow-up due indicators from each contact next follow-up date on read.
+
+Contact actions write audit logs:
+
+- `CONTACT_CREATED`
+- `CONTACT_UPDATED`
+- `CONTACT_STATUS_CHANGED`
+- `CONTACT_ARCHIVED`
 ## Products Portfolio
 
 Product records are stored in `products`. The backend enforces Founder/Director write access, Founder-only archive access, and Viewer read-only access. Product status, development stage, launch readiness, risks, milestone, and ownership are persisted without seeded dummy records.

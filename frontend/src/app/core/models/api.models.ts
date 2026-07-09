@@ -318,6 +318,46 @@ export interface ProductRequest {
   nextMilestone?: string;
   responsiblePerson?: string;
 }
+export type ContactCategory = 'CA' | 'LAWYER' | 'BANK_MANAGER' | 'VENDOR' | 'INVESTOR' | 'GOVERNMENT_CONTACT' | 'CUSTOMER' | 'ADVISOR' | 'CONSULTANT' | 'OTHER';
+
+export type ContactStatus = 'ACTIVE' | 'WAITING' | 'FOLLOW_UP_NEEDED' | 'CLOSED' | 'ARCHIVED';
+
+export interface ContactRecord {
+  id: string;
+  name: string;
+  organization?: string;
+  role?: string;
+  category: ContactCategory;
+  phone?: string;
+  email?: string;
+  notes?: string;
+  relatedDocumentId?: string;
+  relatedTaskId?: string;
+  lastContactedDate?: string;
+  nextFollowUpDate?: string;
+  status: ContactStatus;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  archivedAt?: string;
+  followUpDue: boolean;
+  daysUntilFollowUp?: number;
+}
+
+export interface ContactRequest {
+  name: string;
+  organization?: string;
+  role?: string;
+  category: ContactCategory;
+  phone?: string;
+  email?: string;
+  notes?: string;
+  relatedDocumentId?: string;
+  relatedTaskId?: string;
+  lastContactedDate?: string;
+  nextFollowUpDate?: string;
+  status: ContactStatus;
+}
 export interface AuditLogRecord {
   id: string;
   actorEmail: string;

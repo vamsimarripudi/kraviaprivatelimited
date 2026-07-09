@@ -72,11 +72,17 @@ Frontend runs at `http://localhost:4200` and proxies `/api` to Spring Boot.
 
 ## Role Checks
 
-- Founder can view and edit company profile, upload/download/edit/archive documents, create/edit/archive board meetings, create/edit/archive financial records, create/edit/archive compliance items, create/edit/complete/archive tasks, create/edit/archive products, and view audit logs.
-- Director can view and edit company profile, upload/download/edit documents, create/edit board meetings, create/edit financial records, create/edit compliance items, create/edit/complete tasks, create/edit products, and view audit logs.
-- Viewer can view company profile, view/download documents, read board meetings, read financial records, and read compliance items, read tasks, and read products only.
+- Founder can view and edit company profile, upload/download/edit/archive documents, create/edit/archive board meetings, create/edit/archive financial records, create/edit/archive compliance items, create/edit/complete/archive tasks, create/edit/archive products, create/edit/archive contacts, and view audit logs.
+- Director can view and edit company profile, upload/download/edit documents, create/edit board meetings, create/edit financial records, create/edit compliance items, create/edit/complete tasks, create/edit products, create/edit contacts, and view audit logs.
+- Viewer can view company profile, view/download documents, read board meetings, read financial records, and read compliance items, read tasks, read products, and read contacts only.
 - Audit Logs route is visible only to Founder and Director.
 
+## Contacts & Partners Checks
+
+- Contact create/update rejects missing name, category, status, missing contact method, invalid email, and missing next follow-up date when follow-up is needed.
+- Search, category filter, status filter, and follow-up-date sorting are handled by the backend.
+- Follow-up due indicators are calculated by the backend from the next follow-up date.
+- Contact APIs are protected by backend role checks; Viewer users are read-only.
 ## Products Portfolio Checks
 
 - Product create/update rejects missing name, category, status, development stage, invalid launch readiness values, and missing responsible person for active products.

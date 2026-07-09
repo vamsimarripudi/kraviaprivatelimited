@@ -206,6 +206,55 @@ Financial record create/update requests include:
 
 The backend calculates `profitOrLoss = revenue - expenses` and `netGstPosition = gstCollected - gstPaid` for every create and update request.
 
+## Contacts & Partners
+
+| Method | Path | Access | Purpose |
+| --- | --- | --- | --- |
+| POST | `/contacts` | Founder, Director | Create a contact record |
+| GET | `/contacts` | Founder, Director, Viewer | List contacts with optional search/category/status filters |
+| GET | `/contacts/{id}` | Founder, Director, Viewer | View contact details |
+| PUT | `/contacts/{id}` | Founder, Director | Update a contact record |
+| DELETE | `/contacts/{id}` | Founder | Archive a contact record |
+
+### Contact Filters
+
+- `query`: searches name, organization, role, email, phone, and notes.
+- `category`: one of the configured contact category enum values.
+- `status`: `ACTIVE`, `WAITING`, `FOLLOW_UP_NEEDED`, `CLOSED`, or `ARCHIVED`.
+
+Results are sorted by next follow-up date ascending, with contacts that have no follow-up date after dated contacts.
+
+### Contact Categories
+
+- `CA`
+- `LAWYER`
+- `BANK_MANAGER`
+- `VENDOR`
+- `INVESTOR`
+- `GOVERNMENT_CONTACT`
+- `CUSTOMER`
+- `ADVISOR`
+- `CONSULTANT`
+- `OTHER`
+
+### Contact Payload Fields
+
+Contact create/update requests include:
+
+- `name` required
+- `organization` optional
+- `role` optional
+- `category` required
+- `phone` optional, but phone or email is required
+- `email` optional, but phone or email is required and email must be valid if supplied
+- `notes` optional
+- `relatedDocumentId` optional UUID
+- `relatedTaskId` optional UUID
+- `lastContactedDate` optional
+- `nextFollowUpDate` required when status is `FOLLOW_UP_NEEDED`
+- `status` required
+
+Responses include computed `followUpDue` and `daysUntilFollowUp` fields.
 ## Products Portfolio
 
 | Method | Path | Access | Purpose |
@@ -377,6 +426,7 @@ Financial record actions create audit entries with module `FINANCIAL_RECORDS` an
 Compliance actions create audit entries with module `COMPLIANCE_CENTER` and actions `COMPLIANCE_ITEM_CREATED`, `COMPLIANCE_ITEM_UPDATED`, `COMPLIANCE_STATUS_CHANGED`, and `COMPLIANCE_ITEM_ARCHIVED`.
 Task actions create audit entries with module `COMPANY_TASKS` and actions `TASK_CREATED`, `TASK_UPDATED`, `TASK_STATUS_CHANGED`, `TASK_COMPLETED`, and `TASK_ARCHIVED`.
 Product actions create audit entries with module `PRODUCTS_PORTFOLIO` and actions `PRODUCT_CREATED`, `PRODUCT_UPDATED`, `PRODUCT_STATUS_CHANGED`, and `PRODUCT_ARCHIVED`.
+Contact actions create audit entries with module `CONTACTS_PARTNERS` and actions `CONTACT_CREATED`, `CONTACT_UPDATED`, `CONTACT_STATUS_CHANGED`, and `CONTACT_ARCHIVED`.
 
 ## Database Tables
 
@@ -403,6 +453,7 @@ Product actions create audit entries with module `PRODUCTS_PORTFOLIO` and action
 - No dummy compliance records or statutory obligations are seeded.
 - No dummy task records are seeded.
 - No dummy product records or product metrics are seeded.
+- No dummy contact or partner records are seeded.
 - The migration inserts only role names: `FOUNDER`, `DIRECTOR`, `VIEWER`.
 - The only user bootstrap is the optional founder account from environment variables.
 - Document files are stored in private local storage for development and downloaded only through protected APIs.

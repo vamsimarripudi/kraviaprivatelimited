@@ -1,0 +1,228 @@
+<section class="portal-section">
+  <div class="section-heading">
+    <div>
+      <p class="overline">Contacts & Partners</p>
+      <h2>Company Relationship Register</h2>
+      <p>Track advisors, legal partners, banking contacts, vendors, investors, customers, and follow-up ownership.</p>
+    </div>
+  </div>
+
+  <div class="contact-summary-grid">
+    @for (card of summaryCards(); track card.label) {
+      <article class="contact-card" [class.warning]="card.tone === 'warning'" [class.critical]="card.tone === 'critical'" [class.positive]="card.tone === 'positive'">
+        <span>{{ card.label }}</span>
+        <strong>{{ card.value }}</strong>
+      </article>
+    }
+  </div>
+
+  @if (canEdit()) {
+    <form class="panel enterprise-form" [formGroup]="form" (ngSubmit)="submit()">
+      <div class="section-subheading">
+        <div>
+          <p class="overline">{{ editingId() ? 'Edit' : 'Create' }}</p>
+          <h3>{{ editingId() ? 'Edit contact' : 'Add contact' }}</h3>
+        </div>
+        @if (editingId()) {
+          <button class="secondary-button" type="button" (click)="cancelEdit()">Cancel edit</button>
+        }
+      </div>
+
+      <div class="form-grid">
+        <label>
+          Name
+          <input type="text" formControlName="name" autocomplete="off">
+        </label>
+        <label>
+          Organization
+          <input type="text" formControlName="organization" autocomplete="off">
+        </label>
+        <label>
+          Role
+          <input type="text" formControlName="role" autocomplete="off">
+        </label>
+        <label>
+          Category
+          <select formControlName="category">
+            @for (category of categories; track category.value) {
+              <option [value]="category.value">{{ category.label }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Phone
+          <input type="tel" formControlName="phone" autocomplete="off">
+        </label>
+        <label>
+          Email
+          <input type="email" formControlName="email" autocomplete="off">
+        </label>
+        <label>
+          Last contacted date
+          <input type="date" formControlName="lastContactedDate">
+        </label>
+        <label>
+          Next follow-up date
+          <input type="date" formControlName="nextFollowUpDate">
+        </label>
+        <label>
+          Status
+          <select formControlName="status">
+            @for (status of statuses; track status.value) {
+              @if (canArchive() || status.value !== 'ARCHIVED') {
+                <option [value]="status.value">{{ status.label }}</option>
+              }
+            }
+          </select>
+        </label>
+        <label>
+          Related document ID
+          <input type="text" formControlName="relatedDocumentId" autocomplete="off">
+        </label>
+        <label>
+          Related task ID
+          <input type="text" formControlName="relatedTaskId" autocomplete="off">
+        </label>
+        <label class="full-span">
+          Notes
+          <textarea formControlName="notes"></textarea>
+        </label>
+      </div>
+
+      @if (form.controls.name.invalid && form.controls.name.touched) {
+        <p class="form-error">Name is required.</p>
+      }
+      @if (form.controls.email.invalid && form.controls.email.touched) {
+        <p class="form-error">Enter a valid email address.</p>
+      }
+      @if (!form.controls.phone.value.trim() && !form.controls.email.value.trim() && form.touched) {
+        <p class="form-error">At least one contact method is required.</p>
+      }
+      @if (form.controls.status.value === 'FOLLOW_UP_NEEDED' && !form.controls.nextFollowUpDate.value && form.touched) {
+        <p class="form-error">Next follow-up date is required when follow-up is needed.</p>
+      }
+      <div class="form-actions">
+        <button class="primary-button" type="submit" [disabled]="form.invalid">{{ editingId() ? 'Save contact' : 'Add contact' }}</button>
+      </div>
+    </form>
+  } @else {
+    <p class="access-note">Viewer role can read contacts only.</p>
+  }
+
+  <div class="panel toolbar-panel contact-toolbar">
+    <label>
+      Search contacts
+      <input type="search" [value]="query()" (input)="applySearch($any($event.target).value)" placeholder="Search name, organization, email">
+    </label>
+    <label>
+      Category
+      <select [value]="category()" (change)="applyCategory($any($event.target).value)">
+        <option value="">All categories</option>
+        @for (category of categories; track category.value) {
+          <option [value]="category.value">{{ category.label }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Status
+      <select [value]="status()" (change)="applyStatus($any($event.target).value)">
+        <option value="">All statuses</option>
+        @for (status of statuses; track status.value) {
+          <option [value]="status.value">{{ status.label }}</option>
+        }
+      </select>
+    </label>
+    @if (activeFilters()) {
+      <button class="secondary-button" type="button" (click)="clearFilters()">Clear filters</button>
+    }
+  </div>
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading contacts..." />
+  } @else if (contacts().length === 0) {
+    <kravia-empty-state label="Contacts & Partners" message="No contacts have been added yet." />
+  } @else {
+    <div class="contact-layout">
+      <div class="panel table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Contact</th>
+              <th>Category</th>
+              <th>Organization</th>
+              <th>Status</th>
+              <th>Follow-up</th>
+              <th>Contact method</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (contact of contacts(); track contact.id) {
+              <tr [class.is-selected]="selected()?.id === contact.id">
+                <td>
+                  <button class="text-button" type="button" (click)="select(contact)">{{ contact.name }}</button>
+                  <small>{{ emptyText(contact.role) }}</small>
+                </td>
+                <td><span class="category-badge">{{ categoryLabel(contact.category) }}</span></td>
+                <td>{{ emptyText(contact.organization) }}</td>
+                <td><span class="status-badge">{{ statusLabel(contact.status) }}</span></td>
+                <td><span class="follow-up-indicator" [class.overdue]="contact.followUpDue">{{ followUpLabel(contact) }}</span></td>
+                <td>
+                  <span>{{ emptyText(contact.phone) }}</span>
+                  <small>{{ emptyText(contact.email) }}</small>
+                </td>
+                <td>
+                  <div class="row-actions">
+                    <button class="secondary-button" type="button" (click)="select(contact)">View</button>
+                    @if (canEditContact(contact)) {
+                      <button class="secondary-button" type="button" (click)="startEdit(contact)">Edit</button>
+                    }
+                    @if (canArchive() && contact.status !== 'ARCHIVED') {
+                      <button class="secondary-button" type="button" (click)="archive(contact)">Archive</button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (selected(); as contact) {
+        <aside class="panel contact-detail">
+          <div class="meeting-detail-header">
+            <div>
+              <p class="overline">Contact Detail</p>
+              <h3>{{ contact.name }}</h3>
+              <p>{{ categoryLabel(contact.category) }}</p>
+            </div>
+            <span class="status-badge">{{ statusLabel(contact.status) }}</span>
+          </div>
+
+          <dl class="metadata-list">
+            <div><dt>Organization</dt><dd>{{ emptyText(contact.organization) }}</dd></div>
+            <div><dt>Role</dt><dd>{{ emptyText(contact.role) }}</dd></div>
+            <div><dt>Phone</dt><dd>{{ emptyText(contact.phone) }}</dd></div>
+            <div><dt>Email</dt><dd>{{ emptyText(contact.email) }}</dd></div>
+            <div><dt>Last contacted</dt><dd>{{ formatDate(contact.lastContactedDate) }}</dd></div>
+            <div><dt>Next follow-up</dt><dd>{{ followUpLabel(contact) }}</dd></div>
+            <div><dt>Related document</dt><dd>{{ emptyText(contact.relatedDocumentId) }}</dd></div>
+            <div><dt>Related task</dt><dd>{{ emptyText(contact.relatedTaskId) }}</dd></div>
+            <div><dt>Created by</dt><dd>{{ contact.createdBy }}</dd></div>
+            <div><dt>Created</dt><dd>{{ formatDateTime(contact.createdAt) }}</dd></div>
+            <div><dt>Last updated</dt><dd>{{ formatDateTime(contact.updatedAt) }}</dd></div>
+            @if (contact.archivedAt) { <div><dt>Archived</dt><dd>{{ formatDateTime(contact.archivedAt) }}</dd></div> }
+          </dl>
+
+          <details class="contact-notes" open>
+            <summary>Notes</summary>
+            <p>{{ emptyText(contact.notes) }}</p>
+          </details>
+        </aside>
+      }
+    </div>
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>

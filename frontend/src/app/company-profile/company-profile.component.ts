@@ -2,7 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ApiService } from '../core/http/api.service';
 import { AuthService } from '../core/auth/auth.service';
-import { CompanyProfile, CompanyTask, ProductRecord } from '../core/models/api.models';
+import { CompanyProfile, CompanyTask, ContactRecord, ProductRecord } from '../core/models/api.models';
 import { EmptyStateComponent } from '../shared/empty-state/empty-state.component';
 import { LoadingStateComponent } from '../shared/loading-state/loading-state.component';
 import { ErrorStateComponent } from '../shared/error-state/error-state.component';
@@ -27,6 +27,7 @@ export class CompanyProfileComponent {
   readonly success = signal('');
   readonly taskSummary = signal<CompanyTask[]>([]);
   readonly productSummary = signal<ProductRecord[]>([]);
+  readonly contactSummary = signal<ContactRecord[]>([]);
   readonly canEdit = computed(() => this.auth.hasAnyRole(['FOUNDER', 'DIRECTOR']));
   readonly taskSummaryCards = computed(() => {
     const tasks = this.taskSummary();
@@ -46,6 +47,15 @@ export class CompanyProfileComponent {
       { label: 'Launch-ready products', value: products.filter((product) => product.status === 'LAUNCH_READY').length, tone: 'positive' },
       { label: 'Paused products', value: products.filter((product) => product.status === 'PAUSED').length, tone: 'warning' },
       { label: 'Products with risks', value: products.filter((product) => Boolean(product.risks?.trim())).length, tone: 'critical' }
+    ];
+  });
+  readonly contactSummaryCards = computed(() => {
+    const contacts = this.contactSummary();
+    return [
+      { label: 'Important contacts', value: contacts.filter((contact) => contact.status !== 'ARCHIVED').length, tone: 'neutral' },
+      { label: 'Follow-ups due', value: contacts.filter((contact) => contact.followUpDue).length, tone: 'critical' },
+      { label: 'Waiting responses', value: contacts.filter((contact) => contact.status === 'WAITING').length, tone: 'warning' },
+      { label: 'Active partners', value: contacts.filter((contact) => contact.status === 'ACTIVE').length, tone: 'positive' }
     ];
   });
   readonly fields: Array<{ key: ProfileFormKey; label: string; type?: string; multiline?: boolean }> = [
@@ -86,6 +96,7 @@ export class CompanyProfileComponent {
     this.load();
     this.loadTaskSummary();
     this.loadProductSummary();
+    this.loadContactSummary();
   }
 
   load(): void {
@@ -142,6 +153,12 @@ export class CompanyProfileComponent {
     this.api.products({}).subscribe({
       next: (products) => this.productSummary.set(products),
       error: () => this.productSummary.set([])
+    });
+  }
+  loadContactSummary(): void {
+    this.api.contacts({}).subscribe({
+      next: (contacts) => this.contactSummary.set(contacts),
+      error: () => this.contactSummary.set([])
     });
   }
   private sameMonth(value: Date, now: Date): boolean {
