@@ -1,0 +1,217 @@
+<section class="workspace-page hr-page">
+  <div class="page-heading">
+    <div>
+      <p class="overline">KRAVIA Company OS</p>
+      <h2>HR & Organization Management</h2>
+      <p>Manage structure, employment records, attendance, leave, payroll summaries, performance, training, and exits.</p>
+    </div>
+    <button class="secondary-button" type="button" (click)="load()">Refresh</button>
+  </div>
+
+  <div class="finance-erp-tabs">
+    @for (tab of tabs; track tab.value) {
+      <button class="secondary-button" type="button" [class.is-active]="activeTab() === tab.value" (click)="setTab(tab.value)">{{ tab.label }}</button>
+    }
+  </div>
+
+  <form class="panel enterprise-form" [formGroup]="queryForm" (ngSubmit)="load()">
+    <div class="form-grid compact-form-grid">
+      <label>Search<input formControlName="query"></label>
+    </div>
+    <button class="secondary-button" type="submit">Apply search</button>
+  </form>
+
+  @if (loading()) {
+    <kravia-loading-state message="Loading HR records..." />
+  } @else {
+    @if (summary(); as summary) {
+      <div class="finance-summary-grid">
+        <article class="finance-card"><span>Active employees</span><strong>{{ summary.activeEmployees }}</strong></article>
+        <article class="finance-card"><span>Departments</span><strong>{{ summary.departments }}</strong></article>
+        <article class="finance-card"><span>Pending leave</span><strong>{{ summary.pendingLeaveRequests }}</strong></article>
+        <article class="finance-card"><span>Attendance today</span><strong>{{ summary.todayAttendanceRecords }}</strong></article>
+        <article class="finance-card"><span>Payroll summaries</span><strong>{{ summary.payrollRecords }}</strong></article>
+        <article class="finance-card"><span>Open exits</span><strong>{{ summary.openExitRecords }}</strong></article>
+      </div>
+    }
+
+    @if (activeTab() === 'dashboard') {
+      <div class="panel">
+        <div class="section-subheading"><div><p class="overline">Organization Signals</p><h3>Current status</h3></div></div>
+        @if (summary()?.metrics?.length) {
+          <div class="report-metric-grid">
+            @for (metric of summary()?.metrics; track metric.label) {
+              <article class="report-metric" [class.positive]="metric.tone === 'positive'" [class.critical]="metric.tone === 'warning'"><span>{{ metric.label }}</span><strong>{{ metric.value }}</strong></article>
+            }
+          </div>
+        } @else {
+          <kravia-empty-state label="Human Resources" message="No information has been added yet." />
+        }
+      </div>
+    }
+
+    @if (activeTab() === 'organization') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="departmentForm" (ngSubmit)="saveDepartment()">
+          <div class="section-subheading"><div><p class="overline">Departments</p><h3>{{ editingDepartmentId() ? 'Edit department' : 'Add department' }}</h3></div></div>
+          <div class="form-grid compact-form-grid">
+            <label>Department name<input formControlName="departmentName"></label>
+            <label>Parent department<select formControlName="parentDepartmentId"><option value="">No parent</option>@for (department of departments(); track department.id) { <option [value]="department.id">{{ department.departmentName }}</option> }</select></label>
+            <label>Organization level<select formControlName="organizationLevel">@for (level of organizationLevels; track level) { <option [value]="level">{{ label(level) }}</option> }</select></label>
+            <label>Head employee<select formControlName="headEmployeeId"><option value="">No head assigned</option>@for (employee of employees(); track employee.id) { <option [value]="employee.id">{{ employee.fullName }}</option> }</select></label>
+            <label>Status<select formControlName="status">@for (status of employmentStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label>
+            <label class="full-span">Description<textarea formControlName="description"></textarea></label>
+          </div>
+          <button class="primary-button" type="submit" [disabled]="departmentForm.invalid || saving()">{{ editingDepartmentId() ? 'Save department' : 'Add department' }}</button>
+          @if (editingDepartmentId()) { <button class="secondary-button" type="button" (click)="resetDepartmentForm()">Cancel edit</button> }
+        </form>
+
+        <form class="panel enterprise-form" [formGroup]="designationForm" (ngSubmit)="saveDesignation()">
+          <div class="section-subheading"><div><p class="overline">Designations</p><h3>{{ editingDesignationId() ? 'Edit designation' : 'Add designation' }}</h3></div></div>
+          <div class="form-grid compact-form-grid">
+            <label>Title<input formControlName="title"></label>
+            <label>Department<select formControlName="departmentId"><option value="">No department selected</option>@for (department of departments(); track department.id) { <option [value]="department.id">{{ department.departmentName }}</option> }</select></label>
+            <label>Level<select formControlName="organizationLevel">@for (level of organizationLevels; track level) { <option [value]="level">{{ label(level) }}</option> }</select></label>
+            <label>Status<select formControlName="status">@for (status of employmentStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label>
+            <label class="full-span">Description<textarea formControlName="description"></textarea></label>
+          </div>
+          <button class="primary-button" type="submit" [disabled]="designationForm.invalid || saving()">{{ editingDesignationId() ? 'Save designation' : 'Add designation' }}</button>
+          @if (editingDesignationId()) { <button class="secondary-button" type="button" (click)="resetDesignationForm()">Cancel edit</button> }
+        </form>
+      }
+
+      <div class="panel table-scroll">
+        @if (departments().length === 0) { <kravia-empty-state label="Departments" message="No departments have been added yet." /> } @else {
+          <table><thead><tr><th>Department</th><th>Level</th><th>Head</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+            @for (department of departments(); track department.id) {
+              <tr><td>{{ department.departmentName }}<small>{{ department.description || 'No information has been added yet.' }}</small></td><td>{{ label(department.organizationLevel) }}</td><td>{{ employeeName(department.headEmployeeId) }}</td><td><span class="status-badge">{{ label(department.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editDepartment(department)">Edit</button> } @if (canArchive() && department.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('organization', department.id)">Archive</button> }</td></tr>
+            }
+          </tbody></table>
+        }
+      </div>
+      <div class="panel table-scroll">
+        @if (designations().length === 0) { <kravia-empty-state label="Designations" message="No designations have been added yet." /> } @else {
+          <table><thead><tr><th>Designation</th><th>Department</th><th>Level</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+            @for (designation of designations(); track designation.id) {
+              <tr><td>{{ designation.title }}<small>{{ designation.description || 'No information has been added yet.' }}</small></td><td>{{ designation.departmentName || 'No information has been added yet.' }}</td><td>{{ label(designation.organizationLevel) }}</td><td><span class="status-badge">{{ label(designation.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editDesignation(designation)">Edit</button> } @if (canArchive() && designation.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archiveDesignation(designation.id)">Archive</button> }</td></tr>
+            }
+          </tbody></table>
+        }
+      </div>
+    }
+
+    @if (activeTab() === 'employees') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="employeeForm" (ngSubmit)="saveEmployee()">
+          <div class="section-subheading"><div><p class="overline">Employee Records</p><h3>{{ editingEmployeeId() ? 'Edit employee' : 'Add employee' }}</h3></div></div>
+          <div class="form-grid compact-form-grid">
+            <label>Employee ID<input formControlName="employeeId"></label>
+            <label>Full name<input formControlName="fullName"></label>
+            <label>Preferred name<input formControlName="preferredName"></label>
+            <label>Email<input type="email" formControlName="email"></label>
+            <label>Phone<input formControlName="phone"></label>
+            <label>Emergency contact<input formControlName="emergencyContact"></label>
+            <label>Department<select formControlName="departmentId"><option value="">No department selected</option>@for (department of departments(); track department.id) { <option [value]="department.id">{{ department.departmentName }}</option> }</select></label>
+            <label>Designation<select formControlName="designationId"><option value="">No designation selected</option>@for (designation of designations(); track designation.id) { <option [value]="designation.id">{{ designation.title }}</option> }</select></label>
+            <label>Manager<select formControlName="reportingManagerId"><option value="">No manager selected</option>@for (employee of employees(); track employee.id) { <option [value]="employee.id">{{ employee.fullName }}</option> }</select></label>
+            <label>Employment type<select formControlName="employmentType">@for (type of employmentTypes; track type) { <option [value]="type">{{ label(type) }}</option> }</select></label>
+            <label>Date of joining<input type="date" formControlName="dateOfJoining"></label>
+            <label>Probation<select formControlName="probationStatus">@for (status of probationStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label>
+            <label>Work location<input formControlName="workLocation"></label>
+            <label>Status<select formControlName="employmentStatus">@for (status of employmentStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label>
+            <label>Profile document ID<input formControlName="profilePhotoDocumentId"></label>
+            <label>Related document ID<input formControlName="relatedDocumentId"></label>
+            <label class="full-span">Skills<textarea formControlName="skills"></textarea></label>
+            <label class="full-span">Certifications<textarea formControlName="certifications"></textarea></label>
+            <label class="full-span">Notes<textarea formControlName="notes"></textarea></label>
+          </div>
+          <button class="primary-button" type="submit" [disabled]="employeeForm.invalid || saving()">{{ editingEmployeeId() ? 'Save employee' : 'Add employee' }}</button>
+          @if (editingEmployeeId()) { <button class="secondary-button" type="button" (click)="resetEmployeeForm()">Cancel edit</button> }
+        </form>
+      }
+
+      <form class="panel enterprise-form" [formGroup]="employeeFilterForm" (ngSubmit)="load()"><div class="form-grid compact-form-grid"><label>Search<input formControlName="query"></label><label>Status<select formControlName="status"><option value="">All statuses</option>@for (status of employmentStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label></div><button class="secondary-button" type="submit">Apply filters</button></form>
+      <div class="panel table-scroll">
+        @if (employees().length === 0) { <kravia-empty-state label="Employees" message="No employee records have been added yet." /> } @else {
+          <table><thead><tr><th>Employee</th><th>Role</th><th>Manager</th><th>Joining</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+            @for (employee of employees(); track employee.id) {
+              <tr><td>{{ employee.fullName }}<small>{{ employee.employeeId }} - {{ employee.email }}</small></td><td>{{ employee.designationTitle || 'No information has been added yet.' }}<small>{{ employee.departmentName || 'No department' }}</small></td><td>{{ employee.reportingManagerName || 'No information has been added yet.' }}</td><td>{{ employee.dateOfJoining }}</td><td><span class="status-badge">{{ label(employee.employmentStatus) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editEmployee(employee)">Edit</button> } @if (canArchive() && employee.employmentStatus !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('employees', employee.id)">Archive</button> }</td></tr>
+            }
+          </tbody></table>
+        }
+      </div>
+    }
+
+    @if (activeTab() === 'contacts') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="contactForm" (ngSubmit)="saveContact()"><div class="section-subheading"><div><p class="overline">Employee Contacts</p><h3>{{ editingContactId() ? 'Edit contact' : 'Add contact' }}</h3></div></div><div class="form-grid compact-form-grid"><label>Employee<select formControlName="employeeId"><option value="">Select employee</option>@for (employee of employees(); track employee.id) { <option [value]="employee.id">{{ employee.fullName }}</option> }</select></label><label>Contact type<input formControlName="contactType"></label><label>Name<input formControlName="contactName"></label><label>Relationship<input formControlName="relationship"></label><label>Phone<input formControlName="phone"></label><label>Email<input type="email" formControlName="email"></label><label class="full-span">Notes<textarea formControlName="notes"></textarea></label></div><button class="primary-button" type="submit" [disabled]="contactForm.invalid || saving()">{{ editingContactId() ? 'Save contact' : 'Add contact' }}</button> @if (editingContactId()) { <button class="secondary-button" type="button" (click)="resetContactForm()">Cancel edit</button> }</form>
+      }
+      <div class="panel table-scroll">@if (contacts().length === 0) { <kravia-empty-state label="Employee Contacts" message="No employee contacts have been added yet." /> } @else { <table><thead><tr><th>Employee</th><th>Contact</th><th>Phone</th><th>Email</th><th>Actions</th></tr></thead><tbody>@for (contact of contacts(); track contact.id) { <tr><td>{{ contact.employeeName || employeeName(contact.employeeId) }}</td><td>{{ contact.contactName }}<small>{{ contact.contactType }} - {{ contact.relationship || 'No relationship' }}</small></td><td>{{ contact.phone || 'No information has been added yet.' }}</td><td>{{ contact.email || 'No information has been added yet.' }}</td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editContact(contact)">Edit</button> } @if (canArchive()) { <button class="secondary-button" type="button" (click)="archive('contacts', contact.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'attendance') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="attendanceForm" (ngSubmit)="saveAttendance()"><div class="section-subheading"><div><p class="overline">Attendance</p><h3>{{ editingAttendanceId() ? 'Edit attendance' : 'Add attendance' }}</h3></div></div><div class="form-grid compact-form-grid"><label>Employee<select formControlName="employeeId"><option value="">Select employee</option>@for (employee of employees(); track employee.id) { <option [value]="employee.id">{{ employee.fullName }}</option> }</select></label><label>Date<input type="date" formControlName="attendanceDate"></label><label>Status<select formControlName="status">@for (status of attendanceStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label>Work location<input formControlName="workLocation"></label><label class="full-span">Notes<textarea formControlName="notes"></textarea></label></div><button class="primary-button" type="submit" [disabled]="attendanceForm.invalid || saving()">{{ editingAttendanceId() ? 'Save attendance' : 'Add attendance' }}</button> @if (editingAttendanceId()) { <button class="secondary-button" type="button" (click)="resetAttendanceForm()">Cancel edit</button> }</form>
+      }
+      <form class="panel enterprise-form" [formGroup]="attendanceFilterForm" (ngSubmit)="load()"><div class="form-grid compact-form-grid"><label>Search<input formControlName="query"></label><label>Status<select formControlName="status"><option value="">All statuses</option>@for (status of attendanceStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label></div><button class="secondary-button" type="submit">Apply filters</button></form>
+      <div class="panel table-scroll">@if (attendanceRecords().length === 0) { <kravia-empty-state label="Attendance" message="No attendance records have been added yet." /> } @else { <table><thead><tr><th>Employee</th><th>Date</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (record of attendanceRecords(); track record.id) { <tr><td>{{ record.employeeName || employeeName(record.employeeId) }}</td><td>{{ record.attendanceDate }}</td><td>{{ record.workLocation || 'No information has been added yet.' }}</td><td><span class="status-badge">{{ label(record.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editAttendance(record)">Edit</button> } @if (canArchive()) { <button class="secondary-button" type="button" (click)="archive('attendance', record.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'leave') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="leaveForm" (ngSubmit)="saveLeave()"><div class="section-subheading"><div><p class="overline">Leave Management</p><h3>{{ editingLeaveId() ? 'Edit leave request' : 'Add leave request' }}</h3></div></div><div class="form-grid compact-form-grid"><label>Employee<select formControlName="employeeId"><option value="">Select employee</option>@for (employee of employees(); track employee.id) { <option [value]="employee.id">{{ employee.fullName }}</option> }</select></label><label>Leave type<select formControlName="leaveType">@for (type of leaveTypes; track type) { <option [value]="type">{{ label(type) }}</option> }</select></label><label>Start date<input type="date" formControlName="startDate"></label><label>End date<input type="date" formControlName="endDate"></label><label>Total days<input type="number" min="0.5" step="0.5" formControlName="totalDays"></label><label>Status<select formControlName="status">@for (status of leaveStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label>Manager<select formControlName="managerId"><option value="">No manager selected</option>@for (employee of employees(); track employee.id) { <option [value]="employee.id">{{ employee.fullName }}</option> }</select></label><label>Related task ID<input formControlName="relatedTaskId"></label><label class="full-span">Approval notes<textarea formControlName="approvalNotes"></textarea></label></div><button class="primary-button" type="submit" [disabled]="leaveForm.invalid || saving()">{{ editingLeaveId() ? 'Save leave' : 'Add leave' }}</button> @if (editingLeaveId()) { <button class="secondary-button" type="button" (click)="resetLeaveForm()">Cancel edit</button> }</form>
+      }
+      <form class="panel enterprise-form" [formGroup]="leaveFilterForm" (ngSubmit)="load()"><div class="form-grid compact-form-grid"><label>Search<input formControlName="query"></label><label>Status<select formControlName="status"><option value="">All statuses</option>@for (status of leaveStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label></div><button class="secondary-button" type="submit">Apply filters</button></form>
+      <div class="panel table-scroll">@if (leaveRequests().length === 0) { <kravia-empty-state label="Leave Requests" message="No leave requests have been added yet." /> } @else { <table><thead><tr><th>Employee</th><th>Leave</th><th>Dates</th><th>Manager</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (leave of leaveRequests(); track leave.id) { <tr><td>{{ leave.employeeName || employeeName(leave.employeeId) }}</td><td>{{ label(leave.leaveType) }}<small>{{ leave.totalDays }} day(s)</small></td><td>{{ leave.startDate }} to {{ leave.endDate }}</td><td>{{ leave.managerName || employeeName(leave.managerId) }}</td><td><span class="status-badge">{{ label(leave.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editLeave(leave)">Edit</button> } @if (canArchive() && leave.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('leave', leave.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'holidays') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="holidayForm" (ngSubmit)="saveHoliday()"><div class="section-subheading"><div><p class="overline">Holiday Calendar</p><h3>{{ editingHolidayId() ? 'Edit holiday' : 'Add holiday' }}</h3></div></div><div class="form-grid compact-form-grid"><label>Holiday name<input formControlName="holidayName"></label><label>Date<input type="date" formControlName="holidayDate"></label><label>Status<select formControlName="status">@for (status of employmentStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label class="full-span">Description<textarea formControlName="description"></textarea></label></div><button class="primary-button" type="submit" [disabled]="holidayForm.invalid || saving()">{{ editingHolidayId() ? 'Save holiday' : 'Add holiday' }}</button> @if (editingHolidayId()) { <button class="secondary-button" type="button" (click)="resetHolidayForm()">Cancel edit</button> }</form>
+      }
+      <div class="panel table-scroll">@if (holidays().length === 0) { <kravia-empty-state label="Holidays" message="No holidays have been added yet." /> } @else { <table><thead><tr><th>Holiday</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (holiday of holidays(); track holiday.id) { <tr><td>{{ holiday.holidayName }}<small>{{ holiday.description || 'No information has been added yet.' }}</small></td><td>{{ holiday.holidayDate }}</td><td><span class="status-badge">{{ label(holiday.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editHoliday(holiday)">Edit</button> } @if (canArchive() && holiday.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('holidays', holiday.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'payroll') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="payrollForm" (ngSubmit)="savePayroll()"><div class="section-subheading"><div><p class="overline">Payroll Summary</p><h3>{{ editingPayrollId() ? 'Edit payroll summary' : 'Add payroll summary' }}</h3></div></div><div class="form-grid compact-form-grid"><label>Employee<select formControlName="employeeId"><option value="">Select employee</option>@for (employee of employees(); track employee.id) { <option [value]="employee.id">{{ employee.fullName }}</option> }</select></label><label>Month<input type="month" formControlName="payrollMonth"></label><label>Basic salary<input type="number" min="0" step="0.01" formControlName="basicSalary"></label><label>Allowances<input type="number" min="0" step="0.01" formControlName="allowances"></label><label>Deductions<input type="number" min="0" step="0.01" formControlName="deductions"></label><label>PF<input type="number" min="0" step="0.01" formControlName="pf"></label><label>ESI<input type="number" min="0" step="0.01" formControlName="esi"></label><label>Professional tax<input type="number" min="0" step="0.01" formControlName="professionalTax"></label><label>TDS<input type="number" min="0" step="0.01" formControlName="tds"></label><label>Status<select formControlName="status">@for (status of payrollStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label>Linked finance record ID<input formControlName="linkedFinancialRecordId"></label><label class="full-span">Salary structure<textarea formControlName="salaryStructure"></textarea></label><label class="full-span">Notes<textarea formControlName="notes"></textarea></label></div><button class="primary-button" type="submit" [disabled]="payrollForm.invalid || saving()">{{ editingPayrollId() ? 'Save payroll' : 'Add payroll' }}</button> @if (editingPayrollId()) { <button class="secondary-button" type="button" (click)="resetPayrollForm()">Cancel edit</button> }</form>
+      }
+      <form class="panel enterprise-form" [formGroup]="payrollFilterForm" (ngSubmit)="load()"><div class="form-grid compact-form-grid"><label>Search<input formControlName="query"></label><label>Status<select formControlName="status"><option value="">All statuses</option>@for (status of payrollStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label></div><button class="secondary-button" type="submit">Apply filters</button></form>
+      <div class="panel table-scroll">@if (payrollSummaries().length === 0) { <kravia-empty-state label="Payroll" message="No payroll summaries have been added yet." /> } @else { <table><thead><tr><th>Employee</th><th>Month</th><th>Gross</th><th>Net salary</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (payroll of payrollSummaries(); track payroll.id) { <tr><td>{{ payroll.employeeName || employeeName(payroll.employeeId) }}</td><td>{{ payroll.payrollMonth }}</td><td>{{ currency((payroll.basicSalary || 0) + (payroll.allowances || 0)) }}</td><td>{{ currency(payroll.netSalary) }}</td><td><span class="status-badge">{{ label(payroll.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editPayroll(payroll)">Edit</button> } @if (canArchive() && payroll.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('payroll', payroll.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'performance') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="performanceForm" (ngSubmit)="savePerformance()"><div class="section-subheading"><div><p class="overline">Performance Reviews</p><h3>{{ editingPerformanceId() ? 'Edit review' : 'Add review' }}</h3></div></div><div class="form-grid compact-form-grid"><label>Employee<select formControlName="employeeId"><option value="">Select employee</option>@for (employee of employees(); track employee.id) { <option [value]="employee.id">{{ employee.fullName }}</option> }</select></label><label>Review cycle<input formControlName="reviewCycle"></label><label>Review date<input type="date" formControlName="reviewDate"></label><label>Reviewer<select formControlName="reviewerId"><option value="">No reviewer selected</option>@for (employee of employees(); track employee.id) { <option [value]="employee.id">{{ employee.fullName }}</option> }</select></label><label>Rating<select formControlName="rating">@for (rating of performanceRatings; track rating) { <option [value]="rating">{{ label(rating) }}</option> }</select></label><label>Status<select formControlName="status">@for (status of employmentStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label>Related task ID<input formControlName="relatedTaskId"></label><label class="full-span">Goals<textarea formControlName="goals"></textarea></label><label class="full-span">Achievements<textarea formControlName="achievements"></textarea></label><label class="full-span">Manager feedback<textarea formControlName="managerFeedback"></textarea></label><label class="full-span">Employee feedback<textarea formControlName="employeeFeedback"></textarea></label><label class="full-span">Improvement plan<textarea formControlName="improvementPlan"></textarea></label></div><button class="primary-button" type="submit" [disabled]="performanceForm.invalid || saving()">{{ editingPerformanceId() ? 'Save review' : 'Add review' }}</button> @if (editingPerformanceId()) { <button class="secondary-button" type="button" (click)="resetPerformanceForm()">Cancel edit</button> }</form>
+      }
+      <div class="panel table-scroll">@if (performanceReviews().length === 0) { <kravia-empty-state label="Performance Reviews" message="No performance reviews have been added yet." /> } @else { <table><thead><tr><th>Employee</th><th>Cycle</th><th>Reviewer</th><th>Rating</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (review of performanceReviews(); track review.id) { <tr><td>{{ review.employeeName || employeeName(review.employeeId) }}</td><td>{{ review.reviewCycle }}<small>{{ review.reviewDate }}</small></td><td>{{ review.reviewerName || employeeName(review.reviewerId) }}</td><td>{{ label(review.rating) }}</td><td><span class="status-badge">{{ label(review.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editPerformance(review)">Edit</button> } @if (canArchive() && review.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('performance', review.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'training') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="trainingForm" (ngSubmit)="saveTraining()"><div class="section-subheading"><div><p class="overline">Training</p><h3>{{ editingTrainingId() ? 'Edit training' : 'Add training' }}</h3></div></div><div class="form-grid compact-form-grid"><label>Training name<input formControlName="trainingName"></label><label>Provider<input formControlName="provider"></label><label>Completion date<input type="date" formControlName="completionDate"></label><label>Expiry date<input type="date" formControlName="expiryDate"></label><label>Certificate document ID<input formControlName="certificateDocumentId"></label><label>Status<select formControlName="status">@for (status of trainingStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label class="full-span">Skills covered<textarea formControlName="skillsCovered"></textarea></label><label class="full-span">Notes<textarea formControlName="notes"></textarea></label></div><button class="primary-button" type="submit" [disabled]="trainingForm.invalid || saving()">{{ editingTrainingId() ? 'Save training' : 'Add training' }}</button> @if (editingTrainingId()) { <button class="secondary-button" type="button" (click)="resetTrainingForm()">Cancel edit</button> }</form>
+        <form class="panel enterprise-form" [formGroup]="certificationForm" (ngSubmit)="saveCertification()"><div class="section-subheading"><div><p class="overline">Certifications</p><h3>{{ editingCertificationId() ? 'Edit certification' : 'Add certification' }}</h3></div></div><div class="form-grid compact-form-grid"><label>Employee<select formControlName="employeeId"><option value="">Select employee</option>@for (employee of employees(); track employee.id) { <option [value]="employee.id">{{ employee.fullName }}</option> }</select></label><label>Training<select formControlName="trainingId"><option value="">No training selected</option>@for (training of trainings(); track training.id) { <option [value]="training.id">{{ training.trainingName }}</option> }</select></label><label>Certification name<input formControlName="certificationName"></label><label>Provider<input formControlName="provider"></label><label>Issue date<input type="date" formControlName="issueDate"></label><label>Expiry date<input type="date" formControlName="expiryDate"></label><label>Certificate document ID<input formControlName="certificateDocumentId"></label><label>Status<select formControlName="status">@for (status of trainingStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label class="full-span">Skills covered<textarea formControlName="skillsCovered"></textarea></label></div><button class="primary-button" type="submit" [disabled]="certificationForm.invalid || saving()">{{ editingCertificationId() ? 'Save certification' : 'Add certification' }}</button> @if (editingCertificationId()) { <button class="secondary-button" type="button" (click)="resetCertificationForm()">Cancel edit</button> }</form>
+      }
+      <div class="panel table-scroll">@if (trainings().length === 0) { <kravia-empty-state label="Training" message="No training records have been added yet." /> } @else { <table><thead><tr><th>Training</th><th>Provider</th><th>Dates</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (training of trainings(); track training.id) { <tr><td>{{ training.trainingName }}<small>{{ training.skillsCovered || 'No information has been added yet.' }}</small></td><td>{{ training.provider || 'No information has been added yet.' }}</td><td>{{ training.completionDate || 'No completion date' }}<small [class.negative-text]="overdue(training.expiryDate)">{{ training.expiryDate || 'No expiry date' }}</small></td><td><span class="status-badge">{{ label(training.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editTraining(training)">Edit</button> } @if (canArchive() && training.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('training', training.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+      <div class="panel table-scroll">@if (certifications().length === 0) { <kravia-empty-state label="Certifications" message="No certifications have been added yet." /> } @else { <table><thead><tr><th>Employee</th><th>Certification</th><th>Provider</th><th>Expiry</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (certification of certifications(); track certification.id) { <tr><td>{{ certification.employeeName || employeeName(certification.employeeId) }}</td><td>{{ certification.certificationName }}<small>{{ certification.trainingName || 'No training selected' }}</small></td><td>{{ certification.provider || 'No information has been added yet.' }}</td><td [class.negative-text]="overdue(certification.expiryDate)">{{ certification.expiryDate || 'No information has been added yet.' }}</td><td><span class="status-badge">{{ label(certification.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editCertification(certification)">Edit</button> } @if (canArchive() && certification.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archiveCertification(certification.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'exit') {
+      @if (canEdit()) {
+        <form class="panel enterprise-form" [formGroup]="exitForm" (ngSubmit)="saveExit()"><div class="section-subheading"><div><p class="overline">Exit Management</p><h3>{{ editingExitId() ? 'Edit exit record' : 'Add exit record' }}</h3></div></div><div class="form-grid compact-form-grid"><label>Employee<select formControlName="employeeId"><option value="">Select employee</option>@for (employee of employees(); track employee.id) { <option [value]="employee.id">{{ employee.fullName }}</option> }</select></label><label>Resignation date<input type="date" formControlName="resignationDate"></label><label>Last working day<input type="date" formControlName="lastWorkingDay"></label><label>Status<select formControlName="status">@for (status of exitStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label><label>Related document ID<input formControlName="relatedDocumentId"></label><label class="full-span">Reason<textarea formControlName="reason"></textarea></label><label class="full-span">Exit checklist<textarea formControlName="exitChecklist"></textarea></label><label>Asset return status<input formControlName="assetReturnStatus"></label><label>Final settlement status<input formControlName="finalSettlementStatus"></label><label>Knowledge transfer status<input formControlName="knowledgeTransferStatus"></label><label class="full-span">Exit interview notes<textarea formControlName="exitInterviewNotes"></textarea></label></div><button class="primary-button" type="submit" [disabled]="exitForm.invalid || saving()">{{ editingExitId() ? 'Save exit' : 'Add exit' }}</button> @if (editingExitId()) { <button class="secondary-button" type="button" (click)="resetExitForm()">Cancel edit</button> }</form>
+      }
+      <form class="panel enterprise-form" [formGroup]="exitFilterForm" (ngSubmit)="load()"><div class="form-grid compact-form-grid"><label>Search<input formControlName="query"></label><label>Status<select formControlName="status"><option value="">All statuses</option>@for (status of exitStatuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label></div><button class="secondary-button" type="submit">Apply filters</button></form>
+      <div class="panel table-scroll">@if (exitRecords().length === 0) { <kravia-empty-state label="Exit Records" message="No exit records have been added yet." /> } @else { <table><thead><tr><th>Employee</th><th>Dates</th><th>Settlement</th><th>Assets</th><th>Status</th><th>Actions</th></tr></thead><tbody>@for (exit of exitRecords(); track exit.id) { <tr><td>{{ exit.employeeName || employeeName(exit.employeeId) }}<small>{{ exit.reason || 'No information has been added yet.' }}</small></td><td>{{ exit.resignationDate || 'No resignation date' }}<small>{{ exit.lastWorkingDay || 'No last working day' }}</small></td><td>{{ exit.finalSettlementStatus || 'No information has been added yet.' }}</td><td>{{ exit.assetReturnStatus || 'No information has been added yet.' }}</td><td><span class="status-badge">{{ label(exit.status) }}</span></td><td>@if (canEdit()) { <button class="secondary-button" type="button" (click)="editExit(exit)">Edit</button> } @if (canArchive() && exit.status !== 'ARCHIVED') { <button class="secondary-button" type="button" (click)="archive('exit', exit.id)">Archive</button> }</td></tr> }</tbody></table> }</div>
+    }
+
+    @if (activeTab() === 'reports') {
+      <form class="panel enterprise-form" [formGroup]="reportForm" (ngSubmit)="generateReport()"><div class="section-subheading"><div><p class="overline">HR Reports</p><h3>Generate report</h3></div></div><div class="form-grid"><label>Report type<select formControlName="reportType">@for (type of reportTypes; track type) { <option [value]="type">{{ label(type) }}</option> }</select></label></div><button class="primary-button" type="submit">Generate report</button></form>
+      @if (report(); as report) {
+        <div class="panel report-preview"><div class="report-header"><div><p class="overline">Report Preview</p><h3>{{ label(report.reportType) }}</h3><p>Generated {{ report.generatedAt }}</p></div><button class="secondary-button" type="button" (click)="print()">Print</button></div>@if (report.metrics.length) { <div class="report-metric-grid">@for (metric of report.metrics; track metric.label) { <article class="report-metric" [class.positive]="metric.tone === 'positive'" [class.critical]="metric.tone === 'warning'"><span>{{ metric.label }}</span><strong>{{ metric.value }}</strong></article> }</div> } @else { <kravia-empty-state label="HR Report" message="No information has been added yet." /> } @if (report.notes.length) { <ul class="report-notes">@for (note of report.notes; track note) { <li>{{ note }}</li> }</ul> }</div>
+      }
+    }
+  }
+
+  @if (error()) { <kravia-error-state [message]="error()" /> }
+  @if (success()) { <p class="form-success">{{ success() }}</p> }
+</section>

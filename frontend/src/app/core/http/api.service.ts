@@ -1,6 +1,7 @@
 import { HttpClient, HttpEvent, HttpParams, HttpRequest, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { AttendanceRecord, AttendanceRequest, AttendanceStatus, CertificationRecord, CertificationRequest, DepartmentRecord, DepartmentRequest, DesignationRecord, DesignationRequest, EmployeeContactRecord, EmployeeContactRequest, EmployeeRecord, EmployeeRequest, EmploymentStatus, ExitRecord, ExitRequestPayload, ExitStatus, HolidayRecord, HolidayRequest, HrReport, HrReportType, HrSummary, LeaveRecord, LeaveRequestPayload, LeaveStatus, PayrollRecord, PayrollRequest, PayrollStatus, PerformanceReviewRecord, PerformanceReviewRequest, TrainingRecord, TrainingRequest, TrainingStatus } from '../models/api.models';
 import { PlatformApiRecord, PlatformBackupRecord, PlatformEnvironmentRecord, PlatformJobRecord, PlatformOverview, PlatformReleaseRecord, PlatformServiceRecord } from '../models/api.models';
 import { AssetAssignmentPayload, AssetAssignmentRecord, AssetCategory, AssetDocumentPayload, AssetDocumentRecord, AssetMaintenancePayload, AssetMaintenanceRecord, AssetRecord, AssetReport, AssetReportType, AssetRequestPayload, AssetStatus, AssetSummary, CloudResourcePayload, CloudResourceRecord, SoftwareLicensePayload, SoftwareLicenseRecord } from '../models/api.models';
 import { AccessReviewRecord, ApprovalDecisionPayload, ApprovalRecord, ApprovalRequestPayload, DataClassification, DataPrivacyRecord, DataPrivacyRequest, EvidencePackRecord, EvidencePackRequestPayload, EvidenceTimelineItem, GovernanceDashboard, RiskCategory, RiskLevel, RiskRecord, RiskRequestPayload, RiskStatus } from '../models/api.models';
@@ -397,4 +398,55 @@ export class ApiService {
   createPlatformRelease(payload: Partial<PlatformReleaseRecord>): Observable<PlatformReleaseRecord> { return this.http.post<PlatformReleaseRecord>('/api/platform-admin/releases', payload); }
   createPlatformBackup(payload: Partial<PlatformBackupRecord>): Observable<PlatformBackupRecord> { return this.http.post<PlatformBackupRecord>('/api/platform-admin/backups', payload); }
   createPlatformJob(payload: Partial<PlatformJobRecord>): Observable<PlatformJobRecord> { return this.http.post<PlatformJobRecord>('/api/platform-admin/jobs', payload); }
-  createPlatformApi(payload: Partial<PlatformApiRecord>): Observable<PlatformApiRecord> { return this.http.post<PlatformApiRecord>('/api/platform-admin/apis', payload); }}
+  createPlatformApi(payload: Partial<PlatformApiRecord>): Observable<PlatformApiRecord> { return this.http.post<PlatformApiRecord>('/api/platform-admin/apis', payload); }
+  hrSummary(): Observable<HrSummary> { return this.http.get<HrSummary>('/api/hr/summary'); }
+  hrDepartments(filters: { query?: string }): Observable<DepartmentRecord[]> { let params = new HttpParams(); if (filters.query?.trim()) params = params.set('query', filters.query.trim()); return this.http.get<DepartmentRecord[]>('/api/hr/departments', { params }); }
+  createHrDepartment(payload: DepartmentRequest): Observable<DepartmentRecord> { return this.http.post<DepartmentRecord>('/api/hr/departments', payload); }
+  updateHrDepartment(id: string, payload: DepartmentRequest): Observable<DepartmentRecord> { return this.http.put<DepartmentRecord>(`/api/hr/departments/${id}`, payload); }
+  archiveHrDepartment(id: string): Observable<void> { return this.http.delete<void>(`/api/hr/departments/${id}`); }
+  hrDesignations(filters: { query?: string }): Observable<DesignationRecord[]> { let params = new HttpParams(); if (filters.query?.trim()) params = params.set('query', filters.query.trim()); return this.http.get<DesignationRecord[]>('/api/hr/designations', { params }); }
+  createHrDesignation(payload: DesignationRequest): Observable<DesignationRecord> { return this.http.post<DesignationRecord>('/api/hr/designations', payload); }
+  updateHrDesignation(id: string, payload: DesignationRequest): Observable<DesignationRecord> { return this.http.put<DesignationRecord>(`/api/hr/designations/${id}`, payload); }
+  archiveHrDesignation(id: string): Observable<void> { return this.http.delete<void>(`/api/hr/designations/${id}`); }
+  hrEmployees(filters: { query?: string; status?: EmploymentStatus | '' }): Observable<EmployeeRecord[]> { let params = new HttpParams(); if (filters.query?.trim()) params = params.set('query', filters.query.trim()); if (filters.status) params = params.set('status', filters.status); return this.http.get<EmployeeRecord[]>('/api/hr/employees', { params }); }
+  createHrEmployee(payload: EmployeeRequest): Observable<EmployeeRecord> { return this.http.post<EmployeeRecord>('/api/hr/employees', payload); }
+  updateHrEmployee(id: string, payload: EmployeeRequest): Observable<EmployeeRecord> { return this.http.put<EmployeeRecord>(`/api/hr/employees/${id}`, payload); }
+  archiveHrEmployee(id: string): Observable<void> { return this.http.delete<void>(`/api/hr/employees/${id}`); }
+  hrContacts(filters: { query?: string }): Observable<EmployeeContactRecord[]> { let params = new HttpParams(); if (filters.query?.trim()) params = params.set('query', filters.query.trim()); return this.http.get<EmployeeContactRecord[]>('/api/hr/contacts', { params }); }
+  createHrContact(payload: EmployeeContactRequest): Observable<EmployeeContactRecord> { return this.http.post<EmployeeContactRecord>('/api/hr/contacts', payload); }
+  updateHrContact(id: string, payload: EmployeeContactRequest): Observable<EmployeeContactRecord> { return this.http.put<EmployeeContactRecord>(`/api/hr/contacts/${id}`, payload); }
+  archiveHrContact(id: string): Observable<void> { return this.http.delete<void>(`/api/hr/contacts/${id}`); }
+  hrAttendance(filters: { query?: string; status?: AttendanceStatus | '' }): Observable<AttendanceRecord[]> { let params = new HttpParams(); if (filters.query?.trim()) params = params.set('query', filters.query.trim()); if (filters.status) params = params.set('status', filters.status); return this.http.get<AttendanceRecord[]>('/api/hr/attendance', { params }); }
+  createHrAttendance(payload: AttendanceRequest): Observable<AttendanceRecord> { return this.http.post<AttendanceRecord>('/api/hr/attendance', payload); }
+  updateHrAttendance(id: string, payload: AttendanceRequest): Observable<AttendanceRecord> { return this.http.put<AttendanceRecord>(`/api/hr/attendance/${id}`, payload); }
+  archiveHrAttendance(id: string): Observable<void> { return this.http.delete<void>(`/api/hr/attendance/${id}`); }
+  hrLeaveRequests(filters: { query?: string; status?: LeaveStatus | '' }): Observable<LeaveRecord[]> { let params = new HttpParams(); if (filters.query?.trim()) params = params.set('query', filters.query.trim()); if (filters.status) params = params.set('status', filters.status); return this.http.get<LeaveRecord[]>('/api/hr/leave-requests', { params }); }
+  createHrLeaveRequest(payload: LeaveRequestPayload): Observable<LeaveRecord> { return this.http.post<LeaveRecord>('/api/hr/leave-requests', payload); }
+  updateHrLeaveRequest(id: string, payload: LeaveRequestPayload): Observable<LeaveRecord> { return this.http.put<LeaveRecord>(`/api/hr/leave-requests/${id}`, payload); }
+  archiveHrLeaveRequest(id: string): Observable<void> { return this.http.delete<void>(`/api/hr/leave-requests/${id}`); }
+  hrHolidays(filters: { query?: string }): Observable<HolidayRecord[]> { let params = new HttpParams(); if (filters.query?.trim()) params = params.set('query', filters.query.trim()); return this.http.get<HolidayRecord[]>('/api/hr/holidays', { params }); }
+  createHrHoliday(payload: HolidayRequest): Observable<HolidayRecord> { return this.http.post<HolidayRecord>('/api/hr/holidays', payload); }
+  updateHrHoliday(id: string, payload: HolidayRequest): Observable<HolidayRecord> { return this.http.put<HolidayRecord>(`/api/hr/holidays/${id}`, payload); }
+  archiveHrHoliday(id: string): Observable<void> { return this.http.delete<void>(`/api/hr/holidays/${id}`); }
+  hrPayrollSummaries(filters: { query?: string; status?: PayrollStatus | '' }): Observable<PayrollRecord[]> { let params = new HttpParams(); if (filters.query?.trim()) params = params.set('query', filters.query.trim()); if (filters.status) params = params.set('status', filters.status); return this.http.get<PayrollRecord[]>('/api/hr/payroll-summaries', { params }); }
+  createHrPayrollSummary(payload: PayrollRequest): Observable<PayrollRecord> { return this.http.post<PayrollRecord>('/api/hr/payroll-summaries', payload); }
+  updateHrPayrollSummary(id: string, payload: PayrollRequest): Observable<PayrollRecord> { return this.http.put<PayrollRecord>(`/api/hr/payroll-summaries/${id}`, payload); }
+  archiveHrPayrollSummary(id: string): Observable<void> { return this.http.delete<void>(`/api/hr/payroll-summaries/${id}`); }
+  hrPerformanceReviews(filters: { query?: string }): Observable<PerformanceReviewRecord[]> { let params = new HttpParams(); if (filters.query?.trim()) params = params.set('query', filters.query.trim()); return this.http.get<PerformanceReviewRecord[]>('/api/hr/performance-reviews', { params }); }
+  createHrPerformanceReview(payload: PerformanceReviewRequest): Observable<PerformanceReviewRecord> { return this.http.post<PerformanceReviewRecord>('/api/hr/performance-reviews', payload); }
+  updateHrPerformanceReview(id: string, payload: PerformanceReviewRequest): Observable<PerformanceReviewRecord> { return this.http.put<PerformanceReviewRecord>(`/api/hr/performance-reviews/${id}`, payload); }
+  archiveHrPerformanceReview(id: string): Observable<void> { return this.http.delete<void>(`/api/hr/performance-reviews/${id}`); }
+  hrTrainings(filters: { query?: string; status?: TrainingStatus | '' }): Observable<TrainingRecord[]> { let params = new HttpParams(); if (filters.query?.trim()) params = params.set('query', filters.query.trim()); if (filters.status) params = params.set('status', filters.status); return this.http.get<TrainingRecord[]>('/api/hr/trainings', { params }); }
+  createHrTraining(payload: TrainingRequest): Observable<TrainingRecord> { return this.http.post<TrainingRecord>('/api/hr/trainings', payload); }
+  updateHrTraining(id: string, payload: TrainingRequest): Observable<TrainingRecord> { return this.http.put<TrainingRecord>(`/api/hr/trainings/${id}`, payload); }
+  archiveHrTraining(id: string): Observable<void> { return this.http.delete<void>(`/api/hr/trainings/${id}`); }
+  hrCertifications(filters: { query?: string; status?: TrainingStatus | '' }): Observable<CertificationRecord[]> { let params = new HttpParams(); if (filters.query?.trim()) params = params.set('query', filters.query.trim()); if (filters.status) params = params.set('status', filters.status); return this.http.get<CertificationRecord[]>('/api/hr/certifications', { params }); }
+  createHrCertification(payload: CertificationRequest): Observable<CertificationRecord> { return this.http.post<CertificationRecord>('/api/hr/certifications', payload); }
+  updateHrCertification(id: string, payload: CertificationRequest): Observable<CertificationRecord> { return this.http.put<CertificationRecord>(`/api/hr/certifications/${id}`, payload); }
+  archiveHrCertification(id: string): Observable<void> { return this.http.delete<void>(`/api/hr/certifications/${id}`); }
+  hrExitRecords(filters: { query?: string; status?: ExitStatus | '' }): Observable<ExitRecord[]> { let params = new HttpParams(); if (filters.query?.trim()) params = params.set('query', filters.query.trim()); if (filters.status) params = params.set('status', filters.status); return this.http.get<ExitRecord[]>('/api/hr/exit-records', { params }); }
+  createHrExitRecord(payload: ExitRequestPayload): Observable<ExitRecord> { return this.http.post<ExitRecord>('/api/hr/exit-records', payload); }
+  updateHrExitRecord(id: string, payload: ExitRequestPayload): Observable<ExitRecord> { return this.http.put<ExitRecord>(`/api/hr/exit-records/${id}`, payload); }
+  archiveHrExitRecord(id: string): Observable<void> { return this.http.delete<void>(`/api/hr/exit-records/${id}`); }
+  hrReport(type: HrReportType): Observable<HrReport> { return this.http.get<HrReport>('/api/hr/reports', { params: new HttpParams().set('type', type) }); }
+}

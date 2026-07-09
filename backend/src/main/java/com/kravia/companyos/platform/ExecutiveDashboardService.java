@@ -16,6 +16,16 @@ import com.kravia.companyos.document.DocumentRecord;
 import com.kravia.companyos.document.DocumentRepository;
 import com.kravia.companyos.finance.FinancialRecord;
 import com.kravia.companyos.finance.FinancialRecordRepository;
+import com.kravia.companyos.hr.AttendanceRecordRepository;
+import com.kravia.companyos.hr.DepartmentRepository;
+import com.kravia.companyos.hr.EmployeeRepository;
+import com.kravia.companyos.hr.ExitRecordRepository;
+import com.kravia.companyos.hr.HrEnums.EmploymentStatus;
+import com.kravia.companyos.hr.HrEnums.ExitStatus;
+import com.kravia.companyos.hr.HrEnums.LeaveStatus;
+import com.kravia.companyos.hr.HrEnums.PayrollStatus;
+import com.kravia.companyos.hr.LeaveRequestRepository;
+import com.kravia.companyos.hr.PayrollSummaryRepository;
 import com.kravia.companyos.meeting.BoardMeeting;
 import com.kravia.companyos.meeting.BoardMeetingRepository;
 import com.kravia.companyos.meeting.MeetingStatus;
@@ -70,6 +80,12 @@ public class ExecutiveDashboardService {
     private final ProcurementSubscriptionRepository procurementSubscriptions;
     private final CompanyAssetRepository assetRepository;
     private final SoftwareLicenseRepository softwareLicenseRepository;
+    private final EmployeeRepository employeeRepository;
+    private final DepartmentRepository departmentRepository;
+    private final LeaveRequestRepository leaveRequestRepository;
+    private final AttendanceRecordRepository attendanceRecordRepository;
+    private final PayrollSummaryRepository payrollSummaryRepository;
+    private final ExitRecordRepository exitRecordRepository;
     private final PermissionService permissions;
 
     public ExecutiveDashboardService(
@@ -92,6 +108,12 @@ public class ExecutiveDashboardService {
         ProcurementSubscriptionRepository procurementSubscriptions,
         CompanyAssetRepository assetRepository,
         SoftwareLicenseRepository softwareLicenseRepository,
+        EmployeeRepository employeeRepository,
+        DepartmentRepository departmentRepository,
+        LeaveRequestRepository leaveRequestRepository,
+        AttendanceRecordRepository attendanceRecordRepository,
+        PayrollSummaryRepository payrollSummaryRepository,
+        ExitRecordRepository exitRecordRepository,
         PermissionService permissions
     ) {
         this.companyProfiles = companyProfiles;
@@ -113,6 +135,12 @@ public class ExecutiveDashboardService {
         this.procurementSubscriptions = procurementSubscriptions;
         this.assetRepository = assetRepository;
         this.softwareLicenseRepository = softwareLicenseRepository;
+        this.employeeRepository = employeeRepository;
+        this.departmentRepository = departmentRepository;
+        this.leaveRequestRepository = leaveRequestRepository;
+        this.attendanceRecordRepository = attendanceRecordRepository;
+        this.payrollSummaryRepository = payrollSummaryRepository;
+        this.exitRecordRepository = exitRecordRepository;
         this.permissions = permissions;
     }
 
@@ -154,7 +182,12 @@ public class ExecutiveDashboardService {
         long expiringLicenses = softwareLicenseRepository.findAll().stream().filter(license -> license.getArchivedAt() == null && license.getRenewalDate() != null && !license.getRenewalDate().isBefore(today) && !license.getRenewalDate().isAfter(nextMonth)).count();
         long warrantyExpiring = assetRepository.findAll().stream().filter(asset -> asset.getArchivedAt() == null && asset.getWarrantyEndDate() != null && !asset.getWarrantyEndDate().isBefore(today) && !asset.getWarrantyEndDate().isAfter(nextMonth)).count();
         long assetsUnderMaintenance = assetRepository.findAll().stream().filter(asset -> asset.getArchivedAt() == null && asset.getStatus() == AssetStatus.UNDER_MAINTENANCE).count();
-
+        long activeEmployees = employeeRepository.findAll().stream().filter(employee -> employee.getArchivedAt() == null && employee.getEmploymentStatus() == EmploymentStatus.ACTIVE).count();
+        long departmentCount = departmentRepository.findAll().stream().filter(department -> department.getArchivedAt() == null && department.getStatus() != EmploymentStatus.ARCHIVED).count();
+        long pendingLeaveRequests = leaveRequestRepository.findAll().stream().filter(leave -> leave.getArchivedAt() == null && (leave.getStatus() == LeaveStatus.REQUESTED || leave.getStatus() == LeaveStatus.MANAGER_REVIEW)).count();
+        long todayAttendanceRecords = attendanceRecordRepository.findAll().stream().filter(record -> record.getArchivedAt() == null && today.equals(record.getAttendanceDate())).count();
+        long payrollSummaryCount = payrollSummaryRepository.findAll().stream().filter(payroll -> payroll.getArchivedAt() == null && payroll.getStatus() != PayrollStatus.ARCHIVED).count();
+        long openExitRecords = exitRecordRepository.findAll().stream().filter(exit -> exit.getArchivedAt() == null && exit.getStatus() != ExitStatus.COMPLETED && exit.getStatus() != ExitStatus.CANCELLED && exit.getStatus() != ExitStatus.ARCHIVED).count();
         List<ExecutiveDashboardResponse.DashboardMetric> metrics = List.of(
             new ExecutiveDashboardResponse.DashboardMetric("Pending approvals", pendingApprovalCount),
             new ExecutiveDashboardResponse.DashboardMetric("Compliance alerts", overdueComplianceCount),
@@ -180,7 +213,13 @@ public class ExecutiveDashboardService {
             new ExecutiveDashboardResponse.DashboardMetric("Unassigned assets", unassignedAssets),
             new ExecutiveDashboardResponse.DashboardMetric("Expiring licenses", expiringLicenses),
             new ExecutiveDashboardResponse.DashboardMetric("Warranty expiring", warrantyExpiring),
-            new ExecutiveDashboardResponse.DashboardMetric("Assets under maintenance", assetsUnderMaintenance)
+            new ExecutiveDashboardResponse.DashboardMetric("Assets under maintenance", assetsUnderMaintenance),
+            new ExecutiveDashboardResponse.DashboardMetric("Active employees", activeEmployees),
+            new ExecutiveDashboardResponse.DashboardMetric("Departments", departmentCount),
+            new ExecutiveDashboardResponse.DashboardMetric("Pending leave requests", pendingLeaveRequests),
+            new ExecutiveDashboardResponse.DashboardMetric("Today attendance records", todayAttendanceRecords),
+            new ExecutiveDashboardResponse.DashboardMetric("Payroll summaries", payrollSummaryCount),
+            new ExecutiveDashboardResponse.DashboardMetric("Open exit records", openExitRecords)
         );
 
         return new ExecutiveDashboardResponse(
