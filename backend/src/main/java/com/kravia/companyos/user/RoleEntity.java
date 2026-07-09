@@ -1,4 +1,4 @@
-﻿package com.kravia.companyos.user;
+package com.kravia.companyos.user;
 
 import com.kravia.companyos.common.Role;
 import jakarta.persistence.Column;

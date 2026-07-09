@@ -1,4 +1,4 @@
-﻿package com.kravia.companyos.audit;
+package com.kravia.companyos.audit;
 
 import java.time.Instant;
 import java.util.UUID;

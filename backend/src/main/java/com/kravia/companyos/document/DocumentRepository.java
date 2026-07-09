@@ -1,4 +1,4 @@
-﻿package com.kravia.companyos.document;
+package com.kravia.companyos.document;
 
 import java.util.List;
 import java.util.UUID;

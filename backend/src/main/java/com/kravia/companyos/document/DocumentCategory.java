@@ -1,4 +1,4 @@
-﻿package com.kravia.companyos.document;
+package com.kravia.companyos.document;
 
 public enum DocumentCategory {
     INCORPORATION_CERTIFICATE,

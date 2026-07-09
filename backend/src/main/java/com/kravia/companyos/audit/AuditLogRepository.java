@@ -1,4 +1,4 @@
-﻿package com.kravia.companyos.audit;
+package com.kravia.companyos.audit;
 
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;

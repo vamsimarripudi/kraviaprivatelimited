@@ -1,4 +1,4 @@
-﻿package com.kravia.companyos.audit;
+package com.kravia.companyos.audit;
 
 import com.kravia.companyos.common.BaseEntity;
 import jakarta.persistence.Column;

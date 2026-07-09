@@ -1,4 +1,4 @@
-﻿package com.kravia.companyos.document;
+package com.kravia.companyos.document;
 
 import java.time.Instant;
 import java.util.UUID;

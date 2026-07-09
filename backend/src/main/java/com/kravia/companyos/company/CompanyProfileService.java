@@ -1,4 +1,4 @@
-﻿package com.kravia.companyos.company;
+package com.kravia.companyos.company;
 
 import com.kravia.companyos.audit.AuditService;
 import com.kravia.companyos.security.PermissionService;

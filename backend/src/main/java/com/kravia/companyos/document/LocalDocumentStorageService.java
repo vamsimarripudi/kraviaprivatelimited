@@ -1,4 +1,4 @@
-﻿package com.kravia.companyos.document;
+package com.kravia.companyos.document;
 
 import java.io.IOException;
 import java.io.InputStream;

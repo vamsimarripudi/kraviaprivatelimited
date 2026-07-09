@@ -1,4 +1,4 @@
-﻿package com.kravia.companyos.company;
+package com.kravia.companyos.company;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

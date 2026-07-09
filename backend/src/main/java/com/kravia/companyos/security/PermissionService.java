@@ -1,4 +1,4 @@
-﻿package com.kravia.companyos.security;
+package com.kravia.companyos.security;
 
 import com.kravia.companyos.common.ForbiddenOperationException;
 import com.kravia.companyos.common.Role;

@@ -1,4 +1,4 @@
-﻿package com.kravia.companyos.audit;
+package com.kravia.companyos.audit;
 
 import com.kravia.companyos.user.AppUser;
 import jakarta.transaction.Transactional;
