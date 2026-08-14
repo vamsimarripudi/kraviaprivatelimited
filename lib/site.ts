@@ -16,7 +16,7 @@ export const companyProfile = {
 
 export const navItems = [
   ["Company", "/company"], ["Products", "/products"], ["Technology", "/technology"],
-  ["Governance", "/governance"], ["Trust", "/trust"], ["Updates", "/updates"],
+  ["Governance", "/governance"], ["Trust", "/trust"], ["Careers", "/careers"],
 ] as const;
 
 export const publicPages: Record<string, { eyebrow: string; title: string; intro: string; sections: { title: string; body: string }[] }> = {
@@ -53,7 +53,7 @@ export const publicPages: Record<string, { eyebrow: string; title: string; intro
 };
 
 export const officialLinks = [
-  { label: "India Code — Digital Personal Data Protection Act", href: "https://www.indiacode.nic.in/" },
-  { label: "MeitY — official digital governance resources", href: "https://www.meity.gov.in/" },
-  { label: "eGazette of India", href: "https://egazette.nic.in/" },
+  { label: "Digital Personal Data Protection Act, 2023 — India Code", href: "https://www.indiacode.nic.in/handle/123456789/22037" },
+  { label: "Digital Personal Data Protection Rules, 2025 — MeitY", href: "https://www.meity.gov.in/documents/act-and-policies/digital-personal-data-protection-rules-2025-gDOxUjMtQWa" },
+  { label: "Official Gazette: DPDP Rules, 2025", href: "https://www.meity.gov.in/static/uploads/2025/11/53450e6e5dc0bfa85ebd78686cadad39.pdf" },
 ];
