@@ -1,0 +1,5 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+const enquiry = z.object({ name: z.string().trim().min(2).max(120), email: z.string().email().max(254), category: z.string().max(100), organisation: z.string().trim().max(160).optional(), message: z.string().trim().min(10).max(4000) });
+function reference(prefix: string) { return `${prefix}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`; }
+export async function POST(request: Request) { if (request.headers.get("origin") && new URL(request.headers.get("origin")!).origin !== new URL(request.url).origin) return NextResponse.json({ error: "Invalid origin" }, { status: 403 }); const result = enquiry.safeParse(await request.json()); if (!result.success) return NextResponse.json({ error: "Please check the form fields." }, { status: 400 }); /* Persist via server-side Supabase after credentials and retention policy are configured. Never log message data. */ return NextResponse.json({ reference: reference("KRV") }, { status: 201 }); }

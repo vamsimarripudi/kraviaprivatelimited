@@ -1,0 +1,2 @@
+"use client";
+export default function Error({ reset }: { error: Error & { digest?: string }; reset: () => void }) { return <main className="page-hero shell"><p className="eyebrow">SERVICE INTERRUPTION</p><h1>Something needs another moment.</h1><p className="lede">Please try again. If the problem persists, contact Kravia through a verified channel.</p><button className="button button-dark" onClick={reset}>Try again</button></main>; }
