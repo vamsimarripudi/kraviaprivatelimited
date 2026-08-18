@@ -1,4 +1,6 @@
-export const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+import { resolvePublicSiteUrl } from "./env/public";
+
+export const siteUrl = resolvePublicSiteUrl();
 
 // Deliberately incomplete until verified corporate records are supplied.
 export const companyProfile = {
