@@ -35,7 +35,7 @@ export default function Home() {
   return (
     <>
       <SiteNav />
-      <main>
+      <main id="main-content">
         <section className="hero shell">
           <div className="hero-meta"><span>INDIA</span><span>SOFTWARE</span><span>AI</span><span>INFRASTRUCTURE</span></div>
           <HeroMotion />

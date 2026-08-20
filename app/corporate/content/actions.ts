@@ -83,7 +83,7 @@ export async function archiveContent(input: { id: string; reason: string }) {
   if (updateError) throw new Error("The archive action could not be recorded."); await recordEvent(supabase, data.id, "ARCHIVED", data.reason); revalidateContent({ type: record.content_type as PublicContentType, slug: record.slug });
 }
 
-export function contentSeoChecks(input: z.input<typeof recordInput>) {
+export async function contentSeoChecks(input: z.input<typeof recordInput>) {
   const data = recordInput.parse(input);
   return validateSeo({ ...data, seo: { ...data.seo, ogImage: data.seo.ogImage ?? undefined } });
 }
