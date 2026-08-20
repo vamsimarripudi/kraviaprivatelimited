@@ -223,3 +223,15 @@ body,
   .ui-drawer{padding-inline:1rem}
   .ui-drawer .mobile-nav>a:not(.nav-cta){min-height:3rem;font-size:1.28rem}
 }
+/* Supplied Kravia animated mark for the one-time entry splash. */
+.brand-splash{isolation:isolate;overflow:hidden;background:var(--paper)}
+.brand-splash-grid{position:absolute;inset:0;z-index:-1;opacity:.72;background-image:linear-gradient(to right,rgba(16,18,16,.035) 1px,transparent 1px),linear-gradient(to bottom,rgba(16,18,16,.035) 1px,transparent 1px);background-size:40px 40px;mask-image:radial-gradient(circle at center,black 20%,transparent 72%);-webkit-mask-image:radial-gradient(circle at center,black 20%,transparent 72%)}
+.brand-splash:after{content:"";position:absolute;z-index:-1;top:50%;left:50%;width:min(88vw,36rem);aspect-ratio:1;transform:translate(-50%,-56%);background:radial-gradient(circle,rgba(184,154,90,.11),transparent 68%);pointer-events:none}
+.brand-splash-content{display:flex!important;flex-direction:column;align-items:center;gap:0;text-align:center}
+.brand-splash-mark{display:block;width:clamp(8rem,20vw,11rem);height:auto;filter:drop-shadow(0 14px 22px rgba(16,18,16,.1))}
+.brand-splash-copy{display:grid;gap:.38rem;margin-top:1rem;color:var(--ink);line-height:1}
+.brand-splash-copy strong{font:700 clamp(1.7rem,4vw,2.3rem)/1 var(--sans);letter-spacing:.27em;text-indent:.27em}
+.brand-splash-copy span{font:600 .58rem/1.2 var(--mono);letter-spacing:.2em;color:var(--green)}
+.brand-splash-content .brand-logo{transform:scale(1.5);transform-origin:center;margin:3rem 0 2.8rem}
+.brand-splash-content .brand-splash-line{margin-top:1.3rem}
+@media(max-width:620px){.brand-splash-mark{width:8.4rem}.brand-splash-copy strong{font-size:1.55rem}.brand-splash-content .brand-logo{transform:scale(1.2)}}
