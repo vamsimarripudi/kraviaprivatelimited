@@ -12,7 +12,7 @@ export const capabilities = [
   "disclosure.review", "disclosure.approve", "disclosure.publish", "audit.view", "access.manage", "security.manage",
   "automation.view", "automation.manage", "automation.run", "finance.view", "finance.manage", "finance.import", "finance.reconcile",
   "asset.view", "asset.manage", "decision.view", "decision.act", "data.import", "data.export", "integration.view", "integration.manage",
-  "calendar.view", "readiness.view",
+  "calendar.view", "readiness.view", "support.view", "support.manage", "support.trust.view", "support.trust.manage",
   "content.view", "content.create", "content.edit", "content.review", "content.approve", "content.publish", "content.archive", "content.seo.manage", "content.facts.manage",
 ] as const;
 export type Capability = (typeof capabilities)[number];
@@ -25,19 +25,19 @@ const grants: Record<CorporateRole, readonly Capability[]> = {
   DIRECTOR: capabilities,
   SYSTEM_ADMIN: capabilities,
   CORPORATE_ADMIN: corporateAdminCapabilities,
-  COMPANY_SECRETARY: ["meeting.create", "meeting.view", "meeting.edit", "agenda.manage", "minutes.draft", "minutes.review", "minutes.export", "resolution.create", "document.upload", "document.view", "document.download", "compliance.view", "compliance.manage", "compliance.verify", "registration.view", "registration.manage", "disclosure.review", "audit.view", "automation.view", "decision.view", "decision.act", "calendar.view", "readiness.view", "content.view", "content.review", "content.facts.manage"],
+  COMPANY_SECRETARY: ["meeting.create", "meeting.view", "meeting.edit", "agenda.manage", "minutes.draft", "minutes.review", "minutes.export", "resolution.create", "document.upload", "document.view", "document.download", "compliance.view", "compliance.manage", "compliance.verify", "registration.view", "registration.manage", "disclosure.review", "audit.view", "automation.view", "decision.view", "decision.act", "calendar.view", "readiness.view", "support.view", "content.view", "content.review", "content.facts.manage"],
   CA_AUDITOR: financeCapabilities,
   CA: financeCapabilities,
   AUDITOR: ["document.view", "document.download", "compliance.view", "registration.view", "audit.view", "finance.view", "calendar.view", "decision.view"],
-  LEGAL_REVIEWER: ["meeting.view", "minutes.review", "document.view", "document.download", "disclosure.review", "audit.view", "decision.view", "calendar.view"],
+  LEGAL_REVIEWER: ["meeting.view", "minutes.review", "document.view", "document.download", "disclosure.review", "audit.view", "decision.view", "calendar.view", "support.trust.view", "support.trust.manage"],
   FINANCE_REVIEWER: financeCapabilities,
   COMPLIANCE_REVIEWER: complianceCapabilities,
   READ_ONLY_ADVISOR: ["document.view", "compliance.view", "registration.view", "finance.view", "asset.view", "calendar.view", "decision.view"],
   CONTENT_EDITOR: ["content.view", "content.create", "content.edit", "content.seo.manage"],
   CORPORATE_REVIEWER: ["content.view", "content.review"],
   PRODUCT_REVIEWER: ["content.view", "content.review"],
-  SECURITY_REVIEWER: ["content.view", "content.review"],
-  PRIVACY_REVIEWER: ["content.view", "content.review"],
+  SECURITY_REVIEWER: ["content.view", "content.review", "support.trust.view", "support.trust.manage"],
+  PRIVACY_REVIEWER: ["content.view", "content.review", "support.trust.view", "support.trust.manage"],
   PUBLISHER: ["content.view", "content.review", "content.approve", "content.publish", "content.archive", "content.seo.manage"],
 };
 

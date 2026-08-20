@@ -40,6 +40,7 @@ const footerColumns = [
       ["Legal", "/legal"],
       ["Accessibility", "/trust/accessibility"],
       ["Security reporting", "/trust/security-reporting"],
+      ["Support & case tracking", "/support"],
     ],
   },
 ] as const;

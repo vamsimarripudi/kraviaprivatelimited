@@ -1,0 +1,28 @@
+"use client";
+
+import { CheckCircle2, CircleDotDashed, LoaderCircle, MessageSquareText, ShieldCheck, UserRoundCheck } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { FormEvent, useState, useTransition } from "react";
+import { addSupportUpdate, changeSupportCase, claimSupportCase } from "@/app/corporate/support/actions";
+import { supportPriorities, supportQueueLabels, supportStatuses, type SupportCasePriority, type SupportCaseQueue, type SupportCaseStatus } from "@/lib/corporate/support";
+
+type SupportCase = { id: string; reference: string; category: string; queue: SupportCaseQueue; request_kind: string; subject: string; status: SupportCaseStatus; priority: SupportCasePriority; assigned_to: string | null; created_at: string; updated_at: string; version: number };
+const labels: Record<SupportCaseStatus, string> = { NEW: "New", ACKNOWLEDGED: "Acknowledged", IN_PROGRESS: "In progress", WAITING_FOR_CUSTOMER: "Waiting", RESOLVED: "Resolved", CLOSED: "Closed" };
+const queues: SupportCaseQueue[] = ["GENERAL", "TRUST_DPDPA", "SECURITY_REPORTING"];
+
+export function SupportOperations({ cases, canManage }: { cases: SupportCase[]; canManage: boolean }) {
+  return <section className="support-operations" aria-label="Support case queue"><div className="support-queue-head"><div><p className="eyebrow">CONTROLLED CASE OPERATIONS</p><h2>{cases.length ? `${cases.length} active case${cases.length === 1 ? "" : "s"}` : "No cases in your authorised queues."}</h2></div><p>Trust, DPDP and security cases are separated from general support. Database policy filters each queue before it reaches this screen.</p></div>{cases.length ? queues.map((queue) => { const entries = cases.filter((item) => item.queue === queue); if (!entries.length) return null; return <section className="support-queue-group" key={queue} aria-label={supportQueueLabels[queue]}><div><p className="eyebrow">{supportQueueLabels[queue]}</p><span>{entries.length} active</span></div><div className="support-case-list">{entries.map((supportCase) => <SupportCaseCard key={supportCase.id} supportCase={supportCase} canManage={canManage} />)}</div></section>; }) : <div className="office-empty"><CheckCircle2 /><div><h2>Nothing needs action in your authorised queues.</h2><p>New cases appear after the Support Operations and Trust/DPDP migrations are applied and a public request is submitted.</p></div></div>}</section>;
+}
+
+function SupportCaseCard({ supportCase, canManage }: { supportCase: SupportCase; canManage: boolean }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [status, setStatus] = useState(supportCase.status);
+  const [priority, setPriority] = useState(supportCase.priority);
+  const [note, setNote] = useState("");
+  const [customerVisible, setCustomerVisible] = useState(false);
+  const [message, setMessage] = useState<string>();
+  function run(action: () => Promise<{ ok: boolean; message: string }>) { startTransition(async () => { const result = await action(); setMessage(result.message); if (result.ok) router.refresh(); }); }
+  function submitNote(event: FormEvent) { event.preventDefault(); if (!note.trim()) return; run(async () => { const result = await addSupportUpdate({ caseId: supportCase.id, body: note, customerVisible }); if (result.ok) { setNote(""); setCustomerVisible(false); } return result; }); }
+  return <article className="support-case-card"><header><div><p className="eyebrow">{supportCase.reference} · {supportCase.category}</p><h3>{supportCase.subject}</h3><time dateTime={supportCase.updated_at}>Updated {new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" }).format(new Date(supportCase.updated_at))}</time></div><span className={`case-status case-${status.toLowerCase()}`}>{labels[status]}</span></header>{supportCase.queue !== "GENERAL" && <p className="support-restricted"><ShieldCheck /> Restricted reviewer queue · {supportCase.request_kind.replaceAll("_", " ")}</p>}{canManage ? <div className="support-case-controls"><label>Status<select value={status} onChange={(event) => setStatus(event.target.value as SupportCaseStatus)}>{supportStatuses.map((option) => <option key={option}>{option}</option>)}</select></label><label>Priority<select value={priority} onChange={(event) => setPriority(event.target.value as SupportCasePriority)}>{supportPriorities.map((option) => <option key={option}>{option}</option>)}</select></label><button type="button" className="button button-dark" disabled={pending} onClick={() => run(() => changeSupportCase({ caseId: supportCase.id, status, priority }))}>{pending ? <LoaderCircle className="spin" /> : <CircleDotDashed />} Save workflow</button><button type="button" className="text-link" disabled={pending} onClick={() => run(() => claimSupportCase({ caseId: supportCase.id, status, priority }))}><UserRoundCheck /> Claim case</button></div> : null}{canManage ? <form className="support-update-form" onSubmit={submitNote}><label>Case update<textarea value={note} onChange={(event) => setNote(event.target.value)} maxLength={5000} rows={3} placeholder="Record an internal note or a customer-visible progress update." /></label><label className="support-visible-toggle"><input type="checkbox" checked={customerVisible} onChange={(event) => setCustomerVisible(event.target.checked)} /> <span>Show this update to the requester</span></label><button className="button button-light" type="submit" disabled={pending || !note.trim()}><MessageSquareText /> {pending ? "Saving…" : "Add update"}</button></form> : null}{message && <p className="support-action-result" role="status">{message}</p>}</article>;
+}
