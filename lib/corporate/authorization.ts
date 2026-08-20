@@ -18,3 +18,14 @@ export async function requireCorporateCapability(capability: Capability): Promis
   if (requiresAal2(capability) && aal !== "aal2") throw new CorporateAccessError("Multi-factor step-up authentication is required for this action.", "MFA_REQUIRED");
   return { id: user.id, email: user.email, role, aal };
 }
+export async function requireAnyCorporateCapability(...capabilities: readonly Capability[]): Promise<CorporateActor> {
+  let lastError: unknown;
+  for (const capability of capabilities) {
+    try { return await requireCorporateCapability(capability); }
+    catch (error) {
+      if (!(error instanceof CorporateAccessError) || error.code !== "FORBIDDEN") throw error;
+      lastError = error;
+    }
+  }
+  throw lastError ?? new CorporateAccessError("Your role is not authorised for this action.", "FORBIDDEN");
+}
