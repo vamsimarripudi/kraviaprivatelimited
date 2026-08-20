@@ -112,12 +112,14 @@ export default function Home() {
         </section>
 
         <section className="signature-prefooter">
-          <div className="shell">
+          <div className="shell signature-prefooter-inner">
             <div className="signature-line" aria-hidden="true"><i /><i /></div>
-            <p className="eyebrow">KRAVIA PRIVATE LIMITED</p>
-            <h2>Ideas become systems.<br /><em>Systems become products.</em></h2>
-            <p>Built in India. Designed for wherever the work happens.</p>
-            <div><MagneticLink className="button button-light premium-cta" href="/products">Explore our products <ArrowUpRight /></MagneticLink><Link className="text-link inverse-link" href="/contact">Talk to Kravia</Link></div>
+            <div className="signature-prefooter-copy">
+              <p className="eyebrow">KRAVIA PRIVATE LIMITED</p>
+              <h2>Ideas become systems.<br /><em>Systems become products.</em></h2>
+              <p>Explore the work, or start a conversation.</p>
+            </div>
+            <div className="signature-prefooter-actions"><MagneticLink className="button button-light premium-cta" href="/products">Explore our products <ArrowUpRight /></MagneticLink><Link className="text-link inverse-link" href="/contact">Talk to Kravia</Link></div>
           </div>
         </section>
       </main>

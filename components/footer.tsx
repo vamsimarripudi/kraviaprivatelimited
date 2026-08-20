@@ -59,6 +59,10 @@ export function Footer() {
         <p className="footer-intro">A corporate home for Kravia’s products, technology, trust and public information—designed to grow without losing clarity.</p>
       </div>
 
+      <div className="shell footer-wordmark" aria-label="Kravia">
+        <span aria-hidden="true">K</span><span aria-hidden="true">R</span><span aria-hidden="true">A</span><span aria-hidden="true">V</span><span aria-hidden="true">I</span><span aria-hidden="true">A</span>
+      </div>
+
       <div className="shell footer-directory">
         {footerColumns.map((column) => (
           <nav key={column.title} aria-label={column.title}>
@@ -68,10 +72,6 @@ export function Footer() {
         ))}
       </div>
 
-
-      <div className="shell footer-wordmark" aria-label="Kravia">
-        <span>K</span><span>R</span><span>A</span><span>V</span><span>I</span><span>A</span>
-      </div>
       <div className="shell footer-bottom">
         <p>© {new Date().getFullYear()} KRAVIA PRIVATE LIMITED. All rights reserved.</p>
         <div><span>India</span><Link href="/trust">Accessibility</Link><Link href="/trust/privacy">Privacy</Link></div>
