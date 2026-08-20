@@ -52,7 +52,7 @@ export function Footer() {
     <footer className="footer corporate-footer">
       <div className="shell footer-brand-row">
         <div className="footer-brand-block">
-          <BrandLogo inverse />
+          <BrandLogo inverse animated />
           <p className="eyebrow footer-eyebrow">KRAVIA PRIVATE LIMITED</p>
           <h2>Built for the work<br /><em>that comes next.</em></h2>
         </div>

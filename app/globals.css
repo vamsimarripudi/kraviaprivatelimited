@@ -235,3 +235,4 @@ body,
 .brand-splash-content .brand-logo{transform:scale(1.5);transform-origin:center;margin:3rem 0 2.8rem}
 .brand-splash-content .brand-splash-line{margin-top:1.3rem}
 @media(max-width:620px){.brand-splash-mark{width:8.4rem}.brand-splash-copy strong{font-size:1.55rem}.brand-splash-content .brand-logo{transform:scale(1.2)}}
+.brand-logo-animated img{animation-play-state:running}@media(prefers-reduced-motion:reduce){.brand-logo-animated img{content:url('/brand/kravia-logo.png')}}
