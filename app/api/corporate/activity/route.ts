@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthenticatedUser } from "@/lib/supabase/auth";
 
-const eventInput = z.object({ eventType: z.enum(["SIGNED_IN", "PAGE_VIEWED"]), path: z.string().startsWith("/corporate/").max(300).optional() });
+const eventInput = z.object({ eventType: z.enum(["SIGNED_IN", "PAGE_VIEWED"]), path: z.string().regex(/^\/(?:corporate(?:\/|$)|admin(?:\/|$))/).max(300).optional() });
 
-/** Authenticated Corporate Office activity only; no public visitor behaviour is stored here. */
+/** Authenticated Corporate Office and Site Control activity only; no public visitor behaviour is stored here. */
 export async function POST(request: Request) {
   try {
     const input = eventInput.parse(await request.json());
