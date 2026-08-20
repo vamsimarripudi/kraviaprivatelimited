@@ -232,3 +232,30 @@ body,
 .brand-splash-content .brand-splash-line{margin-top:1.3rem}
 @media(max-width:620px){.brand-splash-mark{width:8.4rem}.brand-splash-copy strong{font-size:1.55rem}.brand-splash-content .brand-logo{transform:scale(1.2)}}
 .brand-logo-animated img{animation-play-state:running}@media(prefers-reduced-motion:reduce){.brand-logo-animated img{content:url('/brand/kravia-logo.png')}}
+/* Kravia 60/30/10 premium colour system.
+   60 — warm ivory and sand surfaces. 30 — ink and evergreen structure. 10 — antique brass emphasis. */
+:root{--paper:#f8f5ee;--mist:#ece4d5;--surface-raised:#fffdf8;--ink:#101b19;--ink-2:#1d302c;--green:#17453a;--gold:#b48843;--gold-deep:#76531f;--line:rgba(16,27,25,.14);--focus-ring:2px solid var(--gold-deep);--shadow-raised:0 18px 42px rgba(16,27,25,.09)}
+::selection{background:color-mix(in srgb,var(--gold) 36%,var(--paper));color:var(--ink)}
+body{background:var(--paper);color:var(--ink);text-rendering:optimizeLegibility}
+.nav-wrap{background:color-mix(in srgb,var(--paper) 94%,transparent);border-bottom-color:color-mix(in srgb,var(--ink) 13%,transparent)}
+.nav-wrap.nav-scrolled{background:color-mix(in srgb,var(--paper) 98%,transparent);box-shadow:0 10px 28px rgba(16,27,25,.075)}
+.nav-links>a:not(.nav-cta){color:color-mix(in srgb,var(--ink) 74%,transparent)}
+.nav-links>a:not(.nav-cta):hover,.nav-links>a[aria-current="page"]{color:var(--ink)}
+.nav-cta,.button-dark{background:var(--ink);box-shadow:0 8px 18px rgba(16,27,25,.12)}
+.nav-cta:hover,.button-dark:hover{background:var(--green);box-shadow:0 12px 26px rgba(16,27,25,.16)}
+.button-light{background:var(--surface-raised);border-color:color-mix(in srgb,var(--paper) 75%,transparent)}
+.text-link{border-color:color-mix(in srgb,var(--ink) 72%,transparent)}
+.text-link:hover{color:var(--green);border-color:var(--gold)}
+.dark-section{background:var(--ink)}
+.trust-band{background:linear-gradient(115deg,var(--mist),color-mix(in srgb,var(--paper) 74%,var(--mist)))}
+.ui-card{background:var(--surface-raised);border-color:var(--line)}
+.ui-card-interactive:hover{border-color:color-mix(in srgb,var(--gold) 58%,var(--line));box-shadow:0 20px 44px rgba(16,27,25,.11)}
+.signature-prefooter{background:var(--ink)}
+.signature-prefooter:before{border-color:color-mix(in srgb,var(--gold) 34%,transparent)}
+.corporate-footer{background:#10231f}
+.footer-brand-row,.footer-directory,.footer-bottom{border-color:rgba(248,245,238,.15)}
+.footer-directory a:hover,.footer-bottom a:hover{color:#d1b06e}
+.ui-badge-information{color:#305f71}.ui-badge-warning{color:#805b21}.ui-badge-critical{color:#983c2b}
+.form-success{background:#e2eee8;border-color:color-mix(in srgb,var(--green) 30%,var(--line))}
+.form-error{background:#f6e6df;color:#782d20}
+@media(prefers-reduced-motion:no-preference){.nav-cta,.button-dark,.button-light{transition:transform var(--fast) var(--ease),background var(--fast) var(--ease),box-shadow var(--fast) var(--ease),border-color var(--fast) var(--ease)}}
