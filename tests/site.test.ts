@@ -13,6 +13,17 @@ describe("public company data", () => {
   });
 });
 
+describe("canonical URL resolution", () => {
+  it("uses the Vercel production canonical URL when a localhost value leaks into production", async () => {
+    const { resolvePublicSiteUrl } = await import("../lib/env/public");
+    expect(resolvePublicSiteUrl("http://localhost:3000", { VERCEL_ENV: "production" })).toBe("https://www.kraviaprivatelimited.com");
+  });
+
+  it("uses the preview host instead of a shared production canonical", async () => {
+    const { resolvePublicSiteUrl } = await import("../lib/env/public");
+    expect(resolvePublicSiteUrl("https://www.kraviaprivatelimited.com", { VERCEL_ENV: "preview", VERCEL_URL: "kravia-preview.vercel.app" })).toBe("https://kravia-preview.vercel.app");
+  });
+});
 describe("public crawler boundaries", () => {
   it("allows ordinary public crawling only for production and publishes one sitemap", () => {
     const policy = crawlerPolicy(true, "https://www.kraviaprivatelimited.com");

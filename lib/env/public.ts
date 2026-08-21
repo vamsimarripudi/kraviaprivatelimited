@@ -15,9 +15,13 @@ export function resolvePublicSiteUrl(value = process.env.NEXT_PUBLIC_SITE_URL, r
 
   try {
     const url = new URL(candidate);
-    return url.protocol === "http:" || url.protocol === "https:" ? url.origin : localSiteUrl;
+    if (url.protocol !== "http:" && url.protocol !== "https:") return localSiteUrl;
+    // Vercel production must never publish a localhost canonical because a
+    // local value was accidentally promoted with the environment settings.
+    if (runtime.VERCEL_ENV === "production" && /^(localhost|127\.0\.0\.1)$/i.test(url.hostname)) return canonicalProductionSiteUrl;
+    return url.origin;
   } catch {
-    return localSiteUrl;
+    return runtime.VERCEL_ENV === "production" ? canonicalProductionSiteUrl : localSiteUrl;
   }
 }
 
