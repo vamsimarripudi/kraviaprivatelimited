@@ -8,7 +8,7 @@ import type { CorporateActor } from "@/lib/corporate/authorization";
 
 const navigation = [
   { href: "/admin", label: "Command center", Icon: LayoutDashboard },
-  { href: "/admin/newsroom", label: "Newsroom", Icon: FilePenLine },
+  { href: "/admin/newsroom", label: "Content & newsroom", Icon: FilePenLine },
   { href: "/admin/forms", label: "Forms & requests", Icon: MessagesSquare },
   { href: "/admin/monitoring", label: "Monitoring", Icon: Activity },
 ];
