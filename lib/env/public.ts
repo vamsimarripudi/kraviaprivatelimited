@@ -7,7 +7,9 @@ export const canonicalProductionSiteUrl = "https://www.kraviaprivatelimited.com"
  * Produces a valid server-rendering base URL without accepting a production
  * canonical URL in preview deployments.
  */
-export function resolvePublicSiteUrl(value = process.env.NEXT_PUBLIC_SITE_URL, runtime = process.env): string {
+type PublicRuntimeEnvironment = { VERCEL_ENV?: string; VERCEL_URL?: string };
+
+export function resolvePublicSiteUrl(value = process.env.NEXT_PUBLIC_SITE_URL, runtime: PublicRuntimeEnvironment = { VERCEL_ENV: process.env.VERCEL_ENV, VERCEL_URL: process.env.VERCEL_URL }): string {
   if (runtime.VERCEL_ENV === "preview" && runtime.VERCEL_URL) return `https://${runtime.VERCEL_URL}`;
 
   const candidate = value?.trim();

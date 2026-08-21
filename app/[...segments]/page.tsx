@@ -4,7 +4,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
 import { Footer } from "@/components/footer";
 import { GovernedContentCollection } from "@/components/governed-content-collection";
-import { NewsArticle, NewsroomLanding, MediaKitContent } from "@/components/newsroom-content";
+import { PublicContentArticle, NewsroomLanding, MediaKitContent } from "@/components/newsroom-content";
 import { PageHero, Reveal } from "@/components/motion";
 import { SiteNav } from "@/components/site-nav";
 import { publicPages, siteUrl } from "@/lib/site";
@@ -20,17 +20,21 @@ function breadcrumbsFor(segments: string[]) { return [{ name: "Home", path: "/" 
 
 export async function generateMetadata({ params }: { params: Promise<{ segments: string[] }> }): Promise<Metadata> {
   const { segments } = await params; const key = segments.join("/"); const page = publicPages[key];
-  if (page) { const url = `${siteUrl}/${key}`; return { title: titleFor(page), description: page.intro, alternates: { canonical: `/${key}` }, openGraph: { title: `${titleFor(page)} | Kravia Private Limited`, description: page.intro, url, type: "website" } }; }
   const content = await getPublishedContentByPublicPath(`/${key}`);
+  // A published public record is the canonical source for its own path. The
+  // version-controlled page is an intentional fallback until that happens.
   if (content) return contentMetadata(content);
+  if (page) { const url = `${siteUrl}/${key}`; return { title: titleFor(page), description: page.intro, alternates: { canonical: `/${key}` }, openGraph: { title: `${titleFor(page)} | Kravia Private Limited`, description: page.intro, url, type: "website" } }; }
   return {};
 }
 
 export default async function PublicPage({ params }: { params: Promise<{ segments: string[] }> }) {
   const { segments } = await params; const key = segments.join("/"); const page = publicPages[key];
-  if (!page) {
-    const content = await getPublishedContentByPublicPath(`/${key}`);
-    if (content) { const articles = await getPublishedNewsroomContent(); const schema = articleJsonLd(content); return <><SiteNav /><BreadcrumbJsonLd items={breadcrumbsFor(segments)} />{schema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />}<main id="main-content"><NewsArticle article={content} allArticles={articles} /></main><Footer /></>; }
+  const content = await getPublishedContentByPublicPath(`/${key}`);
+  if (content) {
+    const allContent = await listPublishedContent();
+    const schema = articleJsonLd(content);
+    return <><SiteNav /><BreadcrumbJsonLd items={breadcrumbsFor(segments)} />{schema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />}<main id="main-content"><PublicContentArticle article={content} allArticles={allContent} /></main><Footer /></>;
   }
   if (!page) { const redirect = await resolvePublishedRedirect(`/${key}`); if (redirect) permanentRedirect(redirect); notFound(); }
   const breadcrumbs = breadcrumbsFor(segments);
