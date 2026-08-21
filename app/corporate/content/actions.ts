@@ -16,6 +16,17 @@ const materiality = z.enum(["EDITORIAL", "MINOR", "MATERIAL", "LEGAL_POLICY", "C
 const recordInput = z.object({ type: contentType, slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), title: z.string().min(1).max(180), summary: z.string().max(500).nullable().optional(), body: z.unknown(), category: z.string().max(80).nullable().optional(), authorName: z.string().max(160).nullable().optional(), seo: z.object({ title: z.string().min(1).max(180), description: z.string().min(1).max(200), canonicalPath: z.string().regex(/^\//), ogImage: z.string().regex(/^\//).nullable().optional(), noindex: z.boolean().optional() }) });
 const revisionInput = recordInput.extend({ id: z.string().uuid(), changeSummary: z.string().min(3).max(1000), materiality });
 
+// Supabase RPC schemas are not generated in the local type contract yet. Validate
+// the narrow return shape at this boundary instead of allowing an untyped result
+// to travel through governed publication logic.
+const contentRecordRpc = z.object({
+  id: z.string().uuid(),
+  version: z.number().int().nonnegative(),
+  content_type: contentType,
+  slug: z.string().min(1),
+  seo: recordInput.shape.seo,
+});
+
 async function clientOrThrow() { const client = await createClient(); if (!client) throw new Error("Corporate Office requires Supabase configuration."); return client; }
 async function recordEvent(supabase: NonNullable<Awaited<ReturnType<typeof createClient>>>, contentId: string, eventType: string, reason?: string) {
   const { error } = await supabase.from("content_publication_events").insert({ content_id: contentId, event_type: eventType, reason: reason ?? null });
@@ -44,8 +55,9 @@ export async function updateContent(input: z.input<typeof revisionInput>) {
     p_body: data.body, p_category: data.category ?? null, p_author_name: data.authorName ?? null, p_seo: data.seo,
     p_change_summary: data.changeSummary, p_materiality: data.materiality as ChangeMateriality,
   }).single();
-  if (error || !revised) throw new Error("The new content version could not be saved.");
-  return { id: revised.id, version: revised.version };
+  const revisedRecord = contentRecordRpc.safeParse(revised);
+  if (error || !revisedRecord.success) throw new Error("The new content version could not be saved.");
+  return { id: revisedRecord.data.id, version: revisedRecord.data.version };
 }
 
 /** Opens a private revision while retaining the active public snapshot. */
@@ -98,16 +110,18 @@ export async function publishContent(input: { id: string; scheduledFor?: string 
   await requireCorporateCapability("content.publish");
   const data = z.object({ id: z.string().uuid(), scheduledFor: z.string().datetime().nullable().optional() }).parse(input); const supabase = await clientOrThrow();
   const { data: publishedRecord, error } = await supabase.rpc("publish_content_snapshot", { p_content_id: data.id, p_scheduled_for: data.scheduledFor ?? null }).single();
-  if (error || !publishedRecord) throw new Error("The approved public revision could not be released. Confirm the publication-snapshot migration is applied and retry.");
-  if (!data.scheduledFor || new Date(data.scheduledFor).getTime() <= Date.now()) revalidateContent({ type: publishedRecord.content_type as PublicContentType, slug: publishedRecord.slug, seo: publishedRecord.seo });
+  const published = contentRecordRpc.safeParse(publishedRecord);
+  if (error || !published.success) throw new Error("The approved public revision could not be released. Confirm the publication-snapshot migration is applied and retry.");
+  if (!data.scheduledFor || new Date(data.scheduledFor).getTime() <= Date.now()) revalidateContent({ type: published.data.content_type, slug: published.data.slug, seo: { ...published.data.seo, ogImage: published.data.seo.ogImage ?? undefined } });
 }
 
 export async function archiveContent(input: { id: string; reason: string }) {
   await requireCorporateCapability("content.archive");
   const data = z.object({ id: z.string().uuid(), reason: z.string().min(3).max(1000) }).parse(input); const supabase = await clientOrThrow();
   const { data: archivedRecord, error } = await supabase.rpc("archive_content_snapshot", { p_content_id: data.id, p_reason: data.reason }).single();
-  if (error || !archivedRecord) throw new Error("The public revision could not be withdrawn safely. Confirm the publication-snapshot migration is applied and retry.");
-  revalidateContent({ type: archivedRecord.content_type as PublicContentType, slug: archivedRecord.slug, seo: archivedRecord.seo });
+  const archived = contentRecordRpc.safeParse(archivedRecord);
+  if (error || !archived.success) throw new Error("The public revision could not be withdrawn safely. Confirm the publication-snapshot migration is applied and retry.");
+  revalidateContent({ type: archived.data.content_type, slug: archived.data.slug, seo: { ...archived.data.seo, ogImage: archived.data.seo.ogImage ?? undefined } });
 }
 
 export async function contentSeoChecks(input: z.input<typeof recordInput>) {

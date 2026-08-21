@@ -19,7 +19,6 @@ export function EnquiryForm({ privacy = false, initialCategory, presentation }: 
   const [formError, setFormError] = useState<string>();
   const errorRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { setCategory(initialCategory ?? (privacy ? "Privacy question" : categories[0])); }, [initialCategory, privacy]);
   useEffect(() => { if (status === "error") errorRef.current?.focus(); }, [status]);
   function validate(form: FormData) {
     const next: FormErrors = {}; const name = String(form.get("name") ?? "").trim(); const email = String(form.get("email") ?? "").trim(); const text = String(form.get("message") ?? "").trim();

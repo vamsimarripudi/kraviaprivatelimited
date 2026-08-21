@@ -7,12 +7,16 @@ import { CorporateAccessError, requireAnyCorporateCapability } from "@/lib/corpo
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Site Control", robots: { index: false, follow: false } };
 
-export default async function AdminLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+async function getAdminActor() {
   try {
-    const actor = await requireAnyCorporateCapability("content.view", "support.view", "security.manage", "readiness.view", "automation.view");
-    return <AdminConsole actor={actor}><CorporateActivityBeacon />{children}</AdminConsole>;
+    return await requireAnyCorporateCapability("content.view", "support.view", "security.manage", "readiness.view", "automation.view");
   } catch (error) {
     if (error instanceof CorporateAccessError && error.code === "UNAUTHENTICATED") redirect("/corporate/login?next=/admin");
     throw error;
   }
+}
+
+export default async function AdminLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const actor = await getAdminActor();
+  return <AdminConsole actor={actor}><CorporateActivityBeacon />{children}</AdminConsole>;
 }
