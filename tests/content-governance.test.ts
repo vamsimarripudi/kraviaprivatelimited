@@ -4,6 +4,7 @@ import { contentPath, publicContentPath } from "../lib/content/seo";
 import { canReviewContentDomain } from "../lib/corporate/permissions";
 import { relatedContent, uniquePublicRelationships } from "../lib/content/relationships";
 import { publicContentForHub } from "../lib/content/hubs";
+import { publicFactKeys } from "../lib/corporate/facts-schema";
 import type { PublicContentRecord } from "../lib/content/types";
 
 const base = { id: "test", type: "NEWS", slug: "real-update", title: "A verified update", summary: "A suitable description for a governed public content record.", body: ["Body"], status: "IN_REVIEW", visibility: "PRIVATE", createdAt: "2026-08-14T00:00:00.000Z", updatedAt: "2026-08-14T00:00:00.000Z", version: 1, seo: { title: "A verified update | Kravia", description: "A suitable description for a governed public content record.", canonicalPath: "/newsroom/real-update" } } satisfies PublicContentRecord;
@@ -34,5 +35,9 @@ describe("content governance", () => {
     expect(contentPath({ type: "TRUST_DOCUMENT", slug: "security-practices" })).toBe("/trust/security-practices");
     expect(contentPath({ type: "CORPORATE_DISCLOSURE", slug: "annual-return" })).toBe("/disclosures/annual-return");
     expect(publicContentPath({ ...base, type: "NEWS", seo: { ...base.seo, canonicalPath: "/newsroom/canonical-update" } })).toBe("/newsroom/canonical-update");
+  });
+  it("keeps the public company-fact registry limited to approved public identifiers", () => {
+    expect(publicFactKeys).toEqual(expect.arrayContaining(["legal_name", "cin", "registered_office", "email"]));
+    expect(publicFactKeys).not.toEqual(expect.arrayContaining(["pan", "tan", "bank_account", "director_address"]));
   });
 });

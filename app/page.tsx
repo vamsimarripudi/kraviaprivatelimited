@@ -5,7 +5,8 @@ import { KLine } from "@/components/k-line";
 import { SiteNav } from "@/components/site-nav";
 import { HeroMotion, Reveal } from "@/components/motion";
 import { CapabilityExplorer, MagneticLink } from "@/components/premium-interactions";
-import { companyNarrative, publicCompanyInformation, publicProducts } from "@/lib/corporate-content";
+import { companyNarrative, publicProducts } from "@/lib/corporate-content";
+import { getPublicCompanyProfile, type PublicCompanyProfile } from "@/lib/corporate/public-facts";
 import { HomepageUpdates } from "@/components/newsroom-content";
 import { getPublishedNewsroomContent } from "@/lib/content/repository";
 
@@ -16,25 +17,29 @@ const operatingAreas = [
 ] as const;
 
 const buildApproach = ["Understand", "Design", "Engineer", "Protect", "Learn", "Improve"];
-const atAGlance = [
-  ["Identity", publicCompanyInformation.legalName.value],
-  ["Base", publicCompanyInformation.country.value],
-  ["Focus", "Software products · Intelligent systems · Digital infrastructure"],
-  ["Flagship product", publicProducts[0]?.name ?? null],
-].filter(([, value]) => Boolean(value)) as [string, string][];
 
-const publicFactRows = [
-  ["Legal name", publicCompanyInformation.legalName.value],
-  ["Entity type", publicCompanyInformation.entityType.value],
-  ["Country", publicCompanyInformation.country.value],
-  ["CIN", publicCompanyInformation.cin.value],
-  ["Registered office", publicCompanyInformation.registeredOffice.value],
-  ["Email", publicCompanyInformation.email.value],
-  ["Telephone", publicCompanyInformation.telephone.value],
-].filter(([, value]) => Boolean(value)) as [string, string][];
+function atAGlance(profile: PublicCompanyProfile) {
+  return [
+    ["Identity", profile.legalName],
+    ["Base", profile.country],
+    ["Focus", "Software products · Intelligent systems · Digital infrastructure"],
+    ["Flagship product", publicProducts[0]?.name ?? null],
+  ].filter(([, value]) => Boolean(value)) as [string, string][];
+}
 
+function publicFactRows(profile: PublicCompanyProfile) {
+  return [
+    ["Legal name", profile.legalName],
+    ["Entity type", profile.companyType],
+    ["Country", profile.country],
+    ["CIN", profile.cin],
+    ["Registered office", profile.registeredOffice],
+    ["Email", profile.corporateEmail],
+    ["Telephone", profile.telephone],
+  ].filter(([, value]) => Boolean(value)) as [string, string][];
+}
 export default async function Home() {
-  const newsroom = await getPublishedNewsroomContent();
+  const [newsroom, profile] = await Promise.all([getPublishedNewsroomContent(), getPublicCompanyProfile()]);
   return (
     <>
       <SiteNav />
@@ -51,7 +56,7 @@ export default async function Home() {
 
         <section className="at-a-glance shell" aria-labelledby="glance-title">
           <div><p className="eyebrow">01 / AT A GLANCE</p><h2 id="glance-title">A corporate identity<br />with room to grow.</h2></div>
-          <dl>{atAGlance.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+          <dl>{atAGlance(profile).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
         </section>
 
         <section className="intro shell grid-12">
@@ -112,7 +117,7 @@ export default async function Home() {
         <HomepageUpdates articles={newsroom} />
         <section className="corporate-information shell" aria-labelledby="corporate-information-title">
           <div><p className="eyebrow">10 / CORPORATE INFORMATION</p><h2 id="corporate-information-title">Corporate details, <em>without the clutter.</em></h2><p>Kravia publishes public corporate information from a governed record. Details that are not yet verified are deliberately not shown.</p><Link href="/company/corporate-information" className="text-link">View corporate information <ArrowDownRight /></Link></div>
-          <dl>{publicFactRows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+          <dl>{publicFactRows(profile).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
         </section>
 
         <section className="signature-prefooter">

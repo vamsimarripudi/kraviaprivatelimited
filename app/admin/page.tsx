@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, FileText, MessagesSquare, RadioTower, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, Building2, FileText, MessagesSquare, RadioTower, ShieldCheck } from "lucide-react";
 import { AdminControlLink, AdminLiveBadge, AdminPageHeader } from "@/components/admin-console";
 import { listManagedFormSettings } from "@/lib/admin/site-control";
 import { listPublishedContent } from "@/lib/content/repository";
@@ -27,6 +27,7 @@ export default async function AdminDashboardPage() {
       <div className="admin-command-intro"><p className="eyebrow">CONTROL SURFACES</p><h2>One operating view. Separate safeguards.</h2><p>Website presentation, public content, request handling and operational data are connected—but permissions and publication gates remain independent.</p><AdminLiveBadge live={formState.schemaReady} label={formState.schemaReady ? `${configuredForms} form setting${configuredForms === 1 ? "" : "s"} configured` : "Form settings awaiting migration"} /></div>
       <div className="admin-control-list">
         <AdminControlLink href="/admin/newsroom" label="Newsroom publishing" detail="Create a governed draft, define its public presentation, then use review and publishing controls." Icon={FileText} />
+        <AdminControlLink href="/admin/company" label="Company fact governance" detail="Record evidence-backed corporate facts once; only public-approved values reach the website and organization schema." Icon={Building2} />
         <AdminControlLink href="/admin/forms" label="Forms & request operations" detail="Edit public form copy while keeping routing and restricted queues protected." Icon={MessagesSquare} />
         <AdminControlLink href="/admin/monitoring" label="Monitoring & database health" detail="View authorised operational signals, schema readiness and aggregate workload." Icon={RadioTower} />
       </div>

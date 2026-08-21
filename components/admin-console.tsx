@@ -3,13 +3,15 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, FilePenLine, LayoutDashboard, MessagesSquare, RadioTower, Settings2, ShieldCheck } from "lucide-react";
+import { Activity, Building2, FilePenLine, LayoutDashboard, MessagesSquare, RadioTower, Settings2, ShieldCheck } from "lucide-react";
 import type { CorporateActor } from "@/lib/corporate/authorization";
+import { hasCapability, type Capability } from "@/lib/corporate/permissions";
 
 const navigation = [
   { href: "/admin", label: "Command center", Icon: LayoutDashboard },
-  { href: "/admin/newsroom", label: "Content & newsroom", Icon: FilePenLine },
-  { href: "/admin/forms", label: "Forms & requests", Icon: MessagesSquare },
+  { href: "/admin/newsroom", label: "Content & newsroom", Icon: FilePenLine, capability: "content.view" as Capability },
+  { href: "/admin/company", label: "Company facts", Icon: Building2, capability: "content.facts.manage" as Capability },
+  { href: "/admin/forms", label: "Forms & requests", Icon: MessagesSquare, capability: "support.view" as Capability },
   { href: "/admin/monitoring", label: "Monitoring", Icon: Activity },
 ];
 
@@ -21,7 +23,7 @@ export function AdminConsole({ actor, children }: { actor: CorporateActor; child
         <span>KRAVIA</span><small>SITE CONTROL</small>
       </Link>
       <nav aria-label="Site control navigation">
-        {navigation.map(({ href, label, Icon }) => <Link key={href} href={href} aria-current={href === "/admin" ? pathname === href ? "page" : undefined : pathname.startsWith(href) ? "page" : undefined}><Icon aria-hidden="true" />{label}</Link>)}
+        {navigation.filter((item) => !item.capability || hasCapability(actor.role, item.capability)).map(({ href, label, Icon }) => <Link key={href} href={href} aria-current={href === "/admin" ? pathname === href ? "page" : undefined : pathname.startsWith(href) ? "page" : undefined}><Icon aria-hidden="true" />{label}</Link>)}
       </nav>
       <div className="admin-rail-foot"><ShieldCheck aria-hidden="true" /><p>Protected operating surface.<br />All changes are role-checked and audited.</p></div>
     </aside>
