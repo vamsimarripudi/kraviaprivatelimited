@@ -29,7 +29,7 @@ const grants: Record<CorporateRole, readonly Capability[]> = {
   CA_AUDITOR: financeCapabilities,
   CA: financeCapabilities,
   AUDITOR: ["document.view", "document.download", "compliance.view", "registration.view", "audit.view", "finance.view", "calendar.view", "decision.view"],
-  LEGAL_REVIEWER: ["meeting.view", "minutes.review", "document.view", "document.download", "disclosure.review", "audit.view", "decision.view", "calendar.view", "support.trust.view", "support.trust.manage"],
+  LEGAL_REVIEWER: ["meeting.view", "minutes.review", "document.view", "document.download", "disclosure.review", "audit.view", "decision.view", "calendar.view", "support.trust.view", "support.trust.manage", "content.view", "content.review"],
   FINANCE_REVIEWER: financeCapabilities,
   COMPLIANCE_REVIEWER: complianceCapabilities,
   READ_ONLY_ADVISOR: ["document.view", "compliance.view", "registration.view", "finance.view", "asset.view", "calendar.view", "decision.view"],
@@ -45,4 +45,16 @@ export const sensitiveCapabilities = new Set<Capability>([
   "meeting.finalize", "minutes.approve", "resolution.finalize", "document.publish", "document.archive", "disclosure.approve", "disclosure.publish", "access.manage", "security.manage", "integration.manage", "data.export", "content.approve", "content.publish", "content.archive", "content.facts.manage",
 ]);
 export function hasCapability(role: CorporateRole, capability: Capability) { return grants[role].includes(capability); }
+/** Content review is domain-specific; generic review capability must not approve unrelated specialist content. */
+export function canReviewContentDomain(role: CorporateRole, domain: "CONTENT" | "PRODUCT" | "TECHNOLOGY" | "SECURITY" | "PRIVACY" | "LEGAL" | "CORPORATE" | "DIRECTOR") {
+  if (role === "DIRECTOR" || role === "SYSTEM_ADMIN") return true;
+  if (role === "CORPORATE_ADMIN") return ["CONTENT", "PRODUCT", "TECHNOLOGY", "CORPORATE"].includes(domain);
+  if (role === "COMPANY_SECRETARY" || role === "CORPORATE_REVIEWER") return ["CONTENT", "TECHNOLOGY", "CORPORATE"].includes(domain);
+  if (role === "PRODUCT_REVIEWER") return domain === "PRODUCT";
+  if (role === "SECURITY_REVIEWER") return domain === "SECURITY";
+  if (role === "PRIVACY_REVIEWER") return domain === "PRIVACY";
+  if (role === "LEGAL_REVIEWER") return domain === "LEGAL";
+  if (role === "PUBLISHER") return domain === "CONTENT";
+  return false;
+}
 export function requiresAal2(capability: Capability) { return sensitiveCapabilities.has(capability); }

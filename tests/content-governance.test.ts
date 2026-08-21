@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { canTransitionContent, findHighRiskClaims, hasRequiredApprovals, isPublishable, requiredReviewDomains, validateSeo } from "../lib/content/governance";
 import { contentPath, publicContentPath } from "../lib/content/seo";
+import { canReviewContentDomain } from "../lib/corporate/permissions";
 import { relatedContent, uniquePublicRelationships } from "../lib/content/relationships";
 import type { PublicContentRecord } from "../lib/content/types";
 
@@ -10,6 +11,12 @@ describe("content governance", () => {
   it("flags rather than silently accepts high-risk public claims", () => { expect(findHighRiskClaims("We are 100% secure and fully compliant.").map(({ phrase }) => phrase.toLowerCase())).toEqual(expect.arrayContaining(["100%", "fully compliant"])); });
   it("requires review before content can be approved", () => { expect(hasRequiredApprovals(base, [])).toBe(false); expect(hasRequiredApprovals(base, [{ id: "r", contentId: "test", version: 1, domain: "CONTENT", status: "APPROVED" }])).toBe(true); });
   it("allows only controlled lifecycle transitions", () => { expect(canTransitionContent("DRAFT", "IN_REVIEW")).toBe(true); expect(canTransitionContent("DRAFT", "PUBLISHED")).toBe(false); });
+  it("limits specialist review decisions to their assigned governance domain", () => {
+    expect(canReviewContentDomain("PRIVACY_REVIEWER", "PRIVACY")).toBe(true);
+    expect(canReviewContentDomain("PRIVACY_REVIEWER", "LEGAL")).toBe(false);
+    expect(canReviewContentDomain("LEGAL_REVIEWER", "LEGAL")).toBe(true);
+    expect(canReviewContentDomain("PRODUCT_REVIEWER", "SECURITY")).toBe(false);
+  });
   it("rejects publication when SEO has an error", () => { expect(isPublishable({ ...base, slug: "Invalid slug" }, [{ id: "r", contentId: "test", version: 1, domain: "CONTENT", status: "APPROVED" }])).toBe(false); expect(validateSeo({ ...base, slug: "valid", seo: { ...base.seo, title: "" } }).some((issue) => issue.code === "MISSING_TITLE")).toBe(true); });
   it("adds specialist review domains only where content needs them", () => { expect(requiredReviewDomains("POLICY", { ...base, title: "Privacy policy" })).toEqual(expect.arrayContaining(["CONTENT", "CORPORATE", "LEGAL"])); });
   it("keeps the public knowledge graph de-duplicated and excludes private relationships", () => { expect(uniquePublicRelationships([{ fromId: "kravia", predicate: "BUILDS", toId: "vidyaluma", public: true }, { fromId: "kravia", predicate: "BUILDS", toId: "vidyaluma", public: true }, { fromId: "kravia", predicate: "HAS_ROLE", toId: "private", public: false }])).toHaveLength(1); });

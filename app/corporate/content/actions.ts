@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireCorporateCapability } from "@/lib/corporate/authorization";
+import { canReviewContentDomain } from "@/lib/corporate/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { canTransitionContent, findHighRiskClaims, isPublishable, requiredReviewDomains, validateSeo } from "@/lib/content/governance";
 import { publicContentPath } from "@/lib/content/seo";
@@ -44,7 +45,9 @@ export async function requestContentReview(input: z.input<typeof baseInput>) {
 }
 
 export async function submitContentReview(input: { id: string; domain: ReviewDomain; decision: "APPROVED" | "CHANGES_REQUESTED" | "REJECTED"; note?: string }) {
-  const actor = await requireCorporateCapability("content.review"); const data = z.object({ id: z.string().uuid(), domain: reviewDomain, decision: z.enum(["APPROVED", "CHANGES_REQUESTED", "REJECTED"]), note: z.string().max(5000).optional() }).parse(input); const supabase = await clientOrThrow();
+  const actor = await requireCorporateCapability("content.review"); const data = z.object({ id: z.string().uuid(), domain: reviewDomain, decision: z.enum(["APPROVED", "CHANGES_REQUESTED", "REJECTED"]), note: z.string().max(5000).optional() }).parse(input);
+  if (!canReviewContentDomain(actor.role, data.domain)) throw new Error("Your role is not authorised to decide this review domain.");
+  const supabase = await clientOrThrow();
   const { data: review, error } = await supabase.from("content_reviews").select("*").eq("content_id", data.id).eq("review_domain", data.domain).order("version", { ascending: false }).limit(1).single();
   if (error || !review) throw new Error("No assigned review is available for this content.");
   const { error: updateError } = await supabase.from("content_reviews").update({ status: data.decision, reviewer_id: actor.id, reviewed_at: new Date().toISOString(), note: data.note ?? null }).eq("id", review.id);
