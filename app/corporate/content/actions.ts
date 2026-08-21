@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireCorporateCapability } from "@/lib/corporate/authorization";
 import { createClient } from "@/lib/supabase/server";
-import { canTransitionContent, isPublishable, requiredReviewDomains, validateSeo } from "@/lib/content/governance";
-import { contentPath } from "@/lib/content/seo";
+import { canTransitionContent, findHighRiskClaims, isPublishable, requiredReviewDomains, validateSeo } from "@/lib/content/governance";
+import { publicContentPath } from "@/lib/content/seo";
 import type { ContentReview, PublicContentRecord, PublicContentType, ReviewDomain } from "@/lib/content/types";
 
 const contentType = z.enum(["COMPANY", "PRODUCT", "MILESTONE", "PRINCIPLE", "LEADERSHIP", "TECHNOLOGY", "RESEARCH", "NEWS", "PRESS_RELEASE", "ENGINEERING_ARTICLE", "TRUST_DOCUMENT", "POLICY", "CORPORATE_DISCLOSURE", "REPORT", "CAREER", "PARTNER", "FAQ"]);
@@ -18,7 +18,7 @@ async function recordEvent(supabase: NonNullable<Awaited<ReturnType<typeof creat
   const { error } = await supabase.from("content_publication_events").insert({ content_id: contentId, event_type: eventType, reason: reason ?? null });
   if (error) throw new Error("The content event could not be recorded.");
 }
-function revalidateContent(record: Pick<PublicContentRecord, "type" | "slug">) { revalidatePath("/"); revalidatePath("/newsroom"); revalidatePath("/sitemap.xml"); revalidatePath(contentPath(record)); }
+function revalidateContent(record: Pick<PublicContentRecord, "type" | "slug" | "seo">) { revalidatePath("/"); revalidatePath("/newsroom"); revalidatePath("/sitemap.xml"); revalidatePath(publicContentPath(record)); }
 
 export async function createContent(input: z.input<typeof recordInput>) {
   const actor = await requireCorporateCapability("content.create");
@@ -72,18 +72,19 @@ export async function publishContent(input: { id: string; scheduledFor?: string 
   const scheduled = data.scheduledFor && new Date(data.scheduledFor).getTime() > Date.now();
   const status = scheduled ? "SCHEDULED" : "PUBLISHED";
   const { error: updateError } = await supabase.from("content_records").update({ status, visibility: "PUBLIC", scheduled_for: scheduled ? data.scheduledFor : null, published_at: scheduled ? null : new Date().toISOString(), approved_by: actor.id }).eq("id", data.id);
-  if (updateError) throw new Error("Publication could not be recorded."); await recordEvent(supabase, data.id, scheduled ? "SCHEDULED" : "PUBLISHED"); if (!scheduled) revalidateContent({ type: record.content_type as PublicContentType, slug: record.slug });
+  if (updateError) throw new Error("Publication could not be recorded."); await recordEvent(supabase, data.id, scheduled ? "SCHEDULED" : "PUBLISHED"); if (!scheduled) revalidateContent({ type: record.content_type as PublicContentType, slug: record.slug, seo: record.seo });
 }
 
 export async function archiveContent(input: { id: string; reason: string }) {
   await requireCorporateCapability("content.archive"); const data = z.object({ id: z.string().uuid(), reason: z.string().min(3).max(1000) }).parse(input); const supabase = await clientOrThrow();
-  const { data: record, error } = await supabase.from("content_records").select("content_type,slug,status").eq("id", data.id).single();
+  const { data: record, error } = await supabase.from("content_records").select("content_type,slug,status,seo").eq("id", data.id).single();
   if (error || !record || !canTransitionContent(record.status, "ARCHIVED")) throw new Error("This content cannot be archived from its current state.");
   const { error: updateError } = await supabase.from("content_records").update({ status: "ARCHIVED", visibility: "PRIVATE" }).eq("id", data.id);
-  if (updateError) throw new Error("The archive action could not be recorded."); await recordEvent(supabase, data.id, "ARCHIVED", data.reason); revalidateContent({ type: record.content_type as PublicContentType, slug: record.slug });
+  if (updateError) throw new Error("The archive action could not be recorded."); await recordEvent(supabase, data.id, "ARCHIVED", data.reason); revalidateContent({ type: record.content_type as PublicContentType, slug: record.slug, seo: record.seo });
 }
 
 export async function contentSeoChecks(input: z.input<typeof recordInput>) {
   const data = recordInput.parse(input);
-  return validateSeo({ ...data, seo: { ...data.seo, ogImage: data.seo.ogImage ?? undefined } });
+  const claims = findHighRiskClaims(`${data.title} ${data.summary ?? ""} ${typeof data.body === "string" ? data.body : JSON.stringify(data.body)}`);
+  return { issues: validateSeo({ ...data, seo: { ...data.seo, ogImage: data.seo.ogImage ?? undefined } }), highRiskClaims: claims.map((claim) => claim.phrase) };
 }
