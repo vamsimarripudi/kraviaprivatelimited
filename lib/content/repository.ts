@@ -10,6 +10,7 @@ type PublicContentRow = {
   scheduled_for: string | null; content_owner: string | null; last_reviewed_at: string | null; next_review_at: string | null;
   version: number; seo: Record<string, unknown> | null; category: string | null; author_name: string | null; related_entity_ids: string[] | null;
 };
+type PublicationRow = { snapshot: unknown; published_at: string; version: number };
 
 function mapRow(row: PublicContentRow): PublicContentRecord {
   const seo = row.seo ?? {};
@@ -23,16 +24,39 @@ function mapRow(row: PublicContentRow): PublicContentRecord {
   };
 }
 
-/** Published public reads only. Drafts, reviews, evidence and private records never use this repository. */
-export const listPublishedContent = cache(async (type?: PublicContentType) => {
+function asPublicContentRow(snapshot: unknown, publishedAt: string, version: number): PublicContentRow | null {
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) return null;
+  const row = snapshot as Partial<PublicContentRow>;
+  if (typeof row.id !== "string" || typeof row.content_type !== "string" || typeof row.slug !== "string" || typeof row.title !== "string") return null;
+  return { ...row, status: "PUBLISHED", visibility: "PUBLIC", published_at: publishedAt, version } as PublicContentRow;
+}
+
+async function listLegacyPublishedContent(type?: PublicContentType) {
   const supabase = await createClient();
   if (!supabase) return [] as PublicContentRecord[];
   let query = supabase.from("content_records").select("id,content_type,slug,title,summary,body,status,visibility,created_at,updated_at,published_at,scheduled_for,content_owner,last_reviewed_at,next_review_at,version,seo,category,author_name,related_entity_ids").eq("status", "PUBLISHED").eq("visibility", "PUBLIC").order("published_at", { ascending: false });
   if (type) query = query.eq("content_type", type);
   const { data, error } = await query;
-  // The migration may not yet be deployed; public pages retain their version-controlled fallback rather than surfacing an implementation detail.
   if (error || !data) return [] as PublicContentRecord[];
   return (data as PublicContentRow[]).map(mapRow);
+}
+
+/**
+ * Published public reads use durable publication snapshots. An editor can open a
+ * private next revision without making the current approved public page vanish.
+ * The legacy fallback keeps pre-migration deployments functional until the
+ * forward-only snapshot migration has been applied.
+ */
+export const listPublishedContent = cache(async (type?: PublicContentType) => {
+  const supabase = await createClient();
+  if (!supabase) return [] as PublicContentRecord[];
+  const { data, error } = await supabase.from("content_publications").select("snapshot,published_at,version").eq("state", "PUBLISHED").order("published_at", { ascending: false });
+  if (error || !data) return listLegacyPublishedContent(type);
+  const records = (data as PublicationRow[])
+    .map((publication) => asPublicContentRow(publication.snapshot, publication.published_at, publication.version))
+    .filter((row): row is PublicContentRow => row !== null)
+    .map(mapRow);
+  return type ? records.filter((record) => record.type === type) : records;
 });
 
 export const getPublishedContentByPath = cache(async (type: PublicContentType, slug: string) => {
@@ -41,9 +65,8 @@ export const getPublishedContentByPath = cache(async (type: PublicContentType, s
 });
 
 /**
- * Resolves a public URL only against approved public records. It is deliberately
- * implemented from the constrained public repository so a draft cannot become
- * reachable merely because an editor knows its intended path.
+ * Resolves a public URL only against approved snapshots. Drafts, reviews,
+ * evidence and next revisions cannot become reachable merely from a known URL.
  */
 export const getPublishedContentByPublicPath = cache(async (path: string) => {
   const normalized = path.startsWith("/") ? path : `/${path}`;

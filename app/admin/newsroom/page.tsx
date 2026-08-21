@@ -26,6 +26,7 @@ export default async function AdminNewsroomPage() {
     reviewsByContent.set(review.content_id, [...(reviewsByContent.get(review.content_id) ?? []), review]);
   }
   const canCreate = hasCapability(actor.role, "content.create");
+  const canEdit = hasCapability(actor.role, "content.edit");
   return <section className="admin-page">
     <AdminPageHeader eyebrow="PUBLIC CONTENT OPERATIONS" title="Create the record before it becomes public." intro="Company, product, Trust and newsroom records remain private until they pass the existing review, approval and publication workflow."><Link className="button button-light" href="/newsroom" target="_blank" rel="noreferrer">View public newsroom <ArrowUpRight /></Link></AdminPageHeader>
     <section className="admin-newsroom-layout">
@@ -38,8 +39,9 @@ export default async function AdminNewsroomPage() {
             <strong>{record.title}</strong>
             <small>{record.content_type.replaceAll("_", " ")} · {contentPath({ type: record.content_type, slug: record.slug })}</small>
             <time dateTime={record.updated_at}>Updated {new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }).format(new Date(record.updated_at))}</time>
+            {canEdit && (record.status === "DRAFT" || record.status === "CHANGES_REQUESTED") ? <Link className="text-link" href={`/admin/newsroom/${record.id}`}>Continue editing <ArrowUpRight aria-hidden="true" /></Link> : null}
             {record.status === "IN_REVIEW" && reviewsByContent.get(record.id)?.length ? <ContentReviewControls id={record.id} reviews={reviewsByContent.get(record.id)!.map((review) => ({ domain: review.review_domain, status: review.status, canDecide: canReviewContentDomain(actor.role, review.review_domain) }))} /> : null}
-            <ContentLifecycleActions id={record.id} status={record.status} canRequestReview={hasCapability(actor.role, "content.edit")} canApprove={hasCapability(actor.role, "content.approve")} canPublish={hasCapability(actor.role, "content.publish")} canArchive={hasCapability(actor.role, "content.archive")} />
+            <ContentLifecycleActions id={record.id} status={record.status} canRequestReview={hasCapability(actor.role, "content.edit")} canApprove={hasCapability(actor.role, "content.approve")} canPublish={hasCapability(actor.role, "content.publish")} canArchive={hasCapability(actor.role, "content.archive")} canStartRevision={canEdit} />
           </div>
         </li>)}</ol> : <div className="admin-empty"><CircleDotDashed aria-hidden="true" /><p>No governed public-content records are visible to your role yet. Create only factual content with an owner and review path.</p></div>}
         <Link className="text-link" href="/corporate/content"><FileCheck2 /> Open full content governance</Link>

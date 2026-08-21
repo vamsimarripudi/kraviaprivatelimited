@@ -7,12 +7,14 @@ import { canReviewContentDomain } from "@/lib/corporate/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { canTransitionContent, findHighRiskClaims, isPublishable, requiredReviewDomains, validateSeo } from "@/lib/content/governance";
 import { publicContentPath } from "@/lib/content/seo";
-import type { ContentReview, PublicContentRecord, PublicContentType, ReviewDomain } from "@/lib/content/types";
+import type { ChangeMateriality, ContentReview, PublicContentRecord, PublicContentType, ReviewDomain } from "@/lib/content/types";
 
 const contentType = z.enum(["COMPANY", "PRODUCT", "MILESTONE", "PRINCIPLE", "LEADERSHIP", "TECHNOLOGY", "RESEARCH", "NEWS", "PRESS_RELEASE", "ENGINEERING_ARTICLE", "TRUST_DOCUMENT", "POLICY", "CORPORATE_DISCLOSURE", "REPORT", "CAREER", "PARTNER", "FAQ"]);
 const reviewDomain = z.enum(["CONTENT", "PRODUCT", "TECHNOLOGY", "SECURITY", "PRIVACY", "LEGAL", "CORPORATE", "DIRECTOR"]);
 const baseInput = z.object({ id: z.string().uuid() });
+const materiality = z.enum(["EDITORIAL", "MINOR", "MATERIAL", "LEGAL_POLICY", "CORPORATE_FACT"]);
 const recordInput = z.object({ type: contentType, slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), title: z.string().min(1).max(180), summary: z.string().max(500).nullable().optional(), body: z.unknown(), category: z.string().max(80).nullable().optional(), authorName: z.string().max(160).nullable().optional(), seo: z.object({ title: z.string().min(1).max(180), description: z.string().min(1).max(200), canonicalPath: z.string().regex(/^\//), ogImage: z.string().regex(/^\//).nullable().optional(), noindex: z.boolean().optional() }) });
+const revisionInput = recordInput.extend({ id: z.string().uuid(), changeSummary: z.string().min(3).max(1000), materiality });
 
 async function clientOrThrow() { const client = await createClient(); if (!client) throw new Error("Corporate Office requires Supabase configuration."); return client; }
 async function recordEvent(supabase: NonNullable<Awaited<ReturnType<typeof createClient>>>, contentId: string, eventType: string, reason?: string) {
@@ -30,6 +32,30 @@ export async function createContent(input: z.input<typeof recordInput>) {
   if (versionError) throw new Error("The draft version could not be recorded.");
   await recordEvent(supabase, record.id, "CREATED");
   return { id: record.id, status: "DRAFT" as const };
+}
+
+
+/** Saves a new private version only from an editable workflow state. */
+export async function updateContent(input: z.input<typeof revisionInput>) {
+  await requireCorporateCapability("content.edit");
+  const data = revisionInput.parse(input); const supabase = await clientOrThrow();
+  const { data: revised, error } = await supabase.rpc("revise_content_record", {
+    p_content_id: data.id, p_content_type: data.type, p_slug: data.slug, p_title: data.title, p_summary: data.summary ?? null,
+    p_body: data.body, p_category: data.category ?? null, p_author_name: data.authorName ?? null, p_seo: data.seo,
+    p_change_summary: data.changeSummary, p_materiality: data.materiality as ChangeMateriality,
+  }).single();
+  if (error || !revised) throw new Error("The new content version could not be saved.");
+  return { id: revised.id, version: revised.version };
+}
+
+/** Opens a private revision while retaining the active public snapshot. */
+export async function beginContentRevision(input: z.input<typeof baseInput>) {
+  const actor = await requireCorporateCapability("content.edit"); const { id } = baseInput.parse(input); const supabase = await clientOrThrow();
+  const { data: current, error: currentError } = await supabase.from("content_records").select("id,status").eq("id", id).single();
+  if (currentError || !current || current.status !== "PUBLISHED") throw new Error("Only a published record can start a new revision.");
+  const { error } = await supabase.from("content_records").update({ status: "DRAFT", visibility: "PRIVATE", scheduled_for: null, updated_by: actor.id }).eq("id", id);
+  if (error) throw new Error("The private revision could not be opened.");
+  return { id };
 }
 
 export async function requestContentReview(input: z.input<typeof baseInput>) {
@@ -69,21 +95,19 @@ export async function approveContent(input: z.input<typeof baseInput>) {
 }
 
 export async function publishContent(input: { id: string; scheduledFor?: string | null }) {
-  const actor = await requireCorporateCapability("content.publish"); const data = z.object({ id: z.string().uuid(), scheduledFor: z.string().datetime().nullable().optional() }).parse(input); const supabase = await clientOrThrow();
-  const { data: record, error } = await supabase.from("content_records").select("*").eq("id", data.id).single();
-  if (error || !record || record.status !== "APPROVED") throw new Error("Only approved content can be scheduled or published.");
-  const scheduled = data.scheduledFor && new Date(data.scheduledFor).getTime() > Date.now();
-  const status = scheduled ? "SCHEDULED" : "PUBLISHED";
-  const { error: updateError } = await supabase.from("content_records").update({ status, visibility: "PUBLIC", scheduled_for: scheduled ? data.scheduledFor : null, published_at: scheduled ? null : new Date().toISOString(), approved_by: actor.id }).eq("id", data.id);
-  if (updateError) throw new Error("Publication could not be recorded."); await recordEvent(supabase, data.id, scheduled ? "SCHEDULED" : "PUBLISHED"); if (!scheduled) revalidateContent({ type: record.content_type as PublicContentType, slug: record.slug, seo: record.seo });
+  await requireCorporateCapability("content.publish");
+  const data = z.object({ id: z.string().uuid(), scheduledFor: z.string().datetime().nullable().optional() }).parse(input); const supabase = await clientOrThrow();
+  const { data: publishedRecord, error } = await supabase.rpc("publish_content_snapshot", { p_content_id: data.id, p_scheduled_for: data.scheduledFor ?? null }).single();
+  if (error || !publishedRecord) throw new Error("The approved public revision could not be released. Confirm the publication-snapshot migration is applied and retry.");
+  if (!data.scheduledFor || new Date(data.scheduledFor).getTime() <= Date.now()) revalidateContent({ type: publishedRecord.content_type as PublicContentType, slug: publishedRecord.slug, seo: publishedRecord.seo });
 }
 
 export async function archiveContent(input: { id: string; reason: string }) {
-  await requireCorporateCapability("content.archive"); const data = z.object({ id: z.string().uuid(), reason: z.string().min(3).max(1000) }).parse(input); const supabase = await clientOrThrow();
-  const { data: record, error } = await supabase.from("content_records").select("content_type,slug,status,seo").eq("id", data.id).single();
-  if (error || !record || !canTransitionContent(record.status, "ARCHIVED")) throw new Error("This content cannot be archived from its current state.");
-  const { error: updateError } = await supabase.from("content_records").update({ status: "ARCHIVED", visibility: "PRIVATE" }).eq("id", data.id);
-  if (updateError) throw new Error("The archive action could not be recorded."); await recordEvent(supabase, data.id, "ARCHIVED", data.reason); revalidateContent({ type: record.content_type as PublicContentType, slug: record.slug, seo: record.seo });
+  await requireCorporateCapability("content.archive");
+  const data = z.object({ id: z.string().uuid(), reason: z.string().min(3).max(1000) }).parse(input); const supabase = await clientOrThrow();
+  const { data: archivedRecord, error } = await supabase.rpc("archive_content_snapshot", { p_content_id: data.id, p_reason: data.reason }).single();
+  if (error || !archivedRecord) throw new Error("The public revision could not be withdrawn safely. Confirm the publication-snapshot migration is applied and retry.");
+  revalidateContent({ type: archivedRecord.content_type as PublicContentType, slug: archivedRecord.slug, seo: archivedRecord.seo });
 }
 
 export async function contentSeoChecks(input: z.input<typeof recordInput>) {

@@ -1,8 +1,8 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { Archive, CheckCircle2, LoaderCircle, Send, Upload } from "lucide-react";
-import { approveContent, archiveContent, publishContent, requestContentReview } from "@/app/corporate/content/actions";
+import { Archive, CheckCircle2, FilePenLine, LoaderCircle, Send, Upload } from "lucide-react";
+import { approveContent, archiveContent, beginContentRevision, publishContent, requestContentReview } from "@/app/corporate/content/actions";
 
 type LifecycleStatus = "DRAFT" | "IN_REVIEW" | "CHANGES_REQUESTED" | "APPROVED" | "SCHEDULED" | "PUBLISHED" | "ARCHIVED";
 
@@ -13,9 +13,10 @@ type ContentLifecycleActionsProps = {
   canApprove: boolean;
   canPublish: boolean;
   canArchive: boolean;
+  canStartRevision: boolean;
 };
 
-export function ContentLifecycleActions({ id, status, canRequestReview, canApprove, canPublish, canArchive }: ContentLifecycleActionsProps) {
+export function ContentLifecycleActions({ id, status, canRequestReview, canApprove, canPublish, canArchive, canStartRevision }: ContentLifecycleActionsProps) {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string>();
   const [confirmArchive, setConfirmArchive] = useState(false);
@@ -47,6 +48,7 @@ export function ContentLifecycleActions({ id, status, canRequestReview, canAppro
   const canRequest = canRequestReview && (status === "DRAFT" || status === "CHANGES_REQUESTED");
   const canMoveToApproved = canApprove && status === "IN_REVIEW";
   const canMakePublic = canPublish && status === "APPROVED";
+  const canOpenRevision = canStartRevision && status === "PUBLISHED";
   const canRemoveFromPublic = canArchive && (status === "DRAFT" || status === "IN_REVIEW" || status === "CHANGES_REQUESTED" || status === "APPROVED" || status === "SCHEDULED" || status === "PUBLISHED");
 
   return <div className="content-lifecycle-actions">
@@ -54,6 +56,7 @@ export function ContentLifecycleActions({ id, status, canRequestReview, canAppro
       {canRequest ? <button type="button" className="button button-light" disabled={pending} onClick={() => void run(() => requestContentReview({ id }), "Review requirements were assigned to the appropriate queue.")}><Send aria-hidden="true" /> Request review</button> : null}
       {canMoveToApproved ? <button type="button" className="button button-light" disabled={pending} onClick={() => void run(() => approveContent({ id }), "The record was approved. It can now be published by an authorised publisher.")}><CheckCircle2 aria-hidden="true" /> Approve</button> : null}
       {canMakePublic ? <button type="button" className="button button-dark" disabled={pending} onClick={() => void run(() => publishContent({ id }), "The approved record is now public.")}><Upload aria-hidden="true" /> Publish</button> : null}
+      {canOpenRevision ? <button type="button" className="button button-light" disabled={pending} onClick={() => void run(async () => { await beginContentRevision({ id }); }, "A private revision is ready to edit. The current public page remains live.")}><FilePenLine aria-hidden="true" /> Start revision</button> : null}
       {canRemoveFromPublic && !confirmArchive ? <button type="button" className="button button-quiet" disabled={pending} onClick={() => setConfirmArchive(true)}><Archive aria-hidden="true" /> Archive</button> : null}
     </div>
     {confirmArchive ? <form onSubmit={archive} className="content-archive-confirm"><label>Archive reason<input name="reason" required minLength={3} maxLength={1000} placeholder="For example: superseded by an approved update" /></label><div><button type="button" className="button button-light" disabled={pending} onClick={() => setConfirmArchive(false)}>Cancel</button><button className="button button-dark" disabled={pending}>{pending ? <LoaderCircle className="spin" aria-hidden="true" /> : <Archive aria-hidden="true" />}{pending ? "Archiving…" : "Confirm archive"}</button></div></form> : null}
