@@ -1,13 +1,9 @@
 import type { MetadataRoute } from "next";
+import { crawlerPolicy } from "@/lib/crawler-policy";
 import { isProductionSite, siteUrl } from "@/lib/site";
 
 export default function robots(): MetadataRoute.Robots {
-  if (!isProductionSite) {
-    return { rules: [{ userAgent: "*", disallow: "/" }] };
-  }
-
-  return {
-    rules: [{ userAgent: "*", allow: "/", disallow: ["/corporate", "/privacy-request", "/api/"] }],
-    sitemap: `${siteUrl}/sitemap.xml`,
-  };
+  // Robots is crawler guidance, not access control. Private routes remain
+  // protected by auth/RLS and use route-level noindex metadata.
+  return crawlerPolicy(isProductionSite, siteUrl);
 }

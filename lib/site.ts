@@ -1,8 +1,12 @@
 import { publicCompanyInformation } from "./corporate-content";
-import { resolvePublicSiteUrl } from "./env/public";
+import { canonicalProductionSiteUrl, resolvePublicSiteUrl } from "./env/public";
 
 export const siteUrl = resolvePublicSiteUrl();
-export const isProductionSite = /^https:\/\//.test(siteUrl) && !/localhost|127\.0\.0\.1/.test(siteUrl);
+// `VERCEL_ENV` is authoritative when present, so preview deployments cannot
+// become indexable merely because they inherit a production site URL.
+export const isProductionSite = process.env.VERCEL_ENV
+  ? process.env.VERCEL_ENV === "production"
+  : siteUrl === canonicalProductionSiteUrl;
 
 export const companyProfile = {
   legalName: publicCompanyInformation.legalName.value,
