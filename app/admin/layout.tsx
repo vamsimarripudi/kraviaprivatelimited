@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Site Control", robots: { index: fals
 export default async function AdminLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   try {
     const actor = await requireAnyCorporateCapability("content.view", "support.view", "security.manage", "readiness.view", "automation.view");
-    return <AdminConsole actor={actor} current=""><CorporateActivityBeacon />{children}</AdminConsole>;
+    return <AdminConsole actor={actor}><CorporateActivityBeacon />{children}</AdminConsole>;
   } catch (error) {
     if (error instanceof CorporateAccessError && error.code === "UNAUTHENTICATED") redirect("/corporate/login?next=/admin");
     throw error;

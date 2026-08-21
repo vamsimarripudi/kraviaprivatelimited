@@ -1,5 +1,8 @@
+"use client";
+
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Activity, FilePenLine, LayoutDashboard, MessagesSquare, RadioTower, Settings2, ShieldCheck } from "lucide-react";
 import type { CorporateActor } from "@/lib/corporate/authorization";
 
@@ -10,14 +13,15 @@ const navigation = [
   { href: "/admin/monitoring", label: "Monitoring", Icon: Activity },
 ];
 
-export function AdminConsole({ actor, current, children }: { actor: CorporateActor; current: string; children: ReactNode }) {
+export function AdminConsole({ actor, children }: { actor: CorporateActor; children: ReactNode }) {
+  const pathname = usePathname();
   return <main className="admin-console">
     <aside className="admin-rail">
       <Link className="admin-wordmark" href="/admin" aria-label="Kravia Site Control">
         <span>KRAVIA</span><small>SITE CONTROL</small>
       </Link>
       <nav aria-label="Site control navigation">
-        {navigation.map(({ href, label, Icon }) => <Link key={href} href={href} aria-current={current === href ? "page" : undefined}><Icon aria-hidden="true" />{label}</Link>)}
+        {navigation.map(({ href, label, Icon }) => <Link key={href} href={href} aria-current={href === "/admin" ? pathname === href ? "page" : undefined : pathname.startsWith(href) ? "page" : undefined}><Icon aria-hidden="true" />{label}</Link>)}
       </nav>
       <div className="admin-rail-foot"><ShieldCheck aria-hidden="true" /><p>Protected operating surface.<br />All changes are role-checked and audited.</p></div>
     </aside>
