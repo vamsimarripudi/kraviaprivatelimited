@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { publicContentPath } from "./seo";
 import type { ContentStatus, PublicContentRecord, PublicContentType } from "./types";
 
 type PublicContentRow = {
@@ -37,6 +38,17 @@ export const listPublishedContent = cache(async (type?: PublicContentType) => {
 export const getPublishedContentByPath = cache(async (type: PublicContentType, slug: string) => {
   const records = await listPublishedContent(type);
   return records.find((record) => record.slug === slug) ?? null;
+});
+
+/**
+ * Resolves a public URL only against approved public records. It is deliberately
+ * implemented from the constrained public repository so a draft cannot become
+ * reachable merely because an editor knows its intended path.
+ */
+export const getPublishedContentByPublicPath = cache(async (path: string) => {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  const records = await listPublishedContent();
+  return records.find((record) => publicContentPath(record) === normalized) ?? null;
 });
 
 export const getPublishedNewsroomContent = cache(async () => {

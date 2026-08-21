@@ -3,8 +3,13 @@
 import { FormEvent, useState } from "react";
 import { FilePenLine, LoaderCircle, Send, ShieldCheck } from "lucide-react";
 import { createContent, requestContentReview } from "@/app/corporate/content/actions";
+import { contentPath } from "@/lib/content/seo";
 
-const types = ["NEWS", "PRESS_RELEASE", "ENGINEERING_ARTICLE", "PRODUCT", "TRUST_DOCUMENT", "POLICY", "CORPORATE_DISCLOSURE", "REPORT", "CAREER"] as const;
+const types = ["COMPANY", "PRODUCT", "MILESTONE", "PRINCIPLE", "LEADERSHIP", "TECHNOLOGY", "RESEARCH", "NEWS", "PRESS_RELEASE", "ENGINEERING_ARTICLE", "TRUST_DOCUMENT", "POLICY", "CORPORATE_DISCLOSURE", "REPORT", "CAREER", "PARTNER", "FAQ"] as const;
+
+function structuredParagraphs(value: string) {
+  return value.split(/\n\s*\n/).map((text) => text.trim()).filter(Boolean).map((text) => ({ type: "paragraph", text }));
+}
 
 export function ContentStudio() {
   const [pending, setPending] = useState(false); const [status, setStatus] = useState<string>();
@@ -15,8 +20,9 @@ export function ContentStudio() {
     const slug = String(form.get("slug") ?? "").trim();
     const summary = String(form.get("summary") ?? "").trim();
     const body = String(form.get("body") ?? "").trim();
+    const type = String(form.get("type")) as typeof types[number];
     try {
-      const result = await createContent({ type: String(form.get("type")) as typeof types[number], title, slug, summary: summary || null, body: [{ type: "paragraph", text: body }], category: String(form.get("category") ?? "").trim() || null, authorName: String(form.get("author") ?? "").trim() || null, seo: { title: String(form.get("seoTitle") ?? title).trim(), description: String(form.get("seoDescription") ?? summary).trim(), canonicalPath: `/${String(form.get("path") ?? "newsroom").replace(/^\/+|\/+$/g, "")}/${slug}` } });
+      const result = await createContent({ type, title, slug, summary: summary || null, body: structuredParagraphs(body), category: String(form.get("category") ?? "").trim() || null, authorName: String(form.get("author") ?? "").trim() || null, seo: { title: String(form.get("seoTitle") ?? title).trim(), description: String(form.get("seoDescription") ?? summary).trim(), canonicalPath: contentPath({ type, slug }) } });
       if (form.get("submitForReview") === "on") await requestContentReview({ id: result.id });
       event.currentTarget.reset(); setStatus(form.get("submitForReview") === "on" ? "Draft created and sent into the governed review queue." : "Private draft created. It is not visible on the public website.");
     } catch { setStatus("This content could not be saved. Check the required fields and your assigned role."); }

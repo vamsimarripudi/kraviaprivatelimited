@@ -20,6 +20,12 @@ export function NewsroomLanding({ articles }: { articles: readonly PublicContent
   </section>;
 }
 
+export function HomepageUpdates({ articles }: { articles: readonly PublicContentRecord[] }) {
+  const updates = articles.slice(0, 3);
+  if (!updates.length) return null;
+  return <section className="homepage-updates shell" aria-labelledby="homepage-updates-title"><div className="homepage-updates-heading"><div><p className="eyebrow">LATEST FROM KRAVIA</p><h2 id="homepage-updates-title">News with a clear source.</h2></div><Link className="text-link" href="/newsroom">View newsroom <ArrowUpRight aria-hidden="true" /></Link></div><div className="homepage-updates-grid">{updates.map((article) => <article key={article.id}><p className="eyebrow">{typeLabel(article.type)} · {dateLabel(article.publishedAt)}</p><h3><Link href={`/newsroom/${article.slug}`}>{article.title}</Link></h3>{article.summary ? <p>{article.summary}</p> : null}<Link className="text-link" href={`/newsroom/${article.slug}`}>Read update <ArrowUpRight aria-hidden="true" /></Link></article>)}</div></section>;
+}
+
 export function NewsArticle({ article, allArticles }: { article: PublicContentRecord; allArticles: readonly PublicContentRecord[] }) {
   const related = relatedContent(article, allArticles);
   return <article className="article-shell shell">

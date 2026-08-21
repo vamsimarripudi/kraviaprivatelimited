@@ -6,6 +6,8 @@ import { SiteNav } from "@/components/site-nav";
 import { HeroMotion, Reveal } from "@/components/motion";
 import { CapabilityExplorer, MagneticLink } from "@/components/premium-interactions";
 import { companyNarrative, publicCompanyInformation, publicProducts } from "@/lib/corporate-content";
+import { HomepageUpdates } from "@/components/newsroom-content";
+import { getPublishedNewsroomContent } from "@/lib/content/repository";
 
 const operatingAreas = [
   ["Company", "A long-lived corporate foundation for products, people and partners.", "/company/about"],
@@ -31,7 +33,8 @@ const publicFactRows = [
   ["Telephone", publicCompanyInformation.telephone.value],
 ].filter(([, value]) => Boolean(value)) as [string, string][];
 
-export default function Home() {
+export default async function Home() {
+  const newsroom = await getPublishedNewsroomContent();
   return (
     <>
       <SiteNav />
@@ -106,6 +109,7 @@ export default function Home() {
           <div className="shell trust-inner"><ShieldCheck size={32}/><div><p className="eyebrow">09 / TRUST & GOVERNANCE</p><h2>Private records stay private.<br />Public commitments stay clear.</h2></div><MagneticLink className="button button-dark premium-cta" href="/trust">Explore Trust Center <ArrowUpRight /></MagneticLink></div>
         </section>
 
+        <HomepageUpdates articles={newsroom} />
         <section className="corporate-information shell" aria-labelledby="corporate-information-title">
           <div><p className="eyebrow">10 / CORPORATE INFORMATION</p><h2 id="corporate-information-title">Corporate details, <em>without the clutter.</em></h2><p>Kravia publishes public corporate information from a governed record. Details that are not yet verified are deliberately not shown.</p><Link href="/company/corporate-information" className="text-link">View corporate information <ArrowDownRight /></Link></div>
           <dl>{publicFactRows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>

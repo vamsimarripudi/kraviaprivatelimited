@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { canTransitionContent, findHighRiskClaims, hasRequiredApprovals, isPublishable, requiredReviewDomains, validateSeo } from "../lib/content/governance";
+import { contentPath, publicContentPath } from "../lib/content/seo";
 import { relatedContent, uniquePublicRelationships } from "../lib/content/relationships";
 import type { PublicContentRecord } from "../lib/content/types";
 
@@ -13,4 +14,10 @@ describe("content governance", () => {
   it("adds specialist review domains only where content needs them", () => { expect(requiredReviewDomains("POLICY", { ...base, title: "Privacy policy" })).toEqual(expect.arrayContaining(["CONTENT", "CORPORATE", "LEGAL"])); });
   it("keeps the public knowledge graph de-duplicated and excludes private relationships", () => { expect(uniquePublicRelationships([{ fromId: "kravia", predicate: "BUILDS", toId: "vidyaluma", public: true }, { fromId: "kravia", predicate: "BUILDS", toId: "vidyaluma", public: true }, { fromId: "kravia", predicate: "HAS_ROLE", toId: "private", public: false }])).toHaveLength(1); });
   it("uses a simple, explainable related-content score", () => { const published: PublicContentRecord = { ...base, id: "related", status: "PUBLISHED", visibility: "PUBLIC", category: "Company" }; const source: PublicContentRecord = { ...published, id: "source", relatedEntityIds: ["vidyaluma"] }; expect(relatedContent(source, [published]).map((record) => record.id)).toEqual(["related"]); });
+  it("assigns stable routes by governed content type and honours approved canonicals", () => {
+    expect(contentPath({ type: "PRODUCT", slug: "vidyaluma" })).toBe("/products/vidyaluma");
+    expect(contentPath({ type: "TRUST_DOCUMENT", slug: "security-practices" })).toBe("/trust/security-practices");
+    expect(contentPath({ type: "CORPORATE_DISCLOSURE", slug: "annual-return" })).toBe("/disclosures/annual-return");
+    expect(publicContentPath({ ...base, type: "NEWS", seo: { ...base.seo, canonicalPath: "/newsroom/canonical-update" } })).toBe("/newsroom/canonical-update");
+  });
 });
