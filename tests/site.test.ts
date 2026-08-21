@@ -15,9 +15,9 @@ describe("public company data", () => {
 
 describe("public crawler boundaries", () => {
   it("allows ordinary public crawling only for production and publishes one sitemap", () => {
-    const policy = crawlerPolicy(true, "https://kraviaprivatelimited.com");
+    const policy = crawlerPolicy(true, "https://www.kraviaprivatelimited.com");
     expect(policy.rules).toEqual([{ userAgent: "*", allow: "/" }]);
-    expect(policy.sitemap).toBe("https://kraviaprivatelimited.com/sitemap.xml");
+    expect(policy.sitemap).toBe("https://www.kraviaprivatelimited.com/sitemap.xml");
   });
 
   it("blocks preview indexing without advertising private routes", () => {

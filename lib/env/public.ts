@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const localSiteUrl = "http://localhost:3000";
-export const canonicalProductionSiteUrl = "https://kraviaprivatelimited.com";
+export const canonicalProductionSiteUrl = "https://www.kraviaprivatelimited.com";
 
 /**
  * Produces a valid server-rendering base URL without accepting a production
