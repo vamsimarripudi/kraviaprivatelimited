@@ -37,8 +37,13 @@ export function SiteNav() {
     </nav>
     <Drawer open={open} onClose={() => setOpen(false)} title="Kravia navigation">
       <nav id="mobile-nav" className="mobile-nav" aria-label="Mobile navigation">
-        {navItems.map(([label, href]) => <Link onClick={() => setOpen(false)} key={href} href={href} aria-current={isCurrent(href) ? "page" : undefined}>{label}</Link>)}
-        <Link onClick={() => setOpen(false)} href="/contact" className="nav-cta">Talk to Kravia <ArrowUpRight size={14} /></Link>
+        <p className="mobile-nav-kicker">Explore Kravia</p>
+        <div className="mobile-nav-links">
+          {navItems.map(([label, href], index) => <Link onClick={() => setOpen(false)} key={href} href={href} aria-current={isCurrent(href) ? "page" : undefined}>
+            <span aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>{label}
+          </Link>)}
+        </div>
+        <Link onClick={() => setOpen(false)} href="/contact" className="nav-cta mobile-nav-cta">Talk to Kravia <ArrowUpRight size={16} /></Link>
       </nav>
     </Drawer>
     <SiteScrollProgress />

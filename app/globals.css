@@ -279,3 +279,110 @@ body{background:var(--paper);color:var(--ink);text-rendering:optimizeLegibility}
 @media(max-width:680px){.corporate-facts-editor{padding:1.2rem}.corporate-facts-editor>header{align-items:flex-start;flex-direction:column}.corporate-facts-form{grid-template-columns:1fr}.corporate-facts-form .button{width:100%;justify-content:center}.fact-wide,.fact-governance-note,.corporate-facts-form>.content-status{grid-column:auto}.fact-history li{flex-direction:column}.fact-history li>div:last-child{text-align:left}}
 /* Safe public-route recovery. These states never render raw application errors. */
 .route-recovery{min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding-block:clamp(5rem,14vw,11rem);max-width:70rem}.route-recovery-mark{display:grid;place-items:center;width:3.25rem;height:3.25rem;margin-bottom:1.8rem;border:1px solid var(--gold);border-radius:50%;color:var(--green)}.route-recovery-mark svg{width:1.35rem}.route-recovery-mark-warning{border-color:#a85f32;color:#7b2d1e}.route-recovery h1{max-width:13ch;margin:.9rem 0 1.5rem;font-size:clamp(3.1rem,7vw,7rem);font-weight:500;letter-spacing:-.075em;line-height:.86}.route-recovery h1 em{font-family:var(--serif);font-weight:400}.route-recovery>p:not(.eyebrow){max-width:43ch;color:color-mix(in srgb,var(--ink) 70%,transparent);font-size:clamp(1rem,1.8vw,1.18rem);line-height:1.65}.route-recovery-actions{display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap;margin-top:1.65rem}.route-recovery-actions button{cursor:pointer}.route-recovery-actions button svg{width:1rem}.route-recovery-actions button:hover svg{transform:rotate(30deg)}@media(max-width:560px){.route-recovery{min-height:calc(100svh - 64px)}.route-recovery-actions{align-items:stretch;flex-direction:column}.route-recovery-actions .button{justify-content:center}.route-recovery-actions .text-link{width:max-content}}
+/* UI Pro Max implementation — Kravia interaction foundation.
+   60% paper, 30% evergreen/ink, 10% antique brass. */
+:root{
+  --surface-base:var(--paper);
+  --surface-subtle:var(--mist);
+  --surface-raised:color-mix(in srgb,var(--paper) 94%,white);
+  --text-primary:var(--ink);
+  --text-secondary:color-mix(in srgb,var(--ink) 68%,transparent);
+  --border-subtle:var(--line);
+  --action-primary:var(--ink);
+  --action-primary-foreground:var(--paper);
+  --action-accent:var(--gold);
+  --focus-offset:3px;
+  --control-min-height:44px;
+  --layer-sticky:10;
+  --layer-overlay:40;
+  --layer-dialog:50;
+  --layer-toast:60;
+}
+
+:where(a,button,input,textarea,select,[tabindex]):focus-visible{
+  outline:var(--focus-ring);
+  outline-offset:var(--focus-offset);
+}
+
+:where(.button,.nav-cta,.menu-btn,.ui-icon-button,.text-link){
+  min-height:var(--control-min-height);
+  touch-action:manipulation;
+}
+
+:where(.button,.nav-cta,.text-link){
+  border-radius:0;
+}
+
+/* Keep tactile feedback restrained: elevation only on intentional pointer devices. */
+@media (hover:hover) and (pointer:fine){
+  :where(.portfolio-feature,.homepage-updates-grid article,.governed-content-collection article,.trust-grid a){
+    transition:transform var(--fast) var(--ease),background var(--fast) var(--ease),box-shadow var(--fast) var(--ease);
+  }
+  :where(.portfolio-feature,.homepage-updates-grid article,.governed-content-collection article):hover{
+    transform:translateY(-2px);
+    box-shadow:0 14px 30px rgba(16,18,16,.06);
+  }
+  .nav-cta:hover{background:var(--green);color:var(--paper)}
+}
+
+/* Mobile navigation is a distinct, fully scrollable composition—not compressed desktop links. */
+@media (max-width:760px){
+  .ui-drawer-backdrop{z-index:var(--layer-overlay)}
+  .ui-drawer{z-index:var(--layer-dialog)}
+  .mobile-nav{
+    display:flex;
+    flex:1;
+    min-height:0;
+    flex-direction:column;
+    gap:0;
+    padding:1.25rem 0 max(1.25rem,env(safe-area-inset-bottom));
+    background:transparent;
+  }
+  .mobile-nav-kicker{
+    margin:0 0 .85rem;
+    color:var(--green);
+    font:600 .62rem/1 var(--mono);
+    letter-spacing:.12em;
+    text-transform:uppercase;
+  }
+  .mobile-nav-links{
+    display:grid;
+    border-top:1px solid var(--line);
+  }
+  .mobile-nav-links a{
+    display:grid;
+    grid-template-columns:2.6rem minmax(0,1fr);
+    align-items:center;
+    min-height:3.35rem;
+    padding:.55rem 0;
+    border-bottom:1px solid var(--line);
+    color:var(--ink);
+    font-size:clamp(1.08rem,4.5vw,1.28rem);
+    font-weight:500;
+    letter-spacing:-.035em;
+  }
+  .mobile-nav-links a>span{
+    color:var(--gold-deep);
+    font:600 .58rem/1 var(--mono);
+    letter-spacing:.08em;
+  }
+  .mobile-nav-links a[aria-current="page"]{
+    color:var(--green);
+  }
+  .mobile-nav-links a[aria-current="page"]>span{color:var(--green)}
+  .mobile-nav-cta{
+    justify-content:center;
+    width:100%;
+    margin-top:1.25rem;
+    padding-inline:1rem;
+  }
+}
+
+@media (max-width:380px){
+  .mobile-nav-links a{min-height:3rem;font-size:1.02rem}
+  .mobile-nav{padding-top:1rem}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .portfolio-feature,.homepage-updates-grid article,.governed-content-collection article,.trust-grid a{transition:none!important}
+}
