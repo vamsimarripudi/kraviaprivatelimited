@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
-import { DM_Serif_Display, IBM_Plex_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { Cormorant_Garamond, DM_Mono, Manrope } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { siteUrl } from "@/lib/site";
 import { BrandSplash } from "@/components/brand-splash";
 import { OrganizationJsonLd } from "@/components/structured-data";
 
-const sans = Plus_Jakarta_Sans({ variable: "--font-sans", subsets: ["latin"] });
-const mono = IBM_Plex_Mono({ variable: "--font-mono", subsets: ["latin"], weight: ["400", "500", "600"] });
-const serif = DM_Serif_Display({ variable: "--font-serif", subsets: ["latin"], weight: "400" });
+const sans = Manrope({ variable: "--font-sans", subsets: ["latin"] });
+const mono = DM_Mono({ variable: "--font-mono", subsets: ["latin"], weight: ["400", "500"] });
+const serif = Cormorant_Garamond({ variable: "--font-serif", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

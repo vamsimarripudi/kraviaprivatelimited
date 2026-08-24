@@ -386,3 +386,11 @@ body{background:var(--paper);color:var(--ink);text-rendering:optimizeLegibility}
 @media (prefers-reduced-motion:reduce){
   .portfolio-feature,.homepage-updates-grid article,.governed-content-collection article,.trust-grid a{transition:none!important}
 }
+
+/* Premium typography contract: editorial authority for hierarchy, operational clarity everywhere else. */
+:where(h1,h2){
+  font-family:var(--serif);
+  font-weight:500;
+  letter-spacing:-.055em;
+}
+:where(h1 em,h2 em){font-weight:500}
