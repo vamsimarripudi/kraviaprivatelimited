@@ -420,3 +420,33 @@ body{background:var(--paper);color:var(--ink);text-rendering:optimizeLegibility}
 .corporate-skeleton{min-height:100svh;background:#f1f0ea}.corporate-skeleton>header{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:2rem;min-height:5rem;border-bottom:1px solid var(--line)}.corporate-skeleton-mark{width:9rem;height:1.8rem}.corporate-skeleton>header>div{display:flex;gap:1rem}.corporate-skeleton>header>div .ui-skeleton{width:4.5rem;height:.65rem}.corporate-skeleton>section{padding-block:clamp(3.5rem,7vw,6rem)}.corporate-skeleton-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;margin-top:3rem}.corporate-skeleton-grid article{display:grid;gap:1rem;min-height:14rem;padding:1.4rem;background:var(--surface-raised);border:1px solid var(--line)}
 @media(max-width:800px){.site-skeleton-nav{height:64px}.site-skeleton-nav>div{display:none}.site-skeleton-mark{width:7.25rem}.site-skeleton-grid,.support-skeleton-grid,.corporate-skeleton-grid{grid-template-columns:1fr}.site-skeleton-grid article,.site-skeleton-grid article+article{min-height:12rem;padding:1.35rem 0;border-right:0;border-bottom:1px solid var(--line)}.support-skeleton-grid article,.support-skeleton-grid article+article{min-height:0;padding:2rem 0;border-right:0;border-bottom:1px solid var(--line)}.support-skeleton-grid article:last-child{border-bottom:0}.admin-skeleton{grid-template-columns:1fr}.admin-skeleton>aside{display:none}.admin-skeleton>section{padding:1.35rem 1rem}.admin-skeleton-signals{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-skeleton-signals article:nth-child(2n){border-right:0}.corporate-skeleton>header{grid-template-columns:auto 1fr;padding-inline:1rem}.corporate-skeleton>header>div,.corporate-skeleton>header>.admin-skeleton-identity{display:none}.corporate-skeleton>section{padding-inline:1rem}.skeleton-field-grid{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.ui-skeleton{animation:none}}
+
+/* Motion system: immediate action feedback plus two restrained Kravia brand movements. */
+:where(.button,.nav-cta,.text-link){cursor:pointer}
+:where(.button,.nav-cta){
+  transition:transform var(--fast) var(--ease),background-position 340ms var(--ease),box-shadow var(--fast) var(--ease),color var(--fast) var(--ease),border-color var(--fast) var(--ease);
+  background-position:100% 50%;
+  background-size:190% 100%;
+}
+.button-dark,.nav-cta{background-image:linear-gradient(112deg,var(--ink) 0%,var(--ink) 42%,color-mix(in srgb,var(--green) 82%,var(--gold)) 58%,var(--ink) 73%,var(--ink) 100%)}
+.button-light{background-image:linear-gradient(112deg,var(--paper) 0%,var(--paper) 42%,color-mix(in srgb,var(--mist) 78%,var(--gold)) 58%,var(--paper) 73%,var(--paper) 100%)}
+:where(.button,.nav-cta):not(:disabled):active{transform:translateY(0) scale(.985);box-shadow:none}
+:where(.button,.nav-cta,.text-link) svg{transition:transform var(--fast) var(--ease),opacity var(--fast) var(--ease)}
+@media (hover:hover) and (pointer:fine){
+  :where(.button,.nav-cta):not(:disabled):hover{transform:translateY(-2px);background-position:0% 50%;box-shadow:0 11px 22px rgba(16,18,16,.12)}
+  :where(.button,.nav-cta):not(:disabled):hover svg{transform:translate(2px,-2px)}
+  .text-link:hover svg{transform:translateX(3px)}
+}
+@media (prefers-reduced-motion:no-preference){
+  .hero-logo-field{animation:kravia-mark-drift 12s var(--ease) infinite}
+  .signature-line i{clip-path:inset(0 100% 0 0);animation:kravia-line-reveal 900ms var(--ease) .18s forwards}
+  .signature-line i:last-child{animation-delay:.42s}
+  .signature-prefooter:before{animation:kravia-field-breathe 12s ease-in-out infinite}
+}
+@keyframes kravia-mark-drift{0%,100%{transform:translateY(-49%) rotate(0deg)}50%{transform:translateY(-52%) rotate(1.2deg)}}
+@keyframes kravia-line-reveal{to{clip-path:inset(0 0 0 0)}}
+@keyframes kravia-field-breathe{0%,100%{transform:rotate(45deg) scale(1);opacity:1}50%{transform:rotate(45deg) scale(1.055);opacity:.68}}
+@media (prefers-reduced-motion:reduce){
+  :where(.button,.nav-cta,.text-link),:where(.button,.nav-cta,.text-link) svg{transition:none!important}
+  .signature-line i{clip-path:inset(0 0 0 0)}
+}
