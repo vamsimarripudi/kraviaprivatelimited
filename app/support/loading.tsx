@@ -1,1 +1,3 @@
-export default function SupportLoading() { return <main className="support-loading shell" aria-label="Preparing support workspace"><div /><div /><div /></main>; }
+import { SupportWorkspaceSkeleton } from "@/components/loading-skeletons";
+
+export default function SupportLoading() { return <SupportWorkspaceSkeleton />; }
