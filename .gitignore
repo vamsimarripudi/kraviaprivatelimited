@@ -5,3 +5,6 @@ node_modules
 .env.*.local
 *.tsbuildinfo
 .vercel
+
+# Local UI Pro runtime caches
+.agents/**/__pycache__/
