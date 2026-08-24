@@ -5,10 +5,12 @@ import { KLine } from "@/components/k-line";
 import { SiteNav } from "@/components/site-nav";
 import { HeroMotion, Reveal } from "@/components/motion";
 import { CapabilityExplorer, MagneticLink } from "@/components/premium-interactions";
-import { companyNarrative, publicProducts } from "@/lib/corporate-content";
+import { companyNarrative } from "@/lib/corporate-content";
 import { getPublicCompanyProfile, type PublicCompanyProfile } from "@/lib/corporate/public-facts";
 import { HomepageUpdates } from "@/components/newsroom-content";
 import { getPublishedNewsroomContent } from "@/lib/content/repository";
+import { getPublicPortfolio, type PublicPortfolioItem } from "@/lib/content/portfolio";
+import { ProductPortfolio } from "@/components/product-portfolio";
 
 const operatingAreas = [
   ["Company", "A long-lived corporate foundation for products, people and partners.", "/company/about"],
@@ -18,12 +20,12 @@ const operatingAreas = [
 
 const buildApproach = ["Understand", "Design", "Engineer", "Protect", "Learn", "Improve"];
 
-function atAGlance(profile: PublicCompanyProfile) {
+function atAGlance(profile: PublicCompanyProfile, products: readonly PublicPortfolioItem[]) {
   return [
     ["Identity", profile.legalName],
     ["Base", profile.country],
     ["Focus", "Software products · Intelligent systems · Digital infrastructure"],
-    ["Flagship product", publicProducts[0]?.name ?? null],
+    ["Flagship product", products[0]?.name ?? null],
   ].filter(([, value]) => Boolean(value)) as [string, string][];
 }
 
@@ -39,7 +41,8 @@ function publicFactRows(profile: PublicCompanyProfile) {
   ].filter(([, value]) => Boolean(value)) as [string, string][];
 }
 export default async function Home() {
-  const [newsroom, profile] = await Promise.all([getPublishedNewsroomContent(), getPublicCompanyProfile()]);
+  const [newsroom, profile, products] = await Promise.all([getPublishedNewsroomContent(), getPublicCompanyProfile(), getPublicPortfolio()]);
+  const featuredProduct = products[0];
   return (
     <>
       <SiteNav />
@@ -56,7 +59,7 @@ export default async function Home() {
 
         <section className="at-a-glance shell" aria-labelledby="glance-title">
           <div><p className="eyebrow">01 / AT A GLANCE</p><h2 id="glance-title">A corporate identity<br />with room to grow.</h2></div>
-          <dl>{atAGlance(profile).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+          <dl>{atAGlance(profile, products).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
         </section>
 
         <section className="intro shell grid-12">
@@ -84,11 +87,12 @@ export default async function Home() {
 
         <section className="portfolio shell">
           <div className="section-head"><p className="eyebrow">05 / PORTFOLIO</p><h2>Products with<br /><em>real purpose.</em></h2></div>
-          <Reveal className="portfolio-feature">
-            <div><p className="eyebrow">PUBLIC PRODUCT / EDUCATION</p><h3>VidyaLuma</h3><p>AI-powered school and academic intelligence platform—built to bring better visibility and more useful context to education.</p><Link href="/products" className="text-link">Explore the portfolio <ArrowDownRight /></Link></div>
-            <div className="portfolio-signal" aria-hidden="true"><Network /><span>PRODUCT<br />SYSTEM</span></div>
-          </Reveal>
-          <p className="portfolio-note">Additional products are developed and introduced only when ready for public disclosure.</p>
+          {featuredProduct ? <Reveal className="portfolio-feature">
+            <div><p className="eyebrow">PUBLIC PRODUCT / {featuredProduct.category.toUpperCase()}</p><h3>{featuredProduct.name}</h3><p>{featuredProduct.description}</p><Link href={featuredProduct.href} className="text-link">Explore {featuredProduct.name} <ArrowDownRight /></Link></div>
+            <div className="portfolio-signal" aria-hidden="true"><Network /><span>PRODUCT<br />{String(products.length).padStart(2, "0")}</span></div>
+          </Reveal> : null}
+          {products.length > 1 ? <ProductPortfolio products={products.slice(1)} /> : null}
+          <p className="portfolio-note">Products appear here only after their public identity and positioning have been approved.</p>
         </section>
 
         <section className="method-section shell">
