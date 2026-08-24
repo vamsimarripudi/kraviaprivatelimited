@@ -450,3 +450,10 @@ body{background:var(--paper);color:var(--ink);text-rendering:optimizeLegibility}
   :where(.button,.nav-cta,.text-link),:where(.button,.nav-cta,.text-link) svg{transition:none!important}
   .signature-line i{clip-path:inset(0 0 0 0)}
 }
+
+/* Narrative movement: visual variation stays quiet, while assistive technology receives one stable summary. */
+.we-build-animated{display:inline-flex;align-items:baseline;gap:.45rem}
+.we-build-animated>span:first-child{color:var(--ink);font-weight:400}
+.we-build-animated>span:last-child{display:inline-block;min-width:14ch;color:var(--green);font-weight:700;will-change:transform,opacity,filter}
+@media(max-width:520px){.we-build-animated{gap:.32rem}.we-build-animated>span:last-child{min-width:0}}
+@media(prefers-reduced-motion:reduce){.we-build-animated>span:last-child{will-change:auto}}
