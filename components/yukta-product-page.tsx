@@ -1,6 +1,6 @@
 import { ArrowDownRight, ArrowUpRight, Building2, CalendarDays, ClipboardCheck, CreditCard, FileText, HeartPulse, LockKeyhole, Network, ReceiptText, ShieldCheck, Sparkles, Stethoscope, UsersRound, Workflow } from "lucide-react";
 import { Accordion } from "@/components/ui";
-import { YuktaAnalytics, YuktaTrackedLink } from "@/components/yukta-interactions";
+import { ProductAnalytics, ProductTrackedLink } from "@/components/product-interactions";
 import { yuktaProduct } from "@/lib/products/yukta";
 
 const contactHref = "/contact?product=yukta#enquiry-form";
@@ -21,7 +21,7 @@ const queueSignals = [
 
 export function YuktaProductPage() {
   return <main id="main-content" className="yukta-page">
-    <YuktaAnalytics />
+    <ProductAnalytics event="yukta_product_view" product="yukta" />
     <section className="yukta-hero">
       <div className="shell yukta-hero-grid">
         <div>
@@ -29,8 +29,8 @@ export function YuktaProductPage() {
           <h1>{yuktaProduct.hero.title}</h1>
           <p className="yukta-lede">{yuktaProduct.hero.intro}</p>
           <div className="yukta-actions">
-            <YuktaTrackedLink event="yukta_explore_clicked" href="#platform" className="button button-dark">Explore the platform <ArrowDownRight aria-hidden="true" /></YuktaTrackedLink>
-            <YuktaTrackedLink event="yukta_contact_clicked" href={contactHref} className="text-link">Contact Kravia <ArrowUpRight aria-hidden="true" /></YuktaTrackedLink>
+            <ProductTrackedLink product="yukta" event="yukta_explore_clicked" href="#platform" className="button button-dark">Explore the platform <ArrowDownRight aria-hidden="true" /></ProductTrackedLink>
+            <ProductTrackedLink product="yukta" event="yukta_contact_clicked" href={contactHref} className="text-link">Contact Kravia <ArrowUpRight aria-hidden="true" /></ProductTrackedLink>
           </div>
         </div>
         <aside className="yukta-hero-mark" aria-label="YUKTA V1 product status">
@@ -88,10 +88,10 @@ export function YuktaProductPage() {
 
     <section className="yukta-section shell" aria-labelledby="audience-title"><header className="yukta-section-head"><div><p className="eyebrow">09 / WHO YUKTA IS FOR</p><h2 id="audience-title">Built around the people who keep care <em>moving.</em></h2></div></header><ul className="yukta-audience-list">{yuktaProduct.audiences.map((audience) => <li key={audience}>{audience}</li>)}</ul></section>
 
-    <section className="yukta-early-access"><div className="shell yukta-early-access-inner"><div><p className="eyebrow">YUKTA V1 / EARLY ACCESS</p><h2>Built deliberately for its first <em>production deployments.</em></h2><p>Discuss the operating context, workflow needs and future fit with Kravia through the existing controlled enquiry workflow.</p></div><YuktaTrackedLink event="yukta_early_access_clicked" href={contactHref} className="button button-light">Discuss early access <ArrowUpRight aria-hidden="true" /></YuktaTrackedLink></div></section>
+    <section className="yukta-early-access"><div className="shell yukta-early-access-inner"><div><p className="eyebrow">YUKTA V1 / EARLY ACCESS</p><h2>Built deliberately for its first <em>production deployments.</em></h2><p>Discuss the operating context, workflow needs and future fit with Kravia through the existing controlled enquiry workflow.</p></div><ProductTrackedLink product="yukta" event="yukta_early_access_clicked" href={contactHref} className="button button-light">Discuss early access <ArrowUpRight aria-hidden="true" /></ProductTrackedLink></div></section>
 
     <section className="yukta-section shell yukta-faq" aria-labelledby="yukta-faq-title"><header className="yukta-section-head"><div><p className="eyebrow">10 / FAQ</p><h2 id="yukta-faq-title">Clear answers, <em>without inflated claims.</em></h2></div></header><Accordion label="YUKTA frequently asked questions" entries={yuktaProduct.faqs.map(([title, content]) => ({ title, content: <p>{content}</p> }))} /></section>
 
-    <section className="yukta-final"><div className="shell yukta-final-inner"><div><p className="eyebrow">YUKTA / KRAVIA HEALTHCARE</p><h2>One coordinated platform for <em>the work behind care.</em></h2></div><YuktaTrackedLink event="yukta_contact_clicked" href={contactHref} className="button button-light">Talk to Kravia <ArrowUpRight aria-hidden="true" /></YuktaTrackedLink></div></section>
+    <section className="yukta-final"><div className="shell yukta-final-inner"><div><p className="eyebrow">YUKTA / KRAVIA HEALTHCARE</p><h2>One coordinated platform for <em>the work behind care.</em></h2></div><ProductTrackedLink product="yukta" event="yukta_contact_clicked" href={contactHref} className="button button-light">Talk to Kravia <ArrowUpRight aria-hidden="true" /></ProductTrackedLink></div></section>
   </main>;
 }

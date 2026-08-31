@@ -5,6 +5,7 @@ import { KLine } from "@/components/k-line";
 import { SiteNav } from "@/components/site-nav";
 import { HeroMotion, Reveal } from "@/components/motion";
 import { CapabilityExplorer, MagneticLink } from "@/components/premium-interactions";
+import { ProductAnalytics, ProductTrackedLink } from "@/components/product-interactions";
 import { companyNarrative } from "@/lib/corporate-content";
 import { getPublicCompanyProfile, type PublicCompanyProfile } from "@/lib/corporate/public-facts";
 import { HomepageUpdates } from "@/components/newsroom-content";
@@ -43,6 +44,7 @@ function publicFactRows(profile: PublicCompanyProfile) {
 export default async function Home() {
   const [newsroom, profile, products] = await Promise.all([getPublishedNewsroomContent(), getPublicCompanyProfile(), getPublicPortfolio()]);
   const featuredProduct = products[0];
+  const featuredIsVidyaLuma = featuredProduct?.id === "vidyaluma";
   return (
     <>
       <SiteNav />
@@ -88,7 +90,8 @@ export default async function Home() {
         <section className="portfolio shell">
           <div className="section-head"><p className="eyebrow">05 / PORTFOLIO</p><h2>Products with<br /><em>real purpose.</em></h2></div>
           {featuredProduct ? <Reveal className="portfolio-feature">
-            <div><p className="eyebrow">PUBLIC PRODUCT / {featuredProduct.category.toUpperCase()}</p><h3>{featuredProduct.name}</h3><p>{featuredProduct.description}</p><Link href={featuredProduct.href} className="text-link">Explore {featuredProduct.name} <ArrowDownRight /></Link></div>
+            {featuredIsVidyaLuma && <ProductAnalytics event="vidyaluma_card_viewed" product="vidyaluma" />}
+            <div><p className="eyebrow">PUBLIC PRODUCT / {featuredProduct.category.toUpperCase()}</p><h3>{featuredProduct.name}</h3>{featuredIsVidyaLuma && <p className="product-attribution">A product by Kravia</p>}<p>{featuredProduct.description}</p>{featuredIsVidyaLuma ? <ProductTrackedLink event="vidyaluma_cta_clicked" product="vidyaluma" href={featuredProduct.href} className="text-link">Explore {featuredProduct.name} <ArrowDownRight /></ProductTrackedLink> : <Link href={featuredProduct.href} className="text-link">Explore {featuredProduct.name} <ArrowDownRight /></Link>}</div>
             <div className="portfolio-signal" aria-hidden="true"><Network /><span>PRODUCT<br />{String(products.length).padStart(2, "0")}</span></div>
           </Reveal> : null}
           {products.length > 1 ? <ProductPortfolio products={products.slice(1)} /> : null}

@@ -59,8 +59,8 @@ export const publicPages: Record<string, PublicPage> = {
   "company/corporate-information": { eyebrow: "Company / Corporate information", title: "Corporate identity, stated clearly.", intro: "Public company facts are shown only when verified and approved for publication. Sensitive identifiers and personal information remain private.", sections: [
     { title: "Publication governance", body: "Corporate details are drawn from one governed record so the website, disclosures, emails and structured data do not conflict." },
   ] },
-  products: { eyebrow: "Products", title: "Useful technology, made with care.", intro: "Kravia develops products and systems for real-world work. Only approved public products are shown here.", sections: [
-    { title: "VidyaLuma", body: "An education-focused product identity within the Kravia portfolio." },
+  products: { eyebrow: "Products", title: "Useful technology, made with care.", intro: "Kravia designs, develops, operates and improves technology products for real-world work. Only approved public products are shown here.", sections: [
+    { title: "VidyaLuma", body: "VidyaLuma is the Kravia School Intelligence and Operations Platform and remains an independent product brand." },
     { title: "Portfolio discipline", body: "A corporate portfolio describes what is ready to be public—not a confidential roadmap." },
   ] },
   technology: { eyebrow: "Technology", title: "Engineering that earns confidence.", intro: "Our direction spans software products, intelligent systems and digital infrastructure designed to be legible, resilient and responsibly operated.", sections: [

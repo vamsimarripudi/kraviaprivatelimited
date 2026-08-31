@@ -34,5 +34,5 @@ export function BreadcrumbJsonLd({ items }: { items: Breadcrumb[] }) {
 export function ProductJsonLd({ slug }: { slug: string }) {
   const product = publicProducts.find((candidate) => candidate.slug === slug && candidate.public);
   if (!product) return null;
-  return <JsonLd data={{ "@context": "https://schema.org", "@type": "SoftwareApplication", name: product.name, applicationCategory: product.category, description: product.description, publisher: { "@type": "Corporation", name: fallbackCompanyProfile.legalName, url: siteUrl } }} />;
+  return <JsonLd data={{ "@context": "https://schema.org", "@type": "SoftwareApplication", name: product.name, applicationCategory: product.category, description: product.description, ...(product.href ? { url: `${siteUrl}${product.href}` } : {}), publisher: { "@type": "Corporation", name: fallbackCompanyProfile.legalName, url: siteUrl } }} />;
 }

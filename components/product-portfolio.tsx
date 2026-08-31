@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { Badge, Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui";
+import { ProductAnalytics, ProductTrackedLink } from "@/components/product-interactions";
 import { getPublicPortfolio, type PublicPortfolioItem } from "@/lib/content/portfolio";
 
 function productStatus(state: PublicPortfolioItem["state"]) {
@@ -18,13 +19,18 @@ export async function ProductPortfolio({ products }: { products?: readonly Publi
     {portfolio.map((product) => {
       const status = productStatus(product.state);
       const label = `Explore ${product.name}`;
+      const isVidyaLuma = product.id === "vidyaluma";
       return <Card key={product.id} variant="product" interactive>
+        {isVidyaLuma && <ProductAnalytics event="vidyaluma_card_viewed" product="vidyaluma" />}
         <CardHeader><p className="eyebrow">{product.category}</p><Badge tone={status.tone}>{status.label}</Badge></CardHeader>
         <CardTitle>{product.name}</CardTitle>
+        {isVidyaLuma && <p className="product-attribution">A product by Kravia</p>}
         <CardDescription>{product.description}</CardDescription>
-        <CardFooter>{product.href.startsWith("http")
-          ? <a href={product.href} className="text-link">{label} <ArrowUpRight aria-hidden="true" /></a>
-          : <Link href={product.href} className="text-link">{label} <ArrowUpRight aria-hidden="true" /></Link>}
+        <CardFooter>{isVidyaLuma
+          ? <ProductTrackedLink event="vidyaluma_cta_clicked" product="vidyaluma" href={product.href} className="text-link">{label} <ArrowUpRight aria-hidden="true" /></ProductTrackedLink>
+          : product.href.startsWith("http")
+            ? <a href={product.href} className="text-link">{label} <ArrowUpRight aria-hidden="true" /></a>
+            : <Link href={product.href} className="text-link">{label} <ArrowUpRight aria-hidden="true" /></Link>}
         </CardFooter>
       </Card>;
     })}

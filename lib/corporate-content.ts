@@ -1,3 +1,4 @@
+import { vidyaLumaProduct } from "./products/vidyaluma";
 import { yuktaProduct } from "./products/yukta";
 
 export type VerificationStatus =
@@ -24,6 +25,7 @@ export type KraviaProduct = {
   public: boolean;
   href?: string;
   website?: string;
+  enquiryCategory?: string;
   order: number;
 };
 
@@ -53,16 +55,7 @@ export const publicCompanyInformation = {
 } as const satisfies Record<string, GovernedField<string | boolean>>;
 
 export const publicProducts: readonly KraviaProduct[] = [
-  {
-    id: "vidyaluma",
-    slug: "vidyaluma",
-    name: "VidyaLuma",
-    category: "Education technology",
-    description: "AI-powered school and academic intelligence platform.",
-    status: "ACTIVE",
-    public: true,
-    order: 1,
-  },
+  vidyaLumaProduct,
   yuktaProduct,
 ];
 
