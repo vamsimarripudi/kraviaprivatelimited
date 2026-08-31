@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { ArrowDownRight, ArrowUpRight, BrainCircuit, Building2, LockKeyhole, Network, ShieldCheck, UsersRound, Workflow } from "lucide-react";
 import { Accordion } from "@/components/ui";
 import { ProductAnalytics, ProductTrackedLink } from "@/components/product-interactions";
@@ -13,7 +14,7 @@ export function VidyaLumaProductPage() {
       <div className="shell vidyaluma-hero-grid">
         <div>
           <p className="eyebrow">{vidyaLumaProduct.hero.eyebrow}</p>
-          <p className="vidyaluma-wordmark" aria-label="VidyaLuma">VidyaLuma</p>
+          <div className="vidyaluma-logo-lockup"><Image className="vidyaluma-logo" src="/products/vidyaluma/vidyaluma-logo.jpg" width={1024} height={1024} priority sizes="(max-width: 620px) 92vw, (max-width: 980px) 34rem, 36rem" alt="VidyaLuma — Connected School Intelligence" /></div>
           <h1>{vidyaLumaProduct.hero.title}</h1>
           <p className="vidyaluma-lede">{vidyaLumaProduct.hero.intro}</p>
           <div className="vidyaluma-actions">
