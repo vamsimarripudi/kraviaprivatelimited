@@ -1,0 +1,55 @@
+export const yuktaProduct = {
+  id: "yukta",
+  slug: "yukta",
+  name: "YUKTA",
+  category: "Healthcare technology",
+  description: "One coordinated platform for patient journeys, clinical operations, billing and hospital workflows.",
+  status: "COMING_SOON",
+  public: true,
+  href: "/products/yukta",
+  order: 2,
+  seo: {
+    title: "YUKTA | Healthcare Operating Platform by Kravia",
+    description: "YUKTA is Kravia's healthcare operating platform for clinics and hospitals, bringing patient workflows, appointments, queues, clinical operations, billing and administration into one coordinated system.",
+  },
+  enquiryCategory: "Product enquiry · YUKTA — Healthcare platform / early access",
+  hero: {
+    eyebrow: "KRAVIA HEALTHCARE",
+    title: "The operating platform for modern healthcare.",
+    intro: "YUKTA brings patient journeys, appointments, queues, clinical workflows, billing and hospital operations into one coordinated platform.",
+  },
+  workflow: ["Patient", "Appointment", "Arrival", "Visit", "Queue", "Consultation", "Investigation / reports", "Follow-up", "Billing", "Payment", "Continuity"],
+  capabilityGroups: [
+    {
+      title: "Patient operations, from first touch to continuity.",
+      summary: "Make the patient journey visible across appointments, arrival, visits, queues, follow-up and the teams responsible for each handoff.",
+      pillars: ["Patient operations", "Appointments & visits", "Smart queue management"],
+    },
+    {
+      title: "Clinical workflows with clear authority.",
+      summary: "Support consultation, investigation, report review, authorised records and follow-up without misrepresenting where clinical decision authority belongs.",
+      pillars: ["Clinical workflow", "Authorised record handling"],
+    },
+    {
+      title: "Revenue operations that stay connected to care.",
+      summary: "Connect visit context, charge capture, billing, payment and reconciliation without creating disconnected operational and financial silos.",
+      pillars: ["Billing & revenue operations", "Hospital / clinic administration"],
+    },
+    {
+      title: "Integration-ready, with controls built in.",
+      summary: "Design for standards-based healthcare interoperability, traceable actions, role-aware access, privacy-aware workflows and governed assistance.",
+      pillars: ["Healthcare interoperability", "Compliance readiness", "Privacy, security & auditability", "Governed AI assistance"],
+    },
+  ],
+  audiences: ["Clinics", "Multi-specialty clinics", "Hospitals", "Doctors", "Reception and front desk", "Hospital administrators", "Billing teams", "Operations teams"],
+  faqs: [
+    ["What is YUKTA?", "YUKTA is Kravia's unified healthcare operating platform for modern clinics and hospitals. It is being engineered to coordinate patient operations, clinical workflows, billing and administration."],
+    ["Who is YUKTA designed for?", "YUKTA is intended for care and operations teams across clinics, multi-specialty clinics and hospitals, including doctors, front desk, billing and administrative teams."],
+    ["Does YUKTA replace clinical judgement?", "No. YUKTA is designed to assist governed healthcare workflows. Doctors and authorised healthcare professionals retain clinical decision authority."],
+    ["Does YUKTA support billing workflows?", "YUKTA is being designed to connect visit context, charge capture, billing, payment and reconciliation in one coordinated operating flow."],
+    ["Is YUKTA an AI doctor?", "No. YUKTA is not presented as an AI doctor or an autonomous diagnostic or treatment system. Any AI assistance is designed with defined permissions, provenance and human oversight."],
+    ["How does YUKTA approach privacy and security?", "The platform direction includes tenant isolation, role and capability-based access, traceable actions, secure document access and consent-aware workflows. Certifications or approvals are not claimed unless independently verified."],
+    ["Can YUKTA support multiple facilities?", "YUKTA is being engineered for clinic and hospital operations, including multi-facility workflows where appropriate to the approved deployment scope."],
+    ["How can a clinic discuss early access?", "Use the early-access route to contact Kravia. Your request enters the existing controlled corporate enquiry workflow with YUKTA context attached."],
+  ],
+} as const;

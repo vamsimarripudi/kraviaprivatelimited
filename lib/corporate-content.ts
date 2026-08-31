@@ -1,3 +1,5 @@
+import { yuktaProduct } from "./products/yukta";
+
 export type VerificationStatus =
   | "UNVERIFIED"
   | "DOCUMENT_VERIFIED"
@@ -18,8 +20,9 @@ export type KraviaProduct = {
   name: string;
   category: string;
   description: string;
-  status: "ACTIVE" | "BETA" | "PRIVATE" | "ACQUIRED" | "DISCONTINUED" | "ARCHIVED";
+  status: "ACTIVE" | "BETA" | "COMING_SOON" | "PRIVATE" | "ACQUIRED" | "DISCONTINUED" | "ARCHIVED";
   public: boolean;
+  href?: string;
   website?: string;
   order: number;
 };
@@ -35,26 +38,10 @@ export type CompanyMilestone = {
 };
 
 export const publicCompanyInformation = {
-  legalName: {
-    value: "KRAVIA PRIVATE LIMITED",
-    visibility: "PUBLIC",
-    verificationStatus: "PUBLIC_APPROVED",
-  },
-  displayName: {
-    value: "Kravia",
-    visibility: "PUBLIC",
-    verificationStatus: "PUBLIC_APPROVED",
-  },
-  entityType: {
-    value: "Private Limited Company",
-    visibility: "PUBLIC",
-    verificationStatus: "PUBLIC_APPROVED",
-  },
-  country: {
-    value: "India",
-    visibility: "PUBLIC",
-    verificationStatus: "PUBLIC_APPROVED",
-  },
+  legalName: { value: "KRAVIA PRIVATE LIMITED", visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED" },
+  displayName: { value: "Kravia", visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED" },
+  entityType: { value: "Private Limited Company", visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED" },
+  country: { value: "India", visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED" },
   incorporationDate: { value: null, visibility: "PUBLIC", verificationStatus: "UNVERIFIED" },
   cin: { value: null, visibility: "PUBLIC", verificationStatus: "UNVERIFIED" },
   registeredOffice: { value: null, visibility: "PUBLIC", verificationStatus: "UNVERIFIED" },
@@ -76,20 +63,17 @@ export const publicProducts: readonly KraviaProduct[] = [
     public: true,
     order: 1,
   },
+  yuktaProduct,
 ];
 
 // This remains deliberately empty until evidence-backed events are approved.
 export const publicCompanyMilestones: readonly CompanyMilestone[] = [];
 
 export const companyNarrative = {
-  summary:
-    "Kravia Private Limited is an Indian technology company building software products, intelligent systems and digital infrastructure for organisations that need simpler, safer and more connected ways to work.",
-  purpose:
-    "Complex systems should feel clear to the people who depend on them.",
-  mission:
-    "Build useful technology that helps organisations work with greater clarity, confidence and continuity.",
-  vision:
-    "A future where capable technology removes unnecessary complexity without removing human judgement.",
+  summary: "Kravia Private Limited is an Indian technology company building software products, intelligent systems and digital infrastructure for organisations that need simpler, safer and more connected ways to work.",
+  purpose: "Complex systems should feel clear to the people who depend on them.",
+  mission: "Build useful technology that helps organisations work with greater clarity, confidence and continuity.",
+  vision: "A future where capable technology removes unnecessary complexity without removing human judgement.",
   principles: [
     ["Build for usefulness", "Start with the work people need to do, not a feature list."],
     ["Make complexity disappear", "Design systems that make difficult work easier to understand and act on."],

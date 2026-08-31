@@ -12,38 +12,38 @@ export type PublicPortfolioItem = {
   category: string;
   description: string;
   href: string;
-  state: "ACTIVE" | "BETA" | "PUBLIC_PROFILE";
+  state: "ACTIVE" | "BETA" | "COMING_SOON" | "PUBLIC_PROFILE";
 };
 
 function fallbackPortfolio(): readonly PublicPortfolioItem[] {
   return publicProducts
-    .filter((product) => product.public && ["ACTIVE", "BETA"].includes(product.status))
+    .filter((product) => product.public && ["ACTIVE", "BETA", "COMING_SOON"].includes(product.status))
     .sort((left, right) => left.order - right.order)
     .map((product) => ({
       id: product.id,
       name: product.name,
       category: product.category,
       description: product.description,
-      href: product.website || "/products",
-      state: product.status === "BETA" ? "BETA" : "ACTIVE",
+      href: product.href ?? product.website ?? "/products",
+      state: product.status === "BETA" ? "BETA" : product.status === "COMING_SOON" ? "COMING_SOON" : "ACTIVE",
     }));
 }
 
 /**
- * The public product portfolio is database-first: only an approved PRODUCT
- * publication is rendered. The verified local record keeps the known flagship
- * product visible before its first governed database publication is created.
+ * Published product records take priority. Approved local records remain visible
+ * until their first governed public database record is released.
  */
 export const getPublicPortfolio = cache(async (): Promise<readonly PublicPortfolioItem[]> => {
   const records = await listPublishedContent("PRODUCT");
-  if (!records.length) return fallbackPortfolio();
-
-  return records.map((record) => ({
+  const published = records.map((record) => ({
     id: record.id,
     name: record.title,
     category: record.category || "Product",
     description: record.summary || "Approved public product information.",
     href: publicContentPath(record),
-    state: "PUBLIC_PROFILE",
+    state: "PUBLIC_PROFILE" as const,
   }));
+  const publishedSlugs = new Set(records.map((record) => record.slug));
+
+  return [...published, ...fallbackPortfolio().filter((product) => !publishedSlugs.has(product.id))];
 });

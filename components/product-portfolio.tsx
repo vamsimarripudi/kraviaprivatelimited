@@ -6,6 +6,7 @@ import { getPublicPortfolio, type PublicPortfolioItem } from "@/lib/content/port
 function productStatus(state: PublicPortfolioItem["state"]) {
   if (state === "ACTIVE") return { label: "Available", tone: "success" as const };
   if (state === "BETA") return { label: "Beta", tone: "information" as const };
+  if (state === "COMING_SOON") return { label: "In development", tone: "information" as const };
   return { label: "Public profile", tone: "neutral" as const };
 }
 
@@ -16,11 +17,15 @@ export async function ProductPortfolio({ products }: { products?: readonly Publi
   return <section className="product-portfolio-grid" aria-label="Kravia product portfolio">
     {portfolio.map((product) => {
       const status = productStatus(product.state);
+      const label = `Explore ${product.name}`;
       return <Card key={product.id} variant="product" interactive>
         <CardHeader><p className="eyebrow">{product.category}</p><Badge tone={status.tone}>{status.label}</Badge></CardHeader>
         <CardTitle>{product.name}</CardTitle>
         <CardDescription>{product.description}</CardDescription>
-        <CardFooter>{product.href.startsWith("http") ? <a href={product.href} className="text-link">Explore {product.name} <ArrowUpRight aria-hidden="true" /></a> : <Link href={product.href} className="text-link">Explore {product.name} <ArrowUpRight aria-hidden="true" /></Link>}</CardFooter>
+        <CardFooter>{product.href.startsWith("http")
+          ? <a href={product.href} className="text-link">{label} <ArrowUpRight aria-hidden="true" /></a>
+          : <Link href={product.href} className="text-link">{label} <ArrowUpRight aria-hidden="true" /></Link>}
+        </CardFooter>
       </Card>;
     })}
   </section>;
