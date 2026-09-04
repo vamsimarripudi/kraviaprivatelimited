@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, DM_Mono, Manrope } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
@@ -22,7 +22,14 @@ export const metadata: Metadata = {
     title: "Kravia Private Limited",
     description: "Building technology for what comes next.",
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "Kravia Private Limited",
+    description: "Building technology for what comes next.",
+  },
 };
+
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#183d32" };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="en" suppressHydrationWarning><body className={`${sans.variable} ${mono.variable} ${serif.variable}`}><OrganizationJsonLd /><BrandSplash />{children}<Analytics /></body></html>;
