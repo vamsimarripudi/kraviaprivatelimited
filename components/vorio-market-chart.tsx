@@ -36,9 +36,9 @@ export function VorioMarketChart() {
             <YAxis domain={[0, ceiling]} ticks={region === "global" ? [0, 2.5, 5, 7.5, 10] : [0, 0.5, 1, 1.5, 2, 2.5]} width={44} axisLine={false} tickLine={false} tick={{ fill: "var(--ink-2)", fontSize: 12 }} tickFormatter={(value: number) => `$${value}`} />
             <Tooltip cursor={{ stroke: "var(--green)", strokeDasharray: "4 4" }} content={({ active, payload }) => {
               const point = payload?.[0]?.payload as (typeof data)[number] | undefined;
-              return active && point ? <div className={styles.tooltip}><span>{point.year} forecast</span><strong>{formatUsdBn(point.valueUsdBn)}</strong><small>{point.derived ? "Calculated from published CAGR" : "Published report estimate"}</small></div> : null;
+              return active && point ? <div className={styles.tooltip}><span>{point.year} {point.year === estimate.baseYear ? "estimate" : "forecast"}</span><strong>{formatUsdBn(point.valueUsdBn)}</strong><small>{point.derived ? "Calculated from published CAGR" : point.year === estimate.baseYear ? "Published base estimate" : "Published forecast endpoint"}</small></div> : null;
             }} />
-            <Area type="linear" dataKey="valueUsdBn" name="Market size" stroke="var(--green)" strokeWidth={3} fill={`url(#${gradientId})`} dot={{ r: 4, fill: "var(--paper)", strokeWidth: 2 }} activeDot={{ r: 6, strokeWidth: 3, stroke: "var(--paper)" }} isAnimationActive={false} />
+            <Area type="linear" dataKey="valueUsdBn" name="Market size forecast" stroke="var(--green)" strokeWidth={3} strokeDasharray="6 4" fill={`url(#${gradientId})`} dot={{ r: 4, fill: "var(--paper)", strokeWidth: 2 }} activeDot={{ r: 6, strokeWidth: 3, stroke: "var(--paper)" }} isAnimationActive={false} />
           </AreaChart>
         </ResponsiveContainer>
       </div>

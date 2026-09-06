@@ -12,7 +12,7 @@ export function BrandSplash() {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    if (pathname === "/products/yukta") return;
+    if ((pathname === "/products/yukta" || pathname === "/products/vorio")) return;
     const seen = sessionStorage.getItem("kravia-entry-seen");
     const timer = window.setTimeout(() => {
       if (!seen) sessionStorage.setItem("kravia-entry-seen", "true");
@@ -21,7 +21,7 @@ export function BrandSplash() {
     return () => window.clearTimeout(timer);
   }, [reducedMotion, pathname]);
 
-  if (pathname === "/products/yukta") return null;
+  if ((pathname === "/products/yukta" || pathname === "/products/vorio")) return null;
   return <AnimatePresence>{visible && (
     <motion.div className="brand-splash" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reducedMotion ? .1 : .35 }}>
       <div className="brand-splash-grid" aria-hidden="true" />
