@@ -1,11 +1,11 @@
-import { companyProfile as fallbackCompanyProfile, siteUrl } from "@/lib/site";
+import { siteUrl } from "@/lib/site";
 import { getPublicCompanyProfile } from "@/lib/corporate/public-facts";
 import { publicProducts } from "@/lib/corporate-content";
 
 type Breadcrumb = { name: string; path: string };
 
 function JsonLd({ data }: { data: Record<string, unknown> }) {
-  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />;
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, "\\u003c") }} />;
 }
 
 export async function OrganizationJsonLd() {
@@ -13,6 +13,7 @@ export async function OrganizationJsonLd() {
   const organization = {
     "@context": "https://schema.org",
     "@type": "Corporation",
+    "@id": `${siteUrl}#organization`,
     name: companyProfile.displayName,
     legalName: companyProfile.legalName,
     url: siteUrl,
@@ -34,7 +35,7 @@ export function BreadcrumbJsonLd({ items }: { items: Breadcrumb[] }) {
 export function ProductJsonLd({ slug }: { slug: string }) {
   const product = publicProducts.find((candidate) => candidate.slug === slug && candidate.public);
   if (!product) return null;
-  return <JsonLd data={{ "@context": "https://schema.org", "@type": "SoftwareApplication", name: product.name, applicationCategory: product.category, description: product.description, ...(product.href ? { url: `${siteUrl}${product.href}` } : {}), publisher: { "@type": "Corporation", name: fallbackCompanyProfile.legalName, url: siteUrl } }} />;
+  return <JsonLd data={{ "@context": "https://schema.org", "@type": "SoftwareApplication", name: product.name, applicationCategory: product.category, description: product.description, ...(product.href ? { url: `${siteUrl}${product.href}` } : {}), publisher: { "@id": `${siteUrl}#organization` } }} />;
 }
 export function WebPageJsonLd({ name, description, path, about }: { name: string; description: string; path: string; about?: string }) {
   return <JsonLd data={{
@@ -44,6 +45,6 @@ export function WebPageJsonLd({ name, description, path, about }: { name: string
     description,
     url: `${siteUrl}${path}`,
     ...(about ? { about } : {}),
-    publisher: { "@type": "Corporation", name: fallbackCompanyProfile.legalName, url: siteUrl },
+    publisher: { "@id": `${siteUrl}#organization` },
   }} />;
 }
