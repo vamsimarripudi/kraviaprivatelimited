@@ -1,4 +1,5 @@
 import { vidyaLumaProduct } from "./products/vidyaluma";
+import { vorioProduct } from "./products/vorio";
 import { yuktaProduct } from "./products/yukta";
 
 export type VerificationStatus =
@@ -57,6 +58,7 @@ export const publicCompanyInformation = {
 export const publicProducts: readonly KraviaProduct[] = [
   vidyaLumaProduct,
   yuktaProduct,
+  vorioProduct,
 ];
 
 // This remains deliberately empty until evidence-backed events are approved.

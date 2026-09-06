@@ -12,7 +12,13 @@ export type ProductAnalyticsEvent =
   | "vidyaluma_card_viewed"
   | "vidyaluma_product_view"
   | "vidyaluma_cta_clicked"
-  | "vidyaluma_enquiry_started";
+  | "vidyaluma_enquiry_started"
+  | "vorio_card_viewed"
+  | "vorio_product_view"
+  | "vorio_cta_clicked"
+  | "vorio_explore_clicked"
+  | "vorio_contact_clicked"
+  | "vorio_early_access_clicked";
 
 export function ProductAnalytics({ event, product }: { event: ProductAnalyticsEvent; product: string }) {
   useEffect(() => {

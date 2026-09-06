@@ -36,3 +36,14 @@ export function ProductJsonLd({ slug }: { slug: string }) {
   if (!product) return null;
   return <JsonLd data={{ "@context": "https://schema.org", "@type": "SoftwareApplication", name: product.name, applicationCategory: product.category, description: product.description, ...(product.href ? { url: `${siteUrl}${product.href}` } : {}), publisher: { "@type": "Corporation", name: fallbackCompanyProfile.legalName, url: siteUrl } }} />;
 }
+export function WebPageJsonLd({ name, description, path, about }: { name: string; description: string; path: string; about?: string }) {
+  return <JsonLd data={{
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name,
+    description,
+    url: `${siteUrl}${path}`,
+    ...(about ? { about } : {}),
+    publisher: { "@type": "Corporation", name: fallbackCompanyProfile.legalName, url: siteUrl },
+  }} />;
+}

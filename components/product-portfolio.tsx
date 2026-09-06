@@ -19,19 +19,16 @@ export async function ProductPortfolio({ products }: { products?: readonly Publi
     {portfolio.map((product) => {
       const status = productStatus(product.state);
       const label = `Explore ${product.name}`;
-      const isVidyaLuma = product.id === "vidyaluma";
+      const analyticsEvent = product.id === "vidyaluma" ? "vidyaluma_card_viewed" as const : product.id === "vorio" ? "vorio_card_viewed" as const : null;
+      const ctaEvent = product.id === "vidyaluma" ? "vidyaluma_cta_clicked" as const : product.id === "vorio" ? "vorio_cta_clicked" as const : null;
+      const hasAttribution = product.id === "vidyaluma" || product.id === "vorio";
       return <Card key={product.id} variant="product" interactive>
-        {isVidyaLuma && <ProductAnalytics event="vidyaluma_card_viewed" product="vidyaluma" />}
+        {analyticsEvent && <ProductAnalytics event={analyticsEvent} product={product.id} />}
         <CardHeader><p className="eyebrow">{product.category}</p><Badge tone={status.tone}>{status.label}</Badge></CardHeader>
         <CardTitle>{product.name}</CardTitle>
-        {isVidyaLuma && <p className="product-attribution">A product by Kravia</p>}
+        {hasAttribution && <p className="product-attribution">A product by Kravia</p>}
         <CardDescription>{product.description}</CardDescription>
-        <CardFooter>{isVidyaLuma
-          ? <ProductTrackedLink event="vidyaluma_cta_clicked" product="vidyaluma" href={product.href} className="text-link">{label} <ArrowUpRight aria-hidden="true" /></ProductTrackedLink>
-          : product.href.startsWith("http")
-            ? <a href={product.href} className="text-link">{label} <ArrowUpRight aria-hidden="true" /></a>
-            : <Link href={product.href} className="text-link">{label} <ArrowUpRight aria-hidden="true" /></Link>}
-        </CardFooter>
+        <CardFooter>{ctaEvent ? <ProductTrackedLink event={ctaEvent} product={product.id} href={product.href} className="text-link">{label} <ArrowUpRight aria-hidden="true" /></ProductTrackedLink> : product.href.startsWith("http") ? <a href={product.href} className="text-link">{label} <ArrowUpRight aria-hidden="true" /></a> : <Link href={product.href} className="text-link">{label} <ArrowUpRight aria-hidden="true" /></Link>}</CardFooter>
       </Card>;
     })}
   </section>;
