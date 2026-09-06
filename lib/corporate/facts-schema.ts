@@ -11,6 +11,8 @@ export const publicFactKeys = [
   "grievance_contact",
   "gst_registered",
   "gstin",
+  "startup_india_recognition",
+  "udyam_registration",
 ] as const;
 
 export type PublicFactKey = (typeof publicFactKeys)[number];
@@ -28,4 +30,6 @@ export const publicFactLabels: Record<PublicFactKey, string> = {
   grievance_contact: "Grievance contact",
   gst_registered: "GST registration status",
   gstin: "GSTIN",
+  startup_india_recognition: "Startup India / DPIIT recognition number",
+  udyam_registration: "Udyam registration number",
 };
