@@ -12,6 +12,7 @@ import { HomepageUpdates } from "@/components/newsroom-content";
 import { getPublishedNewsroomContent } from "@/lib/content/repository";
 import { getPublicPortfolio, type PublicPortfolioItem } from "@/lib/content/portfolio";
 import { ProductPortfolio } from "@/components/product-portfolio";
+import { HomepageProductMarket } from "@/components/homepage-product-market";
 
 const operatingAreas = [
   ["Company", "A long-lived corporate foundation for products, people and partners.", "/company/about"],
@@ -96,6 +97,7 @@ export default async function Home() {
           </Reveal> : null}
           {products.length > 1 ? <ProductPortfolio products={products.slice(1)} /> : null}
           <p className="portfolio-note">Products appear here only after their public identity and positioning have been approved.</p>
+          <HomepageProductMarket products={products} />
         </section>
 
         <section className="method-section shell">
