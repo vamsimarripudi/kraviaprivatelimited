@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#07111f" />
+  <meta name="color-scheme" content="light" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-src 'self'; object-src 'self'; connect-src 'self'; font-src 'self' data:; base-uri 'self'; form-action 'self'" />
+  <title>KRAVIA Office — Company Operating System</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell" id="app">
+    <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
+      <div class="brand-row">
+        <div class="brand-mark">K</div>
+        <div><div class="brand-name">KRAVIA</div><div class="brand-sub">Office</div></div>
+        <button class="sidebar-collapse" id="sidebarCollapse" aria-label="Collapse sidebar">‹</button>
+      </div>
+      <div class="workspace-chip"><span class="dot live"></span><span>KRAVIA PRIVATE LIMITED</span></div>
+      <nav class="nav" id="nav"></nav>
+      <div class="sidebar-bottom">
+        <button class="profile-chip" id="profileButton"><span class="avatar">VM</span><span><strong>Office Owner</strong><small>Enterprise workspace</small></span></button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="page-heading"><div class="eyebrow" id="eyebrow">KRAVIA PRIVATE LIMITED</div><h1 id="pageTitle">Command Center</h1></div>
+        <div class="top-actions">
+          <button class="command-trigger" id="commandTrigger"><span>Search or run command</span><kbd>⌘K</kbd></button>
+          <button class="icon-button" id="notificationButton" aria-label="Notifications"><span>◉</span><i id="notificationCount">0</i></button>
+          <button class="primary-action" id="quickAction">+ Create</button>
+        </div>
+      </header>
+      <section class="content" id="content" aria-live="polite"></section>
+    </main>
+  </div>
+
+  <div class="overlay" id="commandOverlay" hidden>
+    <section class="command-panel" role="dialog" aria-modal="true">
+      <div class="command-search"><span>⌕</span><input id="commandInput" autocomplete="off" placeholder="Search modules, records, invoices, documents…" /></div>
+      <div id="commandResults" class="command-results"></div>
+      <div class="command-foot"><span>↑↓ Navigate</span><span>Enter Open</span><span>Esc Close</span></div>
+    </section>
+  </div>
+
+  <div class="overlay drawer-overlay" id="drawerOverlay" hidden>
+    <aside class="drawer" id="drawer" role="dialog" aria-modal="true">
+      <header class="drawer-header"><div><div class="eyebrow" id="drawerEyebrow">Record</div><h2 id="drawerTitle">Details</h2></div><div class="drawer-actions"><a class="button secondary" id="drawerDownload" hidden>Download</a><button class="icon-button" id="drawerClose">×</button></div></header>
+      <div class="drawer-body" id="drawerBody"></div>
+    </aside>
+  </div>
+
+  <div class="overlay modal-overlay" id="modalOverlay" hidden>
+    <section class="modal" id="modal" role="dialog" aria-modal="true">
+      <header class="modal-header"><div><div class="eyebrow" id="modalEyebrow">Create</div><h2 id="modalTitle">New record</h2></div><button class="icon-button" id="modalClose">×</button></header>
+      <div class="modal-body" id="modalBody"></div>
+    </section>
+  </div>
+
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+  <script src="data.js"></script>
+  <script src="engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

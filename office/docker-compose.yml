@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: kravia_office
+      POSTGRES_USER: kravia_office
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kravia_office -d kravia_office"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg://kravia_office:${POSTGRES_PASSWORD}@db:5432/kravia_office
+      OFFICE_BOOTSTRAP_KEY: ${OFFICE_BOOTSTRAP_KEY:?set OFFICE_BOOTSTRAP_KEY}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  postgres_data:

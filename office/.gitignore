@@ -1,0 +1,18 @@
+# KRAVIA Office — source-only repository policy
+__pycache__/
+.pytest_cache/
+.venv/
+*.py[cod]
+*.db
+*.sqlite*
+.env
+.env.*
+!.env.example
+config/company-master.local.json
+runtime/
+generated/INSP-*/
+generated/*.zip
+assets/docs/*.pdf
+assets/docs/*.xlsx
+.DS_Store
+generated/QUALITY_GATE_REPORT.json

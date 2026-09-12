@@ -1,0 +1,23 @@
+{
+  "code": "WF-PAYMENT-SUCCEEDED",
+  "version": 1,
+  "trigger": "payment.succeeded",
+  "invariants": [
+    "event signature verified",
+    "event idempotency verified",
+    "payment maps to exactly one commercial obligation",
+    "no duplicate receipt or entitlement activation"
+  ],
+  "steps": [
+    {"id":"verify_event","type":"system","on_failure":"dead_letter"},
+    {"id":"resolve_customer_order","type":"system","on_failure":"exception"},
+    {"id":"persist_payment","type":"transactional","on_failure":"rollback"},
+    {"id":"issue_or_update_invoice","type":"transactional","on_failure":"rollback"},
+    {"id":"post_accounting","type":"transactional","on_failure":"exception"},
+    {"id":"issue_receipt","type":"system","on_failure":"retry"},
+    {"id":"activate_entitlement","type":"system","on_failure":"compensate"},
+    {"id":"notify_customer","type":"system","on_failure":"retry_non_blocking"},
+    {"id":"queue_settlement_reconciliation","type":"system","on_failure":"retry"},
+    {"id":"audit","type":"append_only","on_failure":"critical_alert"}
+  ]
+}

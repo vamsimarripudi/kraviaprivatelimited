@@ -1,0 +1,17 @@
+{
+  "code":"WF-VENDOR-INVOICE-RECEIVED",
+  "version":1,
+  "trigger":"vendor.invoice.received",
+  "steps":[
+    {"id":"hash_attachment","type":"system"},
+    {"id":"duplicate_check","type":"system","on_failure":"exception"},
+    {"id":"extract_fields","type":"ai_assisted","human_review":true},
+    {"id":"match_vendor","type":"system","on_failure":"human_task"},
+    {"id":"match_po_contract","type":"system","on_failure":"human_task"},
+    {"id":"tax_itc_suggestion","type":"rules_plus_ai","human_review":true},
+    {"id":"approval","type":"human","policy":"DOA"},
+    {"id":"post_payable","type":"transactional"},
+    {"id":"schedule_payment","type":"human_or_system_by_policy"},
+    {"id":"audit","type":"append_only"}
+  ]
+}

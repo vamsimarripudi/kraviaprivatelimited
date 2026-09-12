@@ -1,0 +1,17 @@
+{
+  "code":"WF-BOARD-AUTHORITY",
+  "version":1,
+  "trigger":"board.resolution.approved",
+  "preconditions":["meeting minutes source exists","resolution text is approved","authorised person and scope are explicit"],
+  "steps":[
+    {"id":"lock_resolution_version","type":"system"},
+    {"id":"generate_ctc","type":"document"},
+    {"id":"generate_authority_letter_if_required","type":"document"},
+    {"id":"human_certification","type":"human"},
+    {"id":"register_authority","type":"system"},
+    {"id":"external_submission","type":"human_or_connector"},
+    {"id":"capture_acknowledgement","type":"connector_or_human"},
+    {"id":"audit","type":"append_only"}
+  ],
+  "guard":"CTC/authority cannot exceed the source resolution scope"
+}

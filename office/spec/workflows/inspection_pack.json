@@ -1,0 +1,17 @@
+{
+  "code":"WF-INSPECTION-PACK",
+  "version":1,
+  "trigger":"inspection.pack.requested",
+  "steps":[
+    {"id":"validate_request_scope","type":"human"},
+    {"id":"collect_historical_versions","type":"system"},
+    {"id":"validate_period_entity_scope","type":"system"},
+    {"id":"detect_missing_and_superseded","type":"system"},
+    {"id":"hash_documents","type":"system"},
+    {"id":"generate_index","type":"document"},
+    {"id":"generate_manifest","type":"system"},
+    {"id":"authorized_disclosure_review","type":"human"},
+    {"id":"export_read_only_pack","type":"system"},
+    {"id":"record_disclosure","type":"append_only"}
+  ]
+}

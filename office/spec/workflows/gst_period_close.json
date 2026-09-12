@@ -1,0 +1,20 @@
+{
+  "code":"WF-GST-PERIOD-CLOSE",
+  "version":1,
+  "trigger":"gst.period.review_requested",
+  "steps":[
+    {"id":"freeze_working_snapshot","type":"system"},
+    {"id":"sales_register_complete","type":"control"},
+    {"id":"purchase_register_complete","type":"control"},
+    {"id":"credit_debit_notes_complete","type":"control"},
+    {"id":"itc_reconciliation","type":"control","on_failure":"exception"},
+    {"id":"ledger_reconciliation","type":"control","on_failure":"exception"},
+    {"id":"prepare_return_working","type":"system"},
+    {"id":"ca_review","type":"human","required":true},
+    {"id":"authorized_approval","type":"human","required":true},
+    {"id":"filing","type":"connector_or_human","autonomous":false},
+    {"id":"capture_acknowledgement","type":"system_or_human"},
+    {"id":"lock_period","type":"system"},
+    {"id":"audit","type":"append_only"}
+  ]
+}

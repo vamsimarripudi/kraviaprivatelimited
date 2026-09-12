@@ -1,0 +1,9 @@
+{
+  "name": "KRAVIA Office",
+  "short_name": "KRAVIA Office",
+  "start_url": "/#overview",
+  "display": "standalone",
+  "background_color": "#07111f",
+  "theme_color": "#07111f",
+  "description": "Company operating system for KRAVIA PRIVATE LIMITED"
+}
