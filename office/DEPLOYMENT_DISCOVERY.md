@@ -1,18 +1,41 @@
-# Deployment Discovery — 12 Sep 2026
-
-## Vercel
-A connected Vercel team is available and contains existing KRAVIA-adjacent/product deployments, including several VidyaLuma projects. No dedicated `kravia-office` project was present in the discovered project list.
-
-**Decision:** do not modify an unrelated product project to host KRAVIA Office. Office should receive a dedicated project and production environment.
+# Deployment Discovery — refreshed 16 Sep 2026
 
 ## GitHub
-The connected GitHub connector currently returned no accessible repositories. Existing Vercel metadata references product repositories, but that does not grant this build process permission to write to them.
 
-**Decision:** no repository was modified. When a dedicated KRAVIA Office repository becomes accessible, import this project and preserve history.
+KRAVIA Office is now actively maintained inside the accessible canonical company repository:
+
+`vamsimarripudi/kraviaprivatelimited/office`
+
+`main` is the working integration branch used by the current quality workflow. The earlier discovery note stating that no repository was accessible is obsolete and must not be used for planning.
+
+**Decision:** retain Office as a bounded subsystem inside this repository; do not create a disconnected second Office codebase solely for deployment.
+
+## CI
+
+The repository quality workflow now validates both the root corporate site and Office subsystem, including:
+
+- blocking high/critical npm dependency audit;
+- secret scan, lint, typecheck, root tests and Next production build;
+- Office Python dependency install/compile;
+- committed OpenAPI drift check;
+- clean Alembic upgrade through the current head;
+- Office backend tests;
+- Office quality gate.
+
+## Runtime
+
+The canonical Office application is `backend.app:app`. It serves the server-side API/control plane and the same-origin `office/web` surface. A static-only Office deployment would omit required server-side controls and is therefore not the production architecture.
+
+## Vercel / application hosting
+
+Prior discovery found KRAVIA-adjacent/product deployments but no approved Office production deployment. Do not attach Office to an unrelated product project. The final hosting target can be a dedicated Office application/project/environment while still building from this repository's `office/` path.
+
+Hosting remains an external activation decision because production identity, database, secrets, private storage, monitoring and security gates must be provisioned together.
 
 ## Domain
+
 Target remains:
 
 `office.kraviaprivatelimited.com`
 
-DNS is not changed in this package because a dedicated production project, identity layer and security gates must exist before cutover.
+DNS/TLS is intentionally not cut over by the development build. It should be mapped only after the production application environment and required security/evidence gates pass.
