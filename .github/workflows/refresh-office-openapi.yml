@@ -25,6 +25,7 @@ jobs:
         run: python scripts/export_openapi.py
         working-directory: office
         env:
+          PYTHONPATH: .
           APP_ENV: development
           AUTH_MODE: bootstrap
           FINANCE_EXECUTION_MODE: sandbox
