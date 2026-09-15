@@ -34,6 +34,14 @@ jobs:
         working-directory: office
       - run: python -m compileall -q backend
         working-directory: office
+      - name: Verify Office OpenAPI contract
+        run: python scripts/export_openapi.py --check
+        working-directory: office
+        env:
+          APP_ENV: development
+          AUTH_MODE: bootstrap
+          FINANCE_EXECUTION_MODE: sandbox
+          DATABASE_URL: sqlite:///./kravia-office-ci.db
       - run: alembic upgrade head
         working-directory: office
         env:
