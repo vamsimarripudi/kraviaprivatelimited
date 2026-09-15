@@ -7,18 +7,24 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
+      - uses: actions/cache@v6
+        with:
+          path: .next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - run: npm ci
+      - name: Dependency audit (diagnostic)
+        run: npm audit --json || true
       - run: node scripts/secret-scan.mjs
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
           cache: pip
