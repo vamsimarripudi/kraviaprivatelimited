@@ -1,99 +1,122 @@
-# KRAVIA Office — Enterprise Foundation v1
+# KRAVIA Office — Corporate Operating System
 
-Target domain: `office.kraviaprivatelimited.com`
+Target production domain: `office.kraviaprivatelimited.com`
 
-KRAVIA Office is the company operating layer for **KRAVIA PRIVATE LIMITED** and every current/future product. It is company-first, product-aware, evidence-first, and automation-oriented.
+KRAVIA Office is the company operating layer for **KRAVIA PRIVATE LIMITED** and current/future KRAVIA products. The canonical implementation lives in this repository under `office/`. It is company-first, product-aware, evidence-first, auditable and deliberately fail-closed for high-risk production actions whose external credentials/evidence are not configured.
 
-## What is implemented in this runnable foundation
+## Canonical runtime
 
-- Ultra-modern enterprise administration shell with 24 functional modules/routes.
-- Company Master architecture seeded with controlled configuration placeholders. Actual evidence and sensitive particulars are intentionally excluded from Git.
-- Product Registry for VidyaLuma, Vaanmeet and VFormix, with a working “Add Product” flow.
-- Canonical Customer Master with real local record creation and GSTIN format validation.
-- Central Billing Engine demonstration:
-  - immutable invoice snapshot
-  - product-aware invoice numbering
-  - intra-state CGST/SGST vs inter-state IGST calculation
-  - discount, due date, SAC and taxable-value fields
-  - printable invoice rendering in a sandboxed iframe
-- Payment capture demonstration:
-  - source invoice linkage
-  - partial/full payment handling
-  - receivables update
-  - receipt issuance
-  - printable receipt rendering
-- GST Sales Register derived from issued invoice snapshots.
-- Reports derived only from real records created inside the foundation.
-- Document Vault architecture for authorized private documents and generated invoices/receipts.
-- Governance workflow and source-link registry.
-- Authority Register requiring a linked source document.
-- Corporate communication-ingestion architecture; evidence is not stored in source control.
-- Vendor Registry requiring authorized evidence before a provider is marked verified.
-- Compliance Register with explicit verification gaps.
-- Bank Registry with masked-account support and explicit “no live bank feed” state.
-- Automation Registry and workflow run traces created by actual local invoice/payment events.
-- Inspection Room with scope-limited document selection, manifest preview and JSON export.
-- Local append-only audit trail (demonstration only; production needs server-side tamper resistance).
-- Enterprise command palette (`Ctrl/Cmd + K`).
-- Responsive interface and sandboxed iframe document previews.
+The production-oriented Office runtime is the FastAPI application exported by `backend.app:app`.
 
-## Controlled-data and no-fake-data rule
+It combines:
 
-This build intentionally does **not** invent:
+- authenticated/RBAC API and SQLAlchemy data model;
+- Alembic migrations;
+- Finance & Ownership bounded domain;
+- accounting/tax period-close controls;
+- read-only Google Drive evidence readiness;
+- CSP/security headers, Origin guard and baseline mutation rate limiting;
+- same-origin Office web UI from `web/`.
 
-- cash balance
-- bank transactions
-- revenue before an invoice exists
-- customer counts before customers are created
-- GST filing status
-- active Razorpay API connectivity
-- AWS cost values
-- CA/CS filing confirmations
-- production authentication
+The older root static files remain in the repository for compatibility/history, but they are not the authoritative production runtime.
 
-Missing source data is rendered as an honest unavailable/review state.
+## Implemented domains
 
-Before a private local run, provide `KRAVIA_CIN` and `KRAVIA_REGISTERED_OFFICE` through a local, ignored environment file or an approved secret/configuration service. The runtime blocks production startup when that controlled master configuration is absent. Do not commit evidence packs, personal records, bank records, certificates or mail snapshots.
+- Company Master and Product Registry
+- Customer Master and Commercial plans/subscriptions
+- Billing, GST/tax, invoices, receipts, credit notes and refunds
+- Payments, settlements, bank transaction ingestion and reconciliation
+- Accounting journal/trial balance and controlled accounting/tax period locks
+- Finance & Ownership: share ledger, transfer requests, funding policies, expenses, contribution calls, mandates and payment instructions
+- Governance: meetings, resolutions, CTC and authority grants
+- Compliance/notices, contracts, vendors, people and assets
+- Private document vault, versions, hashes, locks and audited downloads
+- Inspection cases/manifests/evidence packs
+- Integration registry, outbox/domain events and workflow runs
+- Read-only Drive evidence metadata/readiness
+- Audit chain and security controls
 
-## Run locally
+See `IMPLEMENTATION_STATUS.md`, `TEST_REPORT.md`, `FINANCE_OWNERSHIP.md`, `DRIVE_INTEGRATION.md` and `spec/security/PRODUCTION_GATES.md` for verified scope and external gates.
 
-The project has no package/dependency requirement.
+## Controlled-data / no-fake-data rule
+
+Do not commit or invent:
+
+- legal/shareholder identity records, cap table/share register or share certificates;
+- bank account secrets or payment credentials;
+- unverified cash/revenue/bank balances;
+- GST filing/compliance success;
+- provider connectivity/success states;
+- CA/CS/legal approvals;
+- private Drive document contents.
+
+Missing/unverified source data must remain an explicit setup-required/unverified state. Production ownership data must be loaded only from reviewed authoritative evidence.
+
+## Local development
+
+From the repository root:
 
 ```bash
-python -m http.server 8123
+cd office
+python -m pip install -r backend/requirements.txt
+alembic upgrade head
+python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000
 ```
 
-Then open `http://localhost:8123`.
+Open `http://127.0.0.1:8000/`. Non-production API documentation is available at `/api/docs`.
 
-## Vercel
+Use a local ignored environment file or exported variables based on `backend/.env.example`. Bootstrap authentication is development-only.
 
-The folder is static and includes `vercel.json`. It can be deployed as a static project after production authentication/access controls are implemented. Do **not** expose this local-foundation build publicly with sensitive real data.
+## Verification
 
-## Production architecture direction
+Office checks:
 
-This v1 is a functional front-end/business-logic foundation. Production should move authoritative data and workflow execution into authenticated server-side services:
+```bash
+cd office
+python -m pytest backend/tests -q
+python scripts/export_openapi.py --check
+python scripts/quality_gate.py
+```
 
-- Identity + MFA + RBAC/ABAC
-- Company Master service
-- Product/Customer/Commercial services
-- Billing/Tax/Payment orchestration
-- Accounting adapter/ledger
-- Event bus + workflow engine
-- Server-side immutable audit
-- Document/version/signature service
-- Gmail/Drive provider integrations using production OAuth/service credentials
-- Razorpay and bank integrations
-- GST filing/reconciliation workflow with human review
-- encrypted secrets via approved secret manager
-- backups, observability and disaster recovery
+Repository CI additionally runs:
 
-## KRAVIA operating standard reflected in this build
+- blocking high/critical npm dependency audit;
+- secret scan;
+- ESLint and TypeScript typecheck;
+- root Vitest suite;
+- Next.js production build;
+- clean Office Alembic migration;
+- Office backend tests and quality gate.
 
-- no fake metrics
-- no fake payment success
-- no dashboard duplication
-- one source of truth
-- strong auditability and ownership
-- enterprise visual discipline
-- explicit empty/error/setup-required states
-- products share corporate infrastructure rather than duplicating it
+The current audited baseline is documented in `TEST_REPORT.md`.
+
+## Docker development
+
+```bash
+cd office
+export POSTGRES_PASSWORD='set-a-local-development-secret'
+export OFFICE_BOOTSTRAP_KEY='use-a-real-dev-key'
+docker compose up --build
+```
+
+## Evidence integration
+
+Google Drive integration is metadata-only/read-only. It can report whether expected Office evidence areas are available, empty or missing and can flag obvious filing errors. It does not download private content or move files.
+
+Configure runtime-only values such as `GOOGLE_DRIVE_ROOT_FOLDER_ID` and a read-only service-account secret outside source control.
+
+## Finance execution
+
+`FINANCE_EXECUTION_MODE` is fail-closed:
+
+- `disabled` — no provider execution;
+- `sandbox` — deterministic/test provider behavior;
+- `live` — allowed only after provider eligibility, credentials, bank/payment flow approval and applicable legal/accounting review.
+
+Ownership is independent from expense funding and payment history. Contributions/payments never change the cap table automatically.
+
+## Production activation
+
+Production still requires real identity/MFA, PostgreSQL/backups, secret management, verified Company Master/ownership/tax evidence, CA/CS/legal review, provider/bank credentials, private storage + malware scanning, Drive service authorization, shared edge/WAF controls for multi-replica deployment, monitoring/SLOs, restore drills, security acceptance and DNS/TLS activation.
+
+A green software build does not fabricate those external facts. See `FINAL_HANDOVER.md` for the activation sequence.
