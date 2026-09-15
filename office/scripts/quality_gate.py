@@ -18,7 +18,8 @@ required = [
     "backend/main.py", "backend/app.py", "backend/models.py",
     "backend/finance_models.py", "backend/finance_ownership.py",
     "backend/period_controls.py", "backend/security_controls.py", "backend/drive_integration.py",
-    "spec/api/openapi.json", "spec/security/PRODUCTION_GATES.md", "spec/deployment/DEPLOYMENT_PLAN.md",
+    "scripts/export_openapi.py", "spec/api/openapi.json",
+    "spec/security/PRODUCTION_GATES.md", "spec/deployment/DEPLOYMENT_PLAN.md",
     "FINANCE_OWNERSHIP.md",
 ]
 for f in required:
@@ -30,6 +31,17 @@ for f in ["data.js", "engine.js", "app.js", "web/app.js", "web/finance.js"]:
 
 r = subprocess.run([sys.executable, "-m", "compileall", "-q", str(ROOT / "backend")], capture_output=True, text=True)
 check("python-compile", r.returncode == 0, (r.stderr or "compile ok").strip())
+
+r = subprocess.run([sys.executable, "scripts/export_openapi.py", "--check"], cwd=ROOT, capture_output=True, text=True)
+check("openapi-drift", r.returncode == 0, (r.stdout + r.stderr).strip()[-1200:] or "OpenAPI check completed")
+
+try:
+    openapi = json.loads((ROOT / "spec" / "api" / "openapi.json").read_text(encoding="utf-8"))
+    paths = openapi.get("paths", {})
+    check("openapi:period-locks", "/api/v1/accounting/period-locks" in paths, "period-lock contract")
+    check("openapi:drive-readiness", "/api/v1/integrations/google-drive/evidence-readiness" in paths, "Drive evidence-readiness contract")
+except (OSError, ValueError) as exc:
+    check("openapi:parse", False, str(exc))
 
 r = subprocess.run([sys.executable, "-m", "pytest", "backend/tests", "-q"], cwd=ROOT, capture_output=True, text=True)
 check("api-tests", r.returncode == 0, (r.stdout + r.stderr).strip()[-2200:])
