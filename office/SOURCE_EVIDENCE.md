@@ -2,22 +2,47 @@
 
 ## Evidence boundary
 
-This Git package contains no controlled corporate documents, personal records, bank details, mailbox exports or other private evidence. Those materials must remain in the authorized Office document store and are represented here only as a required evidence-link workflow.
+The public Git repository contains no controlled corporate documents, personal records, bank details, mailbox exports, shareholder identity records or other private evidence. Those materials remain in authorized Office/private document stores. Source code contains only schemas, workflows, neutral templates and evidence references.
 
-## Expected controlled evidence
+## Reviewed KRAVIA Office Drive taxonomy
 
-An authorized operator must link current corporate-master, governance, tax, banking, vendor and compliance evidence before the relevant Office record is marked verified. A document being attached does not itself prove filing, approval, signing or legal effectiveness.
+The controlled Drive workspace reviewed for this build uses these logical areas:
+
+- `00 - Company Master`
+- `01 - Governance`
+- `02 - Compliance`
+- `03 - Finance & Accounting`
+- `04 - GST & Tax`
+- `05 - Banking & Payments`
+- `06 - Customers & Contracts`
+- `07 - Vendors & Procurement`
+- `08 - People & HR`
+
+The application has a read-only metadata readiness check for this taxonomy. It reports areas as `AVAILABLE`, `EMPTY` or `MISSING_FOLDER`; it does not download private bytes or treat file presence as legal approval.
+
+At the time of the repository/Drive reconciliation, Company Master, Governance and GST/Tax had source material; Compliance, Finance & Accounting, Banking & Payments, Vendors & Procurement and People & HR were empty. Ownership/shareholding material was also detected under Customers & Contracts and is flagged as a filing/taxonomy issue for an authorized operator to correct. No private names, IDs, addresses or document contents from that material are committed here.
+
+These observations are readiness facts, not statutory conclusions. The Drive state can change and must be rescanned before production bootstrap.
+
+## Verification rule
+
+An authorized operator must link current authoritative evidence before the relevant production master/record is marked verified. A document being present or linked does not itself prove filing, signing, approval, legal effectiveness or current statutory status.
+
+Ownership/cap-table bootstrap must reconcile the authoritative current share register/certificates/agreement and applicable company records; historical proposal drafts must not be promoted as production truth.
 
 ## External communications
 
-A deployed Office instance requires its own authorized Gmail integration, least-privilege scopes and an evidence-retention decision before communication ingestion. No email snapshots are committed to this repository.
+A deployed Office instance requires authorized Workspace/Gmail integration, least-privilege scopes and an evidence-retention decision before communication ingestion. No mailbox snapshots are committed to this repository.
 
-## Authorized local evidence
+## Authorized private evidence
 
-An authorized operator may attach approved, current evidence such as governance packs, resolutions, agreement templates, invoice templates and administration plans to the private document vault. These files are intentionally excluded from the repository.
+Authorized operators may attach reviewed current evidence—such as incorporation/company-master records, governance packs, resolutions, statutory/tax records, contracts, vendor evidence and approved administration material—to the private document vault or approved Drive store. These files remain excluded from source control.
 
 ## Evidence policy
 
-- Sensitive identifiers are minimized in normal UI.
-- Current statutory status must be linked to current authoritative evidence before production master lock.
-- Private documents and their generated inspection packs remain ignored by source control.
+- Sensitive identifiers are minimized in normal UI and source-controlled fixtures.
+- Current statutory/legal/ownership status must be linked to current authoritative evidence before production master lock.
+- Google Drive integration is metadata-only/read-only; the software does not move files automatically.
+- Evidence hashes/references may be recorded for traceability without copying controlled content into Git.
+- Private documents and generated inspection packs remain outside source control.
+- Empty evidence areas remain explicit gaps; Office must not fabricate completeness.
