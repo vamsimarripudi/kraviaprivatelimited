@@ -1,20 +1,41 @@
 """Canonical KRAVIA Office ASGI application.
 
-The legacy Office API remains intact. Finance & Ownership and controlled Google
-Drive evidence discovery are attached as bounded domains. The production
-container serves the controlled Office web surface from the same origin so
-authentication/CSP/API routing stay coherent.
+The legacy Office API remains intact. Finance & Ownership, controlled period
+close, and read-only Google Drive evidence discovery are attached as bounded
+domains. The production container serves the controlled Office web surface from
+the same origin so authentication/CSP/API routing stay coherent.
 """
 from pathlib import Path
 
+from fastapi import Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .main import app, get_db, require_roles
 from .finance_ownership import build_finance_ownership_router
 from .drive_integration import build_google_drive_router
+from .period_controls import PeriodLockedError, build_period_control_router
+from .security_controls import configure_security
 
 app.include_router(build_finance_ownership_router(get_db, require_roles))
 app.include_router(build_google_drive_router(get_db, require_roles))
+app.include_router(build_period_control_router(get_db, require_roles))
+
+
+@app.exception_handler(PeriodLockedError)
+async def period_locked_handler(request: Request, exc: PeriodLockedError):
+    return JSONResponse(
+        status_code=409,
+        content={
+            "detail": "Financial period is locked",
+            "lock_id": exc.lock_id,
+            "domain": exc.domain,
+            "entry_date": exc.entry_date,
+        },
+    )
+
+
+configure_security(app)
 
 _WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 if _WEB_DIR.is_dir():
