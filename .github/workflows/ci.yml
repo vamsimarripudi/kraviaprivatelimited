@@ -17,8 +17,8 @@ jobs:
           path: .next/cache
           key: next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - run: npm ci
-      - name: Dependency audit (diagnostic)
-        run: npm audit --json || true
+      - name: Dependency audit
+        run: npm audit --audit-level=high
       - run: node scripts/secret-scan.mjs
       - run: npm run lint
       - run: npm run typecheck
