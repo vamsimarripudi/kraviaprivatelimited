@@ -3,9 +3,8 @@ on:
   push:
     branches: [main]
   pull_request:
-
 jobs:
-  web-platform:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,19 +18,6 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-
-  office-api:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: office
-    env:
-      APP_ENV: development
-      AUTH_MODE: bootstrap
-      FINANCE_EXECUTION_MODE: sandbox
-      DATABASE_URL: sqlite:///${{ runner.temp }}/kravia-office-ci.db
-    steps:
-      - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -39,7 +25,27 @@ jobs:
           cache-dependency-path: office/backend/requirements.txt
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -r backend/requirements.txt
+        working-directory: office
       - run: python -m compileall -q backend
+        working-directory: office
       - run: alembic upgrade head
+        working-directory: office
+        env:
+          APP_ENV: development
+          AUTH_MODE: bootstrap
+          FINANCE_EXECUTION_MODE: sandbox
+          DATABASE_URL: sqlite:///./kravia-office-ci.db
       - run: python -m pytest backend/tests -q
+        working-directory: office
+        env:
+          APP_ENV: development
+          AUTH_MODE: bootstrap
+          FINANCE_EXECUTION_MODE: sandbox
+          DATABASE_URL: sqlite:///./kravia-office-ci.db
       - run: python scripts/quality_gate.py
+        working-directory: office
+        env:
+          APP_ENV: development
+          AUTH_MODE: bootstrap
+          FINANCE_EXECUTION_MODE: sandbox
+          DATABASE_URL: sqlite:///./kravia-office-ci.db
