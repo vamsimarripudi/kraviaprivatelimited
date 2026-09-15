@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="color-scheme" content="light" />
+<meta name="theme-color" content="#0b1724" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" />
+<title>Finance & Ownership · KRAVIA Office</title>
+<link rel="stylesheet" href="app.css" />
+<link rel="stylesheet" href="finance.css" />
+</head>
+<body>
+<div class="shell">
+  <aside class="rail">
+    <a class="brand brandLink" href="index.html"><div class="mark">K</div><div><strong>KRAVIA</strong><span>Office</span></div></a>
+    <div class="entity"><i></i><div><b>KRAVIA PRIVATE LIMITED</b><small>Finance & Ownership</small></div></div>
+    <nav id="financeNav">
+      <div class="navGroup"><div class="navLabel">Finance & Ownership</div>
+        <button class="navBtn active" data-view="overview"><span class="ico">◈</span>Overview</button>
+        <button class="navBtn" data-view="ownership"><span class="ico">◇</span>Ownership</button>
+        <button class="navBtn" data-view="funding"><span class="ico">%</span>Funding</button>
+        <button class="navBtn" data-view="expenses"><span class="ico">▤</span>Expenses</button>
+        <button class="navBtn" data-view="mandates"><span class="ico">⌁</span>Mandates</button>
+        <button class="navBtn" data-view="payments"><span class="ico">⇄</span>Payments</button>
+        <button class="navBtn" data-view="approvals"><span class="ico">✓</span>Approvals</button>
+      </div>
+      <div class="navGroup"><div class="navLabel">Office</div>
+        <a class="navBtn navLink" href="index.html#command-center"><span class="ico">←</span>Command Center</a>
+        <a class="navBtn navLink" href="index.html#banking/transactions"><span class="ico">▥</span>Banking</a>
+        <a class="navBtn navLink" href="index.html#audit"><span class="ico">≡</span>Audit Trail</a>
+      </div>
+    </nav>
+    <div class="railFoot"><button id="sessionBtn" class="ghost full">Session & access</button><div id="apiState" class="health">Checking API…</div></div>
+  </aside>
+  <main class="stage">
+    <header class="topbar"><div><p>KRAVIA PRIVATE LIMITED · CONTROLLED FINANCE</p><h1 id="title">Finance & Ownership</h1></div><div class="actions"><a class="ghost linkButton" href="index.html">Office</a><button id="refresh" class="ghost">Refresh</button><button id="createBtn" class="primary">+ Create</button></div></header>
+    <section id="content" class="content"></section>
+  </main>
+</div>
+
+<dialog id="dialog" class="financeDialog"><form method="dialog" id="dialogForm"><header><div><p id="dialogKicker">KRAVIA Office</p><h2 id="dialogTitle">Action</h2></div><button type="button" id="dialogClose" class="icon" aria-label="Close">×</button></header><div id="dialogBody" class="modalBody"></div></form></dialog>
+<div id="toast" class="toastStack"></div>
+<script src="finance.js"></script>
+</body>
+</html>
