@@ -2,6 +2,8 @@
 
 The adapter is deliberately metadata-only: it never writes to Drive and never
 copies private document bytes into source control. Credentials remain external.
+The readiness layer understands the expected KRAVIA Office evidence taxonomy
+without hard-coding private Drive IDs or document contents.
 """
 from __future__ import annotations
 
@@ -20,6 +22,18 @@ from .services import audit
 
 DRIVE_API = "https://www.googleapis.com/drive/v3"
 DRIVE_METADATA_SCOPE = "https://www.googleapis.com/auth/drive.metadata.readonly"
+
+EXPECTED_EVIDENCE_AREAS = (
+    "00 - Company Master",
+    "01 - Governance",
+    "02 - Compliance",
+    "03 - Finance & Accounting",
+    "04 - GST & Tax",
+    "05 - Banking & Payments",
+    "06 - Customers & Contracts",
+    "07 - Vendors & Procurement",
+    "08 - People & HR",
+)
 
 
 class GoogleDriveAdapter:
@@ -41,6 +55,7 @@ class GoogleDriveAdapter:
             "scope": DRIVE_METADATA_SCOPE,
             "content_download_enabled": False,
             "write_enabled": False,
+            "expected_evidence_areas": list(EXPECTED_EVIDENCE_AREAS),
         }
 
     def _service_account_token(self) -> str:
@@ -163,6 +178,59 @@ class GoogleDriveAdapter:
         return result
 
 
+def build_evidence_readiness(items: list[dict], truncated: bool = False) -> dict:
+    """Map Drive metadata to the controlled KRAVIA Office evidence taxonomy."""
+    top_folders = {row["path"]: row for row in items if row.get("is_folder") and "/" not in str(row.get("path") or "")}
+    areas = []
+    for area in EXPECTED_EVIDENCE_AREAS:
+        folder = top_folders.get(area)
+        prefix = area + "/"
+        descendants = [row for row in items if str(row.get("path") or "").startswith(prefix)]
+        files = [row for row in descendants if not row.get("is_folder")]
+        folders = [row for row in descendants if row.get("is_folder")]
+        state = "MISSING_FOLDER" if folder is None else "AVAILABLE" if files else "EMPTY"
+        areas.append({
+            "area": area,
+            "state": state,
+            "file_count": len(files),
+            "subfolder_count": len(folders),
+        })
+
+    warnings = []
+    for row in items:
+        if row.get("is_folder"):
+            continue
+        path = str(row.get("path") or "")
+        name = str(row.get("name") or "").lower()
+        if path.startswith("06 - Customers & Contracts/") and any(token in name for token in ("shareholder", "shareholding", "cap table", "share register")):
+            warnings.append({
+                "code": "OWNERSHIP_EVIDENCE_MISFILED",
+                "path": path,
+                "recommended_area": "00 - Company Master or 01 - Governance",
+            })
+
+    missing = sum(1 for row in areas if row["state"] == "MISSING_FOLDER")
+    empty = sum(1 for row in areas if row["state"] == "EMPTY")
+    available = sum(1 for row in areas if row["state"] == "AVAILABLE")
+    if truncated:
+        readiness = "INCOMPLETE_SCAN"
+    elif missing:
+        readiness = "MISSING_AREAS"
+    elif empty or warnings:
+        readiness = "READY_WITH_GAPS"
+    else:
+        readiness = "READY"
+    return {
+        "readiness": readiness,
+        "available_areas": available,
+        "empty_areas": empty,
+        "missing_areas": missing,
+        "areas": areas,
+        "warnings": warnings,
+        "content_downloaded": False,
+    }
+
+
 def build_google_drive_router(get_db: Callable, require_roles: Callable) -> APIRouter:
     router = APIRouter(prefix="/api/v1/integrations/google-drive", tags=["google-drive"])
 
@@ -196,5 +264,31 @@ def build_google_drive_router(get_db: Callable, require_roles: Callable) -> APIR
             "items": items,
             "mode": "READ_ONLY_METADATA",
         }
+
+    @router.post("/evidence-readiness")
+    def evidence_readiness(
+        max_depth: int = Query(default=4, ge=1, le=8),
+        max_items: int = Query(default=2000, ge=1, le=5000),
+        db: Session = Depends(get_db),
+        ctx=Depends(require_roles("OWNER", "DIRECTOR", "OPERATIONS", "AUDITOR", "CA", "CS")),
+    ):
+        adapter = GoogleDriveAdapter()
+        if not adapter.readiness()["configured"]:
+            raise HTTPException(409, "Google Drive evidence source is not configured")
+        try:
+            items = adapter.discover(max_depth=max_depth, max_items=max_items)
+        except (RuntimeError, ValueError) as exc:
+            raise HTTPException(502, str(exc)) from exc
+        result = build_evidence_readiness(items, truncated=len(items) >= max_items)
+        audit(db, ctx["actor"], ctx["role"], "integration.google_drive.evidence_readiness", "integration", "GOOGLE_DRIVE", {
+            "readiness": result["readiness"],
+            "available_areas": result["available_areas"],
+            "empty_areas": result["empty_areas"],
+            "missing_areas": result["missing_areas"],
+            "warning_count": len(result["warnings"]),
+            "content_downloaded": False,
+        }, "CONTROL")
+        db.commit()
+        return result
 
     return router
