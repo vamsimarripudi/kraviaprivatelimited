@@ -1,0 +1,39 @@
+{
+  "legal_entity": {
+    "legal_name": "KRAVIA PRIVATE LIMITED",
+    "cin": "REPLACE_WITH_VERIFIED_CIN",
+    "registered_office": "REPLACE_WITH_VERIFIED_REGISTERED_OFFICE",
+    "state_code": "37",
+    "source_ref": "drive:file-or-evidence-reference"
+  },
+  "share_classes": [
+    {
+      "code": "EQ",
+      "name": "Equity Shares",
+      "face_value": "10.00",
+      "authorised_shares": 10000,
+      "voting_rights_per_share": 1,
+      "evidence_ref": "drive:approved-share-capital-evidence"
+    }
+  ],
+  "shareholders": [
+    {
+      "shareholder_no": "SH-001",
+      "legal_name": "REPLACE_WITH_VERIFIED_LEGAL_NAME",
+      "folio_no": "REPLACE_IF_APPLICABLE",
+      "email": "",
+      "evidence_ref": "drive:approved-shareholder-evidence"
+    }
+  ],
+  "initial_allocations": [
+    {
+      "shareholder_no": "SH-001",
+      "share_class_code": "EQ",
+      "quantity": 1,
+      "instrument_date": "2026-07-01",
+      "certificate_no": "REPLACE_IF_APPLICABLE",
+      "evidence_ref": "drive:approved-allotment-or-share-certificate",
+      "note": "Opening shareholding loaded from reviewed evidence"
+    }
+  ]
+}
