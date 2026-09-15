@@ -2,11 +2,11 @@
 
 ## System boundary
 
-KRAVIA Office is the corporate control plane above all products.
+KRAVIA Office is the internal corporate control plane above all KRAVIA products. It remains a bounded subsystem inside the company repository; Finance & Ownership is a bounded domain within Office, not a second Office application.
 
 ```text
 Products / Channels
-  VidyaLuma | Vaanmeet | VFormix | Future Products
+  VidyaLuma | VaanMeet | VFormix | Future Products
                      ↓
             Commercial Platform
   Catalog | Pricing | Orders | Subscriptions | Entitlements
@@ -14,15 +14,30 @@ Products / Channels
                Billing Engine
       Tax | Invoice | Payment | Refund | Credit
                      ↓
+          Finance & Ownership Controls
+ Ownership | Funding | Expense Calls | Mandates | Treasury
+                     ↓
              Financial Controls
-       Ledger | Settlement | Bank | Reconciliation
+ Ledger | Period Close | Settlement | Bank | Reconciliation
                      ↓
            Corporate Administration
 Governance | Compliance | Contracts | Vendors | People | Assets
                      ↓
            Evidence & Assurance
-Documents | Audit | Inspection | Reports | Security
+Documents | Drive Readiness | Audit | Inspection | Security
 ```
+
+## Canonical runtime
+
+`backend.app:app` is the authoritative Office ASGI runtime. It attaches the legacy/core Office API plus Finance & Ownership, accounting/tax period controls, read-only Drive evidence readiness, HTTP security middleware and the same-origin `web/` surface.
+
+The source tree intentionally keeps domain modules separate instead of placing all new behavior into `backend/main.py`:
+
+- `backend/finance_ownership.py` + `finance_models.py` — ownership/funding/treasury bounded domain;
+- `backend/period_controls.py` — accounting/tax close controls;
+- `backend/drive_integration.py` — read-only evidence metadata/readiness;
+- `backend/security_controls.py` — HTTP headers, Origin/host checks and baseline rate limiting;
+- `backend/services.py` — shared posting/event/audit services and central journal-period enforcement.
 
 ## Domain boundaries
 
@@ -31,65 +46,64 @@ Documents | Audit | Inspection | Reports | Security
 3. Customer Master
 4. Commercial
 5. Billing
-6. Payments
+6. Customer Payments / Revenue
 7. Tax
-8. Accounting
-9. Banking/Reconciliation
-10. Governance
-11. Compliance
-12. Contracts
-13. Vendors/Procurement
-14. People/HR
-15. Assets
-16. Communications
-17. Documents
-18. Privacy/Security
-19. Audit/Inspection
-20. Reporting
-21. Integration Registry
-22. Workflow/Automation
+8. Accounting / Period Close
+9. Banking / Reconciliation
+10. Legal Ownership / Share Ledger
+11. Shareholder/Director Funding Policies and Contribution Calls
+12. Company/Vendor Treasury and Payout Instructions
+13. Governance
+14. Compliance
+15. Contracts
+16. Vendors / Procurement
+17. People / HR
+18. Assets
+19. Communications
+20. Documents / Evidence
+21. Privacy / Security
+22. Audit / Inspection
+23. Reporting
+24. Integration Registry
+25. Workflow / Automation
 
 ## Critical invariants
 
-- Issued financial documents are immutable.
+- Legal ownership, shareholder/director expense funding, customer revenue and vendor/company payouts are separate data/accounting domains.
+- Ownership is changed only by an approved legal ownership transaction; contributions/payments never change ownership automatically.
+- Issued financial documents are immutable; corrections use linked controlled reversals/credit/refund flows.
 - Historical documents render from historical snapshots.
 - Every high-risk action has an actor, source, time, status, reason and audit event.
 - Products cannot directly own corporate books/tax truth.
 - Duplicate provider events must not duplicate financial side effects.
+- Active `ACCOUNTING`, `TAX` or `BOTH` locks prevent affected postings into closed periods.
+- Reopening a closed period requires an approved maker-checker request.
 - A CTC cannot grant authority beyond its source resolution.
-- A document existing does not mean a compliance obligation is completed.
-- Tax/legal conclusions are versioned and professionally reviewed.
-- No production success state without source verification.
+- A document existing does not mean a compliance obligation or legal fact is approved.
+- Drive evidence is metadata-discovered/readiness-classified; private bytes and credentials do not enter source control.
+- Tax/legal/ownership conclusions are versioned and professionally reviewed.
+- No production success state without source/provider verification.
 
-## Production workflow reliability
+## Workflow reliability
 
-Recommended implementation patterns:
+Implemented/recommended patterns:
 
-- transactional outbox for domain events
-- inbox/idempotency table for external/provider events
-- saga/workflow orchestration for long-running processes
-- maker-checker for high-risk actions
-- period locks for accounting/tax
-- immutable object versions for documents
-- signed/hashed document records
-- append-only audit event store
-- explicit reconciliation jobs
-- dead-letter queue and replay tooling
+- transactional outbox for domain events;
+- provider-event deduplication/idempotency;
+- maker-checker for high-risk actions;
+- accounting/tax period locks;
+- immutable/versioned documents and SHA-256 evidence;
+- append-only/tamper-evident audit chain;
+- explicit reconciliation and exception states;
+- fail-closed finance execution modes;
+- bounded OpenAPI contract generated from the canonical app and checked in CI.
+
+Production deployment still needs the external queue/worker runtime, shared edge/WAF abuse controls, monitoring/alerting and backup/restore infrastructure described in the production gates.
 
 ## Iframe policy
 
-Use iframes for:
+Use iframes only for controlled PDF previews, approved isolated internal tools, compatible BI views, or provider surfaces whose documentation explicitly supports embedding.
 
-- controlled PDF previews
-- approved isolated internal tools
-- compatible BI views
-- selected provider surfaces only where embedding is contractually/technically supported
-
-Do not iframe:
-
-- the core app itself
-- government portals that disallow framing
-- payment flows that require top-level origin/security context unless provider documentation explicitly supports it
-- arbitrary external URLs
+Do not iframe the core app, government portals that disallow framing, arbitrary external URLs, or payment flows requiring top-level origin/security context unless the provider explicitly supports it.
 
 All iframe sources must be allow-listed and sandboxed.
