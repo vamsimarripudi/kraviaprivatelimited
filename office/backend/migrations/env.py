@@ -8,6 +8,7 @@ import os
 from backend.database import Base
 from backend import models
 from backend import finance_ownership  # register bounded-domain metadata for migrations
+from backend import period_controls  # register accounting/tax close-control metadata
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
