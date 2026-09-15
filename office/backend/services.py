@@ -4,6 +4,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from .models import InvoiceSequence, ControlledSequence, AuditEvent, WorkflowRun, DomainEvent, JournalEntry, JournalLine
+from .period_controls import assert_period_open
 
 ENTITY_ID = "LE-KRAVIA-IN"
 
@@ -78,9 +79,15 @@ def emit_event(db, event_type, aggregate_type, aggregate_id, payload, correlatio
     return ev
 
 def post_journal(db, source_type, source_id, memo, lines, entry_date=None, correlation_id=None):
+    posting_date = entry_date or now_utc().date().isoformat()
+    # Invoices and credit notes alter both statutory tax and accounting records.
+    # Receipts/refunds/payments alter accounting only. A BOTH lock blocks either.
+    if source_type in {"INVOICE", "CREDIT_NOTE"}:
+        assert_period_open(db, posting_date, "TAX")
+    assert_period_open(db, posting_date, "ACCOUNTING")
     if sum(int(x.get("debit_paise",0)) for x in lines) != sum(int(x.get("credit_paise",0)) for x in lines):
         raise ValueError("Journal entry is not balanced")
-    entry=JournalEntry(id=uid("JE"),entry_date=entry_date or now_utc().date().isoformat(),memo=memo,source_type=source_type,source_id=source_id,correlation_id=correlation_id,status="POSTED")
+    entry=JournalEntry(id=uid("JE"),entry_date=posting_date,memo=memo,source_type=source_type,source_id=source_id,correlation_id=correlation_id,status="POSTED")
     db.add(entry); db.flush()
     for x in lines:
         db.add(JournalLine(journal_entry_id=entry.id,account_code=x["account_code"],debit_paise=int(x.get("debit_paise",0)),credit_paise=int(x.get("credit_paise",0)),customer_id=x.get("customer_id"),product_id=x.get("product_id"),memo=x.get("memo")))
