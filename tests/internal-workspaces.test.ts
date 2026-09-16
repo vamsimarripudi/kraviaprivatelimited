@@ -14,6 +14,7 @@ describe("KRAVIA path-based internal workspaces", () => {
   it("routes employees/governance roles to Office and finance professionals to Finance", () => {
     expect(roleCanAccessWorkspace("office", ["OWNER"])).toBe(true);
     expect(roleCanAccessWorkspace("office", ["ADMIN"])).toBe(true);
+    expect(roleCanAccessWorkspace("office", ["MEMBER"])).toBe(true);
     expect(roleCanAccessWorkspace("office", ["HR"])).toBe(true);
     expect(roleCanAccessWorkspace("office", ["CA"])).toBe(false);
     expect(roleCanAccessWorkspace("finance", ["CA"])).toBe(true);
@@ -29,6 +30,7 @@ describe("KRAVIA path-based internal workspaces", () => {
     expect(roleCanAccessSection(financeSections.ownership, ["OWNER"])).toBe(true);
     expect(roleCanAccessSection(officeSections.access, ["ADMIN"])).toBe(true);
     expect(roleCanAccessSection(officeSections.documents, ["ADMIN"])).toBe(false);
+    expect(roleCanAccessSection(officeSections.people, ["MEMBER"])).toBe(false);
     expect(roleCanAccessSection(officeSections.people, ["HR"])).toBe(true);
     expect(roleCanAccessSection(officeSections.security, ["HR"])).toBe(false);
   });
@@ -42,10 +44,10 @@ describe("KRAVIA path-based internal workspaces", () => {
   });
 
   it("keeps Office session tokens in server-managed HttpOnly strict cookies", () => {
-    expect(authServerSource).toContain('httpOnly: true');
-    expect(authServerSource).toContain('sameSite: "strict"');
-    expect(authServerSource).toContain('OFFICE_ACCESS_COOKIE = "kravia_office_access"');
-    expect(authServerSource).toContain('OFFICE_REFRESH_COOKIE = "kravia_office_refresh"');
+    expect(authServerSource).toMatch(/httpOnly\s*:\s*true/);
+    expect(authServerSource).toMatch(/sameSite\s*:\s*"strict"/);
+    expect(authServerSource).toMatch(/OFFICE_ACCESS_COOKIE\s*=\s*"kravia_office_access"/);
+    expect(authServerSource).toMatch(/OFFICE_REFRESH_COOKIE\s*=\s*"kravia_office_refresh"/);
     expect(signInSource).not.toContain('"access_token"');
     expect(signInSource).not.toContain('"refresh_token"');
   });
