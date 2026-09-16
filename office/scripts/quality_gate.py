@@ -15,9 +15,10 @@ required = [
     "index.html", "styles.css", "data.js", "engine.js", "app.js",
     "web/index.html", "web/app.css", "web/app.js",
     "web/finance.html", "web/finance.css", "web/finance.js",
+    "web/auth.html", "web/auth.css", "web/auth.js",
     "backend/main.py", "backend/app.py", "backend/models.py",
     "backend/finance_models.py", "backend/finance_ownership.py",
-    "backend/period_controls.py", "backend/security_controls.py", "backend/drive_integration.py",
+    "backend/identity_auth.py", "backend/period_controls.py", "backend/security_controls.py", "backend/drive_integration.py",
     "scripts/export_openapi.py", "spec/api/openapi.json",
     "spec/security/PRODUCTION_GATES.md", "spec/deployment/DEPLOYMENT_PLAN.md",
     "FINANCE_OWNERSHIP.md",
@@ -25,7 +26,7 @@ required = [
 for f in required:
     check(f"required:{f}", (ROOT / f).exists(), f)
 
-for f in ["data.js", "engine.js", "app.js", "web/app.js", "web/finance.js"]:
+for f in ["data.js", "engine.js", "app.js", "web/app.js", "web/finance.js", "web/auth.js"]:
     r = subprocess.run(["node", "--check", str(ROOT / f)], capture_output=True, text=True)
     check(f"js-syntax:{f}", r.returncode == 0, (r.stderr or "syntax ok").strip())
 
@@ -40,6 +41,8 @@ try:
     paths = openapi.get("paths", {})
     check("openapi:period-locks", "/api/v1/accounting/period-locks" in paths, "period-lock contract")
     check("openapi:drive-readiness", "/api/v1/integrations/google-drive/evidence-readiness" in paths, "Drive evidence-readiness contract")
+    check("openapi:identity-readiness", "/api/v1/auth/readiness" in paths, "identity readiness contract")
+    check("openapi:mfa-verify", "/api/v1/auth/mfa/verify" in paths, "MFA verification contract")
 except (OSError, ValueError) as exc:
     check("openapi:parse", False, str(exc))
 
@@ -60,6 +63,7 @@ main = (ROOT / "backend" / "main.py").read_text(errors="ignore")
 models = (ROOT / "backend" / "models.py").read_text(errors="ignore")
 finance = (ROOT / "backend" / "finance_ownership.py").read_text(errors="ignore")
 finance_models = (ROOT / "backend" / "finance_models.py").read_text(errors="ignore")
+identity = (ROOT / "backend" / "identity_auth.py").read_text(errors="ignore")
 period_controls = (ROOT / "backend" / "period_controls.py").read_text(errors="ignore")
 security_controls = (ROOT / "backend" / "security_controls.py").read_text(errors="ignore")
 drive = (ROOT / "backend" / "drive_integration.py").read_text(errors="ignore")
@@ -74,6 +78,14 @@ for token in ["ownership/summary", "ownership/transfers", "finance/funding-polic
     check(f"finance-ownership-api:{token}", token in finance, token)
 for token in ["ShareLedgerEntry", "ShareTransferRequest", "FundingPolicy", "ExpenseObligation", "PaymentMandate", "ContributionCall", "PaymentInstruction", "FinanceProviderEvent"]:
     check(f"finance-ownership-model:{token}", f"class {token}" in finance_models, token)
+
+check("identity:same-origin-bff", "HTTPONLY_SAMESITE_COOKIE" in identity and "sign_in_with_password" in identity, "same-origin identity BFF")
+check("identity:no-public-signup", "sign_up" not in identity and "public_signup_exposed_by_office" in identity, "no Office self-signup endpoint")
+check("identity:mfa", "mfa.verify" in identity and "aal2" in identity, "TOTP MFA promotion")
+check("identity:role-claim", "office_roles" in identity, "Office role claim")
+check("identity:cookie-bridge", "kravia_office_access" in security_controls and "_inject_bearer" in security_controls, "HttpOnly cookie to verified Bearer bridge")
+check("identity:aal2-gate", "OIDC_REQUIRED_AAL" in security_controls and "MFA verification required" in security_controls, "AAL2 production gate")
+check("identity:attached", "build_identity_router" in app, "identity router attached to canonical app")
 
 check("period-control:model", "class AccountingPeriodLock" in period_controls, "AccountingPeriodLock")
 check("period-control:api", "accounting/period-locks" in period_controls, "period-lock endpoints")
