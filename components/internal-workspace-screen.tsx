@@ -12,6 +12,8 @@ import {
   type WorkspaceKind,
   type WorkspaceSection,
 } from "@/lib/office/workspaces";
+import { runtimeModuleSpec } from "@/lib/office/runtime-modules";
+import { WorkspaceRuntimePanel } from "@/components/workspace-runtime-panel";
 import { WorkspaceSignOutButton } from "@/components/workspace-sign-out-button";
 
 type Props = {
@@ -64,22 +66,26 @@ export function InternalWorkspaceScreen({ workspace, section, identity }: Props)
 
       {permitted && item ? <>
         <div className="office-notice"><ShieldCheck /><p>{item.description}</p></div>
-        {section === "dashboard" ? <WorkspaceDashboard workspace={workspace} identity={identity} /> : <WorkspaceModule workspace={workspace} item={item} />}
+        {section === "dashboard"
+          ? <WorkspaceDashboard workspace={workspace} section={section} identity={identity} />
+          : <WorkspaceModule workspace={workspace} section={section} item={item} />}
       </> : <section className="office-denied"><TriangleAlert /><div><p className="eyebrow">ACCESS RESTRICTED</p><h2>This module is not assigned to your role.</h2><p>KRAVIA Office permissions are enforced from the dedicated identity tenant. Access changes require an authorised role assignment and a newly issued session.</p><Link className="text-link" href={`${definition.basePath}/dashboard`}>Return to overview <ArrowRight /></Link></div></section>}
     </section>
   </main>;
 }
 
-function WorkspaceDashboard({ workspace, identity }: { workspace: WorkspaceKind; identity: OfficeIdentity }) {
+function WorkspaceDashboard({ workspace, section, identity }: { workspace: WorkspaceKind; section: OfficeSection | FinanceSection; identity: OfficeIdentity }) {
   const sections = sectionEntries(workspace)
     .filter(([slug, item]) => slug !== "dashboard" && roleCanAccessSection(item, identity.roles))
     .slice(0, 8);
   const basePath = workspaceDefinitions[workspace].basePath;
+  const runtime = runtimeModuleSpec(workspace, section);
   return <>
     <section className="workspace-hero-panel">
       <div><p className="eyebrow">VERIFIED AAL2 SESSION</p><h2>{workspace === "finance" ? "Finance work without mixing ownership, tax and treasury." : "One company workspace. Role-scoped by design."}</h2></div>
       <ShieldCheck aria-hidden="true" />
     </section>
+    {runtime ? <WorkspaceRuntimePanel title={workspace === "finance" ? "Finance overview" : "Office overview"} spec={runtime} /> : null}
     <div className="office-dashboard-grid workspace-module-grid">
       {sections.map(([slug, item]) => <Link href={`${basePath}/${slug}`} key={slug} className="workspace-module-card">
         <p className="eyebrow">{item.group}</p><h2>{item.title}</h2><span>{item.description}</span><b>Open module <ArrowRight aria-hidden="true" /></b>
@@ -88,12 +94,15 @@ function WorkspaceDashboard({ workspace, identity }: { workspace: WorkspaceKind;
   </>;
 }
 
-function WorkspaceModule({ workspace, item }: { workspace: WorkspaceKind; item: WorkspaceSection }) {
+function WorkspaceModule({ workspace, section, item }: { workspace: WorkspaceKind; section: OfficeSection | FinanceSection; item: WorkspaceSection }) {
+  const runtime = runtimeModuleSpec(workspace, section);
+  if (runtime) return <WorkspaceRuntimePanel title={item.title} spec={runtime} />;
+
   return <section className="office-record-panel workspace-record-panel" aria-label={`${item.title} workspace`}>
     <div className="office-record-panel-head">
       <div><p className="eyebrow">CANONICAL COMPANY SYSTEM</p><strong>{workspace === "finance" ? "Finance & Tax" : "KRAVIA Office"}</strong></div>
       <span className="office-status">ROLE SCOPED</span>
     </div>
-    <div className="office-empty"><FileLock2 /><div><h2>The workspace route is active and protected.</h2><p>Operational records are shown only when their canonical KRAVIA Office source is connected and authorised. No sample financial, legal, tax or corporate data is fabricated for presentation.</p></div></div>
+    <div className="office-empty"><FileLock2 /><div><h2>Specialised workflow surface</h2><p>This module uses its controlled workflow rather than a generic table. No sample financial, legal, tax or corporate data is fabricated for presentation.</p></div></div>
   </section>;
 }
