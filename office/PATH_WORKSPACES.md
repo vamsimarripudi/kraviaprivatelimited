@@ -2,7 +2,7 @@
 
 ## Canonical URL model
 
-KRAVIA Private Limited uses one public company origin and separates private workspaces by path:
+KRAVIA Private Limited uses the apex company origin `https://kraviaprivatelimited.com` and separates private workspaces by path:
 
 - `/` — public KRAVIA Private Limited website.
 - `/office` — internal corporate operations for directors, CS/legal, HR, operations and product administration.
@@ -42,7 +42,7 @@ The canonical business backend remains `office/backend/app.py` (`backend.app:app
 - requires an active AAL2 Office session;
 - forwards the verified Office JWT as `Authorization: Bearer ...`;
 - allows only known Office API root families;
-- explicitly blocks finance provider webhook paths;
+- explicitly blocks finance provider webhook/auth/public paths;
 - does not forward browser cookies, host headers or browser-supplied authorization;
 - does not expose `OFFICE_API_ORIGIN` to the client;
 - refuses upstream redirects;
@@ -54,9 +54,10 @@ FastAPI remains the downstream RBAC and business-rule authority, giving a second
 
 ## Deployment variables
 
-Public Next.js deployment requires server-side:
+Root Next.js deployment requires:
 
 ```text
+NEXT_PUBLIC_SITE_URL=https://kraviaprivatelimited.com
 OFFICE_SUPABASE_URL=https://xjtazosozxmudkbxqhjl.supabase.co
 OFFICE_SUPABASE_PUBLISHABLE_KEY=<active modern publishable key>
 OFFICE_API_ORIGIN=https://<canonical FastAPI runtime origin>
@@ -64,17 +65,28 @@ OFFICE_API_ORIGIN=https://<canonical FastAPI runtime origin>
 
 The FastAPI runtime must use its production OIDC configuration with issuer/JWKS for the same Supabase project and `OIDC_ROLE_CLAIM=office_roles`, `OIDC_REQUIRED_AAL=aal2`.
 
+## Vercel project requirement
+
+Root `vercel.json` explicitly sets `framework: "nextjs"`. The connected Vercel project must also have **Root Directory set to the repository root** (blank / `.`). Root Directory is project metadata and is not overridable through `vercel.json`.
+
+A deployment with a non-root Root Directory will fail with `NEXT_NO_VERSION` because Vercel cannot see the repository-root `package.json` containing Next.js. Normal CI independently proves the root application builds successfully.
+
 ## Legacy route compatibility
 
 Existing `/corporate/*` browser URLs are temporary compatibility routes. They redirect to the corresponding `/office`, `/finance` or `/admin` path with HTTP 308. New links and documentation must use the canonical path workspaces directly.
 
+## Search/indexing boundary
+
+`/office`, `/finance`, `/admin`, `/api`, `/auth` and legacy `/corporate` are explicitly excluded from public crawler/sitemap surfaces. Workspace layouts additionally emit `noindex` metadata. This is crawler guidance only; authentication and RBAC remain the actual access controls.
+
 ## Release sequence
 
-1. Deploy the Next.js path workspace code with Office Supabase environment values.
-2. Deploy the canonical FastAPI runtime and set `OFFICE_API_ORIGIN`.
-3. Sign in through `/office/login`, enroll/verify TOTP, and confirm AAL2.
-4. Verify `/office` and `/finance` with representative roles.
-5. Verify the same-origin runtime gateway against the FastAPI backend.
-6. Only then redirect/retire the historical Office subdomain.
+1. Set the Vercel project Root Directory to the repository root and redeploy `main`.
+2. Attach `kraviaprivatelimited.com` and configure the root deployment environment values.
+3. Verify `/`, `/office/login`, `/finance/login`, `/admin/login` and legacy redirects.
+4. Deploy the canonical FastAPI runtime and set `OFFICE_API_ORIGIN`.
+5. Sign in through `/office/login`, enroll/verify TOTP, and confirm AAL2.
+6. Verify `/office` and `/finance` with representative roles and canonical runtime data.
+7. Only then redirect/retire the historical Office subdomain.
 
 No route or UI should claim a backend/provider/statutory state is connected when its canonical evidence or runtime is unavailable.
