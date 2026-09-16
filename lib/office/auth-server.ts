@@ -142,7 +142,7 @@ export async function signInOffice(email: string, password: string): Promise<Off
 }
 
 export async function refreshOfficeIdentity(context: OfficeSessionContext): Promise<OfficeSessionContext> {
-  const { data, error } = await context.client.auth.refreshSession(context.session.refresh_token);
+  const { data, error } = await context.client.auth.refreshSession({ refresh_token: context.session.refresh_token });
   if (error || !data.session) throw new Error("SESSION_REFRESH_FAILED");
   const identity = identityFromSession(data.session);
   await writeOfficeSessionCookies(data.session);
