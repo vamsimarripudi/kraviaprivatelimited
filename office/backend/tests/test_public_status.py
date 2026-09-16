@@ -48,6 +48,21 @@ def test_health_is_minimal_and_fail_closed(monkeypatch):
     assert "database_url" not in serialized.lower()
 
 
+def test_liveness_does_not_depend_on_external_services(monkeypatch):
+    def fail_if_called():
+        raise AssertionError("liveness must not query the database")
+
+    monkeypatch.setattr(public_status, "_database_status", fail_if_called)
+    monkeypatch.setattr(public_status, "_identity_status", fail_if_called)
+    app = FastAPI()
+    register_public_status(app)
+
+    response = TestClient(app).get("/health/live")
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store, max-age=0"
+    assert response.json() == {"status": "ok", "service": "kravia-office-backend"}
+
+
 def test_backend_root_is_public_metadata_not_legacy_login_entry():
     assert "/" not in BROWSER_ENTRY_PATHS
     assert "/index.html" in BROWSER_ENTRY_PATHS

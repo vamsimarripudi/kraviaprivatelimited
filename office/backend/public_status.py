@@ -182,6 +182,14 @@ def register_public_status(app: FastAPI) -> None:
             headers={"Cache-Control": "no-store, max-age=0"},
         )
 
+    @app.get("/health/live", include_in_schema=False)
+    def liveness():
+        return JSONResponse(
+            {"status": "ok", "service": SERVICE_SLUG},
+            status_code=200,
+            headers={"Cache-Control": "no-store, max-age=0"},
+        )
+
     @app.get("/", include_in_schema=False, response_class=HTMLResponse)
     def backend_home():
         snapshot = _health_snapshot()
@@ -190,6 +198,6 @@ def register_public_status(app: FastAPI) -> None:
             status_code=200,
             headers={
                 "Cache-Control": "no-store, max-age=0",
-                "X-Robots-Tag": "noindex, nofollow,noarchive",
+                "X-Robots-Tag": "noindex, nofollow, noarchive",
             },
         )
