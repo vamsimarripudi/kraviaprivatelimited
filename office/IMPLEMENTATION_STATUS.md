@@ -2,184 +2,151 @@
 
 ## Current verified build state
 
-KRAVIA Office is a runnable multi-product corporate operating-system foundation with an executable FastAPI/SQLAlchemy/Alembic core and enterprise web surface inside the canonical `vamsimarripudi/kraviaprivatelimited` repository. It is deliberately production-gated where real credentials, statutory evidence, professional approvals or deployment infrastructure are required.
+KRAVIA Office is a runnable multi-product corporate operating-system foundation with an executable FastAPI/SQLAlchemy/Alembic core and a path-based enterprise web surface inside the canonical `vamsimarripudi/kraviaprivatelimited` repository.
+
+Canonical browser surfaces are now:
+
+- `/` — public KRAVIA Private Limited website;
+- `/office` — directors, governance, people, operations, legal/CS and product administration;
+- `/finance` — finance, accounting, GST/tax, banking, reconciliation, audit and controlled ownership/funding views;
+- `/admin` — public website/content/request administration only.
+
+`office.kraviaprivatelimited.com` is no longer the canonical Office URL. Existing `/corporate/*` browser paths are compatibility redirects to `/office`, `/finance` or `/admin` as appropriate.
 
 ### Enterprise operating surface
-- [x] Enterprise application shell with company-first navigation
+- [x] Path-based `/office` and `/finance` application shells with role-scoped navigation
+- [x] Dedicated `/office/login` and `/finance/login` MFA entry points
 - [x] Multi-product Product Registry and future-product support
 - [x] Company Master / customer / commercial / billing / tax / accounting / governance / compliance / contracts / vendors / people / assets / documents / audit / inspection modules
-- [x] Finance & Ownership bounded domain inside Office rather than a separate product
-- [x] Command palette/global search foundation
-- [x] Responsive administration UX
-- [x] Sandboxed iframe/PDF document preview pattern
-- [x] Honest unavailable/setup-required states instead of fabricated metrics
+- [x] Finance & Ownership bounded domain inside KRAVIA Office rather than a separate product
+- [x] Responsive administration UX and honest unavailable/setup-required states
+- [x] Same-origin runtime panels connected to the canonical Office API gateway without fabricated records
+- [x] Public-site `/admin` identity boundary separated from KRAVIA Office identity
 
 ### Identity and authorization
-- [x] Dedicated `KRAVIA Office` Supabase Auth project provisioned in `ap-south-1` (`xjtazosozxmudkbxqhjl`), isolated from product projects
+- [x] Dedicated `KRAVIA Office` Supabase Auth project in `ap-south-1` (`xjtazosozxmudkbxqhjl`), isolated from product/public-site identity projects
+- [x] Asymmetric JWT signing key activated in hosted Supabase
+- [x] `public.office_custom_access_token_hook` deployed and activated
+- [x] Public Office signup disabled
+- [x] First named human Office identity created and email-confirmed
+- [x] First named identity explicitly admitted as ACTIVE with `OWNER` role
+- [x] Hook output verified with `office_roles=[OWNER]` and `office_access_status=ACTIVE`
 - [x] Server-side RBAC roles: OWNER, DIRECTOR, FINANCE, CA, CS, LEGAL, HR, OPERATIONS, AUDITOR and PRODUCT_ADMIN
-- [x] Explicit identity-admission and role tables deployed with deny-by-default RLS/client privileges
-- [x] Custom Access Token Hook function deployed; fail-closed output verified for unassigned identities
-- [x] Production OIDC/JWT architecture with issuer/audience/JWKS verification
-- [x] Production startup hard-block if OIDC issuer/audience/JWKS are not configured
-- [x] Same-origin Supabase Auth BFF with HttpOnly/SameSite cookie storage; bearer/refresh tokens are not exposed to application JavaScript
-- [x] TOTP enrollment/challenge/verification flow and production `aal2` enforcement
+- [x] Same-origin Supabase Auth BFF with HttpOnly/SameSite=Strict cookie storage; bearer/refresh tokens are not exposed to application JavaScript
+- [x] TOTP enrollment/challenge/verification implementation and production `aal2` enforcement
 - [x] No Office public self-signup endpoint
-- [x] Role-guarded governance, finance, HR, document and banking mutations
 - [x] Maker-checker approval primitive preventing requester self-approval
-- [ ] Supabase dashboard activation: asymmetric signing key + Custom Access Token Hook + public-signup restriction — hosted Auth configuration gate
-- [ ] First human Office identity creation, explicit role assignment and TOTP enrollment — operator/user gate
+- [ ] First named OWNER TOTP factor enrollment and live AAL2 verification — operator/user gate
 - [ ] Full staging IDOR/BOLA/all-role acceptance matrix — production acceptance gate
 
+### Path/workspace security
+- [x] `/office` and `/finance` have route-level `noindex` metadata
+- [x] Crawler policy explicitly disallows `/office`, `/finance`, `/admin`, `/api`, `/auth` and legacy `/corporate`
+- [x] Sitemap generation excludes private route families
+- [x] Production canonical origin in source is `https://kraviaprivatelimited.com`
+- [x] Legacy `/corporate/*` mapping is explicit and regression-tested
+- [x] Sensitive Finance modules use narrower role scopes than the Finance workspace itself
+
+### Same-origin canonical runtime gateway
+- [x] `/api/office-runtime/[...path]` BFF created
+- [x] Requires ACTIVE, role-provisioned, `aal2` Office session
+- [x] Injects the verified Office JWT server-side; browser authorization headers/cookies are not forwarded downstream
+- [x] Fixed `OFFICE_API_ORIGIN` prevents browser-controlled upstream selection
+- [x] Explicit API-family allowlist and provider webhook/auth path blocking
+- [x] Request-size bound, no-store responses and upstream redirect refusal
+- [x] Same-origin mutation protection for runtime and Office-auth mutations
+- [x] FastAPI remains the downstream RBAC/business-rule authority
+- [ ] Production `OFFICE_API_ORIGIN` — waits for canonical FastAPI production hosting
+
 ### Finance & Ownership
-- [x] Share ledger / ownership summary / transfer-request model
+- [x] Append-only share ledger / ownership summary / controlled transfers
 - [x] Ownership changes separated from expense funding and treasury/payment records
-- [x] Funding policies and contribution calls
-- [x] Expense obligations and allocation records
+- [x] Funding policies, contribution calls and expense obligations
 - [x] Payment mandates with caps/frequency/state controls
 - [x] Payment instruction state machine and provider-event deduplication
-- [x] Sandbox/disabled/live execution gate; live is fail-closed without provider configuration
+- [x] Disabled/sandbox/live execution boundary; live is fail-closed without provider configuration
 - [x] RazorpayX payout adapter boundary and signed Razorpay webhook verification
-- [x] Finance dashboard web surface and finance API test coverage
-- [ ] Verified production cap table/share register/share certificates/shareholder agreement bootstrap — controlled evidence/professional gate
+- [ ] Verified production cap table/share register/share certificates bootstrap — controlled evidence/professional gate
 - [ ] Live payment/payout eligibility, credentials and bank/provider approval — external gate
 
-### Billing / tax / payments
-- [x] Integer-paise money model
-- [x] Controlled invoice numbering with <=16-character guard
-- [x] Immutable invoice billing snapshot
-- [x] Intra-state CGST/SGST vs inter-state IGST calculation
-- [x] Discount and overpayment validation
-- [x] Invoice SHA-256 verification
-- [x] Safe public invoice-verification endpoint
-- [x] Payment posting and receipt issuance
-- [x] Payment idempotency and duplicate external-reference protection
-- [x] Credit-note engine linked to original invoice
-- [x] Credit-note controlled numbering and hash
-- [x] Refund engine linked to source payment and optional credit note
-- [x] Refund ceiling control
-- [x] Settlement registry with gross/fee/tax/net validation
-- [ ] CA-approved production GST catalog, SAC mappings and verified GSTIN — professional/evidence gate
+### Billing / tax / accounting / reconciliation
+- [x] Integer-paise money model and immutable billing snapshots
+- [x] Controlled invoice numbering and invoice SHA-256 verification
+- [x] CGST/SGST vs IGST calculation
+- [x] Payment/receipt, credit-note, refund and settlement controls
+- [x] Double-entry operational journal and balancing trial balance
+- [x] Bank transaction ingestion and deterministic reconciliation controls
+- [x] Accounting/TAX/BOTH period locks with maker-checker reopen
+- [ ] CA-approved production GST/SAC/invoice/accounting mappings and verified GSTIN
+- [ ] Live bank/accounting feed authorization
 
-### Accounting / reconciliation
-- [x] Chart of accounts foundation
-- [x] Double-entry operational journal
-- [x] Invoice, payment, credit-note and refund postings
-- [x] Trial balance with balancing verification
-- [x] Bank-account registry storing masked account references only
-- [x] Bank-transaction import model
-- [x] Auto-match of compatible bank credits to customer payments
-- [x] Reconciliation exception state when deterministic match is unavailable
-- [x] Accounting/TAX/BOTH period-lock model
-- [x] Central journal enforcement preventing postings into closed periods
-- [x] Maker-checker controlled period reopen with audit/domain events
-- [ ] Approved statutory accounting policy/chart mapping and final accounting-system integration — CA/company policy gate
-- [ ] Live bank feed — bank/provider authorization gate
+### Governance / administration / evidence
+- [x] Board meetings, resolutions, CTC generation and authority grants
+- [x] Vendor, contract, employee, asset, compliance and authority-notice registries
+- [x] Private document vault with MIME/size controls, SHA-256 versions and lock protection
+- [x] Inspection cases and evidence-pack manifest generation
+- [x] Read-only Google Drive metadata discovery and evidence taxonomy readiness
+- [ ] CS-reviewed production governance/statutory-register configuration
+- [ ] Production eSign/DSC provider
+- [ ] Production malware scanning/private object storage
+- [ ] Production Drive service identity/root-folder authorization
 
-### Governance
-- [x] Board Meeting registry
-- [x] Resolution registry with SHA-256 locked content hash
-- [x] CTC PDF generation
-- [x] Authority Grant derived from approved resolution authority scope
-- [x] Governance audit trail and domain events
-- [ ] CS-reviewed production governance templates / statutory-register operating configuration — professional gate
-- [ ] Production eSign/DSC provider — external credential/provider gate
-
-### Corporate administration
-- [x] Vendor Registry
-- [x] Contract Registry
-- [x] Employee Registry
-- [x] Asset Registry
-- [x] Compliance Registry
-- [x] Government/authority Notice Case registry
-- [x] Integration Registry that rejects raw secrets and stores secret references only
-- [x] Command Center derived from canonical database records, with no fabricated bank/cash numbers
-
-### Document / evidence control
-- [x] Private document vault
-- [x] MIME allowlist + upload-size limit
-- [x] SHA-256 per stored version
-- [x] Version records and lock/immutability workflow
-- [x] Locked-document replacement protection
-- [x] Download audit record
-- [x] Controlled inspection-pack generator and read-only evidence-pack ZIP tooling
-- [x] Inspection Case / scope model and hash-based manifest
-- [x] Read-only Google Drive metadata adapter
-- [x] Drive evidence readiness by controlled Office taxonomy (`AVAILABLE` / `EMPTY` / `MISSING_FOLDER`)
-- [x] Metadata warning for obvious ownership evidence filed under customer contracts
-- [ ] Controlled corporate documents in source control — intentionally prohibited
-- [ ] Malware scanning service — production infrastructure gate
-
-### Application security / HTTP controls
+### Application security / operations
 - [x] CSP and browser security headers
-- [x] Trusted-host option
-- [x] Browser Origin guard for mutation calls
-- [x] Baseline per-process mutation rate limiter with 429/Retry-After behavior
-- [x] Production OIDC AAL2 gate with cookie-to-verified-bearer bridge
-- [x] Secret scanning in CI
-- [x] Blocking high/critical npm dependency audit in CI
-- [x] Next.js patched to 16.3.5; verified CI install reports zero npm vulnerabilities
-- [x] Python test suite configured to fail on unexpected warnings; only the specifically identified upstream Starlette/AnyIO deprecation is suppressed
-- [ ] Shared edge/WAF rate limiting for horizontally scaled production — deployment gate
-- [ ] Final staging penetration/security acceptance — production gate
-
-### Event/workflow architecture
-- [x] Transactional event outbox model
-- [x] Finance, billing, governance, notice, inspection, bank and contract domain events
-- [x] Workflow run registry
-- [x] Formal workflow JSON specifications for payment, vendor invoice, GST close, governance authority and inspection packs
-- [ ] Production queue/broker/background-worker infrastructure — deployment gate
-
-### API contract / source integration
-- [x] Committed OpenAPI contract
-- [x] Reproducible OpenAPI exporter sourced from canonical `backend.app`
-- [x] Identity/MFA endpoints represented in the committed OpenAPI contract and checked for drift in CI
-- [x] Read-only Google Drive evidence discovery/readiness boundary
-- [ ] Production Drive service identity/root-folder authorization — external configuration
-- [ ] Authoritative Company Master/governance/finance evidence population — operator-controlled private data activity
+- [x] Trusted-host option and mutation Origin guard
+- [x] Baseline application mutation rate limiter
+- [x] Secret scanning and blocking high/critical npm dependency audit in CI
+- [x] Next.js 16.3.5 with verified zero npm vulnerabilities
+- [x] Python tests fail on unexpected warnings; known upstream Starlette/AnyIO TestClient deprecation is narrowly suppressed
+- [ ] Shared edge/WAF rate limiting for horizontally scaled production
+- [ ] Production queue/background worker runtime
+- [ ] Monitoring/alerting/SLO/audit-retention stack
+- [ ] Final staging penetration/security/accessibility acceptance
 
 ## Verified automated validation
 
-The current identity-enabled `main` quality run verified:
+Latest fully green `main` quality run verified:
 
-- [x] blocking `npm audit --audit-level=high`: **0 vulnerabilities**
+- [x] `npm ci` and blocking `npm audit --audit-level=high`: **0 vulnerabilities**
 - [x] secret scan
 - [x] ESLint
 - [x] TypeScript typecheck
-- [x] root Vitest suite: **58 tests passed across 17 files**
-- [x] Next.js 16.3.5 production build
+- [x] root Vitest suite: **64 tests passed across 18 files**
+- [x] Next.js 16.3.5 production build, including `/office`, `/finance`, Office auth and Office runtime gateway routes
 - [x] Python compilation
-- [x] committed OpenAPI contract drift check including identity/MFA endpoints
-- [x] clean Alembic migration chain through **v5 accounting/tax period close controls**
+- [x] committed OpenAPI drift verification
+- [x] clean Alembic migration chain through v5
 - [x] Office backend suite: **36 tests passed**
-- [x] identity token non-disclosure / HttpOnly cookies / TOTP AAL2 / inactive-user / role-admission tests
-- [x] period-close accounting and tax posting/reopen cases
-- [x] CSP/origin/rate-limit security cases
-- [x] Drive taxonomy/readiness cases
-- [x] finance/ownership/provider/idempotency cases
-- [x] RBAC, governance, audit-chain, document and migration controls
+- [x] identity token non-disclosure / HttpOnly cookies / TOTP AAL2 / inactive-user / role-admission controls
+- [x] path-workspace role boundaries, legacy redirects, same-origin mutation guard and fixed-origin runtime gateway regression tests
+- [x] period-close, HTTP security, Drive taxonomy, finance/ownership/provider/idempotency, RBAC, governance, audit-chain and document controls
 - [x] hardened Office quality gate: **PASS**
+
+## Deployment state
+
+The source tree is deployment-ready, but the existing Vercel project was historically configured with the wrong project Root Directory. Source control now contains `vercel.json` with `framework: "nextjs"`, which successfully forces the Next.js preset; Vercel then correctly reports that its project Root Directory does not contain the repository-root `package.json`.
+
+One project-level Vercel correction remains before path routes can be live: set **Root Directory to the repository root** (blank / `.`) and redeploy `main`. This setting has no supported `vercel.json` equivalent.
+
+After that deployment is verified, production still needs the deployment environment values for the dedicated Office Supabase project and the eventual FastAPI origin, plus the apex custom domain `kraviaprivatelimited.com` attached to this Vercel project.
 
 ## External production gates intentionally not faked
 
-The software build cannot legitimately manufacture these prerequisites:
-
-- hosted Supabase Auth activation of asymmetric signing key/custom JWT hook and the first human MFA enrollment
-- production managed PostgreSQL, restricted network controls and secret manager
-- real verified KRAVIA Company Master/GST/ownership evidence and professional approvals
-- live Razorpay/RazorpayX credentials, account eligibility and webhook secret
-- live bank/accounting feed authorization
-- production private object storage and malware scanner
-- eSign/DSC provider credentials where required
-- Google Drive service identity/folder authorization for runtime evidence discovery
-- production queue/worker runtime
-- shared edge/WAF rate limiting for multi-replica deployment
-- monitoring/alerting/SLO/audit-retention stack
-- backup/PITR configuration and restore drill
-- final staging browser/accessibility/security assessment and CA/CS/legal sign-offs
-- production DNS/TLS/environment-secret activation
+- first OWNER TOTP enrollment / AAL2 live verification
+- Vercel Root Directory correction and production environment variables
+- apex `kraviaprivatelimited.com` domain attachment / DNS validation; optional `www` redirect
+- canonical FastAPI production hosting and `OFFICE_API_ORIGIN`
+- managed PostgreSQL, restricted networking, backups/PITR and secret manager
+- real verified Company Master/GST/ownership evidence and CA/CS/legal approvals
+- live Razorpay/RazorpayX and bank/accounting authorizations
+- production private object storage + malware scanner
+- eSign/DSC where required
+- Google Drive runtime service identity
+- production queue/worker, monitoring/alerts/SLOs and shared edge/WAF controls
+- final staging browser/accessibility/security assessment
 
 ## Release rule
 
-**The committed Office software controls are development-complete for the audited scope only when the normal `main` quality workflow is green. Do not describe the live service as statutory/production-ready until every external production gate above has real evidence.**
+**The committed Office software controls are development-complete for the audited scope when normal `main` quality gates are green. Do not describe the live service as production/statutory ready until each applicable external gate has evidence.**
 
 KRAVIA Office must never report fake success, fake compliance, fake tax status, fake bank balances, fake ownership data or fake provider connectivity.
