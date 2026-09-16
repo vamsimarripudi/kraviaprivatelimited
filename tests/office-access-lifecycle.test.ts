@@ -10,15 +10,15 @@ const officeEnv = readFileSync(new URL("../lib/env/office.ts", import.meta.url),
 
 describe("KRAVIA Office invitation lifecycle", () => {
   it("stages invited identities without granting workspace access before acceptance", () => {
-    expect(accessAdmin).toContain('status:"INVITED"');
-    expect(authServer).toContain('identity.accessStatus!=="INVITED"');
-    expect(authServer).toContain('identity.accessStatus==="ACTIVE"');
-    expect(accessPanel).toContain('user.status==="INVITED"');
+    expect(accessAdmin).toMatch(/status\s*:\s*"INVITED"/);
+    expect(authServer).toMatch(/identity\.accessStatus\s*!==\s*"INVITED"/);
+    expect(authServer).toMatch(/identity\.accessStatus\s*===\s*"ACTIVE"/);
+    expect(accessPanel).toMatch(/user\.status\s*===\s*"INVITED"/);
     expect(accessPanel).toContain("Pending invitation — no workspace access exists yet");
   });
 
   it("accepts invitations atomically through the controlled service-role RPC", () => {
-    expect(accessRecovery).toContain('.rpc("office_accept_invitation"');
+    expect(accessRecovery).toMatch(/\.rpc\(\s*"office_accept_invitation"/);
     expect(lifecycleSql).toContain("office_accept_invitation");
     expect(lifecycleSql).toContain("status='INVITED'");
     expect(lifecycleSql).toContain("status='ACTIVE'");
