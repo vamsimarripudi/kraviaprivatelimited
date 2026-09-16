@@ -172,8 +172,8 @@ def register_public_status(app: FastAPI) -> None:
     """Replace the legacy health route and register safe public status surfaces."""
     app.router.routes[:] = [route for route in app.router.routes if getattr(route, "path", None) != "/health"]
 
-    @app.get("/health", include_in_schema=False)
-    def backend_health():
+    @app.get("/health")
+    def health():
         snapshot = _health_snapshot()
         status_code = 200 if snapshot["status"] == "healthy" else 503
         return JSONResponse(
@@ -190,6 +190,6 @@ def register_public_status(app: FastAPI) -> None:
             status_code=200,
             headers={
                 "Cache-Control": "no-store, max-age=0",
-                "X-Robots-Tag": "noindex, nofollow, noarchive",
+                "X-Robots-Tag": "noindex, nofollow,noarchive",
             },
         )
