@@ -25,12 +25,15 @@ Completed in the dedicated project:
 - public self-signup disabled;
 - protected first OWNER identity created/admitted;
 - OWNER claim output verified;
-- deny-by-default client RLS for access-governance tables;
-- delegated OWNER → ADMIN → department/professional role schema;
+- deny-by-default client RLS for access-governance and workflow tables;
+- delegated OWNER → ADMIN → workforce/professional role schema;
+- neutral `MEMBER` workforce admission role;
 - one-OWNER database guard;
+- position, reporting-line, access-profile, scoped permission and device-policy catalogs;
+- generic request/approval workflow engine;
 - role-expiry and authorization-version controls;
 - AUDITOR separation-of-duties database guard;
-- immutable access-audit guard.
+- immutable access-audit and request-event guards.
 
 The first OWNER TOTP enrollment remains a human acceptance action because the authenticator secret/code must stay exclusively with the user.
 
@@ -42,17 +45,18 @@ A protected Office/Finance request requires all of the following:
 2. admitted `ACTIVE` Office identity;
 3. at least one current, non-expired explicit Office role;
 4. TOTP-verified `aal2` session;
-5. role permitted for the requested workspace/module.
+5. workspace/module admission where applicable;
+6. for fine-grained actions, effective permission, resource scope, expiry and device policy.
 
 The Next.js BFF stores access/refresh tokens in HttpOnly, SameSite=Strict cookies. When `OFFICE_SUPABASE_SECRET_KEY` is configured, the BFF also reads current admission and roles from the trusted Office tables on each protected server flow; a stale JWT therefore cannot preserve browser access after a role/status change.
 
 ## Delegation
 
-OWNER is the bootstrap authority and is protected from ordinary deletion, suspension, role removal or transfer. Only OWNER can appoint/remove ADMIN and DIRECTOR. ADMIN can onboard/manage the delegated roles `FINANCE`, `CA`, `CS`, `LEGAL`, `HR`, `OPERATIONS`, `AUDITOR` and `PRODUCT_ADMIN` but cannot modify itself or another privileged identity.
+OWNER is the bootstrap authority and is protected from ordinary deletion, suspension, role removal or transfer. Only OWNER can appoint/remove ADMIN and DIRECTOR. ADMIN can onboard/manage normal workforce and delegated professional roles, but cannot modify itself or another privileged identity.
 
-ADMIN is deliberately not a Finance/Legal/HR/security-data superuser. Additional business access requires an explicit additional role.
+ADMIN is deliberately not a Finance/Legal/HR/security-data superuser. Additional business access requires explicit roles/access profiles/permissions within scope.
 
-See `ACCESS_GOVERNANCE.md` for lifecycle, review, recovery and audit rules.
+See `ACCESS_GOVERNANCE.md` for lifecycle, review, recovery, workflow and audit rules.
 
 ## Invitation activation
 
@@ -70,9 +74,9 @@ Next.js trusted server:
 
 ```text
 OFFICE_SUPABASE_URL=https://xjtazosozxmudkbxqhjl.supabase.co
-OFFICE_SUPABASE_PUBLISHABLE_KEY=<active publishable key>
-OFFICE_SUPABASE_SECRET_KEY=<active secret key; server only>
-OFFICE_API_ORIGIN=https://<canonical FastAPI Railway origin>
+OFFICE_SUPABASE_PUBLISHABLE_KEY=YOUR_OFFICE_SUPABASE_PUBLISHABLE_KEY
+OFFICE_SUPABASE_SECRET_KEY=YOUR_OFFICE_SUPABASE_SECRET_KEY
+OFFICE_API_ORIGIN=https://YOUR_RAILWAY_FASTAPI_ORIGIN
 ```
 
 FastAPI runtime:
