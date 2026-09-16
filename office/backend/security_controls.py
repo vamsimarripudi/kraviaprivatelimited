@@ -109,10 +109,10 @@ def _inject_bearer(request: Request, token: str) -> None:
     headers.append((b"authorization", f"Bearer {token}".encode("latin-1")))
     request.scope["headers"] = headers
     # Starlette may have materialized the immutable Headers object before this
-    # middleware ran. Clearing the cache ensures downstream Header dependencies
-    # see the injected value.
+    # middleware ran. Delete the cache so downstream Header dependencies rebuild
+    # it from the modified ASGI scope.
     if hasattr(request, "_headers"):
-        request._headers = None
+        delattr(request, "_headers")
 
 
 def _unverified_claims(token: str) -> dict:
