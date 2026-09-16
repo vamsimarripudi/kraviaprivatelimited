@@ -4,6 +4,12 @@ KRAVIA Office must not be promoted to production until all mandatory gates are e
 
 ## Implemented and continuously tested controls
 
+- Dedicated Supabase Auth identity tenant isolated for KRAVIA Office.
+- Server-side OIDC/JWT validation with issuer, audience, signature, expiry and explicit `office_roles` claims.
+- Same-origin identity BFF using HttpOnly/SameSite cookies; bearer/refresh tokens are not exposed to Office JavaScript.
+- TOTP MFA flow plus production `aal2` gate on protected Office APIs.
+- Explicit identity admission/role records with deny-by-default client access and a deployed Custom Access Token Hook function.
+- No Office public self-signup endpoint.
 - Server-side RBAC with deny-by-default privileged mutation routes.
 - Maker-checker approval primitive preventing requester self-approval.
 - Finance/payment idempotency and Razorpay webhook-signature verification logic.
@@ -19,13 +25,20 @@ KRAVIA Office must not be promoted to production until all mandatory gates are e
 
 These controls are necessary but do not by themselves prove the deployed production environment is compliant or operationally approved.
 
-## Identity — production evidence required
+## Identity — hosted activation / production evidence required
 
-- OIDC/SSO or equivalent first-party identity integrated with the real KRAVIA tenant.
-- MFA enforced for privileged roles.
-- Session expiry, revocation and device/risk controls defined and tested.
-- Recovery process tested.
-- Full production all-role authorization/IDOR/BOLA acceptance matrix passed.
+The dedicated Supabase tenant and Office integration now exist. Production promotion still requires evidence for these hosted/manual controls:
+
+- migrate the Supabase project from legacy JWT secret signing to the signing-keys system and activate an asymmetric key (ES256/P-256 preferred);
+- enable `public.office_custom_access_token_hook` under Authentication → Hooks;
+- restrict/disable public self-registration for the Office tenant;
+- verify TOTP MFA is enabled and enroll the first human Office identity;
+- add that identity to `office_identity_users` as `ACTIVE` and assign only its approved `office_user_roles`;
+- verify a real issued JWT has `aud=authenticated`, `aal=aal2`, the expected `office_roles`, and `office_access_status=ACTIVE`;
+- define and test session revocation/recovery handling;
+- pass the full staging all-role authorization/IDOR/BOLA acceptance matrix.
+
+Do not share user passwords, TOTP secrets, recovery material or private signing keys through Git, chat, tickets or ordinary documents.
 
 ## Secrets / infrastructure — production evidence required
 
@@ -56,7 +69,7 @@ The application-side maker-checker, idempotency, webhook verification, refund li
 
 ## Application security — production acceptance required
 
-CI currently enforces secret scanning, dependency audit, lint, type checking, application tests, migrations, Office tests and Office quality gates. Before production promotion also complete:
+CI currently enforces secret scanning, dependency audit, lint, type checking, application tests, migrations, Office tests, OpenAPI drift checking and Office quality gates. Pytest fails on unexpected warnings, with only the specifically identified upstream Starlette/AnyIO TestClient deprecation suppressed. Before production promotion also complete:
 
 - external/staging IDOR/BOLA tests;
 - CSRF/XSS/injection/file-upload security tests;
@@ -83,4 +96,4 @@ CI currently enforces secret scanning, dependency audit, lint, type checking, ap
 
 ## Release rule
 
-A green CI build proves the committed software controls pass their automated gates. It does **not** convert missing provider credentials, unverified legal evidence or professional sign-off into production readiness. Office must surface such conditions as setup-required/unverified states rather than fabricated success.
+A green CI build proves the committed software controls pass their automated gates. It does **not** convert missing hosted Auth activation, provider credentials, unverified legal evidence or professional sign-off into production readiness. Office must surface such conditions as setup-required/unverified states rather than fabricated success.
