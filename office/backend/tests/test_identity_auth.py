@@ -10,6 +10,7 @@ from backend import identity_auth
 os.environ.setdefault("APP_ENV", "development")
 os.environ.setdefault("SUPABASE_AUTH_URL", "https://identity.example.invalid")
 os.environ.setdefault("SUPABASE_PUBLISHABLE_KEY", "test-publishable-key")
+TEST_JWT_KEY = "test-only-secret-at-least-32-bytes-long!!"
 
 
 def token(aal="aal1", roles=None, status="ACTIVE"):
@@ -22,7 +23,7 @@ def token(aal="aal1", roles=None, status="ACTIVE"):
             "office_roles": roles or ["OWNER"],
             "office_access_status": status,
         },
-        "test-only-secret",
+        TEST_JWT_KEY,
         algorithm="HS256",
     )
 
