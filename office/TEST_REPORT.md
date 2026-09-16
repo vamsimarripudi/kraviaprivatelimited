@@ -2,9 +2,9 @@
 
 ## Automated result on `main`
 
-Latest verified identity-enabled quality run:
+Latest fully green quality run:
 
-- Root application: **17 Vitest files / 58 tests passed**.
+- Root application: **18 Vitest files / 64 tests passed**.
 - Office backend: **36 pytest tests passed**.
 - Office quality gate: **PASS**.
 - `npm ci`: **0 vulnerabilities**.
@@ -12,62 +12,75 @@ Latest verified identity-enabled quality run:
 - ESLint, TypeScript typecheck, secret scan and Next.js 16.3.5 production build: **PASS**.
 - Python compile, OpenAPI drift verification and clean Alembic migration chain through v5: **PASS**.
 
-Pytest is configured to treat unexpected warnings as errors. The one known third-party Starlette/AnyIO TestClient deprecation is narrowly suppressed because it originates upstream rather than in KRAVIA code.
+The production Next build explicitly contains `/office`, `/office/login`, `/office/[section]`, `/finance`, `/finance/login`, `/finance/[section]`, `/admin/login`, `/api/office-auth/*` and `/api/office-runtime/[...path]`.
+
+Pytest treats unexpected warnings as errors. The known upstream Starlette/AnyIO TestClient deprecation remains narrowly suppressed because it originates in the dependency rather than KRAVIA code.
+
+## Root/path-workspace coverage
+
+The root suite now verifies the existing public application plus the new internal-workspace boundaries. The path-workspace regression suite specifically verifies:
+
+1. Office roles and Finance roles are independently scoped;
+2. sensitive finance modules can be narrower than general Finance access;
+3. legacy `/corporate/*` routes map to `/office`, `/finance` or `/admin` without coupling website-admin identity to Office identity;
+4. Office access/refresh tokens remain server-managed HttpOnly/SameSite=Strict cookies and are not disclosed by the sign-in API;
+5. Office-auth and runtime mutation endpoints reject cross-origin browser requests;
+6. the canonical runtime gateway uses a fixed server-controlled origin, blocks provider webhook/auth paths, does not follow upstream redirects and requires the verified Office session.
+
+Crawler/sitemap tests additionally verify that `/office` and `/finance` are private route families and that production uses the apex company canonical origin `https://kraviaprivatelimited.com`.
 
 ## Office backend coverage
 
-The suite verifies, among other controls:
+The 36-test backend suite verifies, among other controls:
 
-1. customer → invoice → payment → receipt → GST working summary;
-2. same-state CGST/SGST and inter-state IGST;
-3. invoice number length and controlled sequencing;
-4. invoice/payment idempotency, overpayment rejection and duplicate external-reference protection;
-5. safe public invoice verification and PDF rendering;
-6. double-entry journal/trial-balance balancing;
-7. Board Meeting → Resolution → CTC → Authority Grant;
-8. Vendor / Contract / Employee / Asset / private Document Vault flows;
-9. server-side role guards and maker-checker self-approval prevention;
-10. commercial Plan → Subscription;
-11. Credit Note → tax/revenue reversal accounting;
-12. Payment Refund → customer-credit/bank accounting;
-13. bank-account/transaction import and deterministic payment auto-match;
-14. Command Center derived metrics;
-15. Notice Case and Inspection Case/manifest generation;
-16. secret-bearing integration configuration rejection;
-17. audit-chain and ledger-event integrity;
-18. Finance & Ownership ledger/funding/mandate/payment-provider controls;
-19. disabled/sandbox finance execution behavior, idempotency and signed provider event handling;
-20. controlled company bootstrap/source-control boundary;
-21. read-only Google Drive metadata integration and evidence-taxonomy readiness;
-22. accounting period close blocking backdated postings;
-23. tax period close blocking new tax documents;
-24. independent maker-checker period reopen;
-25. CSP/security headers, cross-origin mutation guard and rate limiter;
-26. identity sign-in response does not disclose access/refresh tokens;
-27. Auth tokens are persisted only through HttpOnly/SameSite cookies by the Office BFF;
-28. TOTP verification promotes a session to `aal2`;
-29. protected production APIs reject `aal1` sessions;
-30. inactive/suspended Office identities are rejected even when MFA is present;
-31. authenticated cookie sessions are bridged to the existing cryptographically verified bearer-token authorization layer;
-32. unauthenticated production browser entry redirects to the dedicated Office auth surface;
-33. identity/MFA endpoints are present in and drift-checked against the committed OpenAPI contract.
+- customer → invoice → payment → receipt → GST working summary;
+- same-state CGST/SGST and inter-state IGST;
+- controlled invoice numbering and immutable billing snapshots;
+- invoice/payment idempotency, overpayment and duplicate external-reference rejection;
+- safe public invoice verification and PDF rendering;
+- double-entry journal/trial-balance balancing;
+- Board Meeting → Resolution → CTC → Authority Grant;
+- vendor / contract / employee / asset / private Document Vault flows;
+- server-side role guards and maker-checker self-approval prevention;
+- commercial Plan → Subscription;
+- credit-note and refund accounting;
+- bank-account/transaction import and deterministic payment reconciliation;
+- Command Center derived metrics;
+- Notice Case and Inspection Case/manifest generation;
+- secret-bearing integration configuration rejection;
+- audit-chain and ledger-event integrity;
+- Finance & Ownership ledger/funding/mandate/payment-provider controls;
+- disabled/sandbox finance execution, idempotency and signed provider-event handling;
+- controlled company bootstrap/source-control boundary;
+- read-only Google Drive metadata integration and evidence-taxonomy readiness;
+- accounting/tax period close and maker-checker reopen;
+- CSP/security headers, cross-origin mutation guard and rate limiter;
+- identity token non-disclosure and HttpOnly/SameSite cookie bridge;
+- TOTP verification promoting sessions to `aal2`;
+- protected production APIs rejecting `aal1`;
+- inactive/suspended Office identities being rejected;
+- identity/MFA routes present in the committed OpenAPI contract.
 
 ## Supabase identity control validation
 
-A dedicated `KRAVIA Office` Supabase project (`xjtazosozxmudkbxqhjl`) was provisioned in `ap-south-1`. The following database-side controls were applied and checked:
+The dedicated `KRAVIA Office` Supabase project (`xjtazosozxmudkbxqhjl`, `ap-south-1`) has the following verified state:
 
 - explicit Office identity-admission table;
 - explicit Office role table;
 - restrictive deny-by-default RLS/client policies;
 - Custom Access Token Hook function generating `office_roles` and `office_access_status`;
-- direct fail-closed hook execution for an unassigned identity returned an empty Office-role set;
-- Supabase security advisor returned no findings after the explicit policies were applied.
+- asymmetric JWT signing key activated;
+- Custom Access Token Hook activated;
+- public Office signup disabled;
+- named OWNER identity created, email-confirmed, ACTIVE and explicitly role-assigned;
+- live hook output verified for the named OWNER identity;
+- Supabase security advisor previously returned no findings after the explicit policies were applied.
 
-Hosted dashboard switches and the first human enrollment remain external acceptance steps, not untested code placeholders.
+The remaining human acceptance step for identity is enrollment and verification of the first OWNER TOTP factor and confirmation of the resulting `aal2` session through `/office/login`.
 
 ## Migration validation
 
-The clean CI database upgrades successfully through:
+The clean CI database upgrades through:
 
 - initial KRAVIA Office schema;
 - v2 commercial/finance controls;
@@ -75,40 +88,33 @@ The clean CI database upgrades successfully through:
 - v4 Finance & Ownership / controlled treasury;
 - v5 accounting and tax period-close controls.
 
-The v5 migration creates controlled period-lock records and lookup indexes. Runtime posting tests confirm locks are enforced by the central journal service rather than only by the UI.
+Supabase Auth/RBAC provisioning remains separate in `spec/identity/SUPABASE_IDENTITY.sql` because it targets the hosted Supabase `auth` schema rather than the Office application database.
 
-Supabase Auth/RBAC provisioning is maintained separately in `spec/identity/SUPABASE_IDENTITY.sql` because it targets the hosted Supabase `auth` schema and is not part of the Office application-database Alembic chain.
+## Deployment validation
 
-## Static/runtime validation
+Source-controlled Vercel framework configuration is now explicit through root `vercel.json` with `framework: "nextjs"`.
 
-- JavaScript syntax checks for the legacy/core Office scripts, canonical web scripts and the auth/MFA script.
-- Python backend compilation.
-- FastAPI endpoint execution through TestClient.
-- PDF render checks verify `%PDF` output.
-- SHA-256 evidence generation.
-- Office security header/origin/rate-limit/MFA-boundary tests.
-- Google Drive integration remains metadata-only/read-only in automated tests.
-- Quality gate requires the identity/MFA, Finance & Ownership, period-close, HTTP-security, Drive-readiness and migration controls to exist and pass.
+The connected Vercel project was then proven to have a separate project-level Root Directory mismatch: once the framework override was read, Vercel attempted a Next.js build but reported that it could not find the repository-root `package.json`/Next.js dependency from the configured Root Directory. This is a deployment-project setting, not a source-build failure.
 
-## Root application security validation
-
-The prior CI configuration allowed `npm audit` findings to be diagnostic-only. That was corrected. Dependencies were patched, including Next.js to 16.3.5, and normal CI now fails on high/critical npm vulnerabilities. The verified run reports zero npm vulnerabilities.
+The local/CI Next production build is authoritative evidence that the route tree compiles. Live Vercel path validation must be repeated after the project Root Directory is set to the repository root and required production environment variables/domains are configured.
 
 ## Not claimed as complete without production evidence
 
-The automated suite does not fabricate production acceptance for:
+Automated tests do not fabricate production acceptance for:
 
-- Supabase hosted Auth signing-key/hook/signup-policy activation and first human TOTP enrollment;
-- full all-role IDOR/BOLA acceptance using real production-like identities;
+- first human TOTP enrollment and live AAL2 session;
+- Vercel Root Directory/environment/domain configuration;
+- production FastAPI runtime hosting and `OFFICE_API_ORIGIN`;
+- full all-role IDOR/BOLA acceptance using production-like identities;
 - production PostgreSQL concurrency/failover/backups/PITR restore;
-- live Razorpay/RazorpayX/payment-provider eligibility, signed live events and settlements;
+- live Razorpay/RazorpayX/payment-provider eligibility and settlements;
 - live bank/accounting feeds;
 - CA-approved tax/accounting golden cases;
 - CS/legal approval of governance/ownership/statutory workflows;
 - eSign/DSC provider behavior;
-- malware scanning/private object-storage provider integration;
+- malware scanning/private object-storage integration;
 - external staging CSRF/XSS/injection/file-upload penetration testing;
-- shared edge/WAF abuse controls for a multi-replica deployment;
+- shared edge/WAF abuse controls;
 - production monitoring/alerting/SLOs;
 - authoritative Drive evidence completeness and inspection-pack dry run.
 
