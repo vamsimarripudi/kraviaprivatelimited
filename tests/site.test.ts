@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { crawlerPolicy, isPublicSitemapPath } from "../lib/crawler-policy";
+import { crawlerPolicy, isPublicSitemapPath, privatePathPrefixes } from "../lib/crawler-policy";
 import { companyProfile, publicPages } from "../lib/site";
 
 describe("public company data", () => {
@@ -14,21 +14,22 @@ describe("public company data", () => {
 });
 
 describe("canonical URL resolution", () => {
-  it("uses the Vercel production canonical URL when a localhost value leaks into production", async () => {
+  it("uses the apex Vercel production canonical URL when a localhost value leaks into production", async () => {
     const { resolvePublicSiteUrl } = await import("../lib/env/public");
-    expect(resolvePublicSiteUrl("http://localhost:3000", { VERCEL_ENV: "production" })).toBe("https://www.kraviaprivatelimited.com");
+    expect(resolvePublicSiteUrl("http://localhost:3000", { VERCEL_ENV: "production" })).toBe("https://kraviaprivatelimited.com");
   });
 
   it("uses the preview host instead of a shared production canonical", async () => {
     const { resolvePublicSiteUrl } = await import("../lib/env/public");
-    expect(resolvePublicSiteUrl("https://www.kraviaprivatelimited.com", { VERCEL_ENV: "preview", VERCEL_URL: "kravia-preview.vercel.app" })).toBe("https://kravia-preview.vercel.app");
+    expect(resolvePublicSiteUrl("https://kraviaprivatelimited.com", { VERCEL_ENV: "preview", VERCEL_URL: "kravia-preview.vercel.app" })).toBe("https://kravia-preview.vercel.app");
   });
 });
+
 describe("public crawler boundaries", () => {
-  it("allows ordinary public crawling only for production and publishes one sitemap", () => {
-    const policy = crawlerPolicy(true, "https://www.kraviaprivatelimited.com");
-    expect(policy.rules).toEqual([{ userAgent: "*", allow: "/" }]);
-    expect(policy.sitemap).toBe("https://www.kraviaprivatelimited.com/sitemap.xml");
+  it("allows public crawling while explicitly disallowing private route families", () => {
+    const policy = crawlerPolicy(true, "https://kraviaprivatelimited.com");
+    expect(policy.rules).toEqual([{ userAgent: "*", allow: "/", disallow: [...privatePathPrefixes] }]);
+    expect(policy.sitemap).toBe("https://kraviaprivatelimited.com/sitemap.xml");
   });
 
   it("blocks preview indexing without advertising private routes", () => {
@@ -37,6 +38,19 @@ describe("public crawler boundaries", () => {
 
   it("allows only public route families into sitemap generation", () => {
     expect(["/", "/company", "/products/vidyaluma", "/trust/security", "/newsroom/example"].every(isPublicSitemapPath)).toBe(true);
-    expect(["/corporate", "/corporate/documents/a", "/admin", "/api/support", "/auth/callback", "/privacy-request"].every((path) => !isPublicSitemapPath(path))).toBe(true);
+    expect([
+      "/corporate",
+      "/corporate/documents/a",
+      "/office",
+      "/office/dashboard",
+      "/office/login",
+      "/finance",
+      "/finance/gst",
+      "/finance/login",
+      "/admin",
+      "/api/support",
+      "/auth/callback",
+      "/privacy-request",
+    ].every((path) => !isPublicSitemapPath(path))).toBe(true);
   });
 });
