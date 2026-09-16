@@ -1,12 +1,17 @@
 FROM python:3.13-slim
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/venv/bin:$PATH"
 WORKDIR /app
 COPY backend/requirements.txt /app/backend/requirements.txt
-RUN pip install --no-cache-dir -r /app/backend/requirements.txt
+RUN python -m venv /opt/venv \
+    && /opt/venv/bin/pip install --no-cache-dir -r /app/backend/requirements.txt
 COPY backend /app/backend
 COPY web /app/web
 COPY alembic.ini /app/alembic.ini
-RUN mkdir -p /app/runtime/private-vault && useradd -r -u 10001 kravia && chown -R kravia:kravia /app
+RUN mkdir -p /app/runtime/private-vault \
+    && useradd --create-home --uid 10001 --shell /usr/sbin/nologin kravia \
+    && chown -R kravia:kravia /app /opt/venv
 USER kravia
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3).read()"
