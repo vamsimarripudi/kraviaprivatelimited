@@ -1,10 +1,12 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { financeSections, officeSections, roleCanAccessSection, roleCanAccessWorkspace } from "../lib/office/workspaces";
+import { officeMutationIsSameOrigin } from "../lib/office/request-security";
 
 const proxySource = readFileSync(new URL("../proxy.ts", import.meta.url), "utf8");
 const authServerSource = readFileSync(new URL("../lib/office/auth-server.ts", import.meta.url), "utf8");
 const signInSource = readFileSync(new URL("../app/api/office-auth/sign-in/route.ts", import.meta.url), "utf8");
+const runtimeProxySource = readFileSync(new URL("../app/api/office-runtime/[...path]/route.ts", import.meta.url), "utf8");
 
 describe("KRAVIA path-based internal workspaces", () => {
   it("routes employees/governance roles to Office and finance professionals to Finance", () => {
@@ -40,5 +42,27 @@ describe("KRAVIA path-based internal workspaces", () => {
     expect(authServerSource).toContain('OFFICE_REFRESH_COOKIE = "kravia_office_refresh"');
     expect(signInSource).not.toContain('"access_token"');
     expect(signInSource).not.toContain('"refresh_token"');
+  });
+
+  it("rejects cross-origin Office browser mutations", () => {
+    const sameOrigin = new Request("https://www.kraviaprivatelimited.com/api/office-auth/sign-in", {
+      method: "POST",
+      headers: { Origin: "https://www.kraviaprivatelimited.com", "Sec-Fetch-Site": "same-origin" },
+    });
+    const crossOrigin = new Request("https://www.kraviaprivatelimited.com/api/office-auth/sign-in", {
+      method: "POST",
+      headers: { Origin: "https://evil.example", "Sec-Fetch-Site": "cross-site" },
+    });
+    expect(officeMutationIsSameOrigin(sameOrigin)).toBe(true);
+    expect(officeMutationIsSameOrigin(crossOrigin)).toBe(false);
+  });
+
+  it("keeps the FastAPI origin server-only and blocks sensitive provider callback paths", () => {
+    expect(runtimeProxySource).toContain('getOfficeRuntimeOrigin()');
+    expect(runtimeProxySource).toContain('headers.set("Authorization", `Bearer ${session.session.access_token}`)');
+    expect(runtimeProxySource).toContain('"finance/webhooks"');
+    expect(runtimeProxySource).toContain('redirect: "manual"');
+    expect(runtimeProxySource).toContain("MAX_BODY_BYTES");
+    expect(runtimeProxySource).toContain("officeMutationIsSameOrigin(request)");
   });
 });
