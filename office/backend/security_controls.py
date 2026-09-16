@@ -21,7 +21,9 @@ SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 ACCESS_COOKIE = "kravia_office_access"
 AUTH_API_PREFIX = "/api/v1/auth/"
 PROVIDER_WEBHOOK_PREFIX = "/api/v1/finance/webhooks/"
-BROWSER_ENTRY_PATHS = {"/", "/index.html", "/finance.html"}
+# The backend root is intentionally a public, metadata-only status page. Legacy
+# browser application entry points still require an authenticated Office session.
+BROWSER_ENTRY_PATHS = {"/index.html", "/finance.html"}
 
 
 class FixedWindowRateLimiter:
