@@ -2,7 +2,7 @@
 
 ## Production identity provider
 
-KRAVIA Office uses a dedicated Supabase Auth project. It is isolated from other KRAVIA/product projects.
+KRAVIA Office uses a dedicated Supabase Auth project. It is isolated from the public website and other KRAVIA/product projects.
 
 - Project name: `KRAVIA Office`
 - Project ref: `xjtazosozxmudkbxqhjl`
@@ -14,34 +14,50 @@ KRAVIA Office uses a dedicated Supabase Auth project. It is isolated from other 
 - MFA factor: TOTP authenticator
 - Office role claim: `office_roles`
 - Access-state claim: `office_access_status`
+- Canonical browser login: `/office/login` (Finance users may enter at `/finance/login`)
 
 No private API key, user password, TOTP secret or recovery material belongs in this repository.
 
 ## Security model
 
-1. There is no KRAVIA Office public self-signup endpoint.
+1. There is no KRAVIA Office public self-signup endpoint and hosted email self-registration is disabled.
 2. An identity existing in Supabase is not sufficient for Office access.
 3. The identity must have an `ACTIVE` row in `office_identity_users`.
 4. The identity must hold at least one explicit row in `office_user_roles`.
-5. The custom access-token hook injects only those approved roles into `office_roles`.
-6. Production Office requires the JWT `aal` claim to equal `aal2`.
-7. The canonical API still cryptographically verifies issuer, audience, signature, expiry and the role claim before protected handlers execute.
-8. Browser access and refresh tokens are stored only in HttpOnly, SameSite cookies. They are never returned to application JavaScript or stored in local/session storage.
-9. Same-origin mutation protection, host validation, rate limiting and CSP remain enforced.
+5. The enabled custom access-token hook injects only those approved roles into `office_roles`.
+6. Production Office and Finance require the JWT `aal` claim to equal `aal2`.
+7. The canonical FastAPI runtime still cryptographically verifies issuer, audience, signature, expiry and the role claim before protected handlers execute.
+8. Path-workspace browser access and refresh tokens are stored only in HttpOnly, SameSite=Strict cookies. They are never returned to application JavaScript or stored in local/session storage.
+9. Same-origin mutation protection is applied at the path-workspace BFF; FastAPI retains its own host/origin/rate-limit/security controls.
+10. Public website `/admin` authentication remains a separate identity boundary and must not be conflated with Office roles.
 
-## First-user activation
+## Hosted activation status
 
-Complete these dashboard-controlled steps after the code deployment configuration is ready:
+Completed in the dedicated hosted Supabase project:
 
-1. In **Project Settings → JWT signing keys**, migrate from the legacy JWT secret to the signing-keys system and activate the generated asymmetric key. ES256/P-256 is preferred. Do not revoke a previously-used key until its accepted-token window has elapsed.
-2. In **Authentication → Hooks**, enable the Custom Access Token hook and select `public.office_custom_access_token_hook`.
-3. In **Authentication → MFA**, confirm TOTP enrollment and verification are enabled.
-4. In **Authentication → Providers / Email**, keep the required internal sign-in method enabled and disable public self-registration for Office.
-5. Create or invite the first authorized Office identity from **Authentication → Users**. Do not share its password in Git, chat, docs or tickets.
-6. Add that user's UUID to `office_identity_users` with status `ACTIVE` and assign the minimum required role in `office_user_roles`. The first administrative account should be assigned `OWNER` only when that authority is intentional.
-7. Sign in through `/auth.html`, enroll TOTP, verify the code and confirm the resulting session is `aal2` with the expected `office_roles` claim.
+- asymmetric JWT signing-key migration/rotation;
+- Custom Access Token hook activation using `public.office_custom_access_token_hook`;
+- public Office self-signup disabled while email/password sign-in remains available for approved users;
+- first approved human Office identity created and email-confirmed;
+- first identity admitted as `ACTIVE` with the intentional `OWNER` role;
+- hook output verified to emit `office_roles=[OWNER]` and `office_access_status=ACTIVE` for that identity;
+- unassigned identities verified fail-closed with no Office roles.
 
-## Production environment
+Remaining hosted identity action before production acceptance: enroll and verify the first user's TOTP factor through the canonical path login, then confirm the resulting session is `aal2`.
+
+## TOTP enrollment through the path workspace
+
+1. Deploy the root Next.js application with `OFFICE_SUPABASE_URL` and the active modern Office publishable key.
+2. Open `/office/login` on the KRAVIA website.
+3. Sign in with the approved personal corporate identity.
+4. The BFF keeps the password session tokens in HttpOnly cookies. If there is no verified factor, the page starts TOTP enrollment and displays the Supabase enrollment QR.
+5. Scan the QR with the approved authenticator app and submit the current code.
+6. The BFF verifies the factor and refuses workspace entry unless Supabase reports `aal2`.
+7. Verify that `/office/dashboard` opens and that the identity header shows only the assigned Office role(s).
+
+Do not send passwords, QR secrets or TOTP codes through Git, chat, screenshots, documents or tickets.
+
+## Production FastAPI environment
 
 ```text
 APP_ENV=production
@@ -56,7 +72,15 @@ OIDC_ACTOR_CLAIM=email
 OIDC_REQUIRED_AAL=aal2
 ```
 
-`SUPABASE_PUBLISHABLE_KEY` is deliberately not committed even though it is designed for client/public use; it remains deployment configuration so keys can be rotated independently of source releases.
+## Production Next.js path-workspace environment
+
+```text
+OFFICE_SUPABASE_URL=https://xjtazosozxmudkbxqhjl.supabase.co
+OFFICE_SUPABASE_PUBLISHABLE_KEY=<active modern publishable key>
+OFFICE_API_ORIGIN=https://<canonical FastAPI runtime origin>
+```
+
+The publishable key is deliberately kept as deployment configuration even though it is designed for public-client use; this keeps rotation independent of source releases. `OFFICE_API_ORIGIN` is server-only and is never returned to browser code.
 
 ## Suspension / revocation
 
