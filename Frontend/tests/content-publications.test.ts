@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const migration = readFileSync(new URL("../supabase/migrations/202608210003_governed_publication_snapshots.sql", import.meta.url), "utf8");
+const migration = readFileSync(new URL("../../Database/supabase/migrations/202608210003_governed_publication_snapshots.sql", import.meta.url), "utf8");
 
 describe("governed public publication snapshots", () => {
   it("keeps a public snapshot separate from a private next revision", () => {

@@ -5,7 +5,7 @@ const authServer = readFileSync(new URL("../lib/office/auth-server.ts", import.m
 const accessAdmin = readFileSync(new URL("../lib/office/access-admin.ts", import.meta.url), "utf8");
 const accessRecovery = readFileSync(new URL("../lib/office/access-recovery.ts", import.meta.url), "utf8");
 const accessPanel = readFileSync(new URL("../components/access-governance-panel.tsx", import.meta.url), "utf8");
-const lifecycleSql = readFileSync(new URL("../office/spec/identity/SUPABASE_INVITATION_LIFECYCLE.sql", import.meta.url), "utf8");
+const lifecycleSql = readFileSync(new URL("../../Backend/spec/identity/SUPABASE_INVITATION_LIFECYCLE.sql", import.meta.url), "utf8");
 const officeEnv = readFileSync(new URL("../lib/env/office.ts", import.meta.url), "utf8");
 
 describe("KRAVIA Office invitation lifecycle", () => {
