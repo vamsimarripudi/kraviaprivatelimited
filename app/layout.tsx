@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, DM_Mono, Manrope } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
+import "./workspaces.css";
 import { siteUrl } from "@/lib/site";
 import { BrandSplash } from "@/components/brand-splash";
 import { OrganizationJsonLd } from "@/components/structured-data";
