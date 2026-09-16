@@ -15,7 +15,8 @@ def test_backend_landing_exposes_safe_architecture_only(monkeypatch):
     response = TestClient(app).get("/")
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store, max-age=0"
-    assert response.headers["x-robots-tag"] == "noindex, nofollow, noarchive"
+    robots = {directive.strip() for directive in response.headers["x-robots-tag"].split(",")}
+    assert robots == {"noindex", "nofollow", "noarchive"}
     body = response.text
     assert "KRAVIA Office Backend" in body
     assert "FastAPI" in body
