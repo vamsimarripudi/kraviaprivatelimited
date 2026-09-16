@@ -1,13 +1,13 @@
 import type { MetadataRoute } from "next";
 
-const privatePathPrefixes = ["/admin", "/api", "/auth", "/corporate", "/privacy-request"];
+export const privatePathPrefixes = ["/admin", "/api", "/auth", "/corporate", "/office", "/finance", "/privacy-request"] as const;
 
 /** A single, framework-neutral policy for crawler guidance and sitemap eligibility. */
 export function crawlerPolicy(production: boolean, canonicalUrl: string): MetadataRoute.Robots {
   if (!production) return { rules: [{ userAgent: "*", disallow: "/" }] };
 
   return {
-    rules: [{ userAgent: "*", allow: "/" }],
+    rules: [{ userAgent: "*", allow: "/", disallow: [...privatePathPrefixes] }],
     sitemap: `${canonicalUrl}/sitemap.xml`,
   };
 }
