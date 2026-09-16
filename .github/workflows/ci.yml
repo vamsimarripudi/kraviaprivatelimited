@@ -66,6 +66,34 @@ jobs:
       - run: alembic upgrade head
       - run: python -m pytest backend/tests -q
       - run: python scripts/quality_gate.py
+      - name: Build Railway container
+        run: docker build --file Dockerfile.api --tag kravia-office-api:ci .
+      - name: Verify packaged PostgreSQL driver
+        run: >-
+          docker run --rm --entrypoint python kravia-office-api:ci -c
+          "import psycopg; from backend.database import normalize_database_url; assert normalize_database_url('postgresql://user:pass@localhost/db') == 'postgresql+psycopg://user:pass@localhost/db'"
+      - name: Smoke test packaged liveness endpoint
+        shell: bash
+        run: |
+          cid=$(docker run -d -p 18000:8000 \
+            -e APP_ENV=development \
+            -e AUTH_MODE=bootstrap \
+            -e FINANCE_EXECUTION_MODE=sandbox \
+            -e DATABASE_URL=sqlite:////tmp/kravia-office-ci.db \
+            kravia-office-api:ci)
+          cleanup() {
+            docker logs "$cid" || true
+            docker rm -f "$cid" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:18000/health/live >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Container liveness check failed" >&2
+          exit 1
 
   database-structure:
     name: Database structure
