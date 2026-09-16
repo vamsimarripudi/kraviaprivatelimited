@@ -2,17 +2,17 @@
 
 ## Automated result on `main`
 
-Latest verified full quality run:
+Latest verified identity-enabled quality run:
 
 - Root application: **17 Vitest files / 58 tests passed**.
-- Office backend: **28 pytest tests passed**.
+- Office backend: **36 pytest tests passed**.
 - Office quality gate: **PASS**.
 - `npm ci`: **0 vulnerabilities**.
 - Blocking `npm audit --audit-level=high`: **0 vulnerabilities**.
 - ESLint, TypeScript typecheck, secret scan and Next.js 16.3.5 production build: **PASS**.
-- Python compile and clean Alembic migration chain through v5: **PASS**.
+- Python compile, OpenAPI drift verification and clean Alembic migration chain through v5: **PASS**.
 
-One upstream Starlette TestClient/AnyIO deprecation warning is emitted by the Python test dependency; it is not a KRAVIA control/test failure.
+Pytest is configured to treat unexpected warnings as errors. The one known third-party Starlette/AnyIO TestClient deprecation is narrowly suppressed because it originates upstream rather than in KRAVIA code.
 
 ## Office backend coverage
 
@@ -42,7 +42,28 @@ The suite verifies, among other controls:
 22. accounting period close blocking backdated postings;
 23. tax period close blocking new tax documents;
 24. independent maker-checker period reopen;
-25. CSP/security headers, cross-origin mutation guard and rate limiter.
+25. CSP/security headers, cross-origin mutation guard and rate limiter;
+26. identity sign-in response does not disclose access/refresh tokens;
+27. Auth tokens are persisted only through HttpOnly/SameSite cookies by the Office BFF;
+28. TOTP verification promotes a session to `aal2`;
+29. protected production APIs reject `aal1` sessions;
+30. inactive/suspended Office identities are rejected even when MFA is present;
+31. authenticated cookie sessions are bridged to the existing cryptographically verified bearer-token authorization layer;
+32. unauthenticated production browser entry redirects to the dedicated Office auth surface;
+33. identity/MFA endpoints are present in and drift-checked against the committed OpenAPI contract.
+
+## Supabase identity control validation
+
+A dedicated `KRAVIA Office` Supabase project (`xjtazosozxmudkbxqhjl`) was provisioned in `ap-south-1`. The following database-side controls were applied and checked:
+
+- explicit Office identity-admission table;
+- explicit Office role table;
+- restrictive deny-by-default RLS/client policies;
+- Custom Access Token Hook function generating `office_roles` and `office_access_status`;
+- direct fail-closed hook execution for an unassigned identity returned an empty Office-role set;
+- Supabase security advisor returned no findings after the explicit policies were applied.
+
+Hosted dashboard switches and the first human enrollment remain external acceptance steps, not untested code placeholders.
 
 ## Migration validation
 
@@ -56,16 +77,18 @@ The clean CI database upgrades successfully through:
 
 The v5 migration creates controlled period-lock records and lookup indexes. Runtime posting tests confirm locks are enforced by the central journal service rather than only by the UI.
 
+Supabase Auth/RBAC provisioning is maintained separately in `spec/identity/SUPABASE_IDENTITY.sql` because it targets the hosted Supabase `auth` schema and is not part of the Office application-database Alembic chain.
+
 ## Static/runtime validation
 
-- JavaScript syntax checks for the legacy/core Office scripts and canonical web scripts.
+- JavaScript syntax checks for the legacy/core Office scripts, canonical web scripts and the auth/MFA script.
 - Python backend compilation.
 - FastAPI endpoint execution through TestClient.
 - PDF render checks verify `%PDF` output.
 - SHA-256 evidence generation.
-- Office security header/origin/rate-limit middleware tests.
+- Office security header/origin/rate-limit/MFA-boundary tests.
 - Google Drive integration remains metadata-only/read-only in automated tests.
-- Quality gate requires the Finance & Ownership, period-close, HTTP-security, Drive-readiness and migration controls to exist and pass.
+- Quality gate requires the identity/MFA, Finance & Ownership, period-close, HTTP-security, Drive-readiness and migration controls to exist and pass.
 
 ## Root application security validation
 
@@ -75,7 +98,8 @@ The prior CI configuration allowed `npm audit` findings to be diagnostic-only. T
 
 The automated suite does not fabricate production acceptance for:
 
-- real OIDC/MFA/identity recovery and the full all-role IDOR/BOLA matrix;
+- Supabase hosted Auth signing-key/hook/signup-policy activation and first human TOTP enrollment;
+- full all-role IDOR/BOLA acceptance using real production-like identities;
 - production PostgreSQL concurrency/failover/backups/PITR restore;
 - live Razorpay/RazorpayX/payment-provider eligibility, signed live events and settlements;
 - live bank/accounting feeds;
