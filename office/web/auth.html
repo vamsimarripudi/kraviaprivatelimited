@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="color-scheme" content="light" />
+<meta name="theme-color" content="#0b1724" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" />
+<title>Sign in · KRAVIA Office</title>
+<link rel="stylesheet" href="auth.css" />
+</head>
+<body>
+<main class="authShell">
+  <section class="authCard" aria-labelledby="authTitle">
+    <header class="brand">
+      <div class="mark" aria-hidden="true">K</div>
+      <div><strong>KRAVIA</strong><span>Office</span></div>
+    </header>
+    <div class="intro">
+      <p class="eyebrow">Corporate operating system</p>
+      <h1 id="authTitle">Secure Office access</h1>
+      <p id="authLead">Sign in with your authorized KRAVIA Office account. Authenticator MFA is mandatory for Office access.</p>
+    </div>
+
+    <div id="status" class="status" role="status" aria-live="polite">Checking session…</div>
+
+    <form id="signInForm" class="panel" hidden>
+      <label>Email<input id="email" name="email" type="email" autocomplete="username" required /></label>
+      <label>Password<input id="password" name="password" type="password" autocomplete="current-password" required /></label>
+      <button class="primary" type="submit">Sign in</button>
+    </form>
+
+    <section id="mfaPanel" class="panel" hidden aria-labelledby="mfaTitle">
+      <h2 id="mfaTitle">Authenticator verification</h2>
+      <p id="mfaText">Enter the current code from your authenticator app.</p>
+      <div id="enrollBox" hidden>
+        <p class="note">No verified authenticator is enrolled. Add this KRAVIA Office account to your authenticator app first.</p>
+        <div class="qrWrap"><img id="qr" alt="Authenticator enrollment QR code" /></div>
+        <div class="secretLine"><span>Manual setup key</span><code id="secret"></code></div>
+      </div>
+      <form id="mfaForm">
+        <label>Authenticator code<input id="mfaCode" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,10}" minlength="6" maxlength="10" required /></label>
+        <button class="primary" type="submit">Verify MFA</button>
+      </form>
+    </section>
+
+    <section id="deniedPanel" class="panel" hidden>
+      <h2>Office access not assigned</h2>
+      <p>Your identity is verified, but this account does not currently hold an active KRAVIA Office role. An authorized Office owner must assign access.</p>
+      <button id="signOutDenied" class="secondary" type="button">Sign out</button>
+    </section>
+
+    <section id="readyPanel" class="panel" hidden>
+      <h2>Access verified</h2>
+      <p id="identitySummary"></p>
+      <button id="continueBtn" class="primary" type="button">Continue to KRAVIA Office</button>
+      <button id="signOutReady" class="secondary" type="button">Sign out</button>
+    </section>
+
+    <footer>
+      <span>Password + TOTP MFA</span>
+      <span>Tokens remain in HttpOnly cookies</span>
+    </footer>
+  </section>
+</main>
+<script src="auth.js"></script>
+</body>
+</html>
