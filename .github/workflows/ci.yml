@@ -18,6 +18,9 @@ jobs:
       run:
         working-directory: Frontend
     steps:
+      - name: Configure Git defaults
+        run: git config --global init.defaultBranch main && git config --global advice.detachedHead false
+        working-directory: ${{ github.workspace }}
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
@@ -51,6 +54,9 @@ jobs:
       FINANCE_EXECUTION_MODE: sandbox
       DATABASE_URL: sqlite:///./kravia-office-ci.db
     steps:
+      - name: Configure Git defaults
+        run: git config --global init.defaultBranch main && git config --global advice.detachedHead false
+        working-directory: ${{ github.workspace }}
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
@@ -99,6 +105,8 @@ jobs:
     name: Database structure
     runs-on: ubuntu-latest
     steps:
+      - name: Configure Git defaults
+        run: git config --global init.defaultBranch main && git config --global advice.detachedHead false
       - uses: actions/checkout@v7
       - name: Verify versioned database project
         shell: bash
@@ -111,6 +119,8 @@ jobs:
     name: Repository structure
     runs-on: ubuntu-latest
     steps:
+      - name: Configure Git defaults
+        run: git config --global init.defaultBranch main && git config --global advice.detachedHead false
       - uses: actions/checkout@v7
       - name: Verify application boundaries
         shell: bash
