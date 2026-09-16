@@ -7,22 +7,28 @@ const proxySource = readFileSync(new URL("../proxy.ts", import.meta.url), "utf8"
 const authServerSource = readFileSync(new URL("../lib/office/auth-server.ts", import.meta.url), "utf8");
 const signInSource = readFileSync(new URL("../app/api/office-auth/sign-in/route.ts", import.meta.url), "utf8");
 const runtimeProxySource = readFileSync(new URL("../app/api/office-runtime/[...path]/route.ts", import.meta.url), "utf8");
+const accessAdminSource = readFileSync(new URL("../lib/office/access-admin.ts", import.meta.url), "utf8");
+const activationSource = readFileSync(new URL("../components/workspace-activation-form.tsx", import.meta.url), "utf8");
 
 describe("KRAVIA path-based internal workspaces", () => {
   it("routes employees/governance roles to Office and finance professionals to Finance", () => {
     expect(roleCanAccessWorkspace("office", ["OWNER"])).toBe(true);
+    expect(roleCanAccessWorkspace("office", ["ADMIN"])).toBe(true);
     expect(roleCanAccessWorkspace("office", ["HR"])).toBe(true);
     expect(roleCanAccessWorkspace("office", ["CA"])).toBe(false);
     expect(roleCanAccessWorkspace("finance", ["CA"])).toBe(true);
     expect(roleCanAccessWorkspace("finance", ["AUDITOR"])).toBe(true);
+    expect(roleCanAccessWorkspace("finance", ["ADMIN"])).toBe(false);
     expect(roleCanAccessWorkspace("finance", ["HR"])).toBe(false);
   });
 
-  it("keeps sensitive finance modules narrower than the finance workspace itself", () => {
+  it("keeps sensitive modules narrower than workspace membership", () => {
     expect(roleCanAccessSection(financeSections.gst, ["CA"])).toBe(true);
     expect(roleCanAccessSection(financeSections.audit, ["AUDITOR"])).toBe(true);
     expect(roleCanAccessSection(financeSections.ownership, ["CA"])).toBe(false);
     expect(roleCanAccessSection(financeSections.ownership, ["OWNER"])).toBe(true);
+    expect(roleCanAccessSection(officeSections.access, ["ADMIN"])).toBe(true);
+    expect(roleCanAccessSection(officeSections.documents, ["ADMIN"])).toBe(false);
     expect(roleCanAccessSection(officeSections.people, ["HR"])).toBe(true);
     expect(roleCanAccessSection(officeSections.security, ["HR"])).toBe(false);
   });
@@ -44,15 +50,23 @@ describe("KRAVIA path-based internal workspaces", () => {
     expect(signInSource).not.toContain('"refresh_token"');
   });
 
+  it("uses trusted server administration and authoritative role rechecks", () => {
+    expect(authServerSource).toContain("OFFICE_SUPABASE_SECRET_KEY");
+    expect(authServerSource).toContain("resolveAuthoritativeIdentity");
+    expect(accessAdminSource).toContain("inviteUserByEmail");
+    expect(accessAdminSource).toContain("AAL2 verification is required");
+    expect(accessAdminSource).not.toContain("NEXT_PUBLIC_SUPABASE_SECRET");
+  });
+
+  it("requires strong invite activation password and MFA", () => {
+    expect(activationSource).toContain("password.length >= 14");
+    expect(activationSource).toContain('/api/office-auth/mfa');
+    expect(activationSource).toContain('Verify and enter workspace');
+  });
+
   it("rejects cross-origin Office browser mutations", () => {
-    const sameOrigin = new Request("https://www.kraviaprivatelimited.com/api/office-auth/sign-in", {
-      method: "POST",
-      headers: { Origin: "https://www.kraviaprivatelimited.com", "Sec-Fetch-Site": "same-origin" },
-    });
-    const crossOrigin = new Request("https://www.kraviaprivatelimited.com/api/office-auth/sign-in", {
-      method: "POST",
-      headers: { Origin: "https://evil.example", "Sec-Fetch-Site": "cross-site" },
-    });
+    const sameOrigin = new Request("https://kraviaprivatelimited.com/api/office-auth/sign-in", { method: "POST", headers: { Origin: "https://kraviaprivatelimited.com", "Sec-Fetch-Site": "same-origin" } });
+    const crossOrigin = new Request("https://kraviaprivatelimited.com/api/office-auth/sign-in", { method: "POST", headers: { Origin: "https://evil.example", "Sec-Fetch-Site": "cross-site" } });
     expect(officeMutationIsSameOrigin(sameOrigin)).toBe(true);
     expect(officeMutationIsSameOrigin(crossOrigin)).toBe(false);
   });
