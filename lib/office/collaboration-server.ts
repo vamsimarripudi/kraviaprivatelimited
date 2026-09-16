@@ -111,7 +111,7 @@ export async function addRequestComment(requestId: string, body: string) {
     .insert({ request_id: requestId, author_user_id: identity.userId, body: text })
     .select("id,request_id,author_user_id,body,created_at")
     .single();
-  fail(error, "Unable to add request comment");
+  if (error || !comment) throw new OfficeCollaborationError(500, "Unable to add request comment");
 
   const { error: eventError } = await admin.from("office_request_events").insert({
     request_id: requestId,
