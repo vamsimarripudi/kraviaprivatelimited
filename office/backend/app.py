@@ -6,6 +6,8 @@ are attached as bounded domains. The production container serves the controlled
 Office web surface from the same origin so authentication/CSP/API routing stay
 coherent.
 """
+from contextlib import asynccontextmanager
+import os
 from pathlib import Path
 
 from fastapi import Request
@@ -24,6 +26,22 @@ from .security_controls import configure_security
 # ADMIN and MEMBER are identity-domain roles. They do not receive business-domain
 # authority unless an endpoint explicitly grants it through require_roles().
 office_main.KNOWN_ROLES.update({"ADMIN", "MEMBER"})
+
+
+@asynccontextmanager
+async def canonical_lifespan(_app):
+    """Keep hosted runtime startup independent of remote database latency.
+
+    Railway runs Alembic plus controlled bootstrap as a pre-deploy command. Local
+    development keeps the historical in-process bootstrap for developer ergonomics.
+    """
+    app_env = os.getenv("APP_ENV", "development").strip().lower()
+    if app_env not in {"staging", "production"}:
+        office_main.initialize_database()
+    yield
+
+
+app.router.lifespan_context = canonical_lifespan
 
 app.include_router(build_identity_router())
 app.include_router(build_finance_ownership_router(get_db, require_roles))
