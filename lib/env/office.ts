@@ -1,0 +1,34 @@
+import "server-only";
+import { z } from "zod";
+
+const officeEnvironmentSchema = z.object({
+  OFFICE_SUPABASE_URL: z.string().url(),
+  OFFICE_SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
+});
+
+export type OfficeEnvironment = z.infer<typeof officeEnvironmentSchema>;
+
+/**
+ * KRAVIA Office uses a dedicated Supabase Auth tenant. These variables are
+ * intentionally server-only so the main public-site Supabase configuration and
+ * the internal Office identity boundary can never be mixed accidentally.
+ */
+export function getOfficeEnvironment(): OfficeEnvironment | null {
+  const url = process.env.OFFICE_SUPABASE_URL?.trim();
+  const publishableKey = process.env.OFFICE_SUPABASE_PUBLISHABLE_KEY?.trim();
+  if (!url || !publishableKey) return null;
+
+  const parsed = officeEnvironmentSchema.safeParse({
+    OFFICE_SUPABASE_URL: url,
+    OFFICE_SUPABASE_PUBLISHABLE_KEY: publishableKey,
+  });
+  return parsed.success ? parsed.data : null;
+}
+
+export function requireOfficeEnvironment(): OfficeEnvironment {
+  const environment = getOfficeEnvironment();
+  if (!environment) {
+    throw new Error("KRAVIA Office identity is not configured. Set OFFICE_SUPABASE_URL and OFFICE_SUPABASE_PUBLISHABLE_KEY.");
+  }
+  return environment;
+}
