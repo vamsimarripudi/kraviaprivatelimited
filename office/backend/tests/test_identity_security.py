@@ -3,6 +3,8 @@ from starlette.requests import Request
 
 from backend.security_controls import ACCESS_COOKIE, _oidc_mfa_guard
 
+TEST_JWT_KEY = "test-only-secret-at-least-32-bytes-long!!"
+
 
 def request_for(path, token=None):
     headers = []
@@ -27,7 +29,7 @@ def request_for(path, token=None):
 def bearer(aal="aal2", status="ACTIVE"):
     return jwt.encode(
         {"sub": "u1", "aal": aal, "office_access_status": status, "office_roles": ["OWNER"]},
-        "test-only-secret",
+        TEST_JWT_KEY,
         algorithm="HS256",
     )
 
