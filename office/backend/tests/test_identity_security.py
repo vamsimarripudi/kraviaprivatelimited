@@ -66,9 +66,14 @@ def test_auth_endpoints_remain_available_before_mfa(monkeypatch):
     assert _oidc_mfa_guard(request_for("/api/v1/auth/session", bearer("aal1")), "production") is None
 
 
-def test_unauthenticated_browser_entry_redirects_to_auth(monkeypatch):
+def test_unauthenticated_legacy_browser_entry_redirects_to_auth(monkeypatch):
     monkeypatch.setenv("AUTH_MODE", "oidc")
-    blocked = _oidc_mfa_guard(request_for("/"), "production")
+    blocked = _oidc_mfa_guard(request_for("/index.html"), "production")
     assert blocked is not None
     assert blocked.status_code == 307
     assert blocked.headers["location"] == "/auth.html"
+
+
+def test_public_backend_status_root_does_not_require_office_session(monkeypatch):
+    monkeypatch.setenv("AUTH_MODE", "oidc")
+    assert _oidc_mfa_guard(request_for("/"), "production") is None
