@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getOfficeSessionContext, officeIdentityIsProvisioned, writeOfficeSessionCookies } from "@/lib/office/auth-server";
+import { officeMutationIsSameOrigin } from "@/lib/office/request-security";
 
 const requestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("enroll") }),
@@ -9,6 +10,10 @@ const requestSchema = z.discriminatedUnion("action", [
 ]);
 
 export async function POST(request: Request) {
+  if (!officeMutationIsSameOrigin(request)) {
+    return NextResponse.json({ detail: "Cross-origin Office MFA request is not allowed" }, { status: 403 });
+  }
+
   const context = await getOfficeSessionContext();
   if (!context || !officeIdentityIsProvisioned(context.identity)) {
     return NextResponse.json({ detail: "Office sign-in required" }, { status: 401, headers: { "Cache-Control": "no-store" } });
