@@ -724,6 +724,19 @@
         "title": "EmployeeCreate",
         "type": "object"
       },
+      "EnrollPayload": {
+        "properties": {
+          "friendly_name": {
+            "default": "KRAVIA Office Authenticator",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Friendly Name",
+            "type": "string"
+          }
+        },
+        "title": "EnrollPayload",
+        "type": "object"
+      },
       "ExpenseCreate": {
         "properties": {
           "amount": {
@@ -825,6 +838,21 @@
           "source_document_ref"
         ],
         "title": "ExpenseCreate",
+        "type": "object"
+      },
+      "FactorPayload": {
+        "properties": {
+          "factor_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Factor Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "factor_id"
+        ],
+        "title": "FactorPayload",
         "type": "object"
       },
       "FundingPolicyCreate": {
@@ -2067,6 +2095,28 @@
         "title": "ShareholderCreate",
         "type": "object"
       },
+      "SignInPayload": {
+        "properties": {
+          "email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "SignInPayload",
+        "type": "object"
+      },
       "SubscriptionCreate": {
         "properties": {
           "current_period_end": {
@@ -2225,6 +2275,34 @@
           "category"
         ],
         "title": "VendorCreate",
+        "type": "object"
+      },
+      "VerifyPayload": {
+        "properties": {
+          "challenge_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Challenge Id",
+            "type": "string"
+          },
+          "code": {
+            "pattern": "^[0-9]{6,10}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "factor_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Factor Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "factor_id",
+          "challenge_id",
+          "code"
+        ],
+        "title": "VerifyPayload",
         "type": "object"
       }
     }
@@ -3569,6 +3647,257 @@
           }
         },
         "summary": "Verify Audit Chain"
+      }
+    },
+    "/api/v1/auth/factors": {
+      "get": {
+        "operationId": "factors_api_v1_auth_factors_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Factors",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/challenge": {
+      "post": {
+        "operationId": "challenge_mfa_api_v1_auth_mfa_challenge_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FactorPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Challenge Mfa",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/enroll": {
+      "post": {
+        "operationId": "enroll_mfa_api_v1_auth_mfa_enroll_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnrollPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Enroll Mfa",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/verify": {
+      "post": {
+        "operationId": "verify_mfa_api_v1_auth_mfa_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify Mfa",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/readiness": {
+      "get": {
+        "operationId": "readiness_api_v1_auth_readiness_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Readiness",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "operationId": "refresh_api_v1_auth_refresh_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Refresh",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/session": {
+      "get": {
+        "operationId": "session_state_api_v1_auth_session_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Session State",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/sign-in": {
+      "post": {
+        "operationId": "sign_in_api_v1_auth_sign_in_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sign In",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/sign-out": {
+      "post": {
+        "operationId": "sign_out_api_v1_auth_sign_out_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Sign Out",
+        "tags": [
+          "identity"
+        ]
       }
     },
     "/api/v1/banking/accounts": {
