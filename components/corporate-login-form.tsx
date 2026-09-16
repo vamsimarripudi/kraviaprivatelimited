@@ -5,9 +5,9 @@ import { ArrowRight, KeyRound, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
-type Props = { nextPath: string; configurationRequired?: boolean };
+type Props = { nextPath: string; configurationRequired?: boolean; recoveryPath?: string };
 
-export function CorporateLoginForm({ nextPath, configurationRequired = false }: Props) {
+export function CorporateLoginForm({ nextPath, configurationRequired = false, recoveryPath = "/admin" }: Props) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,7 +30,7 @@ export function CorporateLoginForm({ nextPath, configurationRequired = false }: 
       router.replace(nextPath);
       router.refresh();
     } catch {
-      setStatus("Corporate Office sign-in is not available right now. Please try again shortly.");
+      setStatus("Secure administration sign-in is not available right now. Please try again shortly.");
     } finally {
       setIsPending(false);
     }
@@ -45,7 +45,8 @@ export function CorporateLoginForm({ nextPath, configurationRequired = false }: 
     setStatus(undefined);
     try {
       const supabase = createBrowserSupabaseClient();
-      const redirectTo = `${window.location.origin}/auth/callback?next=/corporate/settings`;
+      const safeRecoveryPath = recoveryPath.startsWith("/") ? recoveryPath : "/admin";
+      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeRecoveryPath)}`;
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
       setStatus(error ? "We could not start password recovery. Please try again shortly." : "If this email has an authorised account, a secure recovery link has been sent.");
     } catch {
@@ -59,7 +60,7 @@ export function CorporateLoginForm({ nextPath, configurationRequired = false }: 
     <div className="corporate-auth-icon" aria-hidden="true"><KeyRound /></div>
     <h2>Authorised access</h2>
     <p>Use the corporate email and password assigned to your invite-only Kravia account.</p>
-    {configurationRequired ? <p className="office-config" role="alert">Corporate Office is not configured in this environment. No internal records are available.</p> : null}
+    {configurationRequired ? <p className="office-config" role="alert">Administration is not configured in this environment. No internal records are available.</p> : null}
     <label htmlFor="corporate-email">Corporate email
       <input id="corporate-email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} disabled={isPending || configurationRequired} />
     </label>
@@ -71,6 +72,6 @@ export function CorporateLoginForm({ nextPath, configurationRequired = false }: 
       {isPending ? <LoaderCircle className="spin" aria-hidden="true" /> : <ArrowRight aria-hidden="true" />} Sign in securely
     </button>
     <button type="button" className="corporate-auth-recovery" onClick={sendRecovery} disabled={isPending || configurationRequired}>Forgot password?</button>
-    <p className="corporate-auth-note">No public registration. If you need access, contact the Corporate Office administrator.</p>
+    <p className="corporate-auth-note">No public registration. If you need access, contact the authorised administrator.</p>
   </form>;
 }
