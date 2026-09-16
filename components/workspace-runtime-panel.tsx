@@ -27,6 +27,26 @@ function displayValue(value: unknown): string {
   return "Controlled data";
 }
 
+async function requestRuntime(path: string, signal?: AbortSignal): Promise<RuntimeState> {
+  try {
+    const response = await fetch(`/api/office-runtime/${path}`, {
+      credentials: "same-origin",
+      cache: "no-store",
+      signal,
+    });
+    const contentType = response.headers.get("content-type") ?? "";
+    const payload = contentType.includes("application/json") ? await response.json() : null;
+    if (!response.ok) {
+      const detail = isObject(payload) && typeof payload.detail === "string" ? payload.detail : "Canonical runtime request failed";
+      return response.status === 503 ? { kind: "setup", detail } : { kind: "error", detail };
+    }
+    return { kind: "ready", data: payload };
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
+    return { kind: "error", detail: "Canonical KRAVIA Office runtime could not be reached." };
+  }
+}
+
 function DataTable({ rows, columns }: { rows: unknown[]; columns: readonly RuntimeColumn[] }) {
   return <div className="workspace-runtime-table-wrap">
     <table className="workspace-runtime-table">
@@ -50,28 +70,18 @@ function ObjectMetrics({ data, keys }: { data: unknown; keys: readonly RuntimeCo
 export function WorkspaceRuntimePanel({ title, spec }: { title: string; spec: RuntimeModuleSpec }) {
   const [state, setState] = useState<RuntimeState>({ kind: "loading" });
 
-  const load = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/office-runtime/${spec.path}`, { credentials: "same-origin", cache: "no-store" });
-      const contentType = response.headers.get("content-type") ?? "";
-      const payload = contentType.includes("application/json") ? await response.json() : null;
-      if (!response.ok) {
-        const detail = isObject(payload) && typeof payload.detail === "string" ? payload.detail : "Canonical runtime request failed";
-        setState(response.status === 503 ? { kind: "setup", detail } : { kind: "error", detail });
-        return;
-      }
-      setState({ kind: "ready", data: payload });
-    } catch {
-      setState({ kind: "error", detail: "Canonical KRAVIA Office runtime could not be reached." });
-    }
-  }, [spec.path]);
-
   const refresh = useCallback(() => {
     setState({ kind: "loading" });
-    void load();
-  }, [load]);
+    void requestRuntime(spec.path).then(setState);
+  }, [spec.path]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const controller = new AbortController();
+    void requestRuntime(spec.path, controller.signal).then((nextState) => {
+      if (!controller.signal.aborted) setState(nextState);
+    }).catch(() => undefined);
+    return () => controller.abort();
+  }, [spec.path]);
 
   if (state.kind === "loading") {
     return <section className="workspace-runtime-panel workspace-runtime-state"><LoaderCircle className="spin" /><div><p className="eyebrow">CANONICAL RUNTIME</p><h2>Loading {title}</h2><p>Reading authorised records through the same-origin Office gateway.</p></div></section>;
