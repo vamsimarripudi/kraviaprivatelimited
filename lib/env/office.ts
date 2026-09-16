@@ -32,3 +32,20 @@ export function requireOfficeEnvironment(): OfficeEnvironment {
   }
   return environment;
 }
+
+/**
+ * Private/canonical FastAPI runtime used by the path-based /office and /finance
+ * BFF. The browser never receives this origin; it calls same-origin Next routes.
+ */
+export function getOfficeRuntimeOrigin(): string | null {
+  const candidate = process.env.OFFICE_API_ORIGIN?.trim();
+  if (!candidate) return null;
+  try {
+    const url = new URL(candidate);
+    if (url.protocol !== "https:" && !(process.env.NODE_ENV !== "production" && url.protocol === "http:")) return null;
+    if (url.username || url.password || url.search || url.hash) return null;
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
