@@ -1,4 +1,4 @@
-import { isOfficeRole, type OfficeRole } from "@/lib/office/workspaces";
+import { isOfficeRole, type OfficeRole } from "./workspaces";
 
 export const officeDepartments = [
   "EXECUTIVE",
