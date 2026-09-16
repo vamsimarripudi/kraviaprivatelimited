@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOfficeRuntimeOrigin } from "@/lib/env/office";
 import { getOfficeSessionContext, officeIdentityIsProvisioned } from "@/lib/office/auth-server";
+import { officeMutationIsSameOrigin } from "@/lib/office/request-security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -65,6 +66,10 @@ function normalizedPath(segments: string[]) {
 }
 
 async function proxy(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
+  if (!officeMutationIsSameOrigin(request)) {
+    return NextResponse.json({ detail: "Cross-origin Office mutation is not allowed" }, { status: 403 });
+  }
+
   const origin = getOfficeRuntimeOrigin();
   if (!origin) {
     return NextResponse.json({ detail: "KRAVIA Office runtime is not activated on this deployment" }, { status: 503 });
