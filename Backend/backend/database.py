@@ -34,8 +34,9 @@ def _route_supabase_pooler(normalized_url: str) -> str:
 
     Supabase direct Postgres endpoints are IPv6 by default. Deployments running on
     IPv4-only networks can set ``SUPABASE_POOLER_HOST`` to the project's Shared
-    Pooler host. The database password is reused in-memory; it is never duplicated
-    into another deployment variable.
+    Pooler host. ``SUPABASE_POOLER_USER`` can select a dedicated database role
+    without copying the database password into another deployment variable. The
+    existing password is reused in-memory only.
     """
     pooler_host = os.getenv("SUPABASE_POOLER_HOST", "").strip()
     if not pooler_host or not normalized_url.startswith("postgresql+psycopg://"):
@@ -48,7 +49,7 @@ def _route_supabase_pooler(normalized_url: str) -> str:
         return normalized_url
 
     project_ref = match.group(1)
-    username = parsed.username or "postgres"
+    username = os.getenv("SUPABASE_POOLER_USER", "").strip() or parsed.username or "postgres"
     tenant_suffix = f".{project_ref}"
     if not username.endswith(tenant_suffix):
         username = f"{username}{tenant_suffix}"
