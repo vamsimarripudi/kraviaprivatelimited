@@ -9,7 +9,6 @@ type WorkRequest = { id: string; title: string; status: string; request_type_cod
 type Approval = { request: WorkRequest | null };
 type Overview = { requests: WorkRequest[]; team_requests: WorkRequest[]; approvals: Approval[] };
 type Comment = { id: string; author_user_id: string; body: string; created_at: string; author?: { display_name?: string | null; job_title?: string | null; primary_department?: string | null } | null };
-
 type CommentResponse = { request_id: string; comments: Comment[] };
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
@@ -45,7 +44,7 @@ export function RequestCollaborationWorkspace() {
   }, []);
 
   useEffect(() => {
-    if (!selected) { setComments([]); return; }
+    if (!selected) return;
     let active = true;
     void json<CommentResponse>(`/api/office-work/comments?request_id=${encodeURIComponent(selected)}`)
       .then((result) => { if (active) { setComments(result.comments); setError(undefined); } })
