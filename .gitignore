@@ -1,13 +1,33 @@
-node_modules
-.next
+# JavaScript / Next.js
+node_modules/
+.next/
+.vercel/
+*.tsbuildinfo
+
+# Environment files
 .env
 .env.local
 .env.*.local
-*.tsbuildinfo
-.vercel
+!.env.example
 
-# Local UI Pro runtime caches
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Local databases and runtime state
+*.db
+*.sqlite
+*.sqlite3
+Backend/runtime/
+Database/supabase/.temp/
+
+# Local tool caches
 .agents/**/__pycache__/
 
-# Local browser verification artifacts and isolated profiles
-/artifacts/yukta-review/
+# Browser verification artifacts and isolated profiles
+/artifacts/
