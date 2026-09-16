@@ -18,7 +18,10 @@ Every material record should be able to answer: who owns it, what its status is,
 
 - FastAPI API with SQLAlchemy persistence and Alembic migrations through v5
 - PostgreSQL-ready configuration
-- OIDC/JWT production-auth architecture and fail-closed production auth gate
+- dedicated Supabase Auth tenant for KRAVIA Office in `ap-south-1`
+- production OIDC/JWT verification with custom Office role claims and mandatory `aal2` MFA gate
+- same-origin Auth BFF using HttpOnly/SameSite cookies; bearer/refresh tokens are not exposed to application JavaScript
+- TOTP enrollment/challenge/verification web flow with no Office public self-signup endpoint
 - server-side RBAC and maker-checker approval control
 - company/product/customer masters
 - commercial plans/subscriptions
@@ -43,7 +46,7 @@ Every material record should be able to answer: who owns it, what its status is,
 
 ## Verified automated state
 
-The audited `main` build has verified:
+The identity-enabled `main` build has verified:
 
 - `npm ci`: 0 vulnerabilities
 - blocking high/critical dependency audit: 0 vulnerabilities
@@ -51,16 +54,26 @@ The audited `main` build has verified:
 - ESLint, TypeScript typecheck, secret scan and Next.js 16.3.5 production build
 - Python compile
 - clean Alembic upgrade through v5
-- Office backend: 28 pytest tests
+- committed OpenAPI drift check including Auth/MFA endpoints
+- Office backend: 36 pytest tests
+- identity token non-disclosure, HttpOnly cookie, MFA/AAL2, inactive-user and role-admission controls
 - Office quality gate: PASS
 
+Pytest is configured to fail on unexpected warnings. The known upstream Starlette/AnyIO TestClient deprecation is narrowly suppressed until the upstream dependency removes it.
+
 See `TEST_REPORT.md` for scope and the distinction between automated software verification and external production acceptance.
+
+## Production identity state
+
+A dedicated Supabase project named `KRAVIA Office` is provisioned under project ref `xjtazosozxmudkbxqhjl` in Mumbai (`ap-south-1`). Identity-admission and role tables, restrictive RLS/client access, and `public.office_custom_access_token_hook` are deployed. Direct hook execution has been verified to produce no roles for an unassigned identity.
+
+Hosted Auth settings that require Supabase Dashboard control remain external: migrate/activate an asymmetric JWT signing key, enable the Custom Access Token Hook, restrict public signup, create/invite the first human account, assign its explicit Office role, and enroll/verify TOTP. Those actions are documented in `IDENTITY_MFA.md`.
 
 ## Drive evidence reconciliation
 
 The KRAVIA Office Drive taxonomy reviewed during this audit contains the expected logical areas for Company Master, Governance, Compliance, Finance & Accounting, GST & Tax, Banking & Payments, Customers & Contracts, Vendors & Procurement, and People & HR.
 
-The application now reports those areas as available/empty/missing using metadata only. It also flags obvious taxonomy issues—for example ownership/shareholding material filed under customer contracts—without automatically moving or copying private documents.
+The application reports those areas as available/empty/missing using metadata only. It also flags obvious taxonomy issues—for example ownership/shareholding material filed under customer contracts—without automatically moving or copying private documents.
 
 Evidence presence is not treated as legal approval. Verified ownership/company/tax values must still be explicitly bootstrapped from authoritative reviewed records.
 
@@ -75,7 +88,7 @@ alembic upgrade head
 python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000
 ```
 
-Use `backend.app:app`, not `backend.main:app`; the canonical app attaches Finance & Ownership, period controls, Drive readiness, HTTP security middleware and the same-origin web surface.
+Use `backend.app:app`, not `backend.main:app`; the canonical app attaches identity/MFA, Finance & Ownership, period controls, Drive readiness, HTTP security middleware and the same-origin web surface.
 
 API docs are available in non-production mode at `/api/docs`.
 
@@ -101,8 +114,8 @@ docker compose up --build
 
 ## Production activation sequence
 
-1. Provision the production PostgreSQL environment, restricted networking, backups/PITR and secret manager.
-2. Configure the real KRAVIA OIDC identity tenant, MFA, recovery/session policy and production role mappings.
+1. Finish the hosted Supabase Auth activation described in `IDENTITY_MFA.md`: asymmetric signing key, custom token hook, signup policy, first human identity/role and TOTP enrollment.
+2. Provision the production PostgreSQL environment, restricted networking, backups/PITR and secret manager.
 3. Load/lock verified Company Master and ownership data from reviewed authoritative evidence; do not infer it from historical drafts.
 4. Obtain CA approval for GSTIN/tax catalog, SAC mappings, invoice series, accounting mappings and period-close operating procedure.
 5. Obtain CS/legal review for governance, ownership/register handling, retention and controlled funding/mandate language.
