@@ -24,7 +24,7 @@ export type WorkspaceSection = {
 };
 
 const executive: readonly OfficeRole[] = ["OWNER", "DIRECTOR"];
-const officeWorkspaceRoles: readonly OfficeRole[] = officeRoles;
+const officeWorkspaceRoles: readonly OfficeRole[] = ["OWNER", "DIRECTOR", "ADMIN", "MEMBER", "CS", "LEGAL", "HR", "OPERATIONS", "PRODUCT_ADMIN"];
 const officeDocumentRoles: readonly OfficeRole[] = ["OWNER", "DIRECTOR", "CS", "LEGAL", "HR", "OPERATIONS", "PRODUCT_ADMIN"];
 const governance: readonly OfficeRole[] = ["OWNER", "DIRECTOR", "CS", "LEGAL"];
 const compliance: readonly OfficeRole[] = ["OWNER", "DIRECTOR", "CS", "LEGAL", "CA", "AUDITOR"];
