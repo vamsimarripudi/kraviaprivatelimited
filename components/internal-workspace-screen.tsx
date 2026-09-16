@@ -27,6 +27,14 @@ function sectionEntries(workspace: WorkspaceKind) {
   return Object.entries(sections) as [string, WorkspaceSection][];
 }
 
+function IdentityCard({ identity }: { identity: OfficeIdentity }) {
+  const content = <><span>{identity.roles.join(" · ")}</span><small>{identity.email ?? "Verified identity"}</small></>;
+  if (roleCanAccessSection(officeSections.settings, identity.roles)) {
+    return <Link href="/office/settings" className="office-identity" aria-label="Open identity and security settings">{content}</Link>;
+  }
+  return <div className="office-identity" aria-label="Verified KRAVIA Office identity">{content}</div>;
+}
+
 export function InternalWorkspaceScreen({ workspace, section, identity }: Props) {
   const definition = workspaceDefinitions[workspace];
   const sections = workspace === "finance" ? financeSections : officeSections;
@@ -59,9 +67,7 @@ export function InternalWorkspaceScreen({ workspace, section, identity }: Props)
     <section className="office-main">
       <header className="office-topbar">
         <div><p className="eyebrow">{item?.eyebrow ?? definition.label}</p><h1>{item?.title ?? definition.label}</h1></div>
-        <Link href="/office/settings" className="office-identity" aria-label="Open identity and security settings">
-          <span>{identity.roles.join(" · ")}</span><small>{identity.email ?? "Verified identity"}</small>
-        </Link>
+        <IdentityCard identity={identity} />
       </header>
 
       {permitted && item ? <>
