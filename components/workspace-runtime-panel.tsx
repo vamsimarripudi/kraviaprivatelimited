@@ -51,7 +51,6 @@ export function WorkspaceRuntimePanel({ title, spec }: { title: string; spec: Ru
   const [state, setState] = useState<RuntimeState>({ kind: "loading" });
 
   const load = useCallback(async () => {
-    setState({ kind: "loading" });
     try {
       const response = await fetch(`/api/office-runtime/${spec.path}`, { credentials: "same-origin", cache: "no-store" });
       const contentType = response.headers.get("content-type") ?? "";
@@ -67,6 +66,11 @@ export function WorkspaceRuntimePanel({ title, spec }: { title: string; spec: Ru
     }
   }, [spec.path]);
 
+  const refresh = useCallback(() => {
+    setState({ kind: "loading" });
+    void load();
+  }, [load]);
+
   useEffect(() => { void load(); }, [load]);
 
   if (state.kind === "loading") {
@@ -78,7 +82,7 @@ export function WorkspaceRuntimePanel({ title, spec }: { title: string; spec: Ru
   }
 
   if (state.kind === "error") {
-    return <section className="workspace-runtime-panel workspace-runtime-state"><TriangleAlert /><div><p className="eyebrow">SOURCE UNAVAILABLE</p><h2>{title} could not be loaded</h2><p>{state.detail}</p><button type="button" className="workspace-runtime-refresh" onClick={() => void load()}><RefreshCw /> Retry</button></div></section>;
+    return <section className="workspace-runtime-panel workspace-runtime-state"><TriangleAlert /><div><p className="eyebrow">SOURCE UNAVAILABLE</p><h2>{title} could not be loaded</h2><p>{state.detail}</p><button type="button" className="workspace-runtime-refresh" onClick={refresh}><RefreshCw /> Retry</button></div></section>;
   }
 
   const data = state.data;
@@ -90,6 +94,6 @@ export function WorkspaceRuntimePanel({ title, spec }: { title: string; spec: Ru
     {spec.objectKeys?.length ? <ObjectMetrics data={data} keys={spec.objectKeys} /> : null}
     {spec.columns?.length && (nestedRows || directRows) ? <DataTable rows={nestedRows ?? directRows ?? []} columns={spec.columns} /> : null}
     {!spec.objectKeys?.length && !spec.columns?.length ? <div className="workspace-runtime-empty">Canonical runtime connected. This module uses its specialised operational workflow rather than a generic record table.</div> : null}
-    <div className="workspace-runtime-foot"><span>Results are role-scoped and uncached.</span><button type="button" className="workspace-runtime-refresh" onClick={() => void load()}><RefreshCw /> Refresh</button></div>
+    <div className="workspace-runtime-foot"><span>Results are role-scoped and uncached.</span><button type="button" className="workspace-runtime-refresh" onClick={refresh}><RefreshCw /> Refresh</button></div>
   </section>;
 }
