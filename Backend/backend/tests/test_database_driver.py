@@ -3,7 +3,8 @@ from sqlalchemy import create_engine
 from backend.database import normalize_database_url
 
 
-def test_provider_postgresql_url_uses_installed_psycopg_driver():
+def test_provider_postgresql_url_uses_installed_psycopg_driver(monkeypatch):
+    monkeypatch.delenv("SUPABASE_POOLER_HOST", raising=False)
     normalized = normalize_database_url("postgresql://kravia:secret@localhost:5432/office")
     assert normalized == "postgresql+psycopg://kravia:secret@localhost:5432/office"
 
@@ -15,13 +16,15 @@ def test_provider_postgresql_url_uses_installed_psycopg_driver():
         engine.dispose()
 
 
-def test_legacy_postgres_scheme_is_normalized():
+def test_legacy_postgres_scheme_is_normalized(monkeypatch):
+    monkeypatch.delenv("SUPABASE_POOLER_HOST", raising=False)
     assert normalize_database_url("postgres://user:pass@localhost/db") == (
         "postgresql+psycopg://user:pass@localhost/db"
     )
 
 
-def test_unescaped_reserved_password_characters_are_canonicalized():
+def test_unescaped_reserved_password_characters_are_canonicalized(monkeypatch):
+    monkeypatch.delenv("SUPABASE_POOLER_HOST", raising=False)
     raw = (
         "postgresql://postgres:pa@ss:word/with?reserved#chars@"
         "db.example.supabase.co:5432/postgres"
@@ -42,7 +45,8 @@ def test_unescaped_reserved_password_characters_are_canonicalized():
         engine.dispose()
 
 
-def test_existing_percent_encoding_is_not_double_encoded():
+def test_existing_percent_encoding_is_not_double_encoded(monkeypatch):
+    monkeypatch.delenv("SUPABASE_POOLER_HOST", raising=False)
     normalized = normalize_database_url(
         "postgresql://user:p%40ss%2Fword@localhost:5432/db"
     )
@@ -51,7 +55,40 @@ def test_existing_percent_encoding_is_not_double_encoded():
     )
 
 
-def test_explicit_driver_and_sqlite_urls_are_preserved():
+def test_supabase_direct_url_can_route_to_ipv4_session_pooler(monkeypatch):
+    monkeypatch.setenv(
+        "SUPABASE_POOLER_HOST",
+        "aws-0-ap-south-1.pooler.supabase.com",
+    )
+    monkeypatch.setenv("SUPABASE_POOLER_PORT", "5432")
+
+    normalized = normalize_database_url(
+        "postgresql://postgres:p%40ss@db.abcdefghijklmnopqrst.supabase.co:5432/postgres"
+    )
+    engine = create_engine(normalized)
+    try:
+        assert engine.url.host == "aws-0-ap-south-1.pooler.supabase.com"
+        assert engine.url.port == 5432
+        assert engine.url.username == "postgres.abcdefghijklmnopqrst"
+        assert engine.url.password == "p@ss"
+        assert engine.dialect.driver == "psycopg"
+    finally:
+        engine.dispose()
+
+
+def test_pooler_override_does_not_rewrite_non_supabase_database(monkeypatch):
+    monkeypatch.setenv(
+        "SUPABASE_POOLER_HOST",
+        "aws-0-ap-south-1.pooler.supabase.com",
+    )
+    normalized = normalize_database_url(
+        "postgresql://user:pass@postgres.internal:5432/app"
+    )
+    assert normalized == "postgresql+psycopg://user:pass@postgres.internal:5432/app"
+
+
+def test_explicit_driver_and_sqlite_urls_are_preserved(monkeypatch):
+    monkeypatch.delenv("SUPABASE_POOLER_HOST", raising=False)
     explicit = "postgresql+psycopg://user:pass@localhost/db"
     sqlite = "sqlite:///./kravia_office.db"
     assert normalize_database_url(explicit) == explicit
