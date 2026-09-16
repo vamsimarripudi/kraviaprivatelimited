@@ -61,6 +61,19 @@ def test_existing_percent_encoding_is_not_double_encoded(monkeypatch):
     )
 
 
+def test_misspelled_sshmode_is_normalized_for_psycopg(monkeypatch):
+    _clear_pooler_env(monkeypatch)
+    normalized = normalize_database_url(
+        "postgresql://user:pass@localhost:5432/db?sshmode=require"
+    )
+    engine = create_engine(normalized)
+    try:
+        assert engine.url.query["sslmode"] == "require"
+        assert "sshmode" not in engine.url.query
+    finally:
+        engine.dispose()
+
+
 def test_supabase_direct_url_can_route_to_ipv4_session_pooler(monkeypatch):
     monkeypatch.setenv(
         "SUPABASE_POOLER_HOST",

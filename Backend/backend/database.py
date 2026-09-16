@@ -29,6 +29,11 @@ def _normalize_postgresql_credentials(connection: str) -> str:
     return f"{encoded_username}:{encoded_password}@{host_and_path}"
 
 
+def _normalize_postgresql_query_options(normalized_url: str) -> str:
+    """Canonicalize common PostgreSQL URI option typos before driver parsing."""
+    return re.sub(r"([?&])sshmode=", r"\1sslmode=", normalized_url)
+
+
 def _route_supabase_pooler(normalized_url: str) -> str:
     """Route a Supabase direct URL through an explicitly configured IPv4 pooler.
 
@@ -74,6 +79,7 @@ def normalize_database_url(raw_url: str) -> str:
     else:
         normalized = raw_url
 
+    normalized = _normalize_postgresql_query_options(normalized)
     return _route_supabase_pooler(normalized)
 
 
