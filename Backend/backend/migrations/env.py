@@ -5,7 +5,7 @@ from sqlalchemy import pool
 
 from alembic import context
 import os
-from backend.database import Base
+from backend.database import Base, normalize_database_url
 from backend import models
 from backend import finance_ownership  # register bounded-domain metadata for migrations
 from backend import period_controls  # register accounting/tax close-control metadata
@@ -14,7 +14,10 @@ from backend import period_controls  # register accounting/tax close-control met
 # access to the values within the .ini file in use.
 config = context.config
 if os.getenv("DATABASE_URL"):
-    config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"])
+    config.set_main_option(
+        "sqlalchemy.url",
+        normalize_database_url(os.environ["DATABASE_URL"]),
+    )
 
 # Interpret the config file for Python logging.
 if config.config_file_name is not None:
