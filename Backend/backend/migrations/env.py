@@ -1,6 +1,6 @@
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
+from sqlalchemy import create_engine
 from sqlalchemy import pool
 
 from alembic import context
@@ -10,14 +10,16 @@ from backend import models
 from backend import finance_ownership  # register bounded-domain metadata for migrations
 from backend import period_controls  # register accounting/tax close-control metadata
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
+# This is the Alembic Config object, which provides access to values from
+# alembic.ini. Runtime DATABASE_URL intentionally bypasses ConfigParser because
+# percent-encoded credentials contain '%' characters that ConfigParser treats as
+# interpolation syntax.
 config = context.config
-if os.getenv("DATABASE_URL"):
-    config.set_main_option(
-        "sqlalchemy.url",
-        normalize_database_url(os.environ["DATABASE_URL"]),
-    )
+DATABASE_URL = (
+    normalize_database_url(os.environ["DATABASE_URL"])
+    if os.getenv("DATABASE_URL")
+    else config.get_main_option("sqlalchemy.url")
+)
 
 # Interpret the config file for Python logging.
 if config.config_file_name is not None:
@@ -28,9 +30,8 @@ target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
     """Run migrations in offline mode."""
-    url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=url,
+        url=DATABASE_URL,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -42,10 +43,10 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in online mode."""
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
+    connectable = create_engine(
+        DATABASE_URL,
         poolclass=pool.NullPool,
+        future=True,
     )
 
     with connectable.connect() as connection:
