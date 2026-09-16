@@ -1,9 +1,16 @@
-<!-- BEGIN:nextjs-agent-rules -->
+# KRAVIA repository rules
 
-# This is NOT the Next.js you know
+## Structure
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+- Work on the Next.js application from `Frontend/`.
+- Work on the Python/FastAPI Office service from `Backend/`.
+- Keep database project files and migrations under `Database/`.
+- Do not move provider credentials, generated caches, local databases, build outputs or virtual environments into Git.
 
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+## Quality
 
-<!-- END:nextjs-agent-rules -->
+Before considering a change complete, run the relevant lint/type/test/build or backend quality gates. Fix actionable warnings at source; do not silence them merely to obtain a green build.
+
+## Next.js
+
+This repository uses Next.js 16. For Next.js changes, work from `Frontend/` and read the installed documentation under `Frontend/node_modules/next/dist/docs/` before relying on older framework conventions. Heed deprecation notices and preserve server/client boundaries.

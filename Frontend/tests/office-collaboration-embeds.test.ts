@@ -6,7 +6,7 @@ const collaborationRoute = readFileSync(new URL("../app/api/office-work/comments
 const embeds = readFileSync(new URL("../lib/office/embed-server.ts", import.meta.url), "utf8");
 const embedRoute = readFileSync(new URL("../app/api/office-embeds/route.ts", import.meta.url), "utf8");
 const embedFrame = readFileSync(new URL("../components/secure-embed-frame.tsx", import.meta.url), "utf8");
-const sourceSql = readFileSync(new URL("../office/spec/identity/SUPABASE_COLLABORATION_EMBEDS.sql", import.meta.url), "utf8");
+const sourceSql = readFileSync(new URL("../../Backend/spec/identity/SUPABASE_COLLABORATION_EMBEDS.sql", import.meta.url), "utf8");
 const workspace = readFileSync(new URL("../components/internal-workspace-screen.tsx", import.meta.url), "utf8");
 
 describe("KRAVIA Office collaboration and embedded workspaces", () => {

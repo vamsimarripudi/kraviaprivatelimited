@@ -1,65 +1,135 @@
 name: Quality gates
+
 on:
   push:
     branches: [main]
   pull_request:
+
+permissions:
+  contents: read
+
 jobs:
-  validate:
+  frontend:
+    name: Frontend quality
     runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+    defaults:
+      run:
+        working-directory: Frontend
     steps:
+      - name: Configure Git defaults
+        run: git config --global init.defaultBranch main && git config --global advice.detachedHead false
+        working-directory: ${{ github.workspace }}
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
-      - uses: actions/cache@v6
+          cache-dependency-path: Frontend/package-lock.json
+      - name: Restore Next.js build cache
+        uses: actions/cache@v6
         with:
-          path: .next/cache
-          key: next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          path: Frontend/.next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('Frontend/package-lock.json') }}
       - run: npm ci
       - name: Dependency audit
         run: npm audit --audit-level=high
-      - run: node scripts/secret-scan.mjs
+      - name: Secret scan
+        run: node scripts/secret-scan.mjs
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  backend:
+    name: Backend quality
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend
+    env:
+      APP_ENV: development
+      AUTH_MODE: bootstrap
+      FINANCE_EXECUTION_MODE: sandbox
+      DATABASE_URL: sqlite:///./kravia-office-ci.db
+    steps:
+      - name: Configure Git defaults
+        run: git config --global init.defaultBranch main && git config --global advice.detachedHead false
+        working-directory: ${{ github.workspace }}
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
           cache: pip
-          cache-dependency-path: office/backend/requirements.txt
+          cache-dependency-path: Backend/backend/requirements.txt
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -r backend/requirements.txt
-        working-directory: office
+      - run: python -m pip check
       - run: python -m compileall -q backend
-        working-directory: office
       - name: Verify Office OpenAPI contract
         run: python scripts/export_openapi.py --check
-        working-directory: office
-        env:
-          APP_ENV: development
-          AUTH_MODE: bootstrap
-          FINANCE_EXECUTION_MODE: sandbox
-          DATABASE_URL: sqlite:///./kravia-office-ci.db
       - run: alembic upgrade head
-        working-directory: office
-        env:
-          APP_ENV: development
-          AUTH_MODE: bootstrap
-          FINANCE_EXECUTION_MODE: sandbox
-          DATABASE_URL: sqlite:///./kravia-office-ci.db
       - run: python -m pytest backend/tests -q
-        working-directory: office
-        env:
-          APP_ENV: development
-          AUTH_MODE: bootstrap
-          FINANCE_EXECUTION_MODE: sandbox
-          DATABASE_URL: sqlite:///./kravia-office-ci.db
       - run: python scripts/quality_gate.py
-        working-directory: office
-        env:
-          APP_ENV: development
-          AUTH_MODE: bootstrap
-          FINANCE_EXECUTION_MODE: sandbox
-          DATABASE_URL: sqlite:///./kravia-office-ci.db
+      - name: Build Railway container
+        run: docker build --file Dockerfile.api --tag kravia-office-api:ci .
+      - name: Verify packaged PostgreSQL driver
+        run: >-
+          docker run --rm --entrypoint python kravia-office-api:ci -c
+          "import psycopg; from backend.database import normalize_database_url; assert normalize_database_url('postgresql://user:pass@localhost/db') == 'postgresql+psycopg://user:pass@localhost/db'"
+      - name: Smoke test packaged liveness endpoint
+        shell: bash
+        run: |
+          cid=$(docker run -d -p 18000:8000 \
+            -e APP_ENV=development \
+            -e AUTH_MODE=bootstrap \
+            -e FINANCE_EXECUTION_MODE=sandbox \
+            -e DATABASE_URL=sqlite:////tmp/kravia-office-ci.db \
+            kravia-office-api:ci)
+          cleanup() {
+            docker logs "$cid" || true
+            docker rm -f "$cid" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:18000/health/live >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Container liveness check failed" >&2
+          exit 1
+
+  database-structure:
+    name: Database structure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure Git defaults
+        run: git config --global init.defaultBranch main && git config --global advice.detachedHead false
+      - uses: actions/checkout@v7
+      - name: Verify versioned database project
+        shell: bash
+        run: |
+          test -f Database/supabase/config.toml
+          test -d Database/supabase/migrations
+          test -n "$(find Database/supabase/migrations -maxdepth 1 -type f -name '*.sql' -print -quit)"
+
+  repository-structure:
+    name: Repository structure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure Git defaults
+        run: git config --global init.defaultBranch main && git config --global advice.detachedHead false
+      - uses: actions/checkout@v7
+      - name: Verify application boundaries
+        shell: bash
+        run: |
+          test -d Frontend
+          test -d Backend
+          test -d Database
+          test ! -d app
+          test ! -d components
+          test ! -d lib
+          test ! -d office
+          test ! -d supabase

@@ -1,21 +1,43 @@
 # KRAVIA PRIVATE LIMITED
 
-## Supabase setup
+KRAVIA is organized as a small monorepo with three explicit application boundaries:
 
-1. Create or select the intended Supabase project.
-2. In **Connect**, choose **Next.js** and **App Router**.
-3. Copy the Project URL and publishable key into `.env.local`.
-4. Obtain a server secret only for approved server-side operations; place it in `SUPABASE_SECRET_KEY`.
-5. Restart `npm run dev` after saving the file.
-6. Apply the versioned migrations through the approved Supabase migration workflow.
-7. Check `GET /api/health/supabase`. It reports only `ok`, `configuration_required` or `unavailable` and never returns credentials.
+- `Frontend/` — Next.js 16 / React 19 corporate platform and browser-facing route adapters.
+- `Backend/` — Python/FastAPI KRAVIA Office services, finance/ownership logic, automation, security controls, tests, deployment assets and operational documentation.
+- `Database/` — database-provider project files and versioned migrations. Provider changes are intentionally handled separately from application refactors.
 
-`NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are browser-visible by design. The publishable key relies on correctly configured RLS. `SUPABASE_SECRET_KEY` is server-only, highly privileged, Git-ignored and must never appear in a Client Component, browser bundle or log.
+Repository-control files such as `.github/`, `.gitignore`, `AGENTS.md` and this README remain at the root because Git and CI require them there.
 
-Corporate Office routes are protected optimistically by `proxy.ts`; actual data protection requires Supabase Auth, server-side authorization and RLS. Generate typed schema bindings after linking the real project:
+## Frontend
 
 ```bash
-npx supabase gen types typescript --project-id <project-id> > lib/supabase/types.ts
+cd Frontend
+npm ci
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm run dev
 ```
 
-Do not place real values in `.env.example`, commits, issue comments or chat.
+The production build is expected to pass after lint, type-checking and tests. Do not suppress warnings to make CI green; remove actionable warnings at their source.
+
+## Backend
+
+```bash
+cd Backend
+python -m pip install -r backend/requirements.txt
+python -m compileall -q backend
+python -m pytest backend/tests -q
+python scripts/quality_gate.py
+```
+
+The backend container entrypoint remains defined by `Backend/Dockerfile.api`. Deployment providers should use `Backend/` as their service root.
+
+## Database
+
+Supabase project assets are under `Database/supabase/`. Database credentials, production linkage and provider-specific deployment changes are not committed to this repository.
+
+## Quality policy
+
+Every merge to `main` must pass the GitHub quality gates for frontend, backend and repository structure. Secrets must never be committed. Environment examples contain names/placeholders only.
