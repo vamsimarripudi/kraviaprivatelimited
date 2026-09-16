@@ -15,13 +15,19 @@ KRAVIA Office is a runnable multi-product corporate operating-system foundation 
 - [x] Honest unavailable/setup-required states instead of fabricated metrics
 
 ### Identity and authorization
-- [x] Server-side RBAC with OWNER, DIRECTOR, FINANCE, CA, CS, LEGAL, HR, OPERATIONS, AUDITOR and PRODUCT_ADMIN roles
-- [x] Development bootstrap authentication
-- [x] Production OIDC/JWT architecture
+- [x] Dedicated `KRAVIA Office` Supabase Auth project provisioned in `ap-south-1` (`xjtazosozxmudkbxqhjl`), isolated from product projects
+- [x] Server-side RBAC roles: OWNER, DIRECTOR, FINANCE, CA, CS, LEGAL, HR, OPERATIONS, AUDITOR and PRODUCT_ADMIN
+- [x] Explicit identity-admission and role tables deployed with deny-by-default RLS/client privileges
+- [x] Custom Access Token Hook function deployed; fail-closed output verified for unassigned identities
+- [x] Production OIDC/JWT architecture with issuer/audience/JWKS verification
 - [x] Production startup hard-block if OIDC issuer/audience/JWKS are not configured
+- [x] Same-origin Supabase Auth BFF with HttpOnly/SameSite cookie storage; bearer/refresh tokens are not exposed to application JavaScript
+- [x] TOTP enrollment/challenge/verification flow and production `aal2` enforcement
+- [x] No Office public self-signup endpoint
 - [x] Role-guarded governance, finance, HR, document and banking mutations
 - [x] Maker-checker approval primitive preventing requester self-approval
-- [ ] Real production IdP tenant + MFA/session policy — external configuration required
+- [ ] Supabase dashboard activation: asymmetric signing key + Custom Access Token Hook + public-signup restriction — hosted Auth configuration gate
+- [ ] First human Office identity creation, explicit role assignment and TOTP enrollment — operator/user gate
 - [ ] Full staging IDOR/BOLA/all-role acceptance matrix — production acceptance gate
 
 ### Finance & Ownership
@@ -108,9 +114,11 @@ KRAVIA Office is a runnable multi-product corporate operating-system foundation 
 - [x] Trusted-host option
 - [x] Browser Origin guard for mutation calls
 - [x] Baseline per-process mutation rate limiter with 429/Retry-After behavior
+- [x] Production OIDC AAL2 gate with cookie-to-verified-bearer bridge
 - [x] Secret scanning in CI
 - [x] Blocking high/critical npm dependency audit in CI
 - [x] Next.js patched to 16.3.5; verified CI install reports zero npm vulnerabilities
+- [x] Python test suite configured to fail on unexpected warnings; only the specifically identified upstream Starlette/AnyIO deprecation is suppressed
 - [ ] Shared edge/WAF rate limiting for horizontally scaled production — deployment gate
 - [ ] Final staging penetration/security acceptance — production gate
 
@@ -124,13 +132,14 @@ KRAVIA Office is a runnable multi-product corporate operating-system foundation 
 ### API contract / source integration
 - [x] Committed OpenAPI contract
 - [x] Reproducible OpenAPI exporter sourced from canonical `backend.app`
+- [x] Identity/MFA endpoints represented in the committed OpenAPI contract and checked for drift in CI
 - [x] Read-only Google Drive evidence discovery/readiness boundary
 - [ ] Production Drive service identity/root-folder authorization — external configuration
 - [ ] Authoritative Company Master/governance/finance evidence population — operator-controlled private data activity
 
 ## Verified automated validation
 
-The latest complete `main` quality run verified:
+The current identity-enabled `main` quality run verified:
 
 - [x] blocking `npm audit --audit-level=high`: **0 vulnerabilities**
 - [x] secret scan
@@ -139,8 +148,10 @@ The latest complete `main` quality run verified:
 - [x] root Vitest suite: **58 tests passed across 17 files**
 - [x] Next.js 16.3.5 production build
 - [x] Python compilation
+- [x] committed OpenAPI contract drift check including identity/MFA endpoints
 - [x] clean Alembic migration chain through **v5 accounting/tax period close controls**
-- [x] Office backend suite: **28 tests passed**
+- [x] Office backend suite: **36 tests passed**
+- [x] identity token non-disclosure / HttpOnly cookies / TOTP AAL2 / inactive-user / role-admission tests
 - [x] period-close accounting and tax posting/reopen cases
 - [x] CSP/origin/rate-limit security cases
 - [x] Drive taxonomy/readiness cases
@@ -148,13 +159,11 @@ The latest complete `main` quality run verified:
 - [x] RBAC, governance, audit-chain, document and migration controls
 - [x] hardened Office quality gate: **PASS**
 
-The only observed test-suite warning is a Starlette TestClient/AnyIO deprecation warning in an upstream dependency; it does not indicate a failed KRAVIA control.
-
 ## External production gates intentionally not faked
 
 The software build cannot legitimately manufacture these prerequisites:
 
-- real OIDC identity-provider tenant, MFA and recovery/session policy
+- hosted Supabase Auth activation of asymmetric signing key/custom JWT hook and the first human MFA enrollment
 - production managed PostgreSQL, restricted network controls and secret manager
 - real verified KRAVIA Company Master/GST/ownership evidence and professional approvals
 - live Razorpay/RazorpayX credentials, account eligibility and webhook secret
