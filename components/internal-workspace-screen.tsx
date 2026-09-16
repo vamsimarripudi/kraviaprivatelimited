@@ -16,6 +16,7 @@ import { runtimeModuleSpec } from "@/lib/office/runtime-modules";
 import { WorkspaceRuntimePanel } from "@/components/workspace-runtime-panel";
 import { WorkspaceSignOutButton } from "@/components/workspace-sign-out-button";
 import { AccessGovernancePanel } from "@/components/access-governance-panel";
+import { WorkforceAdministrationPanel } from "@/components/workforce-administration-panel";
 import { OfficeCommandCenter } from "@/components/office-command-center";
 import { OfficeWorkHub } from "@/components/office-work-hub";
 
@@ -57,7 +58,7 @@ export function InternalWorkspaceScreen({ workspace, section, identity }: Props)
       <header className="office-topbar"><div><p className="eyebrow">{item?.eyebrow ?? definition.label}</p><h1>{item?.title ?? definition.label}</h1></div><div className="office-topbar-actions"><OfficeCommandCenter /><IdentityCard identity={identity} /></div></header>
       {permitted && item ? <>
         <div className="office-notice"><ShieldCheck /><p>{item.description}</p></div>
-        {workspace === "office" && section === "access" ? <AccessGovernancePanel identity={identity} />
+        {workspace === "office" && section === "access" ? <><AccessGovernancePanel identity={identity} /><WorkforceAdministrationPanel identity={identity} /></>
           : workspace === "office" && section === "requests" ? <OfficeWorkHub identity={identity} mode="requests" />
           : workspace === "office" && section === "approvals" ? <OfficeWorkHub identity={identity} mode="approvals" />
           : workspace === "office" && section === "manager" ? <OfficeWorkHub identity={identity} mode="manager" />
@@ -69,7 +70,7 @@ export function InternalWorkspaceScreen({ workspace, section, identity }: Props)
 }
 
 function WorkspaceDashboard({ workspace, section, identity }: { workspace: WorkspaceKind; section: OfficeSection | FinanceSection; identity: OfficeIdentity }) {
-  const sections = sectionEntries(workspace).filter(([slug, item]) => slug !== "dashboard" && roleCanAccessSection(item, identity.roles)).slice(0, 9);
+  const sections = sectionEntries(workspace).filter(([slug, sectionItem]) => slug !== "dashboard" && roleCanAccessSection(sectionItem, identity.roles)).slice(0, 9);
   const basePath = workspaceDefinitions[workspace].basePath;
   const runtime = runtimeModuleSpec(workspace, section);
   const onlyShellRoles = identity.roles.every((role) => role === "ADMIN" || role === "MEMBER");
