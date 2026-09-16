@@ -1,0 +1,44 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+import { financeSections, officeSections, roleCanAccessSection, roleCanAccessWorkspace } from "@/lib/office/workspaces";
+
+const proxySource = readFileSync(new URL("../proxy.ts", import.meta.url), "utf8");
+const authServerSource = readFileSync(new URL("../lib/office/auth-server.ts", import.meta.url), "utf8");
+const signInSource = readFileSync(new URL("../app/api/office-auth/sign-in/route.ts", import.meta.url), "utf8");
+
+describe("KRAVIA path-based internal workspaces", () => {
+  it("routes employees/governance roles to Office and finance professionals to Finance", () => {
+    expect(roleCanAccessWorkspace("office", ["OWNER"])).toBe(true);
+    expect(roleCanAccessWorkspace("office", ["HR"])).toBe(true);
+    expect(roleCanAccessWorkspace("office", ["CA"])).toBe(false);
+    expect(roleCanAccessWorkspace("finance", ["CA"])).toBe(true);
+    expect(roleCanAccessWorkspace("finance", ["AUDITOR"])).toBe(true);
+    expect(roleCanAccessWorkspace("finance", ["HR"])).toBe(false);
+  });
+
+  it("keeps sensitive finance modules narrower than the finance workspace itself", () => {
+    expect(roleCanAccessSection(financeSections.gst, ["CA"])).toBe(true);
+    expect(roleCanAccessSection(financeSections.audit, ["AUDITOR"])).toBe(true);
+    expect(roleCanAccessSection(financeSections.ownership, ["CA"])).toBe(false);
+    expect(roleCanAccessSection(financeSections.ownership, ["OWNER"])).toBe(true);
+    expect(roleCanAccessSection(officeSections.people, ["HR"])).toBe(true);
+    expect(roleCanAccessSection(officeSections.security, ["HR"])).toBe(false);
+  });
+
+  it("redirects legacy corporate paths without coupling website admin to Office auth", () => {
+    expect(proxySource).toContain('login: "/office/login"');
+    expect(proxySource).toContain('finance: "/finance"');
+    expect(proxySource).toContain('gst: "/finance/gst"');
+    expect(proxySource).toContain('content: "/admin/newsroom"');
+    expect(proxySource).toContain('matcher: ["/corporate/:path*", "/admin/:path*"]');
+  });
+
+  it("keeps Office session tokens in server-managed HttpOnly strict cookies", () => {
+    expect(authServerSource).toContain('httpOnly: true');
+    expect(authServerSource).toContain('sameSite: "strict"');
+    expect(authServerSource).toContain('OFFICE_ACCESS_COOKIE = "kravia_office_access"');
+    expect(authServerSource).toContain('OFFICE_REFRESH_COOKIE = "kravia_office_refresh"');
+    expect(signInSource).not.toContain('"access_token"');
+    expect(signInSource).not.toContain('"refresh_token"');
+  });
+});
