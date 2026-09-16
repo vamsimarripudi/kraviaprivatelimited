@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getOfficeEnvironment } from "@/lib/env/office";
 import { signInOffice, signOutOffice } from "@/lib/office/auth-server";
+import { officeMutationIsSameOrigin } from "@/lib/office/request-security";
 
 const signInSchema = z.object({
   email: z.string().trim().email().max(254),
@@ -9,6 +10,9 @@ const signInSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  if (!officeMutationIsSameOrigin(request)) {
+    return NextResponse.json({ detail: "Cross-origin Office sign-in is not allowed" }, { status: 403 });
+  }
   if (!getOfficeEnvironment()) {
     return NextResponse.json({ detail: "KRAVIA Office identity is not configured" }, { status: 503 });
   }
