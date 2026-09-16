@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { financeSections, officeSections, roleCanAccessSection, roleCanAccessWorkspace } from "@/lib/office/workspaces";
+import { financeSections, officeSections, roleCanAccessSection, roleCanAccessWorkspace } from "../lib/office/workspaces";
 
 const proxySource = readFileSync(new URL("../proxy.ts", import.meta.url), "utf8");
 const authServerSource = readFileSync(new URL("../lib/office/auth-server.ts", import.meta.url), "utf8");
