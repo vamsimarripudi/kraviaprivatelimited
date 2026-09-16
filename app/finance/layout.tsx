@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "../office/office-enterprise.css";
 
 export const metadata: Metadata = {
   title: "KRAVIA Finance",
