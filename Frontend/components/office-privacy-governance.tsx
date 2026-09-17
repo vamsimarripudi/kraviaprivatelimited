@@ -9,7 +9,7 @@ type PrivacyEvent = { id: string; event_type: string; previous_status?: string |
 type PrivacyCase = { id: string; case_code: string; case_type: string; subject_type: string; subject_reference: string; jurisdiction: string; title: string; description: string; source_channel: string; status: string; owner_user_id: string; source_reference?: string | null; deadline_at?: string | null; outcome_note?: string | null; completed_at?: string | null; created_at: string; updated_at: string; events: PrivacyEvent[] };
 type RetentionRule = { code: string; record_class: string; title: string; jurisdiction: string; retention_period_text: string; retention_basis: string; source_reference: string; status: string; reviewed_at?: string | null };
 type LegalHold = { id: string; hold_code: string; title: string; scope_type: string; scope_key: string; reason: string; status: string; placed_at: string; source_reference?: string | null };
-type Payload = { actor: { user_id: string }; scope: { type?: string | null; key?: string | null }; can_manage: boolean; can_read_retention: boolean; owners: Owner[]; cases: PrivacyCase[]; retention_rules: RetentionRule[]; legal_holds: LegalHold[]; disclaimer: string };
+type Payload = { generated_at: string; actor: { user_id: string }; scope: { type?: string | null; key?: string | null }; can_manage: boolean; can_read_retention: boolean; owners: Owner[]; cases: PrivacyCase[]; retention_rules: RetentionRule[]; legal_holds: LegalHold[]; disclaimer: string };
 type Modal = { kind: "CREATE" } | { kind: "TRANSITION"; privacyCase: PrivacyCase };
 
 async function api<T>(options?: RequestInit): Promise<T> {
@@ -56,8 +56,9 @@ export function OfficePrivacyGovernance() {
 
   if (error && !data) return <section className={styles.state}><CircleAlert /><div><h2>Privacy governance unavailable</h2><p>{error}</p></div></section>;
   if (!data) return <section className={styles.state}><LoaderCircle className={styles.spin} /><div><h2>Loading privacy governance</h2><p>Resolving privacy scope, cases and reviewed records.</p></div></section>;
+  const generatedAt = new Date(data.generated_at).getTime();
   const active = data.cases.filter((item) => !["COMPLETED", "REJECTED"].includes(item.status)).length;
-  const due = data.cases.filter((item) => item.deadline_at && !["COMPLETED", "REJECTED"].includes(item.status) && new Date(item.deadline_at).getTime() < Date.now()).length;
+  const due = data.cases.filter((item) => item.deadline_at && !["COMPLETED", "REJECTED"].includes(item.status) && new Date(item.deadline_at).getTime() < generatedAt).length;
 
   return <section className={styles.shell}>
     <header className={styles.hero}><div><p>PRIVACY GOVERNANCE</p><h2>Cases, retention evidence and legal holds.</h2><span>{data.disclaimer}</span></div><div className={styles.metrics}><article><b>{active}</b><span>active cases</span></article><article><b>{due}</b><span>past recorded deadline</span></article>{data.can_manage ? <button type="button" onClick={openCreate}><Plus /> New case</button> : null}</div></header>
