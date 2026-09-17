@@ -19,6 +19,7 @@ import { AccessGovernancePanel } from "@/components/access-governance-panel";
 import { WorkforceAdministrationPanel } from "@/components/workforce-administration-panel";
 import { WorkforceLiveOverview } from "@/components/workforce-live-overview";
 import { OfficeCommandCenter } from "@/components/office-command-center";
+import { OfficeCompanyInbox } from "@/components/office-company-inbox";
 import { OfficePresenceControl } from "@/components/office-presence-control";
 import { OfficeSecuritySettings } from "@/components/office-security-settings";
 import { OfficeWorkHub } from "@/components/office-work-hub";
@@ -65,6 +66,7 @@ export function InternalWorkspaceScreen({ workspace, section, identity }: Props)
       {permitted && item ? <>
         <div className="office-notice"><ShieldCheck /><p>{item.description}</p></div>
         {workspace === "office" && section === "access" ? <><AccessGovernancePanel identity={identity} /><WorkforceAdministrationPanel identity={identity} /></>
+          : workspace === "office" && section === "tasks" ? <OfficeCompanyInbox />
           : workspace === "office" && section === "requests" ? <><OfficeWorkHub identity={identity} mode="requests" /><RequestCollaborationWorkspace /></>
           : workspace === "office" && section === "approvals" ? <OfficeWorkHub identity={identity} mode="approvals" />
           : workspace === "office" && section === "manager" ? <OfficeWorkHub identity={identity} mode="manager" />
@@ -85,7 +87,7 @@ function WorkspaceDashboard({ workspace, section, identity }: { workspace: Works
   const onlyShellRoles = identity.roles.every((role) => role === "ADMIN" || role === "MEMBER");
 
   return <>
-    {workspace === "office" ? <OfficeWorkHub identity={identity} mode="dashboard" /> : <section className="workspace-hero-panel"><div><p className="eyebrow">VERIFIED AAL2 SESSION</p><h2>Finance work without mixing ownership, tax and treasury.</h2></div><ShieldCheck aria-hidden="true" /></section>}
+    {workspace === "office" ? <><OfficeWorkHub identity={identity} mode="dashboard" /><OfficeCompanyInbox compact /></> : <section className="workspace-hero-panel"><div><p className="eyebrow">VERIFIED AAL2 SESSION</p><h2>Finance work without mixing ownership, tax and treasury.</h2></div><ShieldCheck aria-hidden="true" /></section>}
     {runtime && !onlyShellRoles ? <WorkspaceRuntimePanel title={workspace === "finance" ? "Finance overview" : "Office overview"} spec={runtime} /> : null}
     <div className="office-dashboard-grid workspace-module-grid">{sections.map(([slug, sectionItem]) => <Link href={`${basePath}/${slug}`} key={slug} className="workspace-module-card"><p className="eyebrow">{sectionItem.group}</p><h2>{sectionItem.title}</h2><span>{sectionItem.description}</span><b>Open module <ArrowRight aria-hidden="true" /></b></Link>)}</div>
   </>;
