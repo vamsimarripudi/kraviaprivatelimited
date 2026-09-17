@@ -102,11 +102,18 @@ create or replace function public.office_create_task(
 ) returns uuid
 language plpgsql security definer set search_path=''
 as $$
-declare v_task uuid;
+declare v_task uuid; v_can_assign boolean;
 begin
   if not exists(select 1 from public.office_identity_users i where i.user_id=p_actor and i.status='ACTIVE') then raise exception 'Actor is not an active Office identity'; end if;
   if not exists(select 1 from public.office_identity_users i where i.user_id=p_assignee and i.status='ACTIVE') then raise exception 'Assignee is not an active Office identity'; end if;
-  if not public.office_task_actor_can_manage(p_actor,p_assignee,p_actor) then raise exception 'Actor cannot assign work to this user'; end if;
+
+  select (
+    p_actor=p_assignee
+    or exists(select 1 from public.office_user_roles r where r.user_id=p_actor and r.role in ('OWNER','DIRECTOR','ADMIN') and (r.expires_at is null or r.expires_at>now()))
+    or exists(select 1 from public.office_job_assignments j where j.user_id=p_assignee and j.reports_to_user_id=p_actor and j.status='ACTIVE')
+  ) into v_can_assign;
+  if not v_can_assign then raise exception 'Actor cannot assign work to this user'; end if;
+
   if char_length(trim(coalesce(p_title,'')))<3 or char_length(trim(p_title))>180 then raise exception 'Invalid task title'; end if;
   if char_length(coalesce(p_description,''))>4000 then raise exception 'Task description is too long'; end if;
   if p_task_type not in ('GENERAL','REQUEST','COMPLIANCE','INCIDENT','SALES','ENGINEERING','PEOPLE','FINANCE','LEGAL','OPERATIONS','PRODUCT') then raise exception 'Invalid task type'; end if;
