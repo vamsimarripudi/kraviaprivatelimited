@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, CircleDashed, Clock3, LoaderCircle, Plus, Search, ShieldCheck, X } from "lucide-react";
 import styles from "./office-company-inbox.module.css";
@@ -157,7 +158,7 @@ export function OfficeCompanyInbox({ compact = false }: { compact?: boolean }) {
       <div className={styles.actions}>{task.status === "OPEN" ? <button type="button" disabled={busy === task.id} onClick={() => void transition(task, "START")}>Start</button> : null}{["OPEN", "IN_PROGRESS"].includes(task.status) ? <button type="button" disabled={busy === task.id} onClick={() => setBlocking({ task, note: "" })}>Block</button> : null}{["OPEN", "IN_PROGRESS", "BLOCKED"].includes(task.status) ? <button className={styles.complete} type="button" disabled={busy === task.id} onClick={() => void transition(task, "COMPLETE")}>{busy === task.id ? <LoaderCircle className="spin" /> : null} Complete</button> : null}{["DONE", "CANCELLED", "BLOCKED"].includes(task.status) ? <button type="button" disabled={busy === task.id} onClick={() => void transition(task, "REOPEN")}>Reopen</button> : null}</div>
     </article>) : <div className={styles.empty}>No tasks match this view.</div>}</div>
 
-    {compact && (data.tasks.length > filtered.length || data.tasks.some((task) => ["DONE", "CANCELLED"].includes(task.status))) ? <a className={styles.openAll} href="/office/tasks">Open full Company Inbox →</a> : null}
+    {compact && (data.tasks.length > filtered.length || data.tasks.some((task) => ["DONE", "CANCELLED"].includes(task.status))) ? <Link className={styles.openAll} href="/office/tasks">Open full Company Inbox →</Link> : null}
 
     {newOpen ? <div className={styles.backdrop} role="presentation" onMouseDown={() => setNewOpen(false)}><aside className={styles.drawer} role="dialog" aria-modal="true" aria-label="Create task" onMouseDown={(event) => event.stopPropagation()}><header><div><p>NEW TASK</p><h2>Create actionable work</h2></div><button type="button" onClick={() => setNewOpen(false)} aria-label="Close"><X /></button></header><form onSubmit={submit}>
       <label>Assignee<select required value={draft.assignee} onChange={(event) => setDraft((current) => ({ ...current, assignee: event.target.value }))}><option value="">Choose person</option>{data.assignable_people.map((person) => <option key={person.user_id} value={person.user_id}>{person.display_name || person.job_title || person.user_id}</option>)}</select></label>
