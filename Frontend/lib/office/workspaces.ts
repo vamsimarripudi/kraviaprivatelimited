@@ -184,8 +184,8 @@ export const officeSections = {
   support: {
     title: "Support operations",
     eyebrow: "CUSTOMER OPERATIONS",
-    description: "Controlled customer cases, ownership and status transitions.",
-    roles: ["OWNER", "DIRECTOR", "OPERATIONS", "PRODUCT_ADMIN"],
+    description: "Controlled customer cases, ownership, status transitions and approval-led remedies.",
+    roles: officeWorkspaceRoles,
     group: "Office",
   },
   access: {
@@ -198,22 +198,22 @@ export const officeSections = {
   data: {
     title: "Data movement",
     eyebrow: "CONTROLLED IMPORT / EXPORT",
-    description: "Staged data movement with validation and approval before canonical records change.",
-    roles: ["OWNER", "DIRECTOR", "OPERATIONS", "PRODUCT_ADMIN"],
+    description: "Scoped data-movement requests with independent approval before any execution or canonical record change.",
+    roles: officeWorkspaceRoles,
     group: "Assure",
   },
   privacy: {
     title: "Privacy governance",
     eyebrow: "DATA GOVERNANCE",
-    description: "Retention, privacy requests, legal holds and governed data handling.",
-    roles: ["OWNER", "DIRECTOR", "LEGAL"],
+    description: "Privacy cases, reviewed retention evidence, legal holds and governed data handling without automatic legal conclusions.",
+    roles: officeWorkspaceRoles,
     group: "Assure",
   },
   security: {
     title: "Security",
-    eyebrow: "RESTRICTED ADMINISTRATION",
-    description: "Security-control administration reserved for executive authority; access administrators do not inherit security authority automatically.",
-    roles: executive,
+    eyebrow: "SECURITY OBSERVABILITY",
+    description: "Authentication, device, access and incident evidence requires explicit security capability; access administrators do not inherit security authority automatically.",
+    roles: officeWorkspaceRoles,
     group: "Assure",
   },
   integrations: {
