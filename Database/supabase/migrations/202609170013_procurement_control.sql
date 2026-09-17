@@ -2,7 +2,7 @@
 -- Vendor master/payment/bank records remain separate systems of record.
 
 insert into public.office_permission_catalog(code,module,action,label,description,sensitivity,high_risk,requires_managed_device,active) values
- ('operations.procurement.read','OPERATIONS','READ_PROCUREMENT','Read procurement','Read purchase requests, comparisons, purchase orders and renewals in assigned scope.','MEDIUM',false,false,true),
+ ('operations.procurement.read','OPERATIONS','READ_PROCUREMENT','Read procurement','Read purchase requests, comparisons, purchase orders and renewals in assigned scope.','STANDARD',false,false,true),
  ('operations.procurement.prepare','OPERATIONS','PREPARE_PROCUREMENT','Prepare procurement','Prepare purchase requests, quotes and vendor comparisons without approving own spend.','HIGH',false,false,true),
  ('operations.po.issue','OPERATIONS','ISSUE_PO','Issue approved purchase order','Issue a PO only after the linked purchase request is independently approved.','HIGH',true,true,true),
  ('operations.receipt.record','OPERATIONS','RECORD_RECEIPT','Record receipt/acceptance','Record goods/service receipt evidence without releasing payment.','HIGH',false,false,true),
