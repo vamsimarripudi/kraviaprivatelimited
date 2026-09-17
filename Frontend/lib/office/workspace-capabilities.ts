@@ -25,7 +25,7 @@ const requirements: Record<string, readonly string[]> = {
   "office:privacy": ["privacy.case.read", "privacy.case.manage", "privacy.retention.read"],
   "office:security": ["security.overview.read", "security.change.review"],
   "office:integrations": ["integration.embed.view", "integration.embed.manage"],
-  "office:governance": ["secretarial.corporate.prepare", "secretarial.corporate.approve"],
+  "office:governance": ["secretarial.board.read", "secretarial.board.manage", "secretarial.corporate.prepare", "secretarial.corporate.approve"],
   "office:audit": ["audit.read", "access.audit.read"],
   "finance:dashboard": ["finance.read"],
   "finance:billing": ["finance.read", "finance.invoice.create"],
@@ -40,6 +40,8 @@ const requirements: Record<string, readonly string[]> = {
   "finance:audit": ["finance.read", "audit.read"],
 };
 
+const directorReservedSections = new Set(["decisions", "intelligence", "governance", "readiness"]);
+
 export function requiredCapabilities(workspace: WorkspaceKind, section: string) {
   return requirements[`${workspace}:${section}`] ?? [];
 }
@@ -51,6 +53,7 @@ export function capabilityCanAccessSection(
   permissions: readonly string[],
 ) {
   if (roles.includes("OWNER")) return true;
+  if (workspace === "office" && roles.includes("DIRECTOR") && directorReservedSections.has(section)) return true;
   const required = requiredCapabilities(workspace, section);
   if (!required.length) return true;
   const granted = new Set(permissions);
