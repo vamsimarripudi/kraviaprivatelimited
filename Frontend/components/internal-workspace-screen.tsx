@@ -17,6 +17,7 @@ import { WorkspaceRuntimePanel } from "@/components/workspace-runtime-panel";
 import { WorkspaceSignOutButton } from "@/components/workspace-sign-out-button";
 import { AccessGovernancePanel } from "@/components/access-governance-panel";
 import { WorkforceAdministrationPanel } from "@/components/workforce-administration-panel";
+import { WorkforceLiveOverview } from "@/components/workforce-live-overview";
 import { OfficeCommandCenter } from "@/components/office-command-center";
 import { OfficePresenceControl } from "@/components/office-presence-control";
 import { OfficeWorkHub } from "@/components/office-work-hub";
@@ -66,7 +67,7 @@ export function InternalWorkspaceScreen({ workspace, section, identity }: Props)
           : workspace === "office" && section === "requests" ? <><OfficeWorkHub identity={identity} mode="requests" /><RequestCollaborationWorkspace /></>
           : workspace === "office" && section === "approvals" ? <OfficeWorkHub identity={identity} mode="approvals" />
           : workspace === "office" && section === "manager" ? <OfficeWorkHub identity={identity} mode="manager" />
-          : workspace === "office" && section === "people" ? <OfficeOrganizationChart />
+          : workspace === "office" && section === "people" ? <><WorkforceLiveOverview /><OfficeOrganizationChart /></>
           : workspace === "office" && section === "integrations" ? <OfficeEmbedRegistry />
           : section === "dashboard" ? <WorkspaceDashboard workspace={workspace} section={section} identity={identity} />
           : <WorkspaceModule workspace={workspace} section={section} item={item} />}
