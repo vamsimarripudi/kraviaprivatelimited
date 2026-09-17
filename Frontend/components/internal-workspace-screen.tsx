@@ -23,6 +23,7 @@ import { WorkspaceSignOutButton } from "@/components/workspace-sign-out-button";
 import { AccessGovernancePanel } from "@/components/access-governance-panel";
 import { WorkforceAdministrationPanel } from "@/components/workforce-administration-panel";
 import { WorkforceLiveOverview } from "@/components/workforce-live-overview";
+import { OfficeActivityTimeline } from "@/components/office-activity-timeline";
 import { OfficeCommandCenter } from "@/components/office-command-center";
 import { OfficeCommandPalette } from "@/components/office-command-palette";
 import { OfficeCompanyCalendar } from "@/components/office-company-calendar";
@@ -113,7 +114,7 @@ function WorkspaceDashboard({ workspace, section, identity, permissions }: { wor
   const executive = identity.roles.some((role) => role === "OWNER" || role === "DIRECTOR");
 
   return <>
-    {workspace === "office" ? <>{executive ? <OfficeIntelligenceBrief compact /> : null}<OfficeWorkHub identity={identity} mode="dashboard" /><OfficeCompanyInbox compact /></> : <section className="workspace-hero-panel"><div><p className="eyebrow">VERIFIED AAL2 SESSION</p><h2>Finance work without mixing ownership, tax and treasury.</h2></div><ShieldCheck aria-hidden="true" /></section>}
+    {workspace === "office" ? <>{executive ? <OfficeIntelligenceBrief compact /> : null}<OfficeWorkHub identity={identity} mode="dashboard" /><OfficeCompanyInbox compact /><OfficeActivityTimeline /></> : <section className="workspace-hero-panel"><div><p className="eyebrow">VERIFIED AAL2 SESSION</p><h2>Finance work without mixing ownership, tax and treasury.</h2></div><ShieldCheck aria-hidden="true" /></section>}
     {runtime && !onlyShellRoles ? <WorkspaceRuntimePanel title={workspace === "finance" ? "Finance overview" : "Office overview"} spec={runtime} /> : null}
     <div className="office-dashboard-grid workspace-module-grid">{sections.map(([slug, sectionItem]) => <Link href={`${basePath}/${slug}`} key={slug} className="workspace-module-card"><p className="eyebrow">{sectionItem.group}</p><h2>{sectionItem.title}</h2><span>{sectionItem.description}</span><b>Open module <ArrowRight aria-hidden="true" /></b></Link>)}</div>
   </>;
