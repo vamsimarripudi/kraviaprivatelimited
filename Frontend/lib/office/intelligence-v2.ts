@@ -1,0 +1,1 @@
+export const INTELLIGENCE_V2_PLACEHOLDER = true;
