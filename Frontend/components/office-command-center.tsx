@@ -10,6 +10,7 @@ const commands = [
   ["Company inbox", "/office/tasks", "Workspace"],
   ["Company calendar", "/office/calendar", "Workspace"],
   ["Sales CRM", "/office/crm", "Commercial"],
+  ["Engineering control center", "/office/engineering", "Engineering"],
   ["Create request", "/office/requests?new=1", "Workflow"],
   ["Requests", "/office/requests", "Workflow"],
   ["Approvals", "/office/approvals", "Workflow"],
