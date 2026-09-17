@@ -31,11 +31,16 @@ import { OfficeCommercialHandoff } from "@/components/office-commercial-handoff"
 import { OfficeCompanyCalendar } from "@/components/office-company-calendar";
 import { OfficeCompanyInbox } from "@/components/office-company-inbox";
 import { OfficeCrmWorkspace } from "@/components/office-crm-workspace";
+import { OfficeDataMovement } from "@/components/office-data-movement";
 import { OfficeEngineeringControlCenter } from "@/components/office-engineering-control-center";
 import { OfficeIntelligenceBrief } from "@/components/office-intelligence-brief";
 import { OfficeNotificationCenter } from "@/components/office-notification-center";
 import { OfficePresenceControl } from "@/components/office-presence-control";
+import { OfficePrivacyGovernance } from "@/components/office-privacy-governance";
+import { OfficeReadiness } from "@/components/office-readiness";
+import { OfficeSecurityOverview } from "@/components/office-security-overview";
 import { OfficeSecuritySettings } from "@/components/office-security-settings";
+import { OfficeSupportOperations } from "@/components/office-support-operations";
 import { OfficeWorkHub } from "@/components/office-work-hub";
 import { RequestCollaborationWorkspace } from "@/components/request-collaboration-workspace";
 import { OfficeOrganizationChart } from "@/components/office-organization-chart";
@@ -97,6 +102,11 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "approvals" ? <OfficeWorkHub identity={identity} mode="approvals" />
           : workspace === "office" && section === "manager" ? <OfficeWorkHub identity={identity} mode="manager" />
           : workspace === "office" && section === "people" ? <><WorkforceLiveOverview /><OfficeWorkforceLifecycle /><OfficeOrganizationChart /></>
+          : workspace === "office" && section === "support" ? <OfficeSupportOperations />
+          : workspace === "office" && section === "data" ? <OfficeDataMovement />
+          : workspace === "office" && section === "privacy" ? <OfficePrivacyGovernance />
+          : workspace === "office" && section === "security" ? <OfficeSecurityOverview />
+          : workspace === "office" && section === "readiness" ? <OfficeReadiness />
           : workspace === "office" && section === "integrations" ? <OfficeEmbedRegistry />
           : workspace === "office" && section === "settings" ? <OfficeSecuritySettings identity={identity} />
           : section === "dashboard" ? <WorkspaceDashboard workspace={workspace} section={section} identity={identity} permissions={permissions} />
