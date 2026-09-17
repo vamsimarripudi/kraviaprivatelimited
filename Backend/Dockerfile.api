@@ -8,7 +8,6 @@ COPY backend/requirements.txt /app/backend/requirements.txt
 RUN python -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir -r /app/backend/requirements.txt
 COPY backend /app/backend
-COPY web /app/web
 COPY alembic.ini /app/alembic.ini
 RUN mkdir -p /app/runtime/private-vault \
     && useradd --create-home --uid 10001 --shell /usr/sbin/nologin kravia \

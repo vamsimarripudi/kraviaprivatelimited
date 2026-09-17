@@ -1,18 +1,16 @@
 """Canonical KRAVIA Office ASGI application.
 
-The legacy Office API remains intact. Finance & Ownership, controlled period
-close, production identity/MFA, and read-only Google Drive evidence discovery
-are attached as bounded domains. The production container serves the controlled
-Office web surface from the same origin so authentication/CSP/API routing stay
-coherent.
+Railway is an API-only runtime. The interactive KRAVIA Office and Finance
+workspaces are served by the Next.js frontend, while this service owns protected
+business APIs, identity enforcement, finance controls, evidence discovery and
+safe operational status endpoints.
 """
 from contextlib import asynccontextmanager
 import os
 from pathlib import Path
 
 from fastapi import Request
-from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse
 
 from . import main as office_main
 from .main import app, get_db, require_roles
@@ -62,15 +60,40 @@ async def period_locked_handler(request: Request, exc: PeriodLockedError):
     )
 
 
-# Register the safe public backend overview and replace the legacy coarse health
-# route before the catch-all static Office surface is mounted.
+def _remove_legacy_web_surface() -> None:
+    """Remove UI routes inherited from the legacy monolithic backend module.
+
+    The production trust boundary is deliberate: Railway serves APIs and coarse
+    status only. Browser workspaces live on the canonical Vercel frontend.
+    """
+    app.router.routes[:] = [
+        route
+        for route in app.router.routes
+        if not (
+            getattr(route, "name", None) == "office-web"
+            or (
+                getattr(route, "path", None) == "/"
+                and getattr(route, "name", None) == "office_root"
+            )
+        )
+    ]
+
+
+_remove_legacy_web_surface()
 register_public_status(app)
 configure_security(app)
 
-_WEB_DIR = Path(__file__).resolve().parent.parent / "web"
-if _WEB_DIR.is_dir():
-    # API/docs/status routes are registered before this catch-all mount, so they
-    # retain normal FastAPI routing while legacy Office assets remain available.
-    app.mount("/", StaticFiles(directory=str(_WEB_DIR), html=True), name="office-web")
+_STATUS_CSS = Path(__file__).resolve().parent / "static" / "backend-status.css"
+
+
+@app.get("/backend-status.css", include_in_schema=False)
+def backend_status_styles():
+    """Serve the single stylesheet used by the safe backend status page."""
+    return FileResponse(
+        _STATUS_CSS,
+        media_type="text/css",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
 
 __all__ = ["app"]
