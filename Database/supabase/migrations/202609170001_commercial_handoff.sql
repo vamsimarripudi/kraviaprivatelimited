@@ -1,12 +1,15 @@
 -- Governed CRM -> contract -> subscription -> billing handoff.
 -- This migration orchestrates preparation/approval work only. It does not execute
 -- contracts, activate subscriptions or issue invoices automatically.
+-- Customer/product IDs are copied from the canonical won CRM opportunity and are
+-- validated again by the initialization function. They intentionally avoid new
+-- cross-owner FK dependencies on legacy core tables.
 
 create table if not exists public.office_commercial_handoffs (
   id uuid primary key default gen_random_uuid(),
   opportunity_id uuid not null unique references public.office_crm_opportunities(id) on delete restrict,
-  customer_id varchar not null references public.customers(id) on delete restrict,
-  product_id varchar not null references public.products(id) on delete restrict,
+  customer_id varchar not null,
+  product_id varchar not null,
   owner_user_id uuid not null references public.office_identity_users(user_id) on delete restrict,
   status text not null default 'OPEN' check (status in ('OPEN','BLOCKED','COMPLETE')),
   contract_request_id uuid references public.office_requests(id) on delete set null,
@@ -144,6 +147,8 @@ begin
   if opp.id is null then raise exception 'Opportunity not found'; end if;
   if opp.stage <> 'WON' then raise exception 'Only won opportunities can enter commercial handoff'; end if;
   if opp.customer_id is null or opp.product_id is null then raise exception 'Won opportunity requires canonical customer and product'; end if;
+  if not exists(select 1 from public.customers c where c.id=opp.customer_id and c.status<>'INACTIVE') then raise exception 'Canonical customer is unavailable'; end if;
+  if not exists(select 1 from public.products p where p.id=opp.product_id and p.status<>'RETIRED') then raise exception 'Canonical product is unavailable'; end if;
   select department_code into owner_dept from public.office_job_assignments where user_id=opp.owner_user_id and status in ('ACTIVE','ON_LEAVE') limit 1;
   if not (
     public.office_effective_permission(p_actor,'sales.crm.write','OWN',null,opp.owner_user_id)
