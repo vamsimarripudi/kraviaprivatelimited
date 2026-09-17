@@ -25,6 +25,8 @@ import { WorkforceAdministrationPanel } from "@/components/workforce-administrat
 import { WorkforceLiveOverview } from "@/components/workforce-live-overview";
 import { OfficeWorkforceLifecycle } from "@/components/office-workforce-lifecycle";
 import { OfficeActivityTimeline } from "@/components/office-activity-timeline";
+import { OfficeApplicabilityEngine } from "@/components/office-applicability-engine";
+import { OfficeBoardWorkspace } from "@/components/office-board-workspace";
 import { OfficeCommandCenter } from "@/components/office-command-center";
 import { OfficeCommandPalette } from "@/components/office-command-palette";
 import { OfficeCommercialHandoff } from "@/components/office-commercial-handoff";
@@ -37,6 +39,7 @@ import { OfficeIntelligenceBrief } from "@/components/office-intelligence-brief"
 import { OfficeNotificationCenter } from "@/components/office-notification-center";
 import { OfficePresenceControl } from "@/components/office-presence-control";
 import { OfficePrivacyGovernance } from "@/components/office-privacy-governance";
+import { OfficeProcurementControl } from "@/components/office-procurement-control";
 import { OfficeReadiness } from "@/components/office-readiness";
 import { OfficeSecurityOverview } from "@/components/office-security-overview";
 import { OfficeSecuritySettings } from "@/components/office-security-settings";
@@ -102,6 +105,9 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "approvals" ? <OfficeWorkHub identity={identity} mode="approvals" />
           : workspace === "office" && section === "manager" ? <OfficeWorkHub identity={identity} mode="manager" />
           : workspace === "office" && section === "people" ? <><WorkforceLiveOverview /><OfficeWorkforceLifecycle /><OfficeOrganizationChart /></>
+          : workspace === "office" && section === "governance" ? <OfficeBoardWorkspace />
+          : workspace === "office" && section === "compliance" ? <OfficeApplicabilityEngine />
+          : workspace === "office" && section === "vendors" ? <OfficeProcurementControl />
           : workspace === "office" && section === "support" ? <OfficeSupportOperations />
           : workspace === "office" && section === "data" ? <OfficeDataMovement />
           : workspace === "office" && section === "privacy" ? <OfficePrivacyGovernance />
