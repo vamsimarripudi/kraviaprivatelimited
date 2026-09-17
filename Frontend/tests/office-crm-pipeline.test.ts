@@ -9,8 +9,10 @@ const screen = readFileSync(new URL("../components/internal-workspace-screen.tsx
 
 describe("KRAVIA Office CRM pipeline", () => {
   it("keeps CRM records server-only with an immutable audit ledger", () => {
-    expect(sql).toContain("office_crm_leads_deny_client_access");
-    expect(sql).toContain("office_crm_opportunities_deny_client_access");
+    expect(sql).toContain("alter table public.office_crm_leads enable row level security");
+    expect(sql).toContain("alter table public.office_crm_opportunities enable row level security");
+    expect(sql).toContain("revoke all on public.office_crm_leads,public.office_crm_opportunities,public.office_crm_activities,public.office_crm_audit from anon,authenticated,public");
+    expect(sql).toContain("'_deny_client_access'");
     expect(sql).toContain("office_crm_audit_immutable");
     expect(sql).toContain("KR-L-");
     expect(sql).toContain("KR-O-");
