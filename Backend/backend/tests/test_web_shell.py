@@ -1,14 +1,25 @@
-import os,tempfile
-fd,path=tempfile.mkstemp(suffix='.db');os.close(fd);os.unlink(path)
-os.environ['DATABASE_URL']=f'sqlite:///{path}';os.environ['APP_ENV']='development';os.environ['AUTH_MODE']='bootstrap'
-from fastapi.testclient import TestClient
-from backend.main import app
+import os, tempfile
 
-def test_office_web_shell_and_root_redirect():
-    with TestClient(app) as c:
-        r=c.get('/',follow_redirects=False)
-        assert r.status_code in (302,307) and r.headers['location']=='/office/'
-        w=c.get('/office/')
-        assert w.status_code==200 and 'KRAVIA Office' in w.text and 'Company operating system' in w.text
-        js=c.get('/office/app.js')
-        assert js.status_code==200 and 'command-center' in js.text
+fd, path = tempfile.mkstemp(suffix=".db")
+os.close(fd)
+os.unlink(path)
+os.environ["DATABASE_URL"] = f"sqlite:///{path}"
+os.environ["APP_ENV"] = "development"
+os.environ["AUTH_MODE"] = "bootstrap"
+
+from fastapi.testclient import TestClient
+from backend.app import app
+
+
+def test_backend_is_api_only_and_legacy_web_shell_is_gone():
+    with TestClient(app) as client:
+        root = client.get("/", follow_redirects=False)
+        assert root.status_code == 200
+        assert "KRAVIA Office Backend" in root.text
+        assert root.headers.get("location") is None
+
+        office = client.get("/office/", follow_redirects=False)
+        assert office.status_code == 404
+
+        legacy_asset = client.get("/office/app.js", follow_redirects=False)
+        assert legacy_asset.status_code == 404
