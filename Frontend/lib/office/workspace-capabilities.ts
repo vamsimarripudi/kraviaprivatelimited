@@ -8,32 +8,34 @@ export type OfficeNavigationCommand = {
   keywords: string;
 };
 
+// Navigation is a least-surprise hint only. Every record read and mutation is
+// still authorized by the server-side permission engine in the domain handler.
+// Keep this vocabulary synchronized with office_permission_catalog.
 const requirements: Record<string, readonly string[]> = {
   "office:crm": ["sales.crm.read", "sales.crm.write"],
   "office:engineering": ["engineering.infrastructure.read", "engineering.repo.read", "engineering.issue.manage"],
-  "office:products": ["product.roadmap.read", "product.roadmap.write"],
-  "office:people": ["people.basic.read", "people.employment.admin"],
+  "office:products": ["product.roadmap.read", "product.roadmap.write", "product.release.request", "product.release.approve"],
+  "office:people": ["people.basic.read", "people.sensitive.read", "people.update", "hiring.candidate.read", "hiring.request.review"],
   "office:contracts": ["legal.contract.review", "legal.contract.draft", "legal.contract.execute"],
-  "office:vendors": ["operations.procurement.prepare", "operations.procurement.approve"],
-  "office:assets": ["operations.assets.admin"],
-  "office:support": ["support.case.read", "support.case.update", "support.portal.read", "support.trust_request.manage"],
-  "office:access": ["access.profile.manage", "access.profile.assign", "access.override.manage", "access.audit.read"],
-  "office:data": ["data.export.request", "data.import.manage"],
+  "office:vendors": ["operations.vendor.create", "operations.vendor.approve", "operations.purchase.request", "operations.purchase.approve"],
+  "office:assets": ["operations.asset.assign"],
+  "office:support": ["customer.support.manage", "customer.refund.request", "customer.refund.approve"],
+  "office:access": ["access.profile.assign", "access.permission.override", "access.audit.read", "access.user.invite", "access.device.approve"],
   "office:integrations": ["integration.embed.view", "integration.embed.manage"],
-  "office:governance": ["secretarial.records.read", "secretarial.board.manage", "secretarial.resolution.prepare", "secretarial.resolution.record"],
-  "office:audit": ["access.audit.read"],
-  "office:security": ["security.change.review", "security.secret.reference.read", "security.session.revoke"],
+  "office:governance": ["secretarial.corporate.prepare", "secretarial.corporate.approve"],
+  "office:audit": ["audit.read", "access.audit.read"],
+  "office:security": ["security.change.review", "engineering.secrets.reference", "engineering.secrets.manage"],
   "finance:dashboard": ["finance.read"],
-  "finance:billing": ["finance.read"],
-  "finance:gst": ["finance.read"],
-  "finance:accounting": ["finance.read"],
-  "finance:banking": ["finance.read"],
-  "finance:payments": ["finance.payments.prepare", "finance.payments.approve"],
-  "finance:expenses": ["finance.read", "finance.master.write"],
-  "finance:reconciliation": ["finance.reconciliation.manage", "finance.read"],
+  "finance:billing": ["finance.read", "finance.invoice.create"],
+  "finance:gst": ["finance.read", "tax.gst.prepare", "tax.gst.approve"],
+  "finance:accounting": ["finance.read", "finance.journal.post"],
+  "finance:banking": ["finance.read", "finance.bank.read"],
+  "finance:payments": ["finance.payment.prepare", "finance.payment.approve"],
+  "finance:expenses": ["finance.read", "finance.expense.request", "finance.expense.approve"],
+  "finance:reconciliation": ["finance.read", "finance.journal.post", "finance.bank.read"],
   "finance:documents": ["finance.read"],
-  "finance:compliance": ["finance.read"],
-  "finance:audit": ["finance.read", "finance.reports.export"],
+  "finance:compliance": ["finance.read", "tax.gst.prepare", "tax.gst.approve"],
+  "finance:audit": ["finance.read", "audit.read"],
 };
 
 export function requiredCapabilities(workspace: WorkspaceKind, section: string) {
