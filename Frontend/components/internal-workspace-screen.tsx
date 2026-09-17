@@ -23,6 +23,7 @@ import { OfficeCompanyCalendar } from "@/components/office-company-calendar";
 import { OfficeCompanyInbox } from "@/components/office-company-inbox";
 import { OfficeCrmWorkspace } from "@/components/office-crm-workspace";
 import { OfficeEngineeringControlCenter } from "@/components/office-engineering-control-center";
+import { OfficeIntelligenceBrief } from "@/components/office-intelligence-brief";
 import { OfficeNotificationCenter } from "@/components/office-notification-center";
 import { OfficePresenceControl } from "@/components/office-presence-control";
 import { OfficeSecuritySettings } from "@/components/office-security-settings";
@@ -75,6 +76,7 @@ export function InternalWorkspaceScreen({ workspace, section, identity }: Props)
           : workspace === "office" && section === "calendar" ? <OfficeCompanyCalendar />
           : workspace === "office" && section === "crm" ? <OfficeCrmWorkspace />
           : workspace === "office" && section === "engineering" ? <OfficeEngineeringControlCenter />
+          : workspace === "office" && section === "intelligence" ? <OfficeIntelligenceBrief />
           : workspace === "office" && section === "requests" ? <><OfficeWorkHub identity={identity} mode="requests" /><RequestCollaborationWorkspace /></>
           : workspace === "office" && section === "approvals" ? <OfficeWorkHub identity={identity} mode="approvals" />
           : workspace === "office" && section === "manager" ? <OfficeWorkHub identity={identity} mode="manager" />
@@ -93,9 +95,10 @@ function WorkspaceDashboard({ workspace, section, identity }: { workspace: Works
   const basePath = workspaceDefinitions[workspace].basePath;
   const runtime = runtimeModuleSpec(workspace, section);
   const onlyShellRoles = identity.roles.every((role) => role === "ADMIN" || role === "MEMBER");
+  const executive = identity.roles.some((role) => role === "OWNER" || role === "DIRECTOR");
 
   return <>
-    {workspace === "office" ? <><OfficeWorkHub identity={identity} mode="dashboard" /><OfficeCompanyInbox compact /></> : <section className="workspace-hero-panel"><div><p className="eyebrow">VERIFIED AAL2 SESSION</p><h2>Finance work without mixing ownership, tax and treasury.</h2></div><ShieldCheck aria-hidden="true" /></section>}
+    {workspace === "office" ? <>{executive ? <OfficeIntelligenceBrief compact /> : null}<OfficeWorkHub identity={identity} mode="dashboard" /><OfficeCompanyInbox compact /></> : <section className="workspace-hero-panel"><div><p className="eyebrow">VERIFIED AAL2 SESSION</p><h2>Finance work without mixing ownership, tax and treasury.</h2></div><ShieldCheck aria-hidden="true" /></section>}
     {runtime && !onlyShellRoles ? <WorkspaceRuntimePanel title={workspace === "finance" ? "Finance overview" : "Office overview"} spec={runtime} /> : null}
     <div className="office-dashboard-grid workspace-module-grid">{sections.map(([slug, sectionItem]) => <Link href={`${basePath}/${slug}`} key={slug} className="workspace-module-card"><p className="eyebrow">{sectionItem.group}</p><h2>{sectionItem.title}</h2><span>{sectionItem.description}</span><b>Open module <ArrowRight aria-hidden="true" /></b></Link>)}</div>
   </>;
