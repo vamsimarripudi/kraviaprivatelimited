@@ -23,6 +23,7 @@ import { WorkspaceSignOutButton } from "@/components/workspace-sign-out-button";
 import { AccessGovernancePanel } from "@/components/access-governance-panel";
 import { WorkforceAdministrationPanel } from "@/components/workforce-administration-panel";
 import { WorkforceLiveOverview } from "@/components/workforce-live-overview";
+import { OfficeWorkforceLifecycle } from "@/components/office-workforce-lifecycle";
 import { OfficeActivityTimeline } from "@/components/office-activity-timeline";
 import { OfficeCommandCenter } from "@/components/office-command-center";
 import { OfficeCommandPalette } from "@/components/office-command-palette";
@@ -95,7 +96,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "requests" ? <><OfficeWorkHub identity={identity} mode="requests" /><RequestCollaborationWorkspace /></>
           : workspace === "office" && section === "approvals" ? <OfficeWorkHub identity={identity} mode="approvals" />
           : workspace === "office" && section === "manager" ? <OfficeWorkHub identity={identity} mode="manager" />
-          : workspace === "office" && section === "people" ? <><WorkforceLiveOverview /><OfficeOrganizationChart /></>
+          : workspace === "office" && section === "people" ? <><WorkforceLiveOverview /><OfficeWorkforceLifecycle /><OfficeOrganizationChart /></>
           : workspace === "office" && section === "integrations" ? <OfficeEmbedRegistry />
           : workspace === "office" && section === "settings" ? <OfficeSecuritySettings identity={identity} />
           : section === "dashboard" ? <WorkspaceDashboard workspace={workspace} section={section} identity={identity} permissions={permissions} />
