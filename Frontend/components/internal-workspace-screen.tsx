@@ -20,6 +20,7 @@ import { WorkforceAdministrationPanel } from "@/components/workforce-administrat
 import { WorkforceLiveOverview } from "@/components/workforce-live-overview";
 import { OfficeCommandCenter } from "@/components/office-command-center";
 import { OfficePresenceControl } from "@/components/office-presence-control";
+import { OfficeSecuritySettings } from "@/components/office-security-settings";
 import { OfficeWorkHub } from "@/components/office-work-hub";
 import { RequestCollaborationWorkspace } from "@/components/request-collaboration-workspace";
 import { OfficeOrganizationChart } from "@/components/office-organization-chart";
@@ -69,6 +70,7 @@ export function InternalWorkspaceScreen({ workspace, section, identity }: Props)
           : workspace === "office" && section === "manager" ? <OfficeWorkHub identity={identity} mode="manager" />
           : workspace === "office" && section === "people" ? <><WorkforceLiveOverview /><OfficeOrganizationChart /></>
           : workspace === "office" && section === "integrations" ? <OfficeEmbedRegistry />
+          : workspace === "office" && section === "settings" ? <OfficeSecuritySettings identity={identity} />
           : section === "dashboard" ? <WorkspaceDashboard workspace={workspace} section={section} identity={identity} />
           : <WorkspaceModule workspace={workspace} section={section} item={item} />}
       </> : <section className="office-denied"><TriangleAlert /><div><p className="eyebrow">ACCESS RESTRICTED</p><h2>This module is not assigned to your current authority.</h2><p>KRAVIA Office evaluates identity, current roles and governed access state. Permission-scoped workflows can add narrower authority without turning a job title into unrestricted access.</p><Link className="text-link" href={`${definition.basePath}/dashboard`}>Return to overview <ArrowRight /></Link></div></section>}
