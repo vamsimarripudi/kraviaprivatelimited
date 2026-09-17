@@ -2,6 +2,7 @@ import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { requireOfficeAdminEnvironment } from "@/lib/env/office";
 import { getOfficeSessionContext, officeIdentityIsProvisioned, type OfficeIdentity } from "@/lib/office/auth-server";
+import { currentOfficeTrustedDeviceId } from "@/lib/office/device-binding-server";
 
 export const officeScopeTypes = ["COMPANY", "DEPARTMENT", "TEAM", "PRODUCT", "PROJECT", "REPOSITORY", "COST_CENTER", "OWN"] as const;
 export type OfficeScopeType = (typeof officeScopeTypes)[number];
@@ -69,19 +70,25 @@ export async function resolveOfficePermission(
   resource: OfficeResourceScope = { type: "COMPANY" },
   deviceId?: string | null,
 ): Promise<OfficePermissionDecision> {
-  if (identity.roles.includes("OWNER")) {
-    return { allowed: true, permission: permissionCode, source: "OWNER", scopeType: "COMPANY", reason: "OWNER authority" };
-  }
-
-  const [permissionResult, profileResult, overrideResult] = await Promise.all([
-    admin.from("office_permission_catalog").select("code,high_risk,requires_managed_device,active").eq("code", permissionCode).maybeSingle(),
-    admin.from("office_user_access_profiles").select("profile_code,scope_type,scope_key,status,expires_at").eq("user_id", identity.userId).eq("status", "ACTIVE"),
-    admin.from("office_user_permission_overrides").select("permission_code,effect,scope_type,scope_key,expires_at").eq("user_id", identity.userId).eq("permission_code", permissionCode),
-  ]);
-
+  const permissionResult = await admin.from("office_permission_catalog").select("code,high_risk,requires_managed_device,active").eq("code", permissionCode).maybeSingle();
   if (permissionResult.error || !permissionResult.data || permissionResult.data.active !== true) {
     return { allowed: false, permission: permissionCode, reason: "Permission is not active" };
   }
+
+  if (identity.roles.includes("OWNER")) {
+    return enforceDevice(admin, identity.userId, permissionCode, permissionResult.data, {
+      allowed: true,
+      permission: permissionCode,
+      source: "OWNER",
+      scopeType: "COMPANY",
+      reason: "OWNER authority",
+    }, deviceId);
+  }
+
+  const [profileResult, overrideResult] = await Promise.all([
+    admin.from("office_user_access_profiles").select("profile_code,scope_type,scope_key,status,expires_at").eq("user_id", identity.userId).eq("status", "ACTIVE"),
+    admin.from("office_user_permission_overrides").select("permission_code,effect,scope_type,scope_key,expires_at").eq("user_id", identity.userId).eq("permission_code", permissionCode),
+  ]);
   if (profileResult.error || overrideResult.error) {
     return { allowed: false, permission: permissionCode, reason: "Authorization authority is unavailable" };
   }
@@ -145,8 +152,8 @@ async function enforceDevice(
     return { allowed: false, permission: permissionCode, highRisk: permission.high_risk, requiresManagedDevice: true, reason: "A trusted company-managed device is required" };
   }
 
-  const { data, error } = await admin.from("office_device_registry").select("id,trust_state,company_managed").eq("id", deviceId).eq("user_id", userId).maybeSingle();
-  if (error || !data || data.trust_state !== "TRUSTED" || data.company_managed !== true) {
+  const { data, error } = await admin.from("office_device_registry").select("id,trust_state,company_managed,revoked_at").eq("id", deviceId).eq("user_id", userId).maybeSingle();
+  if (error || !data || data.trust_state !== "TRUSTED" || data.company_managed !== true || data.revoked_at) {
     return { allowed: false, permission: permissionCode, highRisk: permission.high_risk, requiresManagedDevice: true, reason: "The current device is not trusted for this action" };
   }
   return { ...decision, highRisk: permission.high_risk, requiresManagedDevice: true };
@@ -158,7 +165,8 @@ export async function requireOfficePermission(
   deviceId?: string | null,
 ) {
   const actor = await requireOfficeActor();
-  const decision = await resolveOfficePermission(actor.admin, actor.identity, permissionCode, resource, deviceId);
+  const effectiveDeviceId = deviceId === undefined ? await currentOfficeTrustedDeviceId(actor.admin, actor.identity.userId) : deviceId;
+  const decision = await resolveOfficePermission(actor.admin, actor.identity, permissionCode, resource, effectiveDeviceId);
   if (!decision.allowed) throw new OfficePermissionError(403, decision.reason);
-  return { ...actor, decision };
+  return { ...actor, decision, deviceId: effectiveDeviceId };
 }
