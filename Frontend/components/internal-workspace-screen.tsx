@@ -20,6 +20,7 @@ import { WorkforceAdministrationPanel } from "@/components/workforce-administrat
 import { WorkforceLiveOverview } from "@/components/workforce-live-overview";
 import { OfficeCommandCenter } from "@/components/office-command-center";
 import { OfficeCompanyInbox } from "@/components/office-company-inbox";
+import { OfficeNotificationCenter } from "@/components/office-notification-center";
 import { OfficePresenceControl } from "@/components/office-presence-control";
 import { OfficeSecuritySettings } from "@/components/office-security-settings";
 import { OfficeWorkHub } from "@/components/office-work-hub";
@@ -66,6 +67,7 @@ export function InternalWorkspaceScreen({ workspace, section, identity }: Props)
       {permitted && item ? <>
         <div className="office-notice"><ShieldCheck /><p>{item.description}</p></div>
         {workspace === "office" && section === "access" ? <><AccessGovernancePanel identity={identity} /><WorkforceAdministrationPanel identity={identity} /></>
+          : workspace === "office" && section === "notifications" ? <OfficeNotificationCenter />
           : workspace === "office" && section === "tasks" ? <OfficeCompanyInbox />
           : workspace === "office" && section === "requests" ? <><OfficeWorkHub identity={identity} mode="requests" /><RequestCollaborationWorkspace /></>
           : workspace === "office" && section === "approvals" ? <OfficeWorkHub identity={identity} mode="approvals" />
