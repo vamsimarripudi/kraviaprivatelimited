@@ -71,7 +71,7 @@ export function OfficePresenceControl() {
   const [busy, setBusy] = useState(false);
   const [expiry, setExpiry] = useState<ExpirySelection>("NONE");
   const [workMode, setWorkMode] = useState<WorkModeSelection>("");
-  const [clock, setClock] = useState(Date.now());
+  const [clock, setClock] = useState(0);
   const channelRef = useRef<BroadcastChannel | null>(null);
 
   const reload = useCallback(async () => {
@@ -88,7 +88,8 @@ export function OfficePresenceControl() {
   }, []);
 
   useEffect(() => {
-    void reload();
+    const initialRefresh = window.setTimeout(() => void reload(), 0);
+    const initialTick = window.setTimeout(() => setClock(Date.now()), 0);
     const refresh = window.setInterval(() => void reload(), 30_000);
     const tick = window.setInterval(() => setClock(Date.now()), 1_000);
     const onVisible = () => { if (document.visibilityState === "visible") void reload(); };
@@ -99,6 +100,8 @@ export function OfficePresenceControl() {
       channelRef.current = channel;
     }
     return () => {
+      window.clearTimeout(initialRefresh);
+      window.clearTimeout(initialTick);
       window.clearInterval(refresh);
       window.clearInterval(tick);
       document.removeEventListener("visibilitychange", onVisible);
@@ -159,7 +162,7 @@ export function OfficePresenceControl() {
   const attendanceAllowed = state ? ["WORKING", "BUSINESS_TRAVEL"].includes(state.employment_status.status) : false;
   const liveTracked = useMemo(() => {
     if (!state) return 0;
-    if (state.attendance.state !== "WORKING") return state.attendance.tracked_seconds;
+    if (state.attendance.state !== "WORKING" || clock === 0) return state.attendance.tracked_seconds;
     const serverAt = Date.parse(state.server_time);
     const extra = Number.isFinite(serverAt) ? Math.max(0, Math.floor((clock - serverAt) / 1000)) : 0;
     return state.attendance.tracked_seconds + extra;
