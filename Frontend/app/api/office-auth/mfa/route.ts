@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getOfficeSessionContext, officeIdentityIsProvisioned, writeOfficeSessionCookies } from "@/lib/office/auth-server";
+import { markOfficeMfaVerified } from "@/lib/office/auth-session-server";
 import { officeMutationIsSameOrigin } from "@/lib/office/request-security";
 
 const requestSchema = z.discriminatedUnion("action", [
@@ -59,6 +60,13 @@ export async function POST(request: Request) {
     if (aalData?.currentLevel !== "aal2") {
       return NextResponse.json({ detail: "MFA verification did not reach AAL2" }, { status: 403 });
     }
+
+    const upgradedContext = {
+      ...context,
+      session: current.data.session ?? context.session,
+      identity: { ...context.identity, aal: "aal2" as const },
+    };
+    await markOfficeMfaVerified(request, upgradedContext);
     return NextResponse.json({ verified: true, aal: "aal2" }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ detail: "MFA operation failed" }, { status: 400, headers: { "Cache-Control": "no-store" } });

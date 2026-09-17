@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getOfficeEnvironment } from "@/lib/env/office";
 import { signInOffice, signOutOffice } from "@/lib/office/auth-server";
+import { beginOfficeAuthSession } from "@/lib/office/auth-session-server";
 import { officeMutationIsSameOrigin } from "@/lib/office/request-security";
 
 const signInSchema = z.object({
@@ -28,6 +29,13 @@ export async function POST(request: Request) {
     ]);
     const verifiedTotp = (factorsData?.totp ?? []).filter((factor) => factor.status === "verified");
 
+    try {
+      await beginOfficeAuthSession(request, context);
+    } catch (ledgerError) {
+      await signOutOffice(context);
+      throw ledgerError;
+    }
+
     return NextResponse.json(
       {
         authenticated: true,
@@ -41,12 +49,10 @@ export async function POST(request: Request) {
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
-    // Never reveal whether the email, password, role record or access status was
-    // the failing component of an unauthorised sign-in.
     try { await signOutOffice(null); } catch { /* cookie cleanup best effort */ }
-    const unavailable = error instanceof Error && error.message.includes("not configured");
+    const unavailable = error instanceof Error && (error.message.includes("not configured") || error.message.includes("LEDGER_UNAVAILABLE"));
     return NextResponse.json(
-      { detail: unavailable ? "KRAVIA Office identity is not configured" : "Unable to sign in with those credentials" },
+      { detail: unavailable ? "KRAVIA Office sign-in is temporarily unavailable" : "Unable to sign in with those credentials" },
       { status: unavailable ? 503 : 401, headers: { "Cache-Control": "no-store" } },
     );
   }
