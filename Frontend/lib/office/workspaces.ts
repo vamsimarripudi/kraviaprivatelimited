@@ -55,6 +55,13 @@ export const officeSections = {
     roles: everyAdmittedRole,
     group: "My Work",
   },
+  calendar: {
+    title: "Company calendar",
+    eyebrow: "OPERATIONAL TIMELINE",
+    description: "Scoped internal events plus authorised projections of real tasks, compliance deadlines, board meetings, contracts and subscription dates.",
+    roles: everyAdmittedRole,
+    group: "My Work",
+  },
   requests: {
     title: "Requests",
     eyebrow: "WORKFLOW CENTER",
