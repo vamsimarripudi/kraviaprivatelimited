@@ -12,7 +12,7 @@ describe("Office activity timeline", () => {
     expect(server).toContain("getOfficeWorkOverview");
     expect(server).toContain("getOfficeCrmOverview");
     expect(server).toContain("getOfficeEngineeringControlCenter");
-    expect(server).toContain("does not bypass record authorization");
+    expect(server).toContain("not a bypass around record authorization");
   });
 
   it("is exposed through a read-only API", () => {
