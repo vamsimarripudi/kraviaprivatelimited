@@ -26,6 +26,7 @@ import { WorkforceLiveOverview } from "@/components/workforce-live-overview";
 import { OfficeActivityTimeline } from "@/components/office-activity-timeline";
 import { OfficeCommandCenter } from "@/components/office-command-center";
 import { OfficeCommandPalette } from "@/components/office-command-palette";
+import { OfficeCommercialHandoff } from "@/components/office-commercial-handoff";
 import { OfficeCompanyCalendar } from "@/components/office-company-calendar";
 import { OfficeCompanyInbox } from "@/components/office-company-inbox";
 import { OfficeCrmWorkspace } from "@/components/office-crm-workspace";
@@ -88,7 +89,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "notifications" ? <OfficeNotificationCenter />
           : workspace === "office" && section === "tasks" ? <OfficeCompanyInbox />
           : workspace === "office" && section === "calendar" ? <OfficeCompanyCalendar />
-          : workspace === "office" && section === "crm" ? <OfficeCrmWorkspace />
+          : workspace === "office" && section === "crm" ? <><OfficeCrmWorkspace /><OfficeCommercialHandoff /></>
           : workspace === "office" && section === "engineering" ? <OfficeEngineeringControlCenter />
           : workspace === "office" && section === "intelligence" ? <OfficeIntelligenceBrief />
           : workspace === "office" && section === "requests" ? <><OfficeWorkHub identity={identity} mode="requests" /><RequestCollaborationWorkspace /></>
