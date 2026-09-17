@@ -6,6 +6,8 @@ import { Bell, Command, Search, X } from "lucide-react";
 
 const commands = [
   ["My work", "/office/dashboard", "Workspace"],
+  ["Notifications", "/office/notifications", "Workspace"],
+  ["Company inbox", "/office/tasks", "Workspace"],
   ["Create request", "/office/requests?new=1", "Workflow"],
   ["Requests", "/office/requests", "Workflow"],
   ["Approvals", "/office/approvals", "Workflow"],
@@ -55,7 +57,7 @@ export function OfficeCommandCenter() {
       <button className="office-command-trigger" type="button" onClick={() => setOpen(true)} aria-label="Open command palette">
         <Search aria-hidden="true" /><span>Search Office</span><kbd>⌘ K</kbd>
       </button>
-      <button className="office-icon-action" type="button" onClick={() => go("/office/approvals")} aria-label="Open approvals"><Bell aria-hidden="true" /></button>
+      <button className="office-icon-action" type="button" onClick={() => go("/office/notifications")} aria-label="Open notifications"><Bell aria-hidden="true" /></button>
     </div>
 
     {open ? <div className="office-command-backdrop" role="presentation" onMouseDown={() => setOpen(false)}>
