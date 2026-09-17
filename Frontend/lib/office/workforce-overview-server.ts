@@ -11,6 +11,8 @@ export class OfficeWorkforceOverviewError extends Error {
 }
 
 type IdentityRow = { user_id: string; status: string; display_name: string | null; primary_department: string | null; job_title: string | null };
+type PersonRegistryRow = { person_id: string; person_code: string; identity_user_id: string; lifecycle_status: string };
+type EmploymentRegistryRow = { employment_id: string; employment_code: string; person_id: string; identity_user_id: string; relationship_type: string; status: string; start_date: string | null; end_date: string | null; created_at: string };
 type JobRow = { user_id: string; position_code: string | null; department_code: string | null; reports_to_user_id: string | null; team_key: string | null; employment_type: string | null };
 type PresenceRow = { user_id: string; availability_status: OfficeAvailabilityStatus; work_mode: OfficeWorkMode; status_note: string | null; status_until: string | null; last_interaction_at: string | null };
 type WorkStatusRow = { user_id: string; status: OfficeEmploymentStatus; effective_from: string; effective_to: string | null; source: string; reason: string | null };
@@ -48,8 +50,10 @@ export async function getOfficeWorkforceLiveOverview() {
   const { admin } = actor;
   const now = Date.now();
   const nowIso = new Date(now).toISOString();
-  const [identitiesResult, jobsResult, presenceResult, statusesResult, attendanceResult, authResult] = await Promise.all([
+  const [identitiesResult, peopleRegistryResult, employmentsResult, jobsResult, presenceResult, statusesResult, attendanceResult, authResult] = await Promise.all([
     admin.from("office_identity_users").select("user_id,status,display_name,primary_department,job_title").eq("status", "ACTIVE").order("display_name"),
+    admin.from("office_people_registry").select("person_id,person_code,identity_user_id,lifecycle_status"),
+    admin.from("office_employment_registry").select("employment_id,employment_code,person_id,identity_user_id,relationship_type,status,start_date,end_date,created_at").order("created_at", { ascending: false }),
     admin.from("office_job_assignments").select("user_id,position_code,department_code,reports_to_user_id,team_key,employment_type").eq("status", "ACTIVE"),
     admin.from("office_presence_state").select("user_id,availability_status,work_mode,status_note,status_until,last_interaction_at"),
     admin.from("office_work_status_assignments").select("user_id,status,effective_from,effective_to,source,reason").lte("effective_from", nowIso).or(`effective_to.is.null,effective_to.gt.${nowIso}`).order("effective_from", { ascending: false }),
@@ -57,10 +61,12 @@ export async function getOfficeWorkforceLiveOverview() {
     admin.from("office_auth_sessions").select("user_id,status,aal,mfa_verified,started_at,last_seen_at,risk_level").eq("status", "ACTIVE").order("last_seen_at", { ascending: false }),
   ]);
 
-  const failed = [identitiesResult, jobsResult, presenceResult, statusesResult, attendanceResult, authResult].find((result) => result.error);
+  const failed = [identitiesResult, peopleRegistryResult, employmentsResult, jobsResult, presenceResult, statusesResult, attendanceResult, authResult].find((result) => result.error);
   if (failed?.error) throw new OfficeWorkforceOverviewError(503, "Workforce authority is temporarily unavailable");
 
   const identities = (identitiesResult.data ?? []) as IdentityRow[];
+  const peopleRegistry = new Map(((peopleRegistryResult.data ?? []) as PersonRegistryRow[]).map((row) => [row.identity_user_id, row]));
+  const employments = latestByUser((employmentsResult.data ?? []) as EmploymentRegistryRow[], (row) => `${["ACTIVE", "ON_LEAVE", "PLANNED"].includes(row.status) ? "1" : "0"}:${row.created_at}`);
   const jobs = latestByUser((jobsResult.data ?? []) as JobRow[], () => "1");
   const presence = new Map(((presenceResult.data ?? []) as PresenceRow[]).map((row) => [row.user_id, row]));
   const statuses = latestByUser((statusesResult.data ?? []) as WorkStatusRow[], (row) => row.effective_from);
@@ -76,6 +82,8 @@ export async function getOfficeWorkforceLiveOverview() {
   const usersOnBreak = new Set((breaksResult.data ?? []).map((row) => row.user_id as string));
 
   const people = identities.map((identity) => {
+    const permanentIdentity = peopleRegistry.get(identity.user_id);
+    const employment = employments.get(identity.user_id);
     const job = jobs.get(identity.user_id);
     const rawPresence = presence.get(identity.user_id);
     const effectivePresence = effectiveAvailability(rawPresence, now);
@@ -84,10 +92,15 @@ export async function getOfficeWorkforceLiveOverview() {
     const authSession = auth.get(identity.user_id);
     return {
       user_id: identity.user_id,
+      person_id: permanentIdentity?.person_id ?? null,
+      person_code: permanentIdentity?.person_code ?? null,
+      employment_id: employment?.employment_id ?? null,
+      employment_code: employment?.employment_code ?? null,
       display_name: identity.display_name || "Unnamed Office identity",
       department: job?.department_code || identity.primary_department || "UNASSIGNED",
       job_title: identity.job_title || job?.position_code || "Team member",
-      employment_type: job?.employment_type || null,
+      employment_type: employment?.relationship_type || job?.employment_type || null,
+      employment_record_status: employment?.status ?? null,
       availability_status: effectivePresence.availability_status,
       work_mode: openAttendance?.work_mode || effectivePresence.work_mode,
       workforce_status: workStatus?.status ?? "WORKING",
@@ -104,7 +117,7 @@ export async function getOfficeWorkforceLiveOverview() {
     };
   });
 
-  const count = <T extends string>(key: keyof (typeof people)[number], value: T) => people.filter((person) => person[key] === value).length;
+  const count = (key: keyof (typeof people)[number], value: unknown) => people.filter((person) => person[key] === value).length;
   return {
     generated_at: nowIso,
     summary: {

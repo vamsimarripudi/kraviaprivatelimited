@@ -7,10 +7,15 @@ import styles from "./workforce-live-overview.module.css";
 
 type PersonRow = {
   user_id: string;
+  person_id: string | null;
+  person_code: string | null;
+  employment_id: string | null;
+  employment_code: string | null;
   display_name: string;
   department: string;
   job_title: string;
   employment_type: string | null;
+  employment_record_status: string | null;
   availability_status: OfficeAvailabilityStatus;
   work_mode: OfficeWorkMode;
   workforce_status: OfficeEmploymentStatus;
@@ -98,8 +103,9 @@ export function WorkforceLiveOverview() {
             const availability = availabilityOption(person.availability_status);
             const employment = officeEmploymentStatusMeta[person.workforce_status];
             const mode = workModeOption(person.work_mode);
+            const companyId = [person.person_code, person.employment_code].filter(Boolean).join(" · ") || "Identity pending";
             return <tr key={person.user_id}>
-              <td><strong>{person.display_name}</strong><small>{person.job_title} · {person.department}</small></td>
+              <td><strong>{person.display_name}</strong><small>{companyId}</small><small>{person.job_title} · {person.department}</small></td>
               <td><span className={styles.state}>{online.emoji} {online.label}</span><small>Seen {time(person.last_seen_at)}</small></td>
               <td><span className={styles.state}>{availability.emoji} {availability.label}</span><small>{mode ? `${mode.emoji} ${mode.label}` : "Mode not set"}</small></td>
               <td><span className={styles.state}>{employment.emoji} {employment.label}</span><small>{person.workforce_status_source}</small></td>

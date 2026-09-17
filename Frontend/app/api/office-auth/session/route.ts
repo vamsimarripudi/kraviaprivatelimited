@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getOfficeSessionContext, officeIdentityIsProvisioned, writeOfficeSessionCookies } from "@/lib/office/auth-server";
 import { touchOfficeAuthSession } from "@/lib/office/auth-session-server";
+import { getOfficeCompanyIdentity } from "@/lib/office/company-identity-server";
 
 export async function GET(request: Request) {
   const context = await getOfficeSessionContext();
@@ -28,12 +29,16 @@ export async function GET(request: Request) {
     /* Identity session remains authoritative; heartbeat failure is surfaced by security monitoring separately. */
   }
 
+  let companyIdentity = null;
+  try { companyIdentity = await getOfficeCompanyIdentity(context.identity.userId); } catch { /* core auth stays available if metadata lookup is degraded */ }
+
   return NextResponse.json(
     {
       authenticated: true,
       email: context.identity.email,
       roles: context.identity.roles,
       access_status: context.identity.accessStatus,
+      company_identity: companyIdentity,
       aal: currentAal,
       next_aal: aalData?.nextLevel ?? context.identity.aal,
       mfa: { enrolled: verifiedTotp.length > 0, factor_ids: verifiedTotp.map((factor) => factor.id) },
