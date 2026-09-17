@@ -22,6 +22,7 @@ import { OfficeCommandCenter } from "@/components/office-command-center";
 import { OfficeCompanyCalendar } from "@/components/office-company-calendar";
 import { OfficeCompanyInbox } from "@/components/office-company-inbox";
 import { OfficeCrmWorkspace } from "@/components/office-crm-workspace";
+import { OfficeEngineeringControlCenter } from "@/components/office-engineering-control-center";
 import { OfficeNotificationCenter } from "@/components/office-notification-center";
 import { OfficePresenceControl } from "@/components/office-presence-control";
 import { OfficeSecuritySettings } from "@/components/office-security-settings";
@@ -73,6 +74,7 @@ export function InternalWorkspaceScreen({ workspace, section, identity }: Props)
           : workspace === "office" && section === "tasks" ? <OfficeCompanyInbox />
           : workspace === "office" && section === "calendar" ? <OfficeCompanyCalendar />
           : workspace === "office" && section === "crm" ? <OfficeCrmWorkspace />
+          : workspace === "office" && section === "engineering" ? <OfficeEngineeringControlCenter />
           : workspace === "office" && section === "requests" ? <><OfficeWorkHub identity={identity} mode="requests" /><RequestCollaborationWorkspace /></>
           : workspace === "office" && section === "approvals" ? <OfficeWorkHub identity={identity} mode="approvals" />
           : workspace === "office" && section === "manager" ? <OfficeWorkHub identity={identity} mode="manager" />
