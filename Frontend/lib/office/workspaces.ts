@@ -41,6 +41,13 @@ export const officeSections = {
     roles: everyAdmittedRole,
     group: "My Work",
   },
+  notifications: {
+    title: "Notifications",
+    eyebrow: "ATTENTION CENTER",
+    description: "Personal workflow, task and security signals with explicit read and dismissal state.",
+    roles: everyAdmittedRole,
+    group: "My Work",
+  },
   tasks: {
     title: "Company inbox",
     eyebrow: "ACTIONABLE WORK",
