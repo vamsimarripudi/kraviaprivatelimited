@@ -60,7 +60,7 @@ describe("KRAVIA Office workforce presence and attendance", () => {
   });
 
   it("renders the approved status vocabulary and real attendance controls in the Office top bar", () => {
-    expect(presenceControl).toContain("My status");
+    expect(presenceControl).toContain("MY STATUS");
     expect(presenceControl).toContain("Check in");
     expect(presenceControl).toContain("Check out");
     expect(presenceControl).toContain("Start break");
