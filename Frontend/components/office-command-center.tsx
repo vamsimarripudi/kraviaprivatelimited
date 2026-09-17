@@ -8,6 +8,7 @@ const commands = [
   ["My work", "/office/dashboard", "Workspace"],
   ["Notifications", "/office/notifications", "Workspace"],
   ["Company inbox", "/office/tasks", "Workspace"],
+  ["Company calendar", "/office/calendar", "Workspace"],
   ["Create request", "/office/requests?new=1", "Workflow"],
   ["Requests", "/office/requests", "Workflow"],
   ["Approvals", "/office/approvals", "Workflow"],
