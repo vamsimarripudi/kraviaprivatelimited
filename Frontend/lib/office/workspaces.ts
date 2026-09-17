@@ -41,6 +41,13 @@ export const officeSections = {
     roles: everyAdmittedRole,
     group: "My Work",
   },
+  tasks: {
+    title: "Company inbox",
+    eyebrow: "ACTIONABLE WORK",
+    description: "Assigned tasks, blockers and execution work kept separate from approvals and authority decisions.",
+    roles: everyAdmittedRole,
+    group: "My Work",
+  },
   requests: {
     title: "Requests",
     eyebrow: "WORKFLOW CENTER",
