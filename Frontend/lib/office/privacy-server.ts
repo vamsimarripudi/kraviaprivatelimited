@@ -110,6 +110,7 @@ export async function getOfficePrivacyOverview() {
   }
 
   return {
+    generated_at: new Date().toISOString(),
     actor: { user_id: read.identity.userId, roles: read.identity.roles, department: read.identity.department ?? null },
     scope: { source: read.decision.source ?? null, type: read.decision.scopeType ?? null, key: read.decision.scopeKey ?? null },
     can_manage: canManage,
