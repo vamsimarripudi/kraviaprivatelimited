@@ -134,7 +134,7 @@ set search_path=''
 as $$
 declare
   opp public.office_crm_opportunities%rowtype;
-  handoff_id uuid;
+  v_handoff_id uuid;
   owner_dept text;
 begin
   if not exists(select 1 from public.office_identity_users where user_id=p_actor and status='ACTIVE') then
@@ -155,13 +155,16 @@ begin
     opportunity_id,customer_id,product_id,owner_user_id,created_by,updated_by
   ) values(opp.id,opp.customer_id,opp.product_id,opp.owner_user_id,p_actor,p_actor)
   on conflict(opportunity_id) do update set updated_by=excluded.updated_by,updated_at=now()
-  returning id into handoff_id;
+  returning id into v_handoff_id;
 
-  if not exists(select 1 from public.office_commercial_handoff_events where handoff_id=handoff_id and event_type='HANDOFF_INITIALIZED') then
+  if not exists(
+    select 1 from public.office_commercial_handoff_events e
+    where e.handoff_id=v_handoff_id and e.event_type='HANDOFF_INITIALIZED'
+  ) then
     insert into public.office_commercial_handoff_events(handoff_id,actor_user_id,event_type,metadata)
-    values(handoff_id,p_actor,'HANDOFF_INITIALIZED',jsonb_build_object('opportunity_id',p_opportunity));
+    values(v_handoff_id,p_actor,'HANDOFF_INITIALIZED',jsonb_build_object('opportunity_id',p_opportunity));
   end if;
-  return handoff_id;
+  return v_handoff_id;
 end;
 $$;
 
@@ -178,13 +181,17 @@ declare
   r public.office_requests%rowtype;
   expected_type text;
   normalized_kind text:=upper(trim(coalesce(p_kind,'')));
+  owner_dept text;
 begin
   select * into h from public.office_commercial_handoffs where id=p_handoff for update;
   if h.id is null then raise exception 'Commercial handoff not found'; end if;
-  if not public.office_effective_permission(p_actor,'sales.crm.write','OWN',null,h.owner_user_id)
-     and not public.office_effective_permission(p_actor,'sales.crm.write','COMPANY',null,null) then
-    raise exception 'Commercial handoff authority required';
-  end if;
+  select department_code into owner_dept from public.office_job_assignments where user_id=h.owner_user_id and status in ('ACTIVE','ON_LEAVE') limit 1;
+  if not (
+    public.office_effective_permission(p_actor,'sales.crm.write','OWN',null,h.owner_user_id)
+    or (owner_dept is not null and public.office_effective_permission(p_actor,'sales.crm.write','DEPARTMENT',owner_dept,null))
+    or public.office_effective_permission(p_actor,'sales.crm.write','COMPANY',null,null)
+  ) then raise exception 'Commercial handoff authority required'; end if;
+
   expected_type:=case normalized_kind
     when 'CONTRACT' then 'COMMERCIAL_CONTRACT'
     when 'SUBSCRIPTION' then 'SUBSCRIPTION_ACTIVATION'
