@@ -104,6 +104,13 @@ export const officeSections = {
     roles: ["OWNER", "DIRECTOR", "OPERATIONS", "PRODUCT_ADMIN"],
     group: "Operate",
   },
+  crm: {
+    title: "Sales CRM",
+    eyebrow: "REVENUE PIPELINE",
+    description: "Permission-scoped leads, opportunities and commercial activity linked to canonical customers and products without bypassing contracting or billing controls.",
+    roles: ["OWNER", "DIRECTOR", "MEMBER", "OPERATIONS", "PRODUCT_ADMIN"],
+    group: "Operate",
+  },
   governance: {
     title: "Governance",
     eyebrow: "BOARD & CORPORATE",
