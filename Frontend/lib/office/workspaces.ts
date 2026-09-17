@@ -90,6 +90,13 @@ export const officeSections = {
     roles: executive,
     group: "Lead",
   },
+  intelligence: {
+    title: "KRAVIA Intelligence",
+    eyebrow: "EXECUTIVE BRIEF",
+    description: "Read-only executive intelligence assembled from canonical company records. It surfaces exceptions and attention items without executing company actions.",
+    roles: executive,
+    group: "Lead",
+  },
   products: {
     title: "Products",
     eyebrow: "PRODUCT OPERATIONS",
