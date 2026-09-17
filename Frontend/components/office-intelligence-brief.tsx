@@ -6,10 +6,12 @@ import { AlertTriangle, ArrowRight, BrainCircuit, CircleAlert, CircleCheck, Load
 import styles from "./office-intelligence-brief.module.css";
 
 type Attention = { key: string; severity: "CRITICAL" | "HIGH" | "MEDIUM" | "INFO"; area: string; title: string; detail: string; href: string };
+type MoneyBucket = { currency: string; minor: number };
 type Brief = {
   generated_at: string;
   mode: string;
   disclaimer: string;
+  guardrail: string;
   metrics: {
     active_tasks: number;
     overdue_tasks: number;
@@ -18,10 +20,13 @@ type Brief = {
     active_incidents: number;
     critical_incidents: number;
     open_opportunities: number;
-    pipeline_value_minor: number;
-    receivables_minor: number;
+    pipeline_by_currency: MoneyBucket[];
+    receivables_by_currency: MoneyBucket[];
     invoices_with_balance: number;
     compliance_due_30d: number;
+    contracts_expiring_60d: number;
+    engineering_services: number;
+    engineering_services_not_active: number;
     unread_notifications: number;
     active_auth_sessions: number;
     high_risk_auth_sessions: number;
@@ -36,8 +41,13 @@ async function load(): Promise<Brief> {
   return body as Brief;
 }
 
-function money(minor: number) {
-  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(minor / 100);
+function money(bucket: MoneyBucket) {
+  return new Intl.NumberFormat("en-IN", { style: "currency", currency: bucket.currency, maximumFractionDigits: 0 }).format(bucket.minor / 100);
+}
+
+function moneySummary(buckets: MoneyBucket[]) {
+  if (!buckets.length) return "—";
+  return buckets.slice(0, 2).map(money).join(" · ") + (buckets.length > 2 ? ` +${buckets.length - 2}` : "");
 }
 
 function icon(severity: Attention["severity"]) {
@@ -66,9 +76,10 @@ export function OfficeIntelligenceBrief({ compact = false }: { compact?: boolean
   return <section className={styles.shell} data-compact={compact}>
     <header className={styles.hero}><div className={styles.mark}><BrainCircuit /></div><div><p>KRAVIA INTELLIGENCE</p><h2>{compact ? "What needs executive attention now." : "A read-first company brief from canonical records."}</h2><span>{brief.disclaimer}</span></div><div className={styles.mode}><Sparkles /><span>Deterministic V1</span><small>No autonomous writes</small></div></header>
 
-    <div className={styles.metrics}><article><span>Pending approvals</span><strong>{brief.metrics.pending_approval_steps}</strong><small>{brief.metrics.overdue_tasks} overdue tasks</small></article><article><span>Incidents</span><strong>{brief.metrics.active_incidents}</strong><small>{brief.metrics.critical_incidents} SEV1/SEV2</small></article><article><span>Open pipeline</span><strong>{brief.metrics.open_opportunities}</strong><small>{money(brief.metrics.pipeline_value_minor)} visible value</small></article><article><span>Receivables</span><strong>{money(brief.metrics.receivables_minor)}</strong><small>{brief.metrics.invoices_with_balance} invoices with balance</small></article><article><span>Compliance due</span><strong>{brief.metrics.compliance_due_30d}</strong><small>Next 30 days / overdue</small></article><article><span>Security sessions</span><strong>{brief.metrics.active_auth_sessions}</strong><small>{brief.metrics.high_risk_auth_sessions} high risk</small></article></div>
+    <div className={styles.metrics}><article><span>Pending approvals</span><strong>{brief.metrics.pending_approval_steps}</strong><small>{brief.metrics.overdue_tasks} overdue tasks</small></article><article><span>Incidents</span><strong>{brief.metrics.active_incidents}</strong><small>{brief.metrics.critical_incidents} SEV1/SEV2</small></article><article><span>Open pipeline</span><strong>{brief.metrics.open_opportunities}</strong><small>{moneySummary(brief.metrics.pipeline_by_currency)} visible value</small></article><article><span>Receivables</span><strong>{moneySummary(brief.metrics.receivables_by_currency)}</strong><small>{brief.metrics.invoices_with_balance} invoices with balance</small></article><article><span>Compliance due</span><strong>{brief.metrics.compliance_due_30d}</strong><small>{brief.metrics.contracts_expiring_60d} contracts within 60 days</small></article><article><span>Company services</span><strong>{brief.metrics.engineering_services}</strong><small>{brief.metrics.engineering_services_not_active} not marked active</small></article></div>
 
     <div className={styles.attention}>{visibleAttention.map((item) => <Link href={item.href} className={styles.item} key={item.key} data-severity={item.severity}><div className={styles.icon}>{icon(item.severity)}</div><div><span>{item.area} · {item.severity}</span><b>{item.title}</b><p>{item.detail}</p></div><ArrowRight /></Link>)}</div>
+    {!compact ? <div className={styles.state}><ShieldAlert /><div><h2>Execution guardrail</h2><p>{brief.guardrail}</p></div></div> : null}
     {compact && brief.attention.length > visibleAttention.length ? <Link className={styles.open} href="/office/intelligence">Open full intelligence brief →</Link> : null}
   </section>;
 }
