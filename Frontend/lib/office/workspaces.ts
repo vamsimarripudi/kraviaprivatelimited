@@ -111,6 +111,13 @@ export const officeSections = {
     roles: ["OWNER", "DIRECTOR", "MEMBER", "OPERATIONS", "PRODUCT_ADMIN"],
     group: "Operate",
   },
+  engineering: {
+    title: "Engineering",
+    eyebrow: "ENGINEERING CONTROL",
+    description: "Permission-scoped services, deployments and incidents. Provider references are visible only inside assigned project or repository authority, and production execution remains governed.",
+    roles: ["OWNER", "DIRECTOR", "MEMBER", "OPERATIONS"],
+    group: "Operate",
+  },
   governance: {
     title: "Governance",
     eyebrow: "BOARD & CORPORATE",
