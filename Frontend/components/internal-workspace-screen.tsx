@@ -18,6 +18,7 @@ import { WorkspaceSignOutButton } from "@/components/workspace-sign-out-button";
 import { AccessGovernancePanel } from "@/components/access-governance-panel";
 import { WorkforceAdministrationPanel } from "@/components/workforce-administration-panel";
 import { OfficeCommandCenter } from "@/components/office-command-center";
+import { OfficePresenceControl } from "@/components/office-presence-control";
 import { OfficeWorkHub } from "@/components/office-work-hub";
 import { RequestCollaborationWorkspace } from "@/components/request-collaboration-workspace";
 import { OfficeOrganizationChart } from "@/components/office-organization-chart";
@@ -58,7 +59,7 @@ export function InternalWorkspaceScreen({ workspace, section, identity }: Props)
     </aside>
 
     <section className="office-main">
-      <header className="office-topbar"><div><p className="eyebrow">{item?.eyebrow ?? definition.label}</p><h1>{item?.title ?? definition.label}</h1></div><div className="office-topbar-actions"><OfficeCommandCenter /><IdentityCard identity={identity} /></div></header>
+      <header className="office-topbar"><div><p className="eyebrow">{item?.eyebrow ?? definition.label}</p><h1>{item?.title ?? definition.label}</h1></div><div className="office-topbar-actions"><OfficePresenceControl /><OfficeCommandCenter /><IdentityCard identity={identity} /></div></header>
       {permitted && item ? <>
         <div className="office-notice"><ShieldCheck /><p>{item.description}</p></div>
         {workspace === "office" && section === "access" ? <><AccessGovernancePanel identity={identity} /><WorkforceAdministrationPanel identity={identity} /></>
