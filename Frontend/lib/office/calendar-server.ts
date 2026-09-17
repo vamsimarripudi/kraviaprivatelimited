@@ -9,18 +9,33 @@ export class OfficeCalendarError extends Error {
   }
 }
 
-type CalendarEvent = {
-  id: string;
-  source: string;
+type EventInput = {
   title: string;
-  description?: string | null;
-  start_at: string;
-  end_at?: string | null;
+  description?: string;
+  eventType: "MEETING" | "DEADLINE" | "LAUNCH" | "CUSTOMER" | "MAINTENANCE" | "REVIEW" | "REMINDER" | "OTHER";
+  visibility: "PERSONAL" | "COMPANY" | "DEPARTMENT" | "TEAM";
+  scopeKey?: string;
+  startsAt: string;
+  endsAt?: string;
+  allDay?: boolean;
+};
+
+type InternalCalendarRow = {
+  id: string;
+  event_code: string;
+  title: string;
+  description: string;
+  event_type: string;
+  visibility_scope: string;
+  scope_key: string | null;
+  starts_at: string;
+  ends_at: string | null;
   all_day: boolean;
-  visibility: string;
-  href: string;
-  status?: string | null;
-  priority?: string | null;
+  created_by: string;
+  owner_user_id: string;
+  source_type: string | null;
+  source_key: string | null;
+  status: string;
 };
 
 async function actor() {
@@ -32,85 +47,151 @@ async function actor() {
   }
 }
 
-export async function getOfficeCompanyCalendar(input: { start?: string; end?: string } = {}) {
-  const { admin, identity } = await actor();
-  const start = input.start ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-  const end = input.end ?? new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString();
-  const roles = new Set(identity.roles);
-  const canSeeGovernance = [...roles].some((role) => ["OWNER", "DIRECTOR", "CS", "LEGAL"].includes(role));
-  const canSeeCompliance = [...roles].some((role) => ["OWNER", "DIRECTOR", "CS", "LEGAL", "CA", "AUDITOR"].includes(role));
-  const canSeeContracts = [...roles].some((role) => ["OWNER", "DIRECTOR", "LEGAL", "OPERATIONS"].includes(role));
-  const canSeeSubscriptions = [...roles].some((role) => ["OWNER", "DIRECTOR", "OPERATIONS", "PRODUCT_ADMIN"].includes(role));
-
-  let internalQuery = admin.from("office_calendar_events").select("id,title,description,start_at,end_at,all_day,visibility,owner_user_id,department_code,status,created_at,updated_at").lte("start_at", end).or(`end_at.is.null,end_at.gte.${start}`).order("start_at", { ascending: true }).limit(500);
-  if (!roles.has("OWNER") && !roles.has("DIRECTOR")) {
-    const clauses = [`visibility.eq.COMPANY`, `owner_user_id.eq.${identity.userId}`];
-    if (identity.department) clauses.push(`and(visibility.eq.DEPARTMENT,department_code.eq.${identity.department})`);
-    internalQuery = internalQuery.or(clauses.join(","));
-  }
-
-  let taskQuery = admin.from("office_tasks").select("id,task_code,title,description,priority,status,assigned_user_id,created_by,department_code,due_at").not("due_at", "is", null).gte("due_at", start).lte("due_at", end).order("due_at", { ascending: true }).limit(500);
-  if (!roles.has("OWNER") && !roles.has("DIRECTOR") && !roles.has("ADMIN")) taskQuery = taskQuery.or(`assigned_user_id.eq.${identity.userId},created_by.eq.${identity.userId}`);
-
-  const boardQuery = canSeeGovernance
-    ? admin.from("office_board_meetings").select("id,meeting_code,meeting_kind,title,scheduled_start,scheduled_end,venue_mode,venue_details,status").gte("scheduled_start", start).lte("scheduled_start", end).order("scheduled_start", { ascending: true }).limit(200)
-    : null;
-
-  let boardActionQuery = admin.from("office_board_actions").select("id,action_code,meeting_id,title,description,owner_user_id,due_at,status").not("due_at", "is", null).gte("due_at", start).lte("due_at", end).order("due_at", { ascending: true }).limit(300);
-  if (!canSeeGovernance) boardActionQuery = boardActionQuery.eq("owner_user_id", identity.userId);
-
-  let followupQuery = admin.from("office_secretarial_followups").select("id,followup_code,meeting_id,title,authority,form_code,due_at,due_basis,owner_user_id,reviewer_user_id,status").not("due_at", "is", null).gte("due_at", start).lte("due_at", end).order("due_at", { ascending: true }).limit(300);
-  if (!canSeeGovernance) followupQuery = followupQuery.or(`owner_user_id.eq.${identity.userId},reviewer_user_id.eq.${identity.userId}`);
-
-  const complianceQuery = canSeeCompliance
-    ? admin.from("compliance_obligations").select("id,title,authority,due_date,status,risk").not("due_date", "is", null).gte("due_date", start).lte("due_date", end).order("due_date", { ascending: true }).limit(300)
-    : null;
-  const contractsQuery = canSeeContracts
-    ? admin.from("contracts").select("id,contract_no,counterparty_name,expiry_date,status,notice_days").not("expiry_date", "is", null).gte("expiry_date", start).lte("expiry_date", end).order("expiry_date", { ascending: true }).limit(300)
-    : null;
-  const subscriptionsQuery = canSeeSubscriptions
-    ? admin.from("subscriptions").select("id,customer_id,product_id,status,current_period_end,cancel_at_period_end").not("current_period_end", "is", null).gte("current_period_end", start).lte("current_period_end", end).order("current_period_end", { ascending: true }).limit(300)
-    : null;
-
-  const [internal, tasks, board, boardActions, followups, compliance, contracts, subscriptions] = await Promise.all([
-    internalQuery,
-    taskQuery,
-    boardQuery ?? Promise.resolve({ data: [], error: null }),
-    boardActionQuery,
-    followupQuery,
-    complianceQuery ?? Promise.resolve({ data: [], error: null }),
-    contractsQuery ?? Promise.resolve({ data: [], error: null }),
-    subscriptionsQuery ?? Promise.resolve({ data: [], error: null }),
-  ]);
-  if (internal.error || tasks.error || board.error || boardActions.error || followups.error || compliance.error || contracts.error || subscriptions.error) throw new OfficeCalendarError(503, "Company calendar sources are temporarily unavailable");
-
-  const events: CalendarEvent[] = [];
-  for (const row of internal.data ?? []) events.push({ id: `internal:${row.id}`, source: "INTERNAL", title: row.title, description: row.description, start_at: row.start_at, end_at: row.end_at, all_day: Boolean(row.all_day), visibility: row.visibility, href: "/office/calendar", status: row.status });
-  for (const row of tasks.data ?? []) if (row.due_at) events.push({ id: `task:${row.id}`, source: "TASK", title: row.title, description: row.description, start_at: row.due_at, all_day: false, visibility: "SCOPED", href: `/office/tasks?focus=${row.id}`, status: row.status, priority: row.priority });
-  for (const row of board.data ?? []) events.push({ id: `board:${row.id}`, source: "BOARD", title: `${row.meeting_kind} · ${row.title}`, description: [row.venue_mode, row.venue_details].filter(Boolean).join(" · "), start_at: row.scheduled_start, end_at: row.scheduled_end, all_day: false, visibility: "GOVERNANCE", href: `/office/governance?meeting=${row.id}`, status: row.status });
-  for (const row of boardActions.data ?? []) if (row.due_at && !["DONE","CANCELLED"].includes(String(row.status))) events.push({ id: `board-action:${row.id}`, source: "BOARD_ACTION", title: row.title, description: row.description, start_at: row.due_at, all_day: false, visibility: canSeeGovernance ? "GOVERNANCE" : "OWN", href: `/office/governance?meeting=${row.meeting_id}`, status: row.status, priority: "HIGH" });
-  for (const row of followups.data ?? []) if (row.due_at && !["CLOSED","NOT_REQUIRED"].includes(String(row.status))) events.push({ id: `secretarial:${row.id}`, source: "SECRETARIAL", title: `${row.authority} · ${row.title}`, description: [row.form_code, row.due_basis].filter(Boolean).join(" · "), start_at: row.due_at, all_day: false, visibility: canSeeGovernance ? "GOVERNANCE" : "OWN", href: `/office/governance?meeting=${row.meeting_id ?? ""}`, status: row.status, priority: "HIGH" });
-  for (const row of compliance.data ?? []) if (row.due_date) events.push({ id: `compliance:${row.id}`, source: "COMPLIANCE", title: row.title, description: row.authority, start_at: row.due_date, all_day: true, visibility: "COMPLIANCE", href: "/office/compliance", status: row.status, priority: row.risk });
-  for (const row of contracts.data ?? []) if (row.expiry_date) events.push({ id: `contract:${row.id}`, source: "CONTRACT", title: `${row.contract_no} · ${row.counterparty_name}`, description: row.notice_days ? `${row.notice_days} day notice recorded` : null, start_at: row.expiry_date, all_day: true, visibility: "LEGAL", href: "/office/contracts", status: row.status });
-  for (const row of subscriptions.data ?? []) if (row.current_period_end) events.push({ id: `subscription:${row.id}`, source: "SUBSCRIPTION", title: "Subscription period end", description: `${row.customer_id} · ${row.product_id}${row.cancel_at_period_end ? " · cancellation scheduled" : ""}`, start_at: row.current_period_end, all_day: true, visibility: "COMMERCIAL", href: "/office/customers", status: row.status });
-
-  events.sort((a, b) => Date.parse(a.start_at) - Date.parse(b.start_at));
-  return { range: { start, end }, events, can_create_internal: true, disclaimer: "Projected dates come from canonical company records. Board quorum, statutory due dates and legal applicability are not calculated by the calendar." };
+function dateIso(value: unknown, endOfDay = false) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const raw = value.trim();
+  const dayOnly = /^\d{4}-\d{2}-\d{2}$/.test(raw);
+  const parsed = new Date(dayOnly ? `${raw}T${endOfDay ? "23:59:59" : "00:00:00"}+05:30` : raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
-export async function createOfficeCalendarEvent(input: { title: string; description?: string; startAt: string; endAt?: string; allDay?: boolean; visibility: "PRIVATE" | "DEPARTMENT" | "COMPANY"; department?: string }) {
+function projected(source: string, sourceKey: string, title: string, startsAt: string | null, eventType: string, description: string, endsAt: string | null = null) {
+  if (!startsAt) return null;
+  return {
+    id: `projected:${source}:${sourceKey}`,
+    event_code: null,
+    title,
+    description,
+    event_type: eventType,
+    visibility_scope: "SYSTEM",
+    scope_key: null,
+    starts_at: startsAt,
+    ends_at: endsAt,
+    all_day: eventType === "DEADLINE" || eventType === "CUSTOMER",
+    created_by: null,
+    owner_user_id: null,
+    source_type: source,
+    source_key: sourceKey,
+    status: "ACTIVE",
+    projected: true,
+  };
+}
+
+export async function getOfficeCompanyCalendar() {
   const { admin, identity } = await actor();
-  if (input.visibility === "DEPARTMENT" && !input.department && !identity.department) throw new OfficeCalendarError(400, "Department visibility requires a department");
+  const privileged = identity.roles.some((role) => ["OWNER", "DIRECTOR", "ADMIN"].includes(role));
+  const governance = identity.roles.some((role) => ["OWNER", "DIRECTOR", "CS", "LEGAL"].includes(role));
+  const compliance = identity.roles.some((role) => ["OWNER", "DIRECTOR", "CS", "LEGAL", "CA", "AUDITOR"].includes(role));
+  const legalOps = identity.roles.some((role) => ["OWNER", "DIRECTOR", "LEGAL", "OPERATIONS"].includes(role));
+  const commercial = identity.roles.some((role) => ["OWNER", "DIRECTOR", "OPERATIONS", "PRODUCT_ADMIN", "FINANCE", "CA"].includes(role));
+
+  const [identityResult, jobResult, eventsResult, tasksResult] = await Promise.all([
+    admin.from("office_identity_users").select("primary_department").eq("user_id", identity.userId).maybeSingle(),
+    admin.from("office_job_assignments").select("team_key").eq("user_id", identity.userId).eq("status", "ACTIVE").maybeSingle(),
+    admin.from("office_calendar_events").select("id,event_code,title,description,event_type,visibility_scope,scope_key,starts_at,ends_at,all_day,created_by,owner_user_id,source_type,source_key,status").eq("status", "ACTIVE").order("starts_at", { ascending: true }).limit(500),
+    admin.from("office_tasks").select("id,task_code,title,description,due_at,assigned_user_id,created_by,status").not("due_at", "is", null).not("status", "in", '("DONE","CANCELLED")').order("due_at", { ascending: true }).limit(250),
+  ]);
+  if (identityResult.error || jobResult.error || eventsResult.error || tasksResult.error) throw new OfficeCalendarError(503, "Calendar authority is temporarily unavailable");
+
+  const department = identityResult.data?.primary_department ?? null;
+  const team = jobResult.data?.team_key ?? null;
+  const internal = ((eventsResult.data ?? []) as InternalCalendarRow[]).filter((event) => {
+    if (privileged || event.created_by === identity.userId || event.owner_user_id === identity.userId) return true;
+    if (event.visibility_scope === "COMPANY") return true;
+    if (event.visibility_scope === "PERSONAL") return event.owner_user_id === identity.userId;
+    if (event.visibility_scope === "DEPARTMENT") return Boolean(department && event.scope_key === department);
+    if (event.visibility_scope === "TEAM") return Boolean(team && event.scope_key === team);
+    return false;
+  });
+
+  const taskEvents = (tasksResult.data ?? [])
+    .filter((task) => privileged || task.assigned_user_id === identity.userId || task.created_by === identity.userId)
+    .map((task) => projected("TASK", String(task.id), `Task due · ${task.title}`, dateIso(task.due_at), "DEADLINE", task.description || task.task_code || "Company Inbox task due date"))
+    .filter(Boolean);
+
+  const synthetic: Array<Record<string, unknown>> = [...taskEvents] as Array<Record<string, unknown>>;
+
+  if (compliance) {
+    const { data, error } = await admin.from("compliance_obligations").select("id,title,authority,due_date,status,risk").not("due_date", "is", null).order("due_date", { ascending: true }).limit(250);
+    if (error) throw new OfficeCalendarError(503, "Compliance calendar is temporarily unavailable");
+    for (const row of data ?? []) {
+      const event = projected("COMPLIANCE", String(row.id), `Compliance · ${row.title}`, dateIso(row.due_date), "DEADLINE", `${row.authority} · ${row.status}${row.risk ? ` · ${row.risk}` : ""}`);
+      if (event) synthetic.push(event);
+    }
+  }
+
+  if (governance) {
+    const [meetings, actions, followups] = await Promise.all([
+      admin.from("office_board_meetings").select("id,meeting_code,meeting_kind,title,scheduled_start,scheduled_end,status").order("scheduled_start", { ascending: true }).limit(150),
+      admin.from("office_board_actions").select("id,action_code,meeting_id,title,description,owner_user_id,due_at,status").not("due_at", "is", null).order("due_at", { ascending: true }).limit(300),
+      admin.from("office_secretarial_followups").select("id,followup_code,meeting_id,title,authority,form_code,due_at,due_basis,owner_user_id,reviewer_user_id,status").not("due_at", "is", null).order("due_at", { ascending: true }).limit(300),
+    ]);
+    if (meetings.error || actions.error || followups.error) throw new OfficeCalendarError(503, "Governance calendar is temporarily unavailable");
+    for (const row of meetings.data ?? []) {
+      const event = projected("BOARD_MEETING", String(row.id), `Board · ${row.title}`, dateIso(row.scheduled_start), "MEETING", `${row.meeting_code} · ${row.meeting_kind} · ${row.status}`, dateIso(row.scheduled_end));
+      if (event) synthetic.push(event);
+    }
+    for (const row of actions.data ?? []) {
+      if (["DONE", "CANCELLED"].includes(String(row.status))) continue;
+      const event = projected("BOARD_ACTION", String(row.id), `Board action · ${row.title}`, dateIso(row.due_at), "DEADLINE", `${row.action_code} · ${row.status}`);
+      if (event) synthetic.push(event);
+    }
+    for (const row of followups.data ?? []) {
+      if (["CLOSED", "NOT_REQUIRED"].includes(String(row.status))) continue;
+      const event = projected("SECRETARIAL", String(row.id), `${row.authority} · ${row.title}`, dateIso(row.due_at), "DEADLINE", [row.followup_code, row.form_code, row.due_basis, row.status].filter(Boolean).join(" · "));
+      if (event) synthetic.push(event);
+    }
+  }
+
+  if (legalOps) {
+    const { data, error } = await admin.from("contracts").select("id,contract_no,counterparty_name,expiry_date,status").not("expiry_date", "is", null).order("expiry_date", { ascending: true }).limit(150);
+    if (error) throw new OfficeCalendarError(503, "Contract calendar is temporarily unavailable");
+    for (const row of data ?? []) {
+      const event = projected("CONTRACT", String(row.id), `Contract expiry · ${row.counterparty_name}`, dateIso(row.expiry_date, true), "DEADLINE", `${row.contract_no} · ${row.status}`);
+      if (event) synthetic.push(event);
+    }
+  }
+
+  if (commercial) {
+    const { data, error } = await admin.from("subscriptions").select("id,customer_id,product_id,current_period_end,status,cancel_at_period_end").not("current_period_end", "is", null).order("current_period_end", { ascending: true }).limit(200);
+    if (error) throw new OfficeCalendarError(503, "Subscription calendar is temporarily unavailable");
+    for (const row of data ?? []) {
+      const event = projected("SUBSCRIPTION", String(row.id), "Subscription period end", dateIso(row.current_period_end, true), "CUSTOMER", `${row.status}${row.cancel_at_period_end ? " · cancels at period end" : ""}`);
+      if (event) synthetic.push(event);
+    }
+  }
+
+  const events = [...internal.map((event) => ({ ...event, projected: false })), ...synthetic]
+    .sort((left, right) => String(left.starts_at).localeCompare(String(right.starts_at)));
+
+  return {
+    actor: { user_id: identity.userId, roles: identity.roles, department, team, privileged },
+    generated_at: new Date().toISOString(),
+    events,
+    disclaimer: "Projected dates come from canonical company records. Board quorum, statutory due dates and legal applicability are not calculated by the calendar.",
+  };
+}
+
+export async function createOfficeCalendarEvent(input: EventInput) {
+  const { admin, identity } = await actor();
   const { data, error } = await admin.rpc("office_create_calendar_event", {
     p_actor: identity.userId,
     p_title: input.title,
-    p_description: input.description?.trim() || null,
-    p_start_at: input.startAt,
-    p_end_at: input.endAt ?? null,
-    p_all_day: input.allDay ?? false,
+    p_description: input.description ?? "",
+    p_event_type: input.eventType,
     p_visibility: input.visibility,
-    p_department: input.visibility === "DEPARTMENT" ? (input.department || identity.department) : null,
+    p_scope_key: input.scopeKey?.trim() || null,
+    p_starts_at: input.startsAt,
+    p_ends_at: input.endsAt ?? null,
+    p_all_day: input.allDay ?? false,
   });
   if (error || typeof data !== "string") throw new OfficeCalendarError(400, error?.message ?? "Unable to create calendar event");
   return { event_id: data };
+}
+
+export async function cancelOfficeCalendarEvent(eventId: string) {
+  const { admin, identity } = await actor();
+  const { data, error } = await admin.rpc("office_cancel_calendar_event", { p_actor: identity.userId, p_event: eventId });
+  if (error || data !== true) throw new OfficeCalendarError(400, error?.message ?? "Unable to cancel calendar event");
+  return { cancelled: true };
 }
