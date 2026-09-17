@@ -36,7 +36,7 @@ describe("Office commercial handoff", () => {
 
   it("surfaces the handoff beside CRM without claiming execution", () => {
     expect(screen).toContain("OfficeCommercialHandoff");
-    expect(component).toContain("never signs a contract");
+    expect(component).toContain("Starting the handoff creates no contract, subscription or invoice");
     expect(component).toContain("No downstream business action was executed automatically");
   });
 });
