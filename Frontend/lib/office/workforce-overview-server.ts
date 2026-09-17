@@ -28,6 +28,16 @@ function latestByUser<T extends { user_id: string }>(rows: T[], compare: (row: T
   return map;
 }
 
+function latestEmploymentByUser(rows: EmploymentRegistryRow[]) {
+  const map = new Map<string, EmploymentRegistryRow>();
+  const rank = (row: EmploymentRegistryRow) => `${["ACTIVE", "ON_LEAVE", "PLANNED"].includes(row.status) ? "1" : "0"}:${row.created_at}`;
+  for (const row of rows) {
+    const current = map.get(row.identity_user_id);
+    if (!current || rank(row) > rank(current)) map.set(row.identity_user_id, row);
+  }
+  return map;
+}
+
 function sessionPresence(row: AuthRow | undefined, now: number) {
   if (!row || row.status !== "ACTIVE") return "OFFLINE" as const;
   const seen = Date.parse(row.last_seen_at);
@@ -66,7 +76,7 @@ export async function getOfficeWorkforceLiveOverview() {
 
   const identities = (identitiesResult.data ?? []) as IdentityRow[];
   const peopleRegistry = new Map(((peopleRegistryResult.data ?? []) as PersonRegistryRow[]).map((row) => [row.identity_user_id, row]));
-  const employments = latestByUser((employmentsResult.data ?? []) as EmploymentRegistryRow[], (row) => `${["ACTIVE", "ON_LEAVE", "PLANNED"].includes(row.status) ? "1" : "0"}:${row.created_at}`);
+  const employments = latestEmploymentByUser((employmentsResult.data ?? []) as EmploymentRegistryRow[]);
   const jobs = latestByUser((jobsResult.data ?? []) as JobRow[], () => "1");
   const presence = new Map(((presenceResult.data ?? []) as PresenceRow[]).map((row) => [row.user_id, row]));
   const statuses = latestByUser((statusesResult.data ?? []) as WorkStatusRow[], (row) => row.effective_from);
