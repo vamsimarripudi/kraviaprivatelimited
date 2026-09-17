@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { ArrowRight, FileLock2, Landmark, ShieldCheck, TriangleAlert } from "lucide-react";
 import type { OfficeIdentity } from "@/lib/office/auth-server";
+import { getOfficeCapabilitySnapshot } from "@/lib/office/capability-server";
+import {
+  capabilityCanAccessSection,
+  navigationCommands,
+} from "@/lib/office/workspace-capabilities";
 import {
   financeSections,
   officeSections,
@@ -19,6 +24,7 @@ import { AccessGovernancePanel } from "@/components/access-governance-panel";
 import { WorkforceAdministrationPanel } from "@/components/workforce-administration-panel";
 import { WorkforceLiveOverview } from "@/components/workforce-live-overview";
 import { OfficeCommandCenter } from "@/components/office-command-center";
+import { OfficeCommandPalette } from "@/components/office-command-palette";
 import { OfficeCompanyCalendar } from "@/components/office-company-calendar";
 import { OfficeCompanyInbox } from "@/components/office-company-inbox";
 import { OfficeCrmWorkspace } from "@/components/office-crm-workspace";
@@ -47,15 +53,22 @@ function IdentityCard({ identity }: { identity: OfficeIdentity }) {
   return <div className="office-identity" aria-label="Verified KRAVIA Office identity">{content}</div>;
 }
 
-export function InternalWorkspaceScreen({ workspace, section, identity }: Props) {
+export async function InternalWorkspaceScreen({ workspace, section, identity }: Props) {
   const definition = workspaceDefinitions[workspace];
   const sections = workspace === "finance" ? financeSections : officeSections;
   const item = (sections as Record<string, WorkspaceSection>)[section];
-  const permitted = item ? roleCanAccessSection(item, identity.roles) : false;
-  const entries = sectionEntries(workspace).filter(([, value]) => roleCanAccessSection(value, identity.roles));
+  const capability = await getOfficeCapabilitySnapshot();
+  const permissions = capability.permissions;
+  const visible = (slug: string, value: WorkspaceSection) => roleCanAccessSection(value, identity.roles) && capabilityCanAccessSection(workspace, slug, identity.roles, permissions);
+  const permitted = item ? visible(String(section), item) : false;
+  const entries = sectionEntries(workspace).filter(([slug, value]) => visible(slug, value));
   const groups = Array.from(new Set(entries.map(([, value]) => value.group)));
-  const canSwitch = workspace === "office" ? roleCanAccessWorkspace("finance", identity.roles) : roleCanAccessWorkspace("office", identity.roles);
   const switchWorkspace: WorkspaceKind = workspace === "office" ? "finance" : "office";
+  const switchDashboard = switchWorkspace === "finance" ? financeSections.dashboard : officeSections.dashboard;
+  const canSwitch = roleCanAccessWorkspace(switchWorkspace, identity.roles)
+    && roleCanAccessSection(switchDashboard, identity.roles)
+    && capabilityCanAccessSection(switchWorkspace, "dashboard", identity.roles, permissions);
+  const commands = navigationCommands(workspace, entries);
 
   return <main className={`office office-v2 workspace-shell workspace-${workspace}`}>
     <aside>
@@ -67,7 +80,7 @@ export function InternalWorkspaceScreen({ workspace, section, identity }: Props)
     </aside>
 
     <section className="office-main">
-      <header className="office-topbar"><div><p className="eyebrow">{item?.eyebrow ?? definition.label}</p><h1>{item?.title ?? definition.label}</h1></div><div className="office-topbar-actions"><OfficePresenceControl /><OfficeCommandCenter /><IdentityCard identity={identity} /></div></header>
+      <header className="office-topbar"><div><p className="eyebrow">{item?.eyebrow ?? definition.label}</p><h1>{item?.title ?? definition.label}</h1></div><div className="office-topbar-actions"><OfficePresenceControl /><OfficeCommandPalette commands={commands} /><OfficeCommandCenter /><IdentityCard identity={identity} /></div></header>
       {permitted && item ? <>
         <div className="office-notice"><ShieldCheck /><p>{item.description}</p></div>
         {workspace === "office" && section === "access" ? <><AccessGovernancePanel identity={identity} /><WorkforceAdministrationPanel identity={identity} /></>
@@ -83,15 +96,17 @@ export function InternalWorkspaceScreen({ workspace, section, identity }: Props)
           : workspace === "office" && section === "people" ? <><WorkforceLiveOverview /><OfficeOrganizationChart /></>
           : workspace === "office" && section === "integrations" ? <OfficeEmbedRegistry />
           : workspace === "office" && section === "settings" ? <OfficeSecuritySettings identity={identity} />
-          : section === "dashboard" ? <WorkspaceDashboard workspace={workspace} section={section} identity={identity} />
+          : section === "dashboard" ? <WorkspaceDashboard workspace={workspace} section={section} identity={identity} permissions={permissions} />
           : <WorkspaceModule workspace={workspace} section={section} item={item} />}
-      </> : <section className="office-denied"><TriangleAlert /><div><p className="eyebrow">ACCESS RESTRICTED</p><h2>This module is not assigned to your current authority.</h2><p>KRAVIA Office evaluates identity, current roles and governed access state. Permission-scoped workflows can add narrower authority without turning a job title into unrestricted access.</p><Link className="text-link" href={`${definition.basePath}/dashboard`}>Return to overview <ArrowRight /></Link></div></section>}
+      </> : <section className="office-denied"><TriangleAlert /><div><p className="eyebrow">ACCESS RESTRICTED</p><h2>This module is not assigned to your current authority.</h2><p>KRAVIA Office evaluates identity, current roles and capability scope before showing a work surface. Direct URLs do not bypass the server-side authorization used by records and actions.</p><Link className="text-link" href={`${definition.basePath}/dashboard`}>Return to overview <ArrowRight /></Link></div></section>}
     </section>
   </main>;
 }
 
-function WorkspaceDashboard({ workspace, section, identity }: { workspace: WorkspaceKind; section: OfficeSection | FinanceSection; identity: OfficeIdentity }) {
-  const sections = sectionEntries(workspace).filter(([slug, sectionItem]) => slug !== "dashboard" && roleCanAccessSection(sectionItem, identity.roles)).slice(0, 9);
+function WorkspaceDashboard({ workspace, section, identity, permissions }: { workspace: WorkspaceKind; section: OfficeSection | FinanceSection; identity: OfficeIdentity; permissions: readonly string[] }) {
+  const sections = sectionEntries(workspace)
+    .filter(([slug, sectionItem]) => slug !== "dashboard" && roleCanAccessSection(sectionItem, identity.roles) && capabilityCanAccessSection(workspace, slug, identity.roles, permissions))
+    .slice(0, 9);
   const basePath = workspaceDefinitions[workspace].basePath;
   const runtime = runtimeModuleSpec(workspace, section);
   const onlyShellRoles = identity.roles.every((role) => role === "ADMIN" || role === "MEMBER");
