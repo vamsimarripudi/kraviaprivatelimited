@@ -6,10 +6,10 @@ import {
   createCandidate,
   createHiringRequisition,
   createOfferProposal,
+  createOfferDocumentInstance,
   getOfficeRecruitmentOverview,
   markOfferAccepted,
   OfficeRecruitmentError,
-  recordCandidateDocument,
   requestCandidateDocument,
   reviewCandidateDocument,
   scheduleInterview,
@@ -84,12 +84,6 @@ const schema = z.discriminatedUnion("action", [
     required: z.boolean().optional(),
   }),
   z.object({
-    action: z.literal("RECORD_DOCUMENT"),
-    request_id: uuid,
-    storage_reference: z.string().trim().min(3).max(1200),
-    source_reference: optionalText(1200),
-  }),
-  z.object({
     action: z.literal("REVIEW_DOCUMENT"),
     request_id: uuid,
     decision: z.enum(["VERIFIED","REJECTED","WAIVED"]),
@@ -111,6 +105,7 @@ const schema = z.discriminatedUnion("action", [
     valid_until: z.string().datetime({ offset: true }).optional(),
   }),
   z.object({ action: z.literal("SUBMIT_OFFER"), offer_id: uuid }),
+  z.object({ action: z.literal("CREATE_OFFER_DOCUMENT"), offer_id: uuid }),
   z.object({ action: z.literal("SYNC_OFFER"), offer_id: uuid }),
   z.object({ action: z.literal("ATTACH_OFFER_DOCUMENT"), offer_id: uuid, document_instance_id: uuid }),
   z.object({ action: z.literal("MARK_OFFER_ACCEPTED"), offer_id: uuid, evidence_reference: z.string().trim().min(3).max(1200) }),
@@ -154,7 +149,6 @@ export async function POST(request: Request) {
       case "SCHEDULE_INTERVIEW": result = await scheduleInterview({ candidateId: input.candidate_id, stage: input.stage, title: input.title, interviewerUserId: input.interviewer_user_id, startsAt: input.starts_at, endsAt: input.ends_at, location: input.location }); break;
       case "SUBMIT_FEEDBACK": result = await submitInterviewFeedback({ interviewId: input.interview_id, outcome: input.outcome, evidence: input.evidence, strengths: input.strengths, concerns: input.concerns }); break;
       case "REQUEST_DOCUMENT": result = await requestCandidateDocument({ candidateId: input.candidate_id, type: input.document_type, label: input.label, required: input.required }); break;
-      case "RECORD_DOCUMENT": result = await recordCandidateDocument({ requestId: input.request_id, storageReference: input.storage_reference, sourceReference: input.source_reference }); break;
       case "REVIEW_DOCUMENT": result = await reviewCandidateDocument({ requestId: input.request_id, decision: input.decision, note: input.note }); break;
       case "CREATE_OFFER":
         result = await createOfferProposal({
@@ -165,6 +159,7 @@ export async function POST(request: Request) {
         });
         break;
       case "SUBMIT_OFFER": result = await submitOfferProposal(input.offer_id); break;
+      case "CREATE_OFFER_DOCUMENT": result = await createOfferDocumentInstance(input.offer_id); break;
       case "SYNC_OFFER": result = await syncOfferProposal(input.offer_id); break;
       case "ATTACH_OFFER_DOCUMENT": result = await attachOfferDocument({ offerId: input.offer_id, documentInstanceId: input.document_instance_id }); break;
       case "MARK_OFFER_ACCEPTED": result = await markOfferAccepted({ offerId: input.offer_id, evidenceReference: input.evidence_reference }); break;
