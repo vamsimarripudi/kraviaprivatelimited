@@ -39,6 +39,7 @@ const requirements: Record<string, readonly string[]> = {
   "office:security": ["security.overview.read", "security.change.review"],
   "office:ai": ["ai.tool.read", "ai.tool.manage", "ai.tool.review", "ai.use.request", "ai.use.read", "ai.use.review", "ai.usage.audit"],
   "office:integrations": ["integration.embed.view", "integration.embed.manage"],
+  "office:domains": ["infra.domain.read", "infra.domain.manage", "infra.dns.propose", "infra.dns.review", "infra.dns.verify"],
   "office:governance": ["secretarial.board.read", "secretarial.board.manage", "secretarial.corporate.prepare", "secretarial.corporate.approve"],
   "office:compliance": ["compliance.rules.read", "compliance.rules.manage", "compliance.facts.manage", "compliance.applicability.review", "compliance.instance.manage"],
   "office:audit": ["audit.read", "access.audit.read"],
