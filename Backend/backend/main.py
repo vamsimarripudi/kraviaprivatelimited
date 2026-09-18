@@ -772,6 +772,7 @@ def _runtime_operations_snapshot(db: Session) -> dict:
     integration_attention = [row for row in production_integrations if str(row.status).upper() not in ready_states]
     events = db.execute(select(DomainEvent).order_by(DomainEvent.created_at.asc())).scalars().all()
     pending_events = [row for row in events if str(row.status).upper() == "PENDING"]
+    waiting_handler_events = [row for row in events if str(row.status).upper() == "WAITING_HANDLER"]
     workflows = db.execute(select(WorkflowRun).order_by(WorkflowRun.started_at.desc())).scalars().all()
     failed_workflows = [row for row in workflows if str(row.status).upper() in {"FAILED", "ERROR", "DEAD_LETTER"}]
     latest_audit = db.execute(select(AuditEvent).order_by(AuditEvent.occurred_at.desc(), AuditEvent.id.desc())).scalars().first()
@@ -795,6 +796,7 @@ def _runtime_operations_snapshot(db: Session) -> dict:
         },
         "event_outbox": {
             "pending": len(pending_events),
+            "waiting_handler": len(waiting_handler_events),
             "oldest_pending_at": pending_events[0].created_at.isoformat() if pending_events and pending_events[0].created_at else None,
             "alert_threshold": _integer_env("KRAVIA_OUTBOX_ALERT_THRESHOLD", 25),
         },
@@ -921,6 +923,16 @@ def evaluate_operations(
             "entity_id": "runtime",
             "active": snapshot["event_outbox"]["pending"] >= snapshot["event_outbox"]["alert_threshold"] and snapshot["event_outbox"]["alert_threshold"] > 0,
             "detail": {"pending": snapshot["event_outbox"]["pending"], "threshold": snapshot["event_outbox"]["alert_threshold"]},
+        },
+        {
+            "alert_key": "runtime:event-handler-gap",
+            "category": "AUTOMATION",
+            "severity": "HIGH",
+            "title": "Domain events are waiting for an approved handler",
+            "entity_type": "event_outbox",
+            "entity_id": "waiting-handler",
+            "active": snapshot["event_outbox"]["waiting_handler"] > 0,
+            "detail": {"waiting_handler": snapshot["event_outbox"]["waiting_handler"]},
         },
         {
             "alert_key": "runtime:workflow-failures",
