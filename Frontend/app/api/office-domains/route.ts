@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { officeMutationIsSameOrigin } from "@/lib/office/request-security";
 import {
+  cancelDnsChange,
   createDomain,
   getDomainControlOverview,
   markDnsApplied,
@@ -9,6 +10,8 @@ import {
   proposeDnsChange,
   recordTlsCertificate,
   reviewDnsChange,
+  rollbackDnsChange,
+  transitionTlsCertificate,
   updateDomain,
   verifyDnsChange,
 } from "@/lib/office/domain-control-server";
@@ -22,7 +25,10 @@ const schema=z.discriminatedUnion("action",[
  z.object({action:z.literal("REVIEW_DNS"),change_id:uuid,status:z.enum(["APPROVED","REJECTED"]),note:opt(2000)}),
  z.object({action:z.literal("MARK_DNS_APPLIED"),change_id:uuid,evidence_reference:z.string().trim().min(3).max(1200)}),
  z.object({action:z.literal("VERIFY_DNS"),change_id:uuid,observed_value_sha256:sha,evidence_reference:z.string().trim().min(3).max(1200)}),
+ z.object({action:z.literal("CANCEL_DNS"),change_id:uuid,reason:z.string().trim().min(3).max(2000)}),
+ z.object({action:z.literal("ROLLBACK_DNS"),change_id:uuid,evidence_reference:z.string().trim().min(3).max(1200),note:opt(2000)}),
  z.object({action:z.literal("RECORD_CERT"),domain_id:uuid,service_id:uuid.optional(),hostname:z.string().trim().min(1).max(255),issuer:z.string().trim().min(2).max(300),fingerprint:z.string().trim().min(64).max(128),provider_reference:opt(1200),issued_at:z.string().datetime({offset:true}).optional(),expires_at:z.string().datetime({offset:true}),auto_managed:z.boolean()}),
+ z.object({action:z.literal("TRANSITION_CERT"),certificate_id:uuid,status:z.enum(["EXPIRING","EXPIRED","REVOKED","REPLACED"]),evidence_reference:opt(1200),note:opt(2000)}),
 ]);
 function failure(error:unknown){
  const status=error instanceof OfficeDomainControlError?error.status:500;
@@ -41,6 +47,9 @@ export async function POST(request:Request){
   if(i.action==="REVIEW_DNS")return NextResponse.json(await reviewDnsChange({changeId:i.change_id,status:i.status,note:i.note}));
   if(i.action==="MARK_DNS_APPLIED")return NextResponse.json(await markDnsApplied({changeId:i.change_id,evidence:i.evidence_reference}));
   if(i.action==="VERIFY_DNS")return NextResponse.json(await verifyDnsChange({changeId:i.change_id,observedSha256:i.observed_value_sha256,evidence:i.evidence_reference}));
-  return NextResponse.json(await recordTlsCertificate({domainId:i.domain_id,serviceId:i.service_id,hostname:i.hostname,issuer:i.issuer,fingerprint:i.fingerprint,providerReference:i.provider_reference,issuedAt:i.issued_at,expiresAt:i.expires_at,autoManaged:i.auto_managed}),{status:201});
+  if(i.action==="CANCEL_DNS")return NextResponse.json(await cancelDnsChange({changeId:i.change_id,reason:i.reason}));
+  if(i.action==="ROLLBACK_DNS")return NextResponse.json(await rollbackDnsChange({changeId:i.change_id,evidence:i.evidence_reference,note:i.note}));
+  if(i.action==="RECORD_CERT")return NextResponse.json(await recordTlsCertificate({domainId:i.domain_id,serviceId:i.service_id,hostname:i.hostname,issuer:i.issuer,fingerprint:i.fingerprint,providerReference:i.provider_reference,issuedAt:i.issued_at,expiresAt:i.expires_at,autoManaged:i.auto_managed}),{status:201});
+  return NextResponse.json(await transitionTlsCertificate({certificateId:i.certificate_id,status:i.status,evidence:i.evidence_reference,note:i.note}));
  }catch(error){return failure(error)}
 }
