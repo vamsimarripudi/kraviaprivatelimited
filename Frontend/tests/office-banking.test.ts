@@ -17,12 +17,13 @@ describe("KRAVIA Finance banking and reconciliation",()=>{
   it("keeps bank-side execution outside KRAVIA Office",()=>{
     expect(component).toContain("No bank-side payment execution");
     expect(component).toContain("It does not move money");
-    expect(component).toContain("does not imply a live bank connection");
+    expect(component).toContain("live bank-feed connection");
   });
 
   it("supports deterministic credit auto-match while preserving exceptions",()=>{
     expect(component).toContain("/auto-match");
-    expect(component).toContain("REVIEW_REQUIRED");
+    expect(component).toContain("review-required");
+    expect(backend).toContain("REVIEW_REQUIRED");
     expect(backend).toContain("Only credit transactions can currently auto-match customer payments");
     expect(backend).toContain('tx.match_status="REVIEW_REQUIRED"');
   });
