@@ -11,6 +11,18 @@ type OperationsSummary = {
   workflows: { total: number; failed: number; alert_threshold: number };
   integrations: { production: number; ready: number; attention: number };
   audit: { events: number; latest_at?: string | null };
+  worker: {
+    key: string;
+    state: "NOT_STARTED" | "STALE" | "HEALTHY";
+    interval_seconds: number;
+    stale_after_seconds: number;
+    last_started_at?: string | null;
+    last_succeeded_at?: string | null;
+    last_failed_at?: string | null;
+    last_error_type?: string | null;
+    last_duration_ms?: number | null;
+    age_seconds?: number | null;
+  };
   slo: {
     availability_target_percent: string;
     latency_p95_target_ms: number;
@@ -148,6 +160,7 @@ export function OfficeOperationsMonitoring({ canEvaluate }: { canEvaluate: boole
       <article><CircleAlert /><div><span>Failed workflows</span><b>{data.summary.workflows.failed}</b><small>Alert threshold {data.summary.workflows.alert_threshold}</small></div></article>
       <article><ShieldCheck /><div><span>Production integrations</span><b>{data.summary.integrations.ready}/{data.summary.integrations.production}</b><small>{data.summary.integrations.attention} need attention</small></div></article>
       <article><Gauge /><div><span>Audit events</span><b>{data.summary.audit.events}</b><small>Latest {dateTime(data.summary.audit.latest_at)}</small></div></article>
+      <article data-state={data.summary.worker.state}><Activity /><div><span>Background worker</span><b>{data.summary.worker.state.replace("_", " ")}</b><small>{data.summary.worker.last_succeeded_at ? `Last success ${dateTime(data.summary.worker.last_succeeded_at)}` : "No successful tick recorded"}</small></div></article>
     </div>
 
     <section className={styles.slo}>
