@@ -110,7 +110,8 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "approvals" ? <OfficeWorkHub identity={identity} mode="approvals" />
           : workspace === "office" && section === "manager" ? <OfficeWorkHub identity={identity} mode="manager" />
           : section === "documents" ? <OfficeDocumentStudio />
-          : section === "payroll" ? <OfficePayrollConsole />\n          : workspace === "office" && section === "devices" ? <OfficeDeviceIdentity />
+          : section === "payroll" ? <OfficePayrollConsole />
+          : workspace === "office" && section === "devices" ? <OfficeDeviceIdentity />
           : workspace === "office" && section === "it" ? <OfficeItService />
           : workspace === "office" && section === "recruitment" ? <OfficeRecruitmentWorkspace />
           : workspace === "office" && section === "people" ? <><WorkforceLiveOverview /><OfficeWorkforceLifecycle /><OfficeOrganizationChart /></>
