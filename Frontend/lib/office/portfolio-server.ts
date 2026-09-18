@@ -8,6 +8,7 @@ import {
   type OfficeResourceScope,
 } from "@/lib/office/permission-engine";
 import { currentOfficeTrustedDeviceId } from "@/lib/office/device-binding-server";
+import { readOfficeRuntimeResult } from "@/lib/office/runtime-read-server";
 
 export class OfficePortfolioError extends Error {
   constructor(public readonly status:number,message:string){super(message);this.name="OfficePortfolioError"}
@@ -108,7 +109,10 @@ export async function getPortfolioOverview(){
     ids.length?current.admin.from("office_portfolio_events")
       .select("id,actor_user_id,project_id,workstream_id,milestone_id,event_type,previous_status,new_status,note,metadata,created_at")
       .in("project_id",ids).order("created_at",{ascending:false}).limit(5000):Promise.resolve({data:[],error:null}),
-    current.admin.from("products").select("id,code,name,status,category").order("name").limit(500),
+    readOfficeRuntimeResult<Array<Record<string,unknown>>>("products").then((result)=>({
+      ...result,
+      data:(result.data??[]).slice(0,500).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""))),
+    })),
   ]);
   for(const result of [workstreams,milestones,dependencies,members,events,products])fail(result.error,"Portfolio supporting records are temporarily unavailable");
 
