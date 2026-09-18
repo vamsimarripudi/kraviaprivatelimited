@@ -31,7 +31,7 @@ Crawler/sitemap tests additionally verify that `/office` and `/finance` are priv
 
 ## Office backend coverage
 
-The 70-test backend suite verifies, among other controls:
+The 75-test backend suite verifies, among other controls:
 
 - customer → invoice → payment → receipt → GST working summary;
 - same-state CGST/SGST and inter-state IGST;
@@ -74,13 +74,15 @@ The dedicated `KRAVIA Office` Supabase project (`xjtazosozxmudkbxqhjl`, `ap-sout
 - registration lifecycle functions are SECURITY INVOKER, browser EXECUTE denied and service-role EXECUTE enabled;
 - `office_identity_create_person()` and `office_sync_employment_identity()` no longer expose SECURITY DEFINER EXECUTE to PUBLIC/anon/authenticated; service-role execution remains explicit;
 - all 52 legacy FastAPI tables currently lacking RLS were checked with effective `has_table_privilege`: anon/authenticated have no SELECT/INSERT/UPDATE/DELETE on any of them;
-- the dedicated `kravia_office_backend` role has effective CRUD on all 52 legacy FastAPI tables, providing a feasible RLS-policy path once Railway's actual database login role is positively confirmed.
+- the dedicated `kravia_office_backend` role has effective CRUD on all 52 legacy FastAPI tables;
+- production runtime and Alembic transactions are constrained with `SET LOCAL ROLE kravia_office_backend`;
+- the five Alembic v6-v9 service tables are owned by the backend role, RLS-enabled, and deny anon/authenticated CRUD.
 
 Current Supabase security-advisor residuals are not reported as solved:
 
 - **WARN:** leaked-password protection is disabled in Supabase Auth;
 - **INFO:** many service-role-only Office tables have RLS enabled with no browser policies by design;
-- **hardening backlog:** the 52 legacy FastAPI tables should receive RLS + explicit backend-role policies only after confirming the Railway database login role, to avoid a production lockout.
+- **hardening backlog:** 52 legacy FastAPI tables remain RLS-disabled, but anon/authenticated have zero effective CRUD and production execution is constrained to the dedicated backend role; any RLS rollout remains a staged defense-in-depth change.
 
 The remaining human identity acceptance step is first OWNER TOTP enrollment and verification of the resulting `aal2` session through `/office/login`.
 
@@ -95,7 +97,8 @@ The clean CI database upgrades through:
 - v5 accounting and tax period-close controls;
 - v6 durable background-worker heartbeat;
 - v7 audit-retention policies, legal holds and archive manifests;
-- v8 shared application rate-limit windows.
+- v8 shared application rate-limit windows;
+- v9 background-worker cadence metadata.
 
 Supabase Auth/RBAC provisioning remains separate in `spec/identity/SUPABASE_IDENTITY.sql` because it targets the hosted Supabase `auth` schema rather than the Office application database.
 
@@ -105,8 +108,9 @@ The production code path is validated independently from provider deployment sta
 
 - GitHub Actions on current `main`: frontend, backend, database-structure and repository-structure gates **PASS**.
 - Next.js production build: **PASS**, including the private Office/Finance route families and their specialised sections.
-- Railway: an existing `kravia-office-api` service is linked to this repository with `Backend` root, `Dockerfile.api`, `/health/live`, production OIDC/database variable names and a Railway service domain. Its last active deployment predates current `main`; newer Git-linked deployments are marked `SKIPPED`, so current-backend deployment acceptance remains open.
-- Vercel: the currently connected Vercel account does not expose a project linked to this repository, while GitHub still receives a Vercel build-rate-limit failure status. Current Vercel project/root/environment/domain configuration is therefore **unverified**, not assumed from older deployment incidents.
+- Railway: `kravia-office-api` deployment `7ace95b8-b966-43be-aa4a-f2656624ed74` for backend commit `2e706e4e20838b00688b0c76f60f61d2e21c935e` reached **SUCCESS** after Alembic v9 pre-deploy and `/health/live` acceptance with `DATABASE_EXECUTION_ROLE=kravia_office_backend`.
+- Railway worker: provisioning a separate `kravia-office-worker` service was rejected by the current Free-plan resource limit; no partial worker service remains.
+- Vercel: the connected account still does not expose the KRAVIA project, while GitHub currently receives a build-rate-limit failure status from a separate `kravia1` project/account context. Production frontend settings remain **unverified** from this connection.
 
 A green local/CI build proves source correctness, not live-provider acceptance.
 
@@ -116,9 +120,9 @@ Automated tests do not fabricate production acceptance for:
 
 - first human TOTP enrollment and live AAL2 session;
 - current Vercel project/account linkage, build/environment/domain configuration and successful production deployment;
-- current-main Railway backend deployment and accepted frontend `OFFICE_API_ORIGIN`;
+- accepted frontend `OFFICE_API_ORIGIN` and end-to-end browser→BFF→Railway verification;
 - Supabase Auth leaked-password protection;
-- backend-role-confirmed RLS enforcement for the 52 legacy FastAPI tables;
+- staged defense-in-depth RLS enforcement for the 52 legacy FastAPI tables;
 - full all-role IDOR/BOLA acceptance using production-like identities;
 - production PostgreSQL concurrency/failover/backups/PITR restore;
 - live Razorpay/RazorpayX/payment-provider eligibility and settlements;
