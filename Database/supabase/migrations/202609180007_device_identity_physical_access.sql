@@ -11,7 +11,7 @@ insert into public.office_permission_catalog(code,module,action,label,descriptio
 on conflict(code) do update set module=excluded.module,action=excluded.action,label=excluded.label,description=excluded.description,sensitivity=excluded.sensitivity,high_risk=excluded.high_risk,requires_managed_device=excluded.requires_managed_device,active=true;
 
 insert into public.office_access_profile_permissions(profile_code,permission_code,effect,default_scope_type)
-select p.code,'identity.card.read','ALLOW','OWN' from public.office_access_profiles p
+select p.code,'identity.card.read','ALLOW','OWN' from public.office_access_profile_catalog p
 on conflict(profile_code,permission_code) do update set effect=excluded.effect,default_scope_type=excluded.default_scope_type;
 
 insert into public.office_access_profile_permissions(profile_code,permission_code,effect,default_scope_type) values
