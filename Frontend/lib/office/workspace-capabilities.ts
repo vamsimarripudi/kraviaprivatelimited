@@ -60,6 +60,7 @@ const requirements: Record<string, readonly string[]> = {
   "finance:cards": ["finance.card.read", "finance.card.manage", "finance.card.review", "finance.card.spend.request", "finance.card.spend.review"],
   "finance:insurance": ["insurance.read", "insurance.manage", "insurance.review"],
   "finance:ethics": ["ethics.report", "ethics.case.read", "ethics.case.assign", "ethics.case.manage", "ethics.case.review"],
+  "finance:emergency": ["people.emergency_contact.own", "people.emergency_contact.read"],
   "finance:ai": ["ai.tool.read", "ai.tool.manage", "ai.tool.review", "ai.use.request", "ai.use.read", "ai.use.review", "ai.usage.audit"],
   "finance:audit": ["finance.read", "audit.read"],
 };
