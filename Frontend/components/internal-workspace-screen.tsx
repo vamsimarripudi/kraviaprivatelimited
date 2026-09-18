@@ -28,6 +28,7 @@ import { OfficeActivityTimeline } from "@/components/office-activity-timeline";
 import { OfficeApplicabilityEngine } from "@/components/office-applicability-engine";
 import { OfficeAiGovernance } from "@/components/office-ai-governance";
 import { OfficeBoardWorkspace } from "@/components/office-board-workspace";
+import { OfficeBudgetWorkspace } from "@/components/office-budget";
 import { OfficeCommandCenter } from "@/components/office-command-center";
 import { OfficeCommandPalette } from "@/components/office-command-palette";
 import { OfficeCommercialHandoff } from "@/components/office-commercial-handoff";
@@ -133,6 +134,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "knowledge" ? <OfficeKnowledgeHub />
           : section === "documents" ? <OfficeDocumentStudio />
           : section === "payroll" ? <OfficePayrollConsole />
+          : section === "budget" ? <OfficeBudgetWorkspace />
           : workspace === "office" && section === "devices" ? <OfficeDeviceIdentity />
           : workspace === "office" && section === "it" ? <OfficeItService />
           : workspace === "office" && section === "facilities" ? <OfficePhysicalOffice />
