@@ -45,6 +45,7 @@ import { OfficePhysicalOffice } from "@/components/office-physical-office";
 import { OfficeNotificationCenter } from "@/components/office-notification-center";
 import { OfficePayrollConsole } from "@/components/office-payroll-console";
 import { OfficePeopleDevelopment } from "@/components/office-people-development";
+import { OfficeTravelWorkspace } from "@/components/office-travel-workspace";
 import { OfficePresenceControl } from "@/components/office-presence-control";
 import { OfficePrivacyGovernance } from "@/components/office-privacy-governance";
 import { OfficeRecruitmentWorkspace } from "@/components/office-recruitment-workspace";
@@ -123,6 +124,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "recruitment" ? <OfficeRecruitmentWorkspace />
           : workspace === "office" && section === "people" ? <><WorkforceLiveOverview /><OfficeWorkforceLifecycle /><OfficeOrganizationChart /></>
           : workspace === "office" && section === "development" ? <OfficePeopleDevelopment />
+          : workspace === "office" && section === "travel" ? <OfficeTravelWorkspace />
           : workspace === "office" && section === "governance" ? <OfficeBoardWorkspace />
           : workspace === "office" && section === "compliance" ? <OfficeApplicabilityEngine />
           : workspace === "office" && section === "vendors" ? <OfficeProcurementControl />
