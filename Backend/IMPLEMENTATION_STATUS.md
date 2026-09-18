@@ -99,8 +99,9 @@ Canonical browser surfaces are now:
 - [x] Registration RPC functions are SECURITY INVOKER and browser EXECUTE is denied
 - [x] Two trigger-only SECURITY DEFINER identity helpers hardened live and in source: PUBLIC/anon/authenticated EXECUTE revoked, service-role EXECUTE retained
 - [x] Effective privilege audit confirms anon/authenticated have no SELECT/INSERT/UPDATE/DELETE on all 52 legacy FastAPI tables currently lacking RLS
-- [x] Effective privilege audit confirms `kravia_office_backend` retains CRUD on all 52 legacy FastAPI tables
-- [ ] Confirm Railway `DATABASE_URL` uses the intended backend role before enabling RLS on those 52 tables; do not mass-enable RLS without matching backend policies
+- [x] Production runtime and Alembic transactions now apply `SET LOCAL ROLE kravia_office_backend` through `DATABASE_EXECUTION_ROLE`; the current Railway deployment passed pre-deploy migration and health acceptance with that boundary enabled
+- [x] Alembic v6-v9 service tables are owned by `kravia_office_backend`, have RLS enabled, and explicitly deny anon/authenticated CRUD
+- [ ] The remaining 52 legacy FastAPI tables are still RLS-disabled as defense-in-depth backlog; browser roles have zero effective CRUD, so do not add permissive policies merely to silence tooling
 - [ ] Enable Supabase Auth leaked-password protection (current security-advisor WARN)
 - [ ] Continue treating RLS-enabled/no-policy INFO findings according to the service-role-only table design; do not add permissive browser policies merely to silence the linter
 
@@ -129,8 +130,8 @@ Latest fully green `main` quality run verified:
 - [x] Next.js 16.3.5 production build, including `/office`, `/finance`, Office auth and Office runtime gateway routes
 - [x] Python compilation
 - [x] committed OpenAPI drift verification
-- [x] clean Alembic migration chain through v8
-- [x] Office backend suite: **70 tests passed**
+- [x] clean Alembic migration chain through v9
+- [x] Office backend suite: **75 tests passed**
 - [x] identity token non-disclosure / HttpOnly cookies / TOTP AAL2 / inactive-user / role-admission controls
 - [x] path-workspace role boundaries, legacy redirects, same-origin mutation guard and fixed-origin runtime gateway regression tests
 - [x] period-close, HTTP security, Drive taxonomy, finance/ownership/provider/idempotency, RBAC, governance, audit-chain and document controls
@@ -138,11 +139,11 @@ Latest fully green `main` quality run verified:
 
 ## Deployment state
 
-Repository `main` at `a5176bcf36c1d5d3dc0a043540b738e86bf899f3` is fully green in GitHub Actions: frontend, backend, database-structure and repository-structure gates all passed.
+Repository `main` at `2e706e4e20838b00688b0c76f60f61d2e21c935e` is fully green in GitHub Actions: frontend, backend, database-structure, repository-structure and the quality-gated Railway deployment job all passed. The backend suite reports **75 tests passed** and Alembic upgrades cleanly through v9.
 
-Railway is connected to `vamsimarripudi/kraviaprivatelimited` with service `kravia-office-api`, branch `main`, root directory `Backend`, Dockerfile `Dockerfile.api`, pre-deploy `alembic upgrade head`, health check `/health/live`, one configured Singapore replica and the Railway domain `kravia-office-api-production.up.railway.app`. The latest active deployment is still the 17 Sep 2026 sleeping deployment; newer Git-linked records are `SKIPPED`, so current `main` is **not** claimed live on Railway. No dedicated worker service is currently present.
+Railway is connected to `vamsimarripudi/kraviaprivatelimited` with service `kravia-office-api`, branch `main`, root directory `Backend`, Dockerfile `Dockerfile.api`, pre-deploy `alembic upgrade head`, health check `/health/live`, one configured Singapore replica and the Railway domain `kravia-office-api-production.up.railway.app`. Deployment `7ace95b8-b966-43be-aa4a-f2656624ed74` for commit `2e706e4e20838b00688b0c76f60f61d2e21c935e` reached **SUCCESS** after pre-deploy migrations and health acceptance with `DATABASE_EXECUTION_ROLE=kravia_office_backend`. The dedicated worker service is still absent because Railway rejected additional resource provisioning on the current Free-plan limit.
 
-The connected Vercel account available to this audit does not list a project linked to `vamsimarripudi/kraviaprivatelimited`. GitHub nevertheless receives a failing `Vercel` status whose target reports a build-rate-limit condition. Consequently, the older project-specific “Root Directory mismatch” diagnosis is retained only as history, not as current verified state. Live frontend acceptance requires identifying/reconnecting the correct Vercel project/account, verifying its root/build/environment/domain settings, and completing a successful `main` deployment.
+The connected Vercel hobby team still does not expose the KRAVIA project. GitHub currently reports the `Vercel` check for `main` as a build-rate-limit failure under the separate `kravia1` account/project context. Therefore frontend deployment/root/environment/domain configuration remains externally unverified even though source CI is green.
 
 The canonical browser remains path-based at `kraviaprivatelimited.com/office` and `/finance`; the Railway domain is the backend API origin, not a second public Office UI.
 
@@ -151,14 +152,15 @@ The canonical browser remains path-based at `kraviaprivatelimited.com/office` an
 - first OWNER TOTP enrollment / AAL2 live verification
 - identify/reconnect the current KRAVIA Vercel project/account; verify production build settings and environment variables
 - apex `kraviaprivatelimited.com` domain attachment / DNS validation; optional `www` redirect
-- deploy current `main` to the existing Railway `kravia-office-api` service and set/verify frontend `OFFICE_API_ORIGIN` against its accepted production origin
-- confirm Railway database login role; then design/apply RLS policies for the 52 legacy FastAPI tables, plus restricted networking, backups/PITR and secret management
+- set/verify frontend `OFFICE_API_ORIGIN` against the accepted Railway API origin once the canonical Vercel project is accessible
+- decide and test the defense-in-depth RLS policy plan for the 52 legacy FastAPI tables; browser roles currently have zero CRUD and runtime transactions are constrained to `kravia_office_backend`
+- verify restricted database networking, backups/PITR, restore drill and secret-management/rotation controls
 - real verified Company Master/GST/ownership evidence and CA/CS/legal approvals
 - live Razorpay/RazorpayX and bank/accounting authorizations
 - production private object storage + malware scanner
 - eSign/DSC where required
 - Google Drive runtime service identity
-- deploy the dedicated production worker service/process; connect verified external SLO telemetry and audit archive sink; configure provider edge/WAF controls
+- upgrade/provision Railway capacity for the dedicated production worker service/process (current Free-plan resource limit blocks creation); then connect verified external SLO telemetry and audit archive sink and configure provider edge/WAF controls
 - enable Supabase leaked-password protection and complete final staging browser/accessibility/security assessment
 
 ## Release rule
