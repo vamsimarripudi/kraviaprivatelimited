@@ -25,5 +25,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg://kravia_office:${POSTGRES_PASSWORD}@db:5432/kravia_office
+      KRAVIA_WORKER_INTERVAL_SECONDS: ${KRAVIA_WORKER_INTERVAL_SECONDS:-60}
+      KRAVIA_WORKER_BATCH_SIZE: ${KRAVIA_WORKER_BATCH_SIZE:-100}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
 volumes:
   postgres_data:
