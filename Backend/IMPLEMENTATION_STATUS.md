@@ -143,14 +143,14 @@ Repository `main` includes `53e633e80540be8d1ff6392f27bae890b8437f89`; the RLS c
 
 Railway is connected to `vamsimarripudi/kraviaprivatelimited` with service `kravia-office-api`, branch `main`, root directory `Backend`, Dockerfile `Dockerfile.api`, pre-deploy `alembic upgrade head`, health check `/health/live`, one configured Singapore replica and the Railway domain `kravia-office-api-production.up.railway.app`. Deployment `7ace95b8-b966-43be-aa4a-f2656624ed74` for commit `2e706e4e20838b00688b0c76f60f61d2e21c935e` reached **SUCCESS** after pre-deploy migrations and health acceptance with `DATABASE_EXECUTION_ROLE=kravia_office_backend`. The dedicated worker service is still absent because Railway rejected additional resource provisioning on the current Free-plan limit.
 
-The connected Vercel hobby team still does not expose the KRAVIA project. GitHub currently reports the `Vercel` check for `main` as a build-rate-limit failure under the separate `kravia1` account/project context. Therefore frontend deployment/root/environment/domain configuration remains externally unverified even though source CI is green.
+GitHub now reports the `Vercel` deployment check for current `main` as **SUCCESS** under the separate `kravia1/kraviaprivatelimited` project context. The currently connected Vercel token is not authorized for the `kravia1` scope, so project settings, production environment variables and domain assignment still require connector re-authentication/read-back before acceptance.
 
 The canonical browser remains path-based at `kraviaprivatelimited.com/office` and `/finance`; the Railway domain is the backend API origin, not a second public Office UI.
 
 ## External production gates intentionally not faked
 
 - first OWNER TOTP enrollment / AAL2 live verification
-- identify/reconnect the current KRAVIA Vercel project/account; verify production build settings and environment variables
+- re-authenticate the Vercel connector to the `kravia1` scope and read back the successful KRAVIA project's root/build/environment/domain configuration
 - apex `kraviaprivatelimited.com` domain attachment / DNS validation; optional `www` redirect
 - set/verify frontend `OFFICE_API_ORIGIN` against the accepted Railway API origin once the canonical Vercel project is accessible
 - decide and test the defense-in-depth RLS policy plan for the 52 legacy FastAPI tables; browser roles currently have zero CRUD and runtime transactions are constrained to `kravia_office_backend`
