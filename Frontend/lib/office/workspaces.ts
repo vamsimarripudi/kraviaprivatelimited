@@ -66,6 +66,7 @@ export const officeSections = {
   access: { title: "Access administration", eyebrow: "IDENTITY & AUTHORIZATION", description: "Owner-controlled administrator appointment, invite-only onboarding, workforce access, devices, reviews and auditable privilege changes.", roles: accessAdministration, group: "Assure" },
   data: { title: "Data movement", eyebrow: "CONTROLLED IMPORT / EXPORT", description: "Scoped data-movement requests with independent approval before any execution or canonical record change.", roles: officeWorkspaceRoles, group: "Assure" },
   privacy: { title: "Privacy governance", eyebrow: "DATA GOVERNANCE", description: "Privacy cases, reviewed retention evidence, legal holds and governed data handling without automatic legal conclusions.", roles: officeWorkspaceRoles, group: "Assure" },
+  resilience: { title: "Resilience & continuity", eyebrow: "BCP · DR · EMERGENCY · INSURANCE", description: "Business continuity, disaster recovery tests, emergency incidents and insurance evidence with independent review and no fabricated recovery or payment claims.", roles: officeWorkspaceRoles, group: "Assure" },
   security: { title: "Security", eyebrow: "SECURITY OBSERVABILITY", description: "Authentication, device, access and incident evidence requires explicit security capability; access administrators do not inherit security authority automatically.", roles: ["OWNER", "DIRECTOR", "MEMBER", "OPERATIONS"], group: "Assure" },
   integrations: { title: "Integrations", eyebrow: "CONTROLLED PROVIDERS", description: "Provider health, approved embeds and secret references without exposing credentials.", roles: ["OWNER", "DIRECTOR", "OPERATIONS", "PRODUCT_ADMIN"], group: "Assure" },
   readiness: { title: "Readiness", eyebrow: "PRODUCTION CONTROL", description: "Verified configuration and evidence only; never a fabricated compliance score.", roles: executive, group: "Assure" },
@@ -86,6 +87,7 @@ export const financeSections = {
   ownership: { title: "Ownership & funding", eyebrow: "EQUITY CONTROL", description: "Append-only ownership evidence and shareholder/director funding kept strictly separate from expenses and revenue.", roles: ["OWNER", "DIRECTOR", "FINANCE"], group: "Corporate Finance" },
   documents: { title: "Finance documents", eyebrow: "FINANCIAL EVIDENCE", description: "Role-scoped finance and tax evidence from the controlled document vault.", roles: financeCore, group: "Evidence" },
   compliance: { title: "Financial compliance", eyebrow: "PROFESSIONAL REVIEW", description: "Tax and finance obligations that require evidence and professional review.", roles: financeCore, group: "Evidence" },
+  insurance: { title: "Insurance", eyebrow: "RISK TRANSFER", description: "Company insurance policies and claims with independent review, insurer references and payment evidence.", roles: financeCore, group: "Evidence" },
   audit: { title: "Financial audit", eyebrow: "ASSURANCE", description: "Finance audit records, inspection evidence and traceable source references.", roles: financeCore, group: "Evidence" },
 } as const satisfies Record<string, WorkspaceSection>;
 
