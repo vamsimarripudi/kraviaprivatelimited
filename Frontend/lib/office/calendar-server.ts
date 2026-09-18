@@ -144,10 +144,19 @@ export async function getOfficeCompanyCalendar() {
   }
 
   if (legalOps) {
-    const { data, error } = await admin.from("contracts").select("id,contract_no,counterparty_name,expiry_date,status").not("expiry_date", "is", null).order("expiry_date", { ascending: true }).limit(150);
-    if (error) throw new OfficeCalendarError(503, "Contract calendar is temporarily unavailable");
-    for (const row of data ?? []) {
+    const [contracts, obligations] = await Promise.all([
+      admin.from("contracts").select("id,contract_no,counterparty_name,expiry_date,status").not("expiry_date", "is", null).order("expiry_date", { ascending: true }).limit(150),
+      admin.from("office_contract_obligations").select("id,obligation_code,contract_id,title,obligation_type,owner_user_id,cadence,next_due_at,status").eq("status", "ACTIVE").not("next_due_at", "is", null).order("next_due_at", { ascending: true }).limit(300),
+    ]);
+    if (contracts.error || obligations.error) throw new OfficeCalendarError(503, "Contract calendar is temporarily unavailable");
+    const contractMap = new Map((contracts.data ?? []).map((row) => [String(row.id), row]));
+    for (const row of contracts.data ?? []) {
       const event = projected("CONTRACT", String(row.id), `Contract expiry · ${row.counterparty_name}`, dateIso(row.expiry_date, true), "DEADLINE", `${row.contract_no} · ${row.status}`);
+      if (event) synthetic.push(event);
+    }
+    for (const row of obligations.data ?? []) {
+      const contract = contractMap.get(String(row.contract_id));
+      const event = projected("CONTRACT_OBLIGATION", String(row.id), `Contract duty · ${row.title}`, dateIso(row.next_due_at), "DEADLINE", [row.obligation_code, row.obligation_type, contract?.contract_no, row.cadence].filter(Boolean).join(" · "));
       if (event) synthetic.push(event);
     }
   }
