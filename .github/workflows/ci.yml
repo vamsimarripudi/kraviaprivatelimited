@@ -146,3 +146,49 @@ jobs:
           test ! -d lib
           test ! -d office
           test ! -d supabase
+
+  deploy-railway-api:
+    name: Railway API deploy
+    needs: [frontend, backend, database-structure, repository-structure]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      RAILWAY_PROJECT_ID: 8746e560-db2a-4834-80c5-54db0e6e013e
+      RAILWAY_ENVIRONMENT_ID: 1f9e03bc-97d8-4ed8-8d31-58cda4bfffd1
+      RAILWAY_SERVICE_ID: 76254870-0c4c-469f-9bd4-ddc20574526f
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Detect backend or deploy-workflow changes
+        id: changes
+        shell: bash
+        run: |
+          before="${{ github.event.before }}"
+          if [ -z "$before" ] || [ "$before" = "0000000000000000000000000000000000000000" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet "$before" "${{ github.sha }}" -- Backend/ .github/workflows/ci.yml; then
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Deploy current main to existing Railway API service
+        if: steps.changes.outputs.deploy == 'true'
+        shell: bash
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "::warning::RAILWAY_TOKEN is not configured; Railway API deployment was not started."
+            exit 0
+          fi
+          npx -y @railway/cli@5.57.9 up --ci \
+            --project "$RAILWAY_PROJECT_ID" \
+            --environment "$RAILWAY_ENVIRONMENT_ID" \
+            --service "$RAILWAY_SERVICE_ID" \
+            --message "GitHub Actions ${GITHUB_SHA}"
+      - name: No backend deployment required
+        if: steps.changes.outputs.deploy != 'true'
+        run: echo "No Backend/ or Railway deploy-workflow changes in this main push."
+
