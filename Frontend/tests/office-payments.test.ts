@@ -13,6 +13,9 @@ describe("KRAVIA Finance treasury payments",()=>{
     expect(component).toContain('runtime<Approval[]>("approvals")');
     expect(component).toContain('runtime<Expense[]>("finance/expenses")');
     expect(screen).toContain("OfficePaymentsWorkspace");
+    expect(screen).toContain('section === "payments" ? <OfficePaymentsWorkspace');
+    expect(screen).toContain('permissions.includes("finance.payment.prepare")');
+    expect(screen).toContain('permissions.includes("finance.payment.approve")');
   });
 
   it("separates payout staging from provider execution",()=>{
