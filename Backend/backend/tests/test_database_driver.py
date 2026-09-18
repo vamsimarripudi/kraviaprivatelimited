@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine
 
-from backend.database import normalize_database_url
+from backend import database
+from backend.database import configure_database_execution_role, database_execution_role, normalize_database_url
 
 
 def _clear_pooler_env(monkeypatch):
@@ -135,3 +136,78 @@ def test_explicit_driver_and_sqlite_urls_are_preserved(monkeypatch):
     sqlite = "sqlite:///./kravia_office.db"
     assert normalize_database_url(explicit) == explicit
     assert normalize_database_url(sqlite) == sqlite
+
+
+
+def test_database_execution_role_is_optional_and_validated(monkeypatch):
+    monkeypatch.delenv("DATABASE_EXECUTION_ROLE", raising=False)
+    assert database_execution_role() is None
+
+    monkeypatch.setenv("DATABASE_EXECUTION_ROLE", "kravia_office_backend")
+    assert database_execution_role() == "kravia_office_backend"
+
+    monkeypatch.setenv("DATABASE_EXECUTION_ROLE", "backend;drop role postgres")
+    try:
+        database_execution_role()
+    except RuntimeError as exc:
+        assert "invalid PostgreSQL role name" in str(exc)
+    else:
+        raise AssertionError("invalid execution role must fail closed")
+
+
+def test_execution_role_listener_uses_transaction_scoped_set_local_role(monkeypatch):
+    monkeypatch.setenv("DATABASE_EXECUTION_ROLE", "kravia_office_backend")
+    captured = {}
+
+    class FakeDialect:
+        name = "postgresql"
+
+    class FakeEngine:
+        dialect = FakeDialect()
+
+    def fake_listen(target, event_name, callback):
+        captured["target"] = target
+        captured["event_name"] = event_name
+        captured["callback"] = callback
+
+    monkeypatch.setattr(database.event, "listen", fake_listen)
+    engine = FakeEngine()
+    assert configure_database_execution_role(engine) is engine
+    assert captured["target"] is engine
+    assert captured["event_name"] == "begin"
+
+    statements = []
+
+    class FakeConnection:
+        def exec_driver_sql(self, statement):
+            statements.append(statement)
+
+    captured["callback"](FakeConnection())
+    assert statements == ['SET LOCAL ROLE "kravia_office_backend"']
+
+
+def test_execution_role_listener_is_not_installed_for_sqlite(monkeypatch):
+    monkeypatch.setenv("DATABASE_EXECUTION_ROLE", "kravia_office_backend")
+
+    class FakeDialect:
+        name = "sqlite"
+
+    class FakeEngine:
+        dialect = FakeDialect()
+
+    def unexpected_listen(*_args, **_kwargs):
+        raise AssertionError("SQLite must not install a PostgreSQL role listener")
+
+    monkeypatch.setattr(database.event, "listen", unexpected_listen)
+    engine = FakeEngine()
+    assert configure_database_execution_role(engine) is engine
+
+
+def test_alembic_uses_same_execution_role_boundary():
+    from pathlib import Path
+
+    env_source = (
+        Path(__file__).resolve().parents[1] / "migrations" / "env.py"
+    ).read_text(encoding="utf-8")
+    assert "configure_database_execution_role" in env_source
+    assert "connectable = configure_database_execution_role(" in env_source
