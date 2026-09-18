@@ -23,7 +23,7 @@ describe("KRAVIA IT service and software licence controls",()=>{
  it("protects mutations and does not turn ticket resolution into implicit access",()=>{
   expect(route).toContain("officeMutationIsSameOrigin");
   expect(route).toContain("ASSIGN_LICENSE");
-  expect(component).toContain("Resolving a ticket does not silently grant application access");
+  expect(server).toContain("Resolving a ticket does not silently grant application access");
   expect(server).toContain("requireOfficePermission");
  });
  it("is wired into executable capability navigation",()=>{
