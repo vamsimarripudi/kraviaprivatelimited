@@ -44,6 +44,7 @@ import { OfficeDomainControl } from "@/components/office-domain-control";
 import { OfficeEngineeringControlCenter } from "@/components/office-engineering-control-center";
 import { OfficeEngineeringOperations } from "@/components/office-engineering-operations";
 import { OfficeEthicsChannel } from "@/components/office-ethics";
+import { OfficeEmergencyContacts } from "@/components/office-emergency-contacts";
 import { OfficeIntelligenceBrief } from "@/components/office-intelligence-brief";
 import { OfficeItService } from "@/components/office-it-service";
 import { OfficeKnowledgeHub } from "@/components/office-knowledge-hub";
