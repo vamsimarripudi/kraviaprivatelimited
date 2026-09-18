@@ -4,6 +4,7 @@ import { officeSections } from "../lib/office/workspaces";
 import { requiredCapabilities } from "../lib/office/workspace-capabilities";
 
 const migration = readFileSync(new URL("../../Database/supabase/migrations/202609180011_physical_office_operations.sql", import.meta.url), "utf8");
+const administration = readFileSync(new URL("../../Database/supabase/migrations/202609180012_physical_office_administration.sql", import.meta.url), "utf8");
 const service = readFileSync(new URL("../lib/office/facilities-server.ts", import.meta.url), "utf8");
 const route = readFileSync(new URL("../app/api/office-facilities/route.ts", import.meta.url), "utf8");
 const component = readFileSync(new URL("../components/office-physical-office.tsx", import.meta.url), "utf8");
@@ -49,5 +50,17 @@ describe("KRAVIA Physical Office", () => {
     expect(route).toContain("CHECK_OUT_VISITOR");
     expect(route).toContain("REPORT_FACILITY_ISSUE");
     expect(service).toContain("visitor approval does not grant employee or application access");
+  });
+
+  it("lets facilities authority configure sites and rooms inside KRAVIA without destructive delete paths", () => {
+    expect(administration).toContain("office_facility_site_create");
+    expect(administration).toContain("office_facility_room_create");
+    expect(administration).toContain("future room bookings cannot be deactivated");
+    expect(administration).not.toMatch(/delete\s+from\s+public\.office_facility_(sites|rooms)/i);
+    expect(route).toContain("CREATE_SITE");
+    expect(route).toContain("CREATE_ROOM");
+    expect(component).toContain("Office setup");
+    expect(component).toContain("New site");
+    expect(component).toContain("New room");
   });
 });
