@@ -7,8 +7,11 @@ const screen=readFileSync(new URL("../components/internal-workspace-screen.tsx",
 const backend=readFileSync(new URL("../../Backend/backend/main.py",import.meta.url),"utf8");
 
 describe("KRAVIA corporate audit explorer",()=>{
- it("combines Office control-plane and runtime audit evidence",()=>{
-  expect(server).toContain('from("audit_events")');
+ it("combines authorized Office evidence with the separate runtime audit stream",()=>{
+  expect(server).toContain("getOfficeActivityTimeline");
+  expect(server).toContain('from("office_access_audit")');
+  expect(server).toContain('from("office_registration_events")');
+  expect(server).not.toContain('from("audit_events")');
   expect(component).toContain('/api/office-audit-explorer');
   expect(component).toContain('/api/office-runtime/audit');
   expect(screen).toContain("OfficeAuditExplorer");
@@ -20,6 +23,7 @@ describe("KRAVIA corporate audit explorer",()=>{
  });
  it("does not present either source as a statutory audit opinion",()=>{
   expect(server).toContain("neither source is presented as a statutory audit opinion");
+  expect(server).toContain("without reading or granting access to the legacy FastAPI audit table");
  });
  it("requires audit read authority on the Office source",()=>{
   expect(server).toContain('"audit.read"');
