@@ -8,6 +8,7 @@ const server=readFileSync(new URL("../lib/office/knowledge-server.ts",import.met
 const route=readFileSync(new URL("../app/api/office-knowledge/route.ts",import.meta.url),"utf8");
 const component=readFileSync(new URL("../components/office-knowledge-hub.tsx",import.meta.url),"utf8");
 const screen=readFileSync(new URL("../components/internal-workspace-screen.tsx",import.meta.url),"utf8");
+const search=readFileSync(new URL("../lib/office/search-server.ts",import.meta.url),"utf8");
 
 describe("KRAVIA Policy, Announcements and Knowledge Hub",()=>{
  it("is audience and capability gated",()=>{
@@ -43,6 +44,13 @@ describe("KRAVIA Policy, Announcements and Knowledge Hub",()=>{
   expect(migration).toContain("Knowledge version creator cannot independently publish the same version");
   expect(component).toContain("RUNBOOK");
   expect(component).toContain("ARCHITECTURE");
+ });
+
+ it("adds audience-filtered policy, announcement and knowledge results to global search",()=>{
+  expect(search).toContain("getKnowledgeHub");
+  expect(search).toContain('kind: "POLICY"');
+  expect(search).toContain('kind: "ANNOUNCEMENT"');
+  expect(search).toContain('kind: "KNOWLEDGE"');
  });
 
  it("protects browser mutations with same-origin enforcement",()=>{
