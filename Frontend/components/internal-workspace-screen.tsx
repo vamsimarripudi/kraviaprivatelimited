@@ -50,6 +50,7 @@ import { OfficeEmergencyContacts } from "@/components/office-emergency-contacts"
 import { OfficeIntelligenceBrief } from "@/components/office-intelligence-brief";
 import { OfficeItService } from "@/components/office-it-service";
 import { OfficeKnowledgeHub } from "@/components/office-knowledge-hub";
+import { OfficeMasterData } from "@/components/office-master-data";
 import { OfficePhysicalOffice } from "@/components/office-physical-office";
 import { OfficeNotificationCenter } from "@/components/office-notification-center";
 import { OfficePayrollConsole } from "@/components/office-payroll-console";
@@ -125,6 +126,8 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "calendar" ? <OfficeCompanyCalendar />
           : workspace === "office" && section === "crm" ? <><OfficeCrmWorkspace /><OfficeCommercialHandoff /></>
           : workspace === "office" && section === "contracts" ? <OfficeContractWorkspace />
+          : workspace === "office" && section === "products" ? <OfficeMasterData kind="products" canCreate={identity.roles.includes("OWNER") || permissions.includes("master.product.create")} />
+          : section === "customers" ? <OfficeMasterData kind="customers" canCreate={identity.roles.includes("OWNER") || permissions.includes("master.customer.create")} />
           : workspace === "office" && section === "engineering" ? <><OfficeEngineeringControlCenter /><OfficeEngineeringOperations /></>
           : workspace === "office" && section === "portfolio" ? <OfficePortfolioWorkspace />
           : workspace === "office" && section === "intelligence" ? <OfficeIntelligenceBrief />
