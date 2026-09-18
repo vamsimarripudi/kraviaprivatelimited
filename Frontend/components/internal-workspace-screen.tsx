@@ -34,7 +34,7 @@ import { OfficeCompanyCalendar } from "@/components/office-company-calendar";
 import { OfficeCompanyInbox } from "@/components/office-company-inbox";
 import { OfficeCrmWorkspace } from "@/components/office-crm-workspace";
 import { OfficeDataMovement } from "@/components/office-data-movement";
-import { OfficeDocumentStudio } from "@/components/office-document-studio";
+import { OfficeDocumentStudio } from "@/components/office-document-studio";\nimport { OfficeDeviceIdentity } from "@/components/office-device-identity";
 import { OfficeEngineeringControlCenter } from "@/components/office-engineering-control-center";
 import { OfficeIntelligenceBrief } from "@/components/office-intelligence-brief";
 import { OfficeNotificationCenter } from "@/components/office-notification-center";
@@ -108,7 +108,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "approvals" ? <OfficeWorkHub identity={identity} mode="approvals" />
           : workspace === "office" && section === "manager" ? <OfficeWorkHub identity={identity} mode="manager" />
           : section === "documents" ? <OfficeDocumentStudio />
-          : section === "payroll" ? <OfficePayrollConsole />
+          : section === "payroll" ? <OfficePayrollConsole />\n          : workspace === "office" && section === "devices" ? <OfficeDeviceIdentity />
           : workspace === "office" && section === "recruitment" ? <OfficeRecruitmentWorkspace />
           : workspace === "office" && section === "people" ? <><WorkforceLiveOverview /><OfficeWorkforceLifecycle /><OfficeOrganizationChart /></>
           : workspace === "office" && section === "governance" ? <OfficeBoardWorkspace />
