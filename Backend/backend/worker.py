@@ -20,9 +20,12 @@ from sqlalchemy.orm import Session
 
 from .automation import ensure_alert, resolve_alert, tick
 from .database import Base, SessionLocal, engine
+from .models import WorkerHeartbeat
+from .services import now_utc
 
 WORKER_LOCK_KEY = 5_821_841_907_269_011_847
 WORKER_ERROR_ALERT_KEY = "runtime:background-worker-error"
+WORKER_HEARTBEAT_KEY = "office-automation"
 
 
 def _bounded_int(name: str, default: int, minimum: int, maximum: int) -> int:
@@ -57,10 +60,24 @@ def _try_acquire_worker_lock(db: Session) -> bool:
     return bool(acquired)
 
 
-def _record_worker_failure(error_type: str) -> None:
-    """Persist a sanitized worker failure alert when the database is available."""
+def _heartbeat(db: Session) -> WorkerHeartbeat:
+    row = db.get(WorkerHeartbeat, WORKER_HEARTBEAT_KEY)
+    if row is None:
+        row = WorkerHeartbeat(worker_key=WORKER_HEARTBEAT_KEY, last_result_json="{}")
+        db.add(row)
+        db.flush()
+    return row
+
+
+def _record_worker_failure(error_type: str, duration_ms: int | None = None) -> None:
+    """Persist a sanitized worker failure alert/heartbeat when the database is available."""
     try:
         with SessionLocal() as db:
+            heartbeat = _heartbeat(db)
+            heartbeat.last_started_at = now_utc()
+            heartbeat.last_failed_at = now_utc()
+            heartbeat.last_error_type = error_type
+            heartbeat.last_duration_ms = duration_ms
             ensure_alert(
                 db,
                 WORKER_ERROR_ALERT_KEY,
@@ -68,7 +85,7 @@ def _record_worker_failure(error_type: str) -> None:
                 "HIGH",
                 "KRAVIA Office background worker execution failed",
                 "background_worker",
-                "office-worker",
+                WORKER_HEARTBEAT_KEY,
                 detail={"error_type": error_type},
             )
             db.commit()
@@ -80,6 +97,7 @@ def _record_worker_failure(error_type: str) -> None:
 
 def run_iteration(batch_size: int | None = None) -> dict[str, Any]:
     batch = batch_size or worker_batch_size()
+    started = time.monotonic()
     with SessionLocal() as db:
         if not _try_acquire_worker_lock(db):
             db.rollback()
@@ -88,18 +106,27 @@ def run_iteration(batch_size: int | None = None) -> dict[str, Any]:
                 "batch_size": batch,
             }
         try:
+            heartbeat = _heartbeat(db)
+            heartbeat.last_started_at = now_utc()
             result = tick(db, limit=batch, commit=False)
             recovered = resolve_alert(db, WORKER_ERROR_ALERT_KEY)
-            db.commit()
-            return {
+            duration_ms = max(0, round((time.monotonic() - started) * 1000))
+            response = {
                 "status": "COMPLETED",
                 "batch_size": batch,
                 "worker_alert_recovered": recovered,
                 **result,
             }
+            heartbeat.last_succeeded_at = now_utc()
+            heartbeat.last_error_type = None
+            heartbeat.last_duration_ms = duration_ms
+            heartbeat.last_result_json = json.dumps(response, sort_keys=True, default=str)
+            db.commit()
+            return response
         except Exception as exc:
+            duration_ms = max(0, round((time.monotonic() - started) * 1000))
             db.rollback()
-            _record_worker_failure(type(exc).__name__)
+            _record_worker_failure(type(exc).__name__, duration_ms)
             raise
 
 
