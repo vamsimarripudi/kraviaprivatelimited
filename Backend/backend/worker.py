@@ -69,7 +69,12 @@ def _heartbeat(db: Session) -> WorkerHeartbeat:
     return row
 
 
-def _record_worker_failure(error_type: str, duration_ms: int | None = None) -> None:
+def _record_worker_failure(
+    error_type: str,
+    duration_ms: int | None = None,
+    interval_seconds: int | None = None,
+    batch_size: int | None = None,
+) -> None:
     """Persist a sanitized worker failure alert/heartbeat when the database is available."""
     try:
         with SessionLocal() as db:
@@ -78,6 +83,8 @@ def _record_worker_failure(error_type: str, duration_ms: int | None = None) -> N
             heartbeat.last_failed_at = now_utc()
             heartbeat.last_error_type = error_type
             heartbeat.last_duration_ms = duration_ms
+            heartbeat.configured_interval_seconds = interval_seconds or worker_interval_seconds()
+            heartbeat.configured_batch_size = batch_size or worker_batch_size()
             ensure_alert(
                 db,
                 WORKER_ERROR_ALERT_KEY,
@@ -95,8 +102,12 @@ def _record_worker_failure(error_type: str, duration_ms: int | None = None) -> N
         pass
 
 
-def run_iteration(batch_size: int | None = None) -> dict[str, Any]:
-    batch = batch_size or worker_batch_size()
+def run_iteration(
+    batch_size: int | None = None,
+    interval_seconds: int | None = None,
+) -> dict[str, Any]:
+    batch = max(1, min(batch_size or worker_batch_size(), 500))
+    interval = max(5, min(interval_seconds or worker_interval_seconds(), 3600))
     started = time.monotonic()
     with SessionLocal() as db:
         if not _try_acquire_worker_lock(db):
@@ -108,6 +119,8 @@ def run_iteration(batch_size: int | None = None) -> dict[str, Any]:
         try:
             heartbeat = _heartbeat(db)
             heartbeat.last_started_at = now_utc()
+            heartbeat.configured_interval_seconds = interval
+            heartbeat.configured_batch_size = batch
             result = tick(db, limit=batch, commit=False)
             recovered = resolve_alert(db, WORKER_ERROR_ALERT_KEY)
             duration_ms = max(0, round((time.monotonic() - started) * 1000))
@@ -126,7 +139,7 @@ def run_iteration(batch_size: int | None = None) -> dict[str, Any]:
         except Exception as exc:
             duration_ms = max(0, round((time.monotonic() - started) * 1000))
             db.rollback()
-            _record_worker_failure(type(exc).__name__, duration_ms)
+            _record_worker_failure(type(exc).__name__, duration_ms, interval, batch)
             raise
 
 
@@ -151,7 +164,7 @@ def run_forever(interval_seconds: int | None = None, batch_size: int | None = No
     while not stop_event.is_set():
         started = time.monotonic()
         try:
-            result = run_iteration(batch)
+            result = run_iteration(batch, interval)
             _log("worker.tick", result=result)
         except Exception as exc:
             _log("worker.tick_failed", error_type=type(exc).__name__)
@@ -172,11 +185,11 @@ def main() -> int:
 
     _prepare_development_database()
     batch = max(1, min(args.batch_size or worker_batch_size(), 500))
+    interval = max(5, min(args.interval or worker_interval_seconds(), 3600))
     if args.once:
-        result = run_iteration(batch)
+        result = run_iteration(batch, interval)
         _log("worker.once", result=result)
         return 0
-    interval = max(5, min(args.interval or worker_interval_seconds(), 3600))
     return run_forever(interval, batch)
 
 
