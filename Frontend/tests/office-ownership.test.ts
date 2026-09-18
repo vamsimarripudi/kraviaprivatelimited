@@ -12,6 +12,8 @@ describe("KRAVIA Finance ownership control",()=>{
   expect(component).toContain('runtime<LedgerRow[]>("ownership/ledger")');
   expect(component).toContain("append-only share ledger");
   expect(screen).toContain("OfficeOwnershipWorkspace");
+  expect(screen).toContain('section === "ownership" ? <OfficeOwnershipWorkspace');
+  expect(screen).toContain('canStage={identity.roles.includes("OWNER") || identity.roles.includes("DIRECTOR")}');
  });
  it("stages share changes and transfers before posting",()=>{
   expect(component).toContain('runtime("ownership/share-changes"');
