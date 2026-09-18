@@ -81,9 +81,10 @@ function projected(source: string, sourceKey: string, title: string, startsAt: s
 export async function getOfficeCompanyCalendar() {
   const { admin, identity } = await actor();
   const trustedDeviceId = await currentOfficeTrustedDeviceId(admin, identity.userId);
-  const [resiliencePermission, insurancePermission, portfolioCompanyPermission, portfolioDepartmentPermission, portfolioMemberPermission] = await Promise.all([
+  const [resiliencePermission, insurancePermission, domainPermission, portfolioCompanyPermission, portfolioDepartmentPermission, portfolioMemberPermission] = await Promise.all([
     resolveOfficePermission(admin, identity, "resilience.read", { type: "COMPANY" }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "insurance.read", { type: "COMPANY" }, trustedDeviceId),
+    resolveOfficePermission(admin, identity, "infra.domain.read", { type: "COMPANY" }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "portfolio.read", { type: "COMPANY" }, trustedDeviceId),
     identity.department
       ? resolveOfficePermission(admin, identity, "portfolio.read", { type: "DEPARTMENT", key: identity.department }, trustedDeviceId)
@@ -240,6 +241,28 @@ export async function getOfficeCompanyCalendar() {
     }
   }
 
+  if (domainPermission.allowed) {
+    const [domains, certificates] = await Promise.all([
+      admin.from("office_corporate_domains")
+        .select("id,domain_code,domain_name,expires_on,status,auto_renew")
+        .not("expires_on", "is", null)
+        .not("status", "in", '("EXPIRED","RETIRED")')
+        .order("expires_on", { ascending: true }).limit(300),
+      admin.from("office_tls_certificates")
+        .select("id,certificate_code,hostname_pattern,issuer_name,expires_at,status,auto_managed")
+        .not("status", "in", '("EXPIRED","REVOKED","REPLACED")')
+        .order("expires_at", { ascending: true }).limit(500),
+    ]);
+    if (domains.error || certificates.error) throw new OfficeCalendarError(503, "Domain and certificate calendar is temporarily unavailable");
+    for (const row of domains.data ?? []) {
+      const event = projected("DOMAIN_EXPIRY", String(row.id), `Domain expiry · ${row.domain_name}`, dateIso(row.expires_on, true), "DEADLINE", [row.domain_code,row.status,row.auto_renew ? "auto-renew" : "manual renewal"].filter(Boolean).join(" · "));
+      if (event) synthetic.push(event);
+    }
+    for (const row of certificates.data ?? []) {
+      const event = projected("TLS_EXPIRY", String(row.id), `TLS expiry · ${row.hostname_pattern}`, dateIso(row.expires_at), "DEADLINE", [row.certificate_code,row.issuer_name,row.status,row.auto_managed ? "auto-managed" : "manual lifecycle"].filter(Boolean).join(" · "));
+      if (event) synthetic.push(event);
+    }
+  }
   if (portfolioCompanyPermission.allowed || portfolioDepartmentPermission.allowed || portfolioMemberPermission.allowed) {
     let participantProjectIds: string[] | null = null;
     if (!portfolioCompanyPermission.allowed && !portfolioDepartmentPermission.allowed && portfolioMemberPermission.allowed) {
