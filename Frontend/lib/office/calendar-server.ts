@@ -81,9 +81,13 @@ function projected(source: string, sourceKey: string, title: string, startsAt: s
 export async function getOfficeCompanyCalendar() {
   const { admin, identity } = await actor();
   const trustedDeviceId = await currentOfficeTrustedDeviceId(admin, identity.userId);
-  const [resiliencePermission, insurancePermission] = await Promise.all([
+  const [resiliencePermission, insurancePermission, portfolioCompanyPermission, portfolioDepartmentPermission] = await Promise.all([
     resolveOfficePermission(admin, identity, "resilience.read", { type: "COMPANY" }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "insurance.read", { type: "COMPANY" }, trustedDeviceId),
+    resolveOfficePermission(admin, identity, "portfolio.read", { type: "COMPANY" }, trustedDeviceId),
+    identity.department
+      ? resolveOfficePermission(admin, identity, "portfolio.read", { type: "DEPARTMENT", key: identity.department }, trustedDeviceId)
+      : Promise.resolve({ allowed: false } as const),
   ]);
   const privileged = identity.roles.some((role) => ["OWNER", "DIRECTOR", "ADMIN"].includes(role));
   const governance = identity.roles.some((role) => ["OWNER", "DIRECTOR", "CS", "LEGAL"].includes(role));
@@ -231,6 +235,37 @@ export async function getOfficeCompanyCalendar() {
     if (error) throw new OfficeCalendarError(503, "Insurance calendar is temporarily unavailable");
     for (const row of data ?? []) {
       const event = projected("INSURANCE_EXPIRY", String(row.id), `Insurance expiry · ${row.insurance_type}`, dateIso(row.expires_on, true), "DEADLINE", [row.policy_code,row.provider_name,row.status].filter(Boolean).join(" · "));
+      if (event) synthetic.push(event);
+    }
+  }
+
+  if (portfolioCompanyPermission.allowed || portfolioDepartmentPermission.allowed) {
+    let projectQuery = admin.from("office_portfolio_projects")
+      .select("id,project_code,title,department_code,target_end_on,status,reported_health")
+      .not("target_end_on", "is", null)
+      .not("status", "in", '("REJECTED","COMPLETED","CANCELLED")')
+      .order("target_end_on", { ascending: true }).limit(300);
+    if (!portfolioCompanyPermission.allowed && identity.department) projectQuery = projectQuery.eq("department_code", identity.department);
+    const projects = await projectQuery;
+    if (projects.error) throw new OfficeCalendarError(503, "Portfolio calendar is temporarily unavailable");
+    const projectIds = (projects.data ?? []).map((row) => String(row.id));
+    const milestones = projectIds.length
+      ? await admin.from("office_portfolio_milestones")
+          .select("id,milestone_code,project_id,title,due_on,status,owner_user_id")
+          .in("project_id", projectIds)
+          .not("due_on", "is", null)
+          .not("status", "in", '("DONE","CANCELLED")')
+          .order("due_on", { ascending: true }).limit(600)
+      : { data: [], error: null };
+    if (milestones.error) throw new OfficeCalendarError(503, "Portfolio milestone calendar is temporarily unavailable");
+    const projectMap = new Map((projects.data ?? []).map((row) => [String(row.id), row]));
+    for (const row of projects.data ?? []) {
+      const event = projected("PORTFOLIO_PROJECT", String(row.id), `Project target · ${row.title}`, dateIso(row.target_end_on, true), "DEADLINE", [row.project_code,row.department_code,row.status,row.reported_health].filter(Boolean).join(" · "));
+      if (event) synthetic.push(event);
+    }
+    for (const row of milestones.data ?? []) {
+      const project = projectMap.get(String(row.project_id));
+      const event = projected("PORTFOLIO_MILESTONE", String(row.id), `Milestone · ${row.title}`, dateIso(row.due_on, true), "DEADLINE", [row.milestone_code,project?.project_code,row.status].filter(Boolean).join(" · "));
       if (event) synthetic.push(event);
     }
   }
