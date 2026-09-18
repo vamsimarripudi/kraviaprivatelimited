@@ -116,7 +116,7 @@ python -m backend.worker --once --batch-size 25
 
 The worker uses a PostgreSQL transaction advisory lock so concurrent replicas do not execute the same tick. It records a durable heartbeat, raises sanitized runtime alerts on failure, bounds outbox batches, and leaves unsupported events in `WAITING_HANDLER` so the operations dashboard can flag missing handlers. The worker does not execute bank/payment providers.
 
-For Railway, use root directory `Backend`, `Dockerfile.worker`, the same production `DATABASE_URL` as the API, no public domain, and configure `KRAVIA_WORKER_INTERVAL_SECONDS` / `KRAVIA_WORKER_BATCH_SIZE`.
+For Railway, use root directory `Backend`, `Dockerfile.worker`, the same production `DATABASE_URL` as the API, and no public domain. For a continuously running worker use the default command. For a lower-idle-cost deployment, Railway cron can run every five minutes (UTC) with start command `python -m backend.worker --once --interval 300 --batch-size 100` and cron `*/5 * * * *`; Railway starts the service only for each run and does not bill idle time between runs. The heartbeat stores the actual interval so readiness uses the correct stale threshold.
 
 ## Evidence integration
 
