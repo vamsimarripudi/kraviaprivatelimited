@@ -4,13 +4,13 @@
 
 Latest fully green quality run:
 
-- Root application: **80 Vitest files / 381 tests passed**.
-- Office backend: **58 pytest tests passed**.
+- Root application: **82 Vitest files / 390 tests passed**.
+- Office backend: **70 pytest tests passed**.
 - Office quality gate: **PASS**.
 - `npm ci`: **0 vulnerabilities**.
 - Blocking `npm audit --audit-level=high`: **0 vulnerabilities**.
 - ESLint, TypeScript typecheck, secret scan and Next.js 16.3.5 production build: **PASS**.
-- Python compile, OpenAPI drift verification and clean Alembic migration chain through v5: **PASS**.
+- Python compile, OpenAPI drift verification and clean Alembic migration chain through v8: **PASS**.
 
 The production Next build explicitly contains `/office`, `/office/login`, `/office/[section]`, `/finance`, `/finance/login`, `/finance/[section]`, `/admin/login`, Office auth APIs and runtime gateways. Route audit additionally confirms **50/50 Office sections and 20/20 Finance sections have specialised surfaces with zero generic section fallbacks**.
 
@@ -31,7 +31,7 @@ Crawler/sitemap tests additionally verify that `/office` and `/finance` are priv
 
 ## Office backend coverage
 
-The 58-test backend suite verifies, among other controls:
+The 70-test backend suite verifies, among other controls:
 
 - customer → invoice → payment → receipt → GST working summary;
 - same-state CGST/SGST and inter-state IGST;
@@ -48,13 +48,14 @@ The 58-test backend suite verifies, among other controls:
 - Command Center derived metrics;
 - Notice Case and Inspection Case/manifest generation;
 - secret-bearing integration configuration rejection;
-- audit-chain and ledger-event integrity;
+- audit-chain and ledger-event integrity, retention policies, legal holds and deterministic archive manifests;
 - Finance & Ownership ledger/funding/mandate/payment-provider controls;
 - disabled/sandbox finance execution, idempotency and signed provider-event handling;
+- durable background worker locking/heartbeat/failure alerts and backend observability/SLO-readiness boundaries;
 - controlled company bootstrap/source-control boundary;
 - read-only Google Drive metadata integration and evidence-taxonomy readiness;
 - accounting/tax period close and maker-checker reopen;
-- CSP/security headers, cross-origin mutation guard and rate limiter;
+- CSP/security headers, cross-origin mutation guard, shared database-backed cross-replica mutation rate limiting and production fail-closed shared-mode configuration;
 - identity token non-disclosure and HttpOnly/SameSite cookie bridge;
 - TOTP verification promoting sessions to `aal2`;
 - protected production APIs rejecting `aal1`;
@@ -91,7 +92,10 @@ The clean CI database upgrades through:
 - v2 commercial/finance controls;
 - v3 tamper-evident audit chain;
 - v4 Finance & Ownership / controlled treasury;
-- v5 accounting and tax period-close controls.
+- v5 accounting and tax period-close controls;
+- v6 durable background-worker heartbeat;
+- v7 audit-retention policies, legal holds and archive manifests;
+- v8 shared application rate-limit windows.
 
 Supabase Auth/RBAC provisioning remains separate in `spec/identity/SUPABASE_IDENTITY.sql` because it targets the hosted Supabase `auth` schema rather than the Office application database.
 
@@ -124,8 +128,9 @@ Automated tests do not fabricate production acceptance for:
 - eSign/DSC provider behavior;
 - malware scanning/private object-storage integration;
 - external staging CSRF/XSS/injection/file-upload penetration testing;
-- shared edge/WAF abuse controls;
-- production monitoring/alerting/SLOs;
+- provider edge/WAF abuse controls;
+- deployment of the dedicated worker service/process;
+- verified external SLO telemetry and audit archive sink;
 - authoritative Drive evidence completeness and inspection-pack dry run.
 
 Those are deployment/provider/professional acceptance gates, not missing unit-test placeholders.
