@@ -52,7 +52,7 @@ def test_worker_processes_bounded_outbox_and_records_heartbeat(worker_db):
         ])
         db.commit()
 
-    first = worker.run_iteration(batch_size=1)
+    first = worker.run_iteration(batch_size=1, interval_seconds=300)
     assert first["status"] == "COMPLETED"
     assert first["outbox"]["examined"] == 1
     assert first["outbox"]["processed"] == 1
@@ -67,8 +67,10 @@ def test_worker_processes_bounded_outbox_and_records_heartbeat(worker_db):
         assert heartbeat.last_succeeded_at is not None
         assert heartbeat.last_error_type is None
         assert heartbeat.last_duration_ms is not None
+        assert heartbeat.configured_interval_seconds == 300
+        assert heartbeat.configured_batch_size == 1
 
-    second = worker.run_iteration(batch_size=1)
+    second = worker.run_iteration(batch_size=1, interval_seconds=300)
     assert second["outbox"]["waiting_handler"] == 1
     with worker_db() as db:
         assert db.get(DomainEvent, "EVT-WORKER-UNKNOWN").status == "WAITING_HANDLER"
@@ -86,7 +88,7 @@ def test_worker_failure_records_sanitized_alert_and_heartbeat(worker_db, monkeyp
 
     monkeypatch.setattr(worker, "tick", fail_tick)
     with pytest.raises(RuntimeError):
-        worker.run_iteration(batch_size=5)
+        worker.run_iteration(batch_size=5, interval_seconds=600)
 
     with worker_db() as db:
         heartbeat = db.get(WorkerHeartbeat, worker.WORKER_HEARTBEAT_KEY)
@@ -95,6 +97,8 @@ def test_worker_failure_records_sanitized_alert_and_heartbeat(worker_db, monkeyp
         ).scalar_one()
         assert heartbeat.last_failed_at is not None
         assert heartbeat.last_error_type == "RuntimeError"
+        assert heartbeat.configured_interval_seconds == 600
+        assert heartbeat.configured_batch_size == 5
         assert "sensitive provider detail" not in heartbeat.last_result_json
         assert alert.status == "OPEN"
         assert "RuntimeError" in alert.detail_json
