@@ -44,7 +44,7 @@ Crawler/sitemap controls also classify `/office`, `/finance`, `/admin`, `/api`, 
 
 ## Included executable capabilities
 
-- FastAPI API with SQLAlchemy persistence and Alembic migrations through v8
+- FastAPI API with SQLAlchemy persistence and Alembic migrations through v9
 - PostgreSQL-ready configuration
 - production OIDC/JWT verification with mandatory `aal2`
 - root Next.js `/office` and `/finance` role-scoped workspaces
@@ -84,8 +84,8 @@ Latest fully green `main` quality run verified:
 - production build route manifest includes `/office`, `/finance`, their login/dynamic routes, Office auth APIs and Office runtime gateway
 - Python compile: **PASS**
 - OpenAPI drift check: **PASS**
-- clean Alembic upgrade through v8: **PASS**
-- Office backend: **70 tests passed**
+- clean Alembic upgrade through v9: **PASS**
+- Office backend: **75 tests passed**
 - hardened Office quality gate: **PASS**
 
 The test suite covers path-workspace roles, legacy redirects, cookie token non-disclosure, same-origin mutations, fixed-origin runtime proxy controls, identity/MFA/AAL2, Finance & Ownership, GST, accounting close, banking/reconciliation, treasury, expenses/funding, ownership posting, financial assurance, company registrations, Office/runtime audit evidence, Drive taxonomy, security middleware, RBAC, governance and document controls. Route audit confirms **50/50 Office sections and 20/20 Finance sections use specialised surfaces**.
@@ -146,12 +146,12 @@ Verified live changes:
 - anon/authenticated cannot SELECT the registration tables; service role can;
 - registration lifecycle functions are SECURITY INVOKER and browser EXECUTE is denied;
 - trigger-only SECURITY DEFINER helpers `office_identity_create_person()` and `office_sync_employment_identity()` have PUBLIC/anon/authenticated EXECUTE revoked and service-role EXECUTE retained;
-- a full effective-privilege check of all 52 legacy FastAPI tables currently lacking RLS shows anon/authenticated have no SELECT/INSERT/UPDATE/DELETE on any of them;
+- all 52 legacy FastAPI tables are owned by `kravia_office_backend`, have RLS enabled and still expose zero anon/authenticated CRUD;
 - production SQLAlchemy runtime and Alembic migrations apply transaction-scoped `SET LOCAL ROLE kravia_office_backend` via `DATABASE_EXECUTION_ROLE`;
 - the five Alembic v6-v9 service tables are owned by `kravia_office_backend`, have RLS enabled, and explicitly deny anon/authenticated CRUD;
 - the live role/ownership/RLS state was read back after migration.
 
-The remaining 52 legacy FastAPI tables are still RLS-disabled as a defense-in-depth gap, but browser roles have zero effective CRUD and production transactions execute under the dedicated backend role. Any future RLS rollout should be staged and regression-tested rather than added merely to silence tooling.
+The legacy FastAPI RLS rollout is complete: all 52 tables are RLS-enabled, browser roles retain zero CRUD, production transactions execute under `kravia_office_backend`, and no permissive browser policies were added. Supabase may still report informational no-policy findings for intentionally service-only tables.
 
 Outstanding Supabase Auth setting: leaked-password protection is currently disabled and should be enabled before production identity acceptance.
 
@@ -209,8 +209,8 @@ Evidence presence is not treated as legal approval. Company, ownership, tax and 
 3. Railway current-main backend deployment is accepted; keep `DATABASE_EXECUTION_ROLE=kravia_office_backend` and verify any future DB-role changes with migration/read-back evidence.
 4. Set/verify frontend `OFFICE_API_ORIGIN` against the accepted Railway API origin and exercise the same-origin runtime gateway.
 5. Sign in through `/office/login`, enroll/verify the first OWNER TOTP factor and prove the resulting session reaches `aal2`.
-6. Decide/test the defense-in-depth RLS policy plan for the 52 legacy FastAPI tables and verify restricted networking, backups/PITR, restore drill and secret management.
-7. Registration, trigger hardening, service-table ownership and service-table RLS migrations are already applied live; enable Supabase Auth leaked-password protection.
+6. Legacy FastAPI RLS hardening is complete; verify restricted networking, backups/PITR, restore drill and secret management.
+7. Registration, trigger hardening, service-table ownership and RLS hardening for all backend-owned FastAPI tables are applied live; enable Supabase Auth leaked-password protection.
 8. Load/lock verified Company Master and ownership evidence from authoritative sources.
 9. Obtain CA approval for GSTIN/tax/SAC/invoice/accounting mappings and close procedure.
 10. Obtain CS/legal review for governance, ownership/register handling, retention and controlled funding/mandate language.
