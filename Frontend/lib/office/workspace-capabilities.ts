@@ -33,7 +33,7 @@ const requirements: Record<string, readonly string[]> = {
   "office:access": ["access.profile.assign", "access.permission.override", "access.audit.read", "access.user.invite", "access.device.approve"],
   "office:data": ["data.export.request", "data.import.request", "data.movement.approve"],
   "office:privacy": ["privacy.case.read", "privacy.case.manage", "privacy.retention.read"],
-  "office:ethics": ["ethics.report", "ethics.case.read", "ethics.case.manage", "ethics.case.review"],
+  "office:ethics": ["ethics.report", "ethics.case.read", "ethics.case.assign", "ethics.case.manage", "ethics.case.review"],
   "office:resilience": ["resilience.read", "resilience.plan.manage", "resilience.plan.review", "resilience.test.manage", "resilience.test.review", "resilience.incident.report", "resilience.incident.read", "resilience.incident.manage", "insurance.read", "insurance.manage", "insurance.review"],
   "office:security": ["security.overview.read", "security.change.review"],
   "office:integrations": ["integration.embed.view", "integration.embed.manage"],
@@ -52,6 +52,7 @@ const requirements: Record<string, readonly string[]> = {
   "finance:documents": ["finance.read", "document.template.read", "document.instance.read", "document.instance.review", "document.render", "document.finance.create"],
   "finance:compliance": ["finance.read", "tax.gst.prepare", "tax.gst.approve", "compliance.rules.read", "compliance.applicability.review", "compliance.instance.manage"],
   "finance:insurance": ["insurance.read", "insurance.manage", "insurance.review"],
+  "finance:ethics": ["ethics.report", "ethics.case.read", "ethics.case.assign", "ethics.case.manage", "ethics.case.review"],
   "finance:audit": ["finance.read", "audit.read"],
 };
 
