@@ -50,7 +50,6 @@ const requirements: Record<string, readonly string[]> = {
   "office:custody": ["custody.read", "custody.manage", "custody.checkout", "custody.review"],
   "office:governance": ["secretarial.board.read", "secretarial.board.manage", "secretarial.corporate.prepare", "secretarial.corporate.approve"],
   "office:compliance": ["compliance.rules.read", "compliance.rules.manage", "compliance.facts.manage", "compliance.applicability.review", "compliance.instance.manage"],
-  "office:registrations": ["registration.read", "registration.manage", "registration.review"],
   "office:audit": ["audit.read", "access.audit.read"],
   "finance:dashboard": ["finance.read"],
   "finance:customers": ["master.customer.read", "master.customer.create"],
