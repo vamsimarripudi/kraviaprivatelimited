@@ -81,10 +81,11 @@ function projected(source: string, sourceKey: string, title: string, startsAt: s
 export async function getOfficeCompanyCalendar() {
   const { admin, identity } = await actor();
   const trustedDeviceId = await currentOfficeTrustedDeviceId(admin, identity.userId);
-  const [resiliencePermission, insurancePermission, domainPermission, qualityCompanyPermission, qualityDepartmentPermission, qualityOwnPermission, portfolioCompanyPermission, portfolioDepartmentPermission, portfolioMemberPermission] = await Promise.all([
+  const [resiliencePermission, insurancePermission, domainPermission, strategyPermission, qualityCompanyPermission, qualityDepartmentPermission, qualityOwnPermission, portfolioCompanyPermission, portfolioDepartmentPermission, portfolioMemberPermission] = await Promise.all([
     resolveOfficePermission(admin, identity, "resilience.read", { type: "COMPANY" }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "insurance.read", { type: "COMPANY" }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "infra.domain.read", { type: "COMPANY" }, trustedDeviceId),
+    resolveOfficePermission(admin, identity, "strategy.read", { type: "COMPANY" }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "quality.read", { type: "COMPANY" }, trustedDeviceId),
     identity.department
       ? resolveOfficePermission(admin, identity, "quality.read", { type: "DEPARTMENT", key: identity.department }, trustedDeviceId)
@@ -246,6 +247,37 @@ export async function getOfficeCompanyCalendar() {
     }
   }
 
+  if (strategyPermission.allowed) {
+    const cycles = await admin.from("office_strategy_cycles")
+      .select("id,cycle_code,title,scope_type,scope_key,period_end,status")
+      .in("status",["APPROVED","ACTIVE"]).order("period_end",{ascending:true}).limit(300);
+    if (cycles.error) throw new OfficeCalendarError(503, "Strategy calendar is temporarily unavailable");
+    const cycleIds = (cycles.data ?? []).map((row) => String(row.id));
+    const objectives = cycleIds.length
+      ? await admin.from("office_strategy_objectives").select("id,cycle_id").in("cycle_id",cycleIds).not("status","in",'("COMPLETED","CANCELLED")').limit(1200)
+      : { data: [], error: null };
+    if (objectives.error) throw new OfficeCalendarError(503, "Strategy calendar is temporarily unavailable");
+    const objectiveIds = (objectives.data ?? []).map((row) => String(row.id));
+    const keyResults = objectiveIds.length
+      ? await admin.from("office_strategy_key_results")
+          .select("id,key_result_code,objective_id,title,due_on,reported_status,owner_user_id")
+          .in("objective_id",objectiveIds).not("due_on","is",null).not("reported_status","in",'("ACHIEVED","CANCELLED")')
+          .order("due_on",{ascending:true}).limit(1800)
+      : { data: [], error: null };
+    if (keyResults.error) throw new OfficeCalendarError(503, "Strategy key-result calendar is temporarily unavailable");
+    const cycleMap = new Map((cycles.data ?? []).map((row) => [String(row.id), row]));
+    const objectiveMap = new Map((objectives.data ?? []).map((row) => [String(row.id), row]));
+    for (const row of cycles.data ?? []) {
+      const event = projected("STRATEGY_CYCLE_END", String(row.id), `Strategy period end · ${row.title}`, dateIso(row.period_end, true), "DEADLINE", [row.cycle_code,row.scope_type,row.scope_key,row.status].filter(Boolean).join(" · "));
+      if (event) synthetic.push(event);
+    }
+    for (const row of keyResults.data ?? []) {
+      const objective = objectiveMap.get(String(row.objective_id));
+      const cycle = objective ? cycleMap.get(String(objective.cycle_id)) : undefined;
+      const event = projected("STRATEGY_KEY_RESULT", String(row.id), `Key result due · ${row.title}`, dateIso(row.due_on, true), "DEADLINE", [row.key_result_code,cycle?.cycle_code,row.reported_status,row.owner_user_id===identity.userId ? "owned by you" : null].filter(Boolean).join(" · "));
+      if (event) synthetic.push(event);
+    }
+  }
   if (qualityCompanyPermission.allowed || qualityDepartmentPermission.allowed || qualityOwnPermission.allowed) {
     const processScopeAllowed = qualityCompanyPermission.allowed || qualityDepartmentPermission.allowed;
     let processReviews: { data: Array<{id:string;process_code:string;title:string;department_code:string;next_review_on:string|null;status:string}>; error: {message?:string}|null } = { data: [], error: null };
