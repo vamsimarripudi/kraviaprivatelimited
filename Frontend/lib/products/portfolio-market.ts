@@ -1,9 +1,10 @@
 import { vidyaLumaMarketEstimates, vidyaLumaMarketResearchReviewedAt } from "./vidyaluma-market";
+import { formatRecruitFlowMarketValue, recruitFlowMarketResearchReviewedAt, selectedRecruitFlowIndiaEstimate } from "./recruitflow-market";
 import { selectedGlobalMarketEstimate, vorioMarketResearchReviewedAt } from "./vorio-market";
 import { researchCheckedAt, yuktaMetrics, yuktaSources } from "./yukta-research";
 
 export type PortfolioMarketContext = {
-  productSlug: "vidyaluma" | "yukta" | "vorio";
+  productSlug: "vidyaluma" | "recruitflow" | "yukta" | "vorio";
   marketLabel: string;
   geography: string;
   baseYear: number;
@@ -38,10 +39,10 @@ export const portfolioMarketContexts: readonly PortfolioMarketContext[] = [
     marketLabel: "Education technology market",
     geography: "Global",
     baseYear: vidyaLumaMarketEstimates.global.baseYear,
-    baseValue: `$${vidyaLumaMarketEstimates.global.baseValueUsdBn.toFixed(1)}B`,
+    baseValue: `${vidyaLumaMarketEstimates.global.baseValueUsdBn.toFixed(1)}B`,
     baseLabel: "Publisher estimate",
     forecastYear: vidyaLumaMarketEstimates.global.forecastYear,
-    forecastValue: `$${vidyaLumaMarketEstimates.global.forecastValueUsdBn.toFixed(1)}B`,
+    forecastValue: `${vidyaLumaMarketEstimates.global.forecastValueUsdBn.toFixed(1)}B`,
     forecastLabel: "Publisher forecast",
     cagr: `${vidyaLumaMarketEstimates.global.cagr}% CAGR`,
     source: vidyaLumaMarketEstimates.global.source,
@@ -49,6 +50,23 @@ export const portfolioMarketContexts: readonly PortfolioMarketContext[] = [
     sourceUrl: vidyaLumaMarketEstimates.global.url,
     reviewedAt: vidyaLumaMarketResearchReviewedAt,
     scopeNote: "Broad education technology and smart-classroom context; not VidyaLuma revenue, market share or demand.",
+  },
+  {
+    productSlug: "recruitflow",
+    marketLabel: "Recruitment software market",
+    geography: "India",
+    baseYear: selectedRecruitFlowIndiaEstimate.baseYear,
+    baseValue: formatRecruitFlowMarketValue(selectedRecruitFlowIndiaEstimate.baseValue, selectedRecruitFlowIndiaEstimate.baseUnit),
+    baseLabel: "Publisher estimate",
+    forecastYear: selectedRecruitFlowIndiaEstimate.forecastYear,
+    forecastValue: formatRecruitFlowMarketValue(selectedRecruitFlowIndiaEstimate.forecastValue, selectedRecruitFlowIndiaEstimate.forecastUnit),
+    forecastLabel: "Publisher forecast",
+    cagr: `${selectedRecruitFlowIndiaEstimate.cagr}% CAGR`,
+    source: selectedRecruitFlowIndiaEstimate.source,
+    sourceTitle: selectedRecruitFlowIndiaEstimate.reportTitle,
+    sourceUrl: selectedRecruitFlowIndiaEstimate.url,
+    reviewedAt: recruitFlowMarketResearchReviewedAt,
+    scopeNote: "Broader India recruitment-software context; not RecruitFlow revenue, market share, customer count or a guarantee of demand.",
   },
   {
     productSlug: "yukta",
@@ -86,6 +104,6 @@ export const portfolioMarketContexts: readonly PortfolioMarketContext[] = [
 ] as const;
 
 export function marketContextForProductHref(href: string) {
-  const match = href.match(/\/products\/(vidyaluma|yukta|vorio)$/);
+  const match = href.match(/\/products\/(vidyaluma|recruitflow|yukta|vorio)$/);
   return match ? portfolioMarketContexts.find((context) => context.productSlug === match[1]) : undefined;
 }
