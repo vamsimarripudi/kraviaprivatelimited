@@ -68,7 +68,7 @@ export async function getQualityOverview(){
   let ncQuery=current.admin.from("office_quality_nonconformances")
     .select("id,nc_code,process_id,reporter_user_id,department_code,source_type,severity,title,description,evidence_reference,immediate_containment,owner_user_id,status,created_at,updated_at,closed_at")
     .order("created_at",{ascending:false}).limit(2000);
-  if(own)ncQuery=ncQuery.eq("reporter_user_id",current.identity.userId);
+  if(own)ncQuery=ncQuery.or("reporter_user_id.eq."+current.identity.userId+",owner_user_id.eq."+current.identity.userId);
   else if(department)ncQuery=ncQuery.eq("department_code",department);
 
   const [processes,ncs]=await Promise.all([processQuery,ncQuery]);
@@ -85,7 +85,7 @@ export async function getQualityOverview(){
           .in("status",capabilities.process_manage||capabilities.process_publish?["DRAFT","PUBLISHED","SUPERSEDED","RETIRED"]:["PUBLISHED"])
           .order("version",{ascending:false}).limit(3000)
       : Promise.resolve({data:[],error:null}),
-    !own&&ncIds.length
+    ncIds.length
       ? current.admin.from("office_quality_capas")
           .select("id,capa_code,nonconformance_id,action_type,owner_user_id,root_cause,action_plan,due_on,status,completion_evidence_reference,effectiveness_evidence_reference,reviewer_user_id,reviewed_at,review_note,created_by,created_at,updated_at")
           .in("nonconformance_id",ncIds).order("due_on",{ascending:true,nullsFirst:false}).limit(3000)
