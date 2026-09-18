@@ -64,7 +64,7 @@ Verified:
 - trigger-only SECURITY DEFINER EXECUTE hardening applied;
 - registration tables are RLS-enabled and browser SELECT is denied;
 - registration functions are SECURITY INVOKER and browser EXECUTE is denied;
-- anon/authenticated have no effective CRUD privilege on any of the 52 legacy FastAPI tables currently lacking RLS;
+- all 52 legacy FastAPI tables are owned by `kravia_office_backend`, RLS-enabled, and expose zero anon/authenticated CRUD;
 - production runtime/Alembic execution is constrained transaction-by-transaction with `SET LOCAL ROLE kravia_office_backend`;
 - Alembic v6-v9 service tables (`worker_heartbeats`, retention/legal-hold/archive-manifest tables and shared rate-limit windows) are owned by `kravia_office_backend`, have RLS enabled and explicitly deny anon/authenticated CRUD;
 - the live Supabase migration history records the ownership and RLS hardening, and the equivalent source migration is now versioned in `Database/supabase/migrations`.
@@ -72,14 +72,14 @@ Verified:
 Outstanding:
 
 - Supabase Auth leaked-password protection is disabled;
-- 52 legacy FastAPI tables remain RLS-disabled as a defense-in-depth gap, but anon/authenticated have zero effective CRUD on those tables;
+- the legacy FastAPI RLS backlog is closed; remaining RLS-enabled/no-policy findings are informational for intentionally service-only tables;
 - many service-only Office tables intentionally use RLS with no browser policies and therefore surface informational no-policy findings.
 
 ## Vercel
 
-Fresh Vercel discovery on the connected hobby team `vamsimarripudis-projects` still exposes **no project linked to `vamsimarripudi/kraviaprivatelimited`**.
+GitHub now reports the current-main Vercel deployment check as **SUCCESS** for the separate `kravia1/kraviaprivatelimited` project context.
 
-GitHub currently receives a failing `Vercel` status pointing to a build-rate-limit condition under a separate `kravia1` account/project context. Because the KRAVIA project is still not visible through the connected hobby team, current Root Directory, framework, environment-variable and domain configuration cannot be inspected or changed here.
+The connected Vercel token is still scoped to the `vamsimarripudis-projects` team. Direct inspection of `kravia1` returns HTTP 403 and explicitly requires re-authentication to that scope. Therefore deployment success is verified, but current Root Directory, framework, production environment variables and domain configuration cannot yet be read back from this connector.
 
 **Decision:** treat the old Root Directory mismatch as historical, not current fact. Rediscover or reconnect the canonical KRAVIA Vercel project/account before changing production settings. Do not attach Office to an unrelated product project.
 
@@ -100,10 +100,10 @@ Backend API target:
 
 ## Immediate activation gates
 
-1. Successful frontend deployment from current `main` on the canonical Vercel project.
-2. Frontend `OFFICE_API_ORIGIN` wired to the accepted Railway backend origin.
+1. Re-authenticate the Vercel connector to the verified `kravia1` scope and inspect the successful `kraviaprivatelimited` project.
+2. Verify frontend `OFFICE_API_ORIGIN`, production domain attachment and end-to-end browser→BFF→Railway behavior.
 3. Enable Supabase Auth leaked-password protection.
-4. Decide/test the defense-in-depth RLS plan for the 52 legacy FastAPI tables; browser roles currently have zero CRUD and runtime execution is already constrained to `kravia_office_backend`.
+4. Legacy FastAPI RLS hardening is complete; keep browser grants closed and preserve `DATABASE_EXECUTION_ROLE=kravia_office_backend`.
 5. First OWNER live TOTP/AAL2 acceptance.
 6. Upgrade/provision Railway capacity and deploy the dedicated background worker service from `Backend/Dockerfile.worker`; current Free-plan resource limits block an additional service.
 7. Connect verified SLO telemetry/archive storage and configure provider edge/WAF controls.
