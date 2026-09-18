@@ -2,7 +2,7 @@ import os
 import re
 from urllib.parse import quote, unquote
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -68,6 +68,39 @@ def _route_supabase_pooler(normalized_url: str) -> str:
     return routed.render_as_string(hide_password=False)
 
 
+DATABASE_ROLE_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]{0,62}$")
+
+
+def database_execution_role() -> str | None:
+    """Return the validated least-privilege role used inside DB transactions."""
+    role = os.getenv("DATABASE_EXECUTION_ROLE", "").strip()
+    if not role:
+        return None
+    if not DATABASE_ROLE_PATTERN.fullmatch(role):
+        raise RuntimeError("DATABASE_EXECUTION_ROLE contains an invalid PostgreSQL role name")
+    return role
+
+
+def configure_database_execution_role(target_engine):
+    """Apply SET LOCAL ROLE at every PostgreSQL transaction boundary.
+
+    Railway/Supavisor may authenticate with a provider-managed login while the
+    application must execute under a narrower role. SET LOCAL ROLE is scoped to
+    the current transaction and is therefore safe with pooled connections.
+    """
+    role = database_execution_role()
+    if not role or target_engine.dialect.name != "postgresql":
+        return target_engine
+
+    statement = f'SET LOCAL ROLE "{role}"'
+
+    def _set_local_role(connection):
+        connection.exec_driver_sql(statement)
+
+    event.listen(target_engine, "begin", _set_local_role)
+    return target_engine
+
+
 def normalize_database_url(raw_url: str) -> str:
     """Canonicalize provider PostgreSQL URLs for the installed psycopg v3 driver."""
     if raw_url.startswith("postgres://"):
@@ -87,11 +120,13 @@ DATABASE_URL = normalize_database_url(
     os.getenv("DATABASE_URL", "sqlite:///./kravia_office.db")
 )
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,
-    future=True,
-    connect_args=connect_args,
+engine = configure_database_execution_role(
+    create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,
+        future=True,
+        connect_args=connect_args,
+    )
 )
 SessionLocal = sessionmaker(
     bind=engine,
