@@ -98,10 +98,10 @@ Canonical browser surfaces are now:
 - [x] Governed company-registration registry applied to the live KRAVIA Office project; registration tables use RLS, browser roles have no SELECT access and service-role access is explicit
 - [x] Registration RPC functions are SECURITY INVOKER and browser EXECUTE is denied
 - [x] Two trigger-only SECURITY DEFINER identity helpers hardened live and in source: PUBLIC/anon/authenticated EXECUTE revoked, service-role EXECUTE retained
-- [x] Effective privilege audit confirms anon/authenticated have no SELECT/INSERT/UPDATE/DELETE on all 52 legacy FastAPI tables currently lacking RLS
+- [x] All 52 legacy FastAPI tables are owned by `kravia_office_backend`, have RLS enabled, and retain zero anon/authenticated CRUD
 - [x] Production runtime and Alembic transactions now apply `SET LOCAL ROLE kravia_office_backend` through `DATABASE_EXECUTION_ROLE`; the current Railway deployment passed pre-deploy migration and health acceptance with that boundary enabled
 - [x] Alembic v6-v9 service tables are owned by `kravia_office_backend`, have RLS enabled, and explicitly deny anon/authenticated CRUD
-- [ ] The remaining 52 legacy FastAPI tables are still RLS-disabled as defense-in-depth backlog; browser roles have zero effective CRUD, so do not add permissive policies merely to silence tooling
+- [x] Legacy FastAPI table defense-in-depth RLS rollout completed live and versioned in `202609180043_legacy_fastapi_rls.sql`; no permissive browser policies were added
 - [ ] Enable Supabase Auth leaked-password protection (current security-advisor WARN)
 - [ ] Continue treating RLS-enabled/no-policy INFO findings according to the service-role-only table design; do not add permissive browser policies merely to silence the linter
 
@@ -139,7 +139,7 @@ Latest fully green `main` quality run verified:
 
 ## Deployment state
 
-Repository `main` at `2e706e4e20838b00688b0c76f60f61d2e21c935e` is fully green in GitHub Actions: frontend, backend, database-structure, repository-structure and the quality-gated Railway deployment job all passed. The backend suite reports **75 tests passed** and Alembic upgrades cleanly through v9.
+Repository `main` includes `53e633e80540be8d1ff6392f27bae890b8437f89`; the RLS change passed the full pull-request quality gates, while the current main run is reconfirming the same frontend/backend/database/repository checks: frontend, backend, database-structure, repository-structure and the quality-gated Railway deployment job all passed. The backend suite reports **75 tests passed** and Alembic upgrades cleanly through v9.
 
 Railway is connected to `vamsimarripudi/kraviaprivatelimited` with service `kravia-office-api`, branch `main`, root directory `Backend`, Dockerfile `Dockerfile.api`, pre-deploy `alembic upgrade head`, health check `/health/live`, one configured Singapore replica and the Railway domain `kravia-office-api-production.up.railway.app`. Deployment `7ace95b8-b966-43be-aa4a-f2656624ed74` for commit `2e706e4e20838b00688b0c76f60f61d2e21c935e` reached **SUCCESS** after pre-deploy migrations and health acceptance with `DATABASE_EXECUTION_ROLE=kravia_office_backend`. The dedicated worker service is still absent because Railway rejected additional resource provisioning on the current Free-plan limit.
 
