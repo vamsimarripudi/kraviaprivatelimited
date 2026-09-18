@@ -13,6 +13,8 @@ describe("KRAVIA Finance expenses and funding",()=>{
   expect(component).toContain('runtime<Vendor[]>("vendors")');
   expect(component).toContain('runtime<Approval[]>("approvals")');
   expect(screen).toContain("OfficeExpensesWorkspace");
+  expect(screen).toContain('section === "expenses" ? <OfficeExpensesWorkspace');
+  expect(screen).toContain('permissions.includes("finance.expense.request")');
  });
  it("enforces active policy and maximum-call limits for shareholder-funded expenses",()=>{
   expect(backend).toContain("Shareholder-funded expense requires an active funding policy");
