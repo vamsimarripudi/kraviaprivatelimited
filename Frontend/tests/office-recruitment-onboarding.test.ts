@@ -34,7 +34,7 @@ describe("KRAVIA governed recruitment and pre-onboarding", () => {
     expect(execution).toContain("office_offer_attach_document");
     expect(execution).toContain("office_offer_mark_accepted");
     expect(execution).toContain("PRE_ONBOARDING_ACCESS");
-    expect(component).toContain("An accepted offer never creates privileged Office or provider access automatically");
+    expect(server).toContain("An accepted offer never creates privileged Office or provider access automatically");
   });
 
   it("stores candidate uploads privately with content and integrity checks", () => {
@@ -65,6 +65,8 @@ describe("KRAVIA governed recruitment and pre-onboarding", () => {
     expect(route).toContain("officeMutationIsSameOrigin");
     expect(route).toContain("CREATE_REQUISITION");
     expect(route).toContain("MARK_OFFER_ACCEPTED");
+    expect(route).toContain("CREATE_OFFER_DOCUMENT");
+    expect(server).toContain('p_template_code: "HR_OFFER"');
   });
 
   it("runs recruitment as a real KRAVIA Office workspace", () => {
