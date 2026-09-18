@@ -176,7 +176,7 @@ Railway deployment `7ace95b8-b966-43be-aa4a-f2656624ed74` for backend commit `2e
 
 ### Vercel frontend
 
-Fresh discovery on the connected Vercel hobby team `vamsimarripudis-projects` still lists no project linked to `vamsimarripudi/kraviaprivatelimited`. GitHub currently reports a failing `Vercel` status pointing to a build-rate-limit condition under a separate `kravia1` project/account context. Therefore the prior Root Directory diagnosis remains historical; the actual Vercel project, production environment variables and domain assignment still cannot be inspected from the connected account.
+GitHub now reports the Vercel deployment check for current `main` as **SUCCESS** under `kravia1/kraviaprivatelimited`. The connected Vercel token remains scoped to `vamsimarripudis-projects`; direct inspection of the `kravia1` project returns 403 until the connector is re-authenticated to that team. Build success is verified, while root/build settings, production environment variables and domain assignment still require read-back from the correct scope.
 
 Do not attach Office to an unrelated Vercel project simply to clear the status. The canonical browser model remains the company site with `/office` and `/finance`; Railway is the API runtime.
 
@@ -204,8 +204,8 @@ Evidence presence is not treated as legal approval. Company, ownership, tax and 
 
 ## Production activation sequence
 
-1. Identify/reconnect the Vercel project that owns the KRAVIA company frontend, or create a dedicated project from this repository only if no canonical project exists; verify root/build settings instead of relying on the old mismatch diagnosis.
-2. Deploy current `main` successfully on Vercel and verify `/`, `/office/login`, `/finance/login`, `/admin/login`, private-route noindex behavior and legacy redirects.
+1. Re-authenticate the Vercel connector to the verified `kravia1` team and read back the successful `kraviaprivatelimited` project configuration.
+2. Verify the production domain, `OFFICE_API_ORIGIN`, `/`, `/office/login`, `/finance/login`, `/admin/login`, private-route noindex behavior and legacy redirects on the successful frontend deployment.
 3. Railway current-main backend deployment is accepted; keep `DATABASE_EXECUTION_ROLE=kravia_office_backend` and verify any future DB-role changes with migration/read-back evidence.
 4. Set/verify frontend `OFFICE_API_ORIGIN` against the accepted Railway API origin and exercise the same-origin runtime gateway.
 5. Sign in through `/office/login`, enroll/verify the first OWNER TOTP factor and prove the resulting session reaches `aal2`.
