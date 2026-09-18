@@ -21,7 +21,7 @@ const requirements: Record<string, readonly string[]> = {
   "office:development": ["people.skills.read", "people.skills.declare", "people.skills.verify", "people.training.read", "people.training.manage", "people.training.assign", "people.performance.read", "people.performance.manage", "people.performance.review", "people.workforce_plan.read", "people.workforce_plan.manage", "people.workforce_plan.review"],
   "office:payroll": ["payroll.compensation.read", "payroll.compensation.manage", "payroll.rules.read", "payroll.run.read", "payroll.run.prepare"],
   "office:documents": ["document.template.read", "document.template.manage", "document.template.publish", "document.instance.read", "document.instance.review", "document.render", "document.hr.create", "document.secretarial.create", "document.legal.create", "document.sales.create", "document.operations.create"],
-  "office:contracts": ["legal.contract.review", "legal.contract.draft", "legal.contract.execute"],
+  "office:contracts": ["legal.contract.review", "legal.contract.draft", "legal.contract.execute", "legal.obligation.read", "legal.obligation.manage", "legal.obligation.review"],
   "office:vendors": ["operations.vendor.create", "operations.vendor.approve", "operations.purchase.request", "operations.purchase.approve", "operations.procurement.read", "operations.procurement.prepare", "operations.po.issue", "operations.receipt.record", "operations.renewal.manage"],
   "office:assets": ["operations.asset.assign"],
   "office:devices": ["identity.card.read", "identity.card.manage", "device.posture.read", "device.posture.manage", "physical.access.read", "physical.access.manage"],
