@@ -4,7 +4,7 @@
 
 Latest fully green quality run:
 
-- Root application: **79 Vitest files / 379 tests passed**.
+- Root application: **80 Vitest files / 381 tests passed**.
 - Office backend: **58 pytest tests passed**.
 - Office quality gate: **PASS**.
 - `npm ci`: **0 vulnerabilities**.
