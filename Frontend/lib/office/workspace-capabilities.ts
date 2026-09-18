@@ -53,7 +53,7 @@ const requirements: Record<string, readonly string[]> = {
   "office:audit": ["audit.read", "access.audit.read"],
   "finance:dashboard": ["finance.read"],
   "finance:customers": ["master.customer.read", "master.customer.create"],
-  "finance:billing": ["finance.read", "finance.invoice.create"],
+  "finance:billing": ["finance.read", "finance.invoice.create", "finance.receipt.record"],
   "finance:payroll": ["payroll.run.read", "payroll.run.review", "payroll.payment.prepare", "payroll.rules.read", "payroll.compensation.read"],
   "finance:budget": ["finance.budget.read", "finance.budget.manage", "finance.budget.review", "finance.budget.commit", "finance.budget.actual"],
   "finance:gst": ["finance.read", "tax.gst.prepare", "tax.gst.approve"],
