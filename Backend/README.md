@@ -1,8 +1,8 @@
 # KRAVIA Office — Corporate Operating System
 
-Target production domain: `office.kraviaprivatelimited.com`
+Canonical browser paths: `https://kraviaprivatelimited.com/office` and `https://kraviaprivatelimited.com/finance`
 
-KRAVIA Office is the company operating layer for **KRAVIA PRIVATE LIMITED** and current/future KRAVIA products. The canonical implementation lives in this repository under `office/`. It is company-first, product-aware, evidence-first, auditable and deliberately fail-closed for high-risk production actions whose external credentials/evidence are not configured.
+KRAVIA Office is the company operating layer for **KRAVIA PRIVATE LIMITED** and current/future KRAVIA products. The canonical implementation lives in this repository under `Frontend/`, `Backend/` and `Database/`. It is company-first, product-aware, evidence-first, auditable and deliberately fail-closed for high-risk production actions whose external credentials/evidence are not configured.
 
 ## Canonical runtime
 
@@ -16,7 +16,7 @@ It combines:
 - accounting/tax period-close controls;
 - read-only Google Drive evidence readiness;
 - CSP/security headers, Origin guard and baseline mutation rate limiting;
-- same-origin Office web UI from `web/`.
+- API-only Railway runtime; the canonical browser UI is the root Next.js application under `Frontend/`.
 
 The older root static files remain in the repository for compatibility/history, but they are not the authoritative production runtime.
 
@@ -57,13 +57,13 @@ Missing/unverified source data must remain an explicit setup-required/unverified
 From the repository root:
 
 ```bash
-cd office
+cd Backend
 python -m pip install -r backend/requirements.txt
 alembic upgrade head
 python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000
 ```
 
-Open `http://127.0.0.1:8000/`. Non-production API documentation is available at `/api/docs`.
+The backend root exposes only operational status. Non-production API documentation is available at `http://127.0.0.1:8000/api/docs`; the browser workspaces run from the root Next.js application.
 
 Use a local ignored environment file or exported variables based on `backend/.env.example`. Bootstrap authentication is development-only.
 
@@ -72,7 +72,7 @@ Use a local ignored environment file or exported variables based on `backend/.en
 Office checks:
 
 ```bash
-cd office
+cd Backend
 python -m pytest backend/tests -q
 python scripts/export_openapi.py --check
 python scripts/quality_gate.py
@@ -93,11 +93,30 @@ The current audited baseline is documented in `TEST_REPORT.md`.
 ## Docker development
 
 ```bash
-cd office
+cd Backend
 export POSTGRES_PASSWORD='set-a-local-development-secret'
 export OFFICE_BOOTSTRAP_KEY='use-a-real-dev-key'
 docker compose up --build
 ```
+
+## Background worker
+
+Run automation/outbox processing as a separate process or Railway service:
+
+```bash
+cd Backend
+python -m backend.worker
+```
+
+For a deploy/CI smoke iteration:
+
+```bash
+python -m backend.worker --once --batch-size 25
+```
+
+The worker uses a PostgreSQL transaction advisory lock so concurrent replicas do not execute the same tick. It records a durable heartbeat, raises sanitized runtime alerts on failure, bounds outbox batches, and leaves unsupported events in `WAITING_HANDLER` so the operations dashboard can flag missing handlers. The worker does not execute bank/payment providers.
+
+For Railway, use root directory `Backend`, `Dockerfile.worker`, the same production `DATABASE_URL` as the API, no public domain, and configure `KRAVIA_WORKER_INTERVAL_SECONDS` / `KRAVIA_WORKER_BATCH_SIZE`.
 
 ## Evidence integration
 

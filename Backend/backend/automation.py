@@ -22,6 +22,12 @@ def ensure_alert(db, key, category, severity, title, entity_type, entity_id, due
     row=OperationalAlert(id=uid("ALT"),alert_key=key,category=category,severity=severity,title=title,entity_type=entity_type,entity_id=entity_id,due_date=due_date,status="OPEN",detail_json=json.dumps(detail or {},sort_keys=True,default=str))
     db.add(row);return row,True
 
+def resolve_alert(db, key):
+    row=db.execute(select(OperationalAlert).where(OperationalAlert.alert_key==key)).scalar_one_or_none()
+    if row and row.status not in {"RESOLVED","CLOSED"}:
+        row.status="RESOLVED"; row.resolved_at=now_utc(); return True
+    return False
+
 def scan_controls(db):
     created=0; touched=0
     for x in db.execute(select(ComplianceObligation)).scalars():
@@ -57,7 +63,11 @@ def scan_controls(db):
 INTERNAL_EVENT_PREFIXES=("product.","customer.","invoice.","payment.","receipt.","credit_note.","refund.","subscription.","contract.","employee.","asset.","board.","authority.","document.","notice.","inspection.","bank.transaction.","approval.","commercial.plan.")
 
 def process_outbox(db, limit=100):
-    rows=db.execute(select(DomainEvent).where(DomainEvent.status=="PENDING").order_by(DomainEvent.created_at).limit(limit)).scalars().all()
+    batch_size=max(1,min(int(limit),500))
+    query=select(DomainEvent).where(DomainEvent.status=="PENDING").order_by(DomainEvent.created_at).limit(batch_size)
+    if db.bind is not None and db.bind.dialect.name=="postgresql":
+        query=query.with_for_update(skip_locked=True)
+    rows=db.execute(query).scalars().all()
     processed=0; waiting=0
     for ev in rows:
         if ev.event_type.startswith(INTERNAL_EVENT_PREFIXES):
@@ -67,8 +77,8 @@ def process_outbox(db, limit=100):
             ev.status="WAITING_HANDLER";ev.attempts+=1;waiting+=1
     return {"processed":processed,"waiting_handler":waiting,"examined":len(rows)}
 
-def tick(db):
+def tick(db, limit=100, commit=True):
     alerts=scan_controls(db)
-    outbox=process_outbox(db)
-    db.commit()
+    outbox=process_outbox(db,limit=limit)
+    if commit: db.commit()
     return {"ran_at":now_utc().isoformat(),"alerts":alerts,"outbox":outbox}

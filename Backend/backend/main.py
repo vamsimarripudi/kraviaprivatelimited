@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 
 from .database import Base, engine, get_db
-from .models import LegalEntity, Product, Customer, Invoice, Payment, Receipt, IdempotencyRecord, AuditEvent, WorkflowRun, ComplianceObligation, DomainEvent, ChartAccount, JournalEntry, JournalLine, BoardMeeting, Resolution, AuthorityGrant, Vendor, Contract, Employee, OfficeAsset, Document, DocumentVersion, CommercialPlan, Subscription, CreditNote, Refund, BankAccount, BankTransaction, Settlement, ApprovalRequest, NoticeCase, InspectionCase, IntegrationRecord, OperationalAlert
+from .models import LegalEntity, Product, Customer, Invoice, Payment, Receipt, IdempotencyRecord, AuditEvent, WorkflowRun, ComplianceObligation, DomainEvent, ChartAccount, JournalEntry, JournalLine, BoardMeeting, Resolution, AuthorityGrant, Vendor, Contract, Employee, OfficeAsset, Document, DocumentVersion, CommercialPlan, Subscription, CreditNote, Refund, BankAccount, BankTransaction, Settlement, ApprovalRequest, NoticeCase, InspectionCase, IntegrationRecord, OperationalAlert, WorkerHeartbeat
 from .schemas import CustomerCreate, ProductCreate, InvoiceCreate, PaymentCreate, ComplianceCreate, BoardMeetingCreate, ResolutionCreate, AuthorityCreate, VendorCreate, ContractCreate, EmployeeCreate, AssetCreate, PlanCreate, SubscriptionCreate, CreditNoteCreate, RefundCreate, BankAccountCreate, BankTransactionCreate, SettlementCreate, ApprovalCreate, ApprovalDecision, NoticeCreate, InspectionCreate, IntegrationCreate
 from .services import uid, paise, rupees, now_utc, allocate_invoice_no, allocate_controlled_no, audit, workflow, emit_event, post_journal, ENTITY_ID
 from .documents import invoice_pdf, receipt_pdf, ctc_pdf
@@ -772,12 +772,21 @@ def _runtime_operations_snapshot(db: Session) -> dict:
     integration_attention = [row for row in production_integrations if str(row.status).upper() not in ready_states]
     events = db.execute(select(DomainEvent).order_by(DomainEvent.created_at.asc())).scalars().all()
     pending_events = [row for row in events if str(row.status).upper() == "PENDING"]
+    waiting_handler_events = [row for row in events if str(row.status).upper() == "WAITING_HANDLER"]
     workflows = db.execute(select(WorkflowRun).order_by(WorkflowRun.started_at.desc())).scalars().all()
     failed_workflows = [row for row in workflows if str(row.status).upper() in {"FAILED", "ERROR", "DEAD_LETTER"}]
     latest_audit = db.execute(select(AuditEvent).order_by(AuditEvent.occurred_at.desc(), AuditEvent.id.desc())).scalars().first()
     telemetry_source = os.getenv("KRAVIA_SLO_TELEMETRY_SOURCE", "").strip() or None
     availability_target = os.getenv("KRAVIA_SLO_AVAILABILITY_TARGET_PERCENT", "99.9").strip()
     latency_target = _integer_env("KRAVIA_SLO_LATENCY_P95_TARGET_MS", 1000)
+    worker_interval = _integer_env("KRAVIA_WORKER_INTERVAL_SECONDS", 60)
+    worker_stale_after = _integer_env("KRAVIA_WORKER_STALE_AFTER_SECONDS", max(180, worker_interval * 3))
+    heartbeat = db.get(WorkerHeartbeat, "office-automation")
+    last_success = heartbeat.last_succeeded_at if heartbeat else None
+    if last_success and last_success.tzinfo is None:
+        last_success = last_success.replace(tzinfo=timezone.utc)
+    worker_age_seconds = max(0, int((now_utc() - last_success).total_seconds())) if last_success else None
+    worker_state = "NOT_STARTED" if not last_success else "STALE" if worker_age_seconds is not None and worker_age_seconds > worker_stale_after else "HEALTHY"
     return {
         "generated_at": now_utc().isoformat(),
         "alerts": {
@@ -787,6 +796,7 @@ def _runtime_operations_snapshot(db: Session) -> dict:
         },
         "event_outbox": {
             "pending": len(pending_events),
+            "waiting_handler": len(waiting_handler_events),
             "oldest_pending_at": pending_events[0].created_at.isoformat() if pending_events and pending_events[0].created_at else None,
             "alert_threshold": _integer_env("KRAVIA_OUTBOX_ALERT_THRESHOLD", 25),
         },
@@ -803,6 +813,18 @@ def _runtime_operations_snapshot(db: Session) -> dict:
         "audit": {
             "events": db.scalar(select(func.count()).select_from(AuditEvent)) or 0,
             "latest_at": latest_audit.occurred_at.isoformat() if latest_audit and latest_audit.occurred_at else None,
+        },
+        "worker": {
+            "key": heartbeat.worker_key if heartbeat else "office-automation",
+            "state": worker_state,
+            "interval_seconds": worker_interval,
+            "stale_after_seconds": worker_stale_after,
+            "last_started_at": heartbeat.last_started_at.isoformat() if heartbeat and heartbeat.last_started_at else None,
+            "last_succeeded_at": heartbeat.last_succeeded_at.isoformat() if heartbeat and heartbeat.last_succeeded_at else None,
+            "last_failed_at": heartbeat.last_failed_at.isoformat() if heartbeat and heartbeat.last_failed_at else None,
+            "last_error_type": heartbeat.last_error_type if heartbeat else None,
+            "last_duration_ms": heartbeat.last_duration_ms if heartbeat else None,
+            "age_seconds": worker_age_seconds,
         },
         "slo": {
             "availability_target_percent": availability_target,
@@ -903,6 +925,16 @@ def evaluate_operations(
             "detail": {"pending": snapshot["event_outbox"]["pending"], "threshold": snapshot["event_outbox"]["alert_threshold"]},
         },
         {
+            "alert_key": "runtime:event-handler-gap",
+            "category": "AUTOMATION",
+            "severity": "HIGH",
+            "title": "Domain events are waiting for an approved handler",
+            "entity_type": "event_outbox",
+            "entity_id": "waiting-handler",
+            "active": snapshot["event_outbox"]["waiting_handler"] > 0,
+            "detail": {"waiting_handler": snapshot["event_outbox"]["waiting_handler"]},
+        },
+        {
             "alert_key": "runtime:workflow-failures",
             "category": "WORKFLOW",
             "severity": "HIGH",
@@ -921,6 +953,21 @@ def evaluate_operations(
             "entity_id": "production",
             "active": snapshot["integrations"]["attention"] > 0,
             "detail": {"production": snapshot["integrations"]["production"], "attention": snapshot["integrations"]["attention"]},
+        },
+        {
+            "alert_key": "runtime:background-worker-stale",
+            "category": "AUTOMATION",
+            "severity": "HIGH",
+            "title": "Background worker heartbeat is missing or stale",
+            "entity_type": "worker_heartbeat",
+            "entity_id": snapshot["worker"]["key"],
+            "active": APP_ENV == "production" and snapshot["worker"]["state"] != "HEALTHY",
+            "detail": {
+                "state": snapshot["worker"]["state"],
+                "age_seconds": snapshot["worker"]["age_seconds"],
+                "stale_after_seconds": snapshot["worker"]["stale_after_seconds"],
+                "last_succeeded_at": snapshot["worker"]["last_succeeded_at"],
+            },
         },
         {
             "alert_key": "runtime:slo-telemetry",

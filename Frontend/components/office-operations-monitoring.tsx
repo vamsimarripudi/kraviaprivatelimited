@@ -7,10 +7,22 @@ import styles from "./office-operations-monitoring.module.css";
 type OperationsSummary = {
   generated_at: string;
   alerts: { total: number; open: number; high_critical: number };
-  event_outbox: { pending: number; oldest_pending_at?: string | null; alert_threshold: number };
+  event_outbox: { pending: number; waiting_handler: number; oldest_pending_at?: string | null; alert_threshold: number };
   workflows: { total: number; failed: number; alert_threshold: number };
   integrations: { production: number; ready: number; attention: number };
   audit: { events: number; latest_at?: string | null };
+  worker: {
+    key: string;
+    state: "NOT_STARTED" | "STALE" | "HEALTHY";
+    interval_seconds: number;
+    stale_after_seconds: number;
+    last_started_at?: string | null;
+    last_succeeded_at?: string | null;
+    last_failed_at?: string | null;
+    last_error_type?: string | null;
+    last_duration_ms?: number | null;
+    age_seconds?: number | null;
+  };
   slo: {
     availability_target_percent: string;
     latency_p95_target_ms: number;
@@ -144,10 +156,11 @@ export function OfficeOperationsMonitoring({ canEvaluate }: { canEvaluate: boole
 
     <div className={styles.metrics}>
       <article><Siren /><div><span>Open runtime alerts</span><b>{data.summary.alerts.open}</b><small>{data.summary.alerts.high_critical} high / critical</small></div></article>
-      <article><Activity /><div><span>Pending domain events</span><b>{data.summary.event_outbox.pending}</b><small>Alert threshold {data.summary.event_outbox.alert_threshold}</small></div></article>
+      <article><Activity /><div><span>Domain-event queue</span><b>{data.summary.event_outbox.pending}</b><small>{data.summary.event_outbox.waiting_handler} waiting for handler · threshold {data.summary.event_outbox.alert_threshold}</small></div></article>
       <article><CircleAlert /><div><span>Failed workflows</span><b>{data.summary.workflows.failed}</b><small>Alert threshold {data.summary.workflows.alert_threshold}</small></div></article>
       <article><ShieldCheck /><div><span>Production integrations</span><b>{data.summary.integrations.ready}/{data.summary.integrations.production}</b><small>{data.summary.integrations.attention} need attention</small></div></article>
       <article><Gauge /><div><span>Audit events</span><b>{data.summary.audit.events}</b><small>Latest {dateTime(data.summary.audit.latest_at)}</small></div></article>
+      <article data-state={data.summary.worker.state}><Activity /><div><span>Background worker</span><b>{data.summary.worker.state.replace("_", " ")}</b><small>{data.summary.worker.last_succeeded_at ? `Last success ${dateTime(data.summary.worker.last_succeeded_at)}` : "No successful tick recorded"}</small></div></article>
     </div>
 
     <section className={styles.slo}>

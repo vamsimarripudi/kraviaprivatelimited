@@ -25,6 +25,8 @@ def test_operations_summary_never_fabricates_slo_measurements():
         assert body["slo"]["measurement_status"] == "NOT_CONNECTED"
         assert body["slo"]["measured_availability_percent"] is None
         assert body["slo"]["measured_latency_p95_ms"] is None
+        assert body["worker"]["state"] == "NOT_STARTED"
+        assert body["worker"]["last_succeeded_at"] is None
         assert "no fabricated uptime" in body["source"].lower()
 
 

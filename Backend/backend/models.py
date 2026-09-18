@@ -500,3 +500,15 @@ class OperationalAlert(Base):
     detail_json = Column(Text, nullable=False, default="{}")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class WorkerHeartbeat(Base):
+    __tablename__ = "worker_heartbeats"
+    worker_key = Column(String, primary_key=True)
+    last_started_at = Column(DateTime(timezone=True), nullable=True)
+    last_succeeded_at = Column(DateTime(timezone=True), nullable=True)
+    last_failed_at = Column(DateTime(timezone=True), nullable=True)
+    last_error_type = Column(String, nullable=True)
+    last_duration_ms = Column(Integer, nullable=True)
+    last_result_json = Column(Text, nullable=False, default="{}")
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

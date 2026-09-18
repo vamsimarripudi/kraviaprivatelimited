@@ -34,8 +34,12 @@ describe("KRAVIA Office runtime observability",()=>{
     expect(backend).toContain('runtime:event-outbox-backlog');
     expect(backend).toContain('runtime:workflow-failures');
     expect(backend).toContain('runtime:integration-readiness');
+    expect(backend).toContain('runtime:event-handler-gap');
+    expect(backend).toContain('runtime:background-worker-stale');
     expect(backend).toContain('runtime:slo-telemetry');
     expect(component).toContain("Evaluate alerts");
+    expect(component).toContain("Background worker");
+    expect(component).toContain("waiting for handler");
   });
 
   it("renders monitoring alongside executive readiness",()=>{
