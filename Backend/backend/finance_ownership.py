@@ -426,8 +426,17 @@ def build_finance_ownership_router(get_db: Callable, require_roles: Callable) ->
             if existing.payload_hash != digest: raise HTTPException(409, "Idempotency key reused with different expense input")
             return {"id": existing.id, "status": existing.status, "approval_request_id": existing.approval_request_id}
         if payload.vendor_id and not db.get(Vendor, payload.vendor_id): raise HTTPException(404, "Vendor not found")
-        if payload.funding_policy_id and not db.get(FundingPolicy, payload.funding_policy_id): raise HTTPException(404, "Funding policy not found")
-        row = ExpenseObligation(id=uid("EXP"), legal_entity_id=ENTITY_ID, vendor_id=payload.vendor_id, reference=payload.reference, title=payload.title, category=payload.category, amount_paise=paise(payload.amount), due_date=payload.due_date, funding_mode=payload.funding_mode, funding_policy_id=payload.funding_policy_id, source_document_ref=payload.source_document_ref, note=payload.note, idempotency_key=idempotency_key, payload_hash=digest, requested_by=ctx["actor"])
+        funding_policy = db.get(FundingPolicy, payload.funding_policy_id) if payload.funding_policy_id else None
+        if payload.funding_policy_id and not funding_policy: raise HTTPException(404, "Funding policy not found")
+        amount_paise = paise(payload.amount)
+        if payload.funding_mode == "SHAREHOLDER_CONTRIBUTION":
+            if not funding_policy or funding_policy.status != "ACTIVE":
+                raise HTTPException(409, "Shareholder-funded expense requires an active funding policy")
+            if funding_policy.max_call_paise is not None and amount_paise > funding_policy.max_call_paise:
+                raise HTTPException(409, "Expense exceeds the active funding policy maximum call")
+        elif payload.funding_policy_id:
+            raise HTTPException(422, "funding_policy_id is only valid for shareholder-funded expenses")
+        row = ExpenseObligation(id=uid("EXP"), legal_entity_id=ENTITY_ID, vendor_id=payload.vendor_id, reference=payload.reference, title=payload.title, category=payload.category, amount_paise=amount_paise, due_date=payload.due_date, funding_mode=payload.funding_mode, funding_policy_id=payload.funding_policy_id, source_document_ref=payload.source_document_ref, note=payload.note, idempotency_key=idempotency_key, payload_hash=digest, requested_by=ctx["actor"])
         db.add(row); db.flush(); approval = _approval(db, ctx["actor"], "EXPENSE_APPROVE", "expense", row.id, "DIRECTOR"); row.approval_request_id = approval.id
         audit(db, ctx["actor"], ctx["role"], "finance.expense.created", "expense", row.id, {"amount_paise": row.amount_paise, "funding_mode": row.funding_mode}, "FINANCIAL"); db.commit()
         return {"id": row.id, "status": row.status, "approval_request_id": row.approval_request_id}
