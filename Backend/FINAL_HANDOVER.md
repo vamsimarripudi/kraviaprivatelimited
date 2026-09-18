@@ -76,7 +76,7 @@ Latest fully green `main` quality run verified:
 - secret scan: **PASS**
 - ESLint: **PASS**
 - TypeScript typecheck: **PASS**
-- root Vitest: **79 files / 379 tests passed**
+- root Vitest: **80 files / 381 tests passed**
 - Next.js 16.3.5 production build: **PASS**
 - production build route manifest includes `/office`, `/finance`, their login/dynamic routes, Office auth APIs and Office runtime gateway
 - Python compile: **PASS**
