@@ -34,7 +34,7 @@ describe("KRAVIA governed recruitment and pre-onboarding", () => {
     expect(execution).toContain("Finalized candidate document cannot be replaced silently");
     expect(execution).toContain("office_offer_attach_document");
     expect(recruitment).toContain("office_offer_mark_accepted");
-    expect(execution).toContain("PRE_ONBOARDING_ACCESS");
+    expect(recruitment).toContain("PRE_ONBOARDING_ACCESS");
     expect(server).toContain("An accepted offer never creates privileged Office or provider access automatically");
   });
 
