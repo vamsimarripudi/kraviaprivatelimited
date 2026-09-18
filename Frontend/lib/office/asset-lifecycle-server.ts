@@ -6,6 +6,7 @@ import {
   resolveOfficePermission,
 } from "@/lib/office/permission-engine";
 import { currentOfficeTrustedDeviceId } from "@/lib/office/device-binding-server";
+import { readOfficeRuntimeResult } from "@/lib/office/runtime-read-server";
 
 export class OfficeAssetError extends Error {
   constructor(public readonly status:number,message:string){super(message);this.name="OfficeAssetError"}
@@ -46,19 +47,16 @@ export async function getAssetLifecycleOverview(){
   fail(lifecycle.error,"Asset lifecycle data is temporarily unavailable");
   const assetIds=(lifecycle.data||[]).map(row=>String(row.asset_id));
 
-  let assetQuery=current.admin.from("office_assets")
-    .select("id,asset_no,name,category,serial_no,assigned_employee_id,location,purchase_paise,status,created_at")
-    .order("asset_no").limit(1000);
-  if(!capabilities.read_company&&capabilities.read_own&&assetIds.length)assetQuery=assetQuery.in("id",assetIds);
-  else if(!capabilities.read_company&&capabilities.read_own&&!assetIds.length)return {
+  if(!capabilities.read_company&&capabilities.read_own&&!assetIds.length)return {
     actor:{user_id:current.identity.userId,roles:current.identity.roles},
     capabilities,assets:[],lifecycle:[],events:[],people:[],devices:[],
     disclaimer:"Asset lifecycle stores operational metadata and evidence only. Device secrets, recovery keys and wipe credentials are never stored here.",
   };
-  const assets=await assetQuery;
+  const assets=await readOfficeRuntimeResult<Array<Record<string,unknown>>>("assets");
   fail(assets.error,"Asset registry is temporarily unavailable");
-
-  const visibleIds=capabilities.read_company?(assets.data||[]).map(row=>String(row.id)):assetIds;
+  const allAssets=(assets.data||[]).slice(0,1000).sort((left,right)=>String(left.asset_no||"").localeCompare(String(right.asset_no||"")));
+  const visibleAssets=capabilities.read_company?allAssets:allAssets.filter(row=>assetIds.includes(String(row.id)));
+  const visibleIds=visibleAssets.map(row=>String(row.id));
   const [events,people,devices]=await Promise.all([
     visibleIds.length
       ? current.admin.from("office_asset_events")
@@ -77,7 +75,7 @@ export async function getAssetLifecycleOverview(){
   return {
     actor:{user_id:current.identity.userId,roles:current.identity.roles},
     capabilities,
-    assets:assets.data||[],
+    assets:visibleAssets,
     lifecycle:lifecycle.data||[],
     events:events.data||[],
     people:people.data||[],
