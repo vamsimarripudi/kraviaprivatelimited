@@ -70,12 +70,12 @@ export async function resolveOfficePermission(
   resource: OfficeResourceScope = { type: "COMPANY" },
   deviceId?: string | null,
 ): Promise<OfficePermissionDecision> {
-  const permissionResult = await admin.from("office_permission_catalog").select("code,high_risk,requires_managed_device,active").eq("code", permissionCode).maybeSingle();
+  const permissionResult = await admin.from("office_permission_catalog").select("code,high_risk,requires_managed_device,active,owner_bypass").eq("code", permissionCode).maybeSingle();
   if (permissionResult.error || !permissionResult.data || permissionResult.data.active !== true) {
     return { allowed: false, permission: permissionCode, reason: "Permission is not active" };
   }
 
-  if (identity.roles.includes("OWNER")) {
+  if (identity.roles.includes("OWNER") && permissionResult.data.owner_bypass !== false) {
     return enforceDevice(admin, identity.userId, permissionCode, permissionResult.data, {
       allowed: true,
       permission: permissionCode,
