@@ -26,6 +26,7 @@ import { WorkforceLiveOverview } from "@/components/workforce-live-overview";
 import { OfficeWorkforceLifecycle } from "@/components/office-workforce-lifecycle";
 import { OfficeActivityTimeline } from "@/components/office-activity-timeline";
 import { OfficeApplicabilityEngine } from "@/components/office-applicability-engine";
+import { OfficeAiGovernance } from "@/components/office-ai-governance";
 import { OfficeBoardWorkspace } from "@/components/office-board-workspace";
 import { OfficeCommandCenter } from "@/components/office-command-center";
 import { OfficeCommandPalette } from "@/components/office-command-palette";
@@ -137,8 +138,10 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "privacy" ? <OfficePrivacyGovernance />
           : workspace === "office" && section === "ethics" ? <OfficeEthicsChannel />
           : workspace === "finance" && section === "ethics" ? <OfficeEthicsChannel />
+          : workspace === "finance" && section === "ai" ? <OfficeAiGovernance />
           : workspace === "office" && section === "resilience" ? <OfficeResilienceWorkspace />
           : workspace === "office" && section === "security" ? <OfficeSecurityOverview />
+          : workspace === "office" && section === "ai" ? <OfficeAiGovernance />
           : workspace === "office" && section === "readiness" ? <OfficeReadiness />
           : workspace === "office" && section === "integrations" ? <OfficeEmbedRegistry />
           : workspace === "office" && section === "settings" ? <OfficeSecuritySettings identity={identity} />
