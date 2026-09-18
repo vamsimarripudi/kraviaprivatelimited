@@ -40,6 +40,7 @@ import { OfficeDataMovement } from "@/components/office-data-movement";
 import { OfficeDocumentStudio } from "@/components/office-document-studio";
 import { OfficeDeviceIdentity } from "@/components/office-device-identity";
 import { OfficeEngineeringControlCenter } from "@/components/office-engineering-control-center";
+import { OfficeEngineeringOperations } from "@/components/office-engineering-operations";
 import { OfficeEthicsChannel } from "@/components/office-ethics";
 import { OfficeIntelligenceBrief } from "@/components/office-intelligence-brief";
 import { OfficeItService } from "@/components/office-it-service";
@@ -114,7 +115,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "calendar" ? <OfficeCompanyCalendar />
           : workspace === "office" && section === "crm" ? <><OfficeCrmWorkspace /><OfficeCommercialHandoff /></>
           : workspace === "office" && section === "contracts" ? <OfficeContractWorkspace />
-          : workspace === "office" && section === "engineering" ? <OfficeEngineeringControlCenter />
+          : workspace === "office" && section === "engineering" ? <><OfficeEngineeringControlCenter /><OfficeEngineeringOperations /></>
           : workspace === "office" && section === "intelligence" ? <OfficeIntelligenceBrief />
           : workspace === "office" && section === "decisions" ? <OfficeControlRegister />
           : workspace === "office" && section === "requests" ? <><OfficeWorkHub identity={identity} mode="requests" /><RequestCollaborationWorkspace /></>
