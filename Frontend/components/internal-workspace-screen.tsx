@@ -29,6 +29,7 @@ import { OfficeApplicabilityEngine } from "@/components/office-applicability-eng
 import { OfficeAiGovernance } from "@/components/office-ai-governance";
 import { OfficeAssetLifecycle } from "@/components/office-asset-lifecycle";
 import { OfficeBoardWorkspace } from "@/components/office-board-workspace";
+import { OfficeBillingWorkspace } from "@/components/office-billing";
 import { OfficeBudgetWorkspace } from "@/components/office-budget";
 import { OfficeCommandCenter } from "@/components/office-command-center";
 import { OfficeCommandPalette } from "@/components/office-command-palette";
@@ -138,6 +139,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "manager" ? <OfficeWorkHub identity={identity} mode="manager" />
           : workspace === "office" && section === "knowledge" ? <OfficeKnowledgeHub />
           : section === "documents" ? <OfficeDocumentStudio />
+          : workspace === "finance" && section === "billing" ? <OfficeBillingWorkspace canCreateInvoice={identity.roles.includes("OWNER") || permissions.includes("finance.invoice.create")} canRecordReceipt={identity.roles.includes("OWNER") || permissions.includes("finance.receipt.record")} />
           : section === "payroll" ? <OfficePayrollConsole />
           : section === "budget" ? <OfficeBudgetWorkspace />
           : workspace === "office" && section === "assets" ? <OfficeAssetLifecycle />
