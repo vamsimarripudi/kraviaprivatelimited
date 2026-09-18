@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash, randomUUID } from "node:crypto";
 
 import {
   OfficePermissionError,
@@ -117,7 +118,7 @@ export async function getOfficeRecruitmentOverview() {
       .select("id,candidate_id,stage_code,title,interviewer_user_id,scheduled_start,scheduled_end,location_or_link,status,created_by,created_at,updated_at")
       .order("scheduled_start", { ascending: false }).limit(800),
     read.admin.from("office_candidate_document_requests")
-      .select("id,candidate_id,document_type,label,required,status,storage_reference,source_reference,verified_by,verified_at,note,requested_by,requested_at,updated_at")
+      .select("id,candidate_id,document_type,label,required,status,storage_reference,source_reference,sha256,mime_type,byte_size,original_filename,verified_by,verified_at,note,requested_by,requested_at,updated_at")
       .order("requested_at", { ascending: false }).limit(1000),
     read.admin.from("office_recruitment_events")
       .select("id,actor_user_id,requisition_id,candidate_id,offer_id,event_type,previous_status,new_status,note,metadata,created_at")
@@ -242,13 +243,45 @@ export async function requestCandidateDocument(input: { candidateId: string; typ
   return { document_request_id: data };
 }
 
-export async function recordCandidateDocument(input: { requestId: string; storageReference: string; sourceReference?: string }) {
+function candidateFileType(bytes: Buffer, claimedMime: string) {
+  const claimed = claimedMime.toLowerCase().trim();
+  const isPdf = bytes.length >= 5 && bytes.subarray(0, 5).toString("ascii") === "%PDF-";
+  const isJpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  const png = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]);
+  const isPng = bytes.length >= 8 && bytes.subarray(0, 8).equals(png);
+  const isWebp = bytes.length >= 12 && bytes.subarray(0, 4).toString("ascii") === "RIFF" && bytes.subarray(8, 12).toString("ascii") === "WEBP";
+  const detected = isPdf ? "application/pdf" : isJpeg ? "image/jpeg" : isPng ? "image/png" : isWebp ? "image/webp" : null;
+  if (!detected || claimed !== detected) throw new OfficeRecruitmentError(400, "Candidate document content does not match an allowed file type");
+  return { mime: detected, extension: detected === "application/pdf" ? "pdf" : detected === "image/jpeg" ? "jpg" : detected === "image/png" ? "png" : "webp" };
+}
+
+export async function uploadCandidateDocument(input: { requestId: string; fileName: string; claimedMime: string; bytes: Buffer; sourceReference?: string }) {
   const current = await permission("hiring.candidate.manage");
-  const { data, error } = await current.admin.rpc("office_candidate_document_received", {
-    p_actor: current.identity.userId, p_request: input.requestId, p_storage: input.storageReference, p_source: input.sourceReference?.trim() || null,
+  if (!input.bytes.length || input.bytes.length > 26_214_400) throw new OfficeRecruitmentError(413, "Candidate document must be between 1 byte and 25 MiB");
+  const fileType = candidateFileType(input.bytes, input.claimedMime);
+  const digest = createHash("sha256").update(input.bytes).digest("hex");
+  const storageReference = `${input.requestId}/${randomUUID()}.${fileType.extension}`;
+  const upload = await current.admin.storage.from("office-candidate-documents").upload(storageReference, input.bytes, {
+    contentType: fileType.mime,
+    upsert: false,
+    cacheControl: "0",
   });
-  if (error || typeof data !== "string") throw new OfficeRecruitmentError(400, error?.message ?? "Unable to record candidate document");
-  return { status: data };
+  if (upload.error) throw new OfficeRecruitmentError(503, "Candidate document could not be written to the private recruitment vault");
+  const { data, error } = await current.admin.rpc("office_candidate_document_received_v2", {
+    p_actor: current.identity.userId,
+    p_request: input.requestId,
+    p_storage: storageReference,
+    p_source: input.sourceReference?.trim() || null,
+    p_sha: digest,
+    p_mime: fileType.mime,
+    p_size: input.bytes.length,
+    p_filename: input.fileName.slice(0, 255),
+  });
+  if (error || typeof data !== "string") {
+    await current.admin.storage.from("office-candidate-documents").remove([storageReference]);
+    throw new OfficeRecruitmentError(400, error?.message ?? "Unable to record candidate document");
+  }
+  return { status: data, sha256: digest, byte_size: input.bytes.length, mime_type: fileType.mime };
 }
 
 export async function reviewCandidateDocument(input: { requestId: string; decision: "VERIFIED" | "REJECTED" | "WAIVED"; note?: string }) {
