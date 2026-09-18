@@ -1,5 +1,6 @@
 -- KRAVIA Office OS — contract obligation engine.
 -- Converts signed contracts into owned, evidence-backed operational duties.
+-- The legacy contracts table is owned by the backend runtime role and intentionally does not grant REFERENCES to migrations; canonical existence is validated by the creation RPC instead of changing table ownership.
 
 insert into public.office_permission_catalog(code,module,action,label,description,sensitivity,high_risk,requires_managed_device,active) values
  ('legal.obligation.read','LEGAL','READ_OBLIGATION','Read contract obligations','Read contract duties, dates and evidence inside authorised scope.','SENSITIVE',false,true,true),
@@ -24,7 +25,7 @@ grant usage,select on sequence public.office_contract_obligation_seq to service_
 create table if not exists public.office_contract_obligations(
  id uuid primary key default gen_random_uuid(),
  obligation_code text not null unique default ('KR-OBL-'||lpad(nextval('public.office_contract_obligation_seq')::text,7,'0')),
- contract_id varchar not null references public.contracts(id) on delete restrict,
+ contract_id varchar not null,
  obligation_type text not null check(obligation_type in ('PAYMENT','SLA','NOTICE','RENEWAL','SECURITY','PRIVACY','REPORTING','INSURANCE','DATA','DELIVERY','SUPPORT','OTHER')),
  title text not null check(char_length(trim(title)) between 3 and 220),
  description text not null check(char_length(trim(description)) between 3 and 10000),
