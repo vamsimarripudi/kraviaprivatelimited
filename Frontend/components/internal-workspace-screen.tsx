@@ -38,6 +38,7 @@ import { OfficeDocumentStudio } from "@/components/office-document-studio";
 import { OfficeDeviceIdentity } from "@/components/office-device-identity";
 import { OfficeEngineeringControlCenter } from "@/components/office-engineering-control-center";
 import { OfficeIntelligenceBrief } from "@/components/office-intelligence-brief";
+import { OfficeItService } from "@/components/office-it-service";
 import { OfficeNotificationCenter } from "@/components/office-notification-center";
 import { OfficePayrollConsole } from "@/components/office-payroll-console";
 import { OfficePresenceControl } from "@/components/office-presence-control";
@@ -110,6 +111,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "manager" ? <OfficeWorkHub identity={identity} mode="manager" />
           : section === "documents" ? <OfficeDocumentStudio />
           : section === "payroll" ? <OfficePayrollConsole />\n          : workspace === "office" && section === "devices" ? <OfficeDeviceIdentity />
+          : workspace === "office" && section === "it" ? <OfficeItService />
           : workspace === "office" && section === "recruitment" ? <OfficeRecruitmentWorkspace />
           : workspace === "office" && section === "people" ? <><WorkforceLiveOverview /><OfficeWorkforceLifecycle /><OfficeOrganizationChart /></>
           : workspace === "office" && section === "governance" ? <OfficeBoardWorkspace />
