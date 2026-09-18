@@ -102,6 +102,9 @@ export async function getEthicsWorkspace(){
     });
     return {
       ...row,
+      reporter_user_id:reporter||assignedInvestigator||independentReviewer?row.reporter_user_id:null,
+      investigator_user_id:reporter?null:row.investigator_user_id,
+      reviewer_user_id:reporter?null:row.reviewer_user_id,
       access_mode,
       outcome_summary:reporter?null:row.outcome_summary,
       visible_notes,
