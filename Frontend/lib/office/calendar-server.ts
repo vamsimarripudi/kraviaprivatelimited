@@ -117,6 +117,40 @@ export async function getOfficeCompanyCalendar() {
 
   const synthetic: Array<Record<string, unknown>> = [...taskEvents] as Array<Record<string, unknown>>;
 
+  const [ownOncall, ownMaintenance] = await Promise.all([
+    admin.from("office_oncall_rotations")
+      .select("id,rotation_code,service_id,primary_user_id,secondary_user_id,starts_at,ends_at,status")
+      .or("primary_user_id.eq."+identity.userId+",secondary_user_id.eq."+identity.userId)
+      .eq("status","SCHEDULED")
+      .order("starts_at",{ascending:true}).limit(150),
+    admin.from("office_maintenance_windows")
+      .select("id,maintenance_code,service_id,title,expected_impact,starts_at,ends_at,status,owner_user_id")
+      .eq("owner_user_id",identity.userId)
+      .in("status",["PROPOSED","APPROVED","IN_PROGRESS"])
+      .order("starts_at",{ascending:true}).limit(150),
+  ]);
+  if (ownOncall.error || ownMaintenance.error) throw new OfficeCalendarError(503, "Engineering operations calendar is temporarily unavailable");
+  const engineeringServiceIds = Array.from(new Set([
+    ...(ownOncall.data ?? []).map((row) => String(row.service_id)),
+    ...(ownMaintenance.data ?? []).map((row) => String(row.service_id)),
+  ]));
+  const engineeringServices = engineeringServiceIds.length
+    ? await admin.from("office_engineering_services").select("id,service_code,name,project_key,environment").in("id", engineeringServiceIds)
+    : { data: [], error: null };
+  if (engineeringServices.error) throw new OfficeCalendarError(503, "Engineering service calendar is temporarily unavailable");
+  const engineeringServiceMap = new Map((engineeringServices.data ?? []).map((row) => [String(row.id), row]));
+  for (const row of ownOncall.data ?? []) {
+    const service = engineeringServiceMap.get(String(row.service_id));
+    const role = row.primary_user_id === identity.userId ? "Primary" : "Secondary";
+    const event = projected("ON_CALL", String(row.id), "On-call · "+(service?.name ?? row.rotation_code), dateIso(row.starts_at), "REMINDER", [row.rotation_code, role, service?.project_key, service?.environment].filter(Boolean).join(" · "), dateIso(row.ends_at));
+    if (event) synthetic.push(event);
+  }
+  for (const row of ownMaintenance.data ?? []) {
+    const service = engineeringServiceMap.get(String(row.service_id));
+    const event = projected("MAINTENANCE", String(row.id), "Maintenance · "+row.title, dateIso(row.starts_at), "MAINTENANCE", [row.maintenance_code, service?.name, row.status, row.expected_impact].filter(Boolean).join(" · "), dateIso(row.ends_at));
+    if (event) synthetic.push(event);
+  }
+
   if (compliance) {
     const { data, error } = await admin.from("compliance_obligations").select("id,title,authority,due_date,status,risk").not("due_date", "is", null).order("due_date", { ascending: true }).limit(250);
     if (error) throw new OfficeCalendarError(503, "Compliance calendar is temporarily unavailable");
