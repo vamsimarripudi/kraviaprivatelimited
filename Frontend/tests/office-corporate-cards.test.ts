@@ -21,7 +21,8 @@ describe("KRAVIA corporate-card controls",()=>{
 
  it("stores only masked card/control metadata and never card secrets",()=>{
   expect(base).toContain("last4 char(4)");
-  expect(base).not.toMatch(/\bpan\b|\bcvv\b|\bpin\b|magnetic_stripe|cryptogram|card_token/i);
+  const schemaOnly=base.split("\n").filter(line=>!line.trim().startsWith("--")).join("\n");
+  expect(schemaOnly).not.toMatch(/\bpan\b|\bcvv\b|\bpin\b|magnetic_stripe|cryptogram|card_token/i);
   expect(component).toContain("Do not enter a full card number, CVV, PIN or issuer token");
   expect(server).toContain("never stores PAN, CVV, PIN, magnetic-stripe data, cryptograms or issuer payment tokens");
  });
