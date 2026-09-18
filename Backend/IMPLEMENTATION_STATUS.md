@@ -124,7 +124,7 @@ Latest fully green `main` quality run verified:
 - [x] secret scan
 - [x] ESLint
 - [x] TypeScript typecheck
-- [x] root Vitest suite: **379 tests passed across 79 files**
+- [x] root Vitest suite: **381 tests passed across 80 files**
 - [x] Next.js 16.3.5 production build, including `/office`, `/finance`, Office auth and Office runtime gateway routes
 - [x] Python compilation
 - [x] committed OpenAPI drift verification
@@ -137,7 +137,7 @@ Latest fully green `main` quality run verified:
 
 ## Deployment state
 
-Repository `main` at `3e3bb3066e8dd7c1113d9c11750b32a141f8190c` is under/after the current audited GitHub Actions cycle: frontend, backend, database-structure and repository-structure gates all passed.
+Repository `main` at `3e3bb3066e8dd7c1113d9c11750b32a141f8190c` is fully green in GitHub Actions: frontend, backend, database-structure and repository-structure gates all passed.
 
 Railway is already connected to `vamsimarripudi/kraviaprivatelimited` with service `kravia-office-api`, branch `main`, root directory `Backend`, Dockerfile `Dockerfile.api`, health check `/health/live` and the Railway domain `kravia-office-api-production.up.railway.app`. The latest running/sleeping deployment is from 17 Sep 2026, not the current `main`; newer Git-linked deployment records are currently marked `SKIPPED`. Therefore do **not** claim the production FastAPI runtime is on the latest commit until a current deployment reaches a successful terminal state.
 
