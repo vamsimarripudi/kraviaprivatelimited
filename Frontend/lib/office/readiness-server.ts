@@ -45,11 +45,14 @@ export async function getOfficeReadiness() {
     admin.from("office_requests").select("id,request_type_code,priority,status,due_at,created_at,updated_at"),
     admin.from("office_request_steps").select("id,request_id,status,assigned_user_id,created_at").eq("status", "PENDING"),
     admin.from("office_engineering_incidents").select("id,severity,status,started_at,updated_at"),
-    admin.from("compliance_obligations").select("id,title,authority,status,due_date,risk,evidence_ref"),
+    readOfficeRuntimeResult<Array<Record<string,unknown>>>("compliance"),
     admin.from("office_oncall_rotations").select("id,service_id,primary_user_id,secondary_user_id,starts_at,ends_at,status"),
     admin.from("office_maintenance_windows").select("id,service_id,status,starts_at,ends_at,approved_at,verified_at"),
     admin.from("office_retention_rules").select("code,record_class,status,reviewed_at,effective_from,effective_to,source_reference"),
-    admin.from("legal_entities").select("id,legal_name,cin,status,source_ref").limit(5),
+    readOfficeRuntimeResult<Record<string,unknown>>("company").then((result)=>({
+      ...result,
+      data:result.data?[result.data]:[],
+    })),
   ]);
   const results = [identities, roles, jobs, profiles, devices, sessions, requests, steps, incidents, compliance, oncall, maintenance, retention, company];
   if (results.some((result) => result.error)) throw new OfficeReadinessError(503, "Readiness evidence sources are temporarily unavailable");
