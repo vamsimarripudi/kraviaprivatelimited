@@ -129,3 +129,25 @@ export async function recordTlsCertificate(input:{domainId:string;serviceId?:str
   if(error||typeof data!=="string")throw new OfficeDomainControlError(400,error?.message||"Unable to record TLS certificate");
   return {certificate_id:data};
 }
+
+
+export async function cancelDnsChange(input:{changeId:string;reason:string}){
+  const current=await actor();
+  const {data,error}=await current.admin.rpc("office_dns_change_cancel",{p_actor:current.identity.userId,p_change:input.changeId,p_reason:input.reason});
+  if(error||data!==true)throw new OfficeDomainControlError(400,error?.message||"Unable to cancel DNS change");
+  return {cancelled:true};
+}
+export async function rollbackDnsChange(input:{changeId:string;evidence:string;note?:string}){
+  const current=await actor();
+  if(!await can(current,"infra.dns.propose"))throw new OfficeDomainControlError(403,"DNS execution-record permission is required");
+  const {data,error}=await current.admin.rpc("office_dns_change_rollback",{p_actor:current.identity.userId,p_change:input.changeId,p_evidence:input.evidence,p_note:input.note?.trim()||null});
+  if(error||typeof data!=="string")throw new OfficeDomainControlError(400,error?.message||"Unable to record DNS rollback");
+  return {status:data};
+}
+export async function transitionTlsCertificate(input:{certificateId:string;status:string;evidence?:string;note?:string}){
+  const current=await actor();
+  if(!await can(current,"infra.domain.manage"))throw new OfficeDomainControlError(403,"Domain management permission is required");
+  const {data,error}=await current.admin.rpc("office_tls_certificate_transition",{p_actor:current.identity.userId,p_certificate:input.certificateId,p_status:input.status,p_evidence:input.evidence?.trim()||null,p_note:input.note?.trim()||null});
+  if(error||typeof data!=="string")throw new OfficeDomainControlError(400,error?.message||"Unable to transition TLS certificate");
+  return {status:data};
+}
