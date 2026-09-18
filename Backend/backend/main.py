@@ -779,9 +779,9 @@ def _runtime_operations_snapshot(db: Session) -> dict:
     telemetry_source = os.getenv("KRAVIA_SLO_TELEMETRY_SOURCE", "").strip() or None
     availability_target = os.getenv("KRAVIA_SLO_AVAILABILITY_TARGET_PERCENT", "99.9").strip()
     latency_target = _integer_env("KRAVIA_SLO_LATENCY_P95_TARGET_MS", 1000)
-    worker_interval = _integer_env("KRAVIA_WORKER_INTERVAL_SECONDS", 60)
-    worker_stale_after = _integer_env("KRAVIA_WORKER_STALE_AFTER_SECONDS", max(180, worker_interval * 3))
     heartbeat = db.get(WorkerHeartbeat, "office-automation")
+    worker_interval = heartbeat.configured_interval_seconds if heartbeat and heartbeat.configured_interval_seconds else _integer_env("KRAVIA_WORKER_INTERVAL_SECONDS", 60)
+    worker_stale_after = _integer_env("KRAVIA_WORKER_STALE_AFTER_SECONDS", max(180, worker_interval * 3))
     last_success = heartbeat.last_succeeded_at if heartbeat else None
     if last_success and last_success.tzinfo is None:
         last_success = last_success.replace(tzinfo=timezone.utc)
@@ -824,6 +824,7 @@ def _runtime_operations_snapshot(db: Session) -> dict:
             "last_failed_at": heartbeat.last_failed_at.isoformat() if heartbeat and heartbeat.last_failed_at else None,
             "last_error_type": heartbeat.last_error_type if heartbeat else None,
             "last_duration_ms": heartbeat.last_duration_ms if heartbeat else None,
+            "configured_batch_size": heartbeat.configured_batch_size if heartbeat else None,
             "age_seconds": worker_age_seconds,
         },
         "slo": {
