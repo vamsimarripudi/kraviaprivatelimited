@@ -90,6 +90,7 @@ export const financeSections = {
   documents: { title: "Finance documents", eyebrow: "FINANCIAL EVIDENCE", description: "Role-scoped finance and tax evidence from the controlled document vault.", roles: financeCore, group: "Evidence" },
   compliance: { title: "Financial compliance", eyebrow: "PROFESSIONAL REVIEW", description: "Tax and finance obligations that require evidence and professional review.", roles: financeCore, group: "Evidence" },
   insurance: { title: "Insurance", eyebrow: "RISK TRANSFER", description: "Company insurance policies and claims with independent review, insurer references and payment evidence.", roles: financeCore, group: "Evidence" },
+  ethics: { title: "Ethics channel", eyebrow: "CONFIDENTIAL REPORTING", description: "Confidential ethics reporting remains separated from ordinary finance, HR and management visibility. Explicit ethics profiles are required for investigation work.", roles: financeCore, group: "Evidence" },
   audit: { title: "Financial audit", eyebrow: "ASSURANCE", description: "Finance audit records, inspection evidence and traceable source references.", roles: financeCore, group: "Evidence" },
 } as const satisfies Record<string, WorkspaceSection>;
 
