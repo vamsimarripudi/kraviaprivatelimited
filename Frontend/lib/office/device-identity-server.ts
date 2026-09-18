@@ -75,7 +75,7 @@ export async function getOfficeDeviceIdentityOverview() {
   }
 
   const [identities, credentials, devices, zones, grants] = await Promise.all([
-    companyCards || cardManage || physicalManage ? identityQuery : Promise.resolve({ data: [], error: null }),
+    companyCards || cardManage || physicalManage ? identityQuery : identityQuery.eq("user_id", current.identity.userId).limit(1),
     credentialsQuery,
     devicesQuery,
     zonesQuery,
