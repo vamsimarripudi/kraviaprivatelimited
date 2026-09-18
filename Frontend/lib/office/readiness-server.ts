@@ -35,7 +35,7 @@ export async function getOfficeReadiness() {
   const now = Date.now();
   const seventyTwoHoursAgo = now - 72 * 60 * 60 * 1000;
 
-  const [identities, roles, jobs, profiles, devices, sessions, requests, steps, incidents, compliance, integrations, alerts, company] = await Promise.all([
+  const [identities, roles, jobs, profiles, devices, sessions, requests, steps, incidents, compliance, oncall, maintenance, retention, company] = await Promise.all([
     admin.from("office_identity_users").select("user_id,status,primary_department,authorization_version,access_review_due_at").order("created_at"),
     admin.from("office_user_roles").select("user_id,role,expires_at"),
     admin.from("office_job_assignments").select("user_id,status,department_code,position_code"),
@@ -46,11 +46,12 @@ export async function getOfficeReadiness() {
     admin.from("office_request_steps").select("id,request_id,status,assigned_user_id,created_at").eq("status", "PENDING"),
     admin.from("office_engineering_incidents").select("id,severity,status,started_at,updated_at"),
     admin.from("compliance_obligations").select("id,title,authority,status,due_date,risk,evidence_ref"),
-    admin.from("integration_registry").select("id,provider,integration_type,environment,status,last_verified_at"),
-    admin.from("operational_alerts").select("id,category,severity,title,status,due_date,created_at,resolved_at"),
+    admin.from("office_oncall_rotations").select("id,service_id,primary_user_id,secondary_user_id,starts_at,ends_at,status"),
+    admin.from("office_maintenance_windows").select("id,service_id,status,starts_at,ends_at,approved_at,verified_at"),
+    admin.from("office_retention_rules").select("code,record_class,status,reviewed_at,effective_from,effective_to,source_reference"),
     admin.from("legal_entities").select("id,legal_name,cin,status,source_ref").limit(5),
   ]);
-  const results = [identities, roles, jobs, profiles, devices, sessions, requests, steps, incidents, compliance, integrations, alerts, company];
+  const results = [identities, roles, jobs, profiles, devices, sessions, requests, steps, incidents, compliance, oncall, maintenance, retention, company];
   if (results.some((result) => result.error)) throw new OfficeReadinessError(503, "Readiness evidence sources are temporarily unavailable");
 
   const identityRows = identities.data ?? [];
@@ -81,11 +82,14 @@ export async function getOfficeReadiness() {
   const overdueCompliance = openCompliance.filter((row) => Number.isFinite(timestamp(row.due_date)) && timestamp(row.due_date) < now);
   const missingEvidence = openCompliance.filter((row) => !row.evidence_ref);
 
-  const integrationRows = integrations.data ?? [];
-  const integrationAttention = integrationRows.filter((row) => !["ACTIVE", "VERIFIED", "READY"].includes(String(row.status).toUpperCase()));
-  const staleIntegrations = integrationRows.filter((row) => !row.last_verified_at || now - timestamp(row.last_verified_at) > 30 * 24 * 60 * 60 * 1000);
-  const activeAlerts = (alerts.data ?? []).filter((row) => openStatus(row.status));
-  const criticalAlerts = activeAlerts.filter((row) => ["CRITICAL", "HIGH"].includes(String(row.severity).toUpperCase()));
+  const oncallRows = oncall.data ?? [];
+  const activeOncall = oncallRows.filter((row) => String(row.status).toUpperCase() === "ACTIVE" && timestamp(row.starts_at) <= now && (!Number.isFinite(timestamp(row.ends_at)) || timestamp(row.ends_at) >= now));
+  const maintenanceRows = maintenance.data ?? [];
+  const unverifiedMaintenance = maintenanceRows.filter((row) => ["COMPLETED", "EXECUTED"].includes(String(row.status).toUpperCase()) && !row.verified_at);
+  const retentionRows = retention.data ?? [];
+  const approvedRetention = retentionRows.filter((row) => String(row.status).toUpperCase() === "APPROVED");
+  const expiredRetention = approvedRetention.filter((row) => Number.isFinite(timestamp(row.effective_to)) && timestamp(row.effective_to) < now);
+  const unreviewedRetention = retentionRows.filter((row) => String(row.status).toUpperCase() !== "RETIRED" && !row.reviewed_at);
   const companyRows = company.data ?? [];
 
   const gates: Gate[] = [
@@ -144,15 +148,16 @@ export async function getOfficeReadiness() {
       ],
     },
     {
-      key: "integration-register",
-      area: "Integrations",
-      state: integrationAttention.length || staleIntegrations.length ? "ATTENTION" : integrationRows.length ? "READY" : "ATTENTION",
-      title: "Integration registry verification",
-      detail: "Reflects registry state and verification timestamps; it does not independently probe provider uptime.",
+      key: "operations-coverage",
+      area: "Operations",
+      state: unverifiedMaintenance.length ? "ATTENTION" : activeOncall.length ? "READY" : "ATTENTION",
+      title: "On-call and maintenance control coverage",
+      detail: "Uses Office-owned rotation and maintenance evidence only. Runtime provider/integration alerts remain in the backend operations register.",
       evidence: [
-        { label: "Registered integrations", value: integrationRows.length },
-        { label: "Non-ready registry state", value: integrationAttention.length },
-        { label: "Not verified in 30 days", value: staleIntegrations.length },
+        { label: "Recorded on-call rotations", value: oncallRows.length },
+        { label: "Active rotations", value: activeOncall.length },
+        { label: "Maintenance windows", value: maintenanceRows.length },
+        { label: "Completed not verified", value: unverifiedMaintenance.length },
       ],
     },
     {
@@ -167,14 +172,16 @@ export async function getOfficeReadiness() {
       ],
     },
     {
-      key: "operational-alerts",
-      area: "Operations",
-      state: criticalAlerts.length ? "BLOCKED" : activeAlerts.length ? "ATTENTION" : "READY",
-      title: "Operational exception register",
-      detail: "Current alerts are surfaced as exceptions and remain owned by their underlying system of record.",
+      key: "retention-governance",
+      area: "Records",
+      state: !approvedRetention.length || expiredRetention.length || unreviewedRetention.length ? "ATTENTION" : "READY",
+      title: "Retention policy evidence",
+      detail: "Shows only professionally reviewed retention records stored in Office. KRAVIA does not infer legal retention periods when no approved rule exists.",
       evidence: [
-        { label: "Active alerts", value: activeAlerts.length },
-        { label: "High / critical alerts", value: criticalAlerts.length },
+        { label: "Recorded rules", value: retentionRows.length },
+        { label: "Approved rules", value: approvedRetention.length },
+        { label: "Expired approved rules", value: expiredRetention.length },
+        { label: "Unreviewed active/draft rules", value: unreviewedRetention.length },
       ],
     },
     {
