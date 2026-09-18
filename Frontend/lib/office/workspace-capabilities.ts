@@ -14,7 +14,7 @@ export type OfficeNavigationCommand = {
 const requirements: Record<string, readonly string[]> = {
   "office:decisions": ["governance.risk.read", "governance.risk.manage", "governance.risk.review", "governance.decision.read", "governance.decision.record", "governance.change.read", "governance.change.manage", "governance.change.review"],
   "office:crm": ["sales.crm.read", "sales.crm.write"],
-  "office:engineering": ["engineering.infrastructure.read", "engineering.repo.read", "engineering.issue.manage"],
+  "office:engineering": ["engineering.infrastructure.read", "engineering.repo.read", "engineering.issue.manage", "engineering.oncall.read", "engineering.oncall.manage", "engineering.maintenance.read", "engineering.maintenance.manage", "engineering.maintenance.approve", "engineering.maintenance.verify"],
   "office:products": ["product.roadmap.read", "product.roadmap.write", "product.release.request", "product.release.approve"],
   "office:recruitment": ["hiring.requisition.read", "hiring.requisition.manage", "hiring.candidate.manage", "hiring.interview.manage", "hiring.offer.prepare", "hiring.offer.review", "hiring.onboarding.manage"],
   "office:people": ["people.basic.read", "people.sensitive.read", "people.update", "hiring.candidate.read", "hiring.request.review"],
