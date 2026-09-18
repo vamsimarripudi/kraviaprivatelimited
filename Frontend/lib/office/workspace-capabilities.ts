@@ -13,6 +13,7 @@ export type OfficeNavigationCommand = {
 // Keep this vocabulary synchronized with office_permission_catalog.
 const requirements: Record<string, readonly string[]> = {
   "office:decisions": ["governance.risk.read", "governance.risk.manage", "governance.risk.review", "governance.decision.read", "governance.decision.record", "governance.change.read", "governance.change.manage", "governance.change.review"],
+  "office:strategy": ["strategy.read", "strategy.manage", "strategy.review", "strategy.progress.update"],
   "office:crm": ["sales.crm.read", "sales.crm.write"],
   "office:engineering": ["engineering.infrastructure.read", "engineering.repo.read", "engineering.issue.manage", "engineering.oncall.read", "engineering.oncall.manage", "engineering.maintenance.read", "engineering.maintenance.manage", "engineering.maintenance.approve", "engineering.maintenance.verify"],
   "office:products": ["product.roadmap.read", "product.roadmap.write", "product.release.request", "product.release.approve"],
