@@ -35,6 +35,7 @@ import { OfficeCompanyCalendar } from "@/components/office-company-calendar";
 import { OfficeCompanyInbox } from "@/components/office-company-inbox";
 import { OfficeCrmWorkspace } from "@/components/office-crm-workspace";
 import { OfficeContractWorkspace } from "@/components/office-contract-workspace";
+import { OfficeCorporateCards } from "@/components/office-corporate-cards";
 import { OfficeControlRegister } from "@/components/office-control-register";
 import { OfficeDataMovement } from "@/components/office-data-movement";
 import { OfficeDocumentStudio } from "@/components/office-document-studio";
@@ -137,6 +138,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "people" ? <><WorkforceLiveOverview /><OfficeWorkforceLifecycle /><OfficeOrganizationChart /></>
           : workspace === "office" && section === "development" ? <OfficePeopleDevelopment />
           : workspace === "office" && section === "travel" ? <OfficeTravelWorkspace />
+          : workspace === "office" && section === "cards" ? <OfficeCorporateCards />
           : workspace === "office" && section === "governance" ? <OfficeBoardWorkspace />
           : workspace === "office" && section === "compliance" ? <OfficeApplicabilityEngine />
           : workspace === "office" && section === "vendors" ? <OfficeProcurementControl />
@@ -154,6 +156,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "integrations" ? <OfficeEmbedRegistry />
           : workspace === "office" && section === "domains" ? <OfficeDomainControl />
           : workspace === "office" && section === "settings" ? <OfficeSecuritySettings identity={identity} />
+          : workspace === "finance" && section === "cards" ? <OfficeCorporateCards />
           : workspace === "finance" && section === "insurance" ? <OfficeResilienceWorkspace mode="insurance" />
           : section === "dashboard" ? <WorkspaceDashboard workspace={workspace} section={section} identity={identity} permissions={permissions} />
           : <WorkspaceModule workspace={workspace} section={section} item={item} />}
