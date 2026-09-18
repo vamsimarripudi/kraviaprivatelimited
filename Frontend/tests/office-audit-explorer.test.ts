@@ -14,11 +14,14 @@ describe("KRAVIA corporate audit explorer",()=>{
   expect(server).not.toContain('from("audit_events")');
   expect(component).toContain('/api/office-audit-explorer');
   expect(component).toContain('/api/office-runtime/audit');
+  expect(component).toContain('/api/office-runtime/audit/retention');
   expect(screen).toContain("OfficeAuditExplorer");
  });
  it("keeps cryptographic verification scoped to the runtime chain",()=>{
   expect(component).toContain('/api/office-runtime/audit/verify-chain');
   expect(component).toContain("Office control-plane events are a separate append-oriented source");
+  expect(component).toContain("Destructive audit deletion is disabled");
+  expect(component).toContain("Fail-closed retention");
   expect(backend).toContain("expected=hashlib.sha256");
  });
  it("does not present either source as a statutory audit opinion",()=>{
