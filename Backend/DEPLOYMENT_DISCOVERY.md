@@ -77,9 +77,9 @@ Outstanding:
 
 ## Vercel
 
-Fresh Vercel discovery on the connected hobby team `vamsimarripudis-projects` still exposes **no project linked to `vamsimarripudi/kraviaprivatelimited`**.
+GitHub now reports the current-main Vercel deployment check as **SUCCESS** for the separate `kravia1/kraviaprivatelimited` project context.
 
-GitHub currently receives a failing `Vercel` status pointing to a build-rate-limit condition under a separate `kravia1` account/project context. Because the KRAVIA project is still not visible through the connected hobby team, current Root Directory, framework, environment-variable and domain configuration cannot be inspected or changed here.
+The connected Vercel token is still scoped to the `vamsimarripudis-projects` team. Direct inspection of `kravia1` returns HTTP 403 and explicitly requires re-authentication to that scope. Therefore deployment success is verified, but current Root Directory, framework, production environment variables and domain configuration cannot yet be read back from this connector.
 
 **Decision:** treat the old Root Directory mismatch as historical, not current fact. Rediscover or reconnect the canonical KRAVIA Vercel project/account before changing production settings. Do not attach Office to an unrelated product project.
 
@@ -100,8 +100,8 @@ Backend API target:
 
 ## Immediate activation gates
 
-1. Successful frontend deployment from current `main` on the canonical Vercel project.
-2. Frontend `OFFICE_API_ORIGIN` wired to the accepted Railway backend origin.
+1. Re-authenticate the Vercel connector to the verified `kravia1` scope and inspect the successful `kraviaprivatelimited` project.
+2. Verify frontend `OFFICE_API_ORIGIN`, production domain attachment and end-to-end browser→BFF→Railway behavior.
 3. Enable Supabase Auth leaked-password protection.
 4. Legacy FastAPI RLS hardening is complete; keep browser grants closed and preserve `DATABASE_EXECUTION_ROLE=kravia_office_backend`.
 5. First OWNER live TOTP/AAL2 acceptance.
