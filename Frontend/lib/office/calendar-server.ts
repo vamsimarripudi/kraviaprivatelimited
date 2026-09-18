@@ -81,10 +81,11 @@ function projected(source: string, sourceKey: string, title: string, startsAt: s
 export async function getOfficeCompanyCalendar() {
   const { admin, identity } = await actor();
   const trustedDeviceId = await currentOfficeTrustedDeviceId(admin, identity.userId);
-  const [resiliencePermission, insurancePermission, domainPermission, strategyPermission, qualityCompanyPermission, qualityDepartmentPermission, qualityOwnPermission, portfolioCompanyPermission, portfolioDepartmentPermission, portfolioMemberPermission] = await Promise.all([
+  const [resiliencePermission, insurancePermission, domainPermission, custodyPermission, strategyPermission, qualityCompanyPermission, qualityDepartmentPermission, qualityOwnPermission, portfolioCompanyPermission, portfolioDepartmentPermission, portfolioMemberPermission] = await Promise.all([
     resolveOfficePermission(admin, identity, "resilience.read", { type: "COMPANY" }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "insurance.read", { type: "COMPANY" }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "infra.domain.read", { type: "COMPANY" }, trustedDeviceId),
+    resolveOfficePermission(admin, identity, "custody.read", { type: "COMPANY" }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "strategy.read", { type: "COMPANY" }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "quality.read", { type: "COMPANY" }, trustedDeviceId),
     identity.department
@@ -247,6 +248,17 @@ export async function getOfficeCompanyCalendar() {
     }
   }
 
+  if (custodyPermission.allowed) {
+    const { data, error } = await admin.from("office_secure_custody_checkouts")
+      .select("id,checkout_code,item_id,checked_out_to_user_id,due_back_at,status")
+      .in("status",["OPEN","OVERDUE"]).not("due_back_at","is",null)
+      .order("due_back_at",{ascending:true}).limit(500);
+    if (error) throw new OfficeCalendarError(503, "Secure-custody calendar is temporarily unavailable");
+    for (const row of data ?? []) {
+      const event = projected("SECURE_CUSTODY_RETURN", String(row.id), `Secure item return · ${row.checkout_code}`, dateIso(row.due_back_at), "DEADLINE", [row.status,row.checked_out_to_user_id===identity.userId ? "assigned to you" : null].filter(Boolean).join(" · "));
+      if (event) synthetic.push(event);
+    }
+  }
   if (strategyPermission.allowed) {
     const cycles = await admin.from("office_strategy_cycles")
       .select("id,cycle_code,title,scope_type,scope_key,period_end,status")
