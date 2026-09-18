@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   BriefcaseBusiness, CalendarDays, CheckCircle2, CircleAlert, FileCheck2, LoaderCircle,
-  Plus, RefreshCw, Send, ShieldCheck, UserPlus, Users, X,
+  Plus, RefreshCw, Send, ShieldCheck, Upload, UserPlus, Users, X,
 } from "lucide-react";
 import styles from "./office-recruitment-workspace.module.css";
 
@@ -34,7 +34,7 @@ type Offer = {
   currency: string; probation_months?: number | null; valid_until?: string | null; status: string; approval_request_id?: string | null;
   offer_document_instance_id?: string | null; pre_onboarding_request_id?: string | null;
 };
-type DocumentRequest = { id: string; candidate_id: string; document_type: string; label: string; required: boolean; status: string; storage_reference?: string | null; note?: string | null };
+type DocumentRequest = { id: string; candidate_id: string; document_type: string; label: string; required: boolean; status: string; storage_reference?: string | null; source_reference?: string | null; sha256?: string | null; mime_type?: string | null; byte_size?: number | null; original_filename?: string | null; note?: string | null };
 type Approval = { id: string; status: string; current_step_order?: number | null };
 type Payload = {
   actor: { user_id: string }; scope: { type?: string | null; key?: string | null }; capabilities: Capabilities;
@@ -49,6 +49,7 @@ type Modal =
   | { kind: "INTERVIEW"; candidate: Candidate }
   | { kind: "FEEDBACK"; interview: Interview }
   | { kind: "DOCUMENT"; candidate: Candidate }
+  | { kind: "UPLOAD_DOCUMENT"; document: DocumentRequest }
   | { kind: "OFFER"; candidate: Candidate }
   | { kind: "ACCEPT"; offer: Offer };
 
@@ -72,6 +73,7 @@ export function OfficeRecruitmentWorkspace() {
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const [query, setQuery] = useState("");
+  const [uploadFile, setUploadFile] = useState<File>();
 
   async function reload(message?: string) {
     const next = await api<Payload>();
@@ -95,7 +97,7 @@ export function OfficeRecruitmentWorkspace() {
   function person(id: string) { const row = people.get(id); return row?.display_name || row?.job_title || "Assigned user"; }
   async function action(payload: Record<string, unknown>, message: string) {
     setBusy(true); setError(undefined);
-    try { await api({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }); await reload(message); setModal(undefined); setDraft({}); }
+    try { await api({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }); await reload(message); setModal(undefined); setDraft({}); setUploadFile(undefined); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Recruitment update failed"); }
     finally { setBusy(false); }
   }
@@ -104,8 +106,29 @@ export function OfficeRecruitmentWorkspace() {
   }
   function openCandidate(requisition?: Requisition) { setDraft({ requisition_id: requisition?.id || data?.requisitions.find((r) => r.status === "OPEN")?.id || "", source_channel: "DIRECT" }); setModal({ kind: "CANDIDATE", requisition }); }
 
+  async function uploadDocument(document: DocumentRequest) {
+    if (!uploadFile) return setError("Choose a PDF, JPEG, PNG or WebP file.");
+    setBusy(true); setError(undefined);
+    try {
+      const form = new FormData();
+      form.set("request_id", document.id);
+      form.set("file", uploadFile);
+      if (draft.source_reference?.trim()) form.set("source_reference", draft.source_reference.trim());
+      const response = await fetch("/api/office-recruitment/documents", { method: "POST", body: form, credentials: "same-origin" });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof body.detail === "string" ? body.detail : "Candidate document upload failed");
+      await reload("Candidate document stored in the private recruitment vault and moved to review.");
+      setModal(undefined); setDraft({}); setUploadFile(undefined);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Candidate document upload failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!modal) return;
+    if (modal.kind === "UPLOAD_DOCUMENT") return uploadDocument(modal.document);
     if (modal.kind === "REQUISITION") {
       const min = draft.budget_min ? minor(draft.budget_min) : undefined; const max = draft.budget_max ? minor(draft.budget_max) : undefined;
       return action({ action: "CREATE_REQUISITION", position: draft.position, department: draft.department, manager_user_id: draft.manager_user_id, openings: Number(draft.openings || 1), employment_type: draft.employment_type, work_mode: draft.work_mode, location: draft.location || undefined, budget_min_minor: min, budget_max_minor: max, currency: draft.currency || undefined, reason: draft.reason }, "Hiring requisition drafted. Headcount and budget are not approved until the workflow completes.");
@@ -160,7 +183,7 @@ export function OfficeRecruitmentWorkspace() {
         {data.capabilities.manage_candidates ? <button type="button" onClick={() => { setDraft({ required: "true" }); setModal({ kind: "DOCUMENT", candidate: item }); }}><FileCheck2 /> Document</button> : null}
         {data.capabilities.prepare_offer && ["SELECTED","OFFER_PENDING"].includes(item.status) ? <button type="button" onClick={() => { setDraft({ manager_user_id: reqs.get(item.requisition_id)?.hiring_manager_user_id || data.actor.user_id, currency: "INR", probation_months: "6" }); setModal({ kind: "OFFER", candidate: item }); }}><BriefcaseBusiness /> Offer</button> : null}
       </footer>
-      {(data.documents.filter((d) => d.candidate_id === item.id).length > 0) ? <div className={styles.sublist}>{data.documents.filter((d) => d.candidate_id === item.id).map((doc) => <span key={doc.id}>{doc.label} · {label(doc.status)}</span>)}</div> : null}
+      {(data.documents.filter((d) => d.candidate_id === item.id).length > 0) ? <div className={styles.sublist}>{data.documents.filter((d) => d.candidate_id === item.id).map((doc) => <div className={styles.docRow} key={doc.id}><span>{doc.label} · {label(doc.status)}{doc.sha256 ? ` · SHA ${doc.sha256.slice(0, 10)}…` : ""}</span>{data.capabilities.manage_candidates && ["REQUESTED","REJECTED"].includes(doc.status) ? <button type="button" onClick={() => { setDraft({}); setUploadFile(undefined); setModal({ kind: "UPLOAD_DOCUMENT", document: doc }); }}><Upload /> Upload</button> : null}</div>)}</div> : null}
     </article>)}{!filteredCandidates.length ? <div className={styles.empty}><Users /><b>No candidates in scope</b><span>Create candidates only against approved open requisitions.</span></div> : null}</div> : null}
 
     {view === "interviews" ? <div className={styles.grid}>{data.interviews.map((item) => <article key={item.id} className={styles.card}>
@@ -177,7 +200,7 @@ export function OfficeRecruitmentWorkspace() {
     </article>)}{!data.offers.length ? <div className={styles.empty}><BriefcaseBusiness /><b>No offer proposals</b><span>Offers are created only after a candidate reaches Selected.</span></div> : null}</div> : null}
 
     {modal ? <div className={styles.backdrop} role="presentation" onMouseDown={() => !busy && setModal(undefined)}><form className={styles.dialog} onSubmit={submit} onMouseDown={(e) => e.stopPropagation()}>
-      <header><div><p>CONTROLLED PEOPLE WORKFLOW</p><h3>{modal.kind === "REQUISITION" ? "Create hiring requisition" : modal.kind === "CANDIDATE" ? "Add candidate" : modal.kind === "TRANSITION" ? "Change candidate stage" : modal.kind === "INTERVIEW" ? "Schedule interview" : modal.kind === "FEEDBACK" ? "Record interview feedback" : modal.kind === "DOCUMENT" ? "Request candidate document" : modal.kind === "OFFER" ? "Prepare offer proposal" : "Record offer acceptance"}</h3></div><button type="button" onClick={() => setModal(undefined)}><X /></button></header>
+      <header><div><p>CONTROLLED PEOPLE WORKFLOW</p><h3>{modal.kind === "REQUISITION" ? "Create hiring requisition" : modal.kind === "CANDIDATE" ? "Add candidate" : modal.kind === "TRANSITION" ? "Change candidate stage" : modal.kind === "INTERVIEW" ? "Schedule interview" : modal.kind === "FEEDBACK" ? "Record interview feedback" : modal.kind === "DOCUMENT" ? "Request candidate document" : modal.kind === "UPLOAD_DOCUMENT" ? "Upload candidate evidence" : modal.kind === "OFFER" ? "Prepare offer proposal" : "Record offer acceptance"}</h3></div><button type="button" onClick={() => setModal(undefined)}><X /></button></header>
       {modal.kind === "REQUISITION" ? <>
         <div className={styles.two}><label>Position<select value={draft.position || ""} onChange={(e) => { const pos=data.positions.find((p)=>p.code===e.target.value); setDraft({ ...draft, position:e.target.value, department:pos?.department_code || draft.department }); }}>{data.positions.map((p)=><option key={p.code} value={p.code}>{p.label}</option>)}</select></label><label>Department<select value={draft.department || ""} onChange={(e)=>setDraft({...draft,department:e.target.value})}>{data.departments.map((d)=><option key={d.code} value={d.code}>{d.label}</option>)}</select></label></div>
         <label>Hiring manager<select value={draft.manager_user_id || ""} onChange={(e)=>setDraft({...draft,manager_user_id:e.target.value})}>{data.identities.map((p)=><option key={p.user_id} value={p.user_id}>{p.display_name || p.job_title || p.user_id}</option>)}</select></label>
@@ -193,6 +216,7 @@ export function OfficeRecruitmentWorkspace() {
       : modal.kind === "INTERVIEW" ? <><div className={styles.two}><label>Stage<input required value={draft.stage || ""} onChange={(e)=>setDraft({...draft,stage:e.target.value.toUpperCase()})} /></label><label>Interviewer<select value={draft.interviewer_user_id || ""} onChange={(e)=>setDraft({...draft,interviewer_user_id:e.target.value})}>{data.identities.map(p=><option key={p.user_id} value={p.user_id}>{p.display_name || p.job_title || p.user_id}</option>)}</select></label></div><label>Title<input required value={draft.title || ""} onChange={(e)=>setDraft({...draft,title:e.target.value})} /></label><div className={styles.two}><label>Starts<input type="datetime-local" required value={draft.starts_at || ""} onChange={(e)=>setDraft({...draft,starts_at:e.target.value})} /></label><label>Ends<input type="datetime-local" value={draft.ends_at || ""} onChange={(e)=>setDraft({...draft,ends_at:e.target.value})} /></label></div><label>Location / meeting link<input value={draft.location || ""} onChange={(e)=>setDraft({...draft,location:e.target.value})} /></label></>
       : modal.kind === "FEEDBACK" ? <><label>Outcome<select value={draft.outcome || "YES"} onChange={(e)=>setDraft({...draft,outcome:e.target.value})}>{["STRONG_YES","YES","MIXED","NO","STRONG_NO"].map(v=><option key={v}>{v}</option>)}</select></label><label>Evidence<textarea required minLength={3} value={draft.evidence || ""} onChange={(e)=>setDraft({...draft,evidence:e.target.value})} /></label><div className={styles.two}><label>Strengths<textarea value={draft.strengths || ""} onChange={(e)=>setDraft({...draft,strengths:e.target.value})} /></label><label>Concerns<textarea value={draft.concerns || ""} onChange={(e)=>setDraft({...draft,concerns:e.target.value})} /></label></div></>
       : modal.kind === "DOCUMENT" ? <><label>Document type<input required value={draft.document_type || ""} onChange={(e)=>setDraft({...draft,document_type:e.target.value.toUpperCase()})} placeholder="PAN / AADHAAR / DEGREE / EXPERIENCE" /></label><label>Label<input required value={draft.label || ""} onChange={(e)=>setDraft({...draft,label:e.target.value})} /></label><label className={styles.check}><input type="checkbox" checked={draft.required !== "false"} onChange={(e)=>setDraft({...draft,required:e.target.checked ? "true" : "false"})} /> Required before onboarding</label></>
+      : modal.kind === "UPLOAD_DOCUMENT" ? <><p className={styles.warning}>Files are stored only in KRAVIA's private candidate vault. The server verifies the file signature, MIME type, size and SHA-256 before committing evidence.</p><label>Requested document<input value={modal.document.label} disabled /></label><label>File<input type="file" required accept=".pdf,image/jpeg,image/png,image/webp" onChange={(e)=>setUploadFile(e.target.files?.[0])} /></label><label>Source / verification reference<input value={draft.source_reference || ""} onChange={(e)=>setDraft({...draft,source_reference:e.target.value})} placeholder="Optional issuer, portal or verification reference" /></label></>
       : modal.kind === "OFFER" ? <><label>Reporting manager<select value={draft.manager_user_id || ""} onChange={(e)=>setDraft({...draft,manager_user_id:e.target.value})}>{data.identities.map(p=><option key={p.user_id} value={p.user_id}>{p.display_name || p.job_title || p.user_id}</option>)}</select></label><div className={styles.two}><label>Joining date<input type="date" required value={draft.joining_date || ""} onChange={(e)=>setDraft({...draft,joining_date:e.target.value})} /></label><label>Grade<input value={draft.grade || ""} onChange={(e)=>setDraft({...draft,grade:e.target.value})} /></label></div><div className={styles.three}><label>Annual CTC<input required inputMode="decimal" value={draft.annual_ctc || ""} onChange={(e)=>setDraft({...draft,annual_ctc:e.target.value})} /></label><label>Monthly gross<input required inputMode="decimal" value={draft.monthly_gross || ""} onChange={(e)=>setDraft({...draft,monthly_gross:e.target.value})} /></label><label>Currency<input value={draft.currency || "INR"} maxLength={3} onChange={(e)=>setDraft({...draft,currency:e.target.value.toUpperCase()})} /></label></div><div className={styles.two}><label>Probation months<input type="number" min="0" max="36" value={draft.probation_months || ""} onChange={(e)=>setDraft({...draft,probation_months:e.target.value})} /></label><label>Offer valid until<input type="datetime-local" value={draft.valid_until || ""} onChange={(e)=>setDraft({...draft,valid_until:e.target.value})} /></label></div><label>Variable pay note<textarea value={draft.variable_pay_note || ""} onChange={(e)=>setDraft({...draft,variable_pay_note:e.target.value})} /></label><label>Special approved condition<textarea value={draft.special_condition_note || ""} onChange={(e)=>setDraft({...draft,special_condition_note:e.target.value})} /></label></>
       : <label>Acceptance evidence reference<input required minLength={3} value={draft.evidence_reference || ""} onChange={(e)=>setDraft({...draft,evidence_reference:e.target.value})} placeholder="Signed document / eSign / secure acceptance reference" /></label>}
       <footer><button type="button" onClick={()=>setModal(undefined)} disabled={busy}>Cancel</button><button type="submit" disabled={busy}>{busy ? <LoaderCircle className={styles.spin} /> : <ShieldCheck />} Confirm</button></footer>
