@@ -19,6 +19,7 @@ from .finance_ownership import build_finance_ownership_router
 from .drive_integration import build_google_drive_router
 from .identity_auth import build_identity_router
 from .period_controls import PeriodLockedError, build_period_control_router
+from .audit_retention import build_audit_retention_router
 from .public_status import register_public_status
 from .security_controls import configure_security
 
@@ -46,6 +47,7 @@ app.include_router(build_identity_router())
 app.include_router(build_finance_ownership_router(get_db, require_roles))
 app.include_router(build_google_drive_router(get_db, require_roles))
 app.include_router(build_period_control_router(get_db, require_roles))
+app.include_router(build_audit_retention_router(get_db, require_roles))
 app.include_router(build_document_engine_router(require_roles))
 
 
