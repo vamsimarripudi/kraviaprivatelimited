@@ -12,6 +12,7 @@ export type OfficeNavigationCommand = {
 // still authorized by the server-side permission engine in the domain handler.
 // Keep this vocabulary synchronized with office_permission_catalog.
 const requirements: Record<string, readonly string[]> = {
+  "office:decisions": ["governance.risk.read", "governance.risk.manage", "governance.risk.review", "governance.decision.read", "governance.decision.record", "governance.change.read", "governance.change.manage", "governance.change.review"],
   "office:crm": ["sales.crm.read", "sales.crm.write"],
   "office:engineering": ["engineering.infrastructure.read", "engineering.repo.read", "engineering.issue.manage"],
   "office:products": ["product.roadmap.read", "product.roadmap.write", "product.release.request", "product.release.approve"],
@@ -48,7 +49,7 @@ const requirements: Record<string, readonly string[]> = {
   "finance:audit": ["finance.read", "audit.read"],
 };
 
-const directorReservedSections = new Set(["decisions", "intelligence", "governance", "readiness"]);
+const directorReservedSections = new Set(["intelligence", "governance", "readiness"]);
 
 export function requiredCapabilities(workspace: WorkspaceKind, section: string) {
   return requirements[`${workspace}:${section}`] ?? [];
