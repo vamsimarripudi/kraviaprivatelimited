@@ -546,6 +546,14 @@ class OperationalAlert(Base):
     resolved_at = Column(DateTime(timezone=True), nullable=True)
 
 
+class SharedRateLimitWindow(Base):
+    __tablename__ = "shared_rate_limit_windows"
+    key_hash = Column(String(64), primary_key=True)
+    window_start = Column(Integer, primary_key=True)
+    request_count = Column(Integer, nullable=False, default=0)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    __table_args__ = (Index("ix_shared_rate_limit_window_start", "window_start"),)
+
 class WorkerHeartbeat(Base):
     __tablename__ = "worker_heartbeats"
     worker_key = Column(String, primary_key=True)
