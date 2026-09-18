@@ -32,10 +32,10 @@ describe("KRAVIA company registration registry",()=>{
   expect(migration).toContain("revoke all on public.office_company_registrations,public.office_registration_events from public,anon,authenticated");
   expect(route).toContain("officeMutationIsSameOrigin(request)");
  });
- it("records registration lifecycle events and generic audit evidence",()=>{
+ it("records registration lifecycle evidence without coupling to the legacy FastAPI audit table",()=>{
   expect(migration).toContain("office_registration_events");
-  expect(server).toContain('from("audit_events").insert');
-  expect(server).toContain('"REGISTRATION_REVIEWED"');
-  expect(server).toContain('"REGISTRATION_UPDATED"');
+  expect(migration).toContain("'REGISTRATION_REVIEWED'");
+  expect(migration).toContain("'REGISTRATION_UPDATED'");
+  expect(server).not.toContain('from("audit_events")');
  });
 });
