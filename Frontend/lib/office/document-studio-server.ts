@@ -2,7 +2,8 @@ import "server-only";
 
 import { createHash, randomUUID } from "node:crypto";
 import { Buffer } from "node:buffer";
-import { requireOfficeRuntimeEnvironment } from "@/lib/env/office";
+import { getOfficeRuntimeOrigin } from "@/lib/env/office";
+import { getOfficeSessionContext } from "@/lib/office/auth-server";
 import {
   OfficePermissionError,
   requireOfficeActor,
@@ -193,10 +194,14 @@ export async function renderOfficeDocument(instanceId: string, outputFormat: "PD
   ]);
   if (templateResult.error || versionResult.error || !templateResult.data || !versionResult.data) throw new OfficeDocumentStudioError(409, "Canonical document template snapshot is unavailable");
   if (!templateResult.data.allowed_outputs.includes(outputFormat)) throw new OfficeDocumentStudioError(400, "Output format is not allowed by this template");
-  const runtime = requireOfficeRuntimeEnvironment();
-  const response = await fetch(`${runtime.OFFICE_API_ORIGIN}/api/v1/document-engine/render`, {
+  const runtimeOrigin = getOfficeRuntimeOrigin();
+  if (!runtimeOrigin) throw new OfficeDocumentStudioError(503, "KRAVIA Office document renderer is not configured");
+  const session = await getOfficeSessionContext();
+  if (!session || session.identity.userId !== current.identity.userId) throw new OfficeDocumentStudioError(401, "Office sign-in required");
+  if (session.identity.aal !== "aal2") throw new OfficeDocumentStudioError(403, "AAL2 verification is required");
+  const response = await fetch(`${runtimeOrigin}/api/v1/document-engine/render`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${current.session.access_token}`, "Content-Type": "application/json", Accept: "application/octet-stream" },
+    headers: { Authorization: `Bearer ${session.session.access_token}`, "Content-Type": "application/json", Accept: "application/octet-stream" },
     body: JSON.stringify({ document_code: instance.document_code, title: instance.title, output_format: outputFormat, design_schema: versionResult.data.design_schema, content_schema: versionResult.data.content_schema, input_snapshot: instance.input_snapshot, clause_snapshot: versionResult.data.clause_snapshot, clause_rules: versionResult.data.clause_rules }),
     cache: "no-store",
   });
