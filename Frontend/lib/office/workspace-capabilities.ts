@@ -36,6 +36,7 @@ const requirements: Record<string, readonly string[]> = {
   "office:ethics": ["ethics.report", "ethics.case.read", "ethics.case.assign", "ethics.case.manage", "ethics.case.review"],
   "office:resilience": ["resilience.read", "resilience.plan.manage", "resilience.plan.review", "resilience.test.manage", "resilience.test.review", "resilience.incident.report", "resilience.incident.read", "resilience.incident.manage", "insurance.read", "insurance.manage", "insurance.review"],
   "office:security": ["security.overview.read", "security.change.review"],
+  "office:ai": ["ai.tool.read", "ai.tool.manage", "ai.tool.review", "ai.use.request", "ai.use.read", "ai.use.review", "ai.usage.audit"],
   "office:integrations": ["integration.embed.view", "integration.embed.manage"],
   "office:governance": ["secretarial.board.read", "secretarial.board.manage", "secretarial.corporate.prepare", "secretarial.corporate.approve"],
   "office:compliance": ["compliance.rules.read", "compliance.rules.manage", "compliance.facts.manage", "compliance.applicability.review", "compliance.instance.manage"],
@@ -53,6 +54,7 @@ const requirements: Record<string, readonly string[]> = {
   "finance:compliance": ["finance.read", "tax.gst.prepare", "tax.gst.approve", "compliance.rules.read", "compliance.applicability.review", "compliance.instance.manage"],
   "finance:insurance": ["insurance.read", "insurance.manage", "insurance.review"],
   "finance:ethics": ["ethics.report", "ethics.case.read", "ethics.case.assign", "ethics.case.manage", "ethics.case.review"],
+  "finance:ai": ["ai.tool.read", "ai.tool.manage", "ai.tool.review", "ai.use.request", "ai.use.read", "ai.use.review", "ai.usage.audit"],
   "finance:audit": ["finance.read", "audit.read"],
 };
 
