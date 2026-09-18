@@ -56,6 +56,7 @@ import { OfficePresenceControl } from "@/components/office-presence-control";
 import { OfficePrivacyGovernance } from "@/components/office-privacy-governance";
 import { OfficeRecruitmentWorkspace } from "@/components/office-recruitment-workspace";
 import { OfficeProcurementControl } from "@/components/office-procurement-control";
+import { OfficeQualityWorkspace } from "@/components/office-quality";
 import { OfficeReadiness } from "@/components/office-readiness";
 import { OfficeResilienceWorkspace } from "@/components/office-resilience";
 import { OfficeSecurityOverview } from "@/components/office-security-overview";
@@ -140,6 +141,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "support" ? <OfficeSupportOperations />
           : workspace === "office" && section === "data" ? <OfficeDataMovement />
           : workspace === "office" && section === "privacy" ? <OfficePrivacyGovernance />
+          : workspace === "office" && section === "quality" ? <OfficeQualityWorkspace />
           : workspace === "office" && section === "ethics" ? <OfficeEthicsChannel />
           : workspace === "finance" && section === "ethics" ? <OfficeEthicsChannel />
           : workspace === "finance" && section === "ai" ? <OfficeAiGovernance />
