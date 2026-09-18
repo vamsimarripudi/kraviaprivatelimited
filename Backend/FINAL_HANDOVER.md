@@ -132,6 +132,24 @@ OFFICE_API_ORIGIN=https://<canonical FastAPI runtime origin>
 
 The FastAPI runtime must use matching production OIDC issuer/JWKS/audience, `OIDC_ROLE_CLAIM=office_roles` and `OIDC_REQUIRED_AAL=aal2`.
 
+## Live Supabase security state — verified 18 Sep 2026
+
+The connected `KRAVIA Office` Supabase project is active in `ap-south-1`.
+
+Verified live changes:
+
+- the governed company-registration registry migration is applied;
+- `office_company_registrations` and `office_registration_events` have RLS enabled;
+- anon/authenticated cannot SELECT the registration tables; service role can;
+- registration lifecycle functions are SECURITY INVOKER and browser EXECUTE is denied;
+- trigger-only SECURITY DEFINER helpers `office_identity_create_person()` and `office_sync_employment_identity()` have PUBLIC/anon/authenticated EXECUTE revoked and service-role EXECUTE retained;
+- a full effective-privilege check of all 52 legacy FastAPI tables currently lacking RLS shows anon/authenticated have no SELECT/INSERT/UPDATE/DELETE on any of them;
+- `kravia_office_backend` has effective CRUD on all 52 of those legacy tables.
+
+Do not mass-enable RLS on the 52 legacy tables until the Railway `DATABASE_URL` login role is positively confirmed and matching backend-only policies are prepared. The current state is a defense-in-depth hardening gap, **not evidence of browser access**.
+
+Outstanding Supabase Auth setting: leaked-password protection is currently disabled and should be enabled before production identity acceptance.
+
 ## Current deployment reality — verified 18 Sep 2026
 
 ### Railway backend
@@ -149,7 +167,7 @@ An existing Railway production service is already connected:
 
 The database URL normalizer in current source also permanently canonicalizes the historical `sshmode` typo to `sslmode` and supports the configured Supabase IPv4 pooler path. The 16 Sep failure caused by `sshmode` is therefore historical.
 
-The newest active/sleeping Railway deployment is from 17 Sep 2026. Git-linked records for newer commits, including current `main`, are marked `SKIPPED`. Current source must not be called live on Railway until a deployment for the accepted `main` commit reaches a successful terminal state.
+The newest active/sleeping Railway deployment is from 17 Sep 2026 at commit `f2d1fcb25bc085dbd8b69bf471ddf40b71563872`. Current `main` is 456 commits ahead and contains changes in 10 `Backend/**` files, including the document engine and finance hardening. Git-linked records for newer commits are marked `SKIPPED` (many are expected because Railway watches `Backend/**`). Current source must not be called live on Railway until a deployment containing the current backend delta reaches a successful terminal state.
 
 ### Vercel frontend
 
@@ -186,8 +204,8 @@ Evidence presence is not treated as legal approval. Company, ownership, tax and 
 3. Deploy current `main` to the existing Railway `kravia-office-api` service and observe a terminal successful deployment plus `/health/live`.
 4. Set/verify frontend `OFFICE_API_ORIGIN` against the accepted Railway API origin and exercise the same-origin runtime gateway.
 5. Sign in through `/office/login`, enroll/verify the first OWNER TOTP factor and prove the resulting session reaches `aal2`.
-6. Verify the production PostgreSQL/Supabase path, restricted networking, backups/PITR, restore drill and secret management.
-7. Apply/reconcile the versioned Office Supabase migrations required by the current frontend control plane, including the governed company-registration registry.
+6. Confirm the Railway `DATABASE_URL` database role, then design/apply backend-only RLS policies for the 52 legacy FastAPI tables; verify restricted networking, backups/PITR, restore drill and secret management.
+7. Registration-registry and trigger-function hardening migrations are already applied live. Reconcile subsequent Office migrations and enable Supabase Auth leaked-password protection.
 8. Load/lock verified Company Master and ownership evidence from authoritative sources.
 9. Obtain CA approval for GSTIN/tax/SAC/invoice/accounting mappings and close procedure.
 10. Obtain CS/legal review for governance, ownership/register handling, retention and controlled funding/mandate language.
