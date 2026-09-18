@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import difflib
 import json
 import sys
 from pathlib import Path
@@ -30,6 +31,9 @@ def main() -> int:
         existing = TARGET.read_text(encoding="utf-8") if TARGET.exists() else ""
         if existing != generated:
             print(f"OpenAPI contract drift detected: {TARGET.relative_to(ROOT)}")
+            diff = difflib.unified_diff(existing.splitlines(), generated.splitlines(), fromfile="committed", tofile="generated", lineterm="")
+            for line in diff:
+                print(line)
             print("Run: python scripts/export_openapi.py")
             return 1
         print(f"OpenAPI contract is current: {TARGET.relative_to(ROOT)}")
