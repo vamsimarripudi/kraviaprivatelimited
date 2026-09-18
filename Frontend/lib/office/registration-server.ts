@@ -35,11 +35,6 @@ function maskedSuffix(value:string){
   if(suffix.length<2||suffix.length>8)throw new OfficeRegistrationError(400,"Enter only the final 2–8 identifier characters");
   return "••••"+suffix;
 }
-async function genericAudit(current:Actor,action:string,id:string,context:Record<string,unknown>){
-  const result=await current.admin.from("audit_events").insert({actor_id:current.identity.userId,action,entity_type:"OFFICE_REGISTRATION",entity_id:id,context});
-  fail(result.error,"Unable to append registration audit evidence");
-}
-
 export async function getOfficeRegistrationOverview(){
   const current=await actor();await requireAllowed(current,"registration.read");
   const [registrations,events,people,manage,review]=await Promise.all([
@@ -66,7 +61,6 @@ export async function createOfficeRegistration(input:{type:string;title:string;a
   const masked=maskedSuffix(input.identifierSuffix);
   const {data,error}=await current.admin.rpc("office_registration_create",{p_actor:current.identity.userId,p_type:input.type,p_title:input.title,p_authority:input.authority,p_jurisdiction:input.jurisdiction||"IN",p_identifier_masked:masked,p_issued:input.issuedOn||null,p_expires:input.expiresOn||null,p_renewal:input.renewalDueOn||null,p_source:input.sourceReference,p_evidence:input.evidenceReference?.trim()||null,p_owner:input.ownerUserId||null});
   if(error||typeof data!=="string")throw new OfficeRegistrationError(400,error?.message||"Unable to create registration record");
-  await genericAudit(current,"REGISTRATION_CREATED",data,{registration_type:input.type,authority:input.authority,status:"UNVERIFIED"});
   return {registration_id:data,status:"UNVERIFIED"};
 }
 
@@ -77,7 +71,6 @@ export async function reviewOfficeRegistration(input:{registrationId:string;stat
   if(row.data.created_by===current.identity.userId)throw new OfficeRegistrationError(409,"Registration creator cannot independently review the same record");
   const {data,error}=await current.admin.rpc("office_registration_review",{p_actor:current.identity.userId,p_registration:input.registrationId,p_status:input.status,p_note:input.note?.trim()||null,p_evidence:input.evidenceReference?.trim()||null});
   if(error||typeof data!=="string")throw new OfficeRegistrationError(400,error?.message||"Unable to review registration");
-  await genericAudit(current,"REGISTRATION_REVIEWED",input.registrationId,{status:data});
   return {status:data};
 }
 
@@ -85,6 +78,5 @@ export async function updateOfficeRegistration(input:{registrationId:string;expi
   const current=await actor();await requireAllowed(current,"registration.manage");
   const {data,error}=await current.admin.rpc("office_registration_update",{p_actor:current.identity.userId,p_registration:input.registrationId,p_expires:input.expiresOn||null,p_renewal:input.renewalDueOn||null,p_status:input.status,p_source:input.sourceReference?.trim()||null,p_evidence:input.evidenceReference?.trim()||null,p_owner:input.ownerUserId||null,p_note:input.note?.trim()||null});
   if(error||typeof data!=="string")throw new OfficeRegistrationError(400,error?.message||"Unable to update registration");
-  await genericAudit(current,"REGISTRATION_UPDATED",input.registrationId,{status:data,expires_on:input.expiresOn||null,renewal_due_on:input.renewalDueOn||null});
   return {status:data};
 }
