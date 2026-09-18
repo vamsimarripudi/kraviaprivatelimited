@@ -18,6 +18,7 @@ const requirements: Record<string, readonly string[]> = {
   "office:recruitment": ["hiring.requisition.read", "hiring.requisition.manage", "hiring.candidate.manage", "hiring.interview.manage", "hiring.offer.prepare", "hiring.offer.review", "hiring.onboarding.manage"],
   "office:people": ["people.basic.read", "people.sensitive.read", "people.update", "hiring.candidate.read", "hiring.request.review"],
   "office:payroll": ["payroll.compensation.read", "payroll.compensation.manage", "payroll.rules.read", "payroll.run.read", "payroll.run.prepare"],
+  "office:documents": ["document.template.read", "document.template.manage", "document.template.publish", "document.instance.read", "document.instance.review", "document.render", "document.hr.create", "document.secretarial.create", "document.legal.create", "document.sales.create", "document.operations.create"],
   "office:contracts": ["legal.contract.review", "legal.contract.draft", "legal.contract.execute"],
   "office:vendors": ["operations.vendor.create", "operations.vendor.approve", "operations.purchase.request", "operations.purchase.approve", "operations.procurement.read", "operations.procurement.prepare", "operations.po.issue", "operations.receipt.record", "operations.renewal.manage"],
   "office:assets": ["operations.asset.assign"],
@@ -39,7 +40,7 @@ const requirements: Record<string, readonly string[]> = {
   "finance:payments": ["finance.payment.prepare", "finance.payment.approve"],
   "finance:expenses": ["finance.read", "finance.expense.request", "finance.expense.approve"],
   "finance:reconciliation": ["finance.read", "finance.journal.post", "finance.bank.read"],
-  "finance:documents": ["finance.read"],
+  "finance:documents": ["finance.read", "document.template.read", "document.instance.read", "document.instance.review", "document.render", "document.finance.create"],
   "finance:compliance": ["finance.read", "tax.gst.prepare", "tax.gst.approve", "compliance.rules.read", "compliance.applicability.review", "compliance.instance.manage"],
   "finance:audit": ["finance.read", "audit.read"],
 };
