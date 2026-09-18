@@ -58,12 +58,12 @@ export function OfficePhysicalOffice(){
 
  if(error&&!data)return <section className={styles.state}><CircleAlert/><div><h2>Physical Office unavailable</h2><p>{error}</p></div></section>;
  if(!data)return <section className={styles.state}><LoaderCircle className={styles.spin}/><div><h2>Loading Physical Office</h2><p>Resolving facilities and visitor authority.</p></div></section>;
- const liveBookings=data.bookings.filter(row=>row.status==="BOOKED"&&new Date(row.ends_at).getTime()>Date.now()).length;
+ const liveBookings=data.bookings.filter(row=>row.status==="BOOKED").length;
  const checkedIn=data.visitors.filter(row=>row.status==="CHECKED_IN").length;
  const openIssues=data.incidents.filter(row=>!["RESOLVED","CLOSED","CANCELLED"].includes(row.status)).length;
 
  return <section className={styles.shell}>
-  <header className={styles.hero}><div><p>PHYSICAL OFFICE · ROOMS · VISITORS · FACILITIES</p><h2>Run office access and facility operations without leaving KRAVIA.</h2><span>{data.disclaimer}</span></div><div className={styles.metrics}><article><b>{liveBookings}</b><span>active bookings</span></article><article><b>{checkedIn}</b><span>visitors onsite</span></article><article><b>{openIssues}</b><span>open issues</span></article></div></header>
+  <header className={styles.hero}><div><p>PHYSICAL OFFICE · ROOMS · VISITORS · FACILITIES</p><h2>Run office access and facility operations without leaving KRAVIA.</h2><span>{data.disclaimer}</span></div><div className={styles.metrics}><article><b>{liveBookings}</b><span>booked rooms</span></article><article><b>{checkedIn}</b><span>visitors onsite</span></article><article><b>{openIssues}</b><span>open issues</span></article></div></header>
   <div className={styles.toolbar}>
    {(["rooms","visitors","issues"] as View[]).map(item=><button type="button" key={item} data-active={view===item} onClick={()=>setView(item)}>{item==="rooms"?"Rooms":item==="visitors"?"Visitors":"Facilities"}</button>)}
    <button type="button" onClick={()=>void reload()}><RefreshCw/>Refresh</button>
