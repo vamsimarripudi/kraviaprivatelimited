@@ -16,7 +16,7 @@ const requirements: Record<string, readonly string[]> = {
   "office:crm": ["sales.crm.read", "sales.crm.write"],
   "office:engineering": ["engineering.infrastructure.read", "engineering.repo.read", "engineering.issue.manage", "engineering.oncall.read", "engineering.oncall.manage", "engineering.maintenance.read", "engineering.maintenance.manage", "engineering.maintenance.approve", "engineering.maintenance.verify"],
   "office:products": ["product.roadmap.read", "product.roadmap.write", "product.release.request", "product.release.approve"],
-  "office:portfolio": ["portfolio.read", "portfolio.manage", "portfolio.review", "portfolio.milestone.manage", "portfolio.team.manage"],
+  "office:portfolio": ["portfolio.read", "portfolio.member.read", "portfolio.manage", "portfolio.review", "portfolio.milestone.manage", "portfolio.team.manage"],
   "office:recruitment": ["hiring.requisition.read", "hiring.requisition.manage", "hiring.candidate.manage", "hiring.interview.manage", "hiring.offer.prepare", "hiring.offer.review", "hiring.onboarding.manage"],
   "office:people": ["people.basic.read", "people.sensitive.read", "people.update", "hiring.candidate.read", "hiring.request.review"],
   "office:development": ["people.skills.read", "people.skills.declare", "people.skills.verify", "people.training.read", "people.training.manage", "people.training.assign", "people.performance.read", "people.performance.manage", "people.performance.review", "people.workforce_plan.read", "people.workforce_plan.manage", "people.workforce_plan.review"],
