@@ -668,6 +668,24 @@
         "title": "CustomerCreate",
         "type": "object"
       },
+      "DecisionNote": {
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "title": "DecisionNote",
+        "type": "object"
+      },
       "DocumentRenderRequest": {
         "properties": {
           "clause_rules": {
@@ -991,6 +1009,40 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HoldCreate": {
+        "properties": {
+          "reason": {
+            "maxLength": 2000,
+            "minLength": 3,
+            "title": "Reason",
+            "type": "string"
+          },
+          "scope_type": {
+            "enum": [
+              "GLOBAL",
+              "ENTITY",
+              "ACTOR",
+              "CORRELATION",
+              "EVENT_TYPE"
+            ],
+            "title": "Scope Type",
+            "type": "string"
+          },
+          "scope_value": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Scope Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope_type",
+          "scope_value",
+          "reason"
+        ],
+        "title": "HoldCreate",
         "type": "object"
       },
       "InspectionCreate": {
@@ -1807,6 +1859,52 @@
           "approved_date"
         ],
         "title": "ResolutionCreate",
+        "type": "object"
+      },
+      "RetentionPolicyCreate": {
+        "properties": {
+          "archive_sink": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archive Sink"
+          },
+          "archive_sink_reference": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archive Sink Reference"
+          },
+          "name": {
+            "maxLength": 160,
+            "minLength": 3,
+            "title": "Name",
+            "type": "string"
+          },
+          "retention_days": {
+            "maximum": 36500.0,
+            "minimum": 30.0,
+            "title": "Retention Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "retention_days"
+        ],
+        "title": "RetentionPolicyCreate",
         "type": "object"
       },
       "ScheduleCollection": {
@@ -3621,6 +3719,624 @@
           }
         },
         "summary": "Audit Events"
+      }
+    },
+    "/api/v1/audit/retention": {
+      "get": {
+        "operationId": "retention_status_api_v1_audit_retention_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-kravia-office-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Kravia-Office-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retention Status",
+        "tags": [
+          "audit-retention"
+        ]
+      }
+    },
+    "/api/v1/audit/retention/archive-manifests": {
+      "post": {
+        "operationId": "create_archive_manifest_api_v1_audit_retention_archive_manifests_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-kravia-office-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Kravia-Office-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Role"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Archive Manifest",
+        "tags": [
+          "audit-retention"
+        ]
+      }
+    },
+    "/api/v1/audit/retention/holds": {
+      "post": {
+        "operationId": "create_hold_api_v1_audit_retention_holds_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-kravia-office-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Kravia-Office-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HoldCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Hold",
+        "tags": [
+          "audit-retention"
+        ]
+      }
+    },
+    "/api/v1/audit/retention/holds/{hold_id}/release": {
+      "post": {
+        "operationId": "release_hold_api_v1_audit_retention_holds__hold_id__release_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "hold_id",
+            "required": true,
+            "schema": {
+              "title": "Hold Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-kravia-office-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Kravia-Office-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionNote"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Release Hold",
+        "tags": [
+          "audit-retention"
+        ]
+      }
+    },
+    "/api/v1/audit/retention/policies": {
+      "post": {
+        "operationId": "create_policy_api_v1_audit_retention_policies_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-kravia-office-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Kravia-Office-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetentionPolicyCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Policy",
+        "tags": [
+          "audit-retention"
+        ]
+      }
+    },
+    "/api/v1/audit/retention/policies/{policy_id}/activate": {
+      "post": {
+        "operationId": "activate_policy_api_v1_audit_retention_policies__policy_id__activate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "policy_id",
+            "required": true,
+            "schema": {
+              "title": "Policy Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-kravia-office-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Kravia-Office-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Activate Policy",
+        "tags": [
+          "audit-retention"
+        ]
       }
     },
     "/api/v1/audit/verify-chain": {

@@ -9,6 +9,7 @@ type OfficeEvent={id:number|string;actor_id?:string|null;action:string;entity_ty
 type OfficePayload={generated_at:string;actor:{user_id:string};events:OfficeEvent[];people:Person[];disclaimer:string};
 type RuntimeEvent={id:string;occurred_at:string;actor:string;role:string;event_type:string;entity_type:string;entity_id:string;severity:string;previous_hash?:string|null;event_hash?:string|null;detail:Record<string,unknown>};
 type Chain={valid:boolean;event_count:number;last_hash?:string|null;failures:Array<Record<string,unknown>>};
+type Retention={active_policy?:{id:string;name:string;retention_days:number;status:string;archive_sink?:string|null;archive_sink_reference?:string|null;archive_sink_verified:boolean;approved_by?:string|null}|null;active_holds:Array<{id:string;scope_type:string;scope_value:string;reason:string;status:string}>;recent_manifests:Array<{id:string;event_count:number;cutoff_at:string;manifest_hash:string;status:string;sink_reference?:string|null}>;readiness:{cutoff_at?:string|null;eligible_event_count:number;held_candidate_count:number;archive_sink_verified:boolean;archive_ready:boolean;purge_supported:boolean;purge_block_reason:string}};
 type AuditRow={id:string;source:"OFFICE"|"RUNTIME";occurred_at:string;actor:string;role:string;action:string;entity:string;severity:string;hash?:string|null;detail:Record<string,unknown>};
 
 async function json<T>(url:string):Promise<T>{
@@ -22,9 +23,9 @@ function preview(value:Record<string,unknown>){try{const text=JSON.stringify(val
 function shortHash(value?:string|null){return value?value.slice(0,16)+"…":"—"}
 
 export function OfficeAuditExplorer(){
- const[office,setOffice]=useState<OfficePayload>();const[runtime,setRuntime]=useState<RuntimeEvent[]>([]);const[chain,setChain]=useState<Chain>();const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();const[busy,setBusy]=useState(false);const[query,setQuery]=useState("");const[source,setSource]=useState<"ALL"|"OFFICE"|"RUNTIME">("ALL");
- async function load(){setError(undefined);const[o,r]=await Promise.all([json<OfficePayload>("/api/office-audit-explorer"),json<RuntimeEvent[]>("/api/office-runtime/audit")]);setOffice(o);setRuntime(r)}
- useEffect(()=>{let active=true;void Promise.all([json<OfficePayload>("/api/office-audit-explorer"),json<RuntimeEvent[]>("/api/office-runtime/audit")]).then(([o,r])=>{if(active){setOffice(o);setRuntime(r)}}).catch(caught=>{if(active)setError(caught instanceof Error?caught.message:"Unable to load audit trail")});return()=>{active=false}},[]);
+ const[office,setOffice]=useState<OfficePayload>();const[runtime,setRuntime]=useState<RuntimeEvent[]>([]);const[retention,setRetention]=useState<Retention>();const[chain,setChain]=useState<Chain>();const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();const[busy,setBusy]=useState(false);const[query,setQuery]=useState("");const[source,setSource]=useState<"ALL"|"OFFICE"|"RUNTIME">("ALL");
+ async function load(){setError(undefined);const[o,r,ret]=await Promise.all([json<OfficePayload>("/api/office-audit-explorer"),json<RuntimeEvent[]>("/api/office-runtime/audit"),json<Retention>("/api/office-runtime/audit/retention")]);setOffice(o);setRuntime(r);setRetention(ret)}
+ useEffect(()=>{let active=true;void Promise.all([json<OfficePayload>("/api/office-audit-explorer"),json<RuntimeEvent[]>("/api/office-runtime/audit"),json<Retention>("/api/office-runtime/audit/retention")]).then(([o,r,ret])=>{if(active){setOffice(o);setRuntime(r);setRetention(ret)}}).catch(caught=>{if(active)setError(caught instanceof Error?caught.message:"Unable to load audit trail")});return()=>{active=false}},[]);
  const people=useMemo(()=>new Map((office?.people??[]).map(p=>[p.user_id,p])),[office?.people]);
  const rows=useMemo<AuditRow[]>(()=>{
   const a:AuditRow[]=(office?.events??[]).map(e=>({id:"office:"+String(e.id),source:"OFFICE",occurred_at:e.created_at,actor:e.actor_id?(people.get(e.actor_id)?.display_name||people.get(e.actor_id)?.job_title||e.actor_id):"System",role:people.get(e.actor_id||"")?.primary_department||"OFFICE",action:e.action,entity:e.entity_type+(e.entity_id?" · "+e.entity_id:""),severity:"CONTROL",detail:e.context||{}}));
@@ -40,6 +41,22 @@ export function OfficeAuditExplorer(){
   <div className={styles.metrics}><article><b>{rows.length}</b><span>events loaded</span></article><article><b>{office.events.length}</b><span>Office events</span></article><article><b>{runtime.length}</b><span>runtime events</span></article><article><b>{chain?chain.valid?"VALID":"EXCEPTION":"NOT RUN"}</b><span>runtime hash chain</span></article></div>
   {notice?<div className={styles.notice}><BadgeCheck/>{notice}</div>:null}{error?<div className={styles.error}><CircleAlert/>{error}</div>:null}
   {chain?<div className={styles.chain} data-valid={chain.valid}><ShieldCheck/><div><b>{chain.valid?"Runtime chain verified":"Runtime integrity exception"}</b><span>{chain.event_count} runtime events checked · {chain.failures.length} failure(s). Office control-plane events are a separate append-oriented source and are not claimed to be part of this cryptographic chain.</span></div></div>:null}
+  {retention?<section className={styles.retention}>
+    <header><div><p>AUDIT RETENTION · ARCHIVAL READINESS</p><h3>{retention.active_policy?retention.active_policy.name:"No active retention policy"}</h3></div><span>Destructive audit deletion is disabled. Archive manifests preserve chain evidence while legal holds exclude protected records.</span></header>
+    <div className={styles.retentionGrid}>
+      <article><span>Retention period</span><b>{retention.active_policy?retention.active_policy.retention_days+" days":"Not active"}</b></article>
+      <article><span>Eligible events</span><b>{retention.readiness.eligible_event_count}</b></article>
+      <article><span>Held candidates</span><b>{retention.readiness.held_candidate_count}</b></article>
+      <article><span>Active legal holds</span><b>{retention.active_holds.length}</b></article>
+      <article><span>Archive sink</span><b>{retention.readiness.archive_sink_verified?"VERIFIED":"UNVERIFIED"}</b></article>
+      <article><span>Purge support</span><b>{retention.readiness.purge_supported?"ENABLED":"DISABLED"}</b></article>
+    </div>
+    <div className={styles.retentionNote}><ShieldCheck/><div><b>Fail-closed retention</b><span>{retention.readiness.purge_block_reason}</span></div></div>
+    <div className={styles.manifestList}>
+      {retention.recent_manifests.slice(0,5).map(item=><article key={item.id}><div><b>{item.status} · {item.event_count} events</b><span>Cutoff {dateTime(item.cutoff_at)} · {shortHash(item.manifest_hash)}</span></div><code>{item.sink_reference||"Archive sink not verified"}</code></article>)}
+      {!retention.recent_manifests.length?<div className={styles.empty}>No audit archive manifests have been staged.</div>:null}
+    </div>
+  </section>:null}
   <div className={styles.filters}><label><Search/>Search<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Actor, action, entity, severity…"/></label><label>Source<select value={source} onChange={e=>setSource(e.target.value as "ALL"|"OFFICE"|"RUNTIME")}><option>ALL</option><option>OFFICE</option><option>RUNTIME</option></select></label></div>
   <div className={styles.tableWrap}><table><thead><tr><th>Time</th><th>Source</th><th>Actor</th><th>Action</th><th>Entity</th><th>Severity</th><th>Evidence</th></tr></thead><tbody>{filtered.map(row=><tr key={row.id}><td>{dateTime(row.occurred_at)}</td><td><em data-source={row.source}>{row.source}</em></td><td><strong>{row.actor}</strong><span>{row.role}</span></td><td>{row.action}</td><td>{row.entity}</td><td>{row.severity}</td><td><code title={row.hash||preview(row.detail)}>{row.hash?shortHash(row.hash):preview(row.detail)}</code></td></tr>)}{!filtered.length?<tr><td colSpan={7}><div className={styles.empty}>No audit events match the current filter.</div></td></tr>:null}</tbody></table></div>
  </section>
