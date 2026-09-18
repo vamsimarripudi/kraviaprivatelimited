@@ -3,6 +3,7 @@ import "server-only";
 import { getOfficeCrmOverview } from "@/lib/office/crm-server";
 import { getOfficeEngineeringControlCenter } from "@/lib/office/engineering-server";
 import { getOfficeTaskInbox } from "@/lib/office/task-server";
+import { getKnowledgeHub } from "@/lib/office/knowledge-server";
 import { getOfficeWorkOverview } from "@/lib/office/workflow-server";
 
 export class OfficeSearchError extends Error {
@@ -14,7 +15,7 @@ export class OfficeSearchError extends Error {
 
 export type OfficeSearchResult = {
   id: string;
-  kind: "TASK" | "REQUEST" | "APPROVAL" | "LEAD" | "OPPORTUNITY" | "SERVICE" | "INCIDENT";
+  kind: "TASK" | "REQUEST" | "APPROVAL" | "LEAD" | "OPPORTUNITY" | "SERVICE" | "INCIDENT" | "POLICY" | "ANNOUNCEMENT" | "KNOWLEDGE";
   label: string;
   meta: string;
   href: string;
@@ -42,11 +43,12 @@ export async function searchOffice(query: string): Promise<{ query: string; resu
   if (normalized.length < 2) return { query: normalized, results: [] };
   if (normalized.length > 80) throw new OfficeSearchError(400, "Search text is too long");
 
-  const [tasks, work, crm, engineering] = await Promise.all([
+  const [tasks, work, crm, engineering, knowledge] = await Promise.all([
     optional(() => getOfficeTaskInbox()),
     optional(() => getOfficeWorkOverview()),
     optional(() => getOfficeCrmOverview()),
     optional(() => getOfficeEngineeringControlCenter()),
+    optional(() => getKnowledgeHub()),
   ]);
 
   const results: OfficeSearchResult[] = [];
@@ -127,6 +129,39 @@ export async function searchOffice(query: string): Promise<{ query: string; resu
       label: text(row.title) || text(row.incident_code),
       meta: `${text(row.incident_code)} · ${text(row.severity)} · ${text(row.status)}`,
       href: `/office/engineering?incident=${encodeURIComponent(text(row.id))}`,
+    });
+  }
+
+  for (const row of (knowledge?.policies ?? []) as Array<Record<string, unknown>>) {
+    if (!matches(normalized, row.policy_code, row.title, row.category, row.status)) continue;
+    results.push({
+      id: `policy:${text(row.id)}`,
+      kind: "POLICY",
+      label: text(row.title) || text(row.policy_code),
+      meta: `${text(row.policy_code)} · ${text(row.category)} · ${text(row.status)}`,
+      href: `/office/knowledge?policy=${encodeURIComponent(text(row.id))}`,
+    });
+  }
+
+  for (const row of (knowledge?.announcements ?? []) as Array<Record<string, unknown>>) {
+    if (!matches(normalized, row.announcement_code, row.title, row.body_text, row.announcement_type, row.priority)) continue;
+    results.push({
+      id: `announcement:${text(row.id)}`,
+      kind: "ANNOUNCEMENT",
+      label: text(row.title) || text(row.announcement_code),
+      meta: `${text(row.announcement_type)} · ${text(row.priority)}`,
+      href: `/office/knowledge?announcement=${encodeURIComponent(text(row.id))}`,
+    });
+  }
+
+  for (const row of (knowledge?.articles ?? []) as Array<Record<string, unknown>>) {
+    if (!matches(normalized, row.article_code, row.title, row.category, row.status)) continue;
+    results.push({
+      id: `knowledge:${text(row.id)}`,
+      kind: "KNOWLEDGE",
+      label: text(row.title) || text(row.article_code),
+      meta: `${text(row.article_code)} · ${text(row.category)} · ${text(row.status)}`,
+      href: `/office/knowledge?article=${encodeURIComponent(text(row.id))}`,
     });
   }
 
