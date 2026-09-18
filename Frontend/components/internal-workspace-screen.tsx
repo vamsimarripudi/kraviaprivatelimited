@@ -31,6 +31,7 @@ import { OfficeAssetLifecycle } from "@/components/office-asset-lifecycle";
 import { OfficeBoardWorkspace } from "@/components/office-board-workspace";
 import { OfficeBillingWorkspace } from "@/components/office-billing";
 import { OfficeGstTaxWorkspace } from "@/components/office-gst-tax";
+import { OfficeAccountingWorkspace } from "@/components/office-accounting";
 import { OfficeBudgetWorkspace } from "@/components/office-budget";
 import { OfficeCommandCenter } from "@/components/office-command-center";
 import { OfficeCommandPalette } from "@/components/office-command-palette";
@@ -142,6 +143,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : section === "documents" ? <OfficeDocumentStudio />
           : workspace === "finance" && section === "billing" ? <OfficeBillingWorkspace canCreateInvoice={identity.roles.includes("OWNER") || permissions.includes("finance.invoice.create")} canRecordReceipt={identity.roles.includes("OWNER") || permissions.includes("finance.receipt.record")} />
           : workspace === "finance" && section === "gst" ? <OfficeGstTaxWorkspace canPrepare={identity.roles.includes("OWNER") || permissions.includes("tax.gst.prepare")} canApprove={identity.roles.includes("OWNER") || permissions.includes("tax.gst.approve")} />
+          : workspace === "finance" && section === "accounting" ? <OfficeAccountingWorkspace canManageLocks={identity.roles.some((role) => role === "OWNER" || role === "FINANCE" || role === "CA")} canApproveUnlock={identity.roles.some((role) => role === "OWNER" || role === "CA")} />
           : section === "payroll" ? <OfficePayrollConsole />
           : section === "budget" ? <OfficeBudgetWorkspace />
           : workspace === "office" && section === "assets" ? <OfficeAssetLifecycle />
