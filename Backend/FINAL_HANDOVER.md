@@ -2,7 +2,7 @@
 
 ## Purpose and canonical URLs
 
-KRAVIA Office is the company operating system for KRAVIA PRIVATE LIMITED and present/future KRAVIA products. The source remains the `office/` bounded FastAPI subsystem plus the root Next.js path-workspace frontend inside `vamsimarripudi/kraviaprivatelimited`; a separate Office repository is not required.
+KRAVIA Office is the company operating system for KRAVIA PRIVATE LIMITED and present/future KRAVIA products. The source remains the `Backend/` FastAPI subsystem plus the `Frontend/` Next.js path-workspace surface inside `vamsimarripudi/kraviaprivatelimited`; a separate Office repository is not required.
 
 Canonical browser model:
 
@@ -76,16 +76,16 @@ Latest fully green `main` quality run verified:
 - secret scan: **PASS**
 - ESLint: **PASS**
 - TypeScript typecheck: **PASS**
-- root Vitest: **18 files / 64 tests passed**
+- root Vitest: **79 files / 379 tests passed**
 - Next.js 16.3.5 production build: **PASS**
 - production build route manifest includes `/office`, `/finance`, their login/dynamic routes, Office auth APIs and Office runtime gateway
 - Python compile: **PASS**
 - OpenAPI drift check: **PASS**
 - clean Alembic upgrade through v5: **PASS**
-- Office backend: **36 tests passed**
+- Office backend: **58 tests passed**
 - hardened Office quality gate: **PASS**
 
-The test suite covers path-workspace roles, legacy redirects, cookie token non-disclosure, same-origin mutations, fixed-origin runtime proxy controls, identity/MFA/AAL2, Finance & Ownership, period close, Drive taxonomy, security middleware, RBAC, governance, audit chain and documents.
+The test suite covers path-workspace roles, legacy redirects, cookie token non-disclosure, same-origin mutations, fixed-origin runtime proxy controls, identity/MFA/AAL2, Finance & Ownership, GST, accounting close, banking/reconciliation, treasury, expenses/funding, ownership posting, financial assurance, company registrations, Office/runtime audit evidence, Drive taxonomy, security middleware, RBAC, governance and document controls. Route audit confirms **50/50 Office sections and 20/20 Finance sections use specialised surfaces**.
 
 ## Production identity state
 
@@ -113,7 +113,7 @@ backend.app:app
 Development:
 
 ```bash
-cd office
+cd Backend
 python -m pip install -r backend/requirements.txt
 alembic upgrade head
 python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000
@@ -132,17 +132,30 @@ OFFICE_API_ORIGIN=https://<canonical FastAPI runtime origin>
 
 The FastAPI runtime must use matching production OIDC issuer/JWKS/audience, `OIDC_ROLE_CLAIM=office_roles` and `OIDC_REQUIRED_AAL=aal2`.
 
-## Current Vercel deployment gate
+## Current deployment reality — verified 18 Sep 2026
 
-The connected Vercel project historically had no framework preset and a non-root project Root Directory.
+### Railway backend
 
-Root `vercel.json` now forces `framework: "nextjs"`. Vercel accepted that override and began the Next.js builder, then returned `NEXT_NO_VERSION` because its configured Root Directory does not contain the repository-root `package.json`. The repository itself is correct: normal CI runs `next build` successfully and produces all required routes.
+An existing Railway production service is already connected:
 
-One Vercel project setting must therefore be changed before live route acceptance:
+- service: `kravia-office-api`
+- GitHub source: `vamsimarripudi/kraviaprivatelimited`
+- branch: `main`
+- root directory: `Backend`
+- builder: `Dockerfile.api`
+- health check: `/health/live`
+- service domain: `kravia-office-api-production.up.railway.app`
+- deployment variable names include the expected production OIDC, database, Company Master, security and finance-mode configuration.
 
-- **Project Settings → Build and Deployment → Root Directory → repository root** (blank / `.`).
+The database URL normalizer in current source also permanently canonicalizes the historical `sshmode` typo to `sslmode` and supports the configured Supabase IPv4 pooler path. The 16 Sep failure caused by `sshmode` is therefore historical.
 
-After that, redeploy `main`, configure the production environment values above, and attach the apex `kraviaprivatelimited.com` domain. This Root Directory setting is project metadata and has no supported `vercel.json` override.
+The newest active/sleeping Railway deployment is from 17 Sep 2026. Git-linked records for newer commits, including current `main`, are marked `SKIPPED`. Current source must not be called live on Railway until a deployment for the accepted `main` commit reaches a successful terminal state.
+
+### Vercel frontend
+
+The Vercel account exposed to this audit currently lists no project linked to `vamsimarripudi/kraviaprivatelimited`. GitHub still receives a failing `Vercel` status pointing to a build-rate-limit condition. Therefore the prior project-specific Root Directory diagnosis is historical evidence only; the current Vercel project/account, build root, environment variables and domain assignment must be rediscovered/verified before frontend production acceptance.
+
+Do not attach Office to an unrelated Vercel project simply to clear the status. The canonical browser model remains the company site with `/office` and `/finance`; Railway is the API runtime.
 
 ## Run checks
 
@@ -154,7 +167,7 @@ npm run typecheck
 npm test
 npm run build
 
-cd office
+cd Backend
 python -m pytest backend/tests -q
 python scripts/export_openapi.py --check
 python scripts/quality_gate.py
@@ -168,20 +181,21 @@ Evidence presence is not treated as legal approval. Company, ownership, tax and 
 
 ## Production activation sequence
 
-1. Correct the Vercel project Root Directory to the repository root and redeploy `main`.
-2. Configure the dedicated Office Supabase variables and attach `kraviaprivatelimited.com`; verify `/`, `/office/login`, `/finance/login`, `/admin/login` and legacy redirects.
-3. Deploy the canonical FastAPI runtime and set `OFFICE_API_ORIGIN`; configure matching production OIDC/JWKS/AAL2 settings.
-4. Sign in through `/office/login`, enroll/verify the first TOTP factor and prove `aal2`.
-5. Provision/verify managed PostgreSQL, restricted networking, backups/PITR, restore drill and secret manager.
-6. Load/lock verified Company Master and ownership data from authoritative evidence.
-7. Obtain CA approval for GSTIN/tax/SAC/invoice/accounting mappings and close procedure.
-8. Obtain CS/legal review for governance, ownership/register handling, retention and controlled funding/mandate language.
-9. Configure private object storage + malware scanning and read-only Google Drive runtime identity.
-10. Configure Razorpay/RazorpayX, bank/accounting and eSign/DSC providers only after eligibility/approval.
-11. Provision queue/background workers, shared edge/WAF controls, monitoring, alerts, SLOs and audit retention.
-12. Perform staging browser/accessibility/security and all-role IDOR/BOLA acceptance plus backup restore drill.
-13. After `/office` and `/finance` are accepted, redirect/retire `office.kraviaprivatelimited.com`.
-14. Enable live finance execution only after every applicable production gate has evidence.
+1. Identify/reconnect the Vercel project that owns the KRAVIA company frontend, or create a dedicated project from this repository only if no canonical project exists; verify root/build settings instead of relying on the old mismatch diagnosis.
+2. Deploy current `main` successfully on Vercel and verify `/`, `/office/login`, `/finance/login`, `/admin/login`, private-route noindex behavior and legacy redirects.
+3. Deploy current `main` to the existing Railway `kravia-office-api` service and observe a terminal successful deployment plus `/health/live`.
+4. Set/verify frontend `OFFICE_API_ORIGIN` against the accepted Railway API origin and exercise the same-origin runtime gateway.
+5. Sign in through `/office/login`, enroll/verify the first OWNER TOTP factor and prove the resulting session reaches `aal2`.
+6. Verify the production PostgreSQL/Supabase path, restricted networking, backups/PITR, restore drill and secret management.
+7. Apply/reconcile the versioned Office Supabase migrations required by the current frontend control plane, including the governed company-registration registry.
+8. Load/lock verified Company Master and ownership evidence from authoritative sources.
+9. Obtain CA approval for GSTIN/tax/SAC/invoice/accounting mappings and close procedure.
+10. Obtain CS/legal review for governance, ownership/register handling, retention and controlled funding/mandate language.
+11. Configure private object storage + malware scanning and read-only Google Drive runtime identity.
+12. Configure Razorpay/RazorpayX, bank/accounting and eSign/DSC providers only after eligibility/approval.
+13. Provision queue/background workers, shared edge/WAF controls, monitoring, alerts, SLOs and audit retention.
+14. Perform staging browser/accessibility/security and all-role IDOR/BOLA acceptance plus backup restore drill.
+15. Enable live finance execution only after every applicable production gate has evidence.
 
 ## Production rule
 
