@@ -6,7 +6,7 @@ Canonical repository:
 
 `vamsimarripudi/kraviaprivatelimited`
 
-`main` is the accepted integration branch. Current audited source baseline `3e3bb3066e8dd7c1113d9c11750b32a141f8190c` passed repository, database, backend and frontend GitHub quality gates.
+`main` is the accepted integration branch. Current audited source baseline `a5176bcf36c1d5d3dc0a043540b738e86bf899f3` passed repository, database, backend and frontend GitHub quality gates.
 
 **Decision:** retain KRAVIA Office inside this repository. Do not create a disconnected Office codebase.
 
@@ -20,17 +20,17 @@ Route audit on current `main` confirms **50/50 Office sections and 20/20 Finance
 
 ## CI
 
-Current accepted run verifies:
+Current accepted `main` run #789 verifies:
 
 - npm install/audit with zero vulnerabilities;
 - secret scan;
 - ESLint and TypeScript;
-- **80 Vitest files / 381 tests**;
+- **82 Vitest files / 390 tests**;
 - Next.js production build;
 - Python dependency/compile checks;
 - OpenAPI drift;
-- Alembic upgrade;
-- **58 backend pytest tests**;
+- Alembic upgrade through v8;
+- **70 backend pytest tests**;
 - hardened backend quality gate;
 - Railway Docker image build and liveness smoke test;
 - repository and database structure checks.
@@ -52,7 +52,7 @@ Verified service configuration:
 - Railway domain `kravia-office-api-production.up.railway.app`;
 - expected production variable names for OIDC, database/Supabase, Company Master, HTTP security and finance execution.
 
-The last active/sleeping deployment is commit `f2d1fcb25bc085dbd8b69bf471ddf40b71563872` from 17 Sep. Current source is 456 commits ahead and changes 10 `Backend/**` files. Newer Git-linked records are mostly `SKIPPED`; many skips are expected because the service watches only `Backend/**`, but the current backend delta still has no accepted production deployment. The historical 16 Sep `sshmode` database failure is fixed in source by URL option normalization.
+The latest active deployment remains `SLEEPING`, created 17 Sep 2026 (`ae07954a-2cdc-4985-858d-8ef219ef7894`). The service watches `Backend/**`; recent Git-linked main deployments remain `SKIPPED`, including the 18 Sep Finance command-center commit. Current `main` therefore still has no accepted production backend deployment. Service configuration currently shows one Singapore replica, API Dockerfile deployment, pre-deploy Alembic migration and no dedicated background-worker service.
 
 ## Supabase live state
 
@@ -75,7 +75,7 @@ Outstanding:
 
 ## Vercel
 
-The Vercel account currently connected to this audit does **not** expose a project linked to `vamsimarripudi/kraviaprivatelimited`.
+Fresh Vercel discovery on the connected hobby team `vamsimarripudis-projects` still exposes **no project linked to `vamsimarripudi/kraviaprivatelimited`**.
 
 GitHub still receives a failing `Vercel` status pointing to a build-rate-limit condition. Because the corresponding KRAVIA project is not visible through the connected account, current Root Directory, framework, environment-variable and domain configuration cannot be verified.
 
@@ -104,6 +104,7 @@ Backend API target:
 4. Reconcile subsequent Office Supabase migrations; registration + trigger hardening are already applied.
 5. Enable Supabase leaked-password protection and confirm the backend role before legacy-table RLS enforcement.
 6. First OWNER live TOTP/AAL2 acceptance.
-6. Production evidence/provider/security gates listed in `FINAL_HANDOVER.md`.
+7. Deploy the dedicated background worker service from `Backend/Dockerfile.worker`, connect verified SLO telemetry/archive storage, and configure provider edge/WAF controls.
+8. Production evidence/provider/security gates listed in `FINAL_HANDOVER.md`.
 
 No provider state should be described as complete without read-back evidence.
