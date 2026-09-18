@@ -110,7 +110,7 @@ The production code path is validated independently from provider deployment sta
 - Next.js production build: **PASS**, including the private Office/Finance route families and their specialised sections.
 - Railway: `kravia-office-api` deployment `7ace95b8-b966-43be-aa4a-f2656624ed74` for backend commit `2e706e4e20838b00688b0c76f60f61d2e21c935e` reached **SUCCESS** after Alembic v9 pre-deploy and `/health/live` acceptance with `DATABASE_EXECUTION_ROLE=kravia_office_backend`.
 - Railway worker: provisioning a separate `kravia-office-worker` service was rejected by the current Free-plan resource limit; no partial worker service remains.
-- Vercel: the connected account still does not expose the KRAVIA project, while GitHub currently receives a build-rate-limit failure status from a separate `kravia1` project/account context. Production frontend settings remain **unverified** from this connection.
+- Vercel: GitHub reports the current-main `kravia1/kraviaprivatelimited` deployment check as **SUCCESS**. Direct project inspection remains unavailable because the connected Vercel token is not authorized for the `kravia1` scope, so production environment/domain read-back is still pending.
 
 A green local/CI build proves source correctness, not live-provider acceptance.
 
@@ -119,7 +119,7 @@ A green local/CI build proves source correctness, not live-provider acceptance.
 Automated tests do not fabricate production acceptance for:
 
 - first human TOTP enrollment and live AAL2 session;
-- current Vercel project/account linkage, build/environment/domain configuration and successful production deployment;
+- Vercel `kravia1` scope re-authentication plus project environment/domain read-back and end-to-end browser acceptance;
 - accepted frontend `OFFICE_API_ORIGIN` and end-to-end browser→BFF→Railway verification;
 - Supabase Auth leaked-password protection;
 
