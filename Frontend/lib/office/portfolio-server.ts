@@ -37,28 +37,62 @@ async function authority(code:string):Promise<Authority>{
   throw new OfficePortfolioError(403,last?.reason||"Portfolio permission is required");
 }
 async function can(code:string){try{await authority(code);return true}catch(error){if(error instanceof OfficePortfolioError&&error.status===403)return false;throw error}}
+async function ownMemberRead(){
+  const current=await actor();
+  const device=await currentOfficeTrustedDeviceId(current.admin,current.identity.userId);
+  const decision=await resolveOfficePermission(current.admin,current.identity,"portfolio.member.read",{type:"OWN",key:current.identity.userId,ownerUserId:current.identity.userId},device);
+  return decision.allowed?{...current,decision,department:null}:null;
+}
 function fail(error:{message?:string}|null,message:string){if(error)throw new OfficePortfolioError(503,error.message||message)}
 
 export async function getPortfolioOverview(){
+  const [read,memberRead,manage,review,milestoneManage,teamManage]=await Promise.all([
+    can("portfolio.read"),
+    ownMemberRead(),
+    can("portfolio.manage"),
+    can("portfolio.review"),
+    can("portfolio.milestone.manage"),
+    can("portfolio.team.manage"),
+  ]);
   const capabilities={
-    read:await can("portfolio.read"),
-    manage:await can("portfolio.manage"),
-    review:await can("portfolio.review"),
-    milestone_manage:await can("portfolio.milestone.manage"),
-    team_manage:await can("portfolio.team.manage"),
+    read,
+    member_read:Boolean(memberRead),
+    manage,
+    review,
+    milestone_manage:milestoneManage,
+    team_manage:teamManage,
   };
-  if(!capabilities.read)throw new OfficePortfolioError(403,"Portfolio is not assigned to your current authority");
-  const current=await authority("portfolio.read");
+  if(!read&&!memberRead)throw new OfficePortfolioError(403,"Portfolio is not assigned to your current authority");
+
+  const current=read?await authority("portfolio.read"):memberRead!;
+  let projectIds:string[]|null=null;
+
+  if(!read){
+    const [ownedProjects,ownedWorkstreams,ownedMilestones,memberships]=await Promise.all([
+      current.admin.from("office_portfolio_projects").select("id").eq("owner_user_id",current.identity.userId).limit(1000),
+      current.admin.from("office_portfolio_workstreams").select("project_id").eq("owner_user_id",current.identity.userId).neq("status","CANCELLED").limit(2000),
+      current.admin.from("office_portfolio_milestones").select("project_id").eq("owner_user_id",current.identity.userId).not("status","in",'("DONE","CANCELLED")').limit(3000),
+      current.admin.from("office_portfolio_members").select("project_id").eq("user_id",current.identity.userId).eq("active",true).limit(3000),
+    ]);
+    for(const result of [ownedProjects,ownedWorkstreams,ownedMilestones,memberships])fail(result.error,"Assigned project scope is temporarily unavailable");
+    projectIds=[...new Set([
+      ...(ownedProjects.data||[]).map(row=>String(row.id)),
+      ...(ownedWorkstreams.data||[]).map(row=>String(row.project_id)),
+      ...(ownedMilestones.data||[]).map(row=>String(row.project_id)),
+      ...(memberships.data||[]).map(row=>String(row.project_id)),
+    ])];
+  }
 
   let projectQuery=current.admin.from("office_portfolio_projects")
     .select("id,project_code,program_name,title,description,department_code,product_id,owner_user_id,sponsor_user_id,priority,starts_on,target_end_on,budget_reference,reported_health,health_note,status,completion_evidence_reference,created_by,reviewed_by,reviewed_at,review_note,created_at,updated_at")
     .order("updated_at",{ascending:false}).limit(1000);
-  if(current.department)projectQuery=projectQuery.eq("department_code",current.department);
+  if(read&&current.department)projectQuery=projectQuery.eq("department_code",current.department);
+  if(!read)projectQuery=projectIds?.length?projectQuery.in("id",projectIds):projectQuery.in("id",["00000000-0000-0000-0000-000000000000"]);
   const projects=await projectQuery;
   fail(projects.error,"Portfolio projects are temporarily unavailable");
   const ids=(projects.data||[]).map(row=>String(row.id));
 
-  const [workstreams,milestones,dependencies,members,events,people,products]=await Promise.all([
+  const [workstreams,milestones,dependencies,members,events,products]=await Promise.all([
     ids.length?current.admin.from("office_portfolio_workstreams")
       .select("id,workstream_code,project_id,title,description,owner_user_id,starts_on,target_end_on,status,created_by,created_at,updated_at")
       .in("project_id",ids).order("target_end_on",{ascending:true,nullsFirst:false}).limit(2500):Promise.resolve({data:[],error:null}),
@@ -74,16 +108,32 @@ export async function getPortfolioOverview(){
     ids.length?current.admin.from("office_portfolio_events")
       .select("id,actor_user_id,project_id,workstream_id,milestone_id,event_type,previous_status,new_status,note,metadata,created_at")
       .in("project_id",ids).order("created_at",{ascending:false}).limit(5000):Promise.resolve({data:[],error:null}),
-    current.department
-      ? current.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").eq("status","ACTIVE").eq("primary_department",current.department).order("display_name")
-      : current.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").eq("status","ACTIVE").order("display_name").limit(3000),
     current.admin.from("products").select("id,code,name,status,category").order("name").limit(500),
   ]);
-  for(const result of [workstreams,milestones,dependencies,members,events,people,products])fail(result.error,"Portfolio supporting records are temporarily unavailable");
+  for(const result of [workstreams,milestones,dependencies,members,events,products])fail(result.error,"Portfolio supporting records are temporarily unavailable");
+
+  let peopleResult:{data:Array<Record<string,unknown>>|null;error:{message?:string}|null};
+  if(manage||milestoneManage||teamManage){
+    peopleResult=current.department
+      ? await current.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").eq("status","ACTIVE").eq("primary_department",current.department).order("display_name")
+      : await current.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").eq("status","ACTIVE").order("display_name").limit(3000);
+  }else{
+    const personIds=[...new Set([
+      current.identity.userId,
+      ...(projects.data||[]).flatMap(row=>[String(row.owner_user_id),row.sponsor_user_id?String(row.sponsor_user_id):""]).filter(Boolean),
+      ...(workstreams.data||[]).map(row=>String(row.owner_user_id)),
+      ...(milestones.data||[]).map(row=>String(row.owner_user_id)),
+      ...(members.data||[]).map(row=>String(row.user_id)),
+    ])];
+    peopleResult=personIds.length
+      ? await current.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").in("user_id",personIds).eq("status","ACTIVE").order("display_name")
+      : {data:[],error:null};
+  }
+  fail(peopleResult.error,"Portfolio identities are temporarily unavailable");
 
   return {
     actor:{user_id:current.identity.userId,roles:current.identity.roles,department:current.identity.department||null},
-    scope:{type:current.decision.scopeType||null,key:current.department},
+    scope:{type:current.decision.scopeType||null,key:read?current.department:current.identity.userId},
     capabilities,
     projects:projects.data||[],
     workstreams:workstreams.data||[],
@@ -91,9 +141,9 @@ export async function getPortfolioOverview(){
     dependencies:dependencies.data||[],
     members:members.data||[],
     events:events.data||[],
-    people:people.data||[],
+    people:peopleResult.data||[],
     products:products.data||[],
-    disclaimer:"Project membership is operating metadata, not an authorization grant. Project health is explicitly reported by accountable humans; KRAVIA does not derive employee or project performance scores from login time, commits, passive activity or task counts.",
+    disclaimer:"Project membership is operating metadata, not an authorization grant. Participant read reveals only assigned project context. Project health is explicitly reported by accountable humans; KRAVIA does not derive employee or project performance scores from login time, commits, passive activity or task counts.",
   };
 }
 
