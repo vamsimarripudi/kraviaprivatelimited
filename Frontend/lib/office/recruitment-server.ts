@@ -344,7 +344,7 @@ export async function createOfferDocumentInstance(offerId: string) {
   const [candidateResult, managerResult, companyResult] = await Promise.all([
     current.admin.from("office_candidates").select("id,candidate_code,full_name,email,phone,location_text").eq("id", offer.candidate_id).maybeSingle(),
     current.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department").eq("user_id", offer.reporting_manager_user_id).maybeSingle(),
-    current.admin.from("legal_entities").select("id,legal_name,cin,registered_office,state_code,status,source_ref,verified_at").eq("id", process.env.KRAVIA_LEGAL_ENTITY_ID?.trim() || "LE-KRAVIA-IN").maybeSingle(),
+    readOfficeRuntimeResult<Record<string,unknown>>("company"),
   ]);
   if (candidateResult.error || !candidateResult.data) throw new OfficeRecruitmentError(409, "Candidate snapshot is unavailable for offer generation");
   if (managerResult.error || !managerResult.data) throw new OfficeRecruitmentError(409, "Reporting manager snapshot is unavailable for offer generation");
