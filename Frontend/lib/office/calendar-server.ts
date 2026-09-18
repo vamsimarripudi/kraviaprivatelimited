@@ -1,6 +1,7 @@
 import "server-only";
 
-import { OfficePermissionError, requireOfficeActor } from "@/lib/office/permission-engine";
+import { OfficePermissionError, requireOfficeActor, resolveOfficePermission } from "@/lib/office/permission-engine";
+import { currentOfficeTrustedDeviceId } from "@/lib/office/device-binding-server";
 
 export class OfficeCalendarError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -79,6 +80,11 @@ function projected(source: string, sourceKey: string, title: string, startsAt: s
 
 export async function getOfficeCompanyCalendar() {
   const { admin, identity } = await actor();
+  const trustedDeviceId = await currentOfficeTrustedDeviceId(admin, identity.userId);
+  const [resiliencePermission, insurancePermission] = await Promise.all([
+    resolveOfficePermission(admin, identity, "resilience.read", { type: "COMPANY" }, trustedDeviceId),
+    resolveOfficePermission(admin, identity, "insurance.read", { type: "COMPANY" }, trustedDeviceId),
+  ]);
   const privileged = identity.roles.some((role) => ["OWNER", "DIRECTOR", "ADMIN"].includes(role));
   const governance = identity.roles.some((role) => ["OWNER", "DIRECTOR", "CS", "LEGAL"].includes(role));
   const compliance = identity.roles.some((role) => ["OWNER", "DIRECTOR", "CS", "LEGAL", "CA", "AUDITOR"].includes(role));
@@ -166,6 +172,31 @@ export async function getOfficeCompanyCalendar() {
     if (error) throw new OfficeCalendarError(503, "Subscription calendar is temporarily unavailable");
     for (const row of data ?? []) {
       const event = projected("SUBSCRIPTION", String(row.id), "Subscription period end", dateIso(row.current_period_end, true), "CUSTOMER", `${row.status}${row.cancel_at_period_end ? " · cancels at period end" : ""}`);
+      if (event) synthetic.push(event);
+    }
+  }
+
+  if (resiliencePermission.allowed) {
+    const [plans, tests] = await Promise.all([
+      admin.from("office_continuity_plans").select("id,plan_code,title,plan_type,next_test_on,status").in("status", ["APPROVED","ACTIVE"]).not("next_test_on", "is", null).order("next_test_on", { ascending: true }).limit(200),
+      admin.from("office_resilience_tests").select("id,test_code,plan_id,test_type,scheduled_on,status").in("status", ["PLANNED","IN_PROGRESS","AWAITING_REVIEW"]).order("scheduled_on", { ascending: true }).limit(300),
+    ]);
+    if (plans.error || tests.error) throw new OfficeCalendarError(503, "Resilience calendar is temporarily unavailable");
+    for (const row of plans.data ?? []) {
+      const event = projected("CONTINUITY_TEST_DUE", String(row.id), `Continuity test due · ${row.title}`, dateIso(row.next_test_on), "DEADLINE", [row.plan_code,row.plan_type,row.status].filter(Boolean).join(" · "));
+      if (event) synthetic.push(event);
+    }
+    for (const row of tests.data ?? []) {
+      const event = projected("RESILIENCE_TEST", String(row.id), `Resilience test · ${row.test_type}`, dateIso(row.scheduled_on), "REVIEW", [row.test_code,row.status].filter(Boolean).join(" · "));
+      if (event) synthetic.push(event);
+    }
+  }
+
+  if (insurancePermission.allowed) {
+    const { data, error } = await admin.from("office_insurance_policies").select("id,policy_code,insurance_type,provider_name,expires_on,status").eq("status", "ACTIVE").order("expires_on", { ascending: true }).limit(200);
+    if (error) throw new OfficeCalendarError(503, "Insurance calendar is temporarily unavailable");
+    for (const row of data ?? []) {
+      const event = projected("INSURANCE_EXPIRY", String(row.id), `Insurance expiry · ${row.insurance_type}`, dateIso(row.expires_on, true), "DEADLINE", [row.policy_code,row.provider_name,row.status].filter(Boolean).join(" · "));
       if (event) synthetic.push(event);
     }
   }
