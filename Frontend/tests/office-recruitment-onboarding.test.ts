@@ -25,7 +25,8 @@ describe("KRAVIA governed recruitment and pre-onboarding", () => {
     expect(recruitment).toContain("HEADCOUNT_APPROVAL");
     expect(recruitment).toContain("EMPLOYMENT_OFFER_APPROVAL");
     expect(recruitment).toContain("PRE_ONBOARDING_ACCESS");
-    expect(recruitment).toContain("allow_self_approval,false");
+    expect(recruitment).toContain("allow_self_approval=false");
+    expect(recruitment).toMatch(/OWNER_APPROVAL[^\n]+1,false/);
   });
 
   it("records evidence without silently granting provider access", () => {
