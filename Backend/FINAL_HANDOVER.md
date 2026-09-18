@@ -147,9 +147,11 @@ Verified live changes:
 - registration lifecycle functions are SECURITY INVOKER and browser EXECUTE is denied;
 - trigger-only SECURITY DEFINER helpers `office_identity_create_person()` and `office_sync_employment_identity()` have PUBLIC/anon/authenticated EXECUTE revoked and service-role EXECUTE retained;
 - a full effective-privilege check of all 52 legacy FastAPI tables currently lacking RLS shows anon/authenticated have no SELECT/INSERT/UPDATE/DELETE on any of them;
-- `kravia_office_backend` has effective CRUD on all 52 of those legacy tables.
+- production SQLAlchemy runtime and Alembic migrations apply transaction-scoped `SET LOCAL ROLE kravia_office_backend` via `DATABASE_EXECUTION_ROLE`;
+- the five Alembic v6-v9 service tables are owned by `kravia_office_backend`, have RLS enabled, and explicitly deny anon/authenticated CRUD;
+- the live role/ownership/RLS state was read back after migration.
 
-Do not mass-enable RLS on the 52 legacy tables until the Railway `DATABASE_URL` login role is positively confirmed and matching backend-only policies are prepared. The current state is a defense-in-depth hardening gap, **not evidence of browser access**.
+The remaining 52 legacy FastAPI tables are still RLS-disabled as a defense-in-depth gap, but browser roles have zero effective CRUD and production transactions execute under the dedicated backend role. Any future RLS rollout should be staged and regression-tested rather than added merely to silence tooling.
 
 Outstanding Supabase Auth setting: leaked-password protection is currently disabled and should be enabled before production identity acceptance.
 
@@ -170,11 +172,11 @@ An existing Railway production service is already connected:
 
 The database URL normalizer in current source also permanently canonicalizes the historical `sshmode` typo to `sslmode` and supports the configured Supabase IPv4 pooler path. The 16 Sep failure caused by `sshmode` is therefore historical.
 
-Fresh Railway discovery confirms the existing API service still tracks `main`, watches `Backend/**`, uses `Dockerfile.api`, runs `alembic upgrade head` before deploy, checks `/health/live`, and is configured for one Singapore replica. Its latest active deployment remains the 17 Sep 2026 sleeping deployment, while newer Git-linked main records are `SKIPPED`. A dedicated worker service is not currently provisioned. Current source must not be called live on Railway until current API and worker deployments reach accepted terminal states.
+Railway deployment `7ace95b8-b966-43be-aa4a-f2656624ed74` for backend commit `2e706e4e20838b00688b0c76f60f61d2e21c935e` reached **SUCCESS**. The service still tracks `main`, watches `Backend/**`, uses `Dockerfile.api`, runs `alembic upgrade head` before deploy, checks `/health/live`, and is configured for one Singapore replica. Alembic reached v9 and the pre-deploy/startup path passed with `DATABASE_EXECUTION_ROLE=kravia_office_backend`. A dedicated worker service is not currently provisioned because Railway rejected additional resource creation under the current Free-plan resource limit.
 
 ### Vercel frontend
 
-Fresh discovery on the connected Vercel hobby team `vamsimarripudis-projects` still lists no project linked to `vamsimarripudi/kraviaprivatelimited`. GitHub still receives a failing `Vercel` status pointing to a build-rate-limit condition. Therefore the prior project-specific Root Directory diagnosis is historical evidence only; the current Vercel project/account, build root, environment variables and domain assignment must be rediscovered/verified before frontend production acceptance.
+Fresh discovery on the connected Vercel hobby team `vamsimarripudis-projects` still lists no project linked to `vamsimarripudi/kraviaprivatelimited`. GitHub currently reports a failing `Vercel` status pointing to a build-rate-limit condition under a separate `kravia1` project/account context. Therefore the prior Root Directory diagnosis remains historical; the actual Vercel project, production environment variables and domain assignment still cannot be inspected from the connected account.
 
 Do not attach Office to an unrelated Vercel project simply to clear the status. The canonical browser model remains the company site with `/office` and `/finance`; Railway is the API runtime.
 
@@ -204,17 +206,17 @@ Evidence presence is not treated as legal approval. Company, ownership, tax and 
 
 1. Identify/reconnect the Vercel project that owns the KRAVIA company frontend, or create a dedicated project from this repository only if no canonical project exists; verify root/build settings instead of relying on the old mismatch diagnosis.
 2. Deploy current `main` successfully on Vercel and verify `/`, `/office/login`, `/finance/login`, `/admin/login`, private-route noindex behavior and legacy redirects.
-3. Deploy current `main` to the existing Railway `kravia-office-api` service and observe a terminal successful deployment plus `/health/live`.
+3. Railway current-main backend deployment is accepted; keep `DATABASE_EXECUTION_ROLE=kravia_office_backend` and verify any future DB-role changes with migration/read-back evidence.
 4. Set/verify frontend `OFFICE_API_ORIGIN` against the accepted Railway API origin and exercise the same-origin runtime gateway.
 5. Sign in through `/office/login`, enroll/verify the first OWNER TOTP factor and prove the resulting session reaches `aal2`.
-6. Confirm the Railway `DATABASE_URL` database role, then design/apply backend-only RLS policies for the 52 legacy FastAPI tables; verify restricted networking, backups/PITR, restore drill and secret management.
-7. Registration-registry and trigger-function hardening migrations are already applied live. Reconcile subsequent Office migrations and enable Supabase Auth leaked-password protection.
+6. Decide/test the defense-in-depth RLS policy plan for the 52 legacy FastAPI tables and verify restricted networking, backups/PITR, restore drill and secret management.
+7. Registration, trigger hardening, service-table ownership and service-table RLS migrations are already applied live; enable Supabase Auth leaked-password protection.
 8. Load/lock verified Company Master and ownership evidence from authoritative sources.
 9. Obtain CA approval for GSTIN/tax/SAC/invoice/accounting mappings and close procedure.
 10. Obtain CS/legal review for governance, ownership/register handling, retention and controlled funding/mandate language.
 11. Configure private object storage + malware scanning and read-only Google Drive runtime identity.
 12. Configure Razorpay/RazorpayX, bank/accounting and eSign/DSC providers only after eligibility/approval.
-13. Deploy the committed dedicated background-worker service (`Backend/Dockerfile.worker`), connect verified external SLO telemetry and audit archive storage, and configure provider edge/WAF controls.
+13. Upgrade/provision Railway capacity and deploy the committed dedicated background-worker service (`Backend/Dockerfile.worker`); the current Free-plan resource limit blocks a second service. Then connect verified external SLO telemetry and audit archive storage and configure provider edge/WAF controls.
 14. Perform staging browser/accessibility/security and all-role IDOR/BOLA acceptance plus backup restore drill.
 15. Enable live finance execution only after every applicable production gate has evidence.
 
