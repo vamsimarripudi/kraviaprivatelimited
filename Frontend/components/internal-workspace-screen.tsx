@@ -62,6 +62,7 @@ import { OfficeResilienceWorkspace } from "@/components/office-resilience";
 import { OfficeSecurityOverview } from "@/components/office-security-overview";
 import { OfficeSecuritySettings } from "@/components/office-security-settings";
 import { OfficeSupportOperations } from "@/components/office-support-operations";
+import { OfficeStrategyWorkspace } from "@/components/office-strategy";
 import { OfficeWorkHub } from "@/components/office-work-hub";
 import { RequestCollaborationWorkspace } from "@/components/request-collaboration-workspace";
 import { OfficeOrganizationChart } from "@/components/office-organization-chart";
@@ -122,6 +123,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "portfolio" ? <OfficePortfolioWorkspace />
           : workspace === "office" && section === "intelligence" ? <OfficeIntelligenceBrief />
           : workspace === "office" && section === "decisions" ? <OfficeControlRegister />
+          : workspace === "office" && section === "strategy" ? <OfficeStrategyWorkspace />
           : workspace === "office" && section === "requests" ? <><OfficeWorkHub identity={identity} mode="requests" /><RequestCollaborationWorkspace /></>
           : workspace === "office" && section === "approvals" ? <OfficeWorkHub identity={identity} mode="approvals" />
           : workspace === "office" && section === "manager" ? <OfficeWorkHub identity={identity} mode="manager" />
