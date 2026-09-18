@@ -81,11 +81,13 @@ function projected(source: string, sourceKey: string, title: string, startsAt: s
 export async function getOfficeCompanyCalendar() {
   const { admin, identity } = await actor();
   const trustedDeviceId = await currentOfficeTrustedDeviceId(admin, identity.userId);
-  const [resiliencePermission, insurancePermission, vendorAssurancePermission, customerTrustPermission, domainPermission, custodyPermission, strategyPermission, qualityCompanyPermission, qualityDepartmentPermission, qualityOwnPermission, portfolioCompanyPermission, portfolioDepartmentPermission, portfolioMemberPermission] = await Promise.all([
+  const [resiliencePermission, insurancePermission, vendorAssurancePermission, customerTrustPermission, assetCompanyPermission, assetOwnPermission, domainPermission, custodyPermission, strategyPermission, qualityCompanyPermission, qualityDepartmentPermission, qualityOwnPermission, portfolioCompanyPermission, portfolioDepartmentPermission, portfolioMemberPermission] = await Promise.all([
     resolveOfficePermission(admin, identity, "resilience.read", { type: "COMPANY" }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "insurance.read", { type: "COMPANY" }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "vendor.assurance.read", { type: "COMPANY" }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "customer.trust.read", { type: "COMPANY" }, trustedDeviceId),
+    resolveOfficePermission(admin, identity, "operations.asset.read", { type: "COMPANY" }, trustedDeviceId),
+    resolveOfficePermission(admin, identity, "operations.asset.read", { type: "OWN", key: identity.userId, ownerUserId: identity.userId }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "infra.domain.read", { type: "COMPANY" }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "custody.read", { type: "COMPANY" }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "strategy.read", { type: "COMPANY" }, trustedDeviceId),
@@ -283,6 +285,33 @@ export async function getOfficeCompanyCalendar() {
     for (const row of data ?? []) {
       const event = projected("SECURE_CUSTODY_RETURN", String(row.id), `Secure item return · ${row.checkout_code}`, dateIso(row.due_back_at), "DEADLINE", [row.status,row.checked_out_to_user_id===identity.userId ? "assigned to you" : null].filter(Boolean).join(" · "));
       if (event) synthetic.push(event);
+    }
+  }
+
+  if (assetCompanyPermission.allowed || assetOwnPermission.allowed) {
+    let assetQuery = admin.from("office_asset_lifecycle")
+      .select("asset_id,custodian_user_id,warranty_expires_on,maintenance_due_on,lifecycle_status")
+      .not("lifecycle_status","in",'("DISPOSED","LOST")')
+      .order("updated_at",{ascending:false}).limit(1000);
+    if (!assetCompanyPermission.allowed && assetOwnPermission.allowed) assetQuery = assetQuery.eq("custodian_user_id",identity.userId);
+    const { data, error } = await assetQuery;
+    if (error) throw new OfficeCalendarError(503, "Asset lifecycle calendar is temporarily unavailable");
+    const assetIds=(data ?? []).map((row)=>String(row.asset_id));
+    const registry=assetIds.length
+      ? await admin.from("office_assets").select("id,asset_no,name").in("id",assetIds)
+      : {data:[],error:null};
+    if (registry.error) throw new OfficeCalendarError(503, "Asset registry calendar is temporarily unavailable");
+    const assetMap=new Map((registry.data ?? []).map((row)=>[String(row.id),row]));
+    for (const row of data ?? []) {
+      const asset=assetMap.get(String(row.asset_id));
+      if (row.warranty_expires_on) {
+        const event=projected("ASSET_WARRANTY",String(row.asset_id),`Asset warranty · ${asset?.name ?? row.asset_id}`,dateIso(row.warranty_expires_on,true),"DEADLINE",[asset?.asset_no,row.lifecycle_status].filter(Boolean).join(" · "));
+        if(event)synthetic.push(event);
+      }
+      if (row.maintenance_due_on) {
+        const event=projected("ASSET_MAINTENANCE",String(row.asset_id),`Asset maintenance · ${asset?.name ?? row.asset_id}`,dateIso(row.maintenance_due_on,true),"MAINTENANCE",[asset?.asset_no,row.lifecycle_status,row.custodian_user_id===identity.userId?"assigned to you":null].filter(Boolean).join(" · "));
+        if(event)synthetic.push(event);
+      }
     }
   }
   if (strategyPermission.allowed) {
