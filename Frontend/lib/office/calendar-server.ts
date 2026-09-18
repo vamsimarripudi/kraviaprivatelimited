@@ -81,9 +81,11 @@ function projected(source: string, sourceKey: string, title: string, startsAt: s
 export async function getOfficeCompanyCalendar() {
   const { admin, identity } = await actor();
   const trustedDeviceId = await currentOfficeTrustedDeviceId(admin, identity.userId);
-  const [resiliencePermission, insurancePermission, domainPermission, custodyPermission, strategyPermission, qualityCompanyPermission, qualityDepartmentPermission, qualityOwnPermission, portfolioCompanyPermission, portfolioDepartmentPermission, portfolioMemberPermission] = await Promise.all([
+  const [resiliencePermission, insurancePermission, vendorAssurancePermission, customerTrustPermission, domainPermission, custodyPermission, strategyPermission, qualityCompanyPermission, qualityDepartmentPermission, qualityOwnPermission, portfolioCompanyPermission, portfolioDepartmentPermission, portfolioMemberPermission] = await Promise.all([
     resolveOfficePermission(admin, identity, "resilience.read", { type: "COMPANY" }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "insurance.read", { type: "COMPANY" }, trustedDeviceId),
+    resolveOfficePermission(admin, identity, "vendor.assurance.read", { type: "COMPANY" }, trustedDeviceId),
+    resolveOfficePermission(admin, identity, "customer.trust.read", { type: "COMPANY" }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "infra.domain.read", { type: "COMPANY" }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "custody.read", { type: "COMPANY" }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "strategy.read", { type: "COMPANY" }, trustedDeviceId),
@@ -244,6 +246,30 @@ export async function getOfficeCompanyCalendar() {
     if (error) throw new OfficeCalendarError(503, "Insurance calendar is temporarily unavailable");
     for (const row of data ?? []) {
       const event = projected("INSURANCE_EXPIRY", String(row.id), `Insurance expiry · ${row.insurance_type}`, dateIso(row.expires_on, true), "DEADLINE", [row.policy_code,row.provider_name,row.status].filter(Boolean).join(" · "));
+      if (event) synthetic.push(event);
+    }
+  }
+
+  if (vendorAssurancePermission.allowed) {
+    const { data, error } = await admin.from("office_vendor_assessments")
+      .select("id,assessment_code,vendor_id,assessment_type,risk_level,expires_on,status")
+      .eq("status","APPROVED").not("expires_on","is",null)
+      .order("expires_on",{ascending:true}).limit(400);
+    if (error) throw new OfficeCalendarError(503, "Vendor-assurance calendar is temporarily unavailable");
+    for (const row of data ?? []) {
+      const event = projected("VENDOR_ASSURANCE_EXPIRY", String(row.id), `Vendor assessment expiry · ${row.assessment_type}`, dateIso(row.expires_on, true), "REVIEW", [row.assessment_code,row.vendor_id,row.risk_level].filter(Boolean).join(" · "));
+      if (event) synthetic.push(event);
+    }
+  }
+
+  if (customerTrustPermission.allowed) {
+    const { data, error } = await admin.from("office_customer_trust_requests")
+      .select("id,trust_code,customer_id,request_type,title,due_at,status")
+      .not("status","in",'("CLOSED","REJECTED","CANCELLED")').not("due_at","is",null)
+      .order("due_at",{ascending:true}).limit(600);
+    if (error) throw new OfficeCalendarError(503, "Customer-trust calendar is temporarily unavailable");
+    for (const row of data ?? []) {
+      const event = projected("CUSTOMER_TRUST_DUE", String(row.id), `Customer trust due · ${row.title}`, dateIso(row.due_at), "CUSTOMER", [row.trust_code,row.customer_id,row.request_type,row.status].filter(Boolean).join(" · "));
       if (event) synthetic.push(event);
     }
   }
