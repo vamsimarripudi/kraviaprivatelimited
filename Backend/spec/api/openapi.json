@@ -9989,7 +9989,7 @@
             "schema": {
               "default": 3,
               "maximum": 8,
-              "minimum": 0.0,
+              "minimum": 0,
               "title": "Max Depth",
               "type": "integer"
             }
