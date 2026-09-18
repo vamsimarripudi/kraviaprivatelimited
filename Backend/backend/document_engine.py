@@ -7,7 +7,7 @@ freeze the template/input snapshot before calling the renderer.
 """
 from __future__ import annotations
 
-from copy import deepcopy
+from copy import copy, deepcopy
 from dataclasses import dataclass
 from hashlib import sha256
 from html import escape
@@ -300,11 +300,13 @@ def _xlsx(request: DocumentRenderRequest, blocks: list[dict[str, Any]]) -> bytes
     row_no = 1
     for block in blocks:
         kind = str(block.get("type", "")).lower()
-        if kind == "heading": sheet.cell(row_no, 1, str(block.get("text", ""))).font = sheet.cell(row_no, 1).font.copy(bold=True, size=14 if int(block.get("level", 1)) == 1 else 12); row_no += 2
+        if kind == "heading":
+            cell = sheet.cell(row_no, 1, str(block.get("text", ""))); font = copy(cell.font); font.bold = True; font.sz = 14 if int(block.get("level", 1)) == 1 else 12; cell.font = font; row_no += 2
         elif kind == "paragraph": sheet.cell(row_no, 1, str(block.get("text", ""))); row_no += 2
         elif kind == "key_value":
             for item in block.get("items", []):
-                if isinstance(item, dict): sheet.cell(row_no, 1, str(item.get("label", ""))).font = sheet.cell(row_no, 1).font.copy(bold=True); sheet.cell(row_no, 2, str(item.get("value", ""))); row_no += 1
+                if isinstance(item, dict):
+                    cell = sheet.cell(row_no, 1, str(item.get("label", ""))); font = copy(cell.font); font.bold = True; cell.font = font; sheet.cell(row_no, 2, str(item.get("value", ""))); row_no += 1
             row_no += 1
         elif kind == "table":
             for row in block.get("rows", []):
