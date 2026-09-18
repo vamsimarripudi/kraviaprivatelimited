@@ -67,6 +67,8 @@ def test_worker_processes_bounded_outbox_and_records_heartbeat(worker_db):
         assert heartbeat.last_succeeded_at is not None
         assert heartbeat.last_error_type is None
         assert heartbeat.last_duration_ms is not None
+        assert heartbeat.configured_interval_seconds == 60
+        assert heartbeat.configured_batch_size == 1
 
     second = worker.run_iteration(batch_size=1)
     assert second["outbox"]["waiting_handler"] == 1
