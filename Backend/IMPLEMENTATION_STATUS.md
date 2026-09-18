@@ -107,13 +107,14 @@ Canonical browser surfaces are now:
 ### Application security / operations
 - [x] CSP and browser security headers
 - [x] Trusted-host option and mutation Origin guard
-- [x] Baseline application mutation rate limiter
+- [x] Shared database-backed application mutation rate limiter across replicas, with local development fallback and production fail-closed shared-mode support
 - [x] Secret scanning and blocking high/critical npm dependency audit in CI
 - [x] Next.js 16.3.5 with verified zero npm vulnerabilities
 - [x] Python tests fail on unexpected warnings; known upstream Starlette/AnyIO TestClient deprecation is narrowly suppressed
-- [ ] Shared edge/WAF rate limiting for horizontally scaled production
-- [ ] Production queue/background worker runtime
-- [ ] Monitoring/alerting/SLO/audit-retention stack
+- [ ] Provider edge/WAF abuse controls — external infrastructure gate; application-level cross-replica rate limiting is complete
+- [x] Durable background-worker runtime with distributed advisory locking, bounded outbox processing, heartbeat and failure alerts
+- [x] Runtime monitoring/alerting, SLO-readiness boundaries, worker health, audit-retention policies, legal holds and archive-manifest controls
+- [ ] Deploy the dedicated worker process/service and connect verified external SLO telemetry/archive sink — production operations gates
 - [ ] Final staging penetration/security/accessibility acceptance
 
 ## Verified automated validation
@@ -124,12 +125,12 @@ Latest fully green `main` quality run verified:
 - [x] secret scan
 - [x] ESLint
 - [x] TypeScript typecheck
-- [x] root Vitest suite: **381 tests passed across 80 files**
+- [x] root Vitest suite: **390 tests passed across 82 files**
 - [x] Next.js 16.3.5 production build, including `/office`, `/finance`, Office auth and Office runtime gateway routes
 - [x] Python compilation
 - [x] committed OpenAPI drift verification
-- [x] clean Alembic migration chain through v5
-- [x] Office backend suite: **58 tests passed**
+- [x] clean Alembic migration chain through v8
+- [x] Office backend suite: **70 tests passed**
 - [x] identity token non-disclosure / HttpOnly cookies / TOTP AAL2 / inactive-user / role-admission controls
 - [x] path-workspace role boundaries, legacy redirects, same-origin mutation guard and fixed-origin runtime gateway regression tests
 - [x] period-close, HTTP security, Drive taxonomy, finance/ownership/provider/idempotency, RBAC, governance, audit-chain and document controls
@@ -137,9 +138,9 @@ Latest fully green `main` quality run verified:
 
 ## Deployment state
 
-Repository `main` at `3e3bb3066e8dd7c1113d9c11750b32a141f8190c` is fully green in GitHub Actions: frontend, backend, database-structure and repository-structure gates all passed.
+Repository `main` at `a5176bcf36c1d5d3dc0a043540b738e86bf899f3` is fully green in GitHub Actions: frontend, backend, database-structure and repository-structure gates all passed.
 
-Railway is already connected to `vamsimarripudi/kraviaprivatelimited` with service `kravia-office-api`, branch `main`, root directory `Backend`, Dockerfile `Dockerfile.api`, health check `/health/live` and the Railway domain `kravia-office-api-production.up.railway.app`. The latest running/sleeping deployment is from 17 Sep 2026, not the current `main`; newer Git-linked deployment records are currently marked `SKIPPED`. Therefore do **not** claim the production FastAPI runtime is on the latest commit until a current deployment reaches a successful terminal state.
+Railway is connected to `vamsimarripudi/kraviaprivatelimited` with service `kravia-office-api`, branch `main`, root directory `Backend`, Dockerfile `Dockerfile.api`, pre-deploy `alembic upgrade head`, health check `/health/live`, one configured Singapore replica and the Railway domain `kravia-office-api-production.up.railway.app`. The latest active deployment is still the 17 Sep 2026 sleeping deployment; newer Git-linked records are `SKIPPED`, so current `main` is **not** claimed live on Railway. No dedicated worker service is currently present.
 
 The connected Vercel account available to this audit does not list a project linked to `vamsimarripudi/kraviaprivatelimited`. GitHub nevertheless receives a failing `Vercel` status whose target reports a build-rate-limit condition. Consequently, the older project-specific “Root Directory mismatch” diagnosis is retained only as history, not as current verified state. Live frontend acceptance requires identifying/reconnecting the correct Vercel project/account, verifying its root/build/environment/domain settings, and completing a successful `main` deployment.
 
@@ -157,7 +158,7 @@ The canonical browser remains path-based at `kraviaprivatelimited.com/office` an
 - production private object storage + malware scanner
 - eSign/DSC where required
 - Google Drive runtime service identity
-- production queue/worker, monitoring/alerts/SLOs and shared edge/WAF controls
+- deploy the dedicated production worker service/process; connect verified external SLO telemetry and audit archive sink; configure provider edge/WAF controls
 - enable Supabase leaked-password protection and complete final staging browser/accessibility/security assessment
 
 ## Release rule
