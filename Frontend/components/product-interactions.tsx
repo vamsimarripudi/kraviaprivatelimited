@@ -5,6 +5,10 @@ import { track } from "@vercel/analytics";
 import { useEffect, type ReactNode } from "react";
 
 export type ProductAnalyticsEvent =
+  | "recruitflow_card_viewed"
+  | "recruitflow_product_view"
+  | "recruitflow_cta_clicked"
+  | "recruitflow_contact_clicked"
   | "yukta_product_view"
   | "yukta_explore_clicked"
   | "yukta_contact_clicked"

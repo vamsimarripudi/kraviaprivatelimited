@@ -7,7 +7,7 @@ export const vorioProduct = {
   status: "COMING_SOON",
   public: true,
   href: "/products/vorio",
-  order: 3,
+  order: 4,
   seo: {
     title: "VORIO \u2014 Field Service Dispatch & Execution Platform | Kravia",
     description: "VORIO by Kravia is a field-service dispatch and execution platform being developed for faster technician assignment, SLA visibility, mobile field workflows and customer tracking.",

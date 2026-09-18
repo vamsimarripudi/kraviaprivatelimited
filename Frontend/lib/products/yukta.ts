@@ -7,7 +7,7 @@ export const yuktaProduct = {
   status: "COMING_SOON",
   public: true,
   href: "/products/yukta",
-  order: 2,
+  order: 3,
   seo: {
     title: "YUKTA | Clinic & Hospital Workflow Platform by Kravia",
     description: "YUKTA is Kravia's healthcare operating platform for clinics and hospitals, bringing patient workflows, appointments, queues, clinical operations, billing and administration into one coordinated system.",

@@ -1,3 +1,4 @@
+import { recruitFlowProduct } from "./products/recruitflow";
 import { vidyaLumaProduct } from "./products/vidyaluma";
 import { vorioProduct } from "./products/vorio";
 import { yuktaProduct } from "./products/yukta";
@@ -57,6 +58,7 @@ export const publicCompanyInformation = {
 
 export const publicProducts: readonly KraviaProduct[] = [
   vidyaLumaProduct,
+  recruitFlowProduct,
   yuktaProduct,
   vorioProduct,
 ];
