@@ -323,6 +323,116 @@ export async function syncOfferProposal(offerId: string) {
   return { status: data };
 }
 
+function moneyDisplay(amountMinor: number, currency: string) {
+  try {
+    return new Intl.NumberFormat("en-IN", { style: "currency", currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amountMinor / 100);
+  } catch {
+    return `${currency} ${(amountMinor / 100).toFixed(2)}`;
+  }
+}
+
+export async function createOfferDocumentInstance(offerId: string) {
+  const current = await permission("hiring.offer.prepare");
+  const offerResult = await current.admin.from("office_offer_proposals")
+    .select("id,offer_code,candidate_id,requisition_id,position_code,department_code,reporting_manager_user_id,employment_type,work_mode,work_location,joining_date,grade_code,annual_ctc_minor,monthly_gross_minor,currency,compensation_components,probation_months,variable_pay_note,special_condition_note,valid_until,status,offer_document_instance_id,approved_at")
+    .eq("id", offerId).maybeSingle();
+  if (offerResult.error || !offerResult.data) throw new OfficeRecruitmentError(404, "Offer proposal not found");
+  const offer = offerResult.data;
+  if (offer.status !== "APPROVED") throw new OfficeRecruitmentError(409, "Offer proposal must be independently approved before document generation");
+  if (offer.offer_document_instance_id) return { document_instance_id: offer.offer_document_instance_id, already_exists: true };
+
+  const [candidateResult, managerResult, companyResult] = await Promise.all([
+    current.admin.from("office_candidates").select("id,candidate_code,full_name,email,phone,location_text").eq("id", offer.candidate_id).maybeSingle(),
+    current.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department").eq("user_id", offer.reporting_manager_user_id).maybeSingle(),
+    current.admin.from("legal_entities").select("id,legal_name,cin,registered_office,state_code,status,source_ref,verified_at").eq("id", process.env.KRAVIA_LEGAL_ENTITY_ID?.trim() || "LE-KRAVIA-IN").maybeSingle(),
+  ]);
+  if (candidateResult.error || !candidateResult.data) throw new OfficeRecruitmentError(409, "Candidate snapshot is unavailable for offer generation");
+  if (managerResult.error || !managerResult.data) throw new OfficeRecruitmentError(409, "Reporting manager snapshot is unavailable for offer generation");
+  if (companyResult.error || !companyResult.data) throw new OfficeRecruitmentError(409, "Controlled company master is unavailable for offer generation");
+  const company = companyResult.data;
+  const companyReady = Boolean(company.verified_at)
+    && typeof company.cin === "string" && !company.cin.startsWith("CONTROLLED_")
+    && typeof company.registered_office === "string" && !company.registered_office.toLowerCase().includes("not embedded");
+  if (!companyReady) throw new OfficeRecruitmentError(409, "Controlled company master must be verified before an official offer letter can be generated");
+
+  const candidate = candidateResult.data;
+  const manager = managerResult.data;
+  const snapshot = {
+    company: {
+      legal_name: company.legal_name,
+      cin: company.cin,
+      registered_office: company.registered_office,
+      state_code: company.state_code,
+      legal_entity_id: company.id,
+      verified_at: company.verified_at,
+    },
+    candidate: {
+      candidate_id: candidate.id,
+      candidate_code: candidate.candidate_code,
+      full_name: candidate.full_name,
+      email: candidate.email,
+      phone: candidate.phone,
+      location: candidate.location_text,
+    },
+    employment: {
+      position: offer.position_code,
+      department: offer.department_code,
+      reporting_manager: manager.display_name,
+      reporting_manager_title: manager.job_title,
+      reporting_manager_id: manager.user_id,
+      employment_type: offer.employment_type,
+      work_mode: offer.work_mode,
+      work_location: offer.work_location,
+      joining_date: offer.joining_date,
+      grade: offer.grade_code,
+      probation_months: offer.probation_months,
+    },
+    compensation: {
+      annual_ctc_minor: offer.annual_ctc_minor,
+      monthly_gross_minor: offer.monthly_gross_minor,
+      annual_ctc: moneyDisplay(offer.annual_ctc_minor, offer.currency),
+      monthly_gross: moneyDisplay(offer.monthly_gross_minor, offer.currency),
+      currency: offer.currency,
+      components: offer.compensation_components,
+      variable_pay_note: offer.variable_pay_note,
+    },
+    offer: {
+      offer_id: offer.id,
+      offer_code: offer.offer_code,
+      approved_at: offer.approved_at,
+      valid_until: offer.valid_until,
+      special_condition_note: offer.special_condition_note,
+      prepared_at: new Date().toISOString(),
+    },
+  };
+
+  const created = await current.admin.rpc("office_document_instance_create", {
+    p_actor: current.identity.userId,
+    p_template_code: "HR_OFFER",
+    p_owner: current.identity.userId,
+    p_subject_type: "CANDIDATE",
+    p_subject_ref: candidate.id,
+    p_business_type: "EMPLOYMENT_OFFER",
+    p_business_key: offer.id,
+    p_title: `Offer Letter · ${candidate.full_name} · ${offer.offer_code}`,
+    p_input: snapshot,
+  });
+  if (created.error || typeof created.data !== "string") {
+    throw new OfficeRecruitmentError(409, created.error?.message ?? "Published HR_OFFER template is required before generating offer letters");
+  }
+  const documentInstanceId = created.data;
+  const submitted = await current.admin.rpc("office_document_instance_submit", { p_actor: current.identity.userId, p_instance: documentInstanceId });
+  if (submitted.error) throw new OfficeRecruitmentError(400, submitted.error.message);
+  const attached = await current.admin.rpc("office_offer_attach_document", { p_actor: current.identity.userId, p_offer: offer.id, p_document: documentInstanceId });
+  if (attached.error || attached.data !== true) throw new OfficeRecruitmentError(400, attached.error?.message ?? "Unable to attach generated offer document");
+  return {
+    document_instance_id: documentInstanceId,
+    approval_request_id: typeof submitted.data === "string" ? submitted.data : null,
+    document_status: typeof submitted.data === "string" ? "PENDING_APPROVAL" : "APPROVED",
+    already_exists: false,
+  };
+}
+
 export async function attachOfferDocument(input: { offerId: string; documentInstanceId: string }) {
   const current = await permission("hiring.offer.prepare");
   const { data, error } = await current.admin.rpc("office_offer_attach_document", { p_actor: current.identity.userId, p_offer: input.offerId, p_document: input.documentInstanceId });
