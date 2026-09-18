@@ -21,8 +21,9 @@ function date(value?:string|null){if(!value)return "—";const d=new Date(value)
 
 export function OfficeBillingWorkspace({canCreateInvoice,canRecordReceipt}:{canCreateInvoice:boolean;canRecordReceipt:boolean}){
  const[invoices,setInvoices]=useState<Invoice[]>([]);const[customers,setCustomers]=useState<Customer[]>([]);const[products,setProducts]=useState<Product[]>([]);const[loading,setLoading]=useState(true);const[modal,setModal]=useState<Modal>();const[draft,setDraft]=useState<Record<string,string>>({});const[busy,setBusy]=useState(false);const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();
- const load=useCallback(async()=>{setLoading(true);setError(undefined);try{const [i,c,p]=await Promise.all([runtime<Invoice[]>("invoices"),runtime<Customer[]>("customers"),runtime<Product[]>("products")]);setInvoices(i);setCustomers(c);setProducts(p)}catch(caught){setError(caught instanceof Error?caught.message:"Unable to load billing records")}finally{setLoading(false)}},[]);
- useEffect(()=>{void load()},[load]);
+ const fetchRecords=useCallback(()=>Promise.all([runtime<Invoice[]>("invoices"),runtime<Customer[]>("customers"),runtime<Product[]>("products")]),[]);
+ const load=useCallback(async()=>{setLoading(true);setError(undefined);try{const [i,c,p]=await fetchRecords();setInvoices(i);setCustomers(c);setProducts(p)}catch(caught){setError(caught instanceof Error?caught.message:"Unable to load billing records")}finally{setLoading(false)}},[fetchRecords]);
+ useEffect(()=>{let active=true;void fetchRecords().then(([i,c,p])=>{if(!active)return;setInvoices(i);setCustomers(c);setProducts(p)}).catch(caught=>{if(active)setError(caught instanceof Error?caught.message:"Unable to load billing records")}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[fetchRecords]);
  const customerMap=useMemo(()=>new Map(customers.map(c=>[c.id,c])),[customers]);const productMap=useMemo(()=>new Map(products.map(p=>[p.id,p])),[products]);
 
  async function submit(event:FormEvent<HTMLFormElement>){event.preventDefault();if(!modal)return;setBusy(true);setError(undefined);try{
