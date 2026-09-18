@@ -43,6 +43,7 @@ import { OfficeItService } from "@/components/office-it-service";
 import { OfficePhysicalOffice } from "@/components/office-physical-office";
 import { OfficeNotificationCenter } from "@/components/office-notification-center";
 import { OfficePayrollConsole } from "@/components/office-payroll-console";
+import { OfficePeopleDevelopment } from "@/components/office-people-development";
 import { OfficePresenceControl } from "@/components/office-presence-control";
 import { OfficePrivacyGovernance } from "@/components/office-privacy-governance";
 import { OfficeRecruitmentWorkspace } from "@/components/office-recruitment-workspace";
