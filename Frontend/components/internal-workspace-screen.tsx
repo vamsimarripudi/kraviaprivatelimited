@@ -73,6 +73,7 @@ import { OfficeRecruitmentWorkspace } from "@/components/office-recruitment-work
 import { OfficeProcurementControl } from "@/components/office-procurement-control";
 import { OfficeQualityWorkspace } from "@/components/office-quality";
 import { OfficeReadiness } from "@/components/office-readiness";
+import { OfficeOperationsMonitoring } from "@/components/office-operations-monitoring";
 import { OfficeRegistrationRegistry } from "@/components/office-registration-registry";
 import { OfficeAuditExplorer } from "@/components/office-audit-explorer";
 import { OfficeResilienceWorkspace } from "@/components/office-resilience";
@@ -187,7 +188,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "resilience" ? <OfficeResilienceWorkspace />
           : workspace === "office" && section === "security" ? <OfficeSecurityOverview />
           : workspace === "office" && section === "ai" ? <OfficeAiGovernance />
-          : workspace === "office" && section === "readiness" ? <OfficeReadiness />
+          : workspace === "office" && section === "readiness" ? <><OfficeReadiness /><OfficeOperationsMonitoring canEvaluate={identity.roles.some((role) => role === "OWNER" || role === "DIRECTOR" || role === "OPERATIONS")} /></>
           : workspace === "office" && section === "integrations" ? <OfficeEmbedRegistry />
           : workspace === "office" && section === "domains" ? <OfficeDomainControl />
           : workspace === "office" && section === "custody" ? <OfficeSecureCustody />
