@@ -4,15 +4,15 @@
 
 Latest fully green quality run:
 
-- Root application: **18 Vitest files / 64 tests passed**.
-- Office backend: **36 pytest tests passed**.
+- Root application: **79 Vitest files / 379 tests passed**.
+- Office backend: **58 pytest tests passed**.
 - Office quality gate: **PASS**.
 - `npm ci`: **0 vulnerabilities**.
 - Blocking `npm audit --audit-level=high`: **0 vulnerabilities**.
 - ESLint, TypeScript typecheck, secret scan and Next.js 16.3.5 production build: **PASS**.
 - Python compile, OpenAPI drift verification and clean Alembic migration chain through v5: **PASS**.
 
-The production Next build explicitly contains `/office`, `/office/login`, `/office/[section]`, `/finance`, `/finance/login`, `/finance/[section]`, `/admin/login`, `/api/office-auth/*` and `/api/office-runtime/[...path]`.
+The production Next build explicitly contains `/office`, `/office/login`, `/office/[section]`, `/finance`, `/finance/login`, `/finance/[section]`, `/admin/login`, Office auth APIs and runtime gateways. Route audit additionally confirms **50/50 Office sections and 20/20 Finance sections have specialised surfaces with zero generic section fallbacks**.
 
 Pytest treats unexpected warnings as errors. The known upstream Starlette/AnyIO TestClient deprecation remains narrowly suppressed because it originates in the dependency rather than KRAVIA code.
 
@@ -31,7 +31,7 @@ Crawler/sitemap tests additionally verify that `/office` and `/finance` are priv
 
 ## Office backend coverage
 
-The 36-test backend suite verifies, among other controls:
+The 58-test backend suite verifies, among other controls:
 
 - customer → invoice → payment → receipt → GST working summary;
 - same-state CGST/SGST and inter-state IGST;
@@ -92,19 +92,22 @@ Supabase Auth/RBAC provisioning remains separate in `spec/identity/SUPABASE_IDEN
 
 ## Deployment validation
 
-Source-controlled Vercel framework configuration is now explicit through root `vercel.json` with `framework: "nextjs"`.
+The production code path is validated independently from provider deployment state.
 
-The connected Vercel project was then proven to have a separate project-level Root Directory mismatch: once the framework override was read, Vercel attempted a Next.js build but reported that it could not find the repository-root `package.json`/Next.js dependency from the configured Root Directory. This is a deployment-project setting, not a source-build failure.
+- GitHub Actions on current `main`: frontend, backend, database-structure and repository-structure gates **PASS**.
+- Next.js production build: **PASS**, including the private Office/Finance route families and their specialised sections.
+- Railway: an existing `kravia-office-api` service is linked to this repository with `Backend` root, `Dockerfile.api`, `/health/live`, production OIDC/database variable names and a Railway service domain. Its last active deployment predates current `main`; newer Git-linked deployments are marked `SKIPPED`, so current-backend deployment acceptance remains open.
+- Vercel: the currently connected Vercel account does not expose a project linked to this repository, while GitHub still receives a Vercel build-rate-limit failure status. Current Vercel project/root/environment/domain configuration is therefore **unverified**, not assumed from older deployment incidents.
 
-The local/CI Next production build is authoritative evidence that the route tree compiles. Live Vercel path validation must be repeated after the project Root Directory is set to the repository root and required production environment variables/domains are configured.
+A green local/CI build proves source correctness, not live-provider acceptance.
 
 ## Not claimed as complete without production evidence
 
 Automated tests do not fabricate production acceptance for:
 
 - first human TOTP enrollment and live AAL2 session;
-- Vercel Root Directory/environment/domain configuration;
-- production FastAPI runtime hosting and `OFFICE_API_ORIGIN`;
+- current Vercel project/account linkage, build/environment/domain configuration and successful production deployment;
+- current-main Railway backend deployment and accepted frontend `OFFICE_API_ORIGIN`;
 - full all-role IDOR/BOLA acceptance using production-like identities;
 - production PostgreSQL concurrency/failover/backups/PITR restore;
 - live Razorpay/RazorpayX/payment-provider eligibility and settlements;
