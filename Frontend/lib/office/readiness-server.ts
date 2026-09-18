@@ -1,5 +1,7 @@
 import "server-only";
 
+import { readOfficeRuntimeResult } from "@/lib/office/runtime-read-server";
+
 import { OfficePermissionError, requireOfficeActor } from "@/lib/office/permission-engine";
 
 export class OfficeReadinessError extends Error {
