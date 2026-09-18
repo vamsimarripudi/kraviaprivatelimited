@@ -62,6 +62,7 @@ import { OfficeReadiness } from "@/components/office-readiness";
 import { OfficeResilienceWorkspace } from "@/components/office-resilience";
 import { OfficeSecurityOverview } from "@/components/office-security-overview";
 import { OfficeSecuritySettings } from "@/components/office-security-settings";
+import { OfficeSecureCustody } from "@/components/office-secure-custody";
 import { OfficeSupportOperations } from "@/components/office-support-operations";
 import { OfficeStrategyWorkspace } from "@/components/office-strategy";
 import { OfficeWorkHub } from "@/components/office-work-hub";
@@ -157,6 +158,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "readiness" ? <OfficeReadiness />
           : workspace === "office" && section === "integrations" ? <OfficeEmbedRegistry />
           : workspace === "office" && section === "domains" ? <OfficeDomainControl />
+          : workspace === "office" && section === "custody" ? <OfficeSecureCustody />
           : workspace === "office" && section === "settings" ? <OfficeSecuritySettings identity={identity} />
           : workspace === "finance" && section === "cards" ? <OfficeCorporateCards />
           : workspace === "finance" && section === "insurance" ? <OfficeResilienceWorkspace mode="insurance" />
