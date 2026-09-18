@@ -262,6 +262,17 @@ begin
  if p_predecessor=p_successor then raise exception 'Milestone cannot depend on itself'; end if;
  if not exists(select 1 from public.office_portfolio_milestones where id=p_predecessor and project_id=p.id)
     or not exists(select 1 from public.office_portfolio_milestones where id=p_successor and project_id=p.id) then raise exception 'Both milestones must belong to the project'; end if;
+ if exists(
+   with recursive path(node_id) as (
+     select p_successor
+     union
+     select d.successor_milestone_id
+     from public.office_portfolio_dependencies d
+     join path on d.predecessor_milestone_id=path.node_id
+     where d.project_id=p.id
+   )
+   select 1 from path where node_id=p_predecessor
+ ) then raise exception 'Milestone dependency would create a cycle'; end if;
  insert into public.office_portfolio_dependencies(project_id,predecessor_milestone_id,successor_milestone_id,note,created_by)
  values(p.id,p_predecessor,p_successor,nullif(trim(coalesce(p_note,'')),''),p_actor) returning id into v_id;
  insert into public.office_portfolio_events(actor_user_id,project_id,milestone_id,event_type,metadata) values(p_actor,p.id,p_successor,'MILESTONE_DEPENDENCY_CREATED',jsonb_build_object('predecessor_milestone_id',p_predecessor));
