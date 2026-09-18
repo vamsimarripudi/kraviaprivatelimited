@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 
 from .database import Base, engine, get_db
-from .models import LegalEntity, Product, Customer, Invoice, Payment, Receipt, IdempotencyRecord, AuditEvent, WorkflowRun, ComplianceObligation, DomainEvent, ChartAccount, JournalEntry, JournalLine, BoardMeeting, Resolution, AuthorityGrant, Vendor, Contract, Employee, OfficeAsset, Document, DocumentVersion, CommercialPlan, Subscription, CreditNote, Refund, BankAccount, BankTransaction, Settlement, ApprovalRequest, NoticeCase, InspectionCase, IntegrationRecord
+from .models import LegalEntity, Product, Customer, Invoice, Payment, Receipt, IdempotencyRecord, AuditEvent, WorkflowRun, ComplianceObligation, DomainEvent, ChartAccount, JournalEntry, JournalLine, BoardMeeting, Resolution, AuthorityGrant, Vendor, Contract, Employee, OfficeAsset, Document, DocumentVersion, CommercialPlan, Subscription, CreditNote, Refund, BankAccount, BankTransaction, Settlement, ApprovalRequest, NoticeCase, InspectionCase, IntegrationRecord, OperationalAlert
 from .schemas import CustomerCreate, ProductCreate, InvoiceCreate, PaymentCreate, ComplianceCreate, BoardMeetingCreate, ResolutionCreate, AuthorityCreate, VendorCreate, ContractCreate, EmployeeCreate, AssetCreate, PlanCreate, SubscriptionCreate, CreditNoteCreate, RefundCreate, BankAccountCreate, BankTransactionCreate, SettlementCreate, ApprovalCreate, ApprovalDecision, NoticeCreate, InspectionCreate, IntegrationCreate
 from .services import uid, paise, rupees, now_utc, allocate_invoice_no, allocate_controlled_no, audit, workflow, emit_event, post_journal, ENTITY_ID
 from .documents import invoice_pdf, receipt_pdf, ctc_pdf
@@ -737,6 +737,216 @@ def create_integration(payload: IntegrationCreate, db: Session=Depends(get_db), 
     if len(safe_config)!=len(payload.config): raise HTTPException(422,"Secrets must be stored in the approved secret manager; registry accepts references only")
     row=IntegrationRecord(id=uid("INT"),provider=payload.provider,integration_type=payload.integration_type,environment=payload.environment,status=payload.status,owner=payload.owner,config_json=json.dumps(safe_config,sort_keys=True))
     db.add(row); audit(db,ctx["actor"],ctx["role"],"integration.registered","integration",row.id,{"provider":row.provider,"type":row.integration_type,"status":row.status},"CONTROL"); db.commit(); return {"id":row.id,"provider":row.provider,"integration_type":row.integration_type,"environment":row.environment,"status":row.status,"owner":row.owner,"config":safe_config}
+
+def _operational_alert_json(row: OperationalAlert) -> dict:
+    return {
+        "id": row.id,
+        "alert_key": row.alert_key,
+        "category": row.category,
+        "severity": row.severity,
+        "title": row.title,
+        "entity_type": row.entity_type,
+        "entity_id": row.entity_id,
+        "due_date": row.due_date,
+        "status": row.status,
+        "detail": json.loads(row.detail_json or "{}"),
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "resolved_at": row.resolved_at.isoformat() if row.resolved_at else None,
+    }
+
+
+def _integer_env(name: str, default: int) -> int:
+    try:
+        value = int(os.getenv(name, str(default)))
+        return value if value >= 0 else default
+    except ValueError:
+        return default
+
+
+def _runtime_operations_snapshot(db: Session) -> dict:
+    alerts = db.execute(select(OperationalAlert).order_by(OperationalAlert.created_at.desc())).scalars().all()
+    open_alerts = [row for row in alerts if str(row.status).upper() not in {"RESOLVED", "CLOSED"}]
+    integrations = db.execute(select(IntegrationRecord).order_by(IntegrationRecord.provider)).scalars().all()
+    production_integrations = [row for row in integrations if str(row.environment).lower() == "production"]
+    ready_states = {"ACTIVE", "READY", "CONNECTED", "VERIFIED", "OPERATIONAL"}
+    integration_attention = [row for row in production_integrations if str(row.status).upper() not in ready_states]
+    events = db.execute(select(DomainEvent).order_by(DomainEvent.created_at.asc())).scalars().all()
+    pending_events = [row for row in events if str(row.status).upper() == "PENDING"]
+    workflows = db.execute(select(WorkflowRun).order_by(WorkflowRun.started_at.desc())).scalars().all()
+    failed_workflows = [row for row in workflows if str(row.status).upper() in {"FAILED", "ERROR", "DEAD_LETTER"}]
+    latest_audit = db.execute(select(AuditEvent).order_by(AuditEvent.occurred_at.desc(), AuditEvent.id.desc())).scalars().first()
+    telemetry_source = os.getenv("KRAVIA_SLO_TELEMETRY_SOURCE", "").strip() or None
+    availability_target = os.getenv("KRAVIA_SLO_AVAILABILITY_TARGET_PERCENT", "99.9").strip()
+    latency_target = _integer_env("KRAVIA_SLO_LATENCY_P95_TARGET_MS", 1000)
+    return {
+        "generated_at": now_utc().isoformat(),
+        "alerts": {
+            "total": len(alerts),
+            "open": len(open_alerts),
+            "high_critical": len([row for row in open_alerts if str(row.severity).upper() in {"HIGH", "CRITICAL"}]),
+        },
+        "event_outbox": {
+            "pending": len(pending_events),
+            "oldest_pending_at": pending_events[0].created_at.isoformat() if pending_events and pending_events[0].created_at else None,
+            "alert_threshold": _integer_env("KRAVIA_OUTBOX_ALERT_THRESHOLD", 25),
+        },
+        "workflows": {
+            "total": len(workflows),
+            "failed": len(failed_workflows),
+            "alert_threshold": _integer_env("KRAVIA_WORKFLOW_FAILURE_ALERT_THRESHOLD", 1),
+        },
+        "integrations": {
+            "production": len(production_integrations),
+            "ready": len(production_integrations) - len(integration_attention),
+            "attention": len(integration_attention),
+        },
+        "audit": {
+            "events": db.scalar(select(func.count()).select_from(AuditEvent)) or 0,
+            "latest_at": latest_audit.occurred_at.isoformat() if latest_audit and latest_audit.occurred_at else None,
+        },
+        "slo": {
+            "availability_target_percent": availability_target,
+            "latency_p95_target_ms": latency_target,
+            "telemetry_source": telemetry_source,
+            "measurement_status": "SOURCE_DECLARED" if telemetry_source else "NOT_CONNECTED",
+            "measured_availability_percent": None,
+            "measured_latency_p95_ms": None,
+            "note": "Targets are policy configuration only. KRAVIA Office does not claim measured SLO attainment until an external telemetry source is connected and verified.",
+        },
+        "source": "KRAVIA Office backend-owned runtime records; no fabricated uptime, latency or provider state",
+    }
+
+
+def _set_operational_alert(
+    db: Session,
+    *,
+    alert_key: str,
+    category: str,
+    severity: str,
+    title: str,
+    entity_type: str,
+    entity_id: str,
+    active: bool,
+    detail: dict,
+) -> str | None:
+    row = db.execute(select(OperationalAlert).where(OperationalAlert.alert_key == alert_key)).scalar_one_or_none()
+    if active:
+        payload = json.dumps(detail, sort_keys=True, default=str)
+        if row is None:
+            row = OperationalAlert(
+                id=uid("ALT"),
+                alert_key=alert_key,
+                category=category,
+                severity=severity,
+                title=title,
+                entity_type=entity_type,
+                entity_id=entity_id,
+                status="OPEN",
+                detail_json=payload,
+            )
+            db.add(row)
+            return "OPENED"
+        row.category = category
+        row.severity = severity
+        row.title = title
+        row.entity_type = entity_type
+        row.entity_id = entity_id
+        row.detail_json = payload
+        if str(row.status).upper() in {"RESOLVED", "CLOSED"}:
+            row.status = "OPEN"
+            row.resolved_at = None
+            return "REOPENED"
+        return None
+    if row is not None and str(row.status).upper() not in {"RESOLVED", "CLOSED"}:
+        row.status = "RESOLVED"
+        row.resolved_at = now_utc()
+        return "RESOLVED"
+    return None
+
+
+@app.get("/api/v1/operations/summary")
+def operations_summary(
+    db: Session = Depends(get_db),
+    ctx=Depends(require_roles("OWNER", "DIRECTOR", "OPERATIONS", "AUDITOR")),
+):
+    return _runtime_operations_snapshot(db)
+
+
+@app.get("/api/v1/operations/alerts")
+def operations_alerts(
+    db: Session = Depends(get_db),
+    ctx=Depends(require_roles("OWNER", "DIRECTOR", "OPERATIONS", "AUDITOR")),
+    status: str | None = Query(default=None),
+):
+    query = select(OperationalAlert).order_by(OperationalAlert.created_at.desc())
+    if status:
+        query = query.where(OperationalAlert.status == status.upper())
+    return [_operational_alert_json(row) for row in db.execute(query).scalars()]
+
+
+@app.post("/api/v1/operations/evaluate")
+def evaluate_operations(
+    db: Session = Depends(get_db),
+    ctx=Depends(require_roles("OWNER", "DIRECTOR", "OPERATIONS")),
+):
+    snapshot = _runtime_operations_snapshot(db)
+    changes: list[dict[str, str]] = []
+    conditions = [
+        {
+            "alert_key": "runtime:event-outbox-backlog",
+            "category": "AUTOMATION",
+            "severity": "HIGH",
+            "title": "Domain-event outbox backlog requires review",
+            "entity_type": "event_outbox",
+            "entity_id": "runtime",
+            "active": snapshot["event_outbox"]["pending"] >= snapshot["event_outbox"]["alert_threshold"] and snapshot["event_outbox"]["alert_threshold"] > 0,
+            "detail": {"pending": snapshot["event_outbox"]["pending"], "threshold": snapshot["event_outbox"]["alert_threshold"]},
+        },
+        {
+            "alert_key": "runtime:workflow-failures",
+            "category": "WORKFLOW",
+            "severity": "HIGH",
+            "title": "Failed workflow runs require review",
+            "entity_type": "workflow_runs",
+            "entity_id": "runtime",
+            "active": snapshot["workflows"]["failed"] >= snapshot["workflows"]["alert_threshold"] and snapshot["workflows"]["alert_threshold"] > 0,
+            "detail": {"failed": snapshot["workflows"]["failed"], "threshold": snapshot["workflows"]["alert_threshold"]},
+        },
+        {
+            "alert_key": "runtime:integration-readiness",
+            "category": "INTEGRATION",
+            "severity": "HIGH",
+            "title": "Production integrations are not in a ready state",
+            "entity_type": "integration_registry",
+            "entity_id": "production",
+            "active": snapshot["integrations"]["attention"] > 0,
+            "detail": {"production": snapshot["integrations"]["production"], "attention": snapshot["integrations"]["attention"]},
+        },
+        {
+            "alert_key": "runtime:slo-telemetry",
+            "category": "OBSERVABILITY",
+            "severity": "HIGH",
+            "title": "Production SLO telemetry source is not connected",
+            "entity_type": "slo_telemetry",
+            "entity_id": "backend",
+            "active": APP_ENV == "production" and snapshot["slo"]["measurement_status"] == "NOT_CONNECTED",
+            "detail": {
+                "availability_target_percent": snapshot["slo"]["availability_target_percent"],
+                "latency_p95_target_ms": snapshot["slo"]["latency_p95_target_ms"],
+                "measurement_status": snapshot["slo"]["measurement_status"],
+            },
+        },
+    ]
+    for condition in conditions:
+        action = _set_operational_alert(db, **condition)
+        if action:
+            changes.append({"alert_key": condition["alert_key"], "action": action})
+    if changes:
+        audit(db, ctx["actor"], ctx["role"], "operations.alerts.evaluated", "operations", "runtime", {"changes": changes}, "CONTROL")
+        emit_event(db, "operations.alerts.changed", "operations", "runtime", {"changes": changes})
+    db.commit()
+    return {"changes": changes, "summary": _runtime_operations_snapshot(db)}
+
 
 @app.get("/api/v1/command-center")
 def command_center(db: Session=Depends(get_db), ctx=Depends(actor_context)):

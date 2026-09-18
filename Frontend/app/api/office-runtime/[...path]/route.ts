@@ -34,6 +34,7 @@ const ALLOWED_ROOTS = new Set([
   "inspections",
   "approvals",
   "integrations",
+  "operations",
   "audit",
 ]);
 
