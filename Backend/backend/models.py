@@ -562,5 +562,7 @@ class WorkerHeartbeat(Base):
     last_failed_at = Column(DateTime(timezone=True), nullable=True)
     last_error_type = Column(String, nullable=True)
     last_duration_ms = Column(Integer, nullable=True)
+    configured_interval_seconds = Column(Integer, nullable=True)
+    configured_batch_size = Column(Integer, nullable=True)
     last_result_json = Column(Text, nullable=False, default="{}")
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
