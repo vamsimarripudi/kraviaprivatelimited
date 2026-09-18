@@ -30,7 +30,7 @@ const requirements: Record<string, readonly string[]> = {
   "office:documents": ["document.template.read", "document.template.manage", "document.template.publish", "document.instance.read", "document.instance.review", "document.render", "document.hr.create", "document.secretarial.create", "document.legal.create", "document.sales.create", "document.operations.create"],
   "office:contracts": ["legal.contract.review", "legal.contract.draft", "legal.contract.execute", "legal.obligation.read", "legal.obligation.manage", "legal.obligation.review"],
   "office:vendors": ["operations.vendor.create", "operations.vendor.approve", "operations.purchase.request", "operations.purchase.approve", "operations.procurement.read", "operations.procurement.prepare", "operations.po.issue", "operations.receipt.record", "operations.renewal.manage"],
-  "office:assets": ["operations.asset.assign"],
+  "office:assets": ["operations.asset.read", "operations.asset.manage", "operations.asset.wipe", "operations.asset.dispose", "operations.asset.assign"],
   "office:devices": ["identity.card.read", "identity.card.manage", "device.posture.read", "device.posture.manage", "physical.access.read", "physical.access.manage"],
   "office:it": ["it.service.request", "it.service.read", "it.service.manage", "it.license.read", "it.license.manage"],
   "office:facilities": ["facilities.room.read", "facilities.room.book", "visitor.invite", "visitor.manage", "facilities.issue.report", "facilities.manage"],
