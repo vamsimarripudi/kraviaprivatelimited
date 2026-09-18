@@ -53,11 +53,11 @@ export async function getAiGovernanceOverview(){
   if(!capabilities.tool_read&&!capabilities.use_request&&!capabilities.use_read)throw new OfficeAiGovernanceError(403,"AI Governance is not assigned to your current authority");
   const current=capabilities.use_read?await authority("ai.use.read"):await authority("ai.tool.read");
 
-  const tools=capabilities.tool_read
-    ? await current.admin.from("office_ai_tools")
-        .select("id,tool_code,provider_name,tool_name,purpose,external_service,allowed_data_classes,prohibited_data_classes,retention_policy,provider_training_policy,data_residency,privacy_security_reference,human_review_required,status,owner_user_id,created_by,reviewed_by,reviewed_at,review_note,expires_on,created_at,updated_at")
-        .order("provider_name").limit(500)
-    : {data:[],error:null};
+  let toolsQuery=current.admin.from("office_ai_tools")
+    .select("id,tool_code,provider_name,tool_name,purpose,external_service,allowed_data_classes,prohibited_data_classes,retention_policy,provider_training_policy,data_residency,privacy_security_reference,human_review_required,status,owner_user_id,created_by,reviewed_by,reviewed_at,review_note,expires_on,created_at,updated_at")
+    .order("provider_name").limit(500);
+  if(!capabilities.tool_manage&&!capabilities.tool_review)toolsQuery=toolsQuery.eq("status","APPROVED");
+  const tools=capabilities.tool_read?await toolsQuery:{data:[],error:null};
   fail(tools.error,"AI tool registry is temporarily unavailable");
 
   let useQuery=current.admin.from("office_ai_use_cases")
