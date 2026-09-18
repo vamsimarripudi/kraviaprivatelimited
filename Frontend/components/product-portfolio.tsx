@@ -19,9 +19,9 @@ export async function ProductPortfolio({ products }: { products?: readonly Publi
     {portfolio.map((product) => {
       const status = productStatus(product.state);
       const label = `Explore ${product.name}`;
-      const analyticsEvent = product.id === "vidyaluma" ? "vidyaluma_card_viewed" as const : product.id === "vorio" ? "vorio_card_viewed" as const : null;
-      const ctaEvent = product.id === "vidyaluma" ? "vidyaluma_cta_clicked" as const : product.id === "vorio" ? "vorio_cta_clicked" as const : null;
-      const hasAttribution = product.id === "vidyaluma" || product.id === "vorio";
+      const analyticsEvent = product.id === "vidyaluma" ? "vidyaluma_card_viewed" as const : product.id === "recruitflow" ? "recruitflow_card_viewed" as const : product.id === "vorio" ? "vorio_card_viewed" as const : null;
+      const ctaEvent = product.id === "vidyaluma" ? "vidyaluma_cta_clicked" as const : product.id === "recruitflow" ? "recruitflow_cta_clicked" as const : product.id === "vorio" ? "vorio_cta_clicked" as const : null;
+      const hasAttribution = product.id === "vidyaluma" || product.id === "recruitflow" || product.id === "vorio";
       return <Card key={product.id} variant="product" interactive>
         {analyticsEvent && <ProductAnalytics event={analyticsEvent} product={product.id} />}
         <CardHeader><p className="eyebrow">{product.category}</p><Badge tone={status.tone}>{status.label}</Badge></CardHeader>
