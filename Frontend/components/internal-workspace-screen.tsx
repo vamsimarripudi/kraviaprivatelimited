@@ -136,6 +136,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "facilities" ? <OfficePhysicalOffice />
           : workspace === "office" && section === "recruitment" ? <OfficeRecruitmentWorkspace />
           : workspace === "office" && section === "people" ? <><WorkforceLiveOverview /><OfficeWorkforceLifecycle /><OfficeOrganizationChart /></>
+          : workspace === "office" && section === "emergency" ? <OfficeEmergencyContacts />
           : workspace === "office" && section === "development" ? <OfficePeopleDevelopment />
           : workspace === "office" && section === "travel" ? <OfficeTravelWorkspace />
           : workspace === "office" && section === "cards" ? <OfficeCorporateCards />
@@ -148,6 +149,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "quality" ? <OfficeQualityWorkspace />
           : workspace === "office" && section === "ethics" ? <OfficeEthicsChannel />
           : workspace === "finance" && section === "ethics" ? <OfficeEthicsChannel />
+          : workspace === "finance" && section === "emergency" ? <OfficeEmergencyContacts />
           : workspace === "finance" && section === "ai" ? <OfficeAiGovernance />
           : workspace === "office" && section === "resilience" ? <OfficeResilienceWorkspace />
           : workspace === "office" && section === "security" ? <OfficeSecurityOverview />
