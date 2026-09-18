@@ -75,7 +75,7 @@ export async function getStrategyOverview(){
   fail(keyResults.error,"Strategy key results are temporarily unavailable");
 
   const people=(capabilities.manage||capabilities.review||capabilities.progress_update)
-    ? (current.department
+    ? await (current.department
         ? current.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").eq("status","ACTIVE").eq("primary_department",current.department).order("display_name")
         : current.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").eq("status","ACTIVE").order("display_name").limit(3000))
     : {data:[],error:null};
