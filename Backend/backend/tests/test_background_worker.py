@@ -19,7 +19,10 @@ def worker_db(tmp_path, monkeypatch):
     Base.metadata.create_all(bind=engine)
     session_factory = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
     monkeypatch.setattr(worker, "SessionLocal", session_factory)
-    return session_factory
+    try:
+        yield session_factory
+    finally:
+        engine.dispose()
 
 
 def test_worker_processes_bounded_outbox_and_records_heartbeat(worker_db):
