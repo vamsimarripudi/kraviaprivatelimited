@@ -72,6 +72,8 @@ import { OfficeRecruitmentWorkspace } from "@/components/office-recruitment-work
 import { OfficeProcurementControl } from "@/components/office-procurement-control";
 import { OfficeQualityWorkspace } from "@/components/office-quality";
 import { OfficeReadiness } from "@/components/office-readiness";
+import { OfficeRegistrationRegistry } from "@/components/office-registration-registry";
+import { OfficeAuditExplorer } from "@/components/office-audit-explorer";
 import { OfficeResilienceWorkspace } from "@/components/office-resilience";
 import { OfficeSecurityOverview } from "@/components/office-security-overview";
 import { OfficeSecuritySettings } from "@/components/office-security-settings";
@@ -170,6 +172,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "cards" ? <OfficeCorporateCards />
           : workspace === "office" && section === "governance" ? <OfficeBoardWorkspace />
           : workspace === "office" && section === "compliance" ? <OfficeApplicabilityEngine />
+          : workspace === "office" && section === "registrations" ? <OfficeRegistrationRegistry />
           : workspace === "office" && section === "vendors" ? <OfficeProcurementControl />
           : workspace === "office" && section === "support" ? <OfficeSupportOperations />
           : workspace === "office" && section === "data" ? <OfficeDataMovement />
@@ -187,6 +190,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "integrations" ? <OfficeEmbedRegistry />
           : workspace === "office" && section === "domains" ? <OfficeDomainControl />
           : workspace === "office" && section === "custody" ? <OfficeSecureCustody />
+          : workspace === "office" && section === "audit" ? <OfficeAuditExplorer />
           : workspace === "office" && section === "settings" ? <OfficeSecuritySettings identity={identity} />
           : workspace === "finance" && section === "cards" ? <OfficeCorporateCards />
           : workspace === "finance" && section === "insurance" ? <OfficeResilienceWorkspace mode="insurance" />
