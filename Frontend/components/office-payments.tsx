@@ -139,6 +139,7 @@ export function OfficePaymentsWorkspace({
   const [draft, setDraft] = useState<Draft>({});
   const [notice, setNotice] = useState<string>();
   const [error, setError] = useState<string>();
+  const [referenceNow, setReferenceNow] = useState(0);
 
   const fetchRecords = useCallback(() => Promise.all([
     runtime<PaymentInstruction[]>("finance/payment-instructions"),
@@ -152,6 +153,7 @@ export function OfficePaymentsWorkspace({
     setReadiness(nextReadiness);
     setApprovals(nextApprovals);
     setExpenses(nextExpenses);
+    setReferenceNow(Date.now());
   }, []);
 
   const load = useCallback(async () => {
@@ -309,7 +311,7 @@ export function OfficePaymentsWorkspace({
         <div className={styles.cards}>
           {instructions.map((instruction) => {
             const approval = approvalByInstruction.get(instruction.id);
-            const scheduledFuture = Boolean(instruction.scheduled_for && Date.parse(instruction.scheduled_for) > Date.now());
+            const scheduledFuture = Boolean(instruction.scheduled_for && Date.parse(instruction.scheduled_for) > referenceNow);
             return <article className={styles.card} key={instruction.id}>
               <header><div><small>{instruction.direction} · {instruction.provider}</small><h4>{money(instruction.amount)}</h4></div><em data-status={instruction.status}>{instruction.status}</em></header>
               <dl>
