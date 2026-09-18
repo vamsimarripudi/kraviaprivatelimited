@@ -5,12 +5,12 @@
 Latest fully green quality run:
 
 - Root application: **82 Vitest files / 390 tests passed**.
-- Office backend: **70 pytest tests passed**.
+- Office backend: **75 pytest tests passed**.
 - Office quality gate: **PASS**.
 - `npm ci`: **0 vulnerabilities**.
 - Blocking `npm audit --audit-level=high`: **0 vulnerabilities**.
 - ESLint, TypeScript typecheck, secret scan and Next.js 16.3.5 production build: **PASS**.
-- Python compile, OpenAPI drift verification and clean Alembic migration chain through v8: **PASS**.
+- Python compile, OpenAPI drift verification and clean Alembic migration chain through v9: **PASS**.
 
 The production Next build explicitly contains `/office`, `/office/login`, `/office/[section]`, `/finance`, `/finance/login`, `/finance/[section]`, `/admin/login`, Office auth APIs and runtime gateways. Route audit additionally confirms **50/50 Office sections and 20/20 Finance sections have specialised surfaces with zero generic section fallbacks**.
 
@@ -73,7 +73,7 @@ The dedicated `KRAVIA Office` Supabase project (`xjtazosozxmudkbxqhjl`, `ap-sout
 - registration tables have RLS enabled, anon/authenticated SELECT denied and service-role SELECT enabled;
 - registration lifecycle functions are SECURITY INVOKER, browser EXECUTE denied and service-role EXECUTE enabled;
 - `office_identity_create_person()` and `office_sync_employment_identity()` no longer expose SECURITY DEFINER EXECUTE to PUBLIC/anon/authenticated; service-role execution remains explicit;
-- all 52 legacy FastAPI tables currently lacking RLS were checked with effective `has_table_privilege`: anon/authenticated have no SELECT/INSERT/UPDATE/DELETE on any of them;
+- all 52 legacy FastAPI tables are owned by `kravia_office_backend`, RLS-enabled, and expose zero anon/authenticated CRUD;
 - the dedicated `kravia_office_backend` role has effective CRUD on all 52 legacy FastAPI tables;
 - production runtime and Alembic transactions are constrained with `SET LOCAL ROLE kravia_office_backend`;
 - the five Alembic v6-v9 service tables are owned by the backend role, RLS-enabled, and deny anon/authenticated CRUD.
@@ -82,7 +82,7 @@ Current Supabase security-advisor residuals are not reported as solved:
 
 - **WARN:** leaked-password protection is disabled in Supabase Auth;
 - **INFO:** many service-role-only Office tables have RLS enabled with no browser policies by design;
-- **hardening backlog:** 52 legacy FastAPI tables remain RLS-disabled, but anon/authenticated have zero effective CRUD and production execution is constrained to the dedicated backend role; any RLS rollout remains a staged defense-in-depth change.
+- **RLS hardening:** the 52 legacy FastAPI tables are now RLS-enabled with zero browser CRUD; informational no-policy findings are expected for service-only tables and must not be silenced with permissive policies.
 
 The remaining human identity acceptance step is first OWNER TOTP enrollment and verification of the resulting `aal2` session through `/office/login`.
 
@@ -122,7 +122,7 @@ Automated tests do not fabricate production acceptance for:
 - current Vercel project/account linkage, build/environment/domain configuration and successful production deployment;
 - accepted frontend `OFFICE_API_ORIGIN` and end-to-end browser→BFF→Railway verification;
 - Supabase Auth leaked-password protection;
-- staged defense-in-depth RLS enforcement for the 52 legacy FastAPI tables;
+
 - full all-role IDOR/BOLA acceptance using production-like identities;
 - production PostgreSQL concurrency/failover/backups/PITR restore;
 - live Razorpay/RazorpayX/payment-provider eligibility and settlements;
