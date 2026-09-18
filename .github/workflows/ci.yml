@@ -100,6 +100,19 @@ jobs:
           done
           echo "Container liveness check failed" >&2
           exit 1
+      - name: Build background worker container
+        run: docker build --file Dockerfile.worker --tag kravia-office-worker:ci .
+      - name: Smoke test background worker one-shot
+        shell: bash
+        run: |
+          output=$(docker run --rm \
+            --entrypoint python \
+            -e APP_ENV=development \
+            -e DATABASE_URL=sqlite:////tmp/kravia-office-worker-ci.db \
+            kravia-office-worker:ci \
+            -m backend.worker --once --batch-size 25)
+          echo "$output"
+          echo "$output" | grep '"status": "COMPLETED"'
 
   database-structure:
     name: Database structure
