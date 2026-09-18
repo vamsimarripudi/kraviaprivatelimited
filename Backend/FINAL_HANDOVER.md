@@ -44,7 +44,7 @@ Crawler/sitemap controls also classify `/office`, `/finance`, `/admin`, `/api`, 
 
 ## Included executable capabilities
 
-- FastAPI API with SQLAlchemy persistence and Alembic migrations through v5
+- FastAPI API with SQLAlchemy persistence and Alembic migrations through v8
 - PostgreSQL-ready configuration
 - production OIDC/JWT verification with mandatory `aal2`
 - root Next.js `/office` and `/finance` role-scoped workspaces
@@ -64,7 +64,10 @@ Crawler/sitemap controls also classify `/office`, `/finance`, `/admin`, `/api`, 
 - inspection cases and evidence-pack manifests
 - read-only Google Drive metadata discovery/readiness
 - transactional outbox/domain-event model and workflow registry
-- CSP/security headers, Origin guard, trusted-host option and baseline mutation rate limiter
+- dedicated durable background-worker runtime with distributed advisory locking, heartbeat and bounded outbox processing
+- backend-owned runtime alerts/operations summary and explicit SLO measurement-readiness boundaries
+- audit-retention policies, legal holds and deterministic archive manifests with destructive purge disabled
+- CSP/security headers, Origin guard, trusted-host option and shared database-backed cross-replica mutation rate limiting
 - reproducible OpenAPI drift verification, secret scan and blocking dependency audit
 
 ## Verified automated state
@@ -76,13 +79,13 @@ Latest fully green `main` quality run verified:
 - secret scan: **PASS**
 - ESLint: **PASS**
 - TypeScript typecheck: **PASS**
-- root Vitest: **80 files / 381 tests passed**
+- root Vitest: **82 files / 390 tests passed**
 - Next.js 16.3.5 production build: **PASS**
 - production build route manifest includes `/office`, `/finance`, their login/dynamic routes, Office auth APIs and Office runtime gateway
 - Python compile: **PASS**
 - OpenAPI drift check: **PASS**
-- clean Alembic upgrade through v5: **PASS**
-- Office backend: **58 tests passed**
+- clean Alembic upgrade through v8: **PASS**
+- Office backend: **70 tests passed**
 - hardened Office quality gate: **PASS**
 
 The test suite covers path-workspace roles, legacy redirects, cookie token non-disclosure, same-origin mutations, fixed-origin runtime proxy controls, identity/MFA/AAL2, Finance & Ownership, GST, accounting close, banking/reconciliation, treasury, expenses/funding, ownership posting, financial assurance, company registrations, Office/runtime audit evidence, Drive taxonomy, security middleware, RBAC, governance and document controls. Route audit confirms **50/50 Office sections and 20/20 Finance sections use specialised surfaces**.
@@ -167,11 +170,11 @@ An existing Railway production service is already connected:
 
 The database URL normalizer in current source also permanently canonicalizes the historical `sshmode` typo to `sslmode` and supports the configured Supabase IPv4 pooler path. The 16 Sep failure caused by `sshmode` is therefore historical.
 
-The newest active/sleeping Railway deployment is from 17 Sep 2026 at commit `f2d1fcb25bc085dbd8b69bf471ddf40b71563872`. Current `main` is 456 commits ahead and contains changes in 10 `Backend/**` files, including the document engine and finance hardening. Git-linked records for newer commits are marked `SKIPPED` (many are expected because Railway watches `Backend/**`). Current source must not be called live on Railway until a deployment containing the current backend delta reaches a successful terminal state.
+Fresh Railway discovery confirms the existing API service still tracks `main`, watches `Backend/**`, uses `Dockerfile.api`, runs `alembic upgrade head` before deploy, checks `/health/live`, and is configured for one Singapore replica. Its latest active deployment remains the 17 Sep 2026 sleeping deployment, while newer Git-linked main records are `SKIPPED`. A dedicated worker service is not currently provisioned. Current source must not be called live on Railway until current API and worker deployments reach accepted terminal states.
 
 ### Vercel frontend
 
-The Vercel account exposed to this audit currently lists no project linked to `vamsimarripudi/kraviaprivatelimited`. GitHub still receives a failing `Vercel` status pointing to a build-rate-limit condition. Therefore the prior project-specific Root Directory diagnosis is historical evidence only; the current Vercel project/account, build root, environment variables and domain assignment must be rediscovered/verified before frontend production acceptance.
+Fresh discovery on the connected Vercel hobby team `vamsimarripudis-projects` still lists no project linked to `vamsimarripudi/kraviaprivatelimited`. GitHub still receives a failing `Vercel` status pointing to a build-rate-limit condition. Therefore the prior project-specific Root Directory diagnosis is historical evidence only; the current Vercel project/account, build root, environment variables and domain assignment must be rediscovered/verified before frontend production acceptance.
 
 Do not attach Office to an unrelated Vercel project simply to clear the status. The canonical browser model remains the company site with `/office` and `/finance`; Railway is the API runtime.
 
@@ -211,7 +214,7 @@ Evidence presence is not treated as legal approval. Company, ownership, tax and 
 10. Obtain CS/legal review for governance, ownership/register handling, retention and controlled funding/mandate language.
 11. Configure private object storage + malware scanning and read-only Google Drive runtime identity.
 12. Configure Razorpay/RazorpayX, bank/accounting and eSign/DSC providers only after eligibility/approval.
-13. Provision queue/background workers, shared edge/WAF controls, monitoring, alerts, SLOs and audit retention.
+13. Deploy the committed dedicated background-worker service (`Backend/Dockerfile.worker`), connect verified external SLO telemetry and audit archive storage, and configure provider edge/WAF controls.
 14. Perform staging browser/accessibility/security and all-role IDOR/BOLA acceptance plus backup restore drill.
 15. Enable live finance execution only after every applicable production gate has evidence.
 
