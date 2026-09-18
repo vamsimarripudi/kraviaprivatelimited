@@ -81,13 +81,14 @@ function projected(source: string, sourceKey: string, title: string, startsAt: s
 export async function getOfficeCompanyCalendar() {
   const { admin, identity } = await actor();
   const trustedDeviceId = await currentOfficeTrustedDeviceId(admin, identity.userId);
-  const [resiliencePermission, insurancePermission, portfolioCompanyPermission, portfolioDepartmentPermission] = await Promise.all([
+  const [resiliencePermission, insurancePermission, portfolioCompanyPermission, portfolioDepartmentPermission, portfolioMemberPermission] = await Promise.all([
     resolveOfficePermission(admin, identity, "resilience.read", { type: "COMPANY" }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "insurance.read", { type: "COMPANY" }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "portfolio.read", { type: "COMPANY" }, trustedDeviceId),
     identity.department
       ? resolveOfficePermission(admin, identity, "portfolio.read", { type: "DEPARTMENT", key: identity.department }, trustedDeviceId)
       : Promise.resolve({ allowed: false } as const),
+    resolveOfficePermission(admin, identity, "portfolio.member.read", { type: "OWN", key: identity.userId, ownerUserId: identity.userId }, trustedDeviceId),
   ]);
   const privileged = identity.roles.some((role) => ["OWNER", "DIRECTOR", "ADMIN"].includes(role));
   const governance = identity.roles.some((role) => ["OWNER", "DIRECTOR", "CS", "LEGAL"].includes(role));
@@ -239,13 +240,37 @@ export async function getOfficeCompanyCalendar() {
     }
   }
 
-  if (portfolioCompanyPermission.allowed || portfolioDepartmentPermission.allowed) {
+  if (portfolioCompanyPermission.allowed || portfolioDepartmentPermission.allowed || portfolioMemberPermission.allowed) {
+    let participantProjectIds: string[] | null = null;
+    if (!portfolioCompanyPermission.allowed && !portfolioDepartmentPermission.allowed && portfolioMemberPermission.allowed) {
+      const [ownedProjects, ownedWorkstreams, ownedMilestones, memberships] = await Promise.all([
+        admin.from("office_portfolio_projects").select("id").eq("owner_user_id", identity.userId).limit(500),
+        admin.from("office_portfolio_workstreams").select("project_id").eq("owner_user_id", identity.userId).neq("status", "CANCELLED").limit(1000),
+        admin.from("office_portfolio_milestones").select("project_id").eq("owner_user_id", identity.userId).not("status", "in", '("DONE","CANCELLED")').limit(1500),
+        admin.from("office_portfolio_members").select("project_id").eq("user_id", identity.userId).eq("active", true).limit(1500),
+      ]);
+      if (ownedProjects.error || ownedWorkstreams.error || ownedMilestones.error || memberships.error) {
+        throw new OfficeCalendarError(503, "Assigned portfolio calendar is temporarily unavailable");
+      }
+      participantProjectIds = Array.from(new Set([
+        ...(ownedProjects.data ?? []).map((row) => String(row.id)),
+        ...(ownedWorkstreams.data ?? []).map((row) => String(row.project_id)),
+        ...(ownedMilestones.data ?? []).map((row) => String(row.project_id)),
+        ...(memberships.data ?? []).map((row) => String(row.project_id)),
+      ]));
+    }
     let projectQuery = admin.from("office_portfolio_projects")
       .select("id,project_code,title,department_code,target_end_on,status,reported_health")
       .not("target_end_on", "is", null)
       .not("status", "in", '("REJECTED","COMPLETED","CANCELLED")')
       .order("target_end_on", { ascending: true }).limit(300);
-    if (!portfolioCompanyPermission.allowed && identity.department) projectQuery = projectQuery.eq("department_code", identity.department);
+    if (!portfolioCompanyPermission.allowed && portfolioDepartmentPermission.allowed && identity.department) {
+      projectQuery = projectQuery.eq("department_code", identity.department);
+    } else if (!portfolioCompanyPermission.allowed && !portfolioDepartmentPermission.allowed) {
+      projectQuery = participantProjectIds?.length
+        ? projectQuery.in("id", participantProjectIds)
+        : projectQuery.in("id", ["00000000-0000-0000-0000-000000000000"]);
+    }
     const projects = await projectQuery;
     if (projects.error) throw new OfficeCalendarError(503, "Portfolio calendar is temporarily unavailable");
     const projectIds = (projects.data ?? []).map((row) => String(row.id));
