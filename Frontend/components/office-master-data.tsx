@@ -20,8 +20,9 @@ function idempotencyKey(){return typeof crypto!=="undefined"&&"randomUUID" in cr
 
 export function OfficeMasterData({kind,canCreate}:{kind:Kind;canCreate:boolean}){
  const[data,setData]=useState<Row[]>([]);const[loading,setLoading]=useState(true);const[dialog,setDialog]=useState(false);const[draft,setDraft]=useState<Record<string,string>>({});const[busy,setBusy]=useState(false);const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();
- const load=useCallback(async()=>{setLoading(true);setError(undefined);try{setData(await request<Row[]>(kind))}catch(caught){setError(caught instanceof Error?caught.message:"Unable to load canonical records")}finally{setLoading(false)}},[kind]);
- useEffect(()=>{void load()},[load]);
+ const fetchRecords=useCallback(()=>request<Row[]>(kind),[kind]);
+ const load=useCallback(async()=>{setLoading(true);setError(undefined);try{setData(await fetchRecords())}catch(caught){setError(caught instanceof Error?caught.message:"Unable to load canonical records")}finally{setLoading(false)}},[fetchRecords]);
+ useEffect(()=>{let active=true;void fetchRecords().then(rows=>{if(active)setData(rows)}).catch(caught=>{if(active)setError(caught instanceof Error?caught.message:"Unable to load canonical records")}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[fetchRecords]);
 
  async function submit(event:FormEvent<HTMLFormElement>){event.preventDefault();setBusy(true);setError(undefined);try{
   const payload=kind==="products"

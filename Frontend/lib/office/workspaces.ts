@@ -92,7 +92,7 @@ export const financeSections = {
   billing: { title: "Billing", eyebrow: "INVOICING", description: "Issued invoices, customer balances, receipts and controlled commercial evidence.", roles: financeCore, group: "Revenue" },
   payroll: { title: "Payroll", eyebrow: "PAYROLL REVIEW & TREASURY", description: "Review payroll calculations, evidence and salary-batch preparation without treating batch creation as bank execution.", roles: financeCore, group: "Treasury" },
   budget: { title: "Budgets", eyebrow: "BUDGET · COMMITMENTS", description: "Budget cycles, allocations, independently reviewed adjustments, commitments and immutable actual-spend references.", roles: financeCore, group: "Treasury" },
-  gst: { title: "GST & tax", eyebrow: "TAX WORKSPACE", description: "GST registration context, tax periods, working summaries and filing evidence.", roles: financeCore, group: "Tax" },
+  gst: { title: "GST & tax", eyebrow: "TAX WORKSPACE", description: "Invoice-derived output GST working registers, period review and filing-evidence boundaries without inventing input credit, payable tax or portal status.", roles: financeCore, group: "Tax" },
   accounting: { title: "Accounting", eyebrow: "BOOKS & JOURNALS", description: "Double-entry journals, trial balance and controlled period-close operations.", roles: financeCore, group: "Books" },
   banking: { title: "Banking", eyebrow: "BANK & CASH", description: "Bank references, imported transactions and controlled matching.", roles: financeCore, group: "Treasury" },
   payments: { title: "Payments", eyebrow: "TREASURY EXECUTION", description: "Payment instructions, provider events and maker-checker controlled execution.", roles: financeWrite, group: "Treasury" },
