@@ -127,6 +127,50 @@ class AuditEvent(Base):
     event_hash = Column(String(64), nullable=True)
     __table_args__ = (Index("ix_audit_entity", "entity_type", "entity_id"), Index("ux_audit_event_hash", "event_hash", unique=True))
 
+
+class AuditRetentionPolicy(Base):
+    __tablename__ = "audit_retention_policies"
+    id = Column(String, primary_key=True)
+    name = Column(String, nullable=False)
+    retention_days = Column(Integer, nullable=False)
+    status = Column(String, nullable=False, default="DRAFT")
+    archive_sink = Column(String, nullable=True)
+    archive_sink_reference = Column(String, nullable=True)
+    archive_sink_verified_at = Column(DateTime(timezone=True), nullable=True)
+    approved_by = Column(String, nullable=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    created_by = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+class AuditLegalHold(Base):
+    __tablename__ = "audit_legal_holds"
+    id = Column(String, primary_key=True)
+    scope_type = Column(String, nullable=False)
+    scope_value = Column(String, nullable=False)
+    reason = Column(Text, nullable=False)
+    status = Column(String, nullable=False, default="ACTIVE")
+    created_by = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    released_by = Column(String, nullable=True)
+    released_at = Column(DateTime(timezone=True), nullable=True)
+    __table_args__ = (Index("ix_audit_legal_hold_scope", "scope_type", "scope_value", "status"),)
+
+class AuditArchiveManifest(Base):
+    __tablename__ = "audit_archive_manifests"
+    id = Column(String, primary_key=True)
+    policy_id = Column(String, ForeignKey("audit_retention_policies.id"), nullable=False)
+    cutoff_at = Column(DateTime(timezone=True), nullable=False)
+    first_event_id = Column(String, nullable=True)
+    last_event_id = Column(String, nullable=True)
+    event_count = Column(Integer, nullable=False, default=0)
+    first_event_hash = Column(String(64), nullable=True)
+    last_event_hash = Column(String(64), nullable=True)
+    manifest_hash = Column(String(64), nullable=False, unique=True)
+    sink_reference = Column(String, nullable=True)
+    status = Column(String, nullable=False, default="STAGED")
+    created_by = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
 class WorkflowRun(Base):
     __tablename__ = "workflow_runs"
     id = Column(String, primary_key=True)
