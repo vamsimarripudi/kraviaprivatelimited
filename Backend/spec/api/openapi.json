@@ -102,7 +102,7 @@
           "purchase_value": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -230,7 +230,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -471,8 +471,8 @@
           "notice_days": {
             "anyOf": [
               {
-                "maximum": 3650.0,
-                "minimum": 0.0,
+                "maximum": 3650,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -503,7 +503,7 @@
           "value": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -562,7 +562,7 @@
           "taxable_value": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -668,6 +668,72 @@
         "title": "CustomerCreate",
         "type": "object"
       },
+      "DocumentRenderRequest": {
+        "properties": {
+          "clause_rules": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "maxItems": 200,
+            "title": "Clause Rules",
+            "type": "array"
+          },
+          "clause_snapshot": {
+            "additionalProperties": true,
+            "title": "Clause Snapshot",
+            "type": "object"
+          },
+          "content_schema": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "maxItems": 500,
+            "title": "Content Schema",
+            "type": "array"
+          },
+          "design_schema": {
+            "additionalProperties": true,
+            "title": "Design Schema",
+            "type": "object"
+          },
+          "document_code": {
+            "maxLength": 160,
+            "minLength": 2,
+            "title": "Document Code",
+            "type": "string"
+          },
+          "input_snapshot": {
+            "additionalProperties": true,
+            "title": "Input Snapshot",
+            "type": "object"
+          },
+          "output_format": {
+            "enum": [
+              "PDF",
+              "DOCX",
+              "HTML",
+              "XLSX"
+            ],
+            "title": "Output Format",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "document_code",
+          "title",
+          "output_format"
+        ],
+        "title": "DocumentRenderRequest",
+        "type": "object"
+      },
       "EmployeeCreate": {
         "properties": {
           "department": {
@@ -742,7 +808,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -881,7 +947,7 @@
           "max_call": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1060,7 +1126,7 @@
           "discount": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1085,8 +1151,8 @@
           "gst_rate": {
             "anyOf": [
               {
-                "maximum": 100.0,
-                "minimum": 0.0,
+                "maximum": 100,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1115,7 +1181,7 @@
           "qty": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1140,7 +1206,7 @@
           "taxable_value": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1212,7 +1278,7 @@
           "max_amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1390,7 +1456,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1436,7 +1502,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1549,8 +1615,8 @@
           "gst_rate": {
             "anyOf": [
               {
-                "maximum": 100.0,
-                "minimum": 0.0,
+                "maximum": 100,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1570,7 +1636,7 @@
           "price": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1640,7 +1706,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1777,7 +1843,7 @@
           "fee": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1791,7 +1857,7 @@
           "gross": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1804,7 +1870,7 @@
           "net": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1825,7 +1891,7 @@
           "tax_on_fee": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1931,7 +1997,7 @@
       "ShareClassCreate": {
         "properties": {
           "authorised_shares": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Authorised Shares",
             "type": "integer"
           },
@@ -1943,7 +2009,7 @@
           "face_value": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1972,7 +2038,7 @@
           },
           "voting_rights_per_share": {
             "default": 1,
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Voting Rights Per Share",
             "type": "integer"
           }
@@ -2009,7 +2075,7 @@
             "title": "Note"
           },
           "quantity": {
-            "exclusiveMinimum": 0.0,
+            "exclusiveMinimum": 0,
             "title": "Quantity",
             "type": "integer"
           },
@@ -5870,6 +5936,111 @@
           }
         },
         "summary": "Create Customer"
+      }
+    },
+    "/api/v1/document-engine/render": {
+      "post": {
+        "operationId": "render_endpoint_api_v1_document_engine_render_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-kravia-office-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Kravia-Office-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentRenderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Render Endpoint",
+        "tags": [
+          "document-engine"
+        ]
       }
     },
     "/api/v1/documents": {
