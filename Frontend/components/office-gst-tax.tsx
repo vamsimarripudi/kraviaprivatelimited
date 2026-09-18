@@ -121,33 +121,53 @@ export function OfficeGstTaxWorkspace({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
 
-  const load = useCallback(async (signal?: AbortSignal) => {
+  const fetchRecords = useCallback((signal?: AbortSignal) => Promise.all([
+    runtime<GstSummary>("tax/gst/summary", signal),
+    runtime<Invoice[]>("invoices", signal),
+    runtime<Customer[]>("customers", signal),
+    runtime<Product[]>("products", signal),
+  ]), []);
+
+  const load = useCallback(async () => {
     setLoading(true);
     setError(undefined);
     try {
-      const [nextSummary, nextInvoices, nextCustomers, nextProducts] = await Promise.all([
-        runtime<GstSummary>("tax/gst/summary", signal),
-        runtime<Invoice[]>("invoices", signal),
-        runtime<Customer[]>("customers", signal),
-        runtime<Product[]>("products", signal),
-      ]);
+      const [nextSummary, nextInvoices, nextCustomers, nextProducts] = await fetchRecords();
       setSummary(nextSummary);
       setInvoices(nextInvoices);
       setCustomers(nextCustomers);
       setProducts(nextProducts);
     } catch (caught) {
-      if (caught instanceof DOMException && caught.name === "AbortError") return;
       setError(caught instanceof Error ? caught.message : "Unable to load GST working records");
     } finally {
-      if (!signal?.aborted) setLoading(false);
+      setLoading(false);
     }
-  }, []);
+  }, [fetchRecords]);
 
   useEffect(() => {
     const controller = new AbortController();
-    void load(controller.signal);
-    return () => controller.abort();
-  }, [load]);
+    let active = true;
+    void fetchRecords(controller.signal)
+      .then(([nextSummary, nextInvoices, nextCustomers, nextProducts]) => {
+        if (!active) return;
+        setSummary(nextSummary);
+        setInvoices(nextInvoices);
+        setCustomers(nextCustomers);
+        setProducts(nextProducts);
+      })
+      .catch((caught) => {
+        if (active && !(caught instanceof DOMException && caught.name === "AbortError")) {
+          setError(caught instanceof Error ? caught.message : "Unable to load GST working records");
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [fetchRecords]);
 
   const periods = useMemo(
     () => Array.from(new Set(invoices.map((invoice) => monthKey(invoice.issued_at)))).sort().reverse(),
