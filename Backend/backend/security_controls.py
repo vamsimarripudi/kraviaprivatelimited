@@ -1,7 +1,7 @@
 """HTTP security controls for the canonical KRAVIA Office ASGI app.
 
 The controls are intentionally dependency-light: security headers, browser-origin
-checks, a conservative per-process mutation rate limit, and the production OIDC
+checks, a shared database-backed production mutation rate limit with local development fallback, and the production OIDC
 MFA boundary are enforced before business routes execute.
 """
 from __future__ import annotations
@@ -16,6 +16,10 @@ from urllib.parse import urlparse
 import jwt
 from fastapi import Request
 from fastapi.responses import JSONResponse, RedirectResponse
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+
+from .database import engine
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 ACCESS_COOKIE = "kravia_office_access"
@@ -27,11 +31,7 @@ BROWSER_ENTRY_PATHS = {"/index.html", "/finance.html"}
 
 
 class FixedWindowRateLimiter:
-    """Small in-process limiter used as a baseline abuse control.
-
-    Production deployments with multiple replicas must also enforce a shared
-    edge/provider limit. This limiter still protects each individual worker.
-    """
+    """Small in-process limiter used for development and controlled fallback."""
 
     def __init__(self, requests: int, window_seconds: int):
         if requests < 1 or window_seconds < 1:
@@ -53,6 +53,56 @@ class FixedWindowRateLimiter:
                 return False, 0, retry_after
             bucket.append(timestamp)
             return True, self.requests - len(bucket), 0
+
+
+class SharedRateLimitUnavailable(RuntimeError):
+    pass
+
+
+class DatabaseFixedWindowRateLimiter:
+    """Cross-replica fixed-window limiter backed by the canonical shared database."""
+
+    def __init__(self, requests: int, window_seconds: int, db_engine=None):
+        if requests < 1 or window_seconds < 1:
+            raise ValueError("Rate-limit requests and window must be positive")
+        self.requests = requests
+        self.window_seconds = window_seconds
+        self.engine = db_engine or engine
+
+    def allow(self, key: str, now: float | None = None) -> tuple[bool, int, int]:
+        timestamp = time.time() if now is None else now
+        window_start = int(timestamp // self.window_seconds) * self.window_seconds
+        key_hash = hashlib.sha256(key.encode()).hexdigest()
+        try:
+            with self.engine.begin() as connection:
+                count = int(connection.execute(
+                    text("""
+                        insert into shared_rate_limit_windows
+                            (key_hash, window_start, request_count, updated_at)
+                        values
+                            (:key_hash, :window_start, 1, CURRENT_TIMESTAMP)
+                        on conflict(key_hash, window_start)
+                        do update set
+                            request_count = shared_rate_limit_windows.request_count + 1,
+                            updated_at = CURRENT_TIMESTAMP
+                        returning request_count
+                    """),
+                    {"key_hash": key_hash, "window_start": window_start},
+                ).scalar_one())
+                if count == 1:
+                    connection.execute(
+                        text("""
+                            delete from shared_rate_limit_windows
+                            where key_hash = :key_hash and window_start < :oldest
+                        """),
+                        {"key_hash": key_hash, "oldest": window_start - (self.window_seconds * 2)},
+                    )
+        except SQLAlchemyError as exc:
+            raise SharedRateLimitUnavailable("Shared rate-limit authority unavailable") from exc
+        retry_after = max(1, int(self.window_seconds - (timestamp - window_start)))
+        if count > self.requests:
+            return False, 0, retry_after
+        return True, self.requests - count, 0
 
 
 def _csv_env(name: str) -> set[str]:
@@ -176,10 +226,23 @@ def _oidc_mfa_guard(request: Request, app_env: str):
 def configure_security(app) -> None:
     requests = int(os.getenv("OFFICE_MUTATION_RATE_LIMIT", "120"))
     window = int(os.getenv("OFFICE_RATE_LIMIT_WINDOW_SECONDS", "60"))
-    limiter = FixedWindowRateLimiter(requests=requests, window_seconds=window)
     allowed_hosts = _csv_env("OFFICE_ALLOWED_HOSTS")
     allowed_origins = _allowed_origins()
     app_env = os.getenv("APP_ENV", "development").lower()
+    rate_limit_mode = os.getenv(
+        "OFFICE_RATE_LIMIT_MODE",
+        "database" if app_env == "production" else "local",
+    ).strip().lower()
+    require_shared = os.getenv(
+        "OFFICE_REQUIRE_SHARED_RATE_LIMIT",
+        "true" if app_env == "production" else "false",
+    ).strip().lower() == "true"
+    if rate_limit_mode not in {"local", "database"}:
+        raise RuntimeError("OFFICE_RATE_LIMIT_MODE must be local or database")
+    if require_shared and rate_limit_mode != "database":
+        raise RuntimeError("Production shared rate limiting is required")
+    local_limiter = FixedWindowRateLimiter(requests=requests, window_seconds=window)
+    shared_limiter = DatabaseFixedWindowRateLimiter(requests=requests, window_seconds=window) if rate_limit_mode == "database" else None
 
     @app.middleware("http")
     async def office_security(request: Request, call_next):
@@ -204,11 +267,28 @@ def configure_security(app) -> None:
             return response
 
         remaining = None
+        rate_limit_source = None
         if mutation and request.url.path.startswith("/api/") and not provider_webhook:
-            allowed, remaining, retry_after = limiter.allow(_identity_key(request))
+            key = _identity_key(request)
+            try:
+                if shared_limiter is not None:
+                    allowed, remaining, retry_after = shared_limiter.allow(key)
+                    rate_limit_source = "database"
+                else:
+                    allowed, remaining, retry_after = local_limiter.allow(key)
+                    rate_limit_source = "local"
+            except SharedRateLimitUnavailable:
+                if require_shared:
+                    response = JSONResponse({"detail": "Shared Office rate-limit authority unavailable"}, status_code=503)
+                    response.headers["Retry-After"] = "5"
+                    _set_security_headers(response, app_env)
+                    return response
+                allowed, remaining, retry_after = local_limiter.allow(key)
+                rate_limit_source = "local-fallback"
             if not allowed:
                 response = JSONResponse({"detail": "Office mutation rate limit exceeded"}, status_code=429)
                 response.headers["Retry-After"] = str(retry_after)
+                response.headers["X-RateLimit-Source"] = rate_limit_source
                 _set_security_headers(response, app_env)
                 return response
 
@@ -217,6 +297,7 @@ def configure_security(app) -> None:
         if remaining is not None:
             response.headers["X-RateLimit-Limit"] = str(requests)
             response.headers["X-RateLimit-Remaining"] = str(remaining)
+            response.headers["X-RateLimit-Source"] = rate_limit_source or "unknown"
         return response
 
 
