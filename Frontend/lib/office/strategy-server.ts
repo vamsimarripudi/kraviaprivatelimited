@@ -52,6 +52,7 @@ export async function getStrategyOverview(){
   let cycleQuery=current.admin.from("office_strategy_cycles")
     .select("id,cycle_code,title,scope_type,scope_key,period_start,period_end,owner_user_id,status,created_by,reviewed_by,reviewed_at,review_note,closure_evidence_reference,created_at,updated_at")
     .order("period_start",{ascending:false}).limit(1000);
+  if(!capabilities.manage&&!capabilities.review)cycleQuery=cycleQuery.in("status",["APPROVED","ACTIVE","CLOSED"]);
   if(current.decision.scopeType==="DEPARTMENT"&&current.department){
     cycleQuery=cycleQuery.or("scope_type.eq.COMPANY,and(scope_type.eq.DEPARTMENT,scope_key.eq."+current.department+")");
   }
@@ -74,11 +75,18 @@ export async function getStrategyOverview(){
     : {data:[],error:null};
   fail(keyResults.error,"Strategy key results are temporarily unavailable");
 
+  const visibleOwnerIds=Array.from(new Set([
+    ...(cycles.data??[]).map(row=>String(row.owner_user_id)),
+    ...(objectives.data??[]).map(row=>String(row.owner_user_id)),
+    ...(keyResults.data??[]).map(row=>String(row.owner_user_id)),
+  ]));
   const people=(capabilities.manage||capabilities.review||capabilities.progress_update)
     ? await (current.department
         ? current.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").eq("status","ACTIVE").eq("primary_department",current.department).order("display_name")
         : current.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").eq("status","ACTIVE").order("display_name").limit(3000))
-    : {data:[],error:null};
+    : visibleOwnerIds.length
+      ? await current.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").in("user_id",visibleOwnerIds).eq("status","ACTIVE")
+      : {data:[],error:null};
   fail(people.error,"Office identities are temporarily unavailable");
 
   return {
