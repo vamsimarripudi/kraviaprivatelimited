@@ -51,6 +51,7 @@ import { OfficePrivacyGovernance } from "@/components/office-privacy-governance"
 import { OfficeRecruitmentWorkspace } from "@/components/office-recruitment-workspace";
 import { OfficeProcurementControl } from "@/components/office-procurement-control";
 import { OfficeReadiness } from "@/components/office-readiness";
+import { OfficeResilienceWorkspace } from "@/components/office-resilience";
 import { OfficeSecurityOverview } from "@/components/office-security-overview";
 import { OfficeSecuritySettings } from "@/components/office-security-settings";
 import { OfficeSupportOperations } from "@/components/office-support-operations";
@@ -131,10 +132,12 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "support" ? <OfficeSupportOperations />
           : workspace === "office" && section === "data" ? <OfficeDataMovement />
           : workspace === "office" && section === "privacy" ? <OfficePrivacyGovernance />
+          : workspace === "office" && section === "resilience" ? <OfficeResilienceWorkspace />
           : workspace === "office" && section === "security" ? <OfficeSecurityOverview />
           : workspace === "office" && section === "readiness" ? <OfficeReadiness />
           : workspace === "office" && section === "integrations" ? <OfficeEmbedRegistry />
           : workspace === "office" && section === "settings" ? <OfficeSecuritySettings identity={identity} />
+          : workspace === "finance" && section === "insurance" ? <OfficeResilienceWorkspace mode="insurance" />
           : section === "dashboard" ? <WorkspaceDashboard workspace={workspace} section={section} identity={identity} permissions={permissions} />
           : <WorkspaceModule workspace={workspace} section={section} item={item} />}
       </> : <section className="office-denied"><TriangleAlert /><div><p className="eyebrow">ACCESS RESTRICTED</p><h2>This module is not assigned to your current authority.</h2><p>KRAVIA Office evaluates identity, current roles and capability scope before showing a work surface. Direct URLs do not bypass the server-side authorization used by records and actions.</p><Link className="text-link" href={`${definition.basePath}/dashboard`}>Return to overview <ArrowRight /></Link></div></section>}
