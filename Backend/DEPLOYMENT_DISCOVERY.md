@@ -25,7 +25,7 @@ Current accepted run verifies:
 - npm install/audit with zero vulnerabilities;
 - secret scan;
 - ESLint and TypeScript;
-- **79 Vitest files / 379 tests**;
+- **80 Vitest files / 381 tests**;
 - Next.js production build;
 - Python dependency/compile checks;
 - OpenAPI drift;
