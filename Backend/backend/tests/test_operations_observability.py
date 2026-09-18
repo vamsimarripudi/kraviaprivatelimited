@@ -12,6 +12,8 @@ os.environ.pop("KRAVIA_SLO_TELEMETRY_SOURCE", None)
 
 from fastapi.testclient import TestClient
 from backend.main import app
+from backend.database import SessionLocal
+from backend.models import WorkerHeartbeat
 
 OWNER = {"X-Office-Actor": "Operations Owner", "X-Office-Role": "OWNER"}
 AUDITOR = {"X-Office-Actor": "Operations Auditor", "X-Office-Role": "AUDITOR"}
@@ -66,3 +68,23 @@ def test_operations_read_is_auditor_visible_but_evaluation_is_not():
         assert client.get("/api/v1/operations/summary", headers=AUDITOR).status_code == 200
         assert client.get("/api/v1/operations/alerts", headers=AUDITOR).status_code == 200
         assert client.post("/api/v1/operations/evaluate", headers=AUDITOR).status_code == 403
+
+
+def test_operations_summary_uses_persisted_worker_cadence():
+    with SessionLocal() as db:
+        heartbeat = db.get(WorkerHeartbeat, "office-automation")
+        if heartbeat is None:
+            heartbeat = WorkerHeartbeat(worker_key="office-automation", last_result_json="{}")
+            db.add(heartbeat)
+        heartbeat.configured_interval_seconds = 300
+        heartbeat.configured_batch_size = 75
+        heartbeat.last_succeeded_at = None
+        db.commit()
+
+    with TestClient(app) as client:
+        response = client.get("/api/v1/operations/summary", headers=OWNER)
+        assert response.status_code == 200
+        worker = response.json()["worker"]
+        assert worker["interval_seconds"] == 300
+        assert worker["stale_after_seconds"] == 900
+        assert worker["configured_batch_size"] == 75
