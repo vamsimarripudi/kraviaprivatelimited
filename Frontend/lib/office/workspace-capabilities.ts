@@ -24,6 +24,7 @@ const requirements: Record<string, readonly string[]> = {
   "office:assets": ["operations.asset.assign"],
   "office:devices": ["identity.card.read", "identity.card.manage", "device.posture.read", "device.posture.manage", "physical.access.read", "physical.access.manage"],
   "office:it": ["it.service.request", "it.service.read", "it.service.manage", "it.license.read", "it.license.manage"],
+  "office:facilities": ["facilities.room.read", "facilities.room.book", "visitor.invite", "visitor.manage", "facilities.issue.report", "facilities.manage"],
   "office:support": ["support.case.read", "support.case.manage", "customer.refund.request", "customer.refund.approve"],
   "office:access": ["access.profile.assign", "access.permission.override", "access.audit.read", "access.user.invite", "access.device.approve"],
   "office:data": ["data.export.request", "data.import.request", "data.movement.approve"],
