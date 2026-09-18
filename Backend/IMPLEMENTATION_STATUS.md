@@ -20,6 +20,9 @@ Canonical browser surfaces are now:
 - [x] Company Master / customer / commercial / billing / tax / accounting / governance / compliance / contracts / vendors / people / assets / documents / audit / inspection modules
 - [x] Finance & Ownership bounded domain inside KRAVIA Office rather than a separate product
 - [x] Responsive administration UX and honest unavailable/setup-required states
+- [x] **50/50 Office sections and 20/20 Finance sections use specialised workflow/read-model surfaces; no section falls through to the generic WorkspaceModule fallback**
+- [x] Governed company-registration registry with masked identifiers, UNVERIFIED creation and independent review
+- [x] Office audit explorer combining Office control-plane evidence with source-scoped runtime audit-chain verification
 - [x] Same-origin runtime panels connected to the canonical Office API gateway without fabricated records
 - [x] Public-site `/admin` identity boundary separated from KRAVIA Office identity
 
@@ -111,12 +114,12 @@ Latest fully green `main` quality run verified:
 - [x] secret scan
 - [x] ESLint
 - [x] TypeScript typecheck
-- [x] root Vitest suite: **64 tests passed across 18 files**
+- [x] root Vitest suite: **379 tests passed across 79 files**
 - [x] Next.js 16.3.5 production build, including `/office`, `/finance`, Office auth and Office runtime gateway routes
 - [x] Python compilation
 - [x] committed OpenAPI drift verification
 - [x] clean Alembic migration chain through v5
-- [x] Office backend suite: **36 tests passed**
+- [x] Office backend suite: **58 tests passed**
 - [x] identity token non-disclosure / HttpOnly cookies / TOTP AAL2 / inactive-user / role-admission controls
 - [x] path-workspace role boundaries, legacy redirects, same-origin mutation guard and fixed-origin runtime gateway regression tests
 - [x] period-close, HTTP security, Drive taxonomy, finance/ownership/provider/idempotency, RBAC, governance, audit-chain and document controls
@@ -124,18 +127,20 @@ Latest fully green `main` quality run verified:
 
 ## Deployment state
 
-The source tree is deployment-ready, but the existing Vercel project was historically configured with the wrong project Root Directory. Source control now contains `vercel.json` with `framework: "nextjs"`, which successfully forces the Next.js preset; Vercel then correctly reports that its project Root Directory does not contain the repository-root `package.json`.
+Repository `main` at `0240c991838f076f74569f81275cf7c2ef699107` is fully green in GitHub Actions: frontend, backend, database-structure and repository-structure gates all passed.
 
-One project-level Vercel correction remains before path routes can be live: set **Root Directory to the repository root** (blank / `.`) and redeploy `main`. This setting has no supported `vercel.json` equivalent.
+Railway is already connected to `vamsimarripudi/kraviaprivatelimited` with service `kravia-office-api`, branch `main`, root directory `Backend`, Dockerfile `Dockerfile.api`, health check `/health/live` and the Railway domain `kravia-office-api-production.up.railway.app`. The latest running/sleeping deployment is from 17 Sep 2026, not the current `main`; newer Git-linked deployment records are currently marked `SKIPPED`. Therefore do **not** claim the production FastAPI runtime is on the latest commit until a current deployment reaches a successful terminal state.
 
-After that deployment is verified, production still needs the deployment environment values for the dedicated Office Supabase project and the eventual FastAPI origin, plus the apex custom domain `kraviaprivatelimited.com` attached to this Vercel project.
+The connected Vercel account available to this audit does not list a project linked to `vamsimarripudi/kraviaprivatelimited`. GitHub nevertheless receives a failing `Vercel` status whose target reports a build-rate-limit condition. Consequently, the older project-specific “Root Directory mismatch” diagnosis is retained only as history, not as current verified state. Live frontend acceptance requires identifying/reconnecting the correct Vercel project/account, verifying its root/build/environment/domain settings, and completing a successful `main` deployment.
+
+The canonical browser remains path-based at `kraviaprivatelimited.com/office` and `/finance`; the Railway domain is the backend API origin, not a second public Office UI.
 
 ## External production gates intentionally not faked
 
 - first OWNER TOTP enrollment / AAL2 live verification
-- Vercel Root Directory correction and production environment variables
+- identify/reconnect the current KRAVIA Vercel project/account; verify production build settings and environment variables
 - apex `kraviaprivatelimited.com` domain attachment / DNS validation; optional `www` redirect
-- canonical FastAPI production hosting and `OFFICE_API_ORIGIN`
+- deploy current `main` to the existing Railway `kravia-office-api` service and set/verify frontend `OFFICE_API_ORIGIN` against its accepted production origin
 - managed PostgreSQL, restricted networking, backups/PITR and secret manager
 - real verified Company Master/GST/ownership evidence and CA/CS/legal approvals
 - live Razorpay/RazorpayX and bank/accounting authorizations
