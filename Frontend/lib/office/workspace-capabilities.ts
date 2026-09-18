@@ -19,6 +19,7 @@ const requirements: Record<string, readonly string[]> = {
   "office:recruitment": ["hiring.requisition.read", "hiring.requisition.manage", "hiring.candidate.manage", "hiring.interview.manage", "hiring.offer.prepare", "hiring.offer.review", "hiring.onboarding.manage"],
   "office:people": ["people.basic.read", "people.sensitive.read", "people.update", "hiring.candidate.read", "hiring.request.review"],
   "office:development": ["people.skills.read", "people.skills.declare", "people.skills.verify", "people.training.read", "people.training.manage", "people.training.assign", "people.performance.read", "people.performance.manage", "people.performance.review", "people.workforce_plan.read", "people.workforce_plan.manage", "people.workforce_plan.review"],
+  "office:travel": ["travel.read", "travel.request", "travel.manager_review", "travel.finance_review", "travel.book", "travel.claim.submit", "travel.claim.review"],
   "office:payroll": ["payroll.compensation.read", "payroll.compensation.manage", "payroll.rules.read", "payroll.run.read", "payroll.run.prepare"],
   "office:documents": ["document.template.read", "document.template.manage", "document.template.publish", "document.instance.read", "document.instance.review", "document.render", "document.hr.create", "document.secretarial.create", "document.legal.create", "document.sales.create", "document.operations.create"],
   "office:contracts": ["legal.contract.review", "legal.contract.draft", "legal.contract.execute", "legal.obligation.read", "legal.obligation.manage", "legal.obligation.review"],
