@@ -33,6 +33,7 @@ import { OfficeCommercialHandoff } from "@/components/office-commercial-handoff"
 import { OfficeCompanyCalendar } from "@/components/office-company-calendar";
 import { OfficeCompanyInbox } from "@/components/office-company-inbox";
 import { OfficeCrmWorkspace } from "@/components/office-crm-workspace";
+import { OfficeContractWorkspace } from "@/components/office-contract-workspace";
 import { OfficeControlRegister } from "@/components/office-control-register";
 import { OfficeDataMovement } from "@/components/office-data-movement";
 import { OfficeDocumentStudio } from "@/components/office-document-studio";
@@ -107,6 +108,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "tasks" ? <OfficeCompanyInbox />
           : workspace === "office" && section === "calendar" ? <OfficeCompanyCalendar />
           : workspace === "office" && section === "crm" ? <><OfficeCrmWorkspace /><OfficeCommercialHandoff /></>
+          : workspace === "office" && section === "contracts" ? <OfficeContractWorkspace />
           : workspace === "office" && section === "engineering" ? <OfficeEngineeringControlCenter />
           : workspace === "office" && section === "intelligence" ? <OfficeIntelligenceBrief />
           : workspace === "office" && section === "decisions" ? <OfficeControlRegister />
