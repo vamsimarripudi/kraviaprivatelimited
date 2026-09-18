@@ -37,6 +37,7 @@ import { OfficePaymentsWorkspace } from "@/components/office-payments";
 import { OfficeExpensesWorkspace } from "@/components/office-expenses";
 import { OfficeOwnershipWorkspace } from "@/components/office-ownership";
 import { OfficeFinancialAssurance } from "@/components/office-financial-assurance";
+import { OfficeFinanceCommandCenter } from "@/components/office-finance-command-center";
 import { OfficeBudgetWorkspace } from "@/components/office-budget";
 import { OfficeCommandCenter } from "@/components/office-command-center";
 import { OfficeCommandPalette } from "@/components/office-command-palette";
@@ -194,6 +195,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "settings" ? <OfficeSecuritySettings identity={identity} />
           : workspace === "finance" && section === "cards" ? <OfficeCorporateCards />
           : workspace === "finance" && section === "insurance" ? <OfficeResilienceWorkspace mode="insurance" />
+          : workspace === "finance" && section === "dashboard" ? <OfficeFinanceCommandCenter />
           : section === "dashboard" ? <WorkspaceDashboard workspace={workspace} section={section} identity={identity} permissions={permissions} />
           : <WorkspaceModule workspace={workspace} section={section} item={item} />}
       </> : <section className="office-denied"><TriangleAlert /><div><p className="eyebrow">ACCESS RESTRICTED</p><h2>This module is not assigned to your current authority.</h2><p>KRAVIA Office evaluates identity, current roles and capability scope before showing a work surface. Direct URLs do not bypass the server-side authorization used by records and actions.</p><Link className="text-link" href={`${definition.basePath}/dashboard`}>Return to overview <ArrowRight /></Link></div></section>}
