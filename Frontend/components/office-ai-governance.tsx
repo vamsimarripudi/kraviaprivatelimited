@@ -52,7 +52,7 @@ export function OfficeAiGovernance(){
  if(!data)return <section className={styles.state}><LoaderCircle className={styles.spin}/><div><h2>Loading AI Governance</h2><p>Resolving tool and use-case authority.</p></div></section>;
  const approvedTools=data.tools.filter(t=>t.status==="APPROVED").length;
  const pendingUses=data.use_cases.filter(u=>u.status==="REQUESTED").length;
- const activeUses=data.use_cases.filter(u=>u.status==="APPROVED"&&(!u.expires_at||new Date(u.expires_at).getTime()>Date.now())).length;
+ const activeUses=data.use_cases.filter(u=>u.status==="APPROVED").length;
 
  return <section className={styles.shell}>
   <header className={styles.hero}><div><p>AI TOOLS · DATA BOUNDARIES · HUMAN REVIEW</p><h2>Approve the use of AI before company data reaches a model provider.</h2><span>{data.disclaimer}</span></div><div className={styles.metrics}><article><b>{approvedTools}</b><span>approved tools</span></article><article><b>{pendingUses}</b><span>use cases awaiting review</span></article><article><b>{activeUses}</b><span>approved use cases</span></article></div></header>
