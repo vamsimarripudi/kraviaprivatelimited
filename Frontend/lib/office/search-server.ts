@@ -4,6 +4,7 @@ import { getOfficeCrmOverview } from "@/lib/office/crm-server";
 import { getOfficeEngineeringControlCenter } from "@/lib/office/engineering-server";
 import { getOfficeTaskInbox } from "@/lib/office/task-server";
 import { getKnowledgeHub } from "@/lib/office/knowledge-server";
+import { getPortfolioOverview } from "@/lib/office/portfolio-server";
 import { getOfficeWorkOverview } from "@/lib/office/workflow-server";
 
 export class OfficeSearchError extends Error {
@@ -15,7 +16,7 @@ export class OfficeSearchError extends Error {
 
 export type OfficeSearchResult = {
   id: string;
-  kind: "TASK" | "REQUEST" | "APPROVAL" | "LEAD" | "OPPORTUNITY" | "SERVICE" | "INCIDENT" | "POLICY" | "ANNOUNCEMENT" | "KNOWLEDGE";
+  kind: "TASK" | "REQUEST" | "APPROVAL" | "LEAD" | "OPPORTUNITY" | "SERVICE" | "INCIDENT" | "POLICY" | "ANNOUNCEMENT" | "KNOWLEDGE" | "PROJECT" | "MILESTONE";
   label: string;
   meta: string;
   href: string;
@@ -43,12 +44,13 @@ export async function searchOffice(query: string): Promise<{ query: string; resu
   if (normalized.length < 2) return { query: normalized, results: [] };
   if (normalized.length > 80) throw new OfficeSearchError(400, "Search text is too long");
 
-  const [tasks, work, crm, engineering, knowledge] = await Promise.all([
+  const [tasks, work, crm, engineering, knowledge, portfolio] = await Promise.all([
     optional(() => getOfficeTaskInbox()),
     optional(() => getOfficeWorkOverview()),
     optional(() => getOfficeCrmOverview()),
     optional(() => getOfficeEngineeringControlCenter()),
     optional(() => getKnowledgeHub()),
+    optional(() => getPortfolioOverview()),
   ]);
 
   const results: OfficeSearchResult[] = [];
@@ -162,6 +164,28 @@ export async function searchOffice(query: string): Promise<{ query: string; resu
       label: text(row.title) || text(row.article_code),
       meta: `${text(row.article_code)} · ${text(row.category)} · ${text(row.status)}`,
       href: `/office/knowledge?article=${encodeURIComponent(text(row.id))}`,
+    });
+  }
+
+  for (const row of (portfolio?.projects ?? []) as Array<Record<string, unknown>>) {
+    if (!matches(normalized, row.project_code, row.program_name, row.title, row.description, row.department_code, row.reported_health, row.status)) continue;
+    results.push({
+      id: `project:${text(row.id)}`,
+      kind: "PROJECT",
+      label: text(row.title) || text(row.project_code),
+      meta: `${text(row.project_code)} · ${text(row.department_code)} · ${text(row.status)}`,
+      href: `/office/portfolio?project=${encodeURIComponent(text(row.id))}`,
+    });
+  }
+
+  for (const row of (portfolio?.milestones ?? []) as Array<Record<string, unknown>>) {
+    if (!matches(normalized, row.milestone_code, row.title, row.description, row.status, row.blocked_reason, row.deliverable_reference)) continue;
+    results.push({
+      id: `milestone:${text(row.id)}`,
+      kind: "MILESTONE",
+      label: text(row.title) || text(row.milestone_code),
+      meta: `${text(row.milestone_code)} · ${text(row.status)}`,
+      href: `/office/portfolio?milestone=${encodeURIComponent(text(row.id))}`,
     });
   }
 
