@@ -5,7 +5,7 @@ from sqlalchemy import pool
 
 from alembic import context
 import os
-from backend.database import Base, normalize_database_url
+from backend.database import Base, configure_database_execution_role, normalize_database_url
 from backend import models
 from backend import finance_ownership  # register bounded-domain metadata for migrations
 from backend import period_controls  # register accounting/tax close-control metadata
@@ -43,10 +43,12 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in online mode."""
-    connectable = create_engine(
-        DATABASE_URL,
-        poolclass=pool.NullPool,
-        future=True,
+    connectable = configure_database_execution_role(
+        create_engine(
+            DATABASE_URL,
+            poolclass=pool.NullPool,
+            future=True,
+        )
     )
 
     with connectable.connect() as connection:
