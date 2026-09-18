@@ -100,13 +100,13 @@ export const financeSections = {
   reconciliation: { title: "Reconciliation", eyebrow: "CONTROL & MATCHING", description: "Deterministic credit-to-payment matching plus explicit unmatched and review-required queues; ambiguous records remain human-reviewed.", roles: financeCore, group: "Books" },
   ownership: { title: "Ownership & funding", eyebrow: "EQUITY CONTROL", description: "Append-only cap-table evidence with staged share changes/transfers, independent approval and explicit posting; expense funding remains legally separate from ownership.", roles: ["OWNER", "DIRECTOR", "FINANCE"], group: "Corporate Finance" },
   documents: { title: "Finance documents", eyebrow: "FINANCIAL EVIDENCE", description: "Role-scoped finance and tax evidence from the controlled document vault.", roles: financeCore, group: "Evidence" },
-  compliance: { title: "Financial compliance", eyebrow: "PROFESSIONAL REVIEW", description: "Tax and finance obligations that require evidence and professional review.", roles: financeCore, group: "Evidence" },
+  compliance: { title: "Financial compliance", eyebrow: "PROFESSIONAL REVIEW", description: "Unverified-to-evidence finance and tax obligations plus controlled inspection packages; the system never declares statutory compliance automatically.", roles: financeCore, group: "Evidence" },
   cards: { title: "Corporate cards", eyebrow: "SPEND CONTROL", description: "Masked company-card registry, limits, category policy, employee spend requests and issuer/receipt evidence without storing card secrets.", roles: financeCore, group: "Payables" },
   insurance: { title: "Insurance", eyebrow: "RISK TRANSFER", description: "Company insurance policies and claims with independent review, insurer references and payment evidence.", roles: financeCore, group: "Evidence" },
   ethics: { title: "Ethics channel", eyebrow: "CONFIDENTIAL REPORTING", description: "Confidential ethics reporting remains separated from ordinary finance, HR and management visibility. Explicit ethics profiles are required for investigation work.", roles: financeCore, group: "Evidence" },
   emergency: { title: "Emergency contacts", eyebrow: "PRIVATE SAFETY RECORD", description: "Private self-service emergency contacts with non-bypass HR/safety access and audited privileged reveal.", roles: financeCore, group: "Evidence" },
   ai: { title: "AI governance", eyebrow: "APPROVED AI USE", description: "Approved AI tools and scoped finance use cases with explicit data boundaries, expiry and human-review requirements.", roles: financeCore, group: "Evidence" },
-  audit: { title: "Financial audit", eyebrow: "ASSURANCE", description: "Finance audit records, inspection evidence and traceable source references.", roles: financeCore, group: "Evidence" },
+  audit: { title: "Financial audit", eyebrow: "ASSURANCE", description: "Inspection evidence, document hashes, canonical audit events and on-demand tamper-evident chain verification without replacing professional audit judgment.", roles: financeCore, group: "Evidence" },
 } as const satisfies Record<string, WorkspaceSection>;
 
 export type OfficeSection = keyof typeof officeSections;
