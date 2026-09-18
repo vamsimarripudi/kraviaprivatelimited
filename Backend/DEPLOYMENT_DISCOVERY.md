@@ -6,7 +6,7 @@ Canonical repository:
 
 `vamsimarripudi/kraviaprivatelimited`
 
-`main` is the accepted integration branch. Current audited commit `0240c991838f076f74569f81275cf7c2ef699107` passed repository, database, backend and frontend GitHub quality gates.
+`main` is the accepted integration branch. Current audited source baseline `3e3bb3066e8dd7c1113d9c11750b32a141f8190c` passed repository, database, backend and frontend GitHub quality gates.
 
 **Decision:** retain KRAVIA Office inside this repository. Do not create a disconnected Office codebase.
 
@@ -52,7 +52,26 @@ Verified service configuration:
 - Railway domain `kravia-office-api-production.up.railway.app`;
 - expected production variable names for OIDC, database/Supabase, Company Master, HTTP security and finance execution.
 
-The last active/sleeping deployment is based on a 17 Sep commit. Newer Git-linked deployment records are `SKIPPED`; current `main` is therefore not yet accepted as live on Railway. The historical 16 Sep `sshmode` database failure is fixed in source by URL option normalization.
+The last active/sleeping deployment is commit `f2d1fcb25bc085dbd8b69bf471ddf40b71563872` from 17 Sep. Current source is 456 commits ahead and changes 10 `Backend/**` files. Newer Git-linked records are mostly `SKIPPED`; many skips are expected because the service watches only `Backend/**`, but the current backend delta still has no accepted production deployment. The historical 16 Sep `sshmode` database failure is fixed in source by URL option normalization.
+
+## Supabase live state
+
+Project: `KRAVIA Office` (`xjtazosozxmudkbxqhjl`, `ap-south-1`).
+
+Verified:
+
+- company-registration registry migration applied;
+- trigger-only SECURITY DEFINER EXECUTE hardening applied;
+- registration tables are RLS-enabled and browser SELECT is denied;
+- registration functions are SECURITY INVOKER and browser EXECUTE is denied;
+- anon/authenticated have no effective CRUD privilege on any of the 52 legacy FastAPI tables currently lacking RLS;
+- `kravia_office_backend` has effective CRUD on all 52, enabling a controlled RLS-policy design once Railway's actual DB login role is confirmed.
+
+Outstanding:
+
+- Supabase Auth leaked-password protection is disabled;
+- 52 legacy FastAPI tables remain RLS-disabled as a defense-in-depth gap; do not enable RLS without backend-role policies;
+- many Office tables intentionally use service-role-only access and therefore surface RLS-enabled/no-policy INFO findings.
 
 ## Vercel
 
@@ -82,8 +101,9 @@ Backend API target:
 1. Successful frontend deployment from current `main` on the canonical Vercel project.
 2. Successful backend deployment from current `main` on the existing Railway service.
 3. Frontend `OFFICE_API_ORIGIN` wired to the accepted backend origin.
-4. Current Office Supabase migrations reconciled/applied.
-5. First OWNER live TOTP/AAL2 acceptance.
+4. Reconcile subsequent Office Supabase migrations; registration + trigger hardening are already applied.
+5. Enable Supabase leaked-password protection and confirm the backend role before legacy-table RLS enforcement.
+6. First OWNER live TOTP/AAL2 acceptance.
 6. Production evidence/provider/security gates listed in `FINAL_HANDOVER.md`.
 
 No provider state should be described as complete without read-back evidence.
