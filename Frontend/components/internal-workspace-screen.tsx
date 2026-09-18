@@ -39,6 +39,7 @@ import { OfficeControlRegister } from "@/components/office-control-register";
 import { OfficeDataMovement } from "@/components/office-data-movement";
 import { OfficeDocumentStudio } from "@/components/office-document-studio";
 import { OfficeDeviceIdentity } from "@/components/office-device-identity";
+import { OfficeDomainControl } from "@/components/office-domain-control";
 import { OfficeEngineeringControlCenter } from "@/components/office-engineering-control-center";
 import { OfficeEngineeringOperations } from "@/components/office-engineering-operations";
 import { OfficeEthicsChannel } from "@/components/office-ethics";
@@ -147,6 +148,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "ai" ? <OfficeAiGovernance />
           : workspace === "office" && section === "readiness" ? <OfficeReadiness />
           : workspace === "office" && section === "integrations" ? <OfficeEmbedRegistry />
+          : workspace === "office" && section === "domains" ? <OfficeDomainControl />
           : workspace === "office" && section === "settings" ? <OfficeSecuritySettings identity={identity} />
           : workspace === "finance" && section === "insurance" ? <OfficeResilienceWorkspace mode="insurance" />
           : section === "dashboard" ? <WorkspaceDashboard workspace={workspace} section={section} identity={identity} permissions={permissions} />
