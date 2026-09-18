@@ -55,6 +55,7 @@ import { OfficePayrollConsole } from "@/components/office-payroll-console";
 import { OfficePortfolioWorkspace } from "@/components/office-portfolio";
 import { OfficePeopleDevelopment } from "@/components/office-people-development";
 import { OfficeTravelWorkspace } from "@/components/office-travel-workspace";
+import { OfficeTrustCenter } from "@/components/office-trust-center";
 import { OfficePresenceControl } from "@/components/office-presence-control";
 import { OfficePrivacyGovernance } from "@/components/office-privacy-governance";
 import { OfficeRecruitmentWorkspace } from "@/components/office-recruitment-workspace";
@@ -151,6 +152,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "data" ? <OfficeDataMovement />
           : workspace === "office" && section === "privacy" ? <OfficePrivacyGovernance />
           : workspace === "office" && section === "quality" ? <OfficeQualityWorkspace />
+          : workspace === "office" && section === "trust" ? <OfficeTrustCenter />
           : workspace === "office" && section === "ethics" ? <OfficeEthicsChannel />
           : workspace === "finance" && section === "ethics" ? <OfficeEthicsChannel />
           : workspace === "finance" && section === "emergency" ? <OfficeEmergencyContacts />
