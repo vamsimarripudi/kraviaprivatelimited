@@ -136,6 +136,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "data" ? <OfficeDataMovement />
           : workspace === "office" && section === "privacy" ? <OfficePrivacyGovernance />
           : workspace === "office" && section === "ethics" ? <OfficeEthicsChannel />
+          : workspace === "finance" && section === "ethics" ? <OfficeEthicsChannel />
           : workspace === "office" && section === "resilience" ? <OfficeResilienceWorkspace />
           : workspace === "office" && section === "security" ? <OfficeSecurityOverview />
           : workspace === "office" && section === "readiness" ? <OfficeReadiness />
