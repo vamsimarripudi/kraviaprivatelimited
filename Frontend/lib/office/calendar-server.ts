@@ -81,10 +81,15 @@ function projected(source: string, sourceKey: string, title: string, startsAt: s
 export async function getOfficeCompanyCalendar() {
   const { admin, identity } = await actor();
   const trustedDeviceId = await currentOfficeTrustedDeviceId(admin, identity.userId);
-  const [resiliencePermission, insurancePermission, domainPermission, portfolioCompanyPermission, portfolioDepartmentPermission, portfolioMemberPermission] = await Promise.all([
+  const [resiliencePermission, insurancePermission, domainPermission, qualityCompanyPermission, qualityDepartmentPermission, qualityOwnPermission, portfolioCompanyPermission, portfolioDepartmentPermission, portfolioMemberPermission] = await Promise.all([
     resolveOfficePermission(admin, identity, "resilience.read", { type: "COMPANY" }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "insurance.read", { type: "COMPANY" }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "infra.domain.read", { type: "COMPANY" }, trustedDeviceId),
+    resolveOfficePermission(admin, identity, "quality.read", { type: "COMPANY" }, trustedDeviceId),
+    identity.department
+      ? resolveOfficePermission(admin, identity, "quality.read", { type: "DEPARTMENT", key: identity.department }, trustedDeviceId)
+      : Promise.resolve({ allowed: false } as const),
+    resolveOfficePermission(admin, identity, "quality.read", { type: "OWN", key: identity.userId, ownerUserId: identity.userId }, trustedDeviceId),
     resolveOfficePermission(admin, identity, "portfolio.read", { type: "COMPANY" }, trustedDeviceId),
     identity.department
       ? resolveOfficePermission(admin, identity, "portfolio.read", { type: "DEPARTMENT", key: identity.department }, trustedDeviceId)
@@ -241,6 +246,48 @@ export async function getOfficeCompanyCalendar() {
     }
   }
 
+  if (qualityCompanyPermission.allowed || qualityDepartmentPermission.allowed || qualityOwnPermission.allowed) {
+    const processScopeAllowed = qualityCompanyPermission.allowed || qualityDepartmentPermission.allowed;
+    let processReviews: { data: Array<{id:string;process_code:string;title:string;department_code:string;next_review_on:string|null;status:string}>; error: {message?:string}|null } = { data: [], error: null };
+    if (processScopeAllowed) {
+      let processQuery = admin.from("office_quality_processes")
+        .select("id,process_code,title,department_code,next_review_on,status")
+        .eq("status","PUBLISHED").not("next_review_on","is",null)
+        .order("next_review_on",{ascending:true}).limit(300);
+      if (!qualityCompanyPermission.allowed && qualityDepartmentPermission.allowed && identity.department) processQuery = processQuery.eq("department_code",identity.department);
+      processReviews = await processQuery as typeof processReviews;
+    }
+
+    let capas: { data: Array<{id:string;capa_code:string;nonconformance_id:string;owner_user_id:string;due_on:string|null;status:string}>; error: {message?:string}|null } = { data: [], error: null };
+    if (qualityCompanyPermission.allowed) {
+      capas = await admin.from("office_quality_capas")
+        .select("id,capa_code,nonconformance_id,owner_user_id,due_on,status")
+        .not("due_on","is",null).not("status","in",'("CLOSED","CANCELLED")')
+        .order("due_on",{ascending:true}).limit(500) as typeof capas;
+    } else if (qualityDepartmentPermission.allowed && identity.department) {
+      const ncRows = await admin.from("office_quality_nonconformances").select("id").eq("department_code",identity.department).limit(1500);
+      if (ncRows.error) throw new OfficeCalendarError(503, "Quality calendar is temporarily unavailable");
+      const ncIds = (ncRows.data ?? []).map((row) => String(row.id));
+      if (ncIds.length) capas = await admin.from("office_quality_capas")
+        .select("id,capa_code,nonconformance_id,owner_user_id,due_on,status")
+        .in("nonconformance_id",ncIds).not("due_on","is",null).not("status","in",'("CLOSED","CANCELLED")')
+        .order("due_on",{ascending:true}).limit(500) as typeof capas;
+    } else if (qualityOwnPermission.allowed) {
+      capas = await admin.from("office_quality_capas")
+        .select("id,capa_code,nonconformance_id,owner_user_id,due_on,status")
+        .eq("owner_user_id",identity.userId).not("due_on","is",null).not("status","in",'("CLOSED","CANCELLED")')
+        .order("due_on",{ascending:true}).limit(300) as typeof capas;
+    }
+    if (processReviews.error || capas.error) throw new OfficeCalendarError(503, "Quality calendar is temporarily unavailable");
+    for (const row of processReviews.data ?? []) {
+      const event = projected("QUALITY_PROCESS_REVIEW", String(row.id), `Process review · ${row.title}`, dateIso(row.next_review_on, true), "REVIEW", [row.process_code,row.department_code,row.status].filter(Boolean).join(" · "));
+      if (event) synthetic.push(event);
+    }
+    for (const row of capas.data ?? []) {
+      const event = projected("QUALITY_CAPA_DUE", String(row.id), `CAPA due · ${row.capa_code}`, dateIso(row.due_on, true), "DEADLINE", [row.status,row.owner_user_id===identity.userId ? "assigned to you" : null].filter(Boolean).join(" · "));
+      if (event) synthetic.push(event);
+    }
+  }
   if (domainPermission.allowed) {
     const [domains, certificates] = await Promise.all([
       admin.from("office_corporate_domains")
