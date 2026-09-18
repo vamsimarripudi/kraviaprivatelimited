@@ -20,6 +20,7 @@ const requirements: Record<string, readonly string[]> = {
   "office:portfolio": ["portfolio.read", "portfolio.member.read", "portfolio.manage", "portfolio.review", "portfolio.milestone.manage", "portfolio.team.manage"],
   "office:recruitment": ["hiring.requisition.read", "hiring.requisition.manage", "hiring.candidate.manage", "hiring.interview.manage", "hiring.offer.prepare", "hiring.offer.review", "hiring.onboarding.manage"],
   "office:people": ["people.basic.read", "people.sensitive.read", "people.update", "hiring.candidate.read", "hiring.request.review"],
+  "office:emergency": ["people.emergency_contact.own", "people.emergency_contact.read"],
   "office:development": ["people.skills.read", "people.skills.declare", "people.skills.verify", "people.training.read", "people.training.manage", "people.training.assign", "people.performance.read", "people.performance.manage", "people.performance.review", "people.workforce_plan.read", "people.workforce_plan.manage", "people.workforce_plan.review"],
   "office:travel": ["travel.read", "travel.request", "travel.manager_review", "travel.finance_review", "travel.book", "travel.claim.submit", "travel.claim.review"],
   "office:cards": ["finance.card.read", "finance.card.manage", "finance.card.review", "finance.card.spend.request", "finance.card.spend.review"],
