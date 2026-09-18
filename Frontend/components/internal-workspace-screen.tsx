@@ -35,6 +35,7 @@ import { OfficeAccountingWorkspace } from "@/components/office-accounting";
 import { OfficeBankingWorkspace } from "@/components/office-banking";
 import { OfficePaymentsWorkspace } from "@/components/office-payments";
 import { OfficeExpensesWorkspace } from "@/components/office-expenses";
+import { OfficeOwnershipWorkspace } from "@/components/office-ownership";
 import { OfficeBudgetWorkspace } from "@/components/office-budget";
 import { OfficeCommandCenter } from "@/components/office-command-center";
 import { OfficeCommandPalette } from "@/components/office-command-palette";
@@ -151,6 +152,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "finance" && section === "reconciliation" ? <OfficeBankingWorkspace mode="reconciliation" canRegisterAccount={false} canImportTransaction={false} canAutoMatch={identity.roles.some((role) => role === "OWNER" || role === "FINANCE" || role === "CA")} />
           : workspace === "finance" && section === "payments" ? <OfficePaymentsWorkspace canStage={identity.roles.includes("OWNER") || permissions.includes("finance.payment.prepare")} canDecide={identity.roles.includes("OWNER") || (identity.roles.includes("DIRECTOR") && permissions.includes("finance.payment.approve"))} canExecute={identity.roles.includes("OWNER") || permissions.includes("finance.payment.approve")} />
           : workspace === "finance" && section === "expenses" ? <OfficeExpensesWorkspace canCreate={identity.roles.includes("OWNER") || permissions.includes("finance.expense.request")} canDecide={identity.roles.includes("OWNER") || identity.roles.includes("DIRECTOR")} canApplyApproval={identity.roles.includes("OWNER") || identity.roles.includes("DIRECTOR") || identity.roles.includes("FINANCE")} />
+          : workspace === "finance" && section === "ownership" ? <OfficeOwnershipWorkspace canStage={identity.roles.includes("OWNER") || identity.roles.includes("DIRECTOR")} canDecide={identity.roles.includes("OWNER") || identity.roles.includes("DIRECTOR")} canPost={identity.roles.includes("OWNER") || identity.roles.includes("DIRECTOR")} />
           : section === "payroll" ? <OfficePayrollConsole />
           : section === "budget" ? <OfficeBudgetWorkspace />
           : workspace === "office" && section === "assets" ? <OfficeAssetLifecycle />
