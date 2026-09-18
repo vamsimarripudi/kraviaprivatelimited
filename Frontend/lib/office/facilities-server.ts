@@ -47,16 +47,21 @@ export async function getPhysicalOfficeOverview() {
     throw new OfficeFacilitiesError(403, "Physical Office is not assigned to your current authority");
   }
 
-  const [sitesResult, roomsResult, identitiesResult] = await Promise.all([
-    current.admin.from("office_facility_sites").select("id,site_code,name,address_text,timezone_name,status").eq("status", "ACTIVE").order("name"),
+  const siteQuery = current.admin.from("office_facility_sites").select("id,site_code,name,address_text,timezone_name,status").order("name");
+  const [sitesResult, roomsResult, identitiesResult, zonesResult] = await Promise.all([
+    facilitiesManage ? siteQuery : siteQuery.eq("status", "ACTIVE"),
     current.admin.from("office_facility_rooms").select("id,site_id,room_code,name,room_type,capacity,physical_zone_id,status").order("name"),
     visitorManage || facilitiesManage
       ? current.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").eq("status", "ACTIVE").order("display_name")
+      : Promise.resolve({ data: [], error: null }),
+    facilitiesManage
+      ? current.admin.from("office_physical_access_zones").select("id,zone_code,name,classification,active").eq("active", true).order("name")
       : Promise.resolve({ data: [], error: null }),
   ]);
   assert(sitesResult.error, "Office sites are temporarily unavailable");
   assert(roomsResult.error, "Office rooms are temporarily unavailable");
   assert(identitiesResult.error, "Office identities are temporarily unavailable");
+  assert(zonesResult.error, "Physical access zones are temporarily unavailable");
 
   let bookings = current.admin.from("office_room_bookings")
     .select("id,room_id,organizer_user_id,title,purpose,visibility,starts_at,ends_at,status,cancelled_at,cancellation_reason,created_at,updated_at")
@@ -106,6 +111,7 @@ export async function getPhysicalOfficeOverview() {
     incidents: incidentResult.data ?? [],
     identities: identitiesResult.data ?? [],
     credentials: credentials.data ?? [],
+    zones: zonesResult.data ?? [],
     disclaimer: "KRAVIA stores visitor credential hashes only. Room booking does not grant physical-zone access, and visitor approval does not grant employee or application access.",
   };
 }
@@ -219,5 +225,63 @@ export async function transitionFacilityIssue(input: { incidentId: string; statu
     p_note: input.note?.trim() || null,
   });
   if (error || typeof data !== "string") throw new OfficeFacilitiesError(400, error?.message ?? "Unable to update facility issue");
+  return { status: data };
+}
+
+
+export async function createOfficeSite(input: { code: string; name: string; address?: string; timezone?: string }) {
+  const current = await requireOfficePermission("facilities.manage", { type: "COMPANY" });
+  const { data, error } = await current.admin.rpc("office_facility_site_create", {
+    p_actor: current.identity.userId,
+    p_code: input.code,
+    p_name: input.name,
+    p_address: input.address?.trim() || null,
+    p_timezone: input.timezone?.trim() || "Asia/Kolkata",
+  });
+  if (error || typeof data !== "string") throw new OfficeFacilitiesError(400, error?.message ?? "Unable to create office site");
+  return { site_id: data };
+}
+
+export async function updateOfficeSite(input: { siteId: string; name: string; address?: string; timezone: string; status: string }) {
+  const current = await requireOfficePermission("facilities.manage", { type: "COMPANY" });
+  const { data, error } = await current.admin.rpc("office_facility_site_update", {
+    p_actor: current.identity.userId,
+    p_site: input.siteId,
+    p_name: input.name,
+    p_address: input.address?.trim() || null,
+    p_timezone: input.timezone,
+    p_status: input.status,
+  });
+  if (error || typeof data !== "string") throw new OfficeFacilitiesError(400, error?.message ?? "Unable to update office site");
+  return { status: data };
+}
+
+export async function createOfficeRoom(input: { siteId: string; code: string; name: string; roomType: string; capacity: number; zoneId?: string }) {
+  const current = await requireOfficePermission("facilities.manage", { type: "COMPANY" });
+  const { data, error } = await current.admin.rpc("office_facility_room_create", {
+    p_actor: current.identity.userId,
+    p_site: input.siteId,
+    p_code: input.code,
+    p_name: input.name,
+    p_room_type: input.roomType,
+    p_capacity: input.capacity,
+    p_zone: input.zoneId ?? null,
+  });
+  if (error || typeof data !== "string") throw new OfficeFacilitiesError(400, error?.message ?? "Unable to create office room");
+  return { room_id: data };
+}
+
+export async function updateOfficeRoom(input: { roomId: string; name: string; roomType: string; capacity: number; zoneId?: string; status: string }) {
+  const current = await requireOfficePermission("facilities.manage", { type: "COMPANY" });
+  const { data, error } = await current.admin.rpc("office_facility_room_update", {
+    p_actor: current.identity.userId,
+    p_room: input.roomId,
+    p_name: input.name,
+    p_room_type: input.roomType,
+    p_capacity: input.capacity,
+    p_zone: input.zoneId ?? null,
+    p_status: input.status,
+  });
+  if (error || typeof data !== "string") throw new OfficeFacilitiesError(400, error?.message ?? "Unable to update office room");
   return { status: data };
 }
