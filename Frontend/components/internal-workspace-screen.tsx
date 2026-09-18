@@ -39,6 +39,7 @@ import { OfficeDataMovement } from "@/components/office-data-movement";
 import { OfficeDocumentStudio } from "@/components/office-document-studio";
 import { OfficeDeviceIdentity } from "@/components/office-device-identity";
 import { OfficeEngineeringControlCenter } from "@/components/office-engineering-control-center";
+import { OfficeEthicsChannel } from "@/components/office-ethics";
 import { OfficeIntelligenceBrief } from "@/components/office-intelligence-brief";
 import { OfficeItService } from "@/components/office-it-service";
 import { OfficeKnowledgeHub } from "@/components/office-knowledge-hub";
@@ -134,6 +135,7 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "office" && section === "support" ? <OfficeSupportOperations />
           : workspace === "office" && section === "data" ? <OfficeDataMovement />
           : workspace === "office" && section === "privacy" ? <OfficePrivacyGovernance />
+          : workspace === "office" && section === "ethics" ? <OfficeEthicsChannel />
           : workspace === "office" && section === "resilience" ? <OfficeResilienceWorkspace />
           : workspace === "office" && section === "security" ? <OfficeSecurityOverview />
           : workspace === "office" && section === "readiness" ? <OfficeReadiness />
