@@ -168,7 +168,7 @@ export async function getOfficeCompanyCalendar() {
     actor: { user_id: identity.userId, roles: identity.roles, department, team, privileged },
     generated_at: new Date().toISOString(),
     events,
-    disclaimer: "Projected dates come from canonical company records. Board quorum, statutory due dates and legal applicability are not calculated by the calendar.",
+    disclaimer: "Projected dates come from canonical company records. The calendar does not calculate statutory due dates, board quorum or legal applicability.",
   };
 }
 
