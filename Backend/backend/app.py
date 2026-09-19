@@ -16,6 +16,7 @@ from . import main as office_main
 from .main import app, get_db, require_roles
 from .document_engine import build_document_engine_router
 from .finance_ownership import build_finance_ownership_router
+from .file_security import build_file_security_router
 from .drive_integration import build_google_drive_router
 from .identity_auth import build_identity_router
 from .period_controls import PeriodLockedError, build_period_control_router
@@ -49,6 +50,7 @@ app.include_router(build_google_drive_router(get_db, require_roles))
 app.include_router(build_period_control_router(get_db, require_roles))
 app.include_router(build_audit_retention_router(get_db, require_roles))
 app.include_router(build_document_engine_router(require_roles))
+app.include_router(build_file_security_router(get_db, office_main.actor_context))
 
 
 @app.exception_handler(PeriodLockedError)
