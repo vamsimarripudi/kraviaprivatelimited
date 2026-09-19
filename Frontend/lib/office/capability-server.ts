@@ -1,6 +1,7 @@
 import "server-only";
 
-import { OfficePermissionError, requireOfficeActor } from "@/lib/office/permission-engine";
+import { createOfficeServiceClient, OfficePermissionError, requireOfficeActor } from "@/lib/office/permission-engine";
+import type { OfficeIdentity } from "@/lib/office/auth-server";
 
 export class OfficeCapabilityError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -29,16 +30,26 @@ function active(expiresAt: unknown, now = Date.now()) {
   return Number.isFinite(parsed) && parsed > now;
 }
 
-export async function getOfficeCapabilitySnapshot(): Promise<OfficeCapabilitySnapshot> {
-  let actor: Awaited<ReturnType<typeof requireOfficeActor>>;
-  try {
-    actor = await requireOfficeActor();
-  } catch (error) {
-    if (error instanceof OfficePermissionError) throw new OfficeCapabilityError(error.status, error.message);
-    throw error;
+export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdentity): Promise<OfficeCapabilitySnapshot> {
+  let admin;
+  let identity: OfficeIdentity;
+  if (identityOverride) {
+    identity = identityOverride;
+    try {
+      admin = createOfficeServiceClient();
+    } catch {
+      throw new OfficeCapabilityError(503, "Trusted Office authorization is not configured");
+    }
+  } else {
+    let actor: Awaited<ReturnType<typeof requireOfficeActor>>;
+    try {
+      actor = await requireOfficeActor();
+    } catch (error) {
+      if (error instanceof OfficePermissionError) throw new OfficeCapabilityError(error.status, error.message);
+      throw error;
+    }
+    ({ admin, identity } = actor);
   }
-
-  const { admin, identity } = actor;
   const catalog = await admin
     .from("office_permission_catalog")
     .select("code,active")

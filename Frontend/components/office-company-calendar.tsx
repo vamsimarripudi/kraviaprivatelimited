@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, LoaderCircle, Plus, ShieldCheck, X } from "lucide-react";
+import { officeMutation, officeQuery } from "@/lib/office/http-client";
 import styles from "./office-company-calendar.module.css";
 
 type CalendarEvent = {
@@ -32,10 +33,18 @@ type Draft = { title: string; description: string; eventType: string; visibility
 const emptyDraft: Draft = { title: "", description: "", eventType: "MEETING", visibility: "PERSONAL", scopeKey: "", startsAt: "", endsAt: "", allDay: false };
 
 async function json<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, { ...options, cache: "no-store", credentials: "same-origin" });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(typeof body.detail === "string" ? body.detail : "Calendar request failed");
-  return body as T;
+  const method = (options?.method ?? "GET").toUpperCase();
+  if (method === "GET") {
+    return officeQuery<T>(url, undefined, { staleMs: 10_000 });
+  }
+  const body = typeof options?.body === "string"
+    ? JSON.parse(options.body)
+    : options?.body;
+  return officeMutation<T>(url, {
+    method: method as "POST" | "PUT" | "PATCH" | "DELETE",
+    body,
+    invalidate: "/api/office-calendar",
+  });
 }
 
 function monthKey(value: string) {
@@ -160,7 +169,7 @@ export function OfficeCompanyCalendar() {
     setBusy(event.id);
     setError(undefined);
     try {
-      await json("/api/office-calendar", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event_id: event.id }) });
+      await json(`/api/office-calendar?event_id=${encodeURIComponent(event.id)}`, { method: "DELETE" });
       setSelected(undefined);
       await reload();
     } catch (caught) {

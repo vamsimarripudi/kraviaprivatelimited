@@ -10,7 +10,7 @@ const schema = z.object({
 
 type Props = { params: Promise<{ id: string }> };
 
-export async function POST(request: Request, { params }: Props) {
+export async function PATCH(request: Request, { params }: Props) {
   if (!officeMutationIsSameOrigin(request)) return NextResponse.json({ detail: "Cross-origin task mutation is not allowed" }, { status: 403 });
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) return NextResponse.json({ detail: "Invalid task id" }, { status: 400 });
@@ -25,3 +25,6 @@ export async function POST(request: Request, { params }: Props) {
     return NextResponse.json({ detail }, { status, headers: { "Cache-Control": "no-store" } });
   }
 }
+
+// Temporary compatibility alias for older clients; new Office UI uses PATCH.
+export const POST = PATCH;

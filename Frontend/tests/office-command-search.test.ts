@@ -7,6 +7,8 @@ const searchServer = readFileSync(new URL("../lib/office/search-server.ts", impo
 const searchRoute = readFileSync(new URL("../app/api/office-search/route.ts", import.meta.url), "utf8");
 const palette = readFileSync(new URL("../components/office-command-palette.tsx", import.meta.url), "utf8");
 const screen = readFileSync(new URL("../components/internal-workspace-screen.tsx", import.meta.url), "utf8");
+const shell = readFileSync(new URL("../components/office-workspace-shell.tsx", import.meta.url), "utf8");
+const officeWorkspaceLayout = readFileSync(new URL("../app/office/(workspace)/layout.tsx", import.meta.url), "utf8");
 
 describe("Office command and search boundary", () => {
   it("filters sensitive workspace navigation by effective capability hints", () => {
@@ -15,14 +17,16 @@ describe("Office command and search boundary", () => {
     expect(capabilities).toContain('"office:people"');
     expect(capabilities).toContain('roles.includes("OWNER")');
     expect(screen).toContain("capabilityCanAccessSection");
-    expect(screen).toContain("getOfficeCapabilitySnapshot");
+    expect(officeWorkspaceLayout).toContain("getOfficeCapabilitySnapshot");
+    expect(shell).toContain("capabilityCanAccessSection");
   });
 
   it("derives navigation hints from server-side active grants without weakening record authorization", () => {
     expect(capabilityServer).toContain("office_user_access_profiles");
     expect(capabilityServer).toContain("office_user_permission_overrides");
     expect(capabilityServer).toContain("office_access_profile_permissions");
-    expect(screen).toContain("Direct URLs do not bypass the server-side authorization");
+    expect(screen).toContain("Direct URLs never bypass KRAVIA record and action authorization");
+    expect(shell).toContain("OfficeWorkspaceProvider");
   });
 
   it("keeps global search read-only and reuses scoped domain read models", () => {

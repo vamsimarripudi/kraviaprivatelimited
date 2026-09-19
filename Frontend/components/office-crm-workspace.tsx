@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ArrowRight, Building2, CircleDollarSign, LoaderCircle, MessageSquareText, Plus, Search, ShieldCheck, Target, X } from "lucide-react";
+import { officeMutation, officeQuery } from "@/lib/office/http-client";
 import styles from "./office-crm-workspace.module.css";
 
 const opportunityStages = ["QUALIFICATION","DISCOVERY","DEMO","PROPOSAL","NEGOTIATION","CONTRACTING","WON","LOST"] as const;
@@ -23,10 +24,18 @@ const emptyLead: LeadDraft = { owner: "", account: "", contact: "", email: "", p
 const emptyOpportunity: OpportunityDraft = { owner: "", lead: "", customer: "", product: "", title: "", value: "", currency: "INR", close: "", nextStep: "" };
 
 async function json<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, { ...options, cache: "no-store", credentials: "same-origin" });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(typeof body.detail === "string" ? body.detail : "CRM request failed");
-  return body as T;
+  const method = (options?.method ?? "GET").toUpperCase();
+  if (method === "GET") {
+    return officeQuery<T>(url, undefined, { staleMs: 10_000 });
+  }
+  const body = typeof options?.body === "string"
+    ? JSON.parse(options.body)
+    : options?.body;
+  return officeMutation<T>(url, {
+    method: method as "POST" | "PUT" | "PATCH" | "DELETE",
+    body,
+    invalidate: "/api/office-crm",
+  });
 }
 
 function label(value: string) {
@@ -121,7 +130,7 @@ export function OfficeCrmWorkspace() {
     if (stageDraft.stage === "LOST" && stageDraft.lostReason.trim().length < 3) return;
     setBusy(true); setError(undefined);
     try {
-      await json("/api/office-crm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "SET_OPPORTUNITY_STAGE", opportunity_id: selectedOpportunity.id, stage: stageDraft.stage, next_step: stageDraft.nextStep || undefined, lost_reason: stageDraft.lostReason || undefined }) });
+      await json("/api/office-crm", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "SET_OPPORTUNITY_STAGE", opportunity_id: selectedOpportunity.id, stage: stageDraft.stage, next_step: stageDraft.nextStep || undefined, lost_reason: stageDraft.lostReason || undefined }) });
       setSelectedOpportunity(undefined); setStageDraft(undefined); await reload(stageDraft.stage === "WON" ? "Opportunity marked won. Contract, subscription and billing remain separate governed steps." : "Opportunity stage updated.");
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to update opportunity"); }
     finally { setBusy(false); }
@@ -132,7 +141,7 @@ export function OfficeCrmWorkspace() {
     if (leadStageDraft.stage === "CONVERTED" && !leadStageDraft.customer) return;
     setBusy(true); setError(undefined);
     try {
-      await json("/api/office-crm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "SET_LEAD_STAGE", lead_id: selectedLead.id, stage: leadStageDraft.stage, customer_id: leadStageDraft.customer || undefined }) });
+      await json("/api/office-crm", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "SET_LEAD_STAGE", lead_id: selectedLead.id, stage: leadStageDraft.stage, customer_id: leadStageDraft.customer || undefined }) });
       setSelectedLead(undefined); setLeadStageDraft(undefined); await reload("Lead stage updated.");
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to update lead"); }
     finally { setBusy(false); }

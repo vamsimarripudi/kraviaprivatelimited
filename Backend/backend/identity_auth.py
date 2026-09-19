@@ -244,9 +244,17 @@ def _event(
 
 def _control_plane_present(db: Session) -> bool:
     bind = db.get_bind()
+    cached = getattr(bind, "_kravia_control_plane_present", None)
+    if isinstance(cached, bool):
+        return cached
     schema = "public" if bind.dialect.name == "postgresql" else None
     inspector = inspect(bind)
-    return inspector.has_table("office_identity_users", schema=schema) and inspector.has_table("office_user_roles", schema=schema)
+    present = inspector.has_table("office_identity_users", schema=schema) and inspector.has_table("office_user_roles", schema=schema)
+    # The control-plane schema is immutable during a running production process.
+    # Cache the metadata probe on the shared Engine so normal API requests do not
+    # perform repeated information_schema lookups.
+    setattr(bind, "_kravia_control_plane_present", present)
+    return present
 
 
 def _control_plane_owner_id(db: Session) -> str | None:
@@ -546,22 +554,65 @@ def authenticate_office_access(
     claims = _decode_access(token)
     user_id = str(claims.get("sub") or "")
     session_id = str(claims.get("sid") or "")
-    session = db.get(OfficeAuthSession, session_id)
-    user = db.get(OfficeAuthUser, user_id)
     now = _now()
-    if not session or not user or session.user_id != user_id:
+
+    auth_row = db.execute(
+        select(OfficeAuthSession, OfficeAuthUser)
+        .join(OfficeAuthUser, OfficeAuthUser.id == OfficeAuthSession.user_id)
+        .where(
+            OfficeAuthSession.id == session_id,
+            OfficeAuthUser.id == user_id,
+        )
+    ).first()
+    if not auth_row:
         raise HTTPException(status_code=401, detail="Office session is invalid")
+    session, user = auth_row
+
     if session.status != "ACTIVE" or session.revoked_at or _aware(session.expires_at) <= now:
         raise HTTPException(status_code=401, detail="Office session is expired or revoked")
-    status = _identity_status(db, user)
-    if user.status != "ACTIVE" or status != "ACTIVE":
-        raise HTTPException(status_code=403, detail="KRAVIA Office access is not active")
-    roles = _active_roles(db, user.id)
-    if not roles:
-        raise HTTPException(status_code=403, detail="No KRAVIA Office role is assigned")
     if require_aal2 and session.aal != "aal2":
         raise HTTPException(status_code=403, detail="MFA verification required")
-    session.last_seen_at = now
+
+    if _control_plane_present(db):
+        authz = db.execute(
+            text(
+                """
+                select
+                  i.status,
+                  coalesce(
+                    array_agg(r.role order by r.role)
+                      filter (
+                        where r.role is not null
+                          and (r.expires_at is null or r.expires_at > current_timestamp)
+                      ),
+                    '{}'::text[]
+                  ) as roles
+                from office_identity_users i
+                left join office_user_roles r on r.user_id = i.user_id
+                where i.user_id = cast(:user_id as uuid)
+                group by i.status
+                """
+            ),
+            {"user_id": user.id},
+        ).mappings().first()
+        status = str(authz["status"]) if authz else "REVOKED"
+        roles = sorted({
+            str(role).upper()
+            for role in (authz["roles"] if authz else [])
+            if str(role).upper() in OFFICE_ROLES
+        })
+    else:
+        status = user.status
+        roles = _active_roles(db, user.id)
+
+    if user.status != "ACTIVE" or status != "ACTIVE":
+        raise HTTPException(status_code=403, detail="KRAVIA Office access is not active")
+    if not roles:
+        raise HTTPException(status_code=403, detail="No KRAVIA Office role is assigned")
+
+    # Do not write last_seen_at on every business API request. Session activity is
+    # already captured by the dedicated auth/session heartbeat paths; avoiding a
+    # write here keeps read-heavy REST traffic read-only and reduces DB latency.
     return {
         "actor": user.email,
         "role": roles[0],

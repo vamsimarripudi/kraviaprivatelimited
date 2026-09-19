@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { getOfficeRuntimeOrigin } from "@/lib/env/office";
-import { getOfficeSessionContext, officeIdentityIsProvisioned } from "@/lib/office/auth-server";
+import { getOfficeSessionContext, OFFICE_ACCESS_COOKIE } from "@/lib/office/auth-server";
 import { officeMutationIsSameOrigin } from "@/lib/office/request-security";
 
 export const runtime = "nodejs";
@@ -76,12 +77,14 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
     return NextResponse.json({ detail: "KRAVIA Office runtime is not activated on this deployment" }, { status: 503 });
   }
 
-  const session = await getOfficeSessionContext();
-  if (!session || !officeIdentityIsProvisioned(session.identity)) {
-    return NextResponse.json({ detail: "Office sign-in required" }, { status: 401 });
+  const store = await cookies();
+  let accessToken = store.get(OFFICE_ACCESS_COOKIE)?.value;
+  if (!accessToken) {
+    const recovered = await getOfficeSessionContext();
+    accessToken = recovered?.session.access_token;
   }
-  if (session.identity.aal !== "aal2") {
-    return NextResponse.json({ detail: "MFA verification required" }, { status: 403 });
+  if (!accessToken) {
+    return NextResponse.json({ detail: "Office sign-in required" }, { status: 401 });
   }
 
   const { path: segments } = await context.params;
@@ -95,7 +98,7 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
   request.headers.forEach((value, key) => {
     if (FORWARDED_REQUEST_HEADERS.has(key.toLowerCase())) headers.set(key, value);
   });
-  headers.set("Authorization", `Bearer ${session.session.access_token}`);
+  headers.set("Authorization", `Bearer ${accessToken}`);
   headers.set("X-Kravia-Gateway", "path-workspace-bff");
 
   let body: ArrayBuffer | undefined;
@@ -111,21 +114,41 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
   }
 
   try {
-    const upstream = await fetch(target, {
+    const upstreamStarted = performance.now();
+    let upstream = await fetch(target, {
       method: request.method,
       headers,
       body,
       redirect: "manual",
       cache: "no-store",
-      signal: AbortSignal.timeout(25_000),
+      signal: AbortSignal.timeout(15_000),
     });
+
+    // Access tokens are short lived. Only pay the session-refresh round trip when
+    // Railway actually rejects the fast-path token, rather than on every request.
+    if (upstream.status === 401) {
+      const recovered = await getOfficeSessionContext();
+      if (recovered?.session.access_token && recovered.session.access_token !== accessToken) {
+        accessToken = recovered.session.access_token;
+        headers.set("Authorization", `Bearer ${accessToken}`);
+        upstream = await fetch(target, {
+          method: request.method,
+          headers,
+          body,
+          redirect: "manual",
+          cache: "no-store",
+          signal: AbortSignal.timeout(15_000),
+        });
+      }
+    }
+    const upstreamMs = performance.now() - upstreamStarted;
 
     // Never follow a runtime redirect, which would weaken the fixed-origin SSRF boundary.
     if (upstream.status >= 300 && upstream.status < 400) {
       return NextResponse.json({ detail: "Unexpected Office runtime redirect" }, { status: 502 });
     }
 
-    const responseHeaders = new Headers({ "Cache-Control": "no-store" });
+    const responseHeaders = new Headers({ "Cache-Control": "no-store", "Server-Timing": `railway;dur=${upstreamMs.toFixed(1)}` });
     upstream.headers.forEach((value, key) => {
       if (FORWARDED_RESPONSE_HEADERS.has(key.toLowerCase())) responseHeaders.set(key, value);
     });

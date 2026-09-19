@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 
 from fastapi import Request
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
 from . import main as office_main
@@ -43,6 +44,7 @@ async def canonical_lifespan(_app):
 
 
 app.router.lifespan_context = canonical_lifespan
+app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
 
 app.include_router(build_identity_router())
 app.include_router(build_finance_ownership_router(get_db, require_roles))

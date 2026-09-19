@@ -120,14 +120,28 @@ DATABASE_URL = normalize_database_url(
     os.getenv("DATABASE_URL", "sqlite:///./kravia_office.db")
 )
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-engine = configure_database_execution_role(
-    create_engine(
-        DATABASE_URL,
-        pool_pre_ping=True,
-        future=True,
-        connect_args=connect_args,
+
+app_env = os.getenv("APP_ENV", "development").strip().lower()
+engine_options = {
+    "future": True,
+    "connect_args": connect_args,
+    # Supavisor already protects the network boundary. In production, avoid an
+    # extra SELECT 1 on every pool checkout; recycle connections instead.
+    "pool_pre_ping": os.getenv(
+        "DATABASE_POOL_PRE_PING",
+        "false" if app_env == "production" else "true",
+    ).strip().lower() == "true",
+}
+if DATABASE_URL.startswith("postgresql+psycopg://"):
+    engine_options.update(
+        pool_size=max(1, int(os.getenv("DATABASE_POOL_SIZE", "5"))),
+        max_overflow=max(0, int(os.getenv("DATABASE_MAX_OVERFLOW", "5"))),
+        pool_timeout=max(1.0, float(os.getenv("DATABASE_POOL_TIMEOUT_SECONDS", "5"))),
+        pool_recycle=max(30, int(os.getenv("DATABASE_POOL_RECYCLE_SECONDS", "240"))),
+        pool_use_lifo=True,
     )
-)
+
+engine = configure_database_execution_role(create_engine(DATABASE_URL, **engine_options))
 SessionLocal = sessionmaker(
     bind=engine,
     autoflush=False,

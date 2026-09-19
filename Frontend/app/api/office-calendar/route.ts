@@ -18,7 +18,7 @@ const createSchema = z.object({
   ends_at: z.string().datetime({ offset: true }).optional(),
   all_day: z.boolean().optional(),
 });
-const cancelSchema = z.object({ event_id: z.string().uuid() });
+const eventIdSchema = z.string().uuid();
 
 export async function GET() {
   try {
@@ -55,10 +55,11 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   if (!officeMutationIsSameOrigin(request)) return NextResponse.json({ detail: "Cross-origin calendar mutation is not allowed" }, { status: 403 });
-  const parsed = cancelSchema.safeParse(await request.json().catch(() => null));
+  const eventId = new URL(request.url).searchParams.get("event_id");
+  const parsed = eventIdSchema.safeParse(eventId);
   if (!parsed.success) return NextResponse.json({ detail: "Invalid calendar event" }, { status: 400 });
   try {
-    return NextResponse.json(await cancelOfficeCalendarEvent(parsed.data.event_id), { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(await cancelOfficeCalendarEvent(parsed.data), { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const status = error instanceof OfficeCalendarError ? error.status : 500;
     const detail = error instanceof Error ? error.message : "Unable to cancel calendar event";
