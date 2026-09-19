@@ -268,11 +268,26 @@ def record_payment(invoice_id: str, payload: PaymentCreate, db: Session=Depends(
 
 @app.get("/api/v1/tax/gst/summary")
 def gst_summary(db: Session=Depends(get_db), ctx=Depends(actor_context)):
-    rows=db.execute(select(Invoice)).scalars().all()
-    sums={"net_taxable_paise":0,"cgst_paise":0,"sgst_paise":0,"igst_paise":0,"total_paise":0}
-    for x in rows:
-        for k in sums:sums[k]+=getattr(x,k)
-    return {k.replace("_paise",""):rupees(v) for k,v in sums.items()} | {"invoice_count":len(rows),"filing_status":"REVIEW_REQUIRED","note":"Working sales-register summary only; no GST portal filing is performed."}
+    row=db.execute(
+        select(
+            func.coalesce(func.sum(Invoice.net_taxable_paise),0),
+            func.coalesce(func.sum(Invoice.cgst_paise),0),
+            func.coalesce(func.sum(Invoice.sgst_paise),0),
+            func.coalesce(func.sum(Invoice.igst_paise),0),
+            func.coalesce(func.sum(Invoice.total_paise),0),
+            func.count(Invoice.id),
+        )
+    ).one()
+    return {
+        "net_taxable":rupees(int(row[0])),
+        "cgst":rupees(int(row[1])),
+        "sgst":rupees(int(row[2])),
+        "igst":rupees(int(row[3])),
+        "total":rupees(int(row[4])),
+        "invoice_count":int(row[5]),
+        "filing_status":"REVIEW_REQUIRED",
+        "note":"Working sales-register summary only; no GST portal filing is performed.",
+    }
 
 @app.get("/api/v1/audit")
 def audit_events(db: Session=Depends(get_db), ctx=Depends(actor_context), limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000)):
@@ -338,13 +353,23 @@ def verify_invoice(invoice_no: str, db: Session=Depends(get_db)):
 
 @app.get("/api/v1/accounting/trial-balance")
 def trial_balance(db: Session=Depends(get_db), ctx=Depends(actor_context)):
-    accounts=db.execute(select(ChartAccount).order_by(ChartAccount.code)).scalars().all()
+    rows=db.execute(
+        select(
+            ChartAccount.code,
+            ChartAccount.name,
+            ChartAccount.account_type,
+            func.coalesce(func.sum(JournalLine.debit_paise),0).label("debit"),
+            func.coalesce(func.sum(JournalLine.credit_paise),0).label("credit"),
+        )
+        .outerjoin(JournalLine, JournalLine.account_code==ChartAccount.code)
+        .group_by(ChartAccount.code,ChartAccount.name,ChartAccount.account_type)
+        .order_by(ChartAccount.code)
+    ).all()
     result=[]; total_debit=0; total_credit=0
-    for a in accounts:
-        debit=db.execute(select(func.coalesce(func.sum(JournalLine.debit_paise),0)).where(JournalLine.account_code==a.code)).scalar_one()
-        credit=db.execute(select(func.coalesce(func.sum(JournalLine.credit_paise),0)).where(JournalLine.account_code==a.code)).scalar_one()
-        total_debit += int(debit); total_credit += int(credit)
-        result.append({"account_code":a.code,"account_name":a.name,"account_type":a.account_type,"debit":rupees(int(debit)),"credit":rupees(int(credit)),"net_paise":int(debit)-int(credit)})
+    for code,name,account_type,debit,credit in rows:
+        debit_i=int(debit); credit_i=int(credit)
+        total_debit += debit_i; total_credit += credit_i
+        result.append({"account_code":code,"account_name":name,"account_type":account_type,"debit":rupees(debit_i),"credit":rupees(credit_i),"net_paise":debit_i-credit_i})
     return {"balanced":total_debit==total_credit,"total_debit":rupees(total_debit),"total_credit":rupees(total_credit),"accounts":result,"control_note":"Operational subledger. Production chart/accounting policy requires accountant approval."}
 
 @app.get("/api/v1/events/outbox")
@@ -1018,12 +1043,28 @@ def evaluate_operations(
 
 @app.get("/api/v1/command-center")
 def command_center(db: Session=Depends(get_db), ctx=Depends(actor_context)):
-    invoices=db.execute(select(Invoice)).scalars().all(); payments=db.execute(select(Payment).where(Payment.status=="SUCCESS")).scalars().all()
-    notices=db.execute(select(NoticeCase).where(NoticeCase.status=="OPEN")).scalars().all(); approvals=db.execute(select(ApprovalRequest).where(ApprovalRequest.status=="PENDING")).scalars().all(); unmatched=db.execute(select(BankTransaction).where(BankTransaction.match_status!="MATCHED")).scalars().all()
+    invoice_value,receivables=db.execute(
+        select(
+            func.coalesce(func.sum(Invoice.total_paise),0),
+            func.coalesce(func.sum(Invoice.balance_paise),0),
+        )
+    ).one()
+    collected=db.scalar(
+        select(func.coalesce(func.sum(Payment.amount_paise),0)).where(Payment.status=="SUCCESS")
+    ) or 0
+    open_notices=db.scalar(select(func.count()).select_from(NoticeCase).where(NoticeCase.status=="OPEN")) or 0
+    pending_approvals=db.scalar(select(func.count()).select_from(ApprovalRequest).where(ApprovalRequest.status=="PENDING")) or 0
+    unmatched=db.scalar(select(func.count()).select_from(BankTransaction).where(BankTransaction.match_status!="MATCHED")) or 0
+    pending_events=db.scalar(select(func.count()).select_from(DomainEvent).where(DomainEvent.status=="PENDING")) or 0
     return {
-        "financial":{"issued_invoice_value":rupees(sum(x.total_paise for x in invoices)),"collected":rupees(sum(x.amount_paise for x in payments)),"receivables":rupees(sum(x.balance_paise for x in invoices))},
-        "attention":{"open_notices":len(notices),"pending_approvals":len(approvals),"unmatched_bank_transactions":len(unmatched),"pending_events":db.scalar(select(func.count()).select_from(DomainEvent).where(DomainEvent.status=="PENDING")) or 0},
-        "records":{"customers":db.scalar(select(func.count()).select_from(Customer)) or 0,"products":db.scalar(select(func.count()).select_from(Product)) or 0,"subscriptions":db.scalar(select(func.count()).select_from(Subscription)) or 0,"documents":db.scalar(select(func.count()).select_from(Document)) or 0},
+        "financial":{"issued_invoice_value":rupees(int(invoice_value)),"collected":rupees(int(collected)),"receivables":rupees(int(receivables))},
+        "attention":{"open_notices":int(open_notices),"pending_approvals":int(pending_approvals),"unmatched_bank_transactions":int(unmatched),"pending_events":int(pending_events)},
+        "records":{
+            "customers":db.scalar(select(func.count()).select_from(Customer)) or 0,
+            "products":db.scalar(select(func.count()).select_from(Product)) or 0,
+            "subscriptions":db.scalar(select(func.count()).select_from(Subscription)) or 0,
+            "documents":db.scalar(select(func.count()).select_from(Document)) or 0,
+        },
         "source":"KRAVIA Office canonical database; no fabricated cash/bank values"
     }
 
