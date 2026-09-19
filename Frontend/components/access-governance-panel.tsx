@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { CheckCircle2, LoaderCircle, RefreshCw, ShieldAlert, UserPlus, UsersRound } from "lucide-react";
+import { CheckCircle2, Copy, Link2, LoaderCircle, RefreshCw, ShieldAlert, UserPlus, UsersRound } from "lucide-react";
 import type { OfficeIdentity } from "@/lib/office/auth-server";
 import type { OfficeRole } from "@/lib/office/workspaces";
 import styles from "./access-governance-panel.module.css";
@@ -59,6 +59,8 @@ export function AccessGovernancePanel({ identity }: { identity: OfficeIdentity }
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState<{ message: string; error: boolean }>();
   const [invite, setInvite] = useState<InviteDraft>(emptyInvite);
+  const [lastInviteUrl, setLastInviteUrl] = useState<string>();
+  const [copiedInvite, setCopiedInvite] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -104,8 +106,12 @@ export function AccessGovernancePanel({ identity }: { identity: OfficeIdentity }
       setNotice({ message: "Choose a department and at least one role.", error: true });
       return;
     }
-    const ok = await mutate(
-      () => json("/api/office-access/invite", {
+    setPending(true);
+    setNotice(undefined);
+    setLastInviteUrl(undefined);
+    setCopiedInvite(false);
+    try {
+      const result = await json<{ registration_url?: string }>("/api/office-access/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -116,10 +122,31 @@ export function AccessGovernancePanel({ identity }: { identity: OfficeIdentity }
           roles: invite.roles,
           reason: invite.reason,
         }),
-      }),
-      "Invitation issued. The identity remains INVITED until the link is accepted, a strong password is set and authenticator MFA is verified.",
-    );
-    if (ok) setInvite(emptyInvite);
+      });
+      await reload();
+      if (!result.registration_url) throw new Error("Invitation was created but the private registration link was not returned");
+      setLastInviteUrl(result.registration_url);
+      setInvite(emptyInvite);
+      setNotice({
+        message: "Private registration link created. Copy it now and send it only to the intended person.",
+        error: false,
+      });
+    } catch (error) {
+      setNotice({ message: error instanceof Error ? error.message : "Invitation failed", error: true });
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function copyInviteLink() {
+    if (!lastInviteUrl) return;
+    try {
+      await navigator.clipboard.writeText(lastInviteUrl);
+      setCopiedInvite(true);
+      window.setTimeout(() => setCopiedInvite(false), 2500);
+    } catch {
+      setNotice({ message: "Copy failed. Select the private link manually.", error: true });
+    }
   }
 
   if (loadError) {
@@ -138,6 +165,12 @@ export function AccessGovernancePanel({ identity }: { identity: OfficeIdentity }
     </section>
 
     {notice ? <div className={styles.notice} data-error={notice.error} role="status">{notice.error ? <ShieldAlert /> : <CheckCircle2 />}{notice.message}</div> : null}
+
+    {lastInviteUrl ? <section className={styles.privateLink} aria-label="Private registration link">
+      <div><Link2 /><span><b>Private registration link</b><small>Shown only now. It is single-use and expires automatically.</small></span></div>
+      <div className={styles.privateLinkRow}><input readOnly value={lastInviteUrl} aria-label="Private registration URL" /><button type="button" onClick={() => void copyInviteLink()}><Copy />{copiedInvite ? "Copied" : "Copy link"}</button></div>
+      <p>Send this URL directly to the intended person. Do not post it in a public channel.</p>
+    </section> : null}
 
     <section className={styles.panel}>
       <div className={styles.head}><div><p className="eyebrow">JOINER</p><h2>{owner ? "Appoint administrator or invite a team member" : "Invite an authorised team member"}</h2></div><UserPlus /></div>
