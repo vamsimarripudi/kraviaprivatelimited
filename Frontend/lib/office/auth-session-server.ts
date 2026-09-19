@@ -3,9 +3,9 @@ import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import { isIP } from "node:net";
 import { cookies } from "next/headers";
-import { createClient, type Session } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 import { requireOfficeAdminEnvironment } from "@/lib/env/office";
-import type { OfficeSessionContext } from "@/lib/office/auth-server";
+import type { OfficeSession, OfficeSessionContext } from "@/lib/office/auth-server";
 
 const OFFICE_TRACKING_SESSION_COOKIE = "kravia_office_session_id";
 const TRACKING_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -31,9 +31,10 @@ function decodeJwtPayload(token: string): Record<string, unknown> {
   }
 }
 
-function providerSessionId(session: Session) {
+function providerSessionId(session: OfficeSession) {
   const claims = decodeJwtPayload(session.access_token);
-  const sessionId = typeof claims.session_id === "string" ? claims.session_id.trim() : "";
+  const rawSessionId = typeof claims.sid === "string" ? claims.sid : claims.session_id;
+  const sessionId = typeof rawSessionId === "string" ? rawSessionId.trim() : "";
   if (sessionId) return sessionId.slice(0, 160);
   return `token-hash:${createHash("sha256").update(session.access_token).digest("hex")}`;
 }
