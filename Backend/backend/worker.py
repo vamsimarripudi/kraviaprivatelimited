@@ -20,12 +20,14 @@ from sqlalchemy.orm import Session
 
 from .automation import ensure_alert, resolve_alert, tick
 from .database import Base, SessionLocal, engine
+from .file_security import process_file_scan_queue
 from .models import WorkerHeartbeat
 from .services import now_utc
 
 WORKER_LOCK_KEY = 5_821_841_907_269_011_847
 WORKER_ERROR_ALERT_KEY = "runtime:background-worker-error"
 WORKER_HEARTBEAT_KEY = "office-automation"
+FILE_SCAN_ALERT_KEY = "runtime:file-malware-scan"
 
 
 def _bounded_int(name: str, default: int, minimum: int, maximum: int) -> int:
@@ -122,12 +124,41 @@ def run_iteration(
             heartbeat.configured_interval_seconds = interval
             heartbeat.configured_batch_size = batch
             result = tick(db, limit=batch, commit=False)
+            file_scans = process_file_scan_queue()
+            scan_status = str(file_scans.get("status") or "")
+            scan_failed = int(file_scans.get("failed") or 0)
+            scan_queued = int(file_scans.get("queued") or 0)
+            if scan_status == "UNCONFIGURED" and scan_queued > 0:
+                ensure_alert(
+                    db,
+                    FILE_SCAN_ALERT_KEY,
+                    "SECURITY",
+                    "CRITICAL",
+                    "Private file malware scanning is not configured",
+                    "file_scan_queue",
+                    "office-quarantine",
+                    detail={"queued": scan_queued, "status": scan_status},
+                )
+            elif scan_failed > 0:
+                ensure_alert(
+                    db,
+                    FILE_SCAN_ALERT_KEY,
+                    "SECURITY",
+                    "HIGH",
+                    "Private file malware scan failures require review",
+                    "file_scan_queue",
+                    "office-quarantine",
+                    detail={"failed": scan_failed, "status": scan_status},
+                )
+            else:
+                resolve_alert(db, FILE_SCAN_ALERT_KEY)
             recovered = resolve_alert(db, WORKER_ERROR_ALERT_KEY)
             duration_ms = max(0, round((time.monotonic() - started) * 1000))
             response = {
                 "status": "COMPLETED",
                 "batch_size": batch,
                 "worker_alert_recovered": recovered,
+                "file_scans": file_scans,
                 **result,
             }
             heartbeat.last_succeeded_at = now_utc()
