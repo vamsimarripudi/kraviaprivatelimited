@@ -1,6 +1,6 @@
 import "server-only";
-import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
-import { requireOfficeAdminEnvironment } from "@/lib/env/office";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { getOfficeRuntimeOrigin, requireOfficeAdminEnvironment } from "@/lib/env/office";
 import { getOfficeSessionContext, officeIdentityIsProvisioned } from "@/lib/office/auth-server";
 import {
   activeRoleNames,
@@ -27,6 +27,7 @@ type AccessActor = { userId: string; email?: string; roles: OfficeRole[] };
 type TargetAccess = { userId: string; email?: string; status: OfficeIdentityStatus; roles: OfficeRole[] };
 
 type ErrorLike = { message?: string } | null;
+type AuthDirectoryUser = { id: string; email?: string | null; last_login_at?: string | null; display_name?: string | null; founder_slot?: string | null; mfa_verified_at?: string | null };
 
 function createOfficeAdminClient() {
   const environment = requireOfficeAdminEnvironment();
@@ -39,7 +40,7 @@ function failIf(error: ErrorLike, message: string) {
   if (error) throw new OfficeAccessError(500, message);
 }
 
-async function requireAccessAdministrator(): Promise<{ admin: SupabaseClient; actor: AccessActor }> {
+async function requireAccessAdministrator(): Promise<{ admin: SupabaseClient; actor: AccessActor; accessToken: string }> {
   const context = await getOfficeSessionContext();
   if (!context || !officeIdentityIsProvisioned(context.identity)) throw new OfficeAccessError(401, "Office sign-in required");
   if (context.identity.aal !== "aal2") throw new OfficeAccessError(403, "AAL2 verification is required for access administration");
@@ -48,44 +49,37 @@ async function requireAccessAdministrator(): Promise<{ admin: SupabaseClient; ac
     return {
       admin: createOfficeAdminClient(),
       actor: { userId: context.identity.userId, email: context.identity.email, roles: context.identity.roles },
+      accessToken: context.session.access_token,
     };
   } catch {
     throw new OfficeAccessError(503, "Trusted Office access administration is not configured");
   }
 }
 
-async function listAllAuthUsers(admin: SupabaseClient): Promise<User[]> {
-  const users: User[] = [];
-  const perPage = 200;
-  for (let page = 1; page <= 100; page += 1) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
-    failIf(error, "Unable to list Office auth users");
-    users.push(...(data.users ?? []));
-    if ((data.users ?? []).length < perPage) return users;
-  }
-  throw new OfficeAccessError(503, "Office user directory exceeds the supported administrative listing window");
+async function listAllAuthUsers(admin: SupabaseClient): Promise<AuthDirectoryUser[]> {
+  const { data, error } = await admin
+    .from("office_auth_users")
+    .select("id,email,last_login_at,display_name,founder_slot,mfa_verified_at")
+    .order("created_at", { ascending: true })
+    .limit(5000);
+  failIf(error, "Unable to list KRAVIA Office identities");
+  return (data ?? []) as AuthDirectoryUser[];
 }
 
 async function existingAuthUserByEmail(admin: SupabaseClient, email: string) {
   const normalized = email.trim().toLowerCase();
-  const perPage = 200;
-  for (let page = 1; page <= 100; page += 1) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
-    failIf(error, "Unable to inspect existing Office users");
-    const match = (data.users ?? []).find((user) => user.email?.toLowerCase() === normalized);
-    if (match) return match;
-    if ((data.users ?? []).length < perPage) return null;
-  }
-  throw new OfficeAccessError(503, "Office user directory exceeds the supported administrative lookup window");
+  const { data, error } = await admin.from("office_auth_users").select("id,email").eq("email", normalized).maybeSingle();
+  failIf(error, "Unable to inspect existing Office users");
+  return data;
 }
 
 async function targetAccess(admin: SupabaseClient, userId: string): Promise<TargetAccess> {
   const [identityResult, rolesResult, authResult] = await Promise.all([
     admin.from("office_identity_users").select("status").eq("user_id", userId).maybeSingle(),
     admin.from("office_user_roles").select("role,expires_at").eq("user_id", userId),
-    admin.auth.admin.getUserById(userId),
+    admin.from("office_auth_users").select("id,email").eq("id", userId).maybeSingle(),
   ]);
-  if (identityResult.error || rolesResult.error || authResult.error || !identityResult.data || !authResult.data.user) {
+  if (identityResult.error || rolesResult.error || authResult.error || !identityResult.data || !authResult.data) {
     throw new OfficeAccessError(404, "Office identity not found");
   }
   const status = identityResult.data.status as OfficeIdentityStatus;
@@ -94,7 +88,7 @@ async function targetAccess(admin: SupabaseClient, userId: string): Promise<Targ
   }
   return {
     userId,
-    email: authResult.data.user.email,
+    email: authResult.data.email ?? undefined,
     status,
     roles: activeRoleNames((rolesResult.data ?? []) as { role: unknown; expires_at?: unknown }[]),
   };
@@ -159,8 +153,8 @@ export async function listOfficeAccessState() {
     return {
       user_id: userId,
       email: authUser?.email ?? null,
-      email_confirmed: Boolean(authUser?.email_confirmed_at),
-      last_sign_in_at: authUser?.last_sign_in_at ?? null,
+      email_confirmed: true,
+      last_sign_in_at: authUser?.last_login_at ?? null,
       status: row.status,
       display_name: row.display_name,
       job_title: row.job_title,
@@ -203,79 +197,46 @@ export async function inviteOfficeUser(input: {
   reason: string;
   origin: string;
 }) {
-  const { admin, actor } = await requireAccessAdministrator();
+  const { admin, actor, accessToken } = await requireAccessAdministrator();
   const decision = canInviteRoles(actor.roles, input.roles);
   if (!decision.allowed) throw new OfficeAccessError(403, decision.reason);
   if (!isOfficeDepartment(input.department)) throw new OfficeAccessError(400, "Invalid Office department");
   const existing = await existingAuthUserByEmail(admin, input.email);
-  if (existing) throw new OfficeAccessError(409, "That email already exists in KRAVIA Office Auth");
-  const { data: pendingInvite, error: pendingError } = await admin.from("office_access_invitations").select("id").eq("status", "PENDING").ilike("email", input.email.trim()).maybeSingle();
-  failIf(pendingError, "Unable to check pending invitations");
-  if (pendingInvite) throw new OfficeAccessError(409, "A pending Office invitation already exists for that email");
+  if (existing) throw new OfficeAccessError(409, "That email already exists in KRAVIA Office");
 
-  let invitedUserId: string | undefined;
+  const runtime = getOfficeRuntimeOrigin();
+  if (!runtime) throw new OfficeAccessError(503, "KRAVIA Office identity service is unavailable");
+  let response: Response;
   try {
-    const redirect = new URL("/office/activate", input.origin).toString();
-    const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(input.email.trim(), { redirectTo: redirect });
-    if (inviteError || !inviteData.user) throw new OfficeAccessError(502, "Supabase could not issue the Office invitation");
-    invitedUserId = inviteData.user.id;
-
-    const { error: identityError } = await admin.from("office_identity_users").insert({
-      user_id: invitedUserId,
-      status: "INVITED",
-      display_name: input.displayName?.trim() || null,
-      job_title: input.jobTitle?.trim() || null,
-      primary_department: input.department,
-      created_by: actor.userId,
+    response = await fetch(new URL("/api/v1/auth/invitations", runtime), {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        email: input.email,
+        display_name: input.displayName || undefined,
+        job_title: input.jobTitle || undefined,
+        department: input.department,
+        roles: input.roles,
+        reason: input.reason,
+      }),
+      cache: "no-store",
+      redirect: "manual",
+      signal: AbortSignal.timeout(25_000),
     });
-    failIf(identityError, "Unable to stage the invited Office identity");
-
-    const { error: roleError } = await admin.from("office_user_roles").insert(input.roles.map((role) => ({
-      user_id: invitedUserId,
-      role,
-      granted_by: actor.userId,
-      grant_reason: input.reason,
-    })));
-    failIf(roleError, "Unable to stage the invited Office roles");
-
-    const now = Date.now();
-    const expiresAt = new Date(now + 60 * 60 * 1000).toISOString();
-    const { error: invitationError } = await admin.from("office_access_invitations").insert({
-      email: input.email.trim().toLowerCase(),
-      display_name: input.displayName?.trim() || null,
-      job_title: input.jobTitle?.trim() || null,
-      department: input.department,
-      requested_roles: input.roles,
-      requested_by: actor.userId,
-      auth_user_id: invitedUserId,
-      expires_at: expiresAt,
-    });
-    failIf(invitationError, "Unable to record the Office invitation");
-
-    const { error: reviewError } = await admin.from("office_access_reviews").insert({
-      user_id: invitedUserId,
-      status: "PENDING",
-      due_at: new Date(now + 90 * 24 * 60 * 60 * 1000).toISOString(),
-    });
-    failIf(reviewError, "Unable to schedule the Office access review");
-
-    await writeAudit(admin, actor, {
-      targetUserId: invitedUserId,
-      targetEmail: input.email.trim().toLowerCase(),
-      action: "INVITE_CREATED",
-      department: input.department,
-      reason: input.reason,
-      metadata: { roles: input.roles },
-    });
-    return { invited: true, user_id: invitedUserId, email: input.email.trim().toLowerCase(), roles: input.roles, department: input.department };
-  } catch (error) {
-    if (invitedUserId) {
-      await admin.from("office_access_invitations").delete().eq("auth_user_id", invitedUserId).eq("status", "PENDING");
-      try { await admin.auth.admin.deleteUser(invitedUserId); } catch { /* Identity remains unusable if provider cleanup is unavailable. */ }
-    }
-    if (error instanceof OfficeAccessError) throw error;
-    throw new OfficeAccessError(500, "Office invitation provisioning failed");
+  } catch {
+    throw new OfficeAccessError(503, "KRAVIA Office invitation service is unavailable");
   }
+  const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+  if (!response.ok) {
+    throw new OfficeAccessError(response.status, typeof payload.detail === "string" ? payload.detail : "Office invitation failed");
+  }
+  const registrationPath = typeof payload.registration_path === "string" ? payload.registration_path : "";
+  const registrationUrl = registrationPath ? new URL(registrationPath, input.origin).toString() : "";
+  return { ...payload, registration_url: registrationUrl };
 }
 
 export async function changeOfficeRole(input: { targetUserId: string; role: OfficeRole; action: "GRANT" | "REVOKE"; expiresAt?: string; reason: string }) {
