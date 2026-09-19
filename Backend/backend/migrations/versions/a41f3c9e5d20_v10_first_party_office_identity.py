@@ -117,6 +117,7 @@ def upgrade() -> None:
         for table in ("office_auth_users", "office_auth_roles", "office_auth_sessions_v2", "office_auth_invites", "office_auth_events_v2"):
             op.execute(sa.text(f'alter table public."{table}" enable row level security'))
             op.execute(sa.text(f'revoke all on table public."{table}" from anon, authenticated'))
+        op.execute(sa.text('grant select on table public.office_auth_users to service_role'))
 
 
 def downgrade() -> None:
