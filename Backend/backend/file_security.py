@@ -107,7 +107,8 @@ def _storage_url() -> str:
 
 def _storage_secret() -> str:
     return (
-        os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+        os.getenv("SUPABASE_SECRET_KEY", "").strip()
+        or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
         or os.getenv("OFFICE_SUPABASE_SECRET_KEY", "").strip()
     )
 
