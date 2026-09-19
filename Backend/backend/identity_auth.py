@@ -343,7 +343,8 @@ def _mirror_invitation(
             insert into office_access_invitations
               (id,email,display_name,job_title,department,requested_roles,status,requested_by,auth_user_id,expires_at)
             values
-              (cast(:id as uuid),:email,:display_name,:job_title,:department,ARRAY[:role0]::text[],'PENDING',
+              (cast(:id as uuid),:email,:display_name,:job_title,:department,
+               string_to_array(:roles_csv, ','),'PENDING',
                cast(:requested_by as uuid),cast(:auth_user_id as uuid),:expires_at)
             on conflict (id) do nothing
             """
@@ -354,17 +355,12 @@ def _mirror_invitation(
             "display_name": display_name,
             "job_title": job_title,
             "department": department,
-            "role0": roles[0],
+            "roles_csv": ",".join(roles),
             "requested_by": requested_by,
             "auth_user_id": invited_user_id,
             "expires_at": expires_at,
         },
     )
-    if len(roles) > 1:
-        db.execute(
-            text("update office_access_invitations set requested_roles=cast(:roles as text[]) where id=cast(:id as uuid)"),
-            {"roles": roles, "id": invite_id},
-        )
 
 
 def _mirror_invitation_accepted(db: Session, invite_id: str, user_id: str) -> None:
