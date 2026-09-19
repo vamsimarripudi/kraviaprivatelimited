@@ -22,6 +22,7 @@ import {
   XCircle,
 } from "lucide-react";
 import type { OfficeIdentity } from "@/lib/office/auth-server";
+import { officeMutation, officeQuery } from "@/lib/office/http-client";
 import styles from "./office-work-hub.module.css";
 
 type Mode = "dashboard" | "requests" | "approvals" | "manager";
@@ -49,10 +50,18 @@ type Draft = { requestType: string; title: string; description: string; priority
 const emptyDraft: Draft = { requestType: "", title: "", description: "", priority: "NORMAL", resourceType: "", resourceKey: "" };
 
 async function json<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, { ...options, cache: "no-store", credentials: "same-origin" });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(typeof body.detail === "string" ? body.detail : "Office request failed");
-  return body as T;
+  const method = (options?.method ?? "GET").toUpperCase();
+  if (method === "GET") {
+    return officeQuery<T>(url, undefined, { staleMs: 10_000 });
+  }
+  const body = typeof options?.body === "string"
+    ? JSON.parse(options.body)
+    : options?.body;
+  return officeMutation<T>(url, {
+    method: method as "POST" | "PUT" | "PATCH" | "DELETE",
+    body,
+    invalidate: "/api/office-work",
+  });
 }
 
 function readableDate(value?: string | null) {
