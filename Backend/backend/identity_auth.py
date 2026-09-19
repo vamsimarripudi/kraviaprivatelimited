@@ -421,14 +421,36 @@ def _identity_status(db: Session, user: OfficeAuthUser) -> str:
     return user.status
 
 
+def _identity_metadata(db: Session, user_id: str) -> dict[str, Any]:
+    if not _control_plane_present(db):
+        return {"department": None, "authorization_version": 1}
+    row = db.execute(
+        text(
+            """
+            select primary_department, authorization_version
+            from office_identity_users
+            where user_id=cast(:user_id as uuid)
+            """
+        ),
+        {"user_id": user_id},
+    ).mappings().first()
+    if not row:
+        return {"department": None, "authorization_version": 1}
+    version = int(row.get("authorization_version") or 1)
+    return {"department": row.get("primary_department"), "authorization_version": version}
+
+
 def _safe_identity(db: Session, user: OfficeAuthUser, aal: str) -> dict[str, Any]:
     roles = _active_roles(db, user.id)
+    metadata = _identity_metadata(db, user.id)
     return {
         "user_id": user.id,
         "email": user.email,
         "display_name": user.display_name,
         "roles": roles,
         "access_status": _identity_status(db, user),
+        "department": metadata["department"],
+        "authorization_version": metadata["authorization_version"],
         "aal": aal,
         "founder": user.founder_slot == FOUNDER_SLOT,
         "display_role": "FOUNDER" if user.founder_slot == FOUNDER_SLOT else (roles[0] if roles else "MEMBER"),
@@ -448,6 +470,8 @@ def _encode_access(db: Session, user: OfficeAuthUser, session: OfficeAuthSession
             "office_roles": identity["roles"],
             "office_access_status": identity["access_status"],
             "office_founder": identity["founder"],
+            "office_department": identity["department"],
+            "office_authz_version": identity["authorization_version"],
             "aal": session.aal,
             "sid": session.id,
             "iat": int(now.timestamp()),
