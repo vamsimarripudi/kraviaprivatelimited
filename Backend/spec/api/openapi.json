@@ -808,19 +808,6 @@
         "title": "EmployeeCreate",
         "type": "object"
       },
-      "EnrollPayload": {
-        "properties": {
-          "friendly_name": {
-            "default": "KRAVIA Office Authenticator",
-            "maxLength": 120,
-            "minLength": 1,
-            "title": "Friendly Name",
-            "type": "string"
-          }
-        },
-        "title": "EnrollPayload",
-        "type": "object"
-      },
       "ExpenseCreate": {
         "properties": {
           "amount": {
@@ -924,19 +911,33 @@
         "title": "ExpenseCreate",
         "type": "object"
       },
-      "FactorPayload": {
+      "FounderRegisterPayload": {
         "properties": {
-          "factor_id": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Factor Id",
+          "display_name": {
+            "maxLength": 160,
+            "minLength": 2,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 256,
+            "minLength": 12,
+            "title": "Password",
             "type": "string"
           }
         },
         "required": [
-          "factor_id"
+          "email",
+          "display_name",
+          "password"
         ],
-        "title": "FactorPayload",
+        "title": "FounderRegisterPayload",
         "type": "object"
       },
       "FundingPolicyCreate": {
@@ -1161,6 +1162,103 @@
           "integration_type"
         ],
         "title": "IntegrationCreate",
+        "type": "object"
+      },
+      "InviteCreatePayload": {
+        "properties": {
+          "department": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Department"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "job_title": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Title"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Reason",
+            "type": "string"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 6,
+            "minItems": 1,
+            "title": "Roles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "email",
+          "roles",
+          "reason"
+        ],
+        "title": "InviteCreatePayload",
+        "type": "object"
+      },
+      "InviteRegisterPayload": {
+        "properties": {
+          "display_name": {
+            "maxLength": 160,
+            "minLength": 2,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 256,
+            "minLength": 12,
+            "title": "Password",
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 512,
+            "minLength": 32,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "display_name",
+          "password"
+        ],
+        "title": "InviteRegisterPayload",
         "type": "object"
       },
       "InvoiceCreate": {
@@ -1424,6 +1522,20 @@
           "frequency"
         ],
         "title": "MandateCreate",
+        "type": "object"
+      },
+      "MfaVerifyPayload": {
+        "properties": {
+          "code": {
+            "pattern": "^[0-9]{6}$",
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "MfaVerifyPayload",
         "type": "object"
       },
       "NoticeCreate": {
@@ -1751,6 +1863,21 @@
           "category"
         ],
         "title": "ProductCreate",
+        "type": "object"
+      },
+      "RefreshPayload": {
+        "properties": {
+          "refresh_token": {
+            "maxLength": 512,
+            "minLength": 32,
+            "title": "Refresh Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "refresh_token"
+        ],
+        "title": "RefreshPayload",
         "type": "object"
       },
       "RefundCreate": {
@@ -2268,7 +2395,7 @@
             "type": "string"
           },
           "password": {
-            "maxLength": 1024,
+            "maxLength": 256,
             "minLength": 1,
             "title": "Password",
             "type": "string"
@@ -2439,34 +2566,6 @@
           "category"
         ],
         "title": "VendorCreate",
-        "type": "object"
-      },
-      "VerifyPayload": {
-        "properties": {
-          "challenge_id": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Challenge Id",
-            "type": "string"
-          },
-          "code": {
-            "pattern": "^[0-9]{6,10}$",
-            "title": "Code",
-            "type": "string"
-          },
-          "factor_id": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Factor Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "factor_id",
-          "challenge_id",
-          "code"
-        ],
-        "title": "VerifyPayload",
         "type": "object"
       }
     }
@@ -4431,9 +4530,9 @@
         "summary": "Verify Audit Chain"
       }
     },
-    "/api/v1/auth/factors": {
+    "/api/v1/auth/bootstrap-status": {
       "get": {
-        "operationId": "factors_api_v1_auth_factors_get",
+        "operationId": "bootstrap_status_api_v1_auth_bootstrap_status_get",
         "responses": {
           "200": {
             "content": {
@@ -4444,25 +4543,26 @@
             "description": "Successful Response"
           }
         },
-        "summary": "Factors",
+        "summary": "Bootstrap Status",
         "tags": [
           "identity"
         ]
       }
     },
-    "/api/v1/auth/mfa/challenge": {
-      "post": {
-        "operationId": "challenge_mfa_api_v1_auth_mfa_challenge_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/FactorPayload"
-              }
+    "/api/v1/auth/invitation": {
+      "get": {
+        "operationId": "invitation_status_api_v1_auth_invitation_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
             }
-          },
-          "required": true
-        },
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -4483,7 +4583,159 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Challenge Mfa",
+        "summary": "Invitation Status",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/invitation/register": {
+      "post": {
+        "operationId": "register_invited_user_api_v1_auth_invitation_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteRegisterPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register Invited User",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/invitations": {
+      "post": {
+        "operationId": "create_invitation_api_v1_auth_invitations_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteCreatePayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Invitation",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/invitations/{invitation_id}/revoke": {
+      "post": {
+        "operationId": "revoke_invitation_api_v1_auth_invitations__invitation_id__revoke_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invitation_id",
+            "required": true,
+            "schema": {
+              "title": "Invitation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Invitation",
         "tags": [
           "identity"
         ]
@@ -4492,16 +4744,24 @@
     "/api/v1/auth/mfa/enroll": {
       "post": {
         "operationId": "enroll_mfa_api_v1_auth_mfa_enroll_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EnrollPayload"
-              }
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
-          },
-          "required": true
-        },
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -4531,11 +4791,29 @@
     "/api/v1/auth/mfa/verify": {
       "post": {
         "operationId": "verify_mfa_api_v1_auth_mfa_verify_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/VerifyPayload"
+                "$ref": "#/components/schemas/MfaVerifyPayload"
               }
             }
           },
@@ -4589,6 +4867,16 @@
     "/api/v1/auth/refresh": {
       "post": {
         "operationId": "refresh_api_v1_auth_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshPayload"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -4597,6 +4885,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Refresh",
@@ -4605,9 +4903,84 @@
         ]
       }
     },
+    "/api/v1/auth/register-founder": {
+      "post": {
+        "operationId": "register_founder_api_v1_auth_register_founder_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Kravia-Bootstrap-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Kravia-Bootstrap-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FounderRegisterPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register Founder",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
     "/api/v1/auth/session": {
       "get": {
         "operationId": "session_state_api_v1_auth_session_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -4616,6 +4989,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Session State",
@@ -4666,6 +5049,24 @@
     "/api/v1/auth/sign-out": {
       "post": {
         "operationId": "sign_out_api_v1_auth_sign_out_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -4674,9 +5075,75 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Sign Out",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/users/{user_id}/mfa-reset": {
+      "post": {
+        "operationId": "reset_mfa_api_v1_auth_users__user_id__mfa_reset_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reset Mfa",
         "tags": [
           "identity"
         ]
