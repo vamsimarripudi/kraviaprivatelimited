@@ -27,6 +27,24 @@ class OfficeAuthUser(Base):
     )
 
 
+class OfficeAuthRole(Base):
+    __tablename__ = "office_auth_roles"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(36), ForeignKey("office_auth_users.id", ondelete="CASCADE"), nullable=False)
+    role = Column(String(64), nullable=False)
+    granted_by = Column(String(36), nullable=True)
+    grant_reason = Column(Text, nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "role", name="uq_office_auth_role_user_role"),
+        Index("ix_office_auth_roles_user", "user_id"),
+    )
+
+
 class OfficeAuthSession(Base):
     __tablename__ = "office_auth_sessions_v2"
 
