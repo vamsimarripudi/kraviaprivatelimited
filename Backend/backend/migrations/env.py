@@ -8,7 +8,8 @@ import os
 from backend.database import Base, configure_database_execution_role, normalize_database_url
 from backend import models
 from backend import finance_ownership  # register bounded-domain metadata for migrations
-from backend import period_controls  # register accounting/tax close-control metadata
+from backend import period_controls
+from backend import auth_models  # register first-party Office identity metadata  # register accounting/tax close-control metadata
 
 # This is the Alembic Config object, which provides access to values from
 # alembic.ini. Runtime DATABASE_URL intentionally bypasses ConfigParser because
