@@ -180,8 +180,8 @@ jobs:
         shell: bash
         run: |
           if [ -z "$RAILWAY_TOKEN" ]; then
-            echo "::warning::RAILWAY_TOKEN is not configured; Railway API deployment was not started."
-            exit 0
+            echo "::error::RAILWAY_TOKEN is not configured; refusing to report Railway deployment success."
+            exit 1
           fi
           npx -y @railway/cli@5.57.9 up --ci \
             --project "$RAILWAY_PROJECT_ID" \
