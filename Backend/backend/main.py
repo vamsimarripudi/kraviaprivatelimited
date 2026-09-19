@@ -15,7 +15,6 @@ from .models import LegalEntity, Product, Customer, Invoice, Payment, Receipt, I
 from .schemas import CustomerCreate, ProductCreate, InvoiceCreate, PaymentCreate, ComplianceCreate, BoardMeetingCreate, ResolutionCreate, AuthorityCreate, VendorCreate, ContractCreate, EmployeeCreate, AssetCreate, PlanCreate, SubscriptionCreate, CreditNoteCreate, RefundCreate, BankAccountCreate, BankTransactionCreate, SettlementCreate, ApprovalCreate, ApprovalDecision, NoticeCreate, InspectionCreate, IntegrationCreate
 from .services import uid, paise, rupees, now_utc, allocate_invoice_no, allocate_controlled_no, audit, workflow, emit_event, post_journal, ENTITY_ID
 from .documents import invoice_pdf, receipt_pdf, ctc_pdf
-from .file_security import build_file_security_router
 
 APP_ENV = os.getenv("APP_ENV", "development")
 AUTH_MODE = os.getenv("AUTH_MODE", "bootstrap" if APP_ENV != "production" else "oidc").lower()
@@ -129,8 +128,6 @@ def require_roles(*allowed):
             raise HTTPException(status_code=403, detail="Insufficient Office authority")
         return ctx
     return dependency
-
-app.include_router(build_file_security_router(require_roles))
 
 def get_idempotent(db, key, operation):
     if not key: return None
