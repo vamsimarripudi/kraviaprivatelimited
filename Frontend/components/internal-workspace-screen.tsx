@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, FileLock2, Landmark, ShieldCheck, TriangleAlert } from "lucide-react";
+import dynamic from "next/dynamic";
+import { ArrowRight, Bell, BriefcaseBusiness, Building2, ClipboardCheck, FileLock2, Files, Gauge, Landmark, LayoutDashboard, Scale, Settings, ShieldCheck, TriangleAlert, Users } from "lucide-react";
 import type { OfficeIdentity } from "@/lib/office/auth-server";
 import { getOfficeCapabilitySnapshot } from "@/lib/office/capability-server";
 import {
@@ -20,74 +21,103 @@ import {
 import { runtimeModuleSpec } from "@/lib/office/runtime-modules";
 import { WorkspaceRuntimePanel } from "@/components/workspace-runtime-panel";
 import { WorkspaceSignOutButton } from "@/components/workspace-sign-out-button";
-import { AccessGovernancePanel } from "@/components/access-governance-panel";
-import { WorkforceAdministrationPanel } from "@/components/workforce-administration-panel";
-import { WorkforceLiveOverview } from "@/components/workforce-live-overview";
-import { OfficeWorkforceLifecycle } from "@/components/office-workforce-lifecycle";
-import { OfficeActivityTimeline } from "@/components/office-activity-timeline";
-import { OfficeApplicabilityEngine } from "@/components/office-applicability-engine";
-import { OfficeAiGovernance } from "@/components/office-ai-governance";
-import { OfficeAssetLifecycle } from "@/components/office-asset-lifecycle";
-import { OfficeBoardWorkspace } from "@/components/office-board-workspace";
-import { OfficeBillingWorkspace } from "@/components/office-billing";
-import { OfficeGstTaxWorkspace } from "@/components/office-gst-tax";
-import { OfficeAccountingWorkspace } from "@/components/office-accounting";
-import { OfficeBankingWorkspace } from "@/components/office-banking";
-import { OfficePaymentsWorkspace } from "@/components/office-payments";
-import { OfficeExpensesWorkspace } from "@/components/office-expenses";
-import { OfficeOwnershipWorkspace } from "@/components/office-ownership";
-import { OfficeFinancialAssurance } from "@/components/office-financial-assurance";
-import { OfficeFinanceCommandCenter } from "@/components/office-finance-command-center";
-import { OfficeBudgetWorkspace } from "@/components/office-budget";
 import { OfficeCommandCenter } from "@/components/office-command-center";
 import { OfficeCommandPalette } from "@/components/office-command-palette";
-import { OfficeCommercialHandoff } from "@/components/office-commercial-handoff";
-import { OfficeCompanyCalendar } from "@/components/office-company-calendar";
-import { OfficeCompanyInbox } from "@/components/office-company-inbox";
-import { OfficeCrmWorkspace } from "@/components/office-crm-workspace";
-import { OfficeContractWorkspace } from "@/components/office-contract-workspace";
-import { OfficeCorporateCards } from "@/components/office-corporate-cards";
-import { OfficeControlRegister } from "@/components/office-control-register";
-import { OfficeDataMovement } from "@/components/office-data-movement";
-import { OfficeDocumentStudio } from "@/components/office-document-studio";
-import { OfficeDeviceIdentity } from "@/components/office-device-identity";
-import { OfficeDomainControl } from "@/components/office-domain-control";
-import { OfficeEngineeringControlCenter } from "@/components/office-engineering-control-center";
-import { OfficeEngineeringOperations } from "@/components/office-engineering-operations";
-import { OfficeEthicsChannel } from "@/components/office-ethics";
-import { OfficeEmergencyContacts } from "@/components/office-emergency-contacts";
-import { OfficeIntelligenceBrief } from "@/components/office-intelligence-brief";
-import { OfficeItService } from "@/components/office-it-service";
-import { OfficeKnowledgeHub } from "@/components/office-knowledge-hub";
-import { OfficeMasterData } from "@/components/office-master-data";
-import { OfficePhysicalOffice } from "@/components/office-physical-office";
-import { OfficeNotificationCenter } from "@/components/office-notification-center";
-import { OfficePayrollConsole } from "@/components/office-payroll-console";
-import { OfficePortfolioWorkspace } from "@/components/office-portfolio";
-import { OfficePeopleDevelopment } from "@/components/office-people-development";
-import { OfficeTravelWorkspace } from "@/components/office-travel-workspace";
-import { OfficeTrustCenter } from "@/components/office-trust-center";
 import { OfficePresenceControl } from "@/components/office-presence-control";
-import { OfficePrivacyGovernance } from "@/components/office-privacy-governance";
-import { OfficeRecruitmentWorkspace } from "@/components/office-recruitment-workspace";
-import { OfficeProcurementControl } from "@/components/office-procurement-control";
-import { OfficeQualityWorkspace } from "@/components/office-quality";
-import { OfficeReadiness } from "@/components/office-readiness";
-import { OfficeOperationsMonitoring } from "@/components/office-operations-monitoring";
-import { OfficeRegistrationRegistry } from "@/components/office-registration-registry";
-import { OfficeAuditExplorer } from "@/components/office-audit-explorer";
-import { OfficeResilienceWorkspace } from "@/components/office-resilience";
-import { OfficeSecurityOverview } from "@/components/office-security-overview";
-import { OfficeSecuritySettings } from "@/components/office-security-settings";
-import { OfficeSecureCustody } from "@/components/office-secure-custody";
-import { OfficeSupportOperations } from "@/components/office-support-operations";
-import { OfficeStrategyWorkspace } from "@/components/office-strategy";
-import { OfficeWorkHub } from "@/components/office-work-hub";
-import { RequestCollaborationWorkspace } from "@/components/request-collaboration-workspace";
-import { OfficeOrganizationChart } from "@/components/office-organization-chart";
-import { OfficeEmbedRegistry } from "@/components/office-embed-registry";
+
+
+function ModuleLoading() {
+  return <section className="office-module-loading" aria-busy="true"><span className="office-module-loading-icon" /><div><b>Loading module</b><small>Opening the requested workspace…</small></div></section>;
+}
+
+const OfficeNavLink = dynamic(() => import("@/components/office-nav-link").then((module) => module.OfficeNavLink), { loading: ModuleLoading });
+const AccessGovernancePanel = dynamic(() => import("@/components/access-governance-panel").then((module) => module.AccessGovernancePanel), { loading: ModuleLoading });
+const WorkforceAdministrationPanel = dynamic(() => import("@/components/workforce-administration-panel").then((module) => module.WorkforceAdministrationPanel), { loading: ModuleLoading });
+const WorkforceLiveOverview = dynamic(() => import("@/components/workforce-live-overview").then((module) => module.WorkforceLiveOverview), { loading: ModuleLoading });
+const OfficeWorkforceLifecycle = dynamic(() => import("@/components/office-workforce-lifecycle").then((module) => module.OfficeWorkforceLifecycle), { loading: ModuleLoading });
+const OfficeActivityTimeline = dynamic(() => import("@/components/office-activity-timeline").then((module) => module.OfficeActivityTimeline), { loading: ModuleLoading });
+const OfficeApplicabilityEngine = dynamic(() => import("@/components/office-applicability-engine").then((module) => module.OfficeApplicabilityEngine), { loading: ModuleLoading });
+const OfficeAiGovernance = dynamic(() => import("@/components/office-ai-governance").then((module) => module.OfficeAiGovernance), { loading: ModuleLoading });
+const OfficeAssetLifecycle = dynamic(() => import("@/components/office-asset-lifecycle").then((module) => module.OfficeAssetLifecycle), { loading: ModuleLoading });
+const OfficeBoardWorkspace = dynamic(() => import("@/components/office-board-workspace").then((module) => module.OfficeBoardWorkspace), { loading: ModuleLoading });
+const OfficeBillingWorkspace = dynamic(() => import("@/components/office-billing").then((module) => module.OfficeBillingWorkspace), { loading: ModuleLoading });
+const OfficeGstTaxWorkspace = dynamic(() => import("@/components/office-gst-tax").then((module) => module.OfficeGstTaxWorkspace), { loading: ModuleLoading });
+const OfficeAccountingWorkspace = dynamic(() => import("@/components/office-accounting").then((module) => module.OfficeAccountingWorkspace), { loading: ModuleLoading });
+const OfficeBankingWorkspace = dynamic(() => import("@/components/office-banking").then((module) => module.OfficeBankingWorkspace), { loading: ModuleLoading });
+const OfficePaymentsWorkspace = dynamic(() => import("@/components/office-payments").then((module) => module.OfficePaymentsWorkspace), { loading: ModuleLoading });
+const OfficeExpensesWorkspace = dynamic(() => import("@/components/office-expenses").then((module) => module.OfficeExpensesWorkspace), { loading: ModuleLoading });
+const OfficeOwnershipWorkspace = dynamic(() => import("@/components/office-ownership").then((module) => module.OfficeOwnershipWorkspace), { loading: ModuleLoading });
+const OfficeFinancialAssurance = dynamic(() => import("@/components/office-financial-assurance").then((module) => module.OfficeFinancialAssurance), { loading: ModuleLoading });
+const OfficeFinanceCommandCenter = dynamic(() => import("@/components/office-finance-command-center").then((module) => module.OfficeFinanceCommandCenter), { loading: ModuleLoading });
+const OfficeBudgetWorkspace = dynamic(() => import("@/components/office-budget").then((module) => module.OfficeBudgetWorkspace), { loading: ModuleLoading });
+const OfficeCommercialHandoff = dynamic(() => import("@/components/office-commercial-handoff").then((module) => module.OfficeCommercialHandoff), { loading: ModuleLoading });
+const OfficeCompanyCalendar = dynamic(() => import("@/components/office-company-calendar").then((module) => module.OfficeCompanyCalendar), { loading: ModuleLoading });
+const OfficeCompanyInbox = dynamic(() => import("@/components/office-company-inbox").then((module) => module.OfficeCompanyInbox), { loading: ModuleLoading });
+const OfficeCrmWorkspace = dynamic(() => import("@/components/office-crm-workspace").then((module) => module.OfficeCrmWorkspace), { loading: ModuleLoading });
+const OfficeContractWorkspace = dynamic(() => import("@/components/office-contract-workspace").then((module) => module.OfficeContractWorkspace), { loading: ModuleLoading });
+const OfficeCorporateCards = dynamic(() => import("@/components/office-corporate-cards").then((module) => module.OfficeCorporateCards), { loading: ModuleLoading });
+const OfficeControlRegister = dynamic(() => import("@/components/office-control-register").then((module) => module.OfficeControlRegister), { loading: ModuleLoading });
+const OfficeDataMovement = dynamic(() => import("@/components/office-data-movement").then((module) => module.OfficeDataMovement), { loading: ModuleLoading });
+const OfficeDocumentStudio = dynamic(() => import("@/components/office-document-studio").then((module) => module.OfficeDocumentStudio), { loading: ModuleLoading });
+const OfficeDeviceIdentity = dynamic(() => import("@/components/office-device-identity").then((module) => module.OfficeDeviceIdentity), { loading: ModuleLoading });
+const OfficeDomainControl = dynamic(() => import("@/components/office-domain-control").then((module) => module.OfficeDomainControl), { loading: ModuleLoading });
+const OfficeEngineeringControlCenter = dynamic(() => import("@/components/office-engineering-control-center").then((module) => module.OfficeEngineeringControlCenter), { loading: ModuleLoading });
+const OfficeEngineeringOperations = dynamic(() => import("@/components/office-engineering-operations").then((module) => module.OfficeEngineeringOperations), { loading: ModuleLoading });
+const OfficeEthicsChannel = dynamic(() => import("@/components/office-ethics").then((module) => module.OfficeEthicsChannel), { loading: ModuleLoading });
+const OfficeEmergencyContacts = dynamic(() => import("@/components/office-emergency-contacts").then((module) => module.OfficeEmergencyContacts), { loading: ModuleLoading });
+const OfficeIntelligenceBrief = dynamic(() => import("@/components/office-intelligence-brief").then((module) => module.OfficeIntelligenceBrief), { loading: ModuleLoading });
+const OfficeItService = dynamic(() => import("@/components/office-it-service").then((module) => module.OfficeItService), { loading: ModuleLoading });
+const OfficeKnowledgeHub = dynamic(() => import("@/components/office-knowledge-hub").then((module) => module.OfficeKnowledgeHub), { loading: ModuleLoading });
+const OfficeMasterData = dynamic(() => import("@/components/office-master-data").then((module) => module.OfficeMasterData), { loading: ModuleLoading });
+const OfficePhysicalOffice = dynamic(() => import("@/components/office-physical-office").then((module) => module.OfficePhysicalOffice), { loading: ModuleLoading });
+const OfficeNotificationCenter = dynamic(() => import("@/components/office-notification-center").then((module) => module.OfficeNotificationCenter), { loading: ModuleLoading });
+const OfficePayrollConsole = dynamic(() => import("@/components/office-payroll-console").then((module) => module.OfficePayrollConsole), { loading: ModuleLoading });
+const OfficePortfolioWorkspace = dynamic(() => import("@/components/office-portfolio").then((module) => module.OfficePortfolioWorkspace), { loading: ModuleLoading });
+const OfficePeopleDevelopment = dynamic(() => import("@/components/office-people-development").then((module) => module.OfficePeopleDevelopment), { loading: ModuleLoading });
+const OfficeTravelWorkspace = dynamic(() => import("@/components/office-travel-workspace").then((module) => module.OfficeTravelWorkspace), { loading: ModuleLoading });
+const OfficeTrustCenter = dynamic(() => import("@/components/office-trust-center").then((module) => module.OfficeTrustCenter), { loading: ModuleLoading });
+const OfficePrivacyGovernance = dynamic(() => import("@/components/office-privacy-governance").then((module) => module.OfficePrivacyGovernance), { loading: ModuleLoading });
+const OfficeRecruitmentWorkspace = dynamic(() => import("@/components/office-recruitment-workspace").then((module) => module.OfficeRecruitmentWorkspace), { loading: ModuleLoading });
+const OfficeProcurementControl = dynamic(() => import("@/components/office-procurement-control").then((module) => module.OfficeProcurementControl), { loading: ModuleLoading });
+const OfficeQualityWorkspace = dynamic(() => import("@/components/office-quality").then((module) => module.OfficeQualityWorkspace), { loading: ModuleLoading });
+const OfficeReadiness = dynamic(() => import("@/components/office-readiness").then((module) => module.OfficeReadiness), { loading: ModuleLoading });
+const OfficeOperationsMonitoring = dynamic(() => import("@/components/office-operations-monitoring").then((module) => module.OfficeOperationsMonitoring), { loading: ModuleLoading });
+const OfficeRegistrationRegistry = dynamic(() => import("@/components/office-registration-registry").then((module) => module.OfficeRegistrationRegistry), { loading: ModuleLoading });
+const OfficeAuditExplorer = dynamic(() => import("@/components/office-audit-explorer").then((module) => module.OfficeAuditExplorer), { loading: ModuleLoading });
+const OfficeResilienceWorkspace = dynamic(() => import("@/components/office-resilience").then((module) => module.OfficeResilienceWorkspace), { loading: ModuleLoading });
+const OfficeSecurityOverview = dynamic(() => import("@/components/office-security-overview").then((module) => module.OfficeSecurityOverview), { loading: ModuleLoading });
+const OfficeSecuritySettings = dynamic(() => import("@/components/office-security-settings").then((module) => module.OfficeSecuritySettings), { loading: ModuleLoading });
+const OfficeSecureCustody = dynamic(() => import("@/components/office-secure-custody").then((module) => module.OfficeSecureCustody), { loading: ModuleLoading });
+const OfficeSupportOperations = dynamic(() => import("@/components/office-support-operations").then((module) => module.OfficeSupportOperations), { loading: ModuleLoading });
+const OfficeStrategyWorkspace = dynamic(() => import("@/components/office-strategy").then((module) => module.OfficeStrategyWorkspace), { loading: ModuleLoading });
+const OfficeWorkHub = dynamic(() => import("@/components/office-work-hub").then((module) => module.OfficeWorkHub), { loading: ModuleLoading });
+const RequestCollaborationWorkspace = dynamic(() => import("@/components/request-collaboration-workspace").then((module) => module.RequestCollaborationWorkspace), { loading: ModuleLoading });
+const OfficeOrganizationChart = dynamic(() => import("@/components/office-organization-chart").then((module) => module.OfficeOrganizationChart), { loading: ModuleLoading });
+const OfficeEmbedRegistry = dynamic(() => import("@/components/office-embed-registry").then((module) => module.OfficeEmbedRegistry), { loading: ModuleLoading });
 
 type Props = { workspace: WorkspaceKind; section: OfficeSection | FinanceSection; identity: OfficeIdentity };
+
+const groupIcons = {
+  Overview: LayoutDashboard,
+  Work: ClipboardCheck,
+  Operate: BriefcaseBusiness,
+  Govern: Scale,
+  Records: Files,
+  Office: Users,
+  Assure: ShieldCheck,
+  Revenue: Building2,
+  Treasury: Landmark,
+  Tax: Gauge,
+  Books: Files,
+  Evidence: ShieldCheck,
+  Payables: ClipboardCheck,
+  "Corporate Finance": Landmark,
+} as const;
+
+function NavIcon({ group }: { group: string }) {
+  const Icon = groupIcons[group as keyof typeof groupIcons] ?? Settings;
+  return <Icon aria-hidden="true" />;
+}
 
 function sectionEntries(workspace: WorkspaceKind) {
   const sections = workspace === "finance" ? financeSections : officeSections;
@@ -122,9 +152,9 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
 
   return <main className={`office office-v2 workspace-shell workspace-${workspace}`}>
     <aside>
-      <Link href={`${definition.basePath}/dashboard`} className="wordmark" aria-label={`${definition.label} home`}><span>KRAVIA</span><span>{workspace === "finance" ? "FINANCE" : "OFFICE"}</span></Link>
+      <OfficeNavLink href={`${definition.basePath}/dashboard`} className="wordmark" aria-label={`${definition.label} home`}><span>KRAVIA</span><span>{workspace === "finance" ? "FINANCE" : "OFFICE"}</span></OfficeNavLink>
       <div className="workspace-context"><span>PRIVATE OPERATING SYSTEM</span><b>{workspace === "finance" ? "Finance & Tax" : "Company Operations"}</b></div>
-      <nav aria-label={`${definition.label} navigation`}>{groups.map((group) => <div className="workspace-nav-group" key={group}><p>{group}</p>{entries.filter(([, value]) => value.group === group).map(([slug, value]) => <Link key={slug} href={`${definition.basePath}/${slug}`} aria-current={slug === section ? "page" : undefined}>{value.title}</Link>)}</div>)}</nav>
+      <nav aria-label={`${definition.label} navigation`}>{groups.map((group) => <div className="workspace-nav-group" key={group}><p>{group}</p>{entries.filter(([, value]) => value.group === group).map(([slug, value]) => <OfficeNavLink key={slug} href={`${definition.basePath}/${slug}`}><NavIcon group={value.group} /><span>{value.title}</span></OfficeNavLink>)}</div>)}</nav>
       <div className="workspace-side-actions">{canSwitch ? <Link href={`/${switchWorkspace}`} className="workspace-switch"><Landmark aria-hidden="true" /> Open {switchWorkspace === "finance" ? "Finance" : "Office"}</Link> : null}<WorkspaceSignOutButton workspace={workspace} /></div>
       <p className="office-side-note">Private · AAL2 protected<br />Role + permission + scope aware</p>
     </aside>
@@ -217,7 +247,7 @@ function WorkspaceDashboard({ workspace, section, identity, permissions }: { wor
   return <>
     {workspace === "office" ? <>{executive ? <OfficeIntelligenceBrief compact /> : null}<OfficeWorkHub identity={identity} mode="dashboard" /><OfficeCompanyInbox compact /><OfficeActivityTimeline /></> : <section className="workspace-hero-panel"><div><p className="eyebrow">VERIFIED AAL2 SESSION</p><h2>Finance work without mixing ownership, tax and treasury.</h2></div><ShieldCheck aria-hidden="true" /></section>}
     {runtime && !onlyShellRoles ? <WorkspaceRuntimePanel title={workspace === "finance" ? "Finance overview" : "Office overview"} spec={runtime} /> : null}
-    <div className="office-dashboard-grid workspace-module-grid">{sections.map(([slug, sectionItem]) => <Link href={`${basePath}/${slug}`} key={slug} className="workspace-module-card"><p className="eyebrow">{sectionItem.group}</p><h2>{sectionItem.title}</h2><span>{sectionItem.description}</span><b>Open module <ArrowRight aria-hidden="true" /></b></Link>)}</div>
+    <div className="office-dashboard-grid workspace-module-grid">{sections.map(([slug, sectionItem]) => <OfficeNavLink href={`${basePath}/${slug}`} key={slug} className="workspace-module-card"><div className="workspace-module-card-head"><NavIcon group={sectionItem.group} /><p className="eyebrow">{sectionItem.group}</p></div><h2>{sectionItem.title}</h2><span>{sectionItem.description}</span><b>Open <ArrowRight aria-hidden="true" /></b></OfficeNavLink>)}</div>
   </>;
 }
 
