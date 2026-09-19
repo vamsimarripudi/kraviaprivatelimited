@@ -222,15 +222,19 @@ jobs:
               relation, present = raw.split("\t", 1)
               availability[relation] = present == "t"
 
-          missing = [relation for relation in relations if not availability.get(relation, False)]
           provider_internal = []
           unsafe_missing = []
-          for relation in missing:
+          for relation in relations:
               normalized = relation.replace('"', '')
               schema = normalized.split(".", 1)[0] if "." in normalized else "public"
               if schema in {"auth", "storage"}:
+                  # Supabase owns these schemas and their internal table layouts
+                  # can differ between hosted and local stack versions. Office
+                  # no longer uses Supabase Auth as its identity provider, so the
+                  # recovery proof validates KRAVIA-owned application data while
+                  # provider-managed auth/storage recovery remains a Supabase concern.
                   provider_internal.append(relation)
-              else:
+              elif not availability.get(relation, False):
                   unsafe_missing.append(relation)
 
           if unsafe_missing:
@@ -278,10 +282,10 @@ jobs:
 
           print(
               f"Portable restore set: {len(filtered)} table(s); "
-              f"provider-internal version-skew skips: {len(provider_internal)}."
+              f"provider-managed data skips: {len(provider_internal)}."
           )
           for relation in provider_internal:
-              print(f"Skipping provider-internal unavailable relation: {relation}")
+              print(f"Skipping provider-managed relation: {relation}")
           PY
 
       - name: Restore compatible data
