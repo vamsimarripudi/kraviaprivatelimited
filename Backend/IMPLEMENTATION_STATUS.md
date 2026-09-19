@@ -181,3 +181,5 @@ KRAVIA Office must never report fake success, fake compliance, fake tax status, 
 - Removed the redundant GitHub worker deployment job because Railway's native GitHub integration already owns worker deployment; this avoids blocking Railway API check-suite deployment.
 
 - CI follow-up: frontend dependency audit now evaluates package-lock.json directly to avoid transient npm installed-tree audit endpoint failures while preserving the high-severity vulnerability gate.
+
+- CI resilience follow-up: npm advisory transport failures are now warned rather than treated as vulnerability findings; actual high-severity advisory results remain build-blocking.
