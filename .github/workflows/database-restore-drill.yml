@@ -80,7 +80,7 @@ jobs:
           umask 077
           cipher=$(cat "$RUNNER_TEMP/cipher-path")
           mkdir -p "$RUNNER_TEMP/restore-plain"
-          gpg --batch --yes --pinentry-mode loopback             --symmetric --cipher-algo AES256             --passphrase "$BACKUP_ENCRYPTION_KEY"             --output "$RUNNER_TEMP/kravia-office-backup.tar.gz"             --decrypt "$cipher"
+          gpg --batch --yes --pinentry-mode loopback             --passphrase "$BACKUP_ENCRYPTION_KEY"             --output "$RUNNER_TEMP/kravia-office-backup.tar.gz"             --decrypt "$cipher"
           tar -xzf "$RUNNER_TEMP/kravia-office-backup.tar.gz"             -C "$RUNNER_TEMP/restore-plain"
           cd "$RUNNER_TEMP/restore-plain"
           test -s roles.sql
