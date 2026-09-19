@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ArrowRight, Building2, CircleDollarSign, LoaderCircle, MessageSquareText, Plus, Search, ShieldCheck, Target, X } from "lucide-react";
+import { officeMutation, officeQuery } from "@/lib/office/http-client";
 import styles from "./office-crm-workspace.module.css";
 
 const opportunityStages = ["QUALIFICATION","DISCOVERY","DEMO","PROPOSAL","NEGOTIATION","CONTRACTING","WON","LOST"] as const;
@@ -23,10 +24,18 @@ const emptyLead: LeadDraft = { owner: "", account: "", contact: "", email: "", p
 const emptyOpportunity: OpportunityDraft = { owner: "", lead: "", customer: "", product: "", title: "", value: "", currency: "INR", close: "", nextStep: "" };
 
 async function json<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, { ...options, cache: "no-store", credentials: "same-origin" });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(typeof body.detail === "string" ? body.detail : "CRM request failed");
-  return body as T;
+  const method = (options?.method ?? "GET").toUpperCase();
+  if (method === "GET") {
+    return officeQuery<T>(url, undefined, { staleMs: 10_000 });
+  }
+  const body = typeof options?.body === "string"
+    ? JSON.parse(options.body)
+    : options?.body;
+  return officeMutation<T>(url, {
+    method: method as "POST" | "PUT" | "PATCH" | "DELETE",
+    body,
+    invalidate: "/api/office-crm",
+  });
 }
 
 function label(value: string) {
