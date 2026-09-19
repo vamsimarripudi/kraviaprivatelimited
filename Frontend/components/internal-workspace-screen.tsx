@@ -95,7 +95,8 @@ function sectionEntries(workspace: WorkspaceKind) {
 }
 
 function IdentityCard({ identity }: { identity: OfficeIdentity }) {
-  const content = <><span>{identity.roles.join(" · ")}</span><small>{identity.email ?? "Verified identity"}{identity.department ? ` · ${identity.department}` : ""}</small></>;
+  const authorityLabel = identity.founder ? "FOUNDER" : identity.roles.join(" · ");
+  const content = <><span>{authorityLabel}</span><small>{identity.email ?? "Verified identity"}{identity.department ? ` · ${identity.department}` : ""}</small></>;
   if (roleCanAccessSection(officeSections.settings, identity.roles)) {
     return <Link href="/office/settings" className="office-identity" aria-label="Open identity and security settings">{content}</Link>;
   }
