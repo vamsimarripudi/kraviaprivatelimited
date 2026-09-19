@@ -442,36 +442,43 @@ def _process_claimed_file(db: Session, row: Any, storage: Client, version: str) 
 
         result = scan_bytes(payload)
         if not result["clean"]:
+            quarantine_deleted = False
             try:
                 storage.storage.from_(row["quarantine_bucket"]).remove([row["quarantine_path"]])
-            finally:
-                db.execute(
-                    text(
-                        """
-                        update office_file_objects
-                        set status='INFECTED',scan_engine='CLAMAV',scan_engine_version=:version,
-                            threat_name=:threat,scanned_at=current_timestamp,
-                            quarantine_deleted_at=current_timestamp,next_scan_at=null,
-                            updated_at=current_timestamp
-                        where id=:id
-                        """
-                    ),
-                    {
-                        "id": row["id"],
-                        "version": version[:200],
-                        "threat": str(result["threat"])[:240],
-                    },
-                )
-                _event(
-                    db,
-                    str(row["id"]),
-                    "MALWARE_DETECTED",
-                    engine="CLAMAV",
-                    engine_version=version,
-                    result="INFECTED",
-                    threat_name=str(result["threat"])[:240],
-                )
-                db.commit()
+                quarantine_deleted = True
+            except Exception:
+                # Detection is authoritative even when cleanup is temporarily
+                # unavailable. The object remains private and unreleasable.
+                quarantine_deleted = False
+            db.execute(
+                text(
+                    """
+                    update office_file_objects
+                    set status='INFECTED',scan_engine='CLAMAV',scan_engine_version=:version,
+                        threat_name=:threat,scanned_at=current_timestamp,
+                        quarantine_deleted_at=case when :deleted then current_timestamp else quarantine_deleted_at end,
+                        next_scan_at=null,last_error_code=null,updated_at=current_timestamp
+                    where id=:id
+                    """
+                ),
+                {
+                    "id": row["id"],
+                    "version": version[:200],
+                    "threat": str(result["threat"])[:240],
+                    "deleted": quarantine_deleted,
+                },
+            )
+            _event(
+                db,
+                str(row["id"]),
+                "MALWARE_DETECTED",
+                engine="CLAMAV",
+                engine_version=version,
+                result="INFECTED",
+                threat_name=str(result["threat"])[:240],
+                detail={"quarantine_deleted": quarantine_deleted},
+            )
+            db.commit()
             return "INFECTED"
 
         date_path = _now().strftime("%Y/%m")
@@ -485,19 +492,25 @@ def _process_claimed_file(db: Session, row: Any, storage: Client, version: str) 
                 "cache-control": "private, max-age=0, no-store",
             },
         )
-        storage.storage.from_(row["quarantine_bucket"]).remove([row["quarantine_path"]])
+        quarantine_deleted = False
+        try:
+            storage.storage.from_(row["quarantine_bucket"]).remove([row["quarantine_path"]])
+            quarantine_deleted = True
+        except Exception:
+            quarantine_deleted = False
         db.execute(
             text(
                 """
                 update office_file_objects
                 set status='CLEAN',scan_engine='CLAMAV',scan_engine_version=:version,
                     released_path=:released_path,scanned_at=current_timestamp,
-                    released_at=current_timestamp,quarantine_deleted_at=current_timestamp,
+                    released_at=current_timestamp,
+                    quarantine_deleted_at=case when :deleted then current_timestamp else quarantine_deleted_at end,
                     next_scan_at=null,last_error_code=null,updated_at=current_timestamp
                 where id=:id
                 """
             ),
-            {"id": row["id"], "version": version[:200], "released_path": released_path},
+            {"id": row["id"], "version": version[:200], "released_path": released_path, "deleted": quarantine_deleted},
         )
         _event(
             db,
