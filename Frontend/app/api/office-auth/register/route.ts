@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   founderBootstrapStatus,
   invitationStatus,
+  OfficeApiError,
   registerFounder,
   registerInvitedOfficeUser,
 } from "@/lib/office/auth-server";
@@ -73,6 +74,14 @@ export async function POST(request: Request) {
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Office registration failed";
     const closed = /closed|already registered|already used/i.test(detail);
-    return NextResponse.json({ detail }, { status: closed ? 409 : 400, headers: { "Cache-Control": "no-store" } });
+    const status = error instanceof OfficeApiError
+      ? error.status
+      : closed
+        ? 409
+        : 500;
+    return NextResponse.json(
+      { detail },
+      { status: status >= 400 && status <= 599 ? status : 500, headers: { "Cache-Control": "no-store" } },
+    );
   }
 }
