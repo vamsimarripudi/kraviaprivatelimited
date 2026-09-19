@@ -246,6 +246,7 @@ def configure_security(app) -> None:
 
     @app.middleware("http")
     async def office_security(request: Request, call_next):
+        request_started = time.perf_counter()
         if allowed_hosts and not _host_allowed(request.headers.get("host", ""), allowed_hosts):
             return JSONResponse({"detail": "Untrusted host"}, status_code=400)
 
@@ -294,6 +295,8 @@ def configure_security(app) -> None:
 
         response = await call_next(request)
         _set_security_headers(response, app_env)
+        elapsed_ms = (time.perf_counter() - request_started) * 1000
+        response.headers["Server-Timing"] = f"app;dur={elapsed_ms:.1f}"
         if remaining is not None:
             response.headers["X-RateLimit-Limit"] = str(requests)
             response.headers["X-RateLimit-Remaining"] = str(remaining)
