@@ -25,12 +25,12 @@ Current accepted `main` run #820 verifies:
 - npm install/audit with zero vulnerabilities;
 - secret scan;
 - ESLint and TypeScript;
-- **82 Vitest files / 390 tests**;
+- **84 Vitest files / 394 tests**;
 - Next.js production build;
 - Python dependency/compile checks;
 - OpenAPI drift;
-- Alembic upgrade through v9;
-- **75 backend pytest tests**;
+- Alembic upgrade through v10;
+- **77 backend pytest tests**;
 - hardened backend quality gate;
 - Railway Docker image build and liveness smoke test;
 - repository and database structure checks.
@@ -50,7 +50,7 @@ Verified service configuration:
 - health check `/health/live`;
 - one production replica configuration;
 - Railway domain `kravia-office-api-production.up.railway.app`;
-- expected production variable names for OIDC, database/Supabase, Company Master, HTTP security and finance execution.
+- expected production variable names for database/Supabase control-plane access, Company Master, HTTP security and finance execution. The first-party release additionally requires `OFFICE_AUTH_SIGNING_SECRET`, `OFFICE_AUTH_BOOTSTRAP_SECRET`, `OFFICE_REQUIRED_AAL=aal2` and `AUTH_MODE=first_party` at cutover.
 
 Deployment `7ace95b8-b966-43be-aa4a-f2656624ed74` for commit `2e706e4e20838b00688b0c76f60f61d2e21c935e` reached **SUCCESS** on 18 Sep 2026. The build used `Backend/Dockerfile.api`; pre-deploy Alembic completed through v9 and Railway accepted the `/health/live` health check. `DATABASE_EXECUTION_ROLE=kravia_office_backend` is present so SQLAlchemy runtime and Alembic transactions drop into the dedicated backend role even though the Supavisor login is provider-managed. Service configuration shows one Singapore replica. A dedicated background-worker service is still absent: Railway rejected creation because the current Free plan has reached its resource-provision limit.
 
@@ -100,13 +100,17 @@ Backend API target:
 
 ## Immediate activation gates
 
-1. Re-authenticate the Vercel connector to the verified `kravia1` scope and inspect the successful `kraviaprivatelimited` project.
-2. Verify frontend `OFFICE_API_ORIGIN`, production domain attachment and end-to-end browser→BFF→Railway behavior.
-3. Enable Supabase Auth leaked-password protection.
-4. Legacy FastAPI RLS hardening is complete; keep browser grants closed and preserve `DATABASE_EXECUTION_ROLE=kravia_office_backend`.
-5. First OWNER live TOTP/AAL2 acceptance.
-6. Upgrade/provision Railway capacity and deploy the dedicated background worker service from `Backend/Dockerfile.worker`; current Free-plan resource limits block an additional service.
-7. Connect verified SLO telemetry/archive storage and configure provider edge/WAF controls.
-8. Production evidence/provider/security gates listed in `FINAL_HANDOVER.md`.
+1. Keep the current live identity path untouched until the first-party release is ready to deploy.
+2. Configure a strong Railway-only `OFFICE_AUTH_SIGNING_SECRET`.
+3. Configure the **same** strong `OFFICE_AUTH_BOOTSTRAP_SECRET` in Railway and the trusted Vercel production project; it must never be exposed to browser code.
+4. At the actual backend cutover set `AUTH_MODE=first_party` and `OFFICE_REQUIRED_AAL=aal2`, deploy the new backend and verify Alembic v10 + auth readiness.
+5. Verify Vercel `OFFICE_API_ORIGIN`, deploy the matching frontend and complete the one-time Founder registration/TOTP/AAL2 flow.
+6. Verify Founder registration is permanently closed afterward; future onboarding must succeed only through single-use links created in Office Access Administration.
+7. Keep browser database grants closed and preserve `DATABASE_EXECUTION_ROLE=kravia_office_backend`.
+8. Upgrade/provision Railway capacity and deploy the dedicated background worker service when required.
+9. Connect verified SLO telemetry/archive storage and configure provider edge/WAF controls.
+10. Complete the remaining evidence/provider/security gates listed in `FINAL_HANDOVER.md`.
+
+Supabase Auth leaked-password protection is no longer an Office identity gate because Supabase Auth is removed from the target login/register/MFA architecture.
 
 No provider state should be described as complete without read-back evidence.
