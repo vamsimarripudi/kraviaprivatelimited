@@ -3,7 +3,7 @@ name: KRAVIA database restore drill
 on:
   workflow_dispatch:
   schedule:
-    # Monthly isolated recovery proof. 21:30 UTC = 03:00 IST next day.
+    # Monthly isolated recovery proof. 21:30 UTC = 03:00 IST next day.\n    # Workflow-definition changes on main also trigger an immediate proof.
     - cron: "30 21 1 * *"
   push:
     branches: [main]
