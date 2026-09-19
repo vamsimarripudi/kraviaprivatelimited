@@ -55,7 +55,29 @@ type FirstPartyAuthResponse = {
   mfa?: { enrolled?: boolean };
 };
 
-type ApiErrorBody = { detail?: string };
+type FastApiValidationItem = { msg?: unknown; loc?: unknown[] };
+type ApiErrorBody = { detail?: string | FastApiValidationItem[] };
+
+export class OfficeApiError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "OfficeApiError";
+    this.status = status;
+  }
+}
+
+function apiErrorMessage(body: ApiErrorBody) {
+  if (typeof body.detail === "string" && body.detail.trim()) return body.detail;
+  if (Array.isArray(body.detail)) {
+    const messages = body.detail
+      .map((item) => (typeof item?.msg === "string" ? item.msg.trim() : ""))
+      .filter(Boolean);
+    if (messages.length > 0) return messages.join("; ");
+  }
+  return "KRAVIA Office identity request failed";
+}
 
 function origin() {
   const value = getOfficeRuntimeOrigin();
@@ -84,7 +106,7 @@ async function rawApi(path: string, init: RequestInit = {}) {
 async function parseOrThrow<T>(response: Response): Promise<T> {
   const body = await response.json().catch(() => ({})) as ApiErrorBody;
   if (!response.ok) {
-    throw new Error(typeof body.detail === "string" ? body.detail : "KRAVIA Office identity request failed");
+    throw new OfficeApiError(response.status, apiErrorMessage(body));
   }
   return body as T;
 }
