@@ -137,7 +137,9 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
   const definition = workspaceDefinitions[workspace];
   const sections = workspace === "finance" ? financeSections : officeSections;
   const item = (sections as Record<string, WorkspaceSection>)[section];
-  const capability = await getOfficeCapabilitySnapshot();
+  const capability = identity.roles.includes("OWNER")
+    ? { generated_at: new Date().toISOString(), permissions: [] as string[], scopes: [] }
+    : await getOfficeCapabilitySnapshot();
   const permissions = capability.permissions;
   const visible = (slug: string, value: WorkspaceSection) => roleCanAccessSection(value, identity.roles) && capabilityCanAccessSection(workspace, slug, identity.roles, permissions);
   const permitted = item ? visible(String(section), item) : false;
