@@ -1,143 +1,240 @@
 import os
-from types import SimpleNamespace
 
-import jwt
+import pyotp
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from backend import identity_auth
-
-os.environ.setdefault("APP_ENV", "development")
-os.environ.setdefault("SUPABASE_AUTH_URL", "https://identity.example.invalid")
-os.environ.setdefault("SUPABASE_PUBLISHABLE_KEY", "test-publishable-key")
-TEST_JWT_KEY = "test-only-secret-at-least-32-bytes-long!!"
+from backend.database import Base
 
 
-def token(aal="aal1", roles=None, status="ACTIVE"):
-    return jwt.encode(
-        {
-            "sub": "user-1",
-            "email": "owner@example.test",
-            "aud": "authenticated",
-            "aal": aal,
-            "office_roles": roles or ["OWNER"],
-            "office_access_status": status,
-        },
-        TEST_JWT_KEY,
-        algorithm="HS256",
+def make_client(tmp_path, monkeypatch):
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.setenv("OFFICE_AUTH_SIGNING_SECRET", "test-first-party-signing-secret-at-least-32-chars")
+    monkeypatch.setenv("OFFICE_AUTH_EMAIL_DOMAIN", "example.test")
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'first-party-auth.db'}",
+        connect_args={"check_same_thread": False},
+        future=True,
     )
+    Base.metadata.create_all(bind=engine)
+    Session = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
+    def test_db():
+        db = Session()
+        try:
+            yield db
+        finally:
+            db.close()
 
-def session(aal="aal1", roles=None):
-    return SimpleNamespace(
-        access_token=token(aal, roles),
-        refresh_token="refresh-test-token",
-        expires_in=3600,
-        expires_at=2_000_000_000,
-    )
-
-
-class FakeMFA:
-    def __init__(self, owner):
-        self.owner = owner
-
-    def list_factors(self):
-        return {"totp": [{"id": "factor-1", "factor_type": "totp", "status": "verified"}], "phone": []}
-
-    def enroll(self, payload):
-        assert payload["factor_type"] == "totp"
-        return {"id": "factor-new", "factor_type": "totp", "status": "unverified", "totp": {"qr_code": "data:image/svg+xml,test", "secret": "TESTSECRET"}}
-
-    def challenge(self, payload):
-        assert payload["factor_id"]
-        return {"id": "challenge-1"}
-
-    def verify(self, payload):
-        assert payload["factor_id"] and payload["challenge_id"] and payload["code"] == "123456"
-        self.owner.current = session("aal2")
-        return SimpleNamespace(session=self.owner.current)
-
-
-class FakeAuth:
-    def __init__(self):
-        self.current = session("aal1")
-        self.mfa = FakeMFA(self)
-        self.signed_out = False
-
-    def sign_in_with_password(self, payload):
-        assert payload["email"] == "owner@example.test"
-        assert payload["password"] == "correct-password"
-        self.current = session("aal1")
-        return SimpleNamespace(session=self.current)
-
-    def set_session(self, access_token, refresh_token):
-        assert access_token and refresh_token
-        # Keep the currently promoted session after MFA verification; before that,
-        # restore the session represented by the provided cookie.
-        if self.current.access_token != access_token and jwt.decode(access_token, options={"verify_signature": False}).get("aal") == "aal2":
-            self.current = session("aal2")
-        return SimpleNamespace(session=self.current)
-
-    def get_session(self):
-        return self.current
-
-    def refresh_session(self, _refresh_token=None):
-        return SimpleNamespace(session=self.current)
-
-    def sign_out(self):
-        self.signed_out = True
-
-
-class FakeSupabase:
-    def __init__(self):
-        self.auth = FakeAuth()
-
-
-def make_client(monkeypatch):
-    fake = FakeSupabase()
-    monkeypatch.setattr(identity_auth, "_new_client", lambda: fake)
     app = FastAPI()
     app.include_router(identity_auth.build_identity_router())
-    return TestClient(app), fake
+    app.dependency_overrides[identity_auth.get_db] = test_db
+    return TestClient(app), engine
 
 
-def test_sign_in_keeps_tokens_http_only_and_out_of_json(monkeypatch):
-    client, _fake = make_client(monkeypatch)
-    response = client.post("/api/v1/auth/sign-in", json={"email": "owner@example.test", "password": "correct-password"})
-    assert response.status_code == 200
-    body = response.json()
-    assert body["authenticated"] is True
-    assert body["aal"] == "aal1"
-    assert body["office_roles"] == ["OWNER"]
-    assert "access_token" not in response.text
-    assert "refresh-test-token" not in response.text
-    cookies = "\n".join(response.headers.get_list("set-cookie")).lower()
-    assert "httponly" in cookies
-    assert "samesite=strict" in cookies
-    assert identity_auth.ACCESS_COOKIE in client.cookies
-    assert identity_auth.REFRESH_COOKIE in client.cookies
+FOUNDER = {
+    "email": "founder@example.test",
+    "display_name": "Founder Test",
+    "password": "Strong-Founder1!",
+}
 
 
-def test_mfa_verify_promotes_session_to_aal2(monkeypatch):
-    client, _fake = make_client(monkeypatch)
-    signed_in = client.post("/api/v1/auth/sign-in", json={"email": "owner@example.test", "password": "correct-password"})
-    assert signed_in.status_code == 200
+def founder(client: TestClient):
+    response = client.post("/api/v1/auth/register-founder", json=FOUNDER)
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def aal2_founder(client: TestClient):
+    initial = founder(client)
+    access = initial["access_token"]
+    enrolled = client.post(
+        "/api/v1/auth/mfa/enroll",
+        headers={"Authorization": f"Bearer {access}"},
+    )
+    assert enrolled.status_code == 200, enrolled.text
+    manual_key = enrolled.json()["manual_key"]
     verified = client.post(
         "/api/v1/auth/mfa/verify",
-        json={"factor_id": "factor-1", "challenge_id": "challenge-1", "code": "123456"},
+        headers={"Authorization": f"Bearer {access}"},
+        json={"code": pyotp.TOTP(manual_key).now()},
     )
     assert verified.status_code == 200, verified.text
-    assert verified.json()["aal"] == "aal2"
-    assert verified.json()["mfa_verified"] is True
-    assert verified.json()["office_roles"] == ["OWNER"]
+    body = verified.json()
+    assert body["aal"] == "aal2"
+    return body
 
 
-def test_auth_readiness_discloses_no_key(monkeypatch):
-    client, _fake = make_client(monkeypatch)
-    response = client.get("/api/v1/auth/readiness")
-    assert response.status_code == 200
-    body = response.json()
-    assert body["configured"] is True
-    assert body["mfa_policy"] == "AAL2_REQUIRED"
-    assert "publishable" not in response.text.lower()
-    assert "test-publishable-key" not in response.text
+def test_founder_bootstrap_closes_after_first_success(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        ready = client.get("/api/v1/auth/bootstrap-status")
+        assert ready.status_code == 200
+        assert ready.json() == {
+            "registration_open": True,
+            "role": "FOUNDER",
+            "role_locked": True,
+            "public_registration_closes_after_success": True,
+        }
+
+        created = founder(client)
+        assert created["founder"] is True
+        assert created["display_role"] == "FOUNDER"
+        assert created["roles"] == ["OWNER"]
+        assert created["aal"] == "aal1"
+        assert created["access_token"]
+        assert created["refresh_token"]
+
+        closed = client.get("/api/v1/auth/bootstrap-status")
+        assert closed.json()["registration_open"] is False
+
+        second = client.post(
+            "/api/v1/auth/register-founder",
+            json={
+                "email": "second@example.test",
+                "display_name": "Second Founder",
+                "password": "Another-Strong1!",
+            },
+        )
+        assert second.status_code == 410
+        assert "permanently closed" in second.json()["detail"].lower()
+    finally:
+        engine.dispose()
+
+
+def test_password_sign_in_and_mfa_promote_to_aal2(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        founder(client)
+        signed_in = client.post(
+            "/api/v1/auth/sign-in",
+            json={"email": FOUNDER["email"], "password": FOUNDER["password"]},
+        )
+        assert signed_in.status_code == 200, signed_in.text
+        signed = signed_in.json()
+        assert signed["aal"] == "aal1"
+        assert signed["roles"] == ["OWNER"]
+
+        enrolled = client.post(
+            "/api/v1/auth/mfa/enroll",
+            headers={"Authorization": f"Bearer {signed['access_token']}"},
+        )
+        assert enrolled.status_code == 200, enrolled.text
+        assert enrolled.json()["qr_code"].startswith("data:image/png;base64,")
+
+        verified = client.post(
+            "/api/v1/auth/mfa/verify",
+            headers={"Authorization": f"Bearer {signed['access_token']}"},
+            json={"code": pyotp.TOTP(enrolled.json()["manual_key"]).now()},
+        )
+        assert verified.status_code == 200, verified.text
+        aal2 = verified.json()
+        assert aal2["aal"] == "aal2"
+
+        current = client.get(
+            "/api/v1/auth/session",
+            headers={"Authorization": f"Bearer {aal2['access_token']}"},
+        )
+        assert current.status_code == 200, current.text
+        assert current.json()["aal"] == "aal2"
+        assert current.json()["display_role"] == "FOUNDER"
+    finally:
+        engine.dispose()
+
+
+def test_private_invitation_is_single_use_and_cannot_assign_owner(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        founder_aal2 = aal2_founder(client)
+        headers = {"Authorization": f"Bearer {founder_aal2['access_token']}"}
+
+        forbidden = client.post(
+            "/api/v1/auth/invitations",
+            headers=headers,
+            json={
+                "email": "owner2@example.test",
+                "display_name": "Owner Two",
+                "department": "OPERATIONS",
+                "roles": ["OWNER"],
+                "reason": "No second owner",
+            },
+        )
+        assert forbidden.status_code == 422
+
+        invited = client.post(
+            "/api/v1/auth/invitations",
+            headers=headers,
+            json={
+                "email": "member@example.test",
+                "display_name": "Member Test",
+                "job_title": "Operations Associate",
+                "department": "OPERATIONS",
+                "roles": ["MEMBER", "OPERATIONS"],
+                "reason": "Controlled onboarding",
+            },
+        )
+        assert invited.status_code == 201, invited.text
+        invite = invited.json()
+        assert invite["registration_path"].startswith("/office/register?invite=")
+        token = invite["registration_token"]
+
+        status = client.get("/api/v1/auth/invitation", params={"token": token})
+        assert status.status_code == 200, status.text
+        assert status.json()["roles"] == ["MEMBER", "OPERATIONS"]
+
+        registered = client.post(
+            "/api/v1/auth/invitation/register",
+            json={
+                "token": token,
+                "display_name": "Member Test",
+                "password": "Member-Strong1!",
+            },
+        )
+        assert registered.status_code == 201, registered.text
+        assert registered.json()["roles"] == ["MEMBER", "OPERATIONS"]
+
+        reused = client.post(
+            "/api/v1/auth/invitation/register",
+            json={
+                "token": token,
+                "display_name": "Member Test",
+                "password": "Member-Strong1!",
+            },
+        )
+        assert reused.status_code == 404
+    finally:
+        engine.dispose()
+
+
+def test_refresh_tokens_are_stored_only_as_hashes(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        created = founder(client)
+        raw_refresh = created["refresh_token"]
+        with engine.connect() as connection:
+            row = connection.exec_driver_sql(
+                "select refresh_token_hash from office_auth_sessions_v2 limit 1"
+            ).first()
+        assert row is not None
+        assert row[0] != raw_refresh
+        assert len(row[0]) == 64
+    finally:
+        engine.dispose()
+
+
+def test_readiness_identifies_kravia_as_identity_provider(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        response = client.get("/api/v1/auth/readiness")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["provider"] == "KRAVIA_FIRST_PARTY"
+        assert body["password_hash"] == "ARGON2ID"
+        assert body["mfa_policy"] == "AAL2_REQUIRED"
+        assert body["invitation_registration"] == "SINGLE_USE_PRIVATE_LINK"
+        assert "supabase" not in response.text.lower()
+    finally:
+        engine.dispose()
