@@ -114,6 +114,28 @@ def upgrade() -> None:
 
     bind = op.get_bind()
     if bind.dialect.name == "postgresql":
+        remaining_provider_fks = bind.execute(
+            sa.text(
+                """
+                select count(*)
+                from pg_constraint con
+                join pg_class rel on rel.oid = con.conrelid
+                join pg_namespace ns on ns.oid = rel.relnamespace
+                where con.contype = 'f'
+                  and con.confrelid = 'auth.users'::regclass
+                  and ns.nspname = 'public'
+                  and left(rel.relname, 7) = 'office_'
+                """
+            )
+        ).scalar_one()
+        if remaining_provider_fks:
+            raise RuntimeError(
+                "Office schema is still coupled to auth.users. "
+                "Apply Database/supabase/migrations/"
+                "202609190001_first_party_office_identity_provider_detachment.sql "
+                "before enabling first-party Office authentication."
+            )
+
         for table in ("office_auth_users", "office_auth_roles", "office_auth_sessions_v2", "office_auth_invites", "office_auth_events_v2"):
             op.execute(sa.text(f'alter table public."{table}" enable row level security'))
             op.execute(sa.text(f'revoke all on table public."{table}" from anon, authenticated'))
