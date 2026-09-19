@@ -30,7 +30,9 @@ describe("KRAVIA Office authentication session ledger", () => {
   it("opens the ledger only after a provisioned sign-in and fails closed when audit tracking is unavailable", () => {
     expect(signInRoute).toContain("beginOfficeAuthSession");
     expect(signInRoute).toContain("await signOutOffice(context)");
-    expect(signInRoute).toContain("KRAVIA Office sign-in is temporarily unavailable");
+    expect(signInRoute).toContain("OFFICE_AUTHORITY_UNAVAILABLE");
+    expect(signInRoute).toContain("KRAVIA Office authorisation service is unavailable");
+    expect(signInRoute).toContain("KRAVIA Office secure session service is unavailable");
   });
 
   it("records MFA, heartbeat and logout as security-session events", () => {
