@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import hmac
 import io
 import json
 import os
@@ -130,6 +131,16 @@ def _aware(value: datetime | None) -> datetime | None:
     return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
 
 
+def _bootstrap_secret() -> str:
+    secret = os.getenv("OFFICE_AUTH_BOOTSTRAP_SECRET", "").strip()
+    app_env = os.getenv("APP_ENV", "development").strip().lower()
+    if not secret and app_env != "production":
+        secret = "kravia-office-development-bootstrap-secret-change-me"
+    if len(secret) < 32:
+        raise RuntimeError("OFFICE_AUTH_BOOTSTRAP_SECRET must be at least 32 characters")
+    return secret
+
+
 def _signing_secret() -> str:
     secret = os.getenv("OFFICE_AUTH_SIGNING_SECRET", "").strip()
     app_env = os.getenv("APP_ENV", "development").strip().lower()
@@ -150,6 +161,7 @@ def first_party_auth_configured() -> bool:
 
 def validate_first_party_auth_configuration() -> None:
     _signing_secret()
+    _bootstrap_secret()
 
 
 def _fernet() -> Fernet:
@@ -677,7 +689,18 @@ def build_identity_router() -> APIRouter:
         }
 
     @router.post("/register-founder", status_code=201)
-    def register_founder(payload: FounderRegisterPayload, request: Request, db: Session = Depends(get_db)):
+    def register_founder(
+        payload: FounderRegisterPayload,
+        request: Request,
+        x_kravia_bootstrap_key: str | None = Header(default=None, alias="X-Kravia-Bootstrap-Key"),
+        db: Session = Depends(get_db),
+    ):
+        expected = _bootstrap_secret()
+        supplied = x_kravia_bootstrap_key or ""
+        if not supplied or not hmac.compare_digest(supplied, expected):
+            _event(db, "FOUNDER_REGISTRATION_BLOCKED", request, metadata={"reason": "invalid_bootstrap_key"})
+            db.commit()
+            raise HTTPException(status_code=403, detail="Founder registration is not authorised")
         return _create_founder(payload, request, db)
 
     @router.post("/sign-in")
