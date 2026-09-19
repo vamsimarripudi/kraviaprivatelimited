@@ -123,7 +123,7 @@ export function OfficeCompanyInbox({ compact = false }: { compact?: boolean }) {
     setError(undefined);
     try {
       await json(`/api/office-tasks/${task.id}/transition`, {
-        method: "POST",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, note: note || undefined }),
       });
