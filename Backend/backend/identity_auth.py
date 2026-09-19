@@ -623,15 +623,19 @@ def _create_founder(payload: FounderRegisterPayload, request: Request, db: Sessi
         founder_slot=FOUNDER_SLOT,
     )
     db.add(user)
-    db.add(
-        OfficeAuthRole(
-            user_id=user_id,
-            role="OWNER",
-            granted_by=user_id,
-            grant_reason="One-time KRAVIA Founder bootstrap registration",
-        )
-    )
     try:
+        # Persist the parent auth user first. OfficeAuthRole has a database FK to
+        # office_auth_users but no ORM relationship, so one combined flush can
+        # schedule the dependent role insert before the user on PostgreSQL.
+        db.flush()
+        db.add(
+            OfficeAuthRole(
+                user_id=user_id,
+                role="OWNER",
+                granted_by=user_id,
+                grant_reason="One-time KRAVIA Founder bootstrap registration",
+            )
+        )
         db.flush()
         _mirror_identity(
             db,
@@ -887,6 +891,9 @@ def build_identity_router() -> APIRouter:
             status="ACTIVE",
         )
         db.add(user)
+        # Persist the auth user before its dependent role rows for the same reason
+        # as Founder bootstrap: role rows carry a database FK but no ORM relationship.
+        db.flush()
         for role in roles:
             db.add(
                 OfficeAuthRole(
@@ -896,6 +903,7 @@ def build_identity_router() -> APIRouter:
                     grant_reason="Accepted private KRAVIA Office registration link",
                 )
             )
+        db.flush()
         invite.status = "ACCEPTED"
         invite.used_by = user_id
         invite.used_at = _now()
