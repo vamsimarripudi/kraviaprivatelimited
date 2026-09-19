@@ -228,8 +228,11 @@ export async function founderBootstrapStatus() {
 }
 
 export async function registerFounder(input: { email: string; display_name: string; password: string }) {
+  const bootstrapKey = process.env.OFFICE_AUTH_BOOTSTRAP_SECRET?.trim();
+  if (!bootstrapKey) throw new Error("Founder registration is not configured on this deployment");
   const response = await rawApi("/api/v1/auth/register-founder", {
     method: "POST",
+    headers: { "X-Kravia-Bootstrap-Key": bootstrapKey },
     body: JSON.stringify(input),
   });
   const payload = await parseOrThrow<FirstPartyAuthResponse>(response);
