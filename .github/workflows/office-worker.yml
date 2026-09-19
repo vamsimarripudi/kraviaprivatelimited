@@ -1,13 +1,7 @@
-name: KRAVIA Office background worker
+name: KRAVIA Office manual worker fallback
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "*/5 * * * *"
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/office-worker.yml"
 
 permissions:
   contents: read
