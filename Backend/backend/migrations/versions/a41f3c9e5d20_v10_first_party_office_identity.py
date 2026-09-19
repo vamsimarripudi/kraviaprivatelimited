@@ -38,6 +38,23 @@ def upgrade() -> None:
     )
     op.create_index("ix_office_auth_users_status", "office_auth_users", ["status"])
 
+
+    op.create_table(
+        "office_auth_roles",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("user_id", sa.String(length=36), nullable=False),
+        sa.Column("role", sa.String(length=64), nullable=False),
+        sa.Column("granted_by", sa.String(length=36), nullable=True),
+        sa.Column("grant_reason", sa.Text(), nullable=True),
+        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.ForeignKeyConstraint(["user_id"], ["office_auth_users.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("user_id", "role", name="uq_office_auth_role_user_role"),
+    )
+    op.create_index("ix_office_auth_roles_user", "office_auth_roles", ["user_id"])
+
     op.create_table(
         "office_auth_sessions_v2",
         sa.Column("id", sa.String(length=36), nullable=False),
@@ -97,7 +114,7 @@ def upgrade() -> None:
 
     bind = op.get_bind()
     if bind.dialect.name == "postgresql":
-        for table in ("office_auth_users", "office_auth_sessions_v2", "office_auth_invites", "office_auth_events_v2"):
+        for table in ("office_auth_users", "office_auth_roles", "office_auth_sessions_v2", "office_auth_invites", "office_auth_events_v2"):
             op.execute(sa.text(f'alter table public."{table}" enable row level security'))
             op.execute(sa.text(f'revoke all on table public."{table}" from anon, authenticated'))
 
@@ -112,5 +129,7 @@ def downgrade() -> None:
     op.drop_index("ix_office_auth_sessions_v2_expires", table_name="office_auth_sessions_v2")
     op.drop_index("ix_office_auth_sessions_v2_user_status", table_name="office_auth_sessions_v2")
     op.drop_table("office_auth_sessions_v2")
+    op.drop_index("ix_office_auth_roles_user", table_name="office_auth_roles")
+    op.drop_table("office_auth_roles")
     op.drop_index("ix_office_auth_users_status", table_name="office_auth_users")
     op.drop_table("office_auth_users")
