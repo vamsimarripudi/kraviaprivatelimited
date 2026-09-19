@@ -4,13 +4,13 @@
 
 Latest fully green quality run:
 
-- Root application: **82 Vitest files / 390 tests passed**.
-- Office backend: **75 pytest tests passed**.
+- Root application: **84 Vitest files / 394 tests passed**.
+- Office backend: **77 pytest tests passed**.
 - Office quality gate: **PASS**.
 - `npm ci`: **0 vulnerabilities**.
 - Blocking `npm audit --audit-level=high`: **0 vulnerabilities**.
 - ESLint, TypeScript typecheck, secret scan and Next.js 16.3.5 production build: **PASS**.
-- Python compile, OpenAPI drift verification and clean Alembic migration chain through v9: **PASS**.
+- Python compile, OpenAPI drift verification and clean Alembic migration chain through v10: **PASS**.
 
 The production Next build explicitly contains `/office`, `/office/login`, `/office/[section]`, `/finance`, `/finance/login`, `/finance/[section]`, `/admin/login`, Office auth APIs and runtime gateways. Route audit additionally confirms **50/50 Office sections and 20/20 Finance sections have specialised surfaces with zero generic section fallbacks**.
 
@@ -56,35 +56,32 @@ The 75-test backend suite verifies, among other controls:
 - read-only Google Drive metadata integration and evidence-taxonomy readiness;
 - accounting/tax period close and maker-checker reopen;
 - CSP/security headers, cross-origin mutation guard, shared database-backed cross-replica mutation rate limiting and production fail-closed shared-mode configuration;
-- identity token non-disclosure and HttpOnly/SameSite cookie bridge;
-- TOTP verification promoting sessions to `aal2`;
+- KRAVIA first-party Argon2id password authentication with no plaintext credential storage;
+- one-time, server-secret-protected Founder bootstrap that permanently closes after first success;
+- single-use expiring private registration links with only token hashes persisted;
+- rotating refresh credentials persisted only as hashes and browser tokens retained in HttpOnly/SameSite=Strict cookies;
+- encrypted-at-rest TOTP enrollment and verification promoting sessions to `aal2`;
 - protected production APIs rejecting `aal1`;
 - inactive/suspended Office identities being rejected;
-- identity/MFA routes present in the committed OpenAPI contract.
+- first-party identity/MFA/invite routes present in the committed OpenAPI contract.
 
-## Supabase identity/control-plane validation
+## Identity and PostgreSQL control-plane validation
 
-The dedicated `KRAVIA Office` Supabase project (`xjtazosozxmudkbxqhjl`, `ap-south-1`) has the following verified live state:
+The release candidate removes **Supabase Auth** from the active KRAVIA Office identity path. Supabase/PostgreSQL remains the hosted database/control plane.
 
-- explicit Office identity-admission and role tables;
-- asymmetric JWT signing and the Office Custom Access Token Hook;
-- public Office signup disabled;
-- governed company-registration registry applied live;
-- registration tables have RLS enabled, anon/authenticated SELECT denied and service-role SELECT enabled;
-- registration lifecycle functions are SECURITY INVOKER, browser EXECUTE denied and service-role EXECUTE enabled;
-- `office_identity_create_person()` and `office_sync_employment_identity()` no longer expose SECURITY DEFINER EXECUTE to PUBLIC/anon/authenticated; service-role execution remains explicit;
-- all 52 legacy FastAPI tables are owned by `kravia_office_backend`, RLS-enabled, and expose zero anon/authenticated CRUD;
-- the dedicated `kravia_office_backend` role has effective CRUD on all 52 legacy FastAPI tables;
-- production runtime and Alembic transactions are constrained with `SET LOCAL ROLE kravia_office_backend`;
-- the five Alembic v6-v9 service tables are owned by the backend role, RLS-enabled, and deny anon/authenticated CRUD.
+Verified in source/CI:
 
-Current Supabase security-advisor residuals are not reported as solved:
+- KRAVIA FastAPI owns password verification, session issuance/refresh, MFA, Founder bootstrap and invitation registration;
+- Argon2id hashes passwords; refresh tokens are stored only as SHA-256 hashes;
+- TOTP secrets are encrypted at rest and Office business access remains AAL2-gated;
+- the one-time Founder bootstrap requires a separate trusted BFF bootstrap secret and closes permanently after successful use;
+- private invitation links are single-use/expiring and only their token hashes persist;
+- existing `office_identity_users`, `office_user_roles`, departments, permission profiles and access-audit records remain authoritative authorization/control-plane data;
+- first-party auth tables are RLS-enabled with anon/authenticated table access revoked;
+- browser application code does not use Supabase Auth clients or administrative Auth APIs;
+- the old hosted Supabase Auth project may remain temporarily as rollback history until production cutover acceptance, but it is not part of the target Office login/register/MFA architecture.
 
-- **WARN:** leaked-password protection is disabled in Supabase Auth;
-- **INFO:** many service-role-only Office tables have RLS enabled with no browser policies by design;
-- **RLS hardening:** the 52 legacy FastAPI tables are now RLS-enabled with zero browser CRUD; informational no-policy findings are expected for service-only tables and must not be silenced with permissive policies.
-
-The remaining human identity acceptance step is first OWNER TOTP enrollment and verification of the resulting `aal2` session through `/office/login`.
+The previously reported Supabase Auth leaked-password warning is no longer an Office identity production gate after this cutover.
 
 ## Migration validation
 
@@ -98,7 +95,8 @@ The clean CI database upgrades through:
 - v6 durable background-worker heartbeat;
 - v7 audit-retention policies, legal holds and archive manifests;
 - v8 shared application rate-limit windows;
-- v9 background-worker cadence metadata.
+- v9 background-worker cadence metadata;
+- v10 KRAVIA first-party Office identity, sessions, roles, invitations and auth-event persistence.
 
 Supabase Auth/RBAC provisioning remains separate in `spec/identity/SUPABASE_IDENTITY.sql` because it targets the hosted Supabase `auth` schema rather than the Office application database.
 
@@ -118,11 +116,10 @@ A green local/CI build proves source correctness, not live-provider acceptance.
 
 Automated tests do not fabricate production acceptance for:
 
-- first human TOTP enrollment and live AAL2 session;
+- production first-party auth secrets and `AUTH_MODE=first_party` cutover;
+- first Founder bootstrap registration and live TOTP/AAL2 session;
 - Vercel `kravia1` scope re-authentication plus project environment/domain read-back and end-to-end browser acceptance;
 - accepted frontend `OFFICE_API_ORIGIN` and end-to-end browser→BFF→Railway verification;
-- Supabase Auth leaked-password protection;
-
 - full all-role IDOR/BOLA acceptance using production-like identities;
 - production PostgreSQL concurrency/failover/backups/PITR restore;
 - live Razorpay/RazorpayX/payment-provider eligibility and settlements;
