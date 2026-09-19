@@ -12,7 +12,7 @@ import {
 import { officeMutationIsSameOrigin } from "@/lib/office/request-security";
 
 const optionalText = (max: number) => z.string().trim().max(max).optional();
-const requestSchema = z.discriminatedUnion("action", [
+const createSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("CREATE_LEAD"),
     owner_user_id: z.string().uuid(),
@@ -26,7 +26,6 @@ const requestSchema = z.discriminatedUnion("action", [
     country: optionalText(80),
     notes: optionalText(4000),
   }),
-  z.object({ action: z.literal("SET_LEAD_STAGE"), lead_id: z.string().uuid(), stage: z.enum(["NEW","QUALIFIED","DISQUALIFIED","CONVERTED"]), customer_id: optionalText(120) }),
   z.object({
     action: z.literal("CREATE_OPPORTUNITY"),
     owner_user_id: z.string().uuid(),
@@ -39,8 +38,23 @@ const requestSchema = z.discriminatedUnion("action", [
     expected_close_date: z.string().date().optional(),
     next_step: optionalText(1000),
   }),
-  z.object({ action: z.literal("SET_OPPORTUNITY_STAGE"), opportunity_id: z.string().uuid(), stage: z.enum(["QUALIFICATION","DISCOVERY","DEMO","PROPOSAL","NEGOTIATION","CONTRACTING","WON","LOST"]), next_step: optionalText(1000), lost_reason: optionalText(1000) }),
   z.object({ action: z.literal("ADD_ACTIVITY"), lead_id: z.string().uuid().optional(), opportunity_id: z.string().uuid().optional(), activity_type: z.enum(["NOTE","CALL","EMAIL","MEETING","DEMO","PROPOSAL","FOLLOW_UP"]), subject: z.string().trim().min(2).max(180), body: optionalText(4000), occurred_at: z.string().datetime({ offset: true }).optional() }),
+]);
+
+const stageSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("SET_LEAD_STAGE"),
+    lead_id: z.string().uuid(),
+    stage: z.enum(["NEW","QUALIFIED","DISQUALIFIED","CONVERTED"]),
+    customer_id: optionalText(120),
+  }),
+  z.object({
+    action: z.literal("SET_OPPORTUNITY_STAGE"),
+    opportunity_id: z.string().uuid(),
+    stage: z.enum(["QUALIFICATION","DISCOVERY","DEMO","PROPOSAL","NEGOTIATION","CONTRACTING","WON","LOST"]),
+    next_step: optionalText(1000),
+    lost_reason: optionalText(1000),
+  }),
 ]);
 
 export async function GET() {
@@ -55,7 +69,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   if (!officeMutationIsSameOrigin(request)) return NextResponse.json({ detail: "Cross-origin CRM mutation is not allowed" }, { status: 403 });
-  const parsed = requestSchema.safeParse(await request.json().catch(() => null));
+  const parsed = createSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ detail: "Invalid CRM request" }, { status: 400 });
   try {
     let result: Record<string, unknown>;
@@ -74,9 +88,6 @@ export async function POST(request: Request) {
           notes: parsed.data.notes,
         });
         break;
-      case "SET_LEAD_STAGE":
-        result = await setOfficeCrmLeadStage({ leadId: parsed.data.lead_id, stage: parsed.data.stage, customerId: parsed.data.customer_id || undefined });
-        break;
       case "CREATE_OPPORTUNITY":
         result = await createOfficeCrmOpportunity({
           ownerUserId: parsed.data.owner_user_id,
@@ -90,9 +101,6 @@ export async function POST(request: Request) {
           nextStep: parsed.data.next_step,
         });
         break;
-      case "SET_OPPORTUNITY_STAGE":
-        result = await setOfficeCrmOpportunityStage({ opportunityId: parsed.data.opportunity_id, stage: parsed.data.stage, nextStep: parsed.data.next_step, lostReason: parsed.data.lost_reason });
-        break;
       case "ADD_ACTIVITY":
         if (!parsed.data.lead_id && !parsed.data.opportunity_id) return NextResponse.json({ detail: "Lead or opportunity is required" }, { status: 400 });
         result = await addOfficeCrmActivity({ leadId: parsed.data.lead_id, opportunityId: parsed.data.opportunity_id, activityType: parsed.data.activity_type, subject: parsed.data.subject, body: parsed.data.body, occurredAt: parsed.data.occurred_at });
@@ -102,6 +110,35 @@ export async function POST(request: Request) {
   } catch (error) {
     const status = error instanceof OfficeCrmError ? error.status : 500;
     const detail = error instanceof Error ? error.message : "Unable to update CRM";
+    return NextResponse.json({ detail }, { status, headers: { "Cache-Control": "no-store" } });
+  }
+}
+
+
+export async function PATCH(request: Request) {
+  if (!officeMutationIsSameOrigin(request)) {
+    return NextResponse.json({ detail: "Cross-origin CRM mutation is not allowed" }, { status: 403 });
+  }
+  const parsed = stageSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ detail: "Invalid CRM stage update" }, { status: 400 });
+
+  try {
+    const result = parsed.data.action === "SET_LEAD_STAGE"
+      ? await setOfficeCrmLeadStage({
+          leadId: parsed.data.lead_id,
+          stage: parsed.data.stage,
+          customerId: parsed.data.customer_id || undefined,
+        })
+      : await setOfficeCrmOpportunityStage({
+          opportunityId: parsed.data.opportunity_id,
+          stage: parsed.data.stage,
+          nextStep: parsed.data.next_step,
+          lostReason: parsed.data.lost_reason,
+        });
+    return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    const status = error instanceof OfficeCrmError ? error.status : 500;
+    const detail = error instanceof Error ? error.message : "Unable to update CRM stage";
     return NextResponse.json({ detail }, { status, headers: { "Cache-Control": "no-store" } });
   }
 }
