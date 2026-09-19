@@ -24,7 +24,17 @@ def _publishable_key() -> str:
 
 
 def _private_key_b64() -> str:
-    return os.getenv("KRAVIA_STORAGE_BROKER_PRIVATE_KEY", "").strip()
+    direct = os.getenv("KRAVIA_STORAGE_BROKER_PRIVATE_KEY", "").strip()
+    if direct:
+        return direct
+    return "".join(
+        os.getenv(name, "").strip()
+        for name in (
+            "KRAVIA_STORAGE_BROKER_KEY_A",
+            "KRAVIA_STORAGE_BROKER_KEY_B",
+            "KRAVIA_STORAGE_BROKER_KEY_C",
+        )
+    )
 
 
 def _broker_url() -> str:
