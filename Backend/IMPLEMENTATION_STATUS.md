@@ -179,3 +179,5 @@ KRAVIA Office must never report fake success, fake compliance, fake tax status, 
 - Applied and versioned least-privilege kravia_office_backend access to the protected identity/role/invitation control plane with RLS kept enabled.
 - Verified Railway API receives /api/v1/auth/register-founder through the same-origin Vercel BFF; the Railway backend remains the identity runtime.
 - Removed the redundant GitHub worker deployment job because Railway's native GitHub integration already owns worker deployment; this avoids blocking Railway API check-suite deployment.
+
+- CI follow-up: frontend dependency audit now evaluates package-lock.json directly to avoid transient npm installed-tree audit endpoint failures while preserving the high-severity vulnerability gate.
