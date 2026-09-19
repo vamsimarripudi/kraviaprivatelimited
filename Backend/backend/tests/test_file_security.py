@@ -53,13 +53,15 @@ def test_validate_rejects_extension_mismatch():
 def test_file_security_readiness_requires_storage_and_scanner(monkeypatch):
     monkeypatch.delenv("SUPABASE_URL", raising=False)
     monkeypatch.delenv("SUPABASE_AUTH_URL", raising=False)
-    monkeypatch.delenv("SUPABASE_SERVICE_ROLE_KEY", raising=False)
-    monkeypatch.delenv("OFFICE_SUPABASE_SECRET_KEY", raising=False)
+    monkeypatch.delenv("SUPABASE_PUBLISHABLE_KEY", raising=False)
+    monkeypatch.delenv("KRAVIA_STORAGE_BROKER_PRIVATE_KEY", raising=False)
+    monkeypatch.delenv("KRAVIA_STORAGE_BROKER_URL", raising=False)
     monkeypatch.delenv("CLAMAV_HOST", raising=False)
     assert file_security.file_security_ready() is False
 
     monkeypatch.setenv("SUPABASE_AUTH_URL", "https://example.supabase.co")
-    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "server-only-test-secret")
+    monkeypatch.setenv("SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test")
+    monkeypatch.setenv("KRAVIA_STORAGE_BROKER_PRIVATE_KEY", "test-key-present")
     monkeypatch.setenv("CLAMAV_HOST", "clamav.railway.internal")
     assert file_security.file_security_ready() is True
 
