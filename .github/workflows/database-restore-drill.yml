@@ -185,6 +185,7 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
+          import csv
           import json
           import os
           import re
@@ -199,48 +200,101 @@ jobs:
           db_url = os.environ["RESTORE_DATABASE_URL"]
 
           expected = json.loads(counts_path.read_text(encoding="utf-8"))
-          relations = list(expected)
-          if not relations:
+          if not expected:
               raise SystemExit("No COPY relations available for restore compatibility analysis")
+
+          copy_re = re.compile(r"^COPY\s+(.+?)\s+\((.+)\)\s+FROM\s+stdin;$")
+          specs = {}
+          with source.open("r", encoding="utf-8", errors="strict") as handle:
+              for raw in handle:
+                  match = copy_re.match(raw.rstrip("\n"))
+                  if not match:
+                      continue
+                  relation = match.group(1).strip()
+                  column_text = match.group(2)
+                  columns = [
+                      value.strip()
+                      for value in next(
+                          csv.reader(
+                              [column_text],
+                              delimiter=",",
+                              quotechar='"',
+                              skipinitialspace=True,
+                          )
+                      )
+                  ]
+                  specs[relation] = columns
+
+          relations = list(expected)
+          missing_specs = [relation for relation in relations if relation not in specs]
+          if missing_specs:
+              raise SystemExit(
+                  f"COPY header metadata missing for {len(missing_specs)} relation(s)"
+              )
 
           values = ",".join(
               "('" + relation.replace("'", "''") + "')"
               for relation in relations
           )
           sql = (
-              "select v.rel, to_regclass(v.rel) is not null "
-              f"from (values {values}) as v(rel) order by v.rel"
+              "select json_object_agg(rel, payload) from ("
+              "select v.rel, json_build_object("
+              "'present', to_regclass(v.rel) is not null,"
+              "'columns', coalesce(("
+              "select json_agg(a.attname order by a.attnum) "
+              "from pg_attribute a "
+              "where a.attrelid=to_regclass(v.rel) "
+              "and a.attnum > 0 and not a.attisdropped"
+              "), '[]'::json)"
+              ") as payload "
+              f"from (values {values}) as v(rel)"
+              ") q"
           )
           proc = subprocess.run(
-              ["psql", db_url, "-At", "-F", "\t", "-c", sql],
+              ["psql", db_url, "-At", "-c", sql],
               check=True,
               text=True,
               capture_output=True,
           )
-          availability = {}
-          for raw in proc.stdout.splitlines():
-              relation, present = raw.split("\t", 1)
-              availability[relation] = present == "t"
+          target_meta = json.loads(proc.stdout.strip())
 
-          missing = [relation for relation in relations if not availability.get(relation, False)]
           provider_internal = []
-          unsafe_missing = []
-          for relation in missing:
+          unsafe = []
+          reasons = {}
+
+          for relation in relations:
               normalized = relation.replace('"', '')
               schema = normalized.split(".", 1)[0] if "." in normalized else "public"
+              meta = target_meta.get(relation) or {"present": False, "columns": []}
+              present = bool(meta.get("present"))
+              target_columns = set(meta.get("columns") or [])
+              backup_columns = specs[relation]
+              missing_columns = [
+                  column for column in backup_columns
+                  if column not in target_columns
+              ]
+
+              if present and not missing_columns:
+                  continue
+
+              reason = (
+                  "relation_missing"
+                  if not present
+                  else "missing_columns:" + ",".join(missing_columns)
+              )
+              reasons[relation] = reason
               if schema in {"auth", "storage"}:
                   provider_internal.append(relation)
               else:
-                  unsafe_missing.append(relation)
+                  unsafe.append(relation)
 
-          if unsafe_missing:
-              for relation in unsafe_missing[:20]:
-                  print(f"Missing required restore relation: {relation}")
+          if unsafe:
+              for relation in unsafe[:20]:
+                  print(f"Unsafe KRAVIA restore mismatch: {relation} ({reasons[relation]})")
               raise SystemExit(
-                  f"Refusing partial restore: {len(unsafe_missing)} non-provider relation(s) are missing"
+                  f"Refusing partial restore: {len(unsafe)} non-provider relation(s) are incompatible"
               )
 
-          copy_re = re.compile(r"^COPY\s+(.+?)\s+\(.+\)\s+FROM\s+stdin;$")
           skipped_set = set(provider_internal)
           current = None
           keep = True
@@ -274,14 +328,26 @@ jobs:
               if relation not in skipped_set
           }
           counts_path.write_text(json.dumps(filtered, sort_keys=True), encoding="utf-8")
-          skipped_path.write_text(json.dumps(sorted(provider_internal)), encoding="utf-8")
+          skipped_path.write_text(
+              json.dumps(
+                  [
+                      {"relation": relation, "reason": reasons[relation]}
+                      for relation in sorted(provider_internal)
+                  ],
+                  sort_keys=True,
+              ),
+              encoding="utf-8",
+          )
 
           print(
               f"Portable restore set: {len(filtered)} table(s); "
               f"provider-internal version-skew skips: {len(provider_internal)}."
           )
-          for relation in provider_internal:
-              print(f"Skipping provider-internal unavailable relation: {relation}")
+          for relation in sorted(provider_internal):
+              print(
+                  f"Skipping provider-internal incompatible relation: "
+                  f"{relation} ({reasons[relation]})"
+              )
           PY
 
       - name: Restore compatible data
