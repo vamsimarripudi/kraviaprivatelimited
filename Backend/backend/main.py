@@ -481,6 +481,11 @@ def documents(db: Session=Depends(get_db), ctx=Depends(actor_context)):
 
 @app.post("/api/v1/documents", status_code=201)
 async def upload_document(title: str=Form(...), document_type: str=Form(...), area: str=Form(...), source: str=Form("DIRECT_UPLOAD"), file: UploadFile=File(...), db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","DIRECTOR","FINANCE","CA","CS","LEGAL","HR","OPERATIONS"))):
+    if APP_ENV == "production":
+        raise HTTPException(
+            410,
+            "Legacy local document upload is disabled in production; use the private Office document vault",
+        )
     content=await file.read(MAX_UPLOAD_BYTES+1)
     if len(content)>MAX_UPLOAD_BYTES: raise HTTPException(413,"File exceeds configured upload limit")
     ctype=(file.content_type or "application/octet-stream").lower()
@@ -494,6 +499,11 @@ async def upload_document(title: str=Form(...), document_type: str=Form(...), ar
 
 @app.post("/api/v1/documents/{document_id}/versions", status_code=201)
 async def upload_document_version(document_id: str, file: UploadFile=File(...), db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","DIRECTOR","FINANCE","CA","CS","LEGAL","HR","OPERATIONS"))):
+    if APP_ENV == "production":
+        raise HTTPException(
+            410,
+            "Legacy local document upload is disabled in production; use the private Office document vault",
+        )
     doc=db.get(Document,document_id)
     if not doc: raise HTTPException(404,"Document not found")
     if doc.locked: raise HTTPException(409,"Locked document cannot receive a replacement version; supersede through a new controlled document")
