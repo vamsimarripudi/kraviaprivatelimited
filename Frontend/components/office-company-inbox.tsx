@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, CircleDashed, Clock3, LoaderCircle, Plus, Search, ShieldCheck, X } from "lucide-react";
+import { officeMutation, officeQuery } from "@/lib/office/http-client";
 import styles from "./office-company-inbox.module.css";
 
 type TaskStatus = "OPEN" | "IN_PROGRESS" | "BLOCKED" | "DONE" | "CANCELLED";
@@ -31,10 +32,18 @@ type Draft = { assignee: string; title: string; description: string; taskType: s
 const emptyDraft: Draft = { assignee: "", title: "", description: "", taskType: "GENERAL", priority: "NORMAL", department: "", dueAt: "" };
 
 async function json<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, { ...options, cache: "no-store", credentials: "same-origin" });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(typeof body.detail === "string" ? body.detail : "Company Inbox request failed");
-  return body as T;
+  const method = (options?.method ?? "GET").toUpperCase();
+  if (method === "GET") {
+    return officeQuery<T>(url, undefined, { staleMs: 10_000 });
+  }
+  const body = typeof options?.body === "string"
+    ? JSON.parse(options.body)
+    : options?.body;
+  return officeMutation<T>(url, {
+    method: method as "POST" | "PUT" | "PATCH" | "DELETE",
+    body,
+    invalidate: "/api/office-tasks",
+  });
 }
 
 function readableDate(value?: string | null) {
