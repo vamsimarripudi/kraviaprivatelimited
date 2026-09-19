@@ -65,5 +65,5 @@ create index if not exists ix_notice_cases_status_created_at_desc
 create index if not exists ix_inspection_cases_created_at_desc
   on public.inspection_cases (created_at desc);
 
-create index if not exists ix_office_domain_events_status_created_at_desc
-  on public.office_domain_events (status, created_at desc);
+create index if not exists ix_office_domain_events_created_at_desc
+  on public.office_domain_events (created_at desc);
