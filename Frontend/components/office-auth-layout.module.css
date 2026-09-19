@@ -1,0 +1,32 @@
+.shell{
+  width:100vw;height:100dvh;min-height:100dvh;display:grid;grid-template-columns:minmax(0,1.08fr) minmax(420px,.92fr);
+  overflow:hidden;background:#f5f6f2;color:#13231d;font-family:Inter,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+.brand{position:relative;isolation:isolate;display:flex;flex-direction:column;justify-content:space-between;padding:clamp(28px,4vw,64px);
+  overflow:hidden;background:
+  radial-gradient(circle at 78% 22%,rgba(172,210,170,.22),transparent 28%),
+  radial-gradient(circle at 16% 88%,rgba(204,171,104,.13),transparent 30%),
+  linear-gradient(145deg,#071d16 0%,#0b2b20 52%,#123d2c 100%);color:#f6f7f2}
+.glowOne,.glowTwo{position:absolute;border:1px solid rgba(255,255,255,.09);border-radius:50%;z-index:-1}
+.glowOne{width:min(54vw,760px);aspect-ratio:1;right:-24%;top:-23%;box-shadow:0 0 0 80px rgba(255,255,255,.018),0 0 0 160px rgba(255,255,255,.012)}
+.glowTwo{width:300px;aspect-ratio:1;left:-130px;bottom:-110px;background:rgba(204,171,104,.035)}
+.brandTop{display:flex;align-items:center;gap:14px;font-size:12px;letter-spacing:.18em;font-weight:700;color:rgba(255,255,255,.72)}
+.mark{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:rgba(255,255,255,.095);border:1px solid rgba(255,255,255,.13);
+  font-size:19px;font-weight:800;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.brandCopy{max-width:690px;margin:auto 0}
+.kicker{margin:0 0 18px;color:#d6b46b;font-size:11px;letter-spacing:.22em;font-weight:800}
+.brandCopy h1{margin:0;font-size:clamp(58px,7vw,108px);line-height:.88;letter-spacing:-.065em;font-weight:650}
+.description{max-width:570px;margin:28px 0 34px;color:rgba(255,255,255,.68);font-size:clamp(16px,1.35vw,20px);line-height:1.65}
+.trustGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-width:680px}
+.trustGrid>div{display:flex;gap:10px;align-items:flex-start;padding:14px;border-radius:16px;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(10px)}
+.trustGrid svg{width:18px;height:18px;color:#d6b46b;flex:0 0 auto;margin-top:2px}
+.trustGrid span{display:flex;flex-direction:column;gap:3px}.trustGrid b{font-size:13px}.trustGrid small{font-size:11px;line-height:1.35;color:rgba(255,255,255,.52)}
+.brandFooter{display:flex;justify-content:space-between;align-items:center;gap:20px;font-size:11px;color:rgba(255,255,255,.48)}
+.brandFooter a{color:rgba(255,255,255,.82);text-decoration:none}.brandFooter a:hover{text-decoration:underline}
+.formSide{height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px clamp(28px,5vw,76px);background:
+  radial-gradient(circle at 100% 0%,rgba(19,85,61,.055),transparent 34%),#f7f7f3;overflow:hidden}
+.card{width:min(100%,470px);max-height:calc(100dvh - 100px);overflow:auto;scrollbar-width:none}.card::-webkit-scrollbar{display:none}
+.mobileBrand{display:none}.copyright{position:absolute;bottom:20px;margin:0;font-size:10px;letter-spacing:.08em;color:#89918b}
+@media(max-width:900px){.shell{grid-template-columns:46% 54%}.brand{padding:28px}.trustGrid{grid-template-columns:1fr}.trustGrid>div:nth-child(n+2){display:none}.brandCopy h1{font-size:54px}}
+@media(max-width:720px){.shell{display:block}.brand{display:none}.formSide{width:100%;padding:20px 22px 48px}.mobileBrand{display:flex;align-items:center;gap:10px;position:absolute;top:20px;left:22px;font-size:14px}.mobileMark{width:32px;height:32px;border-radius:10px;background:#0b2b20;color:#fff;display:grid;place-items:center;font-weight:800}.card{max-height:calc(100dvh - 110px);margin-top:34px}.copyright{bottom:14px}}
+@media(max-height:700px) and (min-width:721px){.brand{padding:24px 38px}.brandCopy h1{font-size:54px}.description{margin:18px 0 20px}.trustGrid>div{padding:10px}.formSide{padding-top:18px;padding-bottom:30px}.copyright{bottom:8px}}
