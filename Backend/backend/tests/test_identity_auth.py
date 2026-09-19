@@ -13,6 +13,7 @@ from backend.database import Base
 def make_client(tmp_path, monkeypatch):
     monkeypatch.setenv("APP_ENV", "development")
     monkeypatch.setenv("OFFICE_AUTH_SIGNING_SECRET", "test-first-party-signing-secret-at-least-32-chars")
+    monkeypatch.setenv("OFFICE_AUTH_BOOTSTRAP_SECRET", "test-bootstrap-secret-at-least-32-characters")
     monkeypatch.setenv("OFFICE_AUTH_EMAIL_DOMAIN", "example.test")
     engine = create_engine(
         f"sqlite:///{tmp_path / 'first-party-auth.db'}",
@@ -43,7 +44,7 @@ FOUNDER = {
 
 
 def founder(client: TestClient):
-    response = client.post("/api/v1/auth/register-founder", json=FOUNDER)
+    response = client.post("/api/v1/auth/register-founder", json=FOUNDER, headers={"X-Kravia-Bootstrap-Key": "test-bootstrap-secret-at-least-32-characters"})
     assert response.status_code == 201, response.text
     return response.json()
 
@@ -93,6 +94,7 @@ def test_founder_bootstrap_closes_after_first_success(tmp_path, monkeypatch):
 
         second = client.post(
             "/api/v1/auth/register-founder",
+            headers={"X-Kravia-Bootstrap-Key": "test-bootstrap-secret-at-least-32-characters"},
             json={
                 "email": "second@example.test",
                 "display_name": "Second Founder",
