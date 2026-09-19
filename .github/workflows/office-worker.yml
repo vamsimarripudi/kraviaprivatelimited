@@ -21,9 +21,6 @@ jobs:
     name: Production worker tick
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: Backend
     env:
       APP_ENV: production
       DATABASE_URL: ${{ secrets.KRAVIA_BACKUP_DATABASE_URL }}
@@ -51,12 +48,14 @@ jobs:
           cache-dependency-path: Backend/backend/requirements.txt
 
       - name: Install worker dependencies
+        working-directory: Backend
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r backend/requirements.txt
           python -m pip check
 
       - name: Run one production worker tick
+        working-directory: Backend
         shell: bash
         run: |
           set -euo pipefail
