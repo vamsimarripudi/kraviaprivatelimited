@@ -169,7 +169,7 @@ export function OfficeCompanyCalendar() {
     setBusy(event.id);
     setError(undefined);
     try {
-      await json("/api/office-calendar", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event_id: event.id }) });
+      await json(`/api/office-calendar?event_id=${encodeURIComponent(event.id)}`, { method: "DELETE" });
       setSelected(undefined);
       await reload();
     } catch (caught) {
