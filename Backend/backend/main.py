@@ -15,9 +15,10 @@ from .models import LegalEntity, Product, Customer, Invoice, Payment, Receipt, I
 from .schemas import CustomerCreate, ProductCreate, InvoiceCreate, PaymentCreate, ComplianceCreate, BoardMeetingCreate, ResolutionCreate, AuthorityCreate, VendorCreate, ContractCreate, EmployeeCreate, AssetCreate, PlanCreate, SubscriptionCreate, CreditNoteCreate, RefundCreate, BankAccountCreate, BankTransactionCreate, SettlementCreate, ApprovalCreate, ApprovalDecision, NoticeCreate, InspectionCreate, IntegrationCreate
 from .services import uid, paise, rupees, now_utc, allocate_invoice_no, allocate_controlled_no, audit, workflow, emit_event, post_journal, ENTITY_ID
 from .documents import invoice_pdf, receipt_pdf, ctc_pdf
+from .identity_auth import authenticate_office_access, validate_first_party_auth_configuration
 
 APP_ENV = os.getenv("APP_ENV", "development")
-AUTH_MODE = os.getenv("AUTH_MODE", "bootstrap" if APP_ENV != "production" else "oidc").lower()
+AUTH_MODE = os.getenv("AUTH_MODE", "bootstrap" if APP_ENV != "production" else "first_party").lower()
 BOOTSTRAP_KEY = os.getenv("OFFICE_BOOTSTRAP_KEY", "")
 OIDC_ISSUER = os.getenv("OIDC_ISSUER", "")
 OIDC_AUDIENCE = os.getenv("OIDC_AUDIENCE", "")
@@ -34,9 +35,11 @@ DOCUMENT_STORAGE_DIR = Path(os.getenv("DOCUMENT_STORAGE_DIR", "./runtime/private
 DOCUMENT_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(25*1024*1024)))
 
-if APP_ENV == "production" and AUTH_MODE != "oidc":
-    raise RuntimeError("Production startup blocked: AUTH_MODE must be oidc")
-if APP_ENV == "production" and not (OIDC_ISSUER and OIDC_AUDIENCE and OIDC_JWKS_URL):
+if APP_ENV == "production" and AUTH_MODE not in {"first_party", "oidc"}:
+    raise RuntimeError("Production startup blocked: AUTH_MODE must be first_party")
+if APP_ENV == "production" and AUTH_MODE == "first_party":
+    validate_first_party_auth_configuration()
+if APP_ENV == "production" and AUTH_MODE == "oidc" and not (OIDC_ISSUER and OIDC_AUDIENCE and OIDC_JWKS_URL):
     raise RuntimeError("Production startup blocked: OIDC issuer, audience and JWKS URL are required")
 
 if APP_ENV == "production" and not (KRAVIA_LEGAL_NAME and KRAVIA_CIN and KRAVIA_REGISTERED_OFFICE):
@@ -91,7 +94,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="KRAVIA Office API", version="2.0.0", docs_url="/api/docs" if APP_ENV != "production" else None, lifespan=lifespan)
 
-KNOWN_ROLES={"OWNER","DIRECTOR","FINANCE","CA","CS","LEGAL","HR","OPERATIONS","AUDITOR","PRODUCT_ADMIN"}
+KNOWN_ROLES={"OWNER","DIRECTOR","ADMIN","MEMBER","FINANCE","CA","CS","LEGAL","HR","OPERATIONS","AUDITOR","PRODUCT_ADMIN"}
 _jwks_client = PyJWKClient(OIDC_JWKS_URL) if OIDC_JWKS_URL else None
 
 def actor_context(
@@ -99,7 +102,13 @@ def actor_context(
     x_kravia_office_key: str | None = Header(default=None),
     x_office_actor: str | None = Header(default=None),
     x_office_role: str | None = Header(default=None),
+    db: Session = Depends(get_db),
 ):
+    if AUTH_MODE == "first_party":
+        if not authorization or not authorization.lower().startswith("bearer "):
+            raise HTTPException(status_code=401, detail="Bearer token required")
+        token=authorization.split(" ",1)[1].strip()
+        return authenticate_office_access(token, db, require_aal2=True)
     if AUTH_MODE == "oidc":
         if not authorization or not authorization.lower().startswith("bearer "):
             raise HTTPException(status_code=401, detail="Bearer token required")
