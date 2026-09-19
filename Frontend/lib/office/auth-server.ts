@@ -225,6 +225,10 @@ export async function signInOffice(email: string, password: string): Promise<Off
   const { data, error } = await client.auth.signInWithPassword({ email, password });
   if (error || !data.session) throw new Error("INVALID_CREDENTIALS");
   const identity = await resolveAuthoritativeIdentity(data.session, identityFromSession(data.session));
+  if (identity.accessStatus === "AUTHORITY_UNAVAILABLE") {
+    await client.auth.signOut({ scope: "local" });
+    throw new Error("OFFICE_AUTHORITY_UNAVAILABLE");
+  }
   if (!officeIdentityIsProvisioned(identity)) {
     await client.auth.signOut({ scope: "local" });
     throw new Error("ACCESS_NOT_PROVISIONED");
