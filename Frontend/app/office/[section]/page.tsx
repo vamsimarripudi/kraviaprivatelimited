@@ -3,8 +3,6 @@ import { InternalWorkspaceScreen } from "@/components/internal-workspace-screen"
 import { requireWorkspaceIdentity } from "@/lib/office/guard";
 import { officeSections, type OfficeSection } from "@/lib/office/workspaces";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 type Props = { params: Promise<{ section: string }> };
 
