@@ -121,6 +121,12 @@ def _broker_url() -> str:
 
 
 def _broker_private_key() -> str:
+    encoded = os.getenv("KRAVIA_STORAGE_BROKER_PRIVATE_KEY_B64", "").strip()
+    if encoded:
+        try:
+            return base64.b64decode(encoded).decode("utf-8")
+        except Exception as exc:
+            raise RuntimeError("KRAVIA storage broker signing key is invalid") from exc
     return os.getenv("KRAVIA_STORAGE_BROKER_PRIVATE_KEY", "").strip().replace("\\n", "\n")
 
 
