@@ -170,8 +170,8 @@ def company(db: Session=Depends(get_db), ctx=Depends(actor_context)):
     return {"id":e.id,"legal_name":e.legal_name,"cin":e.cin,"registered_office":e.registered_office,"state_code":e.state_code,"status":e.status,"source_ref":e.source_ref,"verified_at":e.verified_at.isoformat() if e.verified_at else None}
 
 @app.get("/api/v1/products")
-def products(db: Session=Depends(get_db), ctx=Depends(actor_context)):
-    return [{"id":p.id,"code":p.code,"name":p.name,"category":p.category,"status":p.status} for p in db.execute(select(Product).order_by(Product.code)).scalars()]
+def products(db: Session=Depends(get_db), ctx=Depends(actor_context, limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000))):
+    return [{"id":p.id,"code":p.code,"name":p.name,"category":p.category,"status":p.status} for p in db.execute(select(Product).order_by(Product.code).limit(limit).offset(offset)).scalars()]
 
 @app.post("/api/v1/products", status_code=201)
 def create_product(payload: ProductCreate, db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER")), idempotency_key: str|None=Header(default=None, alias="Idempotency-Key")):
@@ -185,8 +185,8 @@ def create_product(payload: ProductCreate, db: Session=Depends(get_db), ctx=Depe
     store_idempotent(db,idempotency_key,"product.create",result); db.commit(); return result
 
 @app.get("/api/v1/customers")
-def customers(db: Session=Depends(get_db), ctx=Depends(actor_context)):
-    return [{"id":c.id,"legal_name":c.legal_name,"display_name":c.display_name,"gstin":c.gstin,"state":c.state,"state_code":c.state_code,"country":c.country,"email":c.email,"phone":c.phone,"billing_address":c.billing_address,"status":c.status,"created_at":c.created_at.isoformat() if c.created_at else None} for c in db.execute(select(Customer).order_by(Customer.created_at.desc())).scalars()]
+def customers(db: Session=Depends(get_db), ctx=Depends(actor_context, limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000))):
+    return [{"id":c.id,"legal_name":c.legal_name,"display_name":c.display_name,"gstin":c.gstin,"state":c.state,"state_code":c.state_code,"country":c.country,"email":c.email,"phone":c.phone,"billing_address":c.billing_address,"status":c.status,"created_at":c.created_at.isoformat() if c.created_at else None} for c in db.execute(select(Customer).order_by(Customer.created_at.desc()).limit(limit).offset(offset)).scalars()]
 
 @app.post("/api/v1/customers", status_code=201)
 def create_customer(payload: CustomerCreate, db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","FINANCE")), idempotency_key: str|None=Header(default=None, alias="Idempotency-Key")):
@@ -198,10 +198,10 @@ def create_customer(payload: CustomerCreate, db: Session=Depends(get_db), ctx=De
     store_idempotent(db,idempotency_key,"customer.create",result); db.commit(); return result
 
 @app.get("/api/v1/invoices")
-def invoices(db: Session=Depends(get_db), ctx=Depends(actor_context), status: str|None=Query(default=None)):
+def invoices(db: Session=Depends(get_db), ctx=Depends(actor_context), status: str|None=Query(default=None), limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000)):
     q=select(Invoice).order_by(Invoice.issued_at.desc())
     if status:q=q.where(Invoice.status==status)
-    return [invoice_json(x) for x in db.execute(q).scalars()]
+    return [invoice_json(x) for x in db.execute(q.limit(limit).offset(offset)).scalars()]
 
 @app.post("/api/v1/invoices", status_code=201)
 def create_invoice(payload: InvoiceCreate, db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","FINANCE")), idempotency_key: str|None=Header(default=None, alias="Idempotency-Key")):
@@ -275,8 +275,8 @@ def gst_summary(db: Session=Depends(get_db), ctx=Depends(actor_context)):
     return {k.replace("_paise",""):rupees(v) for k,v in sums.items()} | {"invoice_count":len(rows),"filing_status":"REVIEW_REQUIRED","note":"Working sales-register summary only; no GST portal filing is performed."}
 
 @app.get("/api/v1/audit")
-def audit_events(db: Session=Depends(get_db), ctx=Depends(actor_context), limit: int=Query(default=100,ge=1,le=500)):
-    rows=db.execute(select(AuditEvent).order_by(AuditEvent.occurred_at.desc()).limit(limit)).scalars()
+def audit_events(db: Session=Depends(get_db), ctx=Depends(actor_context), limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000)):
+    rows=db.execute(select(AuditEvent).order_by(AuditEvent.occurred_at.desc()).limit(limit).offset(offset)).scalars()
     return [{"id":x.id,"occurred_at":x.occurred_at.isoformat(),"actor":x.actor,"role":x.actor_role,"event_type":x.event_type,"entity_type":x.entity_type,"entity_id":x.entity_id,"severity":x.severity,"previous_hash":x.previous_hash,"event_hash":x.event_hash,"detail":json.loads(x.detail_json)} for x in rows]
 
 
@@ -293,13 +293,13 @@ def verify_audit_chain(db: Session=Depends(get_db), ctx=Depends(require_roles("O
     return {"valid":not failures,"event_count":len(rows),"last_hash":previous,"failures":failures}
 
 @app.get("/api/v1/workflows/runs")
-def workflow_runs(db: Session=Depends(get_db), ctx=Depends(actor_context), limit: int=Query(default=100,ge=1,le=500)):
-    rows=db.execute(select(WorkflowRun).order_by(WorkflowRun.started_at.desc()).limit(limit)).scalars()
+def workflow_runs(db: Session=Depends(get_db), ctx=Depends(actor_context), limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000)):
+    rows=db.execute(select(WorkflowRun).order_by(WorkflowRun.started_at.desc()).limit(limit).offset(offset)).scalars()
     return [{"id":x.id,"workflow":x.workflow_code,"source_entity":x.source_entity,"source_id":x.source_id,"status":x.status,"steps":json.loads(x.steps_json),"started_at":x.started_at.isoformat()} for x in rows]
 
 @app.get("/api/v1/compliance")
-def compliance(db: Session=Depends(get_db), ctx=Depends(actor_context)):
-    rows=db.execute(select(ComplianceObligation).order_by(ComplianceObligation.created_at.desc())).scalars()
+def compliance(db: Session=Depends(get_db), ctx=Depends(actor_context, limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000))):
+    rows=db.execute(select(ComplianceObligation).order_by(ComplianceObligation.created_at.desc()).limit(limit).offset(offset)).scalars()
     return [{"id":x.id,"title":x.title,"authority":x.authority,"status":x.status,"due_date":x.due_date,"owner":x.owner,"evidence_ref":x.evidence_ref,"risk":x.risk} for x in rows]
 
 @app.post("/api/v1/compliance", status_code=201)
@@ -348,8 +348,8 @@ def trial_balance(db: Session=Depends(get_db), ctx=Depends(actor_context)):
     return {"balanced":total_debit==total_credit,"total_debit":rupees(total_debit),"total_credit":rupees(total_credit),"accounts":result,"control_note":"Operational subledger. Production chart/accounting policy requires accountant approval."}
 
 @app.get("/api/v1/events/outbox")
-def outbox(db: Session=Depends(get_db), ctx=Depends(actor_context), status: str|None=Query(default=None), limit: int=Query(default=100,ge=1,le=500)):
-    q=select(DomainEvent).order_by(DomainEvent.created_at.desc()).limit(limit)
+def outbox(db: Session=Depends(get_db), ctx=Depends(actor_context), status: str|None=Query(default=None), limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000)):
+    q=select(DomainEvent).order_by(DomainEvent.created_at.desc()).limit(limit).offset(offset)
     if status:q=q.where(DomainEvent.status==status)
     rows=db.execute(q).scalars()
     return [{"id":x.id,"event_type":x.event_type,"aggregate_type":x.aggregate_type,"aggregate_id":x.aggregate_id,"status":x.status,"attempts":x.attempts,"created_at":x.created_at.isoformat(),"payload":json.loads(x.payload_json)} for x in rows]
@@ -371,8 +371,8 @@ def get_receipt_pdf(receipt_id: str, db: Session=Depends(get_db), ctx=Depends(ac
     return StreamingResponse(stream,media_type="application/pdf",headers={"Content-Disposition":f'inline; filename="{receipt.receipt_no.replace("/","-")}.pdf"'})
 
 @app.get("/api/v1/governance/meetings")
-def board_meetings(db: Session=Depends(get_db), ctx=Depends(actor_context)):
-    rows=db.execute(select(BoardMeeting).order_by(BoardMeeting.meeting_date.desc())).scalars()
+def board_meetings(db: Session=Depends(get_db), ctx=Depends(actor_context, limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000))):
+    rows=db.execute(select(BoardMeeting).order_by(BoardMeeting.meeting_date.desc()).limit(limit).offset(offset)).scalars()
     return [{"id":x.id,"meeting_no":x.meeting_no,"meeting_date":x.meeting_date,"title":x.title,"status":x.status,"notice_document_ref":x.notice_document_ref,"minutes_document_ref":x.minutes_document_ref} for x in rows]
 
 @app.post("/api/v1/governance/meetings", status_code=201)
@@ -383,8 +383,8 @@ def create_board_meeting(payload: BoardMeetingCreate, db: Session=Depends(get_db
     return {"id":row.id,"meeting_no":row.meeting_no,"meeting_date":row.meeting_date,"title":row.title,"status":row.status}
 
 @app.get("/api/v1/governance/resolutions")
-def resolutions(db: Session=Depends(get_db), ctx=Depends(actor_context)):
-    rows=db.execute(select(Resolution).order_by(Resolution.created_at.desc())).scalars()
+def resolutions(db: Session=Depends(get_db), ctx=Depends(actor_context, limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000))):
+    rows=db.execute(select(Resolution).order_by(Resolution.created_at.desc()).limit(limit).offset(offset)).scalars()
     return [{"id":x.id,"resolution_no":x.resolution_no,"meeting_id":x.meeting_id,"agenda_item":x.agenda_item,"title":x.title,"status":x.status,"approved_date":x.approved_date,"content_hash":x.content_hash,"authority_scope":x.authority_scope} for x in rows]
 
 @app.post("/api/v1/governance/meetings/{meeting_id}/resolutions", status_code=201)
@@ -407,8 +407,8 @@ def resolution_ctc(resolution_id: str, db: Session=Depends(get_db), ctx=Depends(
     return StreamingResponse(stream,media_type="application/pdf",headers={"Content-Disposition":f'inline; filename="CTC-{resolution.resolution_no}.pdf"'})
 
 @app.get("/api/v1/governance/authorities")
-def authorities(db: Session=Depends(get_db), ctx=Depends(actor_context)):
-    rows=db.execute(select(AuthorityGrant).order_by(AuthorityGrant.created_at.desc())).scalars()
+def authorities(db: Session=Depends(get_db), ctx=Depends(actor_context, limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000))):
+    rows=db.execute(select(AuthorityGrant).order_by(AuthorityGrant.created_at.desc()).limit(limit).offset(offset)).scalars()
     return [{"id":x.id,"authority_no":x.authority_no,"resolution_id":x.resolution_id,"grantee":x.grantee,"purpose":x.purpose,"scope_text":x.scope_text,"effective_date":x.effective_date,"expiry_date":x.expiry_date,"status":x.status} for x in rows]
 
 @app.post("/api/v1/governance/resolutions/{resolution_id}/authorities", status_code=201)
@@ -421,8 +421,8 @@ def create_authority(resolution_id: str, payload: AuthorityCreate, db: Session=D
     db.add(row); emit_event(db,"authority.granted","authority",row.id,{"authority_no":row.authority_no,"resolution_id":resolution.id,"grantee":row.grantee}); audit(db,ctx["actor"],ctx["role"],"authority.granted","authority",row.id,{"authority_no":row.authority_no,"resolution_no":resolution.resolution_no,"grantee":row.grantee},"GOVERNANCE"); db.commit()
     return {"id":row.id,"authority_no":row.authority_no,"resolution_id":row.resolution_id,"grantee":row.grantee,"purpose":row.purpose,"scope_text":row.scope_text,"effective_date":row.effective_date,"expiry_date":row.expiry_date,"status":row.status}
 @app.get("/api/v1/vendors")
-def vendors(db: Session=Depends(get_db), ctx=Depends(actor_context)):
-    rows=db.execute(select(Vendor).order_by(Vendor.created_at.desc())).scalars()
+def vendors(db: Session=Depends(get_db), ctx=Depends(actor_context, limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000))):
+    rows=db.execute(select(Vendor).order_by(Vendor.created_at.desc()).limit(limit).offset(offset)).scalars()
     return [{"id":x.id,"legal_name":x.legal_name,"category":x.category,"gstin":x.gstin,"status":x.status,"risk":x.risk,"product_codes":json.loads(x.products_json),"products_json":x.products_json,"created_at":x.created_at.isoformat() if x.created_at else None} for x in rows]
 
 @app.post("/api/v1/vendors", status_code=201)
@@ -432,8 +432,8 @@ def create_vendor(payload: VendorCreate, db: Session=Depends(get_db), ctx=Depend
     return {"id":v.id,"legal_name":v.legal_name,"category":v.category,"gstin":v.gstin,"status":v.status,"risk":v.risk,"product_codes":payload.product_codes}
 
 @app.get("/api/v1/contracts")
-def contracts(db: Session=Depends(get_db), ctx=Depends(actor_context)):
-    rows=db.execute(select(Contract).order_by(Contract.created_at.desc())).scalars()
+def contracts(db: Session=Depends(get_db), ctx=Depends(actor_context, limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000))):
+    rows=db.execute(select(Contract).order_by(Contract.created_at.desc()).limit(limit).offset(offset)).scalars()
     return [{"id":x.id,"contract_no":x.contract_no,"contract_type":x.contract_type,"counterparty_name":x.counterparty_name,"product_codes":json.loads(x.product_codes_json),"product_codes_json":x.product_codes_json,"effective_date":x.effective_date,"expiry_date":x.expiry_date,"notice_days":x.notice_days,"value":rupees(x.value_paise) if x.value_paise is not None else None,"value_paise":x.value_paise,"status":x.status,"document_ref":x.document_ref,"owner":x.owner,"created_at":x.created_at.isoformat() if x.created_at else None} for x in rows]
 
 @app.post("/api/v1/contracts", status_code=201)
@@ -444,8 +444,8 @@ def create_contract(payload: ContractCreate, db: Session=Depends(get_db), ctx=De
     return {"id":row.id,"contract_no":row.contract_no,"contract_type":row.contract_type,"counterparty_name":row.counterparty_name,"product_codes":payload.product_codes,"effective_date":row.effective_date,"expiry_date":row.expiry_date,"notice_days":row.notice_days,"status":row.status,"document_ref":row.document_ref,"owner":row.owner}
 
 @app.get("/api/v1/people")
-def people(db: Session=Depends(get_db), ctx=Depends(actor_context)):
-    rows=db.execute(select(Employee).order_by(Employee.created_at.desc())).scalars()
+def people(db: Session=Depends(get_db), ctx=Depends(actor_context, limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000))):
+    rows=db.execute(select(Employee).order_by(Employee.created_at.desc()).limit(limit).offset(offset)).scalars()
     return [{"id":x.id,"employee_no":x.employee_no,"legal_name":x.legal_name,"designation":x.designation,"department":x.department,"work_email":x.work_email,"joining_date":x.joining_date,"exit_date":x.exit_date,"status":x.status} for x in rows]
 
 @app.post("/api/v1/people", status_code=201)
@@ -456,8 +456,8 @@ def create_employee(payload: EmployeeCreate, db: Session=Depends(get_db), ctx=De
     return {"id":row.id,"employee_no":row.employee_no,"legal_name":row.legal_name,"designation":row.designation,"department":row.department,"work_email":row.work_email,"joining_date":row.joining_date,"status":row.status}
 
 @app.get("/api/v1/assets")
-def assets(db: Session=Depends(get_db), ctx=Depends(actor_context)):
-    rows=db.execute(select(OfficeAsset).order_by(OfficeAsset.created_at.desc())).scalars()
+def assets(db: Session=Depends(get_db), ctx=Depends(actor_context, limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000))):
+    rows=db.execute(select(OfficeAsset).order_by(OfficeAsset.created_at.desc()).limit(limit).offset(offset)).scalars()
     return [{"id":x.id,"asset_no":x.asset_no,"name":x.name,"category":x.category,"serial_no":x.serial_no,"assigned_employee_id":x.assigned_employee_id,"location":x.location,"purchase_value":rupees(x.purchase_paise) if x.purchase_paise is not None else None,"purchase_paise":x.purchase_paise,"status":x.status,"created_at":x.created_at.isoformat() if x.created_at else None} for x in rows]
 
 @app.post("/api/v1/assets", status_code=201)
@@ -471,8 +471,8 @@ def create_asset(payload: AssetCreate, db: Session=Depends(get_db), ctx=Depends(
 ALLOWED_UPLOAD_TYPES={"application/pdf","application/vnd.openxmlformats-officedocument.wordprocessingml.document","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","text/plain","text/csv","image/png","image/jpeg","application/zip"}
 
 @app.get("/api/v1/documents")
-def documents(db: Session=Depends(get_db), ctx=Depends(actor_context)):
-    rows=db.execute(select(Document).order_by(Document.created_at.desc())).scalars()
+def documents(db: Session=Depends(get_db), ctx=Depends(actor_context, limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000))):
+    rows=db.execute(select(Document).order_by(Document.created_at.desc()).limit(limit).offset(offset)).scalars()
     result=[]
     for x in rows:
         v=db.execute(select(DocumentVersion).where(DocumentVersion.document_id==x.id,DocumentVersion.version_no==x.current_version)).scalar_one_or_none()
@@ -540,10 +540,10 @@ def _plan_json(x):
     return {"id":x.id,"product_id":x.product_id,"code":x.code,"name":x.name,"billing_cycle":x.billing_cycle,"price":rupees(x.price_paise),"gst_rate":str(Decimal(x.gst_rate_bps)/100),"sac":x.sac,"currency":x.currency,"status":x.status,"effective_from":x.effective_from,"effective_to":x.effective_to,"config":json.loads(x.config_json or '{}')}
 
 @app.get("/api/v1/commercial/plans")
-def list_plans(db: Session=Depends(get_db), ctx=Depends(actor_context), product_id: str|None=Query(default=None)):
+def list_plans(db: Session=Depends(get_db), ctx=Depends(actor_context), product_id: str|None=Query(default=None), limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000)):
     q=select(CommercialPlan).order_by(CommercialPlan.created_at.desc())
     if product_id:q=q.where(CommercialPlan.product_id==product_id)
-    return [_plan_json(x) for x in db.execute(q).scalars()]
+    return [_plan_json(x) for x in db.execute(q.limit(limit).offset(offset)).scalars()]
 
 @app.post("/api/v1/commercial/plans", status_code=201)
 def create_plan(payload: PlanCreate, db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","FINANCE"))):
@@ -552,8 +552,8 @@ def create_plan(payload: PlanCreate, db: Session=Depends(get_db), ctx=Depends(re
     db.add(row); emit_event(db,"commercial.plan.created","plan",row.id,{"code":row.code,"product_id":row.product_id}); audit(db,ctx["actor"],ctx["role"],"commercial.plan.created","plan",row.id,{"code":row.code},"CONTROL"); db.commit(); return _plan_json(row)
 
 @app.get("/api/v1/commercial/subscriptions")
-def list_subscriptions(db: Session=Depends(get_db), ctx=Depends(actor_context)):
-    rows=db.execute(select(Subscription).order_by(Subscription.created_at.desc())).scalars()
+def list_subscriptions(db: Session=Depends(get_db), ctx=Depends(actor_context, limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000))):
+    rows=db.execute(select(Subscription).order_by(Subscription.created_at.desc()).limit(limit).offset(offset)).scalars()
     return [{"id":x.id,"customer_id":x.customer_id,"product_id":x.product_id,"plan_id":x.plan_id,"status":x.status,"started_at":x.started_at,"current_period_start":x.current_period_start,"current_period_end":x.current_period_end,"cancel_at_period_end":x.cancel_at_period_end,"external_reference":x.external_reference} for x in rows]
 
 @app.post("/api/v1/commercial/subscriptions", status_code=201)
@@ -577,8 +577,8 @@ def cancel_subscription(subscription_id: str, db: Session=Depends(get_db), ctx=D
     emit_event(db,"subscription.cancellation.requested","subscription",row.id,{"current_period_end":row.current_period_end}); audit(db,ctx["actor"],ctx["role"],"subscription.cancellation.requested","subscription",row.id,{"current_period_end":row.current_period_end},"COMMERCIAL"); db.commit(); return {"id":row.id,"status":row.status,"cancel_at_period_end":True}
 
 @app.get("/api/v1/credit-notes")
-def list_credit_notes(db: Session=Depends(get_db), ctx=Depends(actor_context)):
-    rows=db.execute(select(CreditNote).order_by(CreditNote.issued_at.desc())).scalars()
+def list_credit_notes(db: Session=Depends(get_db), ctx=Depends(actor_context, limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000))):
+    rows=db.execute(select(CreditNote).order_by(CreditNote.issued_at.desc()).limit(limit).offset(offset)).scalars()
     return [{"id":x.id,"credit_note_no":x.credit_note_no,"invoice_id":x.invoice_id,"reason":x.reason,"net_taxable":rupees(x.net_taxable_paise),"cgst":rupees(x.cgst_paise),"sgst":rupees(x.sgst_paise),"igst":rupees(x.igst_paise),"total":rupees(x.total_paise),"status":x.status,"issued_at":x.issued_at.isoformat(),"document_hash":x.document_hash} for x in rows]
 
 @app.post("/api/v1/invoices/{invoice_id}/credit-notes", status_code=201)
@@ -616,8 +616,8 @@ def create_credit_note(invoice_id: str, payload: CreditNoteCreate, db: Session=D
     store_idempotent(db,idempotency_key,"credit_note.issue",result); db.commit(); return result
 
 @app.get("/api/v1/refunds")
-def list_refunds(db: Session=Depends(get_db), ctx=Depends(actor_context)):
-    rows=db.execute(select(Refund).order_by(Refund.created_at.desc())).scalars()
+def list_refunds(db: Session=Depends(get_db), ctx=Depends(actor_context, limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000))):
+    rows=db.execute(select(Refund).order_by(Refund.created_at.desc()).limit(limit).offset(offset)).scalars()
     return [{"id":x.id,"payment_id":x.payment_id,"invoice_id":x.invoice_id,"credit_note_id":x.credit_note_id,"amount":rupees(x.amount_paise),"reason":x.reason,"external_reference":x.external_reference,"status":x.status,"refunded_date":x.refunded_date} for x in rows]
 
 @app.post("/api/v1/payments/{payment_id}/refunds", status_code=201)
@@ -636,8 +636,8 @@ def create_refund(payment_id: str, payload: RefundCreate, db: Session=Depends(ge
     store_idempotent(db,idempotency_key,"refund.create",result); db.commit(); return result
 
 @app.get("/api/v1/banking/accounts")
-def list_bank_accounts(db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","DIRECTOR","FINANCE","CA","AUDITOR"))):
-    rows=db.execute(select(BankAccount).order_by(BankAccount.created_at.desc())).scalars()
+def list_bank_accounts(db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","DIRECTOR","FINANCE","CA","AUDITOR"), limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000))):
+    rows=db.execute(select(BankAccount).order_by(BankAccount.created_at.desc()).limit(limit).offset(offset)).scalars()
     return [{"id":x.id,"bank_name":x.bank_name,"account_name":x.account_name,"masked_account":x.masked_account,"ifsc":x.ifsc,"currency":x.currency,"purpose":x.purpose,"status":x.status} for x in rows]
 
 @app.post("/api/v1/banking/accounts", status_code=201)
@@ -665,8 +665,8 @@ def auto_match_bank_transaction(transaction_id: str, db: Session=Depends(get_db)
     tx.match_status="REVIEW_REQUIRED"; db.commit(); return {"id":tx.id,"match_status":tx.match_status,"candidate_count":len(candidates)}
 
 @app.get("/api/v1/banking/transactions")
-def list_bank_transactions(db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","DIRECTOR","FINANCE","CA","AUDITOR"))):
-    rows=db.execute(select(BankTransaction).order_by(BankTransaction.created_at.desc())).scalars()
+def list_bank_transactions(db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","DIRECTOR","FINANCE","CA","AUDITOR"), limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000))):
+    rows=db.execute(select(BankTransaction).order_by(BankTransaction.created_at.desc()).limit(limit).offset(offset)).scalars()
     return [{"id":x.id,"bank_account_id":x.bank_account_id,"transaction_date":x.transaction_date,"amount":rupees(x.amount_paise),"direction":x.direction,"reference":x.reference,"description":x.description,"match_status":x.match_status,"matched_payment_id":x.matched_payment_id,"source":x.source} for x in rows]
 
 @app.post("/api/v1/banking/settlements", status_code=201)
@@ -677,10 +677,10 @@ def create_settlement(payload: SettlementCreate, db: Session=Depends(get_db), ct
     db.add(row); emit_event(db,"settlement.received","settlement",row.id,{"provider":row.provider,"external_settlement_id":row.external_settlement_id,"net_paise":net}); audit(db,ctx["actor"],ctx["role"],"settlement.received","settlement",row.id,{"provider":row.provider,"net":rupees(net)},"FINANCIAL"); db.commit(); return {"id":row.id,"provider":row.provider,"external_settlement_id":row.external_settlement_id,"gross":rupees(gross),"fee":rupees(fee),"tax_on_fee":rupees(tax),"net":rupees(net),"status":row.status}
 
 @app.get("/api/v1/approvals")
-def list_approvals(db: Session=Depends(get_db), ctx=Depends(actor_context), status: str|None=Query(default=None)):
+def list_approvals(db: Session=Depends(get_db), ctx=Depends(actor_context), status: str|None=Query(default=None), limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000)):
     q=select(ApprovalRequest).order_by(ApprovalRequest.created_at.desc())
     if status:q=q.where(ApprovalRequest.status==status)
-    return [{"id":x.id,"action_type":x.action_type,"entity_type":x.entity_type,"entity_id":x.entity_id,"requested_by":x.requested_by,"required_role":x.required_role,"status":x.status,"reason":x.reason,"decided_by":x.decided_by,"decision_reason":x.decision_reason} for x in db.execute(q).scalars()]
+    return [{"id":x.id,"action_type":x.action_type,"entity_type":x.entity_type,"entity_id":x.entity_id,"requested_by":x.requested_by,"required_role":x.required_role,"status":x.status,"reason":x.reason,"decided_by":x.decided_by,"decision_reason":x.decision_reason} for x in db.execute(q.limit(limit).offset(offset)).scalars()]
 
 @app.post("/api/v1/approvals", status_code=201)
 def create_approval(payload: ApprovalCreate, db: Session=Depends(get_db), ctx=Depends(actor_context)):
@@ -710,8 +710,8 @@ def reject_request(approval_id: str, payload: ApprovalDecision, db: Session=Depe
     emit_event(db,"approval.rejected","approval",row.id,{"decided_by":row.decided_by}); audit(db,ctx["actor"],ctx["role"],"approval.rejected","approval",row.id,{"action_type":row.action_type},"CONTROL"); db.commit(); return {"id":row.id,"status":row.status,"decided_by":row.decided_by}
 
 @app.get("/api/v1/notices")
-def list_notices(db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","DIRECTOR","CA","CS","LEGAL","AUDITOR"))):
-    rows=db.execute(select(NoticeCase).order_by(NoticeCase.created_at.desc())).scalars()
+def list_notices(db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","DIRECTOR","CA","CS","LEGAL","AUDITOR"), limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000))):
+    rows=db.execute(select(NoticeCase).order_by(NoticeCase.created_at.desc()).limit(limit).offset(offset)).scalars()
     return [{"id":x.id,"authority":x.authority,"reference_no":x.reference_no,"title":x.title,"received_date":x.received_date,"response_due_date":x.response_due_date,"risk":x.risk,"owner":x.owner,"status":x.status,"source_document_id":x.source_document_id} for x in rows]
 
 @app.post("/api/v1/notices", status_code=201)
@@ -721,8 +721,8 @@ def create_notice(payload: NoticeCreate, db: Session=Depends(get_db), ctx=Depend
     db.add(row); emit_event(db,"notice.received","notice",row.id,{"authority":row.authority,"reference_no":row.reference_no,"response_due_date":row.response_due_date,"risk":row.risk}); audit(db,ctx["actor"],ctx["role"],"notice.received","notice",row.id,{"authority":row.authority,"reference_no":row.reference_no,"due":row.response_due_date},"HIGH"); db.commit(); return {"id":row.id,"authority":row.authority,"reference_no":row.reference_no,"status":row.status,"response_due_date":row.response_due_date,"risk":row.risk}
 
 @app.get("/api/v1/inspections")
-def list_inspections(db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","DIRECTOR","FINANCE","CA","CS","LEGAL","AUDITOR"))):
-    rows=db.execute(select(InspectionCase).order_by(InspectionCase.created_at.desc())).scalars()
+def list_inspections(db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","DIRECTOR","FINANCE","CA","CS","LEGAL","AUDITOR"), limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000))):
+    rows=db.execute(select(InspectionCase).order_by(InspectionCase.created_at.desc()).limit(limit).offset(offset)).scalars()
     return [{"id":x.id,"authority":x.authority,"reference_no":x.reference_no,"scope_text":x.scope_text,"period_start":x.period_start,"period_end":x.period_end,"status":x.status,"requested_by":x.requested_by,"owner":x.owner,"manifest":json.loads(x.manifest_json or '{}')} for x in rows]
 
 @app.post("/api/v1/inspections", status_code=201)
@@ -746,8 +746,8 @@ def build_inspection_manifest(inspection_id: str, document_ids: list[str], db: S
     row.manifest_json=json.dumps(manifest,sort_keys=True); emit_event(db,"inspection.manifest.generated","inspection",row.id,{"document_count":len(items),"warning_count":len(warnings)}); audit(db,ctx["actor"],ctx["role"],"inspection.manifest.generated","inspection",row.id,{"document_count":len(items),"warning_count":len(warnings)},"CONTROL"); db.commit(); return manifest
 
 @app.get("/api/v1/integrations")
-def list_integrations(db: Session=Depends(get_db), ctx=Depends(actor_context)):
-    rows=db.execute(select(IntegrationRecord).order_by(IntegrationRecord.provider)).scalars()
+def list_integrations(db: Session=Depends(get_db), ctx=Depends(actor_context, limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000))):
+    rows=db.execute(select(IntegrationRecord).order_by(IntegrationRecord.provider).limit(limit).offset(offset)).scalars()
     return [{"id":x.id,"provider":x.provider,"integration_type":x.integration_type,"environment":x.environment,"status":x.status,"owner":x.owner,"last_verified_at":x.last_verified_at.isoformat() if x.last_verified_at else None,"config":json.loads(x.config_json or '{}')} for x in rows]
 
 @app.post("/api/v1/integrations", status_code=201)
