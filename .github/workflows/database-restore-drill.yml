@@ -165,7 +165,7 @@ jobs:
           echo "::error::Isolated restore database did not become reachable."
           exit 1
 
-      - name: Restore roles, schema and data
+      - name: Restore roles and KRAVIA schema
         shell: bash
         run: |
           set -euo pipefail
@@ -175,12 +175,124 @@ jobs:
             echo "::error::Supabase restore database container was not found."
             exit 1
           fi
+          printf '%s\n' "$db_container" > "$RUNNER_TEMP/db-container-name"
           printf 'Restoring through privileged local recovery role in %s.\n' "$db_container"
           docker exec -i "$db_container" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 < roles.sql
           docker exec -i "$db_container" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 < schema.sql
+
+      - name: Build provider-compatible data restore
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import re
+          import subprocess
+          from pathlib import Path
+
+          temp = Path(os.environ["RUNNER_TEMP"])
+          source = temp / "restore-plain" / "data.sql"
+          output = temp / "restore-plain" / "compatible-data.sql"
+          counts_path = temp / "expected-copy-counts.json"
+          skipped_path = temp / "skipped-provider-internal.json"
+          db_url = os.environ["RESTORE_DATABASE_URL"]
+
+          expected = json.loads(counts_path.read_text(encoding="utf-8"))
+          relations = list(expected)
+          if not relations:
+              raise SystemExit("No COPY relations available for restore compatibility analysis")
+
+          values = ",".join(
+              "('" + relation.replace("'", "''") + "')"
+              for relation in relations
+          )
+          sql = (
+              "select v.rel, to_regclass(v.rel) is not null "
+              f"from (values {values}) as v(rel) order by v.rel"
+          )
+          proc = subprocess.run(
+              ["psql", db_url, "-At", "-F", "\t", "-c", sql],
+              check=True,
+              text=True,
+              capture_output=True,
+          )
+          availability = {}
+          for raw in proc.stdout.splitlines():
+              relation, present = raw.split("\t", 1)
+              availability[relation] = present == "t"
+
+          missing = [relation for relation in relations if not availability.get(relation, False)]
+          provider_internal = []
+          unsafe_missing = []
+          for relation in missing:
+              normalized = relation.replace('"', '')
+              schema = normalized.split(".", 1)[0] if "." in normalized else "public"
+              if schema in {"auth", "storage"}:
+                  provider_internal.append(relation)
+              else:
+                  unsafe_missing.append(relation)
+
+          if unsafe_missing:
+              for relation in unsafe_missing[:20]:
+                  print(f"Missing required restore relation: {relation}")
+              raise SystemExit(
+                  f"Refusing partial restore: {len(unsafe_missing)} non-provider relation(s) are missing"
+              )
+
+          copy_re = re.compile(r"^COPY\s+(.+?)\s+\(.+\)\s+FROM\s+stdin;$")
+          skipped_set = set(provider_internal)
+          current = None
+          keep = True
+
+          with source.open("r", encoding="utf-8", errors="strict") as src, output.open(
+              "w", encoding="utf-8", newline=""
+          ) as dst:
+              for raw in src:
+                  line = raw.rstrip("\n")
+                  if current is None:
+                      match = copy_re.match(line)
+                      if match:
+                          current = match.group(1).strip()
+                          keep = current not in skipped_set
+                      if keep:
+                          dst.write(raw)
+                      continue
+
+                  if keep:
+                      dst.write(raw)
+                  if line == r"\.":
+                      current = None
+                      keep = True
+
+          if current is not None:
+              raise SystemExit(f"Unterminated COPY block for {current}")
+
+          filtered = {
+              relation: count
+              for relation, count in expected.items()
+              if relation not in skipped_set
+          }
+          counts_path.write_text(json.dumps(filtered, sort_keys=True), encoding="utf-8")
+          skipped_path.write_text(json.dumps(sorted(provider_internal)), encoding="utf-8")
+
+          print(
+              f"Portable restore set: {len(filtered)} table(s); "
+              f"provider-internal version-skew skips: {len(provider_internal)}."
+          )
+          for relation in provider_internal:
+              print(f"Skipping provider-internal unavailable relation: {relation}")
+          PY
+
+      - name: Restore compatible data
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/restore-plain"
+          db_container=$(cat "$RUNNER_TEMP/db-container-name")
           {
             printf 'SET session_replication_role = replica;\n'
-            cat data.sql
+            cat compatible-data.sql
           } | docker exec -i "$db_container" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1
 
       - name: Verify every restored COPY table row count
@@ -224,7 +336,10 @@ jobs:
               summary.write(f"- Source backup run: `{os.environ.get('SOURCE_RUN_ID', 'see workflow')}`\n")
               summary.write(f"- COPY tables verified exactly: **{len(expected)}**\n")
               summary.write("- Encrypted artifact integrity: **PASS**\n")
+              skipped_path = Path(os.environ["RUNNER_TEMP"]) / "skipped-provider-internal.json"
+              skipped = json.loads(skipped_path.read_text(encoding="utf-8")) if skipped_path.exists() else []
               summary.write("- Roles/schema/data restore: **PASS**\n")
+              summary.write(f"- Provider-internal version-skew COPY blocks skipped: **{len(skipped)}**\n")
           PY
         env:
           SOURCE_RUN_ID: ${{ steps.source.outputs.run_id }}
@@ -264,4 +379,6 @@ jobs:
             cd "$RUNNER_TEMP/kravia-restore-project"
             supabase stop --no-backup
           fi
-          rm -rf             "$RUNNER_TEMP/restore-source"             "$RUNNER_TEMP/restore-plain"             "$RUNNER_TEMP/kravia-restore-project"             "$RUNNER_TEMP/kravia-office-backup.tar.gz"             "$RUNNER_TEMP/cipher-path"             "$RUNNER_TEMP/expected-copy-counts.json"
+          rm -rf             "$RUNNER_TEMP/restore-source"             "$RUNNER_TEMP/restore-plain"             "$RUNNER_TEMP/kravia-restore-project"             "$RUNNER_TEMP/kravia-office-backup.tar.gz"             "$RUNNER_TEMP/cipher-path"             "$RUNNER_TEMP/expected-copy-counts.json" \
+            "$RUNNER_TEMP/skipped-provider-internal.json" \
+            "$RUNNER_TEMP/db-container-name"
