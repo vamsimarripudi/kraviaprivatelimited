@@ -121,8 +121,11 @@ def upgrade() -> None:
                 from pg_constraint con
                 join pg_class rel on rel.oid = con.conrelid
                 join pg_namespace ns on ns.oid = rel.relnamespace
+                join pg_class ref_rel on ref_rel.oid = con.confrelid
+                join pg_namespace ref_ns on ref_ns.oid = ref_rel.relnamespace
                 where con.contype = 'f'
-                  and con.confrelid = 'auth.users'::regclass
+                  and ref_ns.nspname = 'auth'
+                  and ref_rel.relname = 'users'
                   and ns.nspname = 'public'
                   and left(rel.relname, 7) = 'office_'
                 """
