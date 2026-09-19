@@ -636,7 +636,7 @@ def create_refund(payment_id: str, payload: RefundCreate, db: Session=Depends(ge
     store_idempotent(db,idempotency_key,"refund.create",result); db.commit(); return result
 
 @app.get("/api/v1/banking/accounts")
-def list_bank_accounts(db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","DIRECTOR","FINANCE","CA","AUDITOR")), limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000):
+def list_bank_accounts(db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","DIRECTOR","FINANCE","CA","AUDITOR")), limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000)):
     rows=db.execute(select(BankAccount).order_by(BankAccount.created_at.desc()).limit(limit).offset(offset)).scalars()
     return [{"id":x.id,"bank_name":x.bank_name,"account_name":x.account_name,"masked_account":x.masked_account,"ifsc":x.ifsc,"currency":x.currency,"purpose":x.purpose,"status":x.status} for x in rows]
 
@@ -665,7 +665,7 @@ def auto_match_bank_transaction(transaction_id: str, db: Session=Depends(get_db)
     tx.match_status="REVIEW_REQUIRED"; db.commit(); return {"id":tx.id,"match_status":tx.match_status,"candidate_count":len(candidates)}
 
 @app.get("/api/v1/banking/transactions")
-def list_bank_transactions(db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","DIRECTOR","FINANCE","CA","AUDITOR")), limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000):
+def list_bank_transactions(db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","DIRECTOR","FINANCE","CA","AUDITOR")), limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000)):
     rows=db.execute(select(BankTransaction).order_by(BankTransaction.created_at.desc()).limit(limit).offset(offset)).scalars()
     return [{"id":x.id,"bank_account_id":x.bank_account_id,"transaction_date":x.transaction_date,"amount":rupees(x.amount_paise),"direction":x.direction,"reference":x.reference,"description":x.description,"match_status":x.match_status,"matched_payment_id":x.matched_payment_id,"source":x.source} for x in rows]
 
@@ -710,7 +710,7 @@ def reject_request(approval_id: str, payload: ApprovalDecision, db: Session=Depe
     emit_event(db,"approval.rejected","approval",row.id,{"decided_by":row.decided_by}); audit(db,ctx["actor"],ctx["role"],"approval.rejected","approval",row.id,{"action_type":row.action_type},"CONTROL"); db.commit(); return {"id":row.id,"status":row.status,"decided_by":row.decided_by}
 
 @app.get("/api/v1/notices")
-def list_notices(db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","DIRECTOR","CA","CS","LEGAL","AUDITOR")), limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000):
+def list_notices(db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","DIRECTOR","CA","CS","LEGAL","AUDITOR")), limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000)):
     rows=db.execute(select(NoticeCase).order_by(NoticeCase.created_at.desc()).limit(limit).offset(offset)).scalars()
     return [{"id":x.id,"authority":x.authority,"reference_no":x.reference_no,"title":x.title,"received_date":x.received_date,"response_due_date":x.response_due_date,"risk":x.risk,"owner":x.owner,"status":x.status,"source_document_id":x.source_document_id} for x in rows]
 
@@ -721,7 +721,7 @@ def create_notice(payload: NoticeCreate, db: Session=Depends(get_db), ctx=Depend
     db.add(row); emit_event(db,"notice.received","notice",row.id,{"authority":row.authority,"reference_no":row.reference_no,"response_due_date":row.response_due_date,"risk":row.risk}); audit(db,ctx["actor"],ctx["role"],"notice.received","notice",row.id,{"authority":row.authority,"reference_no":row.reference_no,"due":row.response_due_date},"HIGH"); db.commit(); return {"id":row.id,"authority":row.authority,"reference_no":row.reference_no,"status":row.status,"response_due_date":row.response_due_date,"risk":row.risk}
 
 @app.get("/api/v1/inspections")
-def list_inspections(db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","DIRECTOR","FINANCE","CA","CS","LEGAL","AUDITOR")), limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000):
+def list_inspections(db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","DIRECTOR","FINANCE","CA","CS","LEGAL","AUDITOR")), limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000)):
     rows=db.execute(select(InspectionCase).order_by(InspectionCase.created_at.desc()).limit(limit).offset(offset)).scalars()
     return [{"id":x.id,"authority":x.authority,"reference_no":x.reference_no,"scope_text":x.scope_text,"period_start":x.period_start,"period_end":x.period_end,"status":x.status,"requested_by":x.requested_by,"owner":x.owner,"manifest":json.loads(x.manifest_json or '{}')} for x in rows]
 
