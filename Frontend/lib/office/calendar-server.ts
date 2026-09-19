@@ -2,6 +2,7 @@ import "server-only";
 
 import { OfficePermissionError, requireOfficeActor, resolveOfficePermission } from "@/lib/office/permission-engine";
 import { currentOfficeTrustedDeviceId } from "@/lib/office/device-binding-server";
+import { readOfficeRuntimeResult } from "@/lib/office/runtime-read-server";
 
 export class OfficeCalendarError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -169,9 +170,10 @@ export async function getOfficeCompanyCalendar() {
   }
 
   if (compliance) {
-    const { data, error } = await admin.from("compliance_obligations").select("id,title,authority,due_date,status,risk").not("due_date", "is", null).order("due_date", { ascending: true }).limit(250);
+    const { data, error } = await readOfficeRuntimeResult<Array<Record<string,unknown>>>("compliance");
     if (error) throw new OfficeCalendarError(503, "Compliance calendar is temporarily unavailable");
-    for (const row of data ?? []) {
+    const dueRows=(data??[]).filter((row)=>Boolean(row.due_date)).sort((a,b)=>String(a.due_date||"").localeCompare(String(b.due_date||""))).slice(0,250);
+    for (const row of dueRows) {
       const event = projected("COMPLIANCE", String(row.id), `Compliance · ${row.title}`, dateIso(row.due_date), "DEADLINE", `${row.authority} · ${row.status}${row.risk ? ` · ${row.risk}` : ""}`);
       if (event) synthetic.push(event);
     }
@@ -202,7 +204,10 @@ export async function getOfficeCompanyCalendar() {
 
   if (legalOps) {
     const [contracts, obligations] = await Promise.all([
-      admin.from("contracts").select("id,contract_no,counterparty_name,expiry_date,status").not("expiry_date", "is", null).order("expiry_date", { ascending: true }).limit(150),
+      readOfficeRuntimeResult<Array<Record<string,unknown>>>("contracts").then((result)=>({
+        ...result,
+        data:(result.data??[]).filter((row)=>Boolean(row.expiry_date)).sort((a,b)=>String(a.expiry_date||"").localeCompare(String(b.expiry_date||""))).slice(0,150),
+      })),
       admin.from("office_contract_obligations").select("id,obligation_code,contract_id,title,obligation_type,owner_user_id,cadence,next_due_at,status").eq("status", "ACTIVE").not("next_due_at", "is", null).order("next_due_at", { ascending: true }).limit(300),
     ]);
     if (contracts.error || obligations.error) throw new OfficeCalendarError(503, "Contract calendar is temporarily unavailable");
@@ -219,9 +224,10 @@ export async function getOfficeCompanyCalendar() {
   }
 
   if (commercial) {
-    const { data, error } = await admin.from("subscriptions").select("id,customer_id,product_id,current_period_end,status,cancel_at_period_end").not("current_period_end", "is", null).order("current_period_end", { ascending: true }).limit(200);
+    const { data, error } = await readOfficeRuntimeResult<Array<Record<string,unknown>>>("commercial/subscriptions");
     if (error) throw new OfficeCalendarError(503, "Subscription calendar is temporarily unavailable");
-    for (const row of data ?? []) {
+    const subscriptionRows=(data??[]).filter((row)=>Boolean(row.current_period_end)).sort((a,b)=>String(a.current_period_end||"").localeCompare(String(b.current_period_end||""))).slice(0,200);
+    for (const row of subscriptionRows) {
       const event = projected("SUBSCRIPTION", String(row.id), "Subscription period end", dateIso(row.current_period_end, true), "CUSTOMER", `${row.status}${row.cancel_at_period_end ? " · cancels at period end" : ""}`);
       if (event) synthetic.push(event);
     }
@@ -298,10 +304,10 @@ export async function getOfficeCompanyCalendar() {
     if (error) throw new OfficeCalendarError(503, "Asset lifecycle calendar is temporarily unavailable");
     const assetIds=(data ?? []).map((row)=>String(row.asset_id));
     const registry=assetIds.length
-      ? await admin.from("office_assets").select("id,asset_no,name").in("id",assetIds)
-      : {data:[],error:null};
+      ? await readOfficeRuntimeResult<Array<Record<string,unknown>>>("assets")
+      : {data:[] as Array<Record<string,unknown>>,error:null};
     if (registry.error) throw new OfficeCalendarError(503, "Asset registry calendar is temporarily unavailable");
-    const assetMap=new Map((registry.data ?? []).map((row)=>[String(row.id),row]));
+    const assetMap=new Map((registry.data ?? []).filter((row)=>assetIds.includes(String(row.id))).map((row)=>[String(row.id),row]));
     for (const row of data ?? []) {
       const asset=assetMap.get(String(row.asset_id));
       if (row.warranty_expires_on) {

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { readOfficeRuntimeResult } from "@/lib/office/runtime-read-server";
+
 import { OfficePermissionError, requireOfficeActor } from "@/lib/office/permission-engine";
 
 export class OfficeIntelligenceError extends Error {
@@ -66,12 +68,21 @@ export async function getOfficeIntelligenceBrief() {
     admin.from("office_request_steps").select("id,request_id,label,status,assigned_user_id,created_at").eq("status", "PENDING").order("created_at", { ascending: true }).limit(300),
     admin.from("office_engineering_incidents").select("id,incident_code,severity,title,status,service_id,started_at").neq("status", "RESOLVED").order("started_at", { ascending: true }).limit(200),
     admin.from("office_crm_opportunities").select("id,opportunity_code,title,stage,value_minor,currency,expected_close_date,owner_user_id").not("stage", "in", "(WON,LOST)").order("expected_close_date", { ascending: true, nullsFirst: false }).limit(300),
-    admin.from("compliance_obligations").select("id,title,authority,due_date,status,risk").not("status", "in", "(COMPLETED,CLOSED)").lte("due_date", thirtyDays.slice(0, 10)).order("due_date", { ascending: true }).limit(200),
-    admin.from("invoices").select("id,invoice_no,status,total_paise,balance_paise,due_date,currency,customer_id").gt("balance_paise", 0).order("due_date", { ascending: true, nullsFirst: false }).limit(300),
+    readOfficeRuntimeResult<Array<Record<string,unknown>>>("compliance").then((result)=>({
+      ...result,
+      data:(result.data??[]).filter((row)=>!["COMPLETED","CLOSED"].includes(String(row.status))&&Boolean(row.due_date)&&String(row.due_date)<=thirtyDays.slice(0,10)).sort((a,b)=>String(a.due_date||"").localeCompare(String(b.due_date||""))).slice(0,200),
+    })),
+    readOfficeRuntimeResult<Array<Record<string,unknown>>>("invoices").then((result)=>({
+      ...result,
+      data:(result.data??[]).filter((row)=>Number(row.balance_paise||0)>0).sort((a,b)=>String(a.due_date||"9999-12-31").localeCompare(String(b.due_date||"9999-12-31"))).slice(0,300),
+    })),
     admin.from("office_auth_sessions").select("id,user_id,status,risk_level,last_seen_at,aal,mfa_verified").eq("status", "ACTIVE").order("last_seen_at", { ascending: false }).limit(300),
     admin.from("office_access_reviews").select("id,user_id,status,due_at").eq("status", "PENDING").order("due_at", { ascending: true }).limit(300),
     admin.from("office_notifications").select("id,user_id,kind,title,status,created_at").eq("status", "UNREAD").order("created_at", { ascending: false }).limit(300),
-    admin.from("contracts").select("id,contract_no,counterparty_name,status,expiry_date,owner").not("expiry_date", "is", null).lte("expiry_date", sixtyDays.slice(0, 10)).order("expiry_date", { ascending: true }).limit(200),
+    readOfficeRuntimeResult<Array<Record<string,unknown>>>("contracts").then((result)=>({
+      ...result,
+      data:(result.data??[]).filter((row)=>Boolean(row.expiry_date)&&String(row.expiry_date)<=sixtyDays.slice(0,10)).sort((a,b)=>String(a.expiry_date||"").localeCompare(String(b.expiry_date||""))).slice(0,200),
+    })),
     admin.from("office_engineering_services").select("id,service_code,name,environment,status,runtime_provider,updated_at").neq("status", "RETIRED").order("name", { ascending: true }).limit(200),
   ]);
 

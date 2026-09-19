@@ -6,6 +6,7 @@ const route = readFileSync(new URL("../app/api/office-intelligence/route.ts", im
 const component = readFileSync(new URL("../components/office-intelligence-brief.tsx", import.meta.url), "utf8");
 const screen = readFileSync(new URL("../components/internal-workspace-screen.tsx", import.meta.url), "utf8");
 const workspaces = readFileSync(new URL("../lib/office/workspaces.ts", import.meta.url), "utf8");
+const backend = readFileSync(new URL("../../Backend/backend/main.py", import.meta.url), "utf8");
 
 describe("KRAVIA Intelligence", () => {
   it("is executive-only and read-only", () => {
@@ -18,8 +19,10 @@ describe("KRAVIA Intelligence", () => {
   });
 
   it("uses canonical finance monetary columns and never combines different currencies", () => {
-    expect(server).toContain("total_paise,balance_paise");
-    expect(server).toContain('.gt("balance_paise", 0)');
+    expect(server).toContain('readOfficeRuntimeResult<Array<Record<string,unknown>>>("invoices")');
+    expect(server).toContain("Number(row.balance_paise||0)>0");
+    expect(backend).toContain('"total_paise": inv.total_paise');
+    expect(backend).toContain('"balance_paise": inv.balance_paise');
     expect(server).toContain("pipeline_by_currency");
     expect(server).toContain("receivables_by_currency");
     expect(server).not.toContain('select("id,invoice_no,status,total,balance');

@@ -6,6 +6,7 @@ import {
   resolveOfficePermission,
 } from "@/lib/office/permission-engine";
 import { currentOfficeTrustedDeviceId } from "@/lib/office/device-binding-server";
+import { readOfficeRuntimeResult } from "@/lib/office/runtime-read-server";
 
 export class OfficeTrustError extends Error {
   constructor(public readonly status:number,message:string){super(message);this.name="OfficeTrustError"}
@@ -38,14 +39,14 @@ export async function getTrustCenter(){
 
   const [vendors,assessments,customers,requests,people]=await Promise.all([
     capabilities.vendor_read
-      ? current.admin.from("vendors").select("id,legal_name,category,gstin,status,risk,products_json,created_at").order("legal_name").limit(500)
-      : Promise.resolve({data:[],error:null}),
+      ? readOfficeRuntimeResult<Array<Record<string,unknown>>>("vendors").then((result)=>({...result,data:(result.data??[]).slice(0,500).sort((a,b)=>String(a.legal_name||"").localeCompare(String(b.legal_name||"")))}))
+      : Promise.resolve({data:[] as Array<Record<string,unknown>>,error:null}),
     capabilities.vendor_read
       ? current.admin.from("office_vendor_assessments").select("id,assessment_code,vendor_id,assessment_type,scope_summary,risk_level,evidence_reference,remediation_summary,owner_user_id,status,expires_on,created_by,reviewed_by,reviewed_at,review_note,created_at,updated_at").order("created_at",{ascending:false}).limit(1500)
       : Promise.resolve({data:[],error:null}),
     capabilities.customer_read
-      ? current.admin.from("customers").select("id,legal_name,display_name,country,email,status,created_at").order("display_name").limit(500)
-      : Promise.resolve({data:[],error:null}),
+      ? readOfficeRuntimeResult<Array<Record<string,unknown>>>("customers").then((result)=>({...result,data:(result.data??[]).slice(0,500).sort((a,b)=>String(a.display_name||"").localeCompare(String(b.display_name||"")))}))
+      : Promise.resolve({data:[] as Array<Record<string,unknown>>,error:null}),
     capabilities.customer_read
       ? current.admin.from("office_customer_trust_requests").select("id,trust_code,customer_id,request_type,title,request_summary,owner_user_id,due_at,status,response_reference,evidence_reference,sent_reference,created_by,reviewed_by,reviewed_at,review_note,sent_at,closed_at,created_at,updated_at").order("created_at",{ascending:false}).limit(2000)
       : Promise.resolve({data:[],error:null}),

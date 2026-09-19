@@ -19,7 +19,8 @@ describe("KRAVIA asset lifecycle",()=>{
  it("extends rather than replaces the canonical asset registry",()=>{
   expect(migration).toContain("Extends the legacy office_assets registry without replacing it");
   expect(migration).toContain("Canonical asset not found");
-  expect(server).toContain('from("office_assets")');
+  expect(server).toContain('readOfficeRuntimeResult<Array<Record<string,unknown>>>("assets")');
+  expect(server).not.toContain('from("office_assets")');
  });
 
  it("tracks assignment, return, repair, wipe, reissue, loss and disposal",()=>{

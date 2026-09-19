@@ -6,6 +6,7 @@ import {
   resolveOfficePermission,
 } from "@/lib/office/permission-engine";
 import { currentOfficeTrustedDeviceId } from "@/lib/office/device-binding-server";
+import { readOfficeRuntimeResult } from "@/lib/office/runtime-read-server";
 
 export class OfficeContractsError extends Error {
   constructor(public readonly status:number,message:string){super(message);this.name="OfficeContractsError"}
@@ -35,9 +36,7 @@ export async function getContractOperationsOverview(){
   }
 
   const [contractsResult,obligationsResult,peopleResult]=await Promise.all([
-    current.admin.from("contracts")
-      .select("id,contract_no,contract_type,counterparty_name,product_codes_json,effective_date,expiry_date,notice_days,value_paise,status,document_ref,owner,created_at")
-      .order("created_at",{ascending:false}).limit(500),
+    readOfficeRuntimeResult<Array<Record<string,unknown>>>("contracts"),
     obligationRead||obligationManage||obligationReview
       ? current.admin.from("office_contract_obligations")
           .select("id,obligation_code,contract_id,obligation_type,title,description,owner_user_id,cadence,next_due_at,evidence_required,status,source_clause_reference,created_by,reviewed_by,reviewed_at,created_at,updated_at")

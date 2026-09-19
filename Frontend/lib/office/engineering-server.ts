@@ -1,5 +1,7 @@
 import "server-only";
 
+import { readOfficeRuntimeResult } from "@/lib/office/runtime-read-server";
+
 import {
   OfficePermissionError,
   requireOfficeActor,
@@ -151,7 +153,10 @@ export async function getOfficeEngineeringControlCenter() {
       ? admin.from("office_engineering_incidents").select("id,incident_code,service_id,severity,title,summary,status,owner_user_id,started_at,resolved_at,created_by,created_at,updated_at").in("service_id", serviceIds).order("started_at", { ascending: false }).limit(300)
       : Promise.resolve({ data: [], error: null }),
     admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").eq("status", "ACTIVE").order("display_name", { ascending: true }),
-    admin.from("products").select("id,code,name,status,category").order("name", { ascending: true }).limit(200),
+    readOfficeRuntimeResult<Array<Record<string,unknown>>>("products").then((result)=>({
+      ...result,
+      data:(result.data??[]).slice(0,200).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""))),
+    })),
   ]);
   if (deploymentsResult.error || incidentsResult.error || peopleResult.error || productsResult.error) {
     throw new OfficeEngineeringError(503, "Engineering control data is temporarily unavailable");
@@ -194,8 +199,8 @@ export async function registerOfficeEngineeringService(input: RegisterServiceInp
   if (!permission.allowed) throw new OfficeEngineeringError(403, permission.reason);
 
   if (input.productId) {
-    const { data: product, error } = await admin.from("products").select("id").eq("id", input.productId).maybeSingle();
-    if (error || !product) throw new OfficeEngineeringError(400, "Canonical product not found");
+    const products = await readOfficeRuntimeResult<Array<{id:string}>>("products");
+    if (products.error || !(products.data??[]).some((product)=>product.id===input.productId)) throw new OfficeEngineeringError(400, "Canonical product not found");
   }
 
   const { data, error } = await admin.rpc("office_engineering_register_service", {

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { readOfficeRuntimeResult } from "@/lib/office/runtime-read-server";
+
 import {
   OfficePermissionError,
   requireOfficeActor,
@@ -82,8 +84,14 @@ export async function getOfficeCrmOverview() {
   const [leadsResult, opportunitiesResult, customersResult, productsResult] = await Promise.all([
     leadsQuery,
     opportunitiesQuery,
-    read.admin.from("customers").select("id,legal_name,display_name,status,country,currency").order("legal_name", { ascending: true }).limit(500),
-    read.admin.from("products").select("id,code,name,status,category").order("name", { ascending: true }).limit(200),
+    readOfficeRuntimeResult<Array<Record<string,unknown>>>("customers").then((result)=>({
+      ...result,
+      data:(result.data??[]).slice(0,500).sort((a,b)=>String(a.legal_name||"").localeCompare(String(b.legal_name||""))),
+    })),
+    readOfficeRuntimeResult<Array<Record<string,unknown>>>("products").then((result)=>({
+      ...result,
+      data:(result.data??[]).slice(0,200).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""))),
+    })),
   ]);
   if (leadsResult.error || opportunitiesResult.error || customersResult.error || productsResult.error) throw new OfficeCrmError(503, "CRM authority is temporarily unavailable");
 
@@ -143,8 +151,8 @@ export async function setOfficeCrmLeadStage(input: { leadId: string; stage: "NEW
   await ensureWritableEntity(write.admin, "office_crm_leads", input.leadId, write.ownerIds);
   if (input.stage === "CONVERTED") {
     if (!input.customerId) throw new OfficeCrmError(400, "A canonical customer is required before conversion");
-    const { data: customer, error } = await write.admin.from("customers").select("id").eq("id", input.customerId).maybeSingle();
-    if (error || !customer) throw new OfficeCrmError(400, "Canonical customer not found");
+    const customers = await readOfficeRuntimeResult<Array<{id:string}>>("customers");
+    if (customers.error || !(customers.data??[]).some((customer)=>customer.id===input.customerId)) throw new OfficeCrmError(400, "Canonical customer not found");
   }
   const { data, error } = await write.admin.rpc("office_crm_set_lead_stage", { p_actor: write.identity.userId, p_lead: input.leadId, p_stage: input.stage, p_customer: input.customerId ?? null });
   if (error || typeof data !== "string") throw new OfficeCrmError(400, error?.message ?? "Unable to update lead stage");

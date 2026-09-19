@@ -148,7 +148,7 @@ def invoice_json(inv):
         "net_taxable": rupees(inv.net_taxable_paise), "gst_rate": str(Decimal(inv.gst_rate_bps)/100),
         "cgst": rupees(inv.cgst_paise), "sgst": rupees(inv.sgst_paise), "igst": rupees(inv.igst_paise),
         "total": rupees(inv.total_paise), "paid": rupees(inv.paid_paise), "balance": rupees(inv.balance_paise),
-        "currency": inv.currency, "document_hash": inv.document_hash, "snapshot": json.loads(inv.snapshot_json),
+        "currency": inv.currency, "total_paise": inv.total_paise, "balance_paise": inv.balance_paise, "document_hash": inv.document_hash, "snapshot": json.loads(inv.snapshot_json),
     }
 
 @app.get("/health")
@@ -158,7 +158,7 @@ def health():
 @app.get("/api/v1/company")
 def company(db: Session=Depends(get_db), ctx=Depends(actor_context)):
     e=db.get(LegalEntity,ENTITY_ID)
-    return {"id":e.id,"legal_name":e.legal_name,"cin":e.cin,"registered_office":e.registered_office,"state_code":e.state_code,"status":e.status,"source_ref":e.source_ref}
+    return {"id":e.id,"legal_name":e.legal_name,"cin":e.cin,"registered_office":e.registered_office,"state_code":e.state_code,"status":e.status,"source_ref":e.source_ref,"verified_at":e.verified_at.isoformat() if e.verified_at else None}
 
 @app.get("/api/v1/products")
 def products(db: Session=Depends(get_db), ctx=Depends(actor_context)):
@@ -177,7 +177,7 @@ def create_product(payload: ProductCreate, db: Session=Depends(get_db), ctx=Depe
 
 @app.get("/api/v1/customers")
 def customers(db: Session=Depends(get_db), ctx=Depends(actor_context)):
-    return [{"id":c.id,"legal_name":c.legal_name,"display_name":c.display_name,"gstin":c.gstin,"state":c.state,"state_code":c.state_code,"country":c.country,"status":c.status} for c in db.execute(select(Customer).order_by(Customer.created_at.desc())).scalars()]
+    return [{"id":c.id,"legal_name":c.legal_name,"display_name":c.display_name,"gstin":c.gstin,"state":c.state,"state_code":c.state_code,"country":c.country,"email":c.email,"phone":c.phone,"billing_address":c.billing_address,"status":c.status,"created_at":c.created_at.isoformat() if c.created_at else None} for c in db.execute(select(Customer).order_by(Customer.created_at.desc())).scalars()]
 
 @app.post("/api/v1/customers", status_code=201)
 def create_customer(payload: CustomerCreate, db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","FINANCE")), idempotency_key: str|None=Header(default=None, alias="Idempotency-Key")):
@@ -414,7 +414,7 @@ def create_authority(resolution_id: str, payload: AuthorityCreate, db: Session=D
 @app.get("/api/v1/vendors")
 def vendors(db: Session=Depends(get_db), ctx=Depends(actor_context)):
     rows=db.execute(select(Vendor).order_by(Vendor.created_at.desc())).scalars()
-    return [{"id":x.id,"legal_name":x.legal_name,"category":x.category,"gstin":x.gstin,"status":x.status,"risk":x.risk,"product_codes":json.loads(x.products_json)} for x in rows]
+    return [{"id":x.id,"legal_name":x.legal_name,"category":x.category,"gstin":x.gstin,"status":x.status,"risk":x.risk,"product_codes":json.loads(x.products_json),"products_json":x.products_json,"created_at":x.created_at.isoformat() if x.created_at else None} for x in rows]
 
 @app.post("/api/v1/vendors", status_code=201)
 def create_vendor(payload: VendorCreate, db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","FINANCE","OPERATIONS"))):
@@ -425,7 +425,7 @@ def create_vendor(payload: VendorCreate, db: Session=Depends(get_db), ctx=Depend
 @app.get("/api/v1/contracts")
 def contracts(db: Session=Depends(get_db), ctx=Depends(actor_context)):
     rows=db.execute(select(Contract).order_by(Contract.created_at.desc())).scalars()
-    return [{"id":x.id,"contract_no":x.contract_no,"contract_type":x.contract_type,"counterparty_name":x.counterparty_name,"product_codes":json.loads(x.product_codes_json),"effective_date":x.effective_date,"expiry_date":x.expiry_date,"notice_days":x.notice_days,"value":rupees(x.value_paise) if x.value_paise is not None else None,"status":x.status,"document_ref":x.document_ref,"owner":x.owner} for x in rows]
+    return [{"id":x.id,"contract_no":x.contract_no,"contract_type":x.contract_type,"counterparty_name":x.counterparty_name,"product_codes":json.loads(x.product_codes_json),"product_codes_json":x.product_codes_json,"effective_date":x.effective_date,"expiry_date":x.expiry_date,"notice_days":x.notice_days,"value":rupees(x.value_paise) if x.value_paise is not None else None,"value_paise":x.value_paise,"status":x.status,"document_ref":x.document_ref,"owner":x.owner,"created_at":x.created_at.isoformat() if x.created_at else None} for x in rows]
 
 @app.post("/api/v1/contracts", status_code=201)
 def create_contract(payload: ContractCreate, db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","DIRECTOR","LEGAL"))):
@@ -449,7 +449,7 @@ def create_employee(payload: EmployeeCreate, db: Session=Depends(get_db), ctx=De
 @app.get("/api/v1/assets")
 def assets(db: Session=Depends(get_db), ctx=Depends(actor_context)):
     rows=db.execute(select(OfficeAsset).order_by(OfficeAsset.created_at.desc())).scalars()
-    return [{"id":x.id,"asset_no":x.asset_no,"name":x.name,"category":x.category,"serial_no":x.serial_no,"assigned_employee_id":x.assigned_employee_id,"location":x.location,"purchase_value":rupees(x.purchase_paise) if x.purchase_paise is not None else None,"status":x.status} for x in rows]
+    return [{"id":x.id,"asset_no":x.asset_no,"name":x.name,"category":x.category,"serial_no":x.serial_no,"assigned_employee_id":x.assigned_employee_id,"location":x.location,"purchase_value":rupees(x.purchase_paise) if x.purchase_paise is not None else None,"purchase_paise":x.purchase_paise,"status":x.status,"created_at":x.created_at.isoformat() if x.created_at else None} for x in rows]
 
 @app.post("/api/v1/assets", status_code=201)
 def create_asset(payload: AssetCreate, db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","OPERATIONS","HR"))):
