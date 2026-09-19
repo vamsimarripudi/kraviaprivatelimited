@@ -170,7 +170,18 @@ jobs:
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP/restore-plain"
-          psql             --dbname "$RESTORE_DATABASE_URL"             --set ON_ERROR_STOP=1             --file roles.sql             --file schema.sql             --command 'SET session_replication_role = replica'             --file data.sql
+          db_container=$(docker ps --filter 'name=supabase_db_' --format '{{.Names}}' | head -n 1)
+          if [ -z "$db_container" ]; then
+            echo "::error::Supabase restore database container was not found."
+            exit 1
+          fi
+          printf 'Restoring through privileged local recovery role in %s.\n' "$db_container"
+          docker exec -i "$db_container" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 < roles.sql
+          docker exec -i "$db_container" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 < schema.sql
+          {
+            printf 'SET session_replication_role = replica;\n'
+            cat data.sql
+          } | docker exec -i "$db_container" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1
 
       - name: Verify every restored COPY table row count
         shell: bash
