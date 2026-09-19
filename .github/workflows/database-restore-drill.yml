@@ -1,0 +1,450 @@
+name: KRAVIA database restore drill
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Monthly isolated recovery proof. 21:30 UTC = 03:00 IST next day.\n    # Workflow-definition changes on main also trigger an immediate proof.\n    # Provider-internal schema drift is filtered only after column compatibility checks.
+    - cron: "30 21 1 * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/database-restore-drill.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: kravia-office-database-restore-drill
+  cancel-in-progress: false
+
+jobs:
+  restore-drill:
+    name: Isolated encrypted-backup restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BACKUP_ENCRYPTION_KEY: ${{ secrets.KRAVIA_DB_BACKUP_KEY }}
+      GH_TOKEN: ${{ github.token }}
+      SUPABASE_CLI_VERSION: "2.117.0"
+      SUPABASE_POSTGRES_VERSION: "17.6.1.166"
+      RESTORE_DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Validate restore-drill secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$BACKUP_ENCRYPTION_KEY" ]; then
+            echo "::error::KRAVIA_DB_BACKUP_KEY is not configured."
+            exit 1
+          fi
+          if [ "${#BACKUP_ENCRYPTION_KEY}" -lt 48 ]; then
+            echo "::error::KRAVIA_DB_BACKUP_KEY is unexpectedly short."
+            exit 1
+          fi
+
+      - name: Find latest successful encrypted backup
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id=$(gh api             -H "Accept: application/vnd.github+json"             "/repos/${GITHUB_REPOSITORY}/actions/workflows/database-backup.yml/runs?status=success&per_page=20"             --jq '.workflow_runs[0].id // empty')
+          if [ -z "$run_id" ]; then
+            echo "::error::No successful encrypted backup workflow run was found."
+            exit 1
+          fi
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "Using encrypted backup workflow run $run_id."
+
+      - name: Download encrypted backup artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$RUNNER_TEMP/restore-source"
+          gh run download "${{ steps.source.outputs.run_id }}"             --repo "$GITHUB_REPOSITORY"             --dir "$RUNNER_TEMP/restore-source"
+          cipher=$(find "$RUNNER_TEMP/restore-source" -type f -name '*.tar.gz.gpg' -print -quit)
+          if [ -z "$cipher" ]; then
+            echo "::error::Encrypted backup payload was not present in the selected run."
+            exit 1
+          fi
+          printf '%s\n' "$cipher" > "$RUNNER_TEMP/cipher-path"
+
+      - name: Decrypt and verify backup integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          cipher=$(cat "$RUNNER_TEMP/cipher-path")
+          mkdir -p "$RUNNER_TEMP/restore-plain"
+          gpg --batch --yes --pinentry-mode loopback             --passphrase "$BACKUP_ENCRYPTION_KEY"             --output "$RUNNER_TEMP/kravia-office-backup.tar.gz"             --decrypt "$cipher"
+          tar -xzf "$RUNNER_TEMP/kravia-office-backup.tar.gz"             -C "$RUNNER_TEMP/restore-plain"
+          cd "$RUNNER_TEMP/restore-plain"
+          test -s roles.sql
+          test -s schema.sql
+          test -s data.sql
+          test -s SHA256SUMS
+          test -s BACKUP_METADATA
+          sha256sum -c SHA256SUMS
+
+      - name: Derive expected COPY row counts from backup
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+          import os
+
+          source = Path(os.environ["RUNNER_TEMP"]) / "restore-plain" / "data.sql"
+          target = Path(os.environ["RUNNER_TEMP"]) / "expected-copy-counts.json"
+          copy_re = re.compile(r"^COPY\s+(.+?)\s+\(.+\)\s+FROM\s+stdin;$")
+          counts = {}
+          current = None
+          count = 0
+
+          with source.open("r", encoding="utf-8", errors="strict") as handle:
+              for raw in handle:
+                  line = raw.rstrip("\n")
+                  if current is None:
+                      match = copy_re.match(line)
+                      if match:
+                          current = match.group(1).strip()
+                          count = 0
+                      continue
+                  if line == r"\.":
+                      counts[current] = count
+                      current = None
+                      count = 0
+                  else:
+                      count += 1
+
+          if current is not None:
+              raise SystemExit(f"Unterminated COPY block for {current}")
+          if not counts:
+              raise SystemExit("No COPY blocks found in backup data.sql")
+
+          target.write_text(json.dumps(counts, sort_keys=True), encoding="utf-8")
+          print(f"Captured expected counts for {len(counts)} restored tables.")
+          PY
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Prepare isolated Supabase PostgreSQL 17 database
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/kravia-restore-project"
+          cd "$RUNNER_TEMP/kravia-restore-project"
+          supabase init
+          mkdir -p supabase/.temp
+          printf '%s\n' "$SUPABASE_POSTGRES_VERSION" > supabase/.temp/postgres-version
+          supabase db start
+
+      - name: Ensure PostgreSQL client is available
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -y
+            sudo apt-get install -y postgresql-client
+          fi
+          psql --version
+          for attempt in {1..30}; do
+            if psql "$RESTORE_DATABASE_URL" -Atqc 'select 1' >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Isolated restore database did not become reachable."
+          exit 1
+
+      - name: Restore roles and KRAVIA schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/restore-plain"
+          db_container=$(docker ps --filter 'name=supabase_db_' --format '{{.Names}}' | head -n 1)
+          if [ -z "$db_container" ]; then
+            echo "::error::Supabase restore database container was not found."
+            exit 1
+          fi
+          printf '%s\n' "$db_container" > "$RUNNER_TEMP/db-container-name"
+          printf 'Restoring through privileged local recovery role in %s.\n' "$db_container"
+          docker exec -i "$db_container" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 < roles.sql
+          docker exec -i "$db_container" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 < schema.sql
+
+      - name: Build provider-compatible data restore
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import csv
+          import json
+          import os
+          import re
+          import subprocess
+          from pathlib import Path
+
+          temp = Path(os.environ["RUNNER_TEMP"])
+          source = temp / "restore-plain" / "data.sql"
+          output = temp / "restore-plain" / "compatible-data.sql"
+          counts_path = temp / "expected-copy-counts.json"
+          skipped_path = temp / "skipped-provider-internal.json"
+          db_url = os.environ["RESTORE_DATABASE_URL"]
+
+          expected = json.loads(counts_path.read_text(encoding="utf-8"))
+          if not expected:
+              raise SystemExit("No COPY relations available for restore compatibility analysis")
+
+          copy_re = re.compile(r"^COPY\s+(.+?)\s+\((.+)\)\s+FROM\s+stdin;$")
+          specs = {}
+          with source.open("r", encoding="utf-8", errors="strict") as handle:
+              for raw in handle:
+                  match = copy_re.match(raw.rstrip("\n"))
+                  if not match:
+                      continue
+                  relation = match.group(1).strip()
+                  column_text = match.group(2)
+                  columns = [
+                      value.strip()
+                      for value in next(
+                          csv.reader(
+                              [column_text],
+                              delimiter=",",
+                              quotechar='"',
+                              skipinitialspace=True,
+                          )
+                      )
+                  ]
+                  specs[relation] = columns
+
+          relations = list(expected)
+          missing_specs = [relation for relation in relations if relation not in specs]
+          if missing_specs:
+              raise SystemExit(
+                  f"COPY header metadata missing for {len(missing_specs)} relation(s)"
+              )
+
+          values = ",".join(
+              "('" + relation.replace("'", "''") + "')"
+              for relation in relations
+          )
+          sql = (
+              "select json_object_agg(rel, payload) from ("
+              "select v.rel, json_build_object("
+              "'present', to_regclass(v.rel) is not null,"
+              "'columns', coalesce(("
+              "select json_agg(a.attname order by a.attnum) "
+              "from pg_attribute a "
+              "where a.attrelid=to_regclass(v.rel) "
+              "and a.attnum > 0 and not a.attisdropped"
+              "), '[]'::json)"
+              ") as payload "
+              f"from (values {values}) as v(rel)"
+              ") q"
+          )
+          proc = subprocess.run(
+              ["psql", db_url, "-At", "-c", sql],
+              check=True,
+              text=True,
+              capture_output=True,
+          )
+          target_meta = json.loads(proc.stdout.strip())
+
+          provider_internal = []
+          unsafe = []
+          reasons = {}
+
+          for relation in relations:
+              normalized = relation.replace('"', '')
+              schema = normalized.split(".", 1)[0] if "." in normalized else "public"
+              meta = target_meta.get(relation) or {"present": False, "columns": []}
+              present = bool(meta.get("present"))
+              target_columns = set(meta.get("columns") or [])
+              backup_columns = specs[relation]
+              missing_columns = [
+                  column for column in backup_columns
+                  if column not in target_columns
+              ]
+
+              if present and not missing_columns:
+                  continue
+
+              reason = (
+                  "relation_missing"
+                  if not present
+                  else "missing_columns:" + ",".join(missing_columns)
+              )
+              reasons[relation] = reason
+              if schema in {"auth", "storage"}:
+                  provider_internal.append(relation)
+              else:
+                  unsafe.append(relation)
+
+          if unsafe:
+              for relation in unsafe[:20]:
+                  print(f"Unsafe KRAVIA restore mismatch: {relation} ({reasons[relation]})")
+              raise SystemExit(
+                  f"Refusing partial restore: {len(unsafe)} non-provider relation(s) are incompatible"
+              )
+
+          skipped_set = set(provider_internal)
+          current = None
+          keep = True
+
+          with source.open("r", encoding="utf-8", errors="strict") as src, output.open(
+              "w", encoding="utf-8", newline=""
+          ) as dst:
+              for raw in src:
+                  line = raw.rstrip("\n")
+                  if current is None:
+                      match = copy_re.match(line)
+                      if match:
+                          current = match.group(1).strip()
+                          keep = current not in skipped_set
+                      if keep:
+                          dst.write(raw)
+                      continue
+
+                  if keep:
+                      dst.write(raw)
+                  if line == r"\.":
+                      current = None
+                      keep = True
+
+          if current is not None:
+              raise SystemExit(f"Unterminated COPY block for {current}")
+
+          filtered = {
+              relation: count
+              for relation, count in expected.items()
+              if relation not in skipped_set
+          }
+          counts_path.write_text(json.dumps(filtered, sort_keys=True), encoding="utf-8")
+          skipped_path.write_text(
+              json.dumps(
+                  [
+                      {"relation": relation, "reason": reasons[relation]}
+                      for relation in sorted(provider_internal)
+                  ],
+                  sort_keys=True,
+              ),
+              encoding="utf-8",
+          )
+
+          print(
+              f"Portable restore set: {len(filtered)} table(s); "
+              f"provider-internal version-skew skips: {len(provider_internal)}."
+          )
+          for relation in sorted(provider_internal):
+              print(
+                  f"Skipping provider-internal incompatible relation: "
+                  f"{relation} ({reasons[relation]})"
+              )
+          PY
+
+      - name: Restore compatible data
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/restore-plain"
+          db_container=$(cat "$RUNNER_TEMP/db-container-name")
+          {
+            printf 'SET session_replication_role = replica;\n'
+            cat compatible-data.sql
+          } | docker exec -i "$db_container" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1
+
+      - name: Verify every restored COPY table row count
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          expected = json.loads(
+              (Path(os.environ["RUNNER_TEMP"]) / "expected-copy-counts.json").read_text(encoding="utf-8")
+          )
+          db_url = os.environ["RESTORE_DATABASE_URL"]
+          mismatches = []
+
+          for relation, expected_count in expected.items():
+              proc = subprocess.run(
+                  ["psql", db_url, "-Atqc", f"select count(*) from {relation};"],
+                  check=False,
+                  text=True,
+                  capture_output=True,
+              )
+              if proc.returncode != 0:
+                  mismatches.append((relation, expected_count, "query_failed"))
+                  continue
+              actual = int(proc.stdout.strip())
+              if actual != expected_count:
+                  mismatches.append((relation, expected_count, actual))
+
+          if mismatches:
+              for relation, expected_count, actual in mismatches[:20]:
+                  print(f"Mismatch: {relation}: expected={expected_count} actual={actual}")
+              raise SystemExit(f"Restore verification failed for {len(mismatches)} table(s)")
+
+          print(f"Verified exact row counts for {len(expected)} restored COPY table(s).")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("## KRAVIA database restore drill\n")
+              summary.write(f"- Source backup run: `{os.environ.get('SOURCE_RUN_ID', 'see workflow')}`\n")
+              summary.write(f"- COPY tables verified exactly: **{len(expected)}**\n")
+              summary.write("- Encrypted artifact integrity: **PASS**\n")
+              skipped_path = Path(os.environ["RUNNER_TEMP"]) / "skipped-provider-internal.json"
+              skipped = json.loads(skipped_path.read_text(encoding="utf-8")) if skipped_path.exists() else []
+              summary.write("- Roles/schema/data restore: **PASS**\n")
+              summary.write(f"- Provider-internal version-skew COPY blocks skipped: **{len(skipped)}**\n")
+          PY
+        env:
+          SOURCE_RUN_ID: ${{ steps.source.outputs.run_id }}
+
+      - name: Verify KRAVIA critical control-plane objects
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql "$RESTORE_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          begin
+            if to_regclass('public.office_identity_users') is null then
+              raise exception 'office_identity_users missing';
+            end if;
+            if to_regclass('public.office_user_roles') is null then
+              raise exception 'office_user_roles missing';
+            end if;
+            if to_regclass('public.worker_heartbeats') is null then
+              raise exception 'worker_heartbeats missing';
+            end if;
+            if (select count(*) from public.office_identity_users) < 1 then
+              raise exception 'office_identity_users unexpectedly empty';
+            end if;
+            if (select count(*) from public.office_user_roles) < 1 then
+              raise exception 'office_user_roles unexpectedly empty';
+            end if;
+          end
+          $$;
+          SQL
+
+      - name: Destroy isolated restore database and plaintext
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if [ -d "$RUNNER_TEMP/kravia-restore-project" ]; then
+            cd "$RUNNER_TEMP/kravia-restore-project"
+            supabase stop --no-backup
+          fi
+          rm -rf             "$RUNNER_TEMP/restore-source"             "$RUNNER_TEMP/restore-plain"             "$RUNNER_TEMP/kravia-restore-project"             "$RUNNER_TEMP/kravia-office-backup.tar.gz"             "$RUNNER_TEMP/cipher-path"             "$RUNNER_TEMP/expected-copy-counts.json" \
+            "$RUNNER_TEMP/skipped-provider-internal.json" \
+            "$RUNNER_TEMP/db-container-name"
