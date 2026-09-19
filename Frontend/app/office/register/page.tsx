@@ -17,43 +17,58 @@ function Closed({ message }: { message: string }) {
   </div>;
 }
 
+async function loadInvitation(token: string) {
+  try {
+    return await invitationStatus(token);
+  } catch {
+    return null;
+  }
+}
+
+async function bootstrapIsOpen() {
+  try {
+    return (await founderBootstrapStatus()).registration_open;
+  } catch {
+    return null;
+  }
+}
+
 export default async function OfficeRegisterPage({ searchParams }: Props) {
   const { invite } = await searchParams;
 
   if (invite) {
-    try {
-      const invitation = await invitationStatus(invite);
-      return <OfficeAuthLayout
-        title="Private registration"
-        description="Your access was prepared inside KRAVIA Office. Complete identity setup and MFA to activate it."
-        footerHref="/office/login"
-        footerLabel="Already registered? Sign in"
-      >
-        <OfficeRegisterForm
-          mode="invite"
-          inviteToken={invite}
-          email={invitation.email}
-          displayName={invitation.display_name ?? ""}
-          roles={invitation.roles}
-        />
-      </OfficeAuthLayout>;
-    } catch {
+    const invitation = await loadInvitation(invite);
+    if (!invitation) {
       return <OfficeAuthLayout title="Private registration" description="KRAVIA invitation links are single-use, time-limited and tied to a specific corporate identity.">
         <Closed message="This private registration link is invalid, expired, revoked or already used. Ask the person who invited you to issue a new link." />
       </OfficeAuthLayout>;
     }
+
+    return <OfficeAuthLayout
+      title="Private registration"
+      description="Your access was prepared inside KRAVIA Office. Complete identity setup and MFA to activate it."
+      footerHref="/office/login"
+      footerLabel="Already registered? Sign in"
+    >
+      <OfficeRegisterForm
+        mode="invite"
+        inviteToken={invite}
+        email={invitation.email}
+        displayName={invitation.display_name ?? ""}
+        roles={invitation.roles}
+      />
+    </OfficeAuthLayout>;
   }
 
-  try {
-    const bootstrap = await founderBootstrapStatus();
-    if (!bootstrap.registration_open) {
-      return <OfficeAuthLayout>
-        <Closed message="Founder registration has already been completed. Public registration is permanently disabled; new people can join only through private links issued inside KRAVIA Office." />
-      </OfficeAuthLayout>;
-    }
-  } catch {
+  const bootstrapOpen = await bootstrapIsOpen();
+  if (bootstrapOpen === null) {
     return <OfficeAuthLayout>
       <Closed message="The KRAVIA identity service is not ready. Registration remains closed until the service is available." />
+    </OfficeAuthLayout>;
+  }
+  if (!bootstrapOpen) {
+    return <OfficeAuthLayout>
+      <Closed message="Founder registration has already been completed. Public registration is permanently disabled; new people can join only through private links issued inside KRAVIA Office." />
     </OfficeAuthLayout>;
   }
 
