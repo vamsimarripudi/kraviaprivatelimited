@@ -34,7 +34,7 @@ jobs:
           key: next-${{ runner.os }}-${{ hashFiles('Frontend/package-lock.json') }}
       - run: npm ci
       - name: Dependency audit
-        run: npm audit --audit-level=high
+        run: npm audit --package-lock-only --audit-level=high
       - name: Secret scan
         run: node scripts/secret-scan.mjs
       - run: npm run lint
