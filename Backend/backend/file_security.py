@@ -590,11 +590,22 @@ def process_file_scan_queue(limit: int | None = None) -> dict[str, Any]:
     }
 
 
-def build_file_security_router(require_roles):
+def build_file_security_router(get_db_dependency, actor_context_dependency):
     router = APIRouter(prefix="/api/v1/files", tags=["files"])
 
+    def require_file_roles(*allowed_roles: str):
+        allowed = {role.upper() for role in allowed_roles}
+
+        def dependency(ctx=Depends(actor_context_dependency)):
+            roles = {str(role).upper() for role in (ctx.get("roles") or set())}
+            if not roles.intersection(allowed):
+                raise HTTPException(status_code=403, detail="Insufficient Office authority")
+            return ctx
+
+        return dependency
+
     @router.get("/readiness")
-    def readiness(_ctx=Depends(require_roles("OWNER", "DIRECTOR", "OPERATIONS", "AUDITOR"))):
+    def readiness(_ctx=Depends(require_file_roles("OWNER", "DIRECTOR", "OPERATIONS", "AUDITOR"))):
         return {
             "configured": file_security_ready(),
             "private_storage_configured": storage_configured(),
@@ -610,8 +621,8 @@ def build_file_security_router(require_roles):
         context_type: str | None = Form(default=None),
         context_id: str | None = Form(default=None),
         file: UploadFile = File(...),
-        db: Session = Depends(get_db),
-        ctx=Depends(require_roles(*_UPLOAD_ROLES)),
+        db: Session = Depends(get_db_dependency),
+        ctx=Depends(require_file_roles(*_UPLOAD_ROLES)),
     ):
         if not _file_table_present(db):
             raise HTTPException(status_code=503, detail="Private file quarantine is not installed")
@@ -738,8 +749,8 @@ def build_file_security_router(require_roles):
     @router.get("/{file_id}")
     def status(
         file_id: str,
-        db: Session = Depends(get_db),
-        ctx=Depends(require_roles(*_READ_ROLES)),
+        db: Session = Depends(get_db_dependency),
+        ctx=Depends(require_file_roles(*_READ_ROLES)),
     ):
         row = _fetch_file(db, file_id)
         if not _can_read_file(ctx, str(row["owner_user_id"])):
@@ -749,8 +760,8 @@ def build_file_security_router(require_roles):
     @router.get("/{file_id}/download-url")
     def download_url(
         file_id: str,
-        db: Session = Depends(get_db),
-        ctx=Depends(require_roles(*_READ_ROLES)),
+        db: Session = Depends(get_db_dependency),
+        ctx=Depends(require_file_roles(*_READ_ROLES)),
     ):
         row = _fetch_file(db, file_id)
         if not _can_read_file(ctx, str(row["owner_user_id"])):
