@@ -1,0 +1,51 @@
+name: Railway API hotfix deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/railway-api-hotfix.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy current main to Railway API
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RAILWAY_PROJECT_ID: 8746e560-db2a-4834-80c5-54db0e6e013e
+      RAILWAY_ENVIRONMENT_ID: 1f9e03bc-97d8-4ed8-8d31-58cda4bfffd1
+      RAILWAY_SERVICE_ID: 76254870-0c4c-469f-9bd4-ddc20574526f
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      API_URL: https://kravia-office-api-production.up.railway.app
+    steps:
+      - uses: actions/checkout@v7
+      - name: Require Railway token
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$RAILWAY_TOKEN" || { echo "::error::RAILWAY_TOKEN is missing"; exit 1; }
+      - name: Deploy API from repository source
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y @railway/cli@5.57.9 up --ci \
+            --project "$RAILWAY_PROJECT_ID" \
+            --environment "$RAILWAY_ENVIRONMENT_ID" \
+            --service "$RAILWAY_SERVICE_ID" \
+            --message "Founder bootstrap hotfix ${GITHUB_SHA}"
+      - name: Verify live API
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error "$API_URL/health/live" >/tmp/health.json; then
+              break
+            fi
+            sleep 2
+          done
+          cat /tmp/health.json
+          curl --fail --silent --show-error "$API_URL/api/v1/auth/bootstrap-status" | tee /tmp/bootstrap.json
+          grep -q '"registration_open":true' /tmp/bootstrap.json
