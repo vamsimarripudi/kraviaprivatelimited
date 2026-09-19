@@ -50,10 +50,28 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     try { await signOutOffice(null); } catch { /* cookie cleanup best effort */ }
-    const unavailable = error instanceof Error && (error.message.includes("not configured") || error.message.includes("LEDGER_UNAVAILABLE"));
+    const code = error instanceof Error ? error.message : "UNKNOWN_SIGN_IN_FAILURE";
+    console.error("[office-auth] sign-in failed", { code });
+
+    let status = 401;
+    let detail = "Unable to sign in with those credentials";
+    if (code === "ACCESS_NOT_PROVISIONED") {
+      status = 403;
+      detail = "This company identity is not authorised for KRAVIA Office";
+    } else if (code === "OFFICE_AUTHORITY_UNAVAILABLE") {
+      status = 503;
+      detail = "KRAVIA Office authorisation service is unavailable";
+    } else if (code.includes("LEDGER_UNAVAILABLE")) {
+      status = 503;
+      detail = "KRAVIA Office secure session service is unavailable";
+    } else if (code.includes("not configured")) {
+      status = 503;
+      detail = "KRAVIA Office identity configuration is unavailable";
+    }
+
     return NextResponse.json(
-      { detail: unavailable ? "KRAVIA Office sign-in is temporarily unavailable" : "Unable to sign in with those credentials" },
-      { status: unavailable ? 503 : 401, headers: { "Cache-Control": "no-store" } },
+      { detail },
+      { status, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
