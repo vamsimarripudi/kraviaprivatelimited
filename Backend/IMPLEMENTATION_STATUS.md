@@ -171,3 +171,11 @@ The canonical browser remains path-based at `kraviaprivatelimited.com/office` an
 **The committed Office software controls are development-complete for the audited scope when normal `main` quality gates are green. Do not describe the live service as production/statutory ready until each applicable external gate has evidence.**
 
 KRAVIA Office must never report fake success, fake compliance, fake tax status, fake bank balances, fake ownership data or fake provider connectivity.
+
+
+### 2026-09-19 Founder bootstrap production hotfix
+
+- Fixed KRAVIA first-party Founder bootstrap to flush office_auth_users before dependent office_auth_roles, preventing PostgreSQL FK ordering failures during registration.
+- Applied and versioned least-privilege kravia_office_backend access to the protected identity/role/invitation control plane with RLS kept enabled.
+- Verified Railway API receives /api/v1/auth/register-founder through the same-origin Vercel BFF; the Railway backend remains the identity runtime.
+- Removed the redundant GitHub worker deployment job because Railway's native GitHub integration already owns worker deployment; this avoids blocking Railway API check-suite deployment.
