@@ -1,17 +1,16 @@
-import Link from "next/link";
+"use client";
+
 import dynamic from "next/dynamic";
-import { ArrowRight, Bell, BriefcaseBusiness, Building2, ClipboardCheck, FileLock2, Files, Gauge, Landmark, LayoutDashboard, Scale, Settings, ShieldCheck, TriangleAlert, Users } from "lucide-react";
+import { ArrowRight, BriefcaseBusiness, Building2, ClipboardCheck, FileLock2, Files, Gauge, Landmark, LayoutDashboard, Scale, Settings, ShieldCheck, TriangleAlert, Users } from "lucide-react";
 import type { OfficeIdentity } from "@/lib/office/auth-server";
-import { getOfficeCapabilitySnapshot } from "@/lib/office/capability-server";
+import { useOfficeWorkspace } from "@/components/office-workspace-context";
 import {
   capabilityCanAccessSection,
-  navigationCommands,
 } from "@/lib/office/workspace-capabilities";
 import {
   financeSections,
   officeSections,
   roleCanAccessSection,
-  roleCanAccessWorkspace,
   workspaceDefinitions,
   type FinanceSection,
   type OfficeSection,
@@ -20,10 +19,6 @@ import {
 } from "@/lib/office/workspaces";
 import { runtimeModuleSpec } from "@/lib/office/runtime-modules";
 import { WorkspaceRuntimePanel } from "@/components/workspace-runtime-panel";
-import { WorkspaceSignOutButton } from "@/components/workspace-sign-out-button";
-import { OfficeCommandCenter } from "@/components/office-command-center";
-import { OfficeCommandPalette } from "@/components/office-command-palette";
-import { OfficePresenceControl } from "@/components/office-presence-control";
 
 
 function ModuleLoading() {
@@ -95,7 +90,7 @@ const RequestCollaborationWorkspace = dynamic(() => import("@/components/request
 const OfficeOrganizationChart = dynamic(() => import("@/components/office-organization-chart").then((module) => module.OfficeOrganizationChart), { loading: ModuleLoading });
 const OfficeEmbedRegistry = dynamic(() => import("@/components/office-embed-registry").then((module) => module.OfficeEmbedRegistry), { loading: ModuleLoading });
 
-type Props = { workspace: WorkspaceKind; section: OfficeSection | FinanceSection; identity: OfficeIdentity };
+type Props = { workspace: WorkspaceKind; section: OfficeSection | FinanceSection };
 
 const groupIcons = {
   Overview: LayoutDashboard,
@@ -124,48 +119,21 @@ function sectionEntries(workspace: WorkspaceKind) {
   return Object.entries(sections) as [string, WorkspaceSection][];
 }
 
-function IdentityCard({ identity }: { identity: OfficeIdentity }) {
-  const authorityLabel = identity.founder ? "FOUNDER" : identity.roles.join(" · ");
-  const content = <><span>{authorityLabel}</span><small>{identity.email ?? "Verified identity"}{identity.department ? ` · ${identity.department}` : ""}</small></>;
-  if (roleCanAccessSection(officeSections.settings, identity.roles)) {
-    return <Link href="/office/settings" className="office-identity" aria-label="Open identity and security settings">{content}</Link>;
-  }
-  return <div className="office-identity" aria-label="Verified KRAVIA Office identity">{content}</div>;
-}
-
-export async function InternalWorkspaceScreen({ workspace, section, identity }: Props) {
+export function InternalWorkspaceScreen({ workspace, section }: Props) {
+  const { identity, permissions } = useOfficeWorkspace();
   const definition = workspaceDefinitions[workspace];
   const sections = workspace === "finance" ? financeSections : officeSections;
   const item = (sections as Record<string, WorkspaceSection>)[section];
-  const capability = identity.roles.includes("OWNER")
-    ? { generated_at: new Date().toISOString(), permissions: [] as string[], scopes: [] }
-    : await getOfficeCapabilitySnapshot();
-  const permissions = capability.permissions;
-  const visible = (slug: string, value: WorkspaceSection) => roleCanAccessSection(value, identity.roles) && capabilityCanAccessSection(workspace, slug, identity.roles, permissions);
-  const permitted = item ? visible(String(section), item) : false;
-  const entries = sectionEntries(workspace).filter(([slug, value]) => visible(slug, value));
-  const groups = Array.from(new Set(entries.map(([, value]) => value.group)));
-  const switchWorkspace: WorkspaceKind = workspace === "office" ? "finance" : "office";
-  const switchDashboard = switchWorkspace === "finance" ? financeSections.dashboard : officeSections.dashboard;
-  const canSwitch = roleCanAccessWorkspace(switchWorkspace, identity.roles)
-    && roleCanAccessSection(switchDashboard, identity.roles)
-    && capabilityCanAccessSection(switchWorkspace, "dashboard", identity.roles, permissions);
-  const commands = navigationCommands(workspace, entries);
+  const permitted = item
+    ? roleCanAccessSection(item, identity.roles) &&
+      capabilityCanAccessSection(workspace, String(section), identity.roles, permissions)
+    : false;
 
-  return <main className={`office office-v2 workspace-shell workspace-${workspace}`}>
-    <aside>
-      <OfficeNavLink href={`${definition.basePath}/dashboard`} className="wordmark" aria-label={`${definition.label} home`}><span>KRAVIA</span><span>{workspace === "finance" ? "FINANCE" : "OFFICE"}</span></OfficeNavLink>
-      <div className="workspace-context"><span>PRIVATE OPERATING SYSTEM</span><b>{workspace === "finance" ? "Finance & Tax" : "Company Operations"}</b></div>
-      <nav aria-label={`${definition.label} navigation`}>{groups.map((group) => <div className="workspace-nav-group" key={group}><p>{group}</p>{entries.filter(([, value]) => value.group === group).map(([slug, value]) => <OfficeNavLink key={slug} href={`${definition.basePath}/${slug}`}><NavIcon group={value.group} /><span>{value.title}</span></OfficeNavLink>)}</div>)}</nav>
-      <div className="workspace-side-actions">{canSwitch ? <Link href={`/${switchWorkspace}`} className="workspace-switch"><Landmark aria-hidden="true" /> Open {switchWorkspace === "finance" ? "Finance" : "Office"}</Link> : null}<WorkspaceSignOutButton workspace={workspace} /></div>
-      <p className="office-side-note">Private · AAL2 protected<br />Role + permission + scope aware</p>
-    </aside>
-
-    <section className="office-main">
-      <header className="office-topbar"><div><p className="eyebrow">{item?.eyebrow ?? definition.label}</p><h1>{item?.title ?? definition.label}</h1></div><div className="office-topbar-actions"><OfficePresenceControl /><OfficeCommandPalette commands={commands} /><OfficeCommandCenter /><IdentityCard identity={identity} /></div></header>
-      {permitted && item ? <>
-        <div className="office-notice"><ShieldCheck /><p>{item.description}</p></div>
-        {workspace === "office" && section === "access" ? <><AccessGovernancePanel identity={identity} /><WorkforceAdministrationPanel identity={identity} /></>
+  return (
+    <>
+      {permitted && item ? (
+        <>
+          {workspace === "office" && section === "access" ? <><AccessGovernancePanel identity={identity} /><WorkforceAdministrationPanel identity={identity} /></>
           : workspace === "office" && section === "notifications" ? <OfficeNotificationCenter />
           : workspace === "office" && section === "tasks" ? <OfficeCompanyInbox />
           : workspace === "office" && section === "calendar" ? <OfficeCompanyCalendar />
@@ -232,9 +200,23 @@ export async function InternalWorkspaceScreen({ workspace, section, identity }: 
           : workspace === "finance" && section === "dashboard" ? <OfficeFinanceCommandCenter />
           : section === "dashboard" ? <WorkspaceDashboard workspace={workspace} section={section} identity={identity} permissions={permissions} />
           : <WorkspaceModule workspace={workspace} section={section} item={item} />}
-      </> : <section className="office-denied"><TriangleAlert /><div><p className="eyebrow">ACCESS RESTRICTED</p><h2>This module is not assigned to your current authority.</h2><p>KRAVIA Office evaluates identity, current roles and capability scope before showing a work surface. Direct URLs do not bypass the server-side authorization used by records and actions.</p><Link className="text-link" href={`${definition.basePath}/dashboard`}>Return to overview <ArrowRight /></Link></div></section>}
-    </section>
-  </main>;
+      </> : <section className="office-denied"><TriangleAlert /><div><p className="eyebrow">ACCESS RESTRICTED</p><h2>This module is not assigned to your current authority.</h2><p>KRAVIA Office evaluates identity, current roles and capability scope before showing a work surface. Direct URLs do not bypass the server-side authorization used by records and actions.</p><OfficeNavLink className="text-link" href={`${definition.basePath}/dashboard`}>Return to overview <ArrowRight /></OfficeNavLink></div></section>}
+        </>
+      ) : (
+        <section className="office-denied">
+          <TriangleAlert />
+          <div>
+            <p className="eyebrow">ACCESS RESTRICTED</p>
+            <h2>This module is not assigned to your current authority.</h2>
+            <p>Direct URLs never bypass KRAVIA record and action authorization.</p>
+            <OfficeNavLink className="text-link" href={`${definition.basePath}/dashboard`}>
+              Return to overview <ArrowRight />
+            </OfficeNavLink>
+          </div>
+        </section>
+      )}
+    </>
+  );
 }
 
 function WorkspaceDashboard({ workspace, section, identity, permissions }: { workspace: WorkspaceKind; section: OfficeSection | FinanceSection; identity: OfficeIdentity; permissions: readonly string[] }) {
