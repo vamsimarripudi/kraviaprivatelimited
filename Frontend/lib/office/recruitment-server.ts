@@ -1,5 +1,7 @@
 import "server-only";
 
+import { getOfficeRuntimeOrigin } from "@/lib/env/office";
+import { getOfficeSessionContext } from "@/lib/office/auth-server";
 import { readOfficeRuntimeResult } from "@/lib/office/runtime-read-server";
 import { createHash, randomUUID } from "node:crypto";
 
@@ -245,6 +247,44 @@ export async function requestCandidateDocument(input: { candidateId: string; typ
   return { document_request_id: data };
 }
 
+async function scanCandidateDocument(current: Actor, bytes: Buffer, mime: string) {
+  const runtimeOrigin = getOfficeRuntimeOrigin();
+  if (!runtimeOrigin) throw new OfficeRecruitmentError(503, "Candidate document security scanning is not configured");
+  const session = await getOfficeSessionContext();
+  if (!session || session.identity.userId !== current.identity.userId || session.identity.aal !== "aal2") {
+    throw new OfficeRecruitmentError(403, "AAL2 Office verification is required for candidate document upload");
+  }
+  let response: Response;
+  try {
+    response = await fetch(new URL("/api/v1/security/file-scan", runtimeOrigin), {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.session.access_token}`,
+        "Content-Type": mime,
+        "Content-Length": String(bytes.length),
+      },
+      body: bytes,
+      cache: "no-store",
+      redirect: "manual",
+      signal: AbortSignal.timeout(35_000),
+    });
+  } catch {
+    throw new OfficeRecruitmentError(503, "Candidate document security scan is unavailable; file was not stored");
+  }
+  if (response.status === 422) {
+    throw new OfficeRecruitmentError(400, "Candidate document was rejected by malware protection");
+  }
+  if (!response.ok) {
+    throw new OfficeRecruitmentError(503, "Candidate document security scan is unavailable; file was not stored");
+  }
+  const result = await response.json().catch(() => null) as { clean?: boolean; sha256?: string; byte_size?: number } | null;
+  const localDigest = createHash("sha256").update(bytes).digest("hex");
+  if (!result?.clean || result.sha256 !== localDigest || result.byte_size !== bytes.length) {
+    throw new OfficeRecruitmentError(503, "Candidate document security scan integrity check failed; file was not stored");
+  }
+  return localDigest;
+}
+
 function candidateFileType(bytes: Buffer, claimedMime: string) {
   const claimed = claimedMime.toLowerCase().trim();
   const isPdf = bytes.length >= 5 && bytes.subarray(0, 5).toString("ascii") === "%PDF-";
@@ -261,7 +301,7 @@ export async function uploadCandidateDocument(input: { requestId: string; fileNa
   const current = await permission("hiring.candidate.manage");
   if (!input.bytes.length || input.bytes.length > 26_214_400) throw new OfficeRecruitmentError(413, "Candidate document must be between 1 byte and 25 MiB");
   const fileType = candidateFileType(input.bytes, input.claimedMime);
-  const digest = createHash("sha256").update(input.bytes).digest("hex");
+  const digest = await scanCandidateDocument(current, input.bytes, fileType.mime);
   const storageReference = `${input.requestId}/${randomUUID()}.${fileType.extension}`;
   const upload = await current.admin.storage.from("office-candidate-documents").upload(storageReference, input.bytes, {
     contentType: fileType.mime,
