@@ -1,0 +1,65 @@
+name: KRAVIA Office background worker
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/office-worker.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kravia-office-background-worker
+  cancel-in-progress: false
+
+jobs:
+  worker:
+    name: Production worker tick
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: Backend
+    env:
+      APP_ENV: production
+      DATABASE_URL: ${{ secrets.KRAVIA_BACKUP_DATABASE_URL }}
+      DATABASE_EXECUTION_ROLE: kravia_office_backend
+      KRAVIA_WORKER_INTERVAL_SECONDS: "300"
+      KRAVIA_WORKER_BATCH_SIZE: "100"
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - name: Validate production database secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::KRAVIA_BACKUP_DATABASE_URL is not configured."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: Backend/backend/requirements.txt
+
+      - name: Install worker dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r backend/requirements.txt
+          python -m pip check
+
+      - name: Run one production worker tick
+        shell: bash
+        run: |
+          set -euo pipefail
+          output=$(python -m backend.worker --once --interval 300 --batch-size 100)
+          printf '%s\n' "$output"
+          printf '%s\n' "$output" | grep -q '"status": "COMPLETED"'
