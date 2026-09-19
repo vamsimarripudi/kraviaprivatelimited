@@ -47,6 +47,8 @@ type FirstPartyAuthResponse = {
   display_name?: string;
   roles: string[];
   access_status: string;
+  department?: string | null;
+  authorization_version?: number;
   aal: "aal1" | "aal2";
   founder?: boolean;
   display_role?: string;
@@ -89,7 +91,7 @@ async function parseOrThrow<T>(response: Response): Promise<T> {
 
 function toIdentity(payload: FirstPartyAuthResponse): OfficeIdentity {
   const roles = (payload.roles ?? []).filter(isOfficeRole);
-  const departmentCandidate = (payload as unknown as Record<string, unknown>).department;
+  const departmentCandidate = payload.department;
   return {
     userId: payload.user_id,
     email: payload.email,
@@ -97,7 +99,7 @@ function toIdentity(payload: FirstPartyAuthResponse): OfficeIdentity {
     roles,
     accessStatus: payload.access_status,
     department: isOfficeDepartment(departmentCandidate) ? departmentCandidate : undefined,
-    authzVersion: 1,
+    authzVersion: typeof payload.authorization_version === "number" ? payload.authorization_version : 1,
     aal: payload.aal === "aal2" ? "aal2" : "aal1",
     founder: payload.founder === true,
     displayRole: payload.display_role,
