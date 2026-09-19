@@ -27,9 +27,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
-from supabase import Client, create_client
-
 from .database import SessionLocal, get_db
+from .storage_broker_client import configured as storage_broker_configured, delete_private, download_private, signed_download_url, upload_private
 
 QUARANTINE_BUCKET = "office-quarantine"
 MAX_FILE_BYTES = 50 * 1024 * 1024
@@ -105,15 +104,8 @@ def _storage_url() -> str:
     )
 
 
-def _storage_secret() -> str:
-    return (
-        os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
-        or os.getenv("OFFICE_SUPABASE_SECRET_KEY", "").strip()
-    )
-
-
 def storage_configured() -> bool:
-    return bool(_storage_url() and _storage_secret())
+    return storage_broker_configured()
 
 
 def scanner_configured() -> bool:
@@ -122,14 +114,6 @@ def scanner_configured() -> bool:
 
 def file_security_ready() -> bool:
     return storage_configured() and scanner_configured()
-
-
-def _storage_client() -> Client:
-    url = _storage_url()
-    secret = _storage_secret()
-    if not url or not secret:
-        raise RuntimeError("Supabase private storage service credentials are not configured")
-    return create_client(url, secret)
 
 
 def _file_table_present(db: Session) -> bool:
@@ -413,7 +397,7 @@ def _mark_failed(db: Session, row: Any, code: str) -> None:
     )
 
 
-def _process_claimed_file(db: Session, row: Any, storage: Client, version: str) -> str:
+def _process_claimed_file(db: Session, row: Any, version: str) -> str:
     db.execute(
         text(
             """
@@ -429,10 +413,7 @@ def _process_claimed_file(db: Session, row: Any, storage: Client, version: str) 
     db.commit()
 
     try:
-        content = storage.storage.from_(row["quarantine_bucket"]).download(row["quarantine_path"])
-        if not isinstance(content, (bytes, bytearray)):
-            content = bytes(content)
-        payload = bytes(content)
+        payload = download_private(row["quarantine_bucket"], row["quarantine_path"], 120)
         if len(payload) != int(row["byte_size"]):
             raise RuntimeError("SIZE_MISMATCH")
         if hashlib.sha256(payload).hexdigest() != row["sha256"]:
@@ -444,8 +425,7 @@ def _process_claimed_file(db: Session, row: Any, storage: Client, version: str) 
         if not result["clean"]:
             quarantine_deleted = False
             try:
-                storage.storage.from_(row["quarantine_bucket"]).remove([row["quarantine_path"]])
-                quarantine_deleted = True
+                quarantine_deleted = delete_private(row["quarantine_bucket"], row["quarantine_path"])
             except Exception:
                 # Detection is authoritative even when cleanup is temporarily
                 # unavailable. The object remains private and unreleasable.
@@ -483,19 +463,15 @@ def _process_claimed_file(db: Session, row: Any, storage: Client, version: str) 
 
         date_path = _now().strftime("%Y/%m")
         released_path = f"scanned/{date_path}/{row['id']}/{row['original_filename']}"
-        storage.storage.from_(row["target_bucket"]).upload(
+        upload_private(
+            row["target_bucket"],
             released_path,
             payload,
-            {
-                "content-type": row["detected_mime_type"],
-                "upsert": "false",
-                "cache-control": "private, max-age=0, no-store",
-            },
+            row["detected_mime_type"],
         )
         quarantine_deleted = False
         try:
-            storage.storage.from_(row["quarantine_bucket"]).remove([row["quarantine_path"]])
-            quarantine_deleted = True
+            quarantine_deleted = delete_private(row["quarantine_bucket"], row["quarantine_path"])
         except Exception:
             quarantine_deleted = False
         db.execute(
@@ -568,7 +544,6 @@ def process_file_scan_queue(limit: int | None = None) -> dict[str, Any]:
             "failed": 0,
         }
 
-    storage = _storage_client()
     version = clamav_version()
     counters = {"clean": 0, "infected": 0, "failed": 0}
     examined = 0
@@ -578,7 +553,7 @@ def process_file_scan_queue(limit: int | None = None) -> dict[str, Any]:
             if not row:
                 db.rollback()
                 break
-            result = _process_claimed_file(db, row, storage, version)
+            result = _process_claimed_file(db, row, version)
             examined += 1
             counters[result.lower()] += 1
     return {
@@ -693,15 +668,7 @@ def build_file_security_router(get_db_dependency, actor_context_dependency):
         db.commit()
 
         try:
-            _storage_client().storage.from_(QUARANTINE_BUCKET).upload(
-                quarantine_path,
-                data,
-                {
-                    "content-type": detected_mime,
-                    "upsert": "false",
-                    "cache-control": "private, max-age=0, no-store",
-                },
-            )
+            upload_private(QUARANTINE_BUCKET, quarantine_path, data, detected_mime)
             db.execute(
                 text(
                     """
@@ -770,13 +737,10 @@ def build_file_security_router(get_db_dependency, actor_context_dependency):
             raise HTTPException(status_code=409, detail="File is not available until malware scanning passes")
         if not storage_configured():
             raise HTTPException(status_code=503, detail="Private storage is unavailable")
-        signed = _storage_client().storage.from_(row["target_bucket"]).create_signed_url(
-            row["released_path"],
-            60,
-        )
-        url = signed.get("signedURL") or signed.get("signedUrl") or signed.get("signed_url")
-        if not url:
-            raise HTTPException(status_code=503, detail="Could not create private file access URL")
+        try:
+            url = signed_download_url(row["target_bucket"], row["released_path"], 60)
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="Could not create private file access URL") from exc
         return {
             "file_id": str(row["id"]),
             "expires_in": 60,
