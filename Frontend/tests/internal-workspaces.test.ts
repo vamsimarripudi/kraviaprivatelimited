@@ -77,7 +77,10 @@ describe("KRAVIA path-based internal workspaces", () => {
 
   it("keeps the FastAPI origin server-only and blocks sensitive provider callback paths", () => {
     expect(runtimeProxySource).toContain('getOfficeRuntimeOrigin()');
-    expect(runtimeProxySource).toContain('headers.set("Authorization", `Bearer ${session.session.access_token}`)');
+    expect(runtimeProxySource).toContain("OFFICE_ACCESS_COOKIE");
+    expect(runtimeProxySource).toContain('headers.set("Authorization", `Bearer ${accessToken}`)');
+    expect(runtimeProxySource).toContain("if (upstream.status === 401)");
+    expect(runtimeProxySource).toContain("getOfficeSessionContext()");
     expect(runtimeProxySource).toContain('"finance/webhooks"');
     expect(runtimeProxySource).toContain('redirect: "manual"');
     expect(runtimeProxySource).toContain("MAX_BODY_BYTES");
