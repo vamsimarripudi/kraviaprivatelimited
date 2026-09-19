@@ -1,0 +1,138 @@
+name: KRAVIA encrypted backup restore drill
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - office/first-party-auth-20260919
+    paths:
+      - ".github/workflows/backup-restore-drill.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: kravia-office-backup-restore-drill
+  cancel-in-progress: false
+
+jobs:
+  restore-drill:
+    name: Isolated restore verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BACKUP_ENCRYPTION_KEY: ${{ secrets.KRAVIA_DB_BACKUP_KEY }}
+      SUPABASE_CLI_VERSION: "2.117.0"
+      SUPABASE_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - name: Validate restore secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$BACKUP_ENCRYPTION_KEY" ]; then
+            echo "::error::KRAVIA_DB_BACKUP_KEY is not configured."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Install PostgreSQL client
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql-client
+
+      - name: Locate latest successful encrypted backup
+        id: backup
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id=$(gh api             "repos/$GITHUB_REPOSITORY/actions/workflows/database-backup.yml/runs?status=success&per_page=1"             --jq '.workflow_runs[0].id')
+          if [ -z "$run_id" ] || [ "$run_id" = "null" ]; then
+            echo "::error::No successful encrypted backup workflow run is available."
+            exit 1
+          fi
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+
+      - name: Download encrypted backup artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/restore-artifact"
+          gh run download "${{ steps.backup.outputs.run_id }}"             --repo "$GITHUB_REPOSITORY"             --name "kravia-office-db-backup-${{ steps.backup.outputs.run_id }}"             --dir "$RUNNER_TEMP/restore-artifact"
+          test -s "$RUNNER_TEMP/restore-artifact/kravia-office-backup.tar.gz.gpg"
+
+      - name: Decrypt and verify backup integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$RUNNER_TEMP/restore-input"
+          gpg --batch --yes --pinentry-mode loopback             --passphrase "$BACKUP_ENCRYPTION_KEY"             --output "$RUNNER_TEMP/kravia-office-backup.tar.gz"             --decrypt "$RUNNER_TEMP/restore-artifact/kravia-office-backup.tar.gz.gpg"
+          tar -xzf "$RUNNER_TEMP/kravia-office-backup.tar.gz" -C "$RUNNER_TEMP/restore-input"
+          cd "$RUNNER_TEMP/restore-input"
+          sha256sum -c SHA256SUMS
+          test -s roles.sql
+          test -s schema.sql
+          test -s data.sql
+
+      - name: Start isolated local Supabase stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/restore-project"
+          cd "$RUNNER_TEMP/restore-project"
+          npx -y "supabase@${SUPABASE_CLI_VERSION}" init
+          npx -y "supabase@${SUPABASE_CLI_VERSION}" start
+
+      - name: Restore backup into isolated database
+        shell: bash
+        env:
+          RESTORE_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/restore-input"
+          psql             --single-transaction             --variable ON_ERROR_STOP=1             --file roles.sql             --file schema.sql             --command 'SET session_replication_role = replica'             --file data.sql             --dbname "$RESTORE_DATABASE_URL"
+
+      - name: Verify restored KRAVIA Office data
+        shell: bash
+        env:
+          RESTORE_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: |
+          set -euo pipefail
+          psql "$RESTORE_DATABASE_URL" --variable ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          begin
+            if to_regclass('public.office_identity_users') is null then
+              raise exception 'office_identity_users missing after restore';
+            end if;
+            if to_regclass('public.office_user_roles') is null then
+              raise exception 'office_user_roles missing after restore';
+            end if;
+            if to_regclass('public.documents') is null then
+              raise exception 'documents missing after restore';
+            end if;
+          end
+          $$;
+
+          select
+            (select count(*) from public.office_identity_users) as office_identity_rows,
+            (select count(*) from public.office_user_roles) as office_role_rows,
+            (select count(*) from auth.users) as auth_user_rows;
+          SQL
+
+      - name: Destroy isolated restore stack
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          cd "$RUNNER_TEMP/restore-project" 2>/dev/null || exit 0
+          npx -y "supabase@${SUPABASE_CLI_VERSION}" stop --no-backup
+          rm -rf "$RUNNER_TEMP/restore-input"                  "$RUNNER_TEMP/restore-artifact"                  "$RUNNER_TEMP/restore-project"                  "$RUNNER_TEMP/kravia-office-backup.tar.gz"
