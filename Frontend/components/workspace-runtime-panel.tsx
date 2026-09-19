@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Database, LoaderCircle, RefreshCw, ServerCog, TriangleAlert } from "lucide-react";
 import type { RuntimeColumn, RuntimeModuleSpec } from "@/lib/office/runtime-modules";
+import { OfficeHttpError, officeQuery } from "@/lib/office/http-client";
 
 type JsonObject = Record<string, unknown>;
 type RuntimeState =
@@ -27,22 +28,21 @@ function displayValue(value: unknown): string {
   return "Controlled data";
 }
 
-async function requestRuntime(path: string, signal?: AbortSignal): Promise<RuntimeState> {
+async function requestRuntime(path: string, signal?: AbortSignal, force = false): Promise<RuntimeState> {
   try {
-    const response = await fetch(`/api/office-runtime/${path}`, {
-      credentials: "same-origin",
-      cache: "no-store",
+    const payload = await officeQuery<unknown>(`/api/office-runtime/${path}`, undefined, {
+      staleMs: 12_000,
       signal,
+      force,
     });
-    const contentType = response.headers.get("content-type") ?? "";
-    const payload = contentType.includes("application/json") ? await response.json() : null;
-    if (!response.ok) {
-      const detail = isObject(payload) && typeof payload.detail === "string" ? payload.detail : "Canonical runtime request failed";
-      return response.status === 503 ? { kind: "setup", detail } : { kind: "error", detail };
-    }
     return { kind: "ready", data: payload };
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") throw error;
+    if (error instanceof OfficeHttpError) {
+      return error.status === 503
+        ? { kind: "setup", detail: error.message }
+        : { kind: "error", detail: error.message };
+    }
     return { kind: "error", detail: "Canonical KRAVIA Office runtime could not be reached." };
   }
 }
@@ -72,7 +72,7 @@ export function WorkspaceRuntimePanel({ title, spec }: { title: string; spec: Ru
 
   const refresh = useCallback(() => {
     setState({ kind: "loading" });
-    void requestRuntime(spec.path).then(setState);
+    void requestRuntime(spec.path, undefined, true).then(setState);
   }, [spec.path]);
 
   useEffect(() => {
@@ -104,6 +104,6 @@ export function WorkspaceRuntimePanel({ title, spec }: { title: string; spec: Ru
     {spec.objectKeys?.length ? <ObjectMetrics data={data} keys={spec.objectKeys} /> : null}
     {spec.columns?.length && (nestedRows || directRows) ? <DataTable rows={nestedRows ?? directRows ?? []} columns={spec.columns} /> : null}
     {!spec.objectKeys?.length && !spec.columns?.length ? <div className="workspace-runtime-empty">Canonical runtime connected. This module uses its specialised operational workflow rather than a generic record table.</div> : null}
-    <div className="workspace-runtime-foot"><span>Results are role-scoped and uncached.</span><button type="button" className="workspace-runtime-refresh" onClick={refresh}><RefreshCw /> Refresh</button></div>
+    <div className="workspace-runtime-foot"><span>Results are role-scoped · short-lived client cache</span><button type="button" className="workspace-runtime-refresh" onClick={refresh}><RefreshCw /> Refresh</button></div>
   </section>;
 }
