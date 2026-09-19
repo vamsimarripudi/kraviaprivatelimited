@@ -43,6 +43,9 @@ describe("KRAVIA governed recruitment and pre-onboarding", () => {
     expect(integrity).toContain("office_candidate_document_received_v2");
     expect(integrity).toContain("Unsupported candidate document type");
     expect(server).toContain('storage.from("office-candidate-documents").upload');
+    expect(server).toContain('"/api/v1/security/file-scan"');
+    expect(server).toContain("malware protection");
+    expect(server.indexOf("scanCandidateDocument")).toBeLessThan(server.indexOf('storage.from("office-candidate-documents").upload'));
     expect(server).toContain('createHash("sha256")');
     expect(server).toContain("content does not match an allowed file type");
     expect(upload).toContain("officeMutationIsSameOrigin");

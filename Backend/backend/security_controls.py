@@ -192,7 +192,7 @@ def _oidc_mfa_guard(request: Request, app_env: str):
     forging an AAL claim.
     """
     auth_mode = os.getenv("AUTH_MODE", "bootstrap" if app_env != "production" else "oidc").lower()
-    if auth_mode != "oidc":
+    if auth_mode not in {"oidc", "first_party"}:
         return None
 
     cookie_token = request.cookies.get(ACCESS_COOKIE)
@@ -215,7 +215,7 @@ def _oidc_mfa_guard(request: Request, app_env: str):
         return JSONResponse({"detail": "Office sign-in required"}, status_code=401)
 
     claims = _unverified_claims(bearer)
-    required_aal = os.getenv("OIDC_REQUIRED_AAL", "aal2" if app_env == "production" else "").strip().lower()
+    required_aal = os.getenv("OFFICE_REQUIRED_AAL", os.getenv("OIDC_REQUIRED_AAL", "aal2" if app_env == "production" else "")).strip().lower()
     if required_aal and str(claims.get("aal") or "aal1").lower() != required_aal:
         return JSONResponse({"detail": "MFA verification required", "required_aal": required_aal}, status_code=403)
     if claims.get("office_access_status") and claims.get("office_access_status") != "ACTIVE":

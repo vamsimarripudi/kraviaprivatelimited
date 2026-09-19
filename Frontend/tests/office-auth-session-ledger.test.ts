@@ -1,51 +1,54 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const ledgerSql = readFileSync(new URL("../../Backend/spec/identity/SUPABASE_SESSION_LEDGER.sql", import.meta.url), "utf8");
-const ledgerServer = readFileSync(new URL("../lib/office/auth-session-server.ts", import.meta.url), "utf8");
+const authModels = readFileSync(new URL("../../Backend/backend/auth_models.py", import.meta.url), "utf8");
+const authApi = readFileSync(new URL("../../Backend/backend/identity_auth.py", import.meta.url), "utf8");
+const migration = readFileSync(new URL("../../Backend/backend/migrations/versions/a41f3c9e5d20_v10_first_party_office_identity.py", import.meta.url), "utf8");
+const authServer = readFileSync(new URL("../lib/office/auth-server.ts", import.meta.url), "utf8");
 const signInRoute = readFileSync(new URL("../app/api/office-auth/sign-in/route.ts", import.meta.url), "utf8");
 const mfaRoute = readFileSync(new URL("../app/api/office-auth/mfa/route.ts", import.meta.url), "utf8");
-const signOutRoute = readFileSync(new URL("../app/api/office-auth/sign-out/route.ts", import.meta.url), "utf8");
-const heartbeatRoute = readFileSync(new URL("../app/api/office-auth/heartbeat/route.ts", import.meta.url), "utf8");
-const sessionsRoute = readFileSync(new URL("../app/api/office-auth/sessions/route.ts", import.meta.url), "utf8");
+const registerRoute = readFileSync(new URL("../app/api/office-auth/register/route.ts", import.meta.url), "utf8");
 
-describe("KRAVIA Office authentication session ledger", () => {
-  it("stores security session metadata without storing authentication tokens", () => {
-    expect(ledgerSql).toContain("office_auth_sessions");
-    expect(ledgerSql).toContain("provider_session_id");
-    expect(ledgerSql).toContain("user_agent_hash");
-    expect(ledgerSql).not.toContain("access_token");
-    expect(ledgerSql).not.toContain("refresh_token");
-    expect(ledgerServer).toContain("token-hash:");
+describe("KRAVIA Office first-party identity boundary", () => {
+  it("stores only password hashes and refresh-token hashes in the canonical database", () => {
+    expect(authModels).toContain('password_hash = Column(String(512)');
+    expect(authModels).toContain('refresh_token_hash = Column(String(64)');
+    expect(authModels).not.toContain("refresh_token = Column");
+    expect(authModels).not.toContain("access_token = Column");
+    expect(authApi).toContain("PASSWORD_HASHER = PasswordHasher");
+    expect(authApi).toContain("argon2");
   });
 
-  it("keeps authentication events immutable and hidden from browser database roles", () => {
-    expect(ledgerSql).toContain("office_auth_event_immutable_guard");
-    expect(ledgerSql).toContain("enable row level security");
-    expect(ledgerSql).toContain("revoke all on public.office_auth_sessions, public.office_auth_events");
-    expect(ledgerSql).toContain("grant execute on function public.office_open_auth_session");
-    expect(ledgerSql).toContain("grant execute on function public.office_record_auth_session_event");
+  it("keeps first-party identity tables closed to browser database roles", () => {
+    expect(migration).toContain("office_auth_users");
+    expect(migration).toContain("office_auth_sessions_v2");
+    expect(migration).toContain("office_auth_invites");
+    expect(migration).toContain("enable row level security");
+    expect(migration).toContain("revoke all on table");
   });
 
-  it("opens the ledger only after a provisioned sign-in and fails closed when audit tracking is unavailable", () => {
-    expect(signInRoute).toContain("beginOfficeAuthSession");
-    expect(signInRoute).toContain("await signOutOffice(context)");
-    expect(signInRoute).toContain("OFFICE_AUTHORITY_UNAVAILABLE");
-    expect(signInRoute).toContain("KRAVIA Office authorisation service is unavailable");
-    expect(signInRoute).toContain("KRAVIA Office secure session service is unavailable");
+  it("keeps provider tokens server-side in HttpOnly same-site cookies", () => {
+    expect(authServer).toContain('OFFICE_ACCESS_COOKIE = "kravia_office_access"');
+    expect(authServer).toContain('OFFICE_REFRESH_COOKIE = "kravia_office_refresh"');
+    expect(authServer).toMatch(/httpOnly:\s*true/);
+    expect(authServer).toMatch(/sameSite:\s*"strict"/);
+    expect(signInRoute).not.toContain("access_token:");
+    expect(registerRoute).not.toContain("access_token:");
   });
 
-  it("records MFA, heartbeat and logout as security-session events", () => {
-    expect(mfaRoute).toContain("markOfficeMfaVerified");
-    expect(heartbeatRoute).toContain("touchOfficeAuthSession");
-    expect(heartbeatRoute).toContain("officeMutationIsSameOrigin");
-    expect(signOutRoute).toContain("closeOfficeAuthSession");
-    expect(ledgerSql).toContain("'MFA_VERIFIED','SESSION_SEEN','LOGOUT'");
+  it("requires KRAVIA first-party MFA before workspace access", () => {
+    expect(authApi).toContain('session.aal = "aal2"');
+    expect(authApi).toContain("pyotp.TOTP");
+    expect(authApi).toContain("_encrypt_mfa_secret");
+    expect(mfaRoute).toContain("verifyOfficeMfa");
+    expect(mfaRoute).not.toContain("context.client.auth");
   });
 
-  it("exposes only the current user's recent session history behind AAL2", () => {
-    expect(sessionsRoute).toContain("context.identity.aal !== \"aal2\"");
-    expect(sessionsRoute).toContain("getMyOfficeAuthSessions");
-    expect(ledgerServer).toContain('.eq("user_id", context.identity.userId)');
+  it("does not use Supabase Auth in the active BFF identity flow", () => {
+    expect(authServer).not.toContain("createClient");
+    expect(authServer).not.toContain(".auth.");
+    expect(signInRoute).not.toContain("Supabase");
+    expect(mfaRoute).not.toContain("Supabase");
+    expect(registerRoute).not.toContain("Supabase");
   });
 });

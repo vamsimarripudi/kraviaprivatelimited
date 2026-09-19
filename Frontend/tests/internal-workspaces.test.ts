@@ -8,7 +8,7 @@ const authServerSource = readFileSync(new URL("../lib/office/auth-server.ts", im
 const signInSource = readFileSync(new URL("../app/api/office-auth/sign-in/route.ts", import.meta.url), "utf8");
 const runtimeProxySource = readFileSync(new URL("../app/api/office-runtime/[...path]/route.ts", import.meta.url), "utf8");
 const accessAdminSource = readFileSync(new URL("../lib/office/access-admin.ts", import.meta.url), "utf8");
-const activationSource = readFileSync(new URL("../components/workspace-activation-form.tsx", import.meta.url), "utf8");
+const registrationSource = readFileSync(new URL("../components/office-register-form.tsx", import.meta.url), "utf8");
 
 describe("KRAVIA path-based internal workspaces", () => {
   it("routes employees/governance roles to Office and finance professionals to Finance", () => {
@@ -52,18 +52,20 @@ describe("KRAVIA path-based internal workspaces", () => {
     expect(signInSource).not.toContain('"refresh_token"');
   });
 
-  it("uses trusted server administration and authoritative role rechecks", () => {
-    expect(authServerSource).toContain("OFFICE_SUPABASE_SECRET_KEY");
-    expect(authServerSource).toContain("resolveAuthoritativeIdentity");
-    expect(accessAdminSource).toContain("inviteUserByEmail");
+  it("uses the KRAVIA first-party authority and live authorization rechecks", () => {
+    expect(authServerSource).toContain("/api/v1/auth/session");
+    expect(authServerSource).toContain("authorization_version");
+    expect(authServerSource).not.toContain(".auth.");
+    expect(accessAdminSource).toContain('"/api/v1/auth/invitations"');
     expect(accessAdminSource).toContain("AAL2 verification is required");
-    expect(accessAdminSource).not.toContain("NEXT_PUBLIC_SUPABASE_SECRET");
+    expect(accessAdminSource).not.toContain("admin.auth.admin");
   });
 
-  it("requires strong invite activation password and MFA", () => {
-    expect(activationSource).toContain("password.length >= 14");
-    expect(activationSource).toContain('/api/office-auth/mfa');
-    expect(activationSource).toContain('Verify and enter workspace');
+  it("requires strong registration passwords and MFA", () => {
+    expect(registrationSource).toContain("password.length >= 12");
+    expect(registrationSource).toContain('/api/office-auth/mfa');
+    expect(registrationSource).toContain('Verify and enter Office');
+    expect(registrationSource).toContain("Locked");
   });
 
   it("rejects cross-origin Office browser mutations", () => {

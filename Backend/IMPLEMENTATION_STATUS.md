@@ -27,19 +27,20 @@ Canonical browser surfaces are now:
 - [x] Public-site `/admin` identity boundary separated from KRAVIA Office identity
 
 ### Identity and authorization
-- [x] Dedicated `KRAVIA Office` Supabase Auth project in `ap-south-1` (`xjtazosozxmudkbxqhjl`), isolated from product/public-site identity projects
-- [x] Asymmetric JWT signing key activated in hosted Supabase
-- [x] `public.office_custom_access_token_hook` deployed and activated
-- [x] Public Office signup disabled
-- [x] First named human Office identity created and email-confirmed
-- [x] First named identity explicitly admitted as ACTIVE with `OWNER` role
-- [x] Hook output verified with `office_roles=[OWNER]` and `office_access_status=ACTIVE`
-- [x] Server-side RBAC roles: OWNER, DIRECTOR, FINANCE, CA, CS, LEGAL, HR, OPERATIONS, AUDITOR and PRODUCT_ADMIN
-- [x] Same-origin Supabase Auth BFF with HttpOnly/SameSite=Strict cookie storage; bearer/refresh tokens are not exposed to application JavaScript
-- [x] TOTP enrollment/challenge/verification implementation and production `aal2` enforcement
-- [x] No Office public self-signup endpoint
-- [x] Maker-checker approval primitive preventing requester self-approval
-- [ ] First named OWNER TOTP factor enrollment and live AAL2 verification — operator/user gate
+- [x] **KRAVIA first-party Office identity authority** implemented in FastAPI/PostgreSQL; Supabase Auth is not used by the active login/register/invite/MFA flow
+- [x] Argon2id password hashing; plaintext passwords are never stored
+- [x] Short-lived KRAVIA access JWTs plus rotating refresh tokens stored only as SHA-256 hashes
+- [x] TOTP MFA with encrypted-at-rest authenticator secret and mandatory production AAL2
+- [x] Server-side RBAC roles: OWNER, DIRECTOR, ADMIN, MEMBER, FINANCE, CA, CS, LEGAL, HR, OPERATIONS, AUDITOR and PRODUCT_ADMIN
+- [x] Existing `office_identity_users`, `office_user_roles`, department, permission-profile and audit ledgers remain the authorization/control-plane source of truth
+- [x] Same-origin Next.js BFF with HttpOnly/SameSite=Strict cookie storage; access/refresh tokens are not returned to application JavaScript
+- [x] One-time Founder bootstrap registration with locked Founder display identity, protected by a server-to-server bootstrap secret
+- [x] Founder bootstrap maps to the protected OWNER authorization boundary and permanently closes after the first successful registration
+- [x] Future registration is single-use/private-link only; links are issued by AAL2 OWNER/ADMIN authority and raw invite tokens are never stored
+- [x] Failed-login lockout, auditable login/MFA/session events, session revocation and controlled MFA reset
+- [x] Legacy Supabase Auth invite/recovery UI and callbacks removed from the active Office identity path
+- [ ] Production first-party secrets configured on Railway/Vercel and accepted live — cutover gate
+- [ ] First Founder registration + live TOTP/AAL2 acceptance — operator gate
 - [ ] Full staging IDOR/BOLA/all-role acceptance matrix — production acceptance gate
 
 ### Path/workspace security
@@ -102,7 +103,8 @@ Canonical browser surfaces are now:
 - [x] Production runtime and Alembic transactions now apply `SET LOCAL ROLE kravia_office_backend` through `DATABASE_EXECUTION_ROLE`; the current Railway deployment passed pre-deploy migration and health acceptance with that boundary enabled
 - [x] Alembic v6-v9 service tables are owned by `kravia_office_backend`, have RLS enabled, and explicitly deny anon/authenticated CRUD
 - [x] Legacy FastAPI table defense-in-depth RLS rollout completed live and versioned in `202609180043_legacy_fastapi_rls.sql`; no permissive browser policies were added
-- [ ] Enable Supabase Auth leaked-password protection (current security-advisor WARN)
+- [x] Supabase Auth removed from the active Office identity path; its leaked-password setting is therefore not an Office-auth production gate
+- [x] First-party identity tables are RLS-enabled and browser roles are revoked; the trusted service identity has only the directory read needed by server-side Access Administration
 - [ ] Continue treating RLS-enabled/no-policy INFO findings according to the service-role-only table design; do not add permissive browser policies merely to silence the linter
 
 ### Application security / operations
@@ -126,13 +128,13 @@ Latest fully green `main` quality run verified:
 - [x] secret scan
 - [x] ESLint
 - [x] TypeScript typecheck
-- [x] root Vitest suite: **390 tests passed across 82 files**
-- [x] Next.js 16.3.5 production build, including `/office`, `/finance`, Office auth and Office runtime gateway routes
+- [x] root Vitest suite: **394 tests passed across 84 files**
+- [x] Next.js 16.3.5 production build, including `/office`, `/office/register`, `/finance`, first-party Office auth and Office runtime gateway routes
 - [x] Python compilation
 - [x] committed OpenAPI drift verification
-- [x] clean Alembic migration chain through v9
-- [x] Office backend suite: **75 tests passed**
-- [x] identity token non-disclosure / HttpOnly cookies / TOTP AAL2 / inactive-user / role-admission controls
+- [x] clean Alembic migration chain through v10
+- [x] Office backend suite: **77 tests passed**
+- [x] first-party Argon2id credentials / hashed refresh sessions / HttpOnly cookies / one-time Founder bootstrap / private single-use invites / encrypted TOTP AAL2 / inactive-user / role-admission controls
 - [x] path-workspace role boundaries, legacy redirects, same-origin mutation guard and fixed-origin runtime gateway regression tests
 - [x] period-close, HTTP security, Drive taxonomy, finance/ownership/provider/idempotency, RBAC, governance, audit-chain and document controls
 - [x] hardened Office quality gate: **PASS**
@@ -149,7 +151,8 @@ The canonical browser remains path-based at `kraviaprivatelimited.com/office` an
 
 ## External production gates intentionally not faked
 
-- first OWNER TOTP enrollment / AAL2 live verification
+- production first-party auth cutover: Railway signing secret + shared Founder bootstrap secret + `AUTH_MODE=first_party`
+- first Founder registration and live TOTP/AAL2 verification
 - re-authenticate the Vercel connector to the `kravia1` scope and read back the successful KRAVIA project's root/build/environment/domain configuration
 - apex `kraviaprivatelimited.com` domain attachment / DNS validation; optional `www` redirect
 - set/verify frontend `OFFICE_API_ORIGIN` against the accepted Railway API origin once the canonical Vercel project is accessible
@@ -161,7 +164,7 @@ The canonical browser remains path-based at `kraviaprivatelimited.com/office` an
 - eSign/DSC where required
 - Google Drive runtime service identity
 - upgrade/provision Railway capacity for the dedicated production worker service/process (current Free-plan resource limit blocks creation); then connect verified external SLO telemetry and audit archive sink and configure provider edge/WAF controls
-- enable Supabase leaked-password protection and complete final staging browser/accessibility/security assessment
+- complete first-party identity cutover acceptance and final staging browser/accessibility/security assessment
 
 ## Release rule
 

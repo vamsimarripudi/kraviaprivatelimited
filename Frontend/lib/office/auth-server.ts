@@ -1,144 +1,134 @@
 import "server-only";
-import { createHmac, timingSafeEqual } from "node:crypto";
+
 import { cookies } from "next/headers";
-import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
-import { getOfficeAdminEnvironment, requireOfficeAdminEnvironment, requireOfficeEnvironment } from "@/lib/env/office";
-import { activeRoleNames, isOfficeDepartment, type OfficeDepartment } from "@/lib/office/access-policy";
+import { getOfficeRuntimeOrigin } from "@/lib/env/office";
+import { isOfficeDepartment, type OfficeDepartment } from "@/lib/office/access-policy";
 import { isOfficeRole, type OfficeRole } from "@/lib/office/workspaces";
 
 export const OFFICE_ACCESS_COOKIE = "kravia_office_access";
 export const OFFICE_REFRESH_COOKIE = "kravia_office_refresh";
 export const OFFICE_RECOVERY_COOKIE = "kravia_office_recovery";
-const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
-const RECOVERY_MAX_AGE_SECONDS = 60 * 15;
+
+const ACCESS_COOKIE_MAX_AGE_SECONDS = 60 * 60;
+const REFRESH_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
 export type OfficeIdentity = {
   userId: string;
   email?: string;
+  displayName?: string;
   roles: OfficeRole[];
   accessStatus: string;
   department?: OfficeDepartment;
   authzVersion: number;
   aal: "aal1" | "aal2";
+  founder?: boolean;
+  displayRole?: string;
+};
+
+export type OfficeSession = {
+  access_token: string;
+  refresh_token?: string;
+  expires_in?: number;
 };
 
 export type OfficeSessionContext = {
-  client: SupabaseClient;
-  session: Session;
+  session: OfficeSession;
   identity: OfficeIdentity;
+  mfa: { enrolled: boolean };
 };
 
-function createServerSupabaseClient(url: string, key: string) {
-  return createClient(url, key, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
+type FirstPartyAuthResponse = {
+  authenticated: boolean;
+  access_token: string;
+  refresh_token?: string;
+  expires_in?: number;
+  user_id: string;
+  email?: string;
+  display_name?: string;
+  roles: string[];
+  access_status: string;
+  department?: string | null;
+  authorization_version?: number;
+  aal: "aal1" | "aal2";
+  founder?: boolean;
+  display_role?: string;
+  mfa?: { enrolled?: boolean };
+};
+
+type ApiErrorBody = { detail?: string };
+
+function origin() {
+  const value = getOfficeRuntimeOrigin();
+  if (!value) throw new Error("KRAVIA Office runtime is not configured");
+  return value;
+}
+
+async function rawApi(path: string, init: RequestInit = {}) {
+  const response = await fetch(new URL(path, origin()), {
+    ...init,
+    cache: "no-store",
+    redirect: "manual",
+    signal: AbortSignal.timeout(25_000),
+    headers: {
+      Accept: "application/json",
+      ...(init.body ? { "Content-Type": "application/json" } : {}),
+      ...(init.headers ?? {}),
     },
   });
-}
-
-function createOfficeAuthClient() {
-  const environment = requireOfficeEnvironment();
-  return createServerSupabaseClient(
-    environment.OFFICE_SUPABASE_URL,
-    environment.OFFICE_SUPABASE_PUBLISHABLE_KEY,
-  );
-}
-
-function decodeJwtPayload(token: string): Record<string, unknown> {
-  try {
-    const payload = token.split(".")[1];
-    if (!payload) return {};
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
-    return JSON.parse(Buffer.from(padded, "base64").toString("utf8")) as Record<string, unknown>;
-  } catch {
-    return {};
+  if (response.status >= 300 && response.status < 400) {
+    throw new Error("KRAVIA Office runtime returned an unexpected redirect");
   }
+  return response;
 }
 
-function identityFromSession(session: Session): OfficeIdentity {
-  const claims = decodeJwtPayload(session.access_token);
-  const rawRoles = Array.isArray(claims.office_roles) ? claims.office_roles : [];
-  const roles = rawRoles.filter(isOfficeRole);
-  const aal = claims.aal === "aal2" ? "aal2" : "aal1";
-  const department = isOfficeDepartment(claims.office_department) ? claims.office_department : undefined;
-  const authzVersion = typeof claims.office_authz_version === "number" ? claims.office_authz_version : 0;
+async function parseOrThrow<T>(response: Response): Promise<T> {
+  const body = await response.json().catch(() => ({})) as ApiErrorBody;
+  if (!response.ok) {
+    throw new Error(typeof body.detail === "string" ? body.detail : "KRAVIA Office identity request failed");
+  }
+  return body as T;
+}
+
+function toIdentity(payload: FirstPartyAuthResponse): OfficeIdentity {
+  const roles = (payload.roles ?? []).filter(isOfficeRole);
+  const departmentCandidate = payload.department;
   return {
-    userId: session.user.id,
-    email: session.user.email,
+    userId: payload.user_id,
+    email: payload.email,
+    displayName: payload.display_name,
     roles,
-    accessStatus: typeof claims.office_access_status === "string" ? claims.office_access_status : "UNASSIGNED",
-    department,
-    authzVersion,
-    aal,
+    accessStatus: payload.access_status,
+    department: isOfficeDepartment(departmentCandidate) ? departmentCandidate : undefined,
+    authzVersion: typeof payload.authorization_version === "number" ? payload.authorization_version : 1,
+    aal: payload.aal === "aal2" ? "aal2" : "aal1",
+    founder: payload.founder === true,
+    displayRole: payload.display_role,
   };
-}
-
-async function resolveAuthoritativeIdentity(session: Session, fallback: OfficeIdentity): Promise<OfficeIdentity> {
-  const environment = getOfficeAdminEnvironment();
-  if (!environment) return fallback;
-  const authority = createServerSupabaseClient(
-    environment.OFFICE_SUPABASE_URL,
-    environment.OFFICE_SUPABASE_SECRET_KEY,
-  );
-  const [identityResult, roleResult] = await Promise.all([
-    authority
-      .from("office_identity_users")
-      .select("status,primary_department,authorization_version")
-      .eq("user_id", session.user.id)
-      .maybeSingle(),
-    authority.from("office_user_roles").select("role,expires_at").eq("user_id", session.user.id),
-  ]);
-  if (identityResult.error || roleResult.error || !identityResult.data) {
-    return { ...fallback, roles: [], accessStatus: "AUTHORITY_UNAVAILABLE", authzVersion: 0 };
-  }
-  const row = identityResult.data as Record<string, unknown>;
-  const roles = activeRoleNames((roleResult.data ?? []) as { role: unknown; expires_at?: unknown }[]);
-  const department = isOfficeDepartment(row.primary_department) ? row.primary_department : undefined;
-  const version = typeof row.authorization_version === "number" ? row.authorization_version : Number(row.authorization_version ?? 0);
-  return {
-    userId: session.user.id,
-    email: session.user.email,
-    roles: row.status === "ACTIVE" ? roles : [],
-    accessStatus: typeof row.status === "string" ? row.status : "UNASSIGNED",
-    department,
-    authzVersion: Number.isFinite(version) ? version : 0,
-    aal: fallback.aal,
-  };
-}
-
-function recoveryCookieValue(userId: string, expiresAt: number) {
-  const secret = requireOfficeAdminEnvironment().OFFICE_SUPABASE_SECRET_KEY;
-  const signature = createHmac("sha256", secret)
-    .update(`kravia-office-recovery:${userId}:${expiresAt}`)
-    .digest("base64url");
-  return `${userId}.${expiresAt}.${signature}`;
-}
-
-function constantTimeEquals(left: string, right: string) {
-  const leftBuffer = Buffer.from(left);
-  const rightBuffer = Buffer.from(right);
-  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
 }
 
 export function officeIdentityIsProvisioned(identity: OfficeIdentity) {
   return identity.accessStatus === "ACTIVE" && identity.roles.length > 0;
 }
 
-export async function writeOfficeSessionCookies(session: Session) {
+export async function writeOfficeSessionCookies(session: OfficeSession) {
   const store = await cookies();
   const secure = process.env.NODE_ENV === "production";
-  const options = {
+  const common = {
     httpOnly: true,
     secure,
     sameSite: "strict" as const,
     path: "/",
-    maxAge: SESSION_MAX_AGE_SECONDS,
   };
-  store.set(OFFICE_ACCESS_COOKIE, session.access_token, options);
-  store.set(OFFICE_REFRESH_COOKIE, session.refresh_token, options);
+  store.set(OFFICE_ACCESS_COOKIE, session.access_token, {
+    ...common,
+    maxAge: Math.max(60, session.expires_in ?? ACCESS_COOKIE_MAX_AGE_SECONDS),
+  });
+  if (session.refresh_token) {
+    store.set(OFFICE_REFRESH_COOKIE, session.refresh_token, {
+      ...common,
+      maxAge: REFRESH_COOKIE_MAX_AGE_SECONDS,
+    });
+  }
 }
 
 export async function clearOfficeRecoveryCookie() {
@@ -154,142 +144,202 @@ export async function clearOfficeRecoveryCookie() {
 
 export async function clearOfficeSessionCookies() {
   const store = await cookies();
-  const secure = process.env.NODE_ENV === "production";
-  const options = { httpOnly: true, secure, sameSite: "strict" as const, path: "/", maxAge: 0 };
+  const options = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict" as const,
+    path: "/",
+    maxAge: 0,
+  };
   store.set(OFFICE_ACCESS_COOKIE, "", options);
   store.set(OFFICE_REFRESH_COOKIE, "", options);
   store.set(OFFICE_RECOVERY_COOKIE, "", options);
 }
 
-export async function writeOfficeRecoveryCookie(userId: string) {
-  const expiresAt = Math.floor(Date.now() / 1000) + RECOVERY_MAX_AGE_SECONDS;
-  const store = await cookies();
-  store.set(OFFICE_RECOVERY_COOKIE, recoveryCookieValue(userId, expiresAt), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    path: "/",
-    maxAge: RECOVERY_MAX_AGE_SECONDS,
-  });
+async function contextFromPayload(payload: FirstPartyAuthResponse): Promise<OfficeSessionContext> {
+  const session = {
+    access_token: payload.access_token,
+    refresh_token: payload.refresh_token,
+    expires_in: payload.expires_in,
+  };
+  return {
+    session,
+    identity: toIdentity(payload),
+    mfa: { enrolled: payload.mfa?.enrolled === true },
+  };
 }
 
-export async function officeRecoveryIsVerified(userId: string) {
-  const store = await cookies();
-  const value = store.get(OFFICE_RECOVERY_COOKIE)?.value;
-  if (!value) return false;
-  const [cookieUserId, expiresText, signature] = value.split(".");
-  const expiresAt = Number(expiresText);
-  if (!cookieUserId || !signature || cookieUserId !== userId || !Number.isFinite(expiresAt)) return false;
-  if (expiresAt <= Math.floor(Date.now() / 1000)) return false;
+async function refreshWithToken(refreshToken: string): Promise<OfficeSessionContext | null> {
   try {
-    const expected = recoveryCookieValue(userId, expiresAt);
-    return constantTimeEquals(value, expected);
+    const response = await rawApi("/api/v1/auth/refresh", {
+      method: "POST",
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    const payload = await parseOrThrow<FirstPartyAuthResponse>(response);
+    const context = await contextFromPayload(payload);
+    try { await writeOfficeSessionCookies(context.session); } catch { /* Server Component cookie writes wait for a route handler. */ }
+    return context;
   } catch {
-    return false;
+    return null;
   }
 }
 
 export async function getOfficeSessionContext(): Promise<OfficeSessionContext | null> {
-  let client: SupabaseClient;
-  try {
-    client = createOfficeAuthClient();
-  } catch {
-    return null;
-  }
   const store = await cookies();
   const accessToken = store.get(OFFICE_ACCESS_COOKIE)?.value;
   const refreshToken = store.get(OFFICE_REFRESH_COOKIE)?.value;
-  if (!accessToken || !refreshToken) return null;
-  const { data: restored, error: restoreError } = await client.auth.setSession({
-    access_token: accessToken,
-    refresh_token: refreshToken,
-  });
-  if (restoreError || !restored.session) return null;
-  const { data: userData, error: userError } = await client.auth.getUser();
-  if (userError || !userData.user) return null;
-  const session = restored.session;
-  if (session.access_token !== accessToken || session.refresh_token !== refreshToken) {
-    try {
-      await writeOfficeSessionCookies(session);
-    } catch {
-      /* Server Component cookie writes wait for route handler. */
-    }
+  if (!accessToken) {
+    return refreshToken ? refreshWithToken(refreshToken) : null;
   }
-  const fallback = identityFromSession(session);
-  const identity = await resolveAuthoritativeIdentity(session, fallback);
-  return { client, session, identity };
+
+  try {
+    const response = await rawApi("/api/v1/auth/session", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (response.status === 401 && refreshToken) return refreshWithToken(refreshToken);
+    const payload = await parseOrThrow<FirstPartyAuthResponse>(response);
+    const context = await contextFromPayload(payload);
+    context.session.access_token = payload.access_token || accessToken;
+    try { await writeOfficeSessionCookies(context.session); } catch { /* no-op in Server Components */ }
+    return context;
+  } catch {
+    return refreshToken ? refreshWithToken(refreshToken) : null;
+  }
 }
 
 export async function signInOffice(email: string, password: string): Promise<OfficeSessionContext> {
-  const client = createOfficeAuthClient();
-  const { data, error } = await client.auth.signInWithPassword({ email, password });
-  if (error || !data.session) throw new Error("INVALID_CREDENTIALS");
-  const identity = await resolveAuthoritativeIdentity(data.session, identityFromSession(data.session));
-  if (identity.accessStatus === "AUTHORITY_UNAVAILABLE") {
-    await client.auth.signOut({ scope: "local" });
-    throw new Error("OFFICE_AUTHORITY_UNAVAILABLE");
-  }
-  if (!officeIdentityIsProvisioned(identity)) {
-    await client.auth.signOut({ scope: "local" });
-    throw new Error("ACCESS_NOT_PROVISIONED");
-  }
+  const response = await rawApi("/api/v1/auth/sign-in", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+  const payload = await parseOrThrow<FirstPartyAuthResponse>(response);
+  const context = await contextFromPayload(payload);
   await clearOfficeRecoveryCookie();
-  await writeOfficeSessionCookies(data.session);
-  return { client, session: data.session, identity };
+  await writeOfficeSessionCookies(context.session);
+  return context;
 }
 
-export async function verifyOfficeInviteToken(tokenHash: string): Promise<OfficeSessionContext> {
-  const client = createOfficeAuthClient();
-  const { data, error } = await client.auth.verifyOtp({ token_hash: tokenHash, type: "invite" });
-  if (error || !data.session) throw new Error("INVALID_INVITE");
-  const identity = await resolveAuthoritativeIdentity(data.session, identityFromSession(data.session));
-  if (identity.accessStatus !== "INVITED") {
-    await client.auth.signOut({ scope: "local" });
-    throw new Error("INVITE_NOT_PENDING");
-  }
-  await clearOfficeRecoveryCookie();
-  await writeOfficeSessionCookies(data.session);
-  return { client, session: data.session, identity };
+export async function founderBootstrapStatus() {
+  const response = await rawApi("/api/v1/auth/bootstrap-status");
+  return parseOrThrow<{
+    registration_open: boolean;
+    role: "FOUNDER";
+    role_locked: true;
+    public_registration_closes_after_success: true;
+  }>(response);
 }
 
-export async function requestOfficePasswordRecovery(email: string, redirectTo: string) {
-  const client = createOfficeAuthClient();
-  const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo });
-  if (error) throw new Error("RECOVERY_REQUEST_FAILED");
+export async function registerFounder(input: { email: string; display_name: string; password: string }) {
+  const bootstrapKey = process.env.OFFICE_AUTH_BOOTSTRAP_SECRET?.trim();
+  if (!bootstrapKey) throw new Error("Founder registration is not configured on this deployment");
+  const response = await rawApi("/api/v1/auth/register-founder", {
+    method: "POST",
+    headers: { "X-Kravia-Bootstrap-Key": bootstrapKey },
+    body: JSON.stringify(input),
+  });
+  const payload = await parseOrThrow<FirstPartyAuthResponse>(response);
+  const context = await contextFromPayload(payload);
+  await writeOfficeSessionCookies(context.session);
+  return context;
 }
 
-export async function verifyOfficeRecoveryToken(tokenHash: string): Promise<OfficeSessionContext> {
-  const client = createOfficeAuthClient();
-  const { data, error } = await client.auth.verifyOtp({ token_hash: tokenHash, type: "recovery" });
-  if (error || !data.session) throw new Error("INVALID_RECOVERY");
-  const identity = await resolveAuthoritativeIdentity(data.session, identityFromSession(data.session));
-  if (!officeIdentityIsProvisioned(identity)) {
-    await client.auth.signOut({ scope: "local" });
-    throw new Error("RECOVERY_NOT_AUTHORIZED");
-  }
-  await writeOfficeSessionCookies(data.session);
-  await writeOfficeRecoveryCookie(identity.userId);
-  return { client, session: data.session, identity };
+export async function invitationStatus(token: string) {
+  const target = new URL("/api/v1/auth/invitation", origin());
+  target.searchParams.set("token", token);
+  const response = await fetch(target, {
+    cache: "no-store",
+    redirect: "manual",
+    signal: AbortSignal.timeout(25_000),
+    headers: { Accept: "application/json" },
+  });
+  return parseOrThrow<{
+    valid: true;
+    email: string;
+    display_name?: string | null;
+    job_title?: string | null;
+    department?: string | null;
+    roles: OfficeRole[];
+    expires_at: string;
+  }>(response);
+}
+
+export async function registerInvitedOfficeUser(input: { token: string; display_name: string; password: string }) {
+  const response = await rawApi("/api/v1/auth/invitation/register", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  const payload = await parseOrThrow<FirstPartyAuthResponse>(response);
+  const context = await contextFromPayload(payload);
+  await writeOfficeSessionCookies(context.session);
+  return context;
+}
+
+export async function enrollOfficeMfa(context: OfficeSessionContext) {
+  const response = await rawApi("/api/v1/auth/mfa/enroll", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${context.session.access_token}` },
+  });
+  return parseOrThrow<{ factor_id: string; qr_code: string; manual_key: string; friendly_name: string }>(response);
+}
+
+export async function verifyOfficeMfa(context: OfficeSessionContext, code: string) {
+  const response = await rawApi("/api/v1/auth/mfa/verify", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${context.session.access_token}` },
+    body: JSON.stringify({ code }),
+  });
+  const payload = await parseOrThrow<FirstPartyAuthResponse & { verified: true }>(response);
+  const next: OfficeSessionContext = {
+    session: {
+      access_token: payload.access_token,
+      refresh_token: context.session.refresh_token,
+      expires_in: payload.expires_in,
+    },
+    identity: toIdentity(payload),
+    mfa: { enrolled: true },
+  };
+  await writeOfficeSessionCookies(next.session);
+  return next;
 }
 
 export async function refreshOfficeIdentity(context: OfficeSessionContext): Promise<OfficeSessionContext> {
-  const { data, error } = await context.client.auth.refreshSession({ refresh_token: context.session.refresh_token });
-  if (error || !data.session) throw new Error("SESSION_REFRESH_FAILED");
-  const identity = await resolveAuthoritativeIdentity(data.session, identityFromSession(data.session));
-  await writeOfficeSessionCookies(data.session);
-  return { client: context.client, session: data.session, identity };
+  const response = await rawApi("/api/v1/auth/session", {
+    headers: { Authorization: `Bearer ${context.session.access_token}` },
+  });
+  const payload = await parseOrThrow<FirstPartyAuthResponse>(response);
+  return {
+    session: { ...context.session, access_token: payload.access_token || context.session.access_token },
+    identity: toIdentity(payload),
+    mfa: { enrolled: payload.mfa?.enrolled === true },
+  };
 }
 
-export async function signOutOffice(
-  context?: OfficeSessionContext | null,
-  scope: "local" | "global" = "local",
-) {
+export async function signOutOffice(context?: OfficeSessionContext | null) {
   if (context) {
     try {
-      await context.client.auth.signOut({ scope });
+      await rawApi("/api/v1/auth/sign-out", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${context.session.access_token}` },
+      });
     } catch {
       /* Browser cookies are still cleared below. */
     }
   }
   await clearOfficeSessionCookies();
+}
+
+// Recovery is intentionally administrator-assisted in the first-party rollout.
+// No email-based self-service recovery endpoint is exposed until its provider and
+// anti-takeover workflow are separately approved.
+export async function requestOfficePasswordRecovery() {
+  throw new Error("ADMINISTRATOR_ASSISTED_RECOVERY_REQUIRED");
+}
+export async function verifyOfficeRecoveryToken() {
+  throw new Error("ADMINISTRATOR_ASSISTED_RECOVERY_REQUIRED");
+}
+export async function writeOfficeRecoveryCookie() {
+  throw new Error("ADMINISTRATOR_ASSISTED_RECOVERY_REQUIRED");
+}
+export async function officeRecoveryIsVerified() {
+  return false;
 }
