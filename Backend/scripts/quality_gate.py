@@ -79,12 +79,12 @@ for token in ["ownership/summary", "ownership/transfers", "finance/funding-polic
 for token in ["ShareLedgerEntry", "ShareTransferRequest", "FundingPolicy", "ExpenseObligation", "PaymentMandate", "ContributionCall", "PaymentInstruction", "FinanceProviderEvent"]:
     check(f"finance-ownership-model:{token}", f"class {token}" in finance_models, token)
 
-check("identity:same-origin-bff", "HTTPONLY_SAMESITE_COOKIE" in identity and "sign_in_with_password" in identity, "same-origin identity BFF")
-check("identity:no-public-signup", "sign_up" not in identity and "public_signup_exposed_by_office" in identity, "no Office self-signup endpoint")
-check("identity:mfa", "mfa.verify" in identity and "aal2" in identity, "TOTP MFA promotion")
+check("identity:first-party-core", "PASSWORD_HASHER = PasswordHasher" in identity and "refresh_token_hash" in identity and "KRAVIA_FIRST_PARTY" in identity, "KRAVIA-owned password and session authority")
+check("identity:founder-bootstrap", "Founder registration is permanently closed" in identity and "X-Kravia-Bootstrap-Key" in identity and "FOUNDER_SLOT" in identity, "one-time protected Founder bootstrap")
+check("identity:mfa", "pyotp.TOTP" in identity and 'session.aal = "aal2"' in identity and "_encrypt_mfa_secret" in identity, "first-party encrypted TOTP MFA promotion")
 check("identity:role-claim", "office_roles" in identity, "Office role claim")
 check("identity:cookie-bridge", "kravia_office_access" in security_controls and "_inject_bearer" in security_controls, "HttpOnly cookie to verified Bearer bridge")
-check("identity:aal2-gate", "OIDC_REQUIRED_AAL" in security_controls and "MFA verification required" in security_controls, "AAL2 production gate")
+check("identity:aal2-gate", "OFFICE_REQUIRED_AAL" in security_controls and "MFA verification required" in security_controls, "AAL2 production gate")
 check("identity:attached", "build_identity_router" in app, "identity router attached to canonical app")
 
 check("period-control:model", "class AccountingPeriodLock" in period_controls, "AccountingPeriodLock")
