@@ -83,7 +83,7 @@ def upgrade() -> None:
         sa.Column("display_name", sa.String(length=160), nullable=True),
         sa.Column("job_title", sa.String(length=160), nullable=True),
         sa.Column("department", sa.String(length=64), nullable=True),
-        sa.Column("role", sa.String(length=64), nullable=False),
+        sa.Column("roles_json", sa.Text(), nullable=False, server_default="[]"),
         sa.Column("status", sa.String(length=24), nullable=False, server_default="PENDING"),
         sa.Column("created_by", sa.String(length=36), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
