@@ -1,0 +1,104 @@
+name: Encrypted KRAVIA database backup
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 02:00 Asia/Kolkata (GitHub cron is UTC).
+    - cron: "30 20 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kravia-office-database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Encrypted logical backup
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.KRAVIA_BACKUPS_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BACKUP_DATABASE_URL: ${{ secrets.KRAVIA_BACKUP_DATABASE_URL }}
+      BACKUP_ENCRYPTION_KEY: ${{ secrets.KRAVIA_DB_BACKUP_KEY }}
+      SUPABASE_CLI_VERSION: "2.117.0"
+
+    steps:
+      - name: Validate backup secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$BACKUP_DATABASE_URL" ]; then
+            echo "::error::KRAVIA_BACKUP_DATABASE_URL is not configured."
+            exit 1
+          fi
+          if [ -z "$BACKUP_ENCRYPTION_KEY" ]; then
+            echo "::error::KRAVIA_DB_BACKUP_KEY is not configured."
+            exit 1
+          fi
+          if [ "${#BACKUP_ENCRYPTION_KEY}" -lt 48 ]; then
+            echo "::error::KRAVIA_DB_BACKUP_KEY must be at least 48 characters."
+            exit 1
+          fi
+
+      - name: Prepare backup workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$RUNNER_TEMP/kravia-backup"
+
+      - name: Export roles
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y "supabase@${SUPABASE_CLI_VERSION}" db dump             --db-url "$BACKUP_DATABASE_URL"             -f "$RUNNER_TEMP/kravia-backup/roles.sql"             --role-only
+
+      - name: Export schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y "supabase@${SUPABASE_CLI_VERSION}" db dump             --db-url "$BACKUP_DATABASE_URL"             -f "$RUNNER_TEMP/kravia-backup/schema.sql"
+
+      - name: Export data
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y "supabase@${SUPABASE_CLI_VERSION}" db dump             --db-url "$BACKUP_DATABASE_URL"             -f "$RUNNER_TEMP/kravia-backup/data.sql"             --use-copy             --data-only             -x "storage.buckets_vectors"             -x "storage.vector_indexes"
+
+      - name: Build integrity manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/kravia-backup"
+          sha256sum roles.sql schema.sql data.sql > SHA256SUMS
+          printf 'created_utc=%s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > BACKUP_METADATA
+          printf 'repository=%s\n' "$GITHUB_REPOSITORY" >> BACKUP_METADATA
+          printf 'workflow_run=%s\n' "$GITHUB_RUN_ID" >> BACKUP_METADATA
+          printf 'commit=%s\n' "$GITHUB_SHA" >> BACKUP_METADATA
+          printf 'supabase_cli=%s\n' "$SUPABASE_CLI_VERSION" >> BACKUP_METADATA
+
+      - name: Package and encrypt
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/kravia-backup"
+          tar -czf "$RUNNER_TEMP/kravia-office-backup.tar.gz"             roles.sql schema.sql data.sql SHA256SUMS BACKUP_METADATA
+          gpg --batch --yes --pinentry-mode loopback             --symmetric --cipher-algo AES256             --passphrase "$BACKUP_ENCRYPTION_KEY"             --output "$RUNNER_TEMP/kravia-office-backup.tar.gz.gpg"             "$RUNNER_TEMP/kravia-office-backup.tar.gz"
+          shred -u "$RUNNER_TEMP/kravia-office-backup.tar.gz" || rm -f "$RUNNER_TEMP/kravia-office-backup.tar.gz"
+          rm -rf "$RUNNER_TEMP/kravia-backup"
+
+      - name: Upload encrypted backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kravia-office-db-backup-${{ github.run_id }}
+          path: ${{ runner.temp }}/kravia-office-backup.tar.gz.gpg
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+      - name: Remove local ciphertext
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/kravia-office-backup.tar.gz.gpg"
