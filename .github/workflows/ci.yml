@@ -153,6 +153,7 @@ jobs:
     needs: [frontend, backend, database-structure, repository-structure]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     env:
@@ -171,7 +172,7 @@ jobs:
           before="${{ github.event.before }}"
           if [ -z "$before" ] || [ "$before" = "0000000000000000000000000000000000000000" ]; then
             echo "deploy=true" >> "$GITHUB_OUTPUT"
-          elif git diff --quiet "$before" "${{ github.sha }}" -- Backend/ .github/workflows/ci.yml; then
+          elif git diff --quiet "$before" "${{ github.sha }}" -- Backend/; then
             echo "deploy=false" >> "$GITHUB_OUTPUT"
           else
             echo "deploy=true" >> "$GITHUB_OUTPUT"
@@ -191,4 +192,4 @@ jobs:
             --message "GitHub Actions worker ${GITHUB_SHA}"
       - name: No worker deployment required
         if: steps.changes.outputs.deploy != 'true'
-        run: echo "No Backend/ or Railway deploy-workflow changes in this main push."
+        run: echo "No Backend/ changes in this main push; worker source deployment skipped."
