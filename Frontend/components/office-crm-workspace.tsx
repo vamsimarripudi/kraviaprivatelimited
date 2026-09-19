@@ -130,7 +130,7 @@ export function OfficeCrmWorkspace() {
     if (stageDraft.stage === "LOST" && stageDraft.lostReason.trim().length < 3) return;
     setBusy(true); setError(undefined);
     try {
-      await json("/api/office-crm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "SET_OPPORTUNITY_STAGE", opportunity_id: selectedOpportunity.id, stage: stageDraft.stage, next_step: stageDraft.nextStep || undefined, lost_reason: stageDraft.lostReason || undefined }) });
+      await json("/api/office-crm", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "SET_OPPORTUNITY_STAGE", opportunity_id: selectedOpportunity.id, stage: stageDraft.stage, next_step: stageDraft.nextStep || undefined, lost_reason: stageDraft.lostReason || undefined }) });
       setSelectedOpportunity(undefined); setStageDraft(undefined); await reload(stageDraft.stage === "WON" ? "Opportunity marked won. Contract, subscription and billing remain separate governed steps." : "Opportunity stage updated.");
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to update opportunity"); }
     finally { setBusy(false); }
@@ -141,7 +141,7 @@ export function OfficeCrmWorkspace() {
     if (leadStageDraft.stage === "CONVERTED" && !leadStageDraft.customer) return;
     setBusy(true); setError(undefined);
     try {
-      await json("/api/office-crm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "SET_LEAD_STAGE", lead_id: selectedLead.id, stage: leadStageDraft.stage, customer_id: leadStageDraft.customer || undefined }) });
+      await json("/api/office-crm", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "SET_LEAD_STAGE", lead_id: selectedLead.id, stage: leadStageDraft.stage, customer_id: leadStageDraft.customer || undefined }) });
       setSelectedLead(undefined); setLeadStageDraft(undefined); await reload("Lead stage updated.");
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to update lead"); }
     finally { setBusy(false); }
