@@ -75,7 +75,7 @@ class OfficeAuthInvite(Base):
     display_name = Column(String(160), nullable=True)
     job_title = Column(String(160), nullable=True)
     department = Column(String(64), nullable=True)
-    role = Column(String(64), nullable=False)
+    roles_json = Column(Text, nullable=False, default="[]")
     status = Column(String(24), nullable=False, default="PENDING")
     created_by = Column(String(36), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
