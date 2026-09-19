@@ -5,35 +5,40 @@ const authServer = readFileSync(new URL("../lib/office/auth-server.ts", import.m
 const accessAdmin = readFileSync(new URL("../lib/office/access-admin.ts", import.meta.url), "utf8");
 const accessRecovery = readFileSync(new URL("../lib/office/access-recovery.ts", import.meta.url), "utf8");
 const accessPanel = readFileSync(new URL("../components/access-governance-panel.tsx", import.meta.url), "utf8");
-const lifecycleSql = readFileSync(new URL("../../Backend/spec/identity/SUPABASE_INVITATION_LIFECYCLE.sql", import.meta.url), "utf8");
-const officeEnv = readFileSync(new URL("../lib/env/office.ts", import.meta.url), "utf8");
+const backendAuth = readFileSync(new URL("../../Backend/backend/identity_auth.py", import.meta.url), "utf8");
+const registerPage = readFileSync(new URL("../app/office/register/page.tsx", import.meta.url), "utf8");
 
 describe("KRAVIA Office invitation lifecycle", () => {
-  it("stages invited identities without granting workspace access before acceptance", () => {
-    expect(accessAdmin).toMatch(/status\s*:\s*"INVITED"/);
-    expect(authServer).toMatch(/identity\.accessStatus\s*!==\s*"INVITED"/);
-    expect(authServer).toMatch(/identity\.accessStatus\s*===\s*"ACTIVE"/);
-    expect(accessPanel).toMatch(/user\.status\s*===\s*"INVITED"/);
-    expect(accessPanel).toContain("Pending invitation — no workspace access exists yet");
+  it("keeps public registration limited to a one-time locked Founder bootstrap", () => {
+    expect(backendAuth).toContain('FOUNDER_SLOT = "PRIMARY_FOUNDER"');
+    expect(backendAuth).toContain("Founder registration is permanently closed");
+    expect(registerPage).toContain('mode="founder"');
+    expect(registerPage).toContain("Founder registration has already been completed");
+    expect(registerPage).toContain("private links issued inside KRAVIA Office");
   });
 
-  it("accepts invitations atomically through the controlled service-role RPC", () => {
-    expect(accessRecovery).toMatch(/\.rpc\(\s*"office_accept_invitation"/);
-    expect(lifecycleSql).toContain("office_accept_invitation");
-    expect(lifecycleSql).toContain("status='INVITED'");
-    expect(lifecycleSql).toContain("status='ACTIVE'");
-    expect(lifecycleSql).toContain("INVITE_ACCEPTED");
+  it("issues single-use private registration links from the Office authority", () => {
+    expect(accessAdmin).toContain('"/api/v1/auth/invitations"');
+    expect(accessAdmin).toContain("registration_url");
+    expect(accessPanel).toContain("Private registration link");
+    expect(accessPanel).toContain("copyInviteLink");
+    expect(accessPanel).toContain("send it only to the intended person");
+    expect(backendAuth).toContain("registration_token");
+    expect(backendAuth).toContain('invite.status = "ACCEPTED"');
   });
 
-  it("preserves immutable access audit identity snapshots", () => {
-    expect(lifecycleSql).toContain("drop constraint if exists office_access_audit_actor_user_id_fkey");
-    expect(lifecycleSql).toContain("drop constraint if exists office_access_audit_target_user_id_fkey");
-    expect(lifecycleSql).toContain("account deletion cannot mutate immutable audit history");
+  it("does not use Supabase Auth administrative users, invitations or MFA reset", () => {
+    expect(accessAdmin).not.toContain("admin.auth.admin");
+    expect(accessRecovery).not.toContain("admin.auth.admin");
+    expect(accessRecovery).not.toContain("office_accept_invitation");
+    expect(accessRecovery).toContain("/api/v1/auth/users/");
+    expect(authServer).not.toContain("verifyOtp");
   });
 
-  it("keeps the trusted Supabase administration credential server-only", () => {
-    expect(officeEnv).toContain("OFFICE_SUPABASE_SECRET_KEY");
-    expect(officeEnv).not.toContain("NEXT_PUBLIC_OFFICE_SUPABASE_SECRET_KEY");
-    expect(accessAdmin).not.toContain("NEXT_PUBLIC_");
+  it("preserves existing PostgreSQL role and authorization ledgers", () => {
+    expect(backendAuth).toContain("office_identity_users");
+    expect(backendAuth).toContain("office_user_roles");
+    expect(backendAuth).toContain("office_access_invitations");
+    expect(backendAuth).toContain("_mirror_identity");
   });
 });
