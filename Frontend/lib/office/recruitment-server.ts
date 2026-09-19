@@ -263,7 +263,7 @@ async function scanCandidateDocument(current: Actor, bytes: Buffer, mime: string
         "Content-Type": mime,
         "Content-Length": String(bytes.length),
       },
-      body: bytes,
+      body: new Uint8Array(bytes),
       cache: "no-store",
       redirect: "manual",
       signal: AbortSignal.timeout(35_000),
