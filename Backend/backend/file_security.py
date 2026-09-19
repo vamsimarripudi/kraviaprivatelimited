@@ -10,6 +10,7 @@ The module intentionally owns no browser-side Supabase authentication.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import io
 import json
@@ -17,6 +18,7 @@ import mimetypes
 import os
 import re
 import socket
+import time
 import struct
 import uuid
 import zipfile
@@ -24,9 +26,14 @@ from datetime import datetime, timedelta, timezone
 from pathlib import PurePath
 from typing import Any
 
+import httpx
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 from supabase import Client, create_client
 
 from .database import SessionLocal, get_db
@@ -105,15 +112,20 @@ def _storage_url() -> str:
     )
 
 
-def _storage_secret() -> str:
-    return (
-        os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
-        or os.getenv("OFFICE_SUPABASE_SECRET_KEY", "").strip()
-    )
+def _publishable_key() -> str:
+    return os.getenv("SUPABASE_PUBLISHABLE_KEY", "").strip()
+
+
+def _broker_url() -> str:
+    return os.getenv("KRAVIA_STORAGE_BROKER_URL", "").strip()
+
+
+def _broker_private_key() -> str:
+    return os.getenv("KRAVIA_STORAGE_BROKER_PRIVATE_KEY", "").strip().replace("\\n", "\n")
 
 
 def storage_configured() -> bool:
-    return bool(_storage_url() and _storage_secret())
+    return bool(_storage_url() and _publishable_key() and _broker_url() and _broker_private_key())
 
 
 def scanner_configured() -> bool:
@@ -126,10 +138,77 @@ def file_security_ready() -> bool:
 
 def _storage_client() -> Client:
     url = _storage_url()
-    secret = _storage_secret()
-    if not url or not secret:
-        raise RuntimeError("Supabase private storage service credentials are not configured")
-    return create_client(url, secret)
+    publishable = _publishable_key()
+    if not url or not publishable:
+        raise RuntimeError("Supabase publishable storage client is not configured")
+    return create_client(url, publishable)
+
+
+def _broker_signature(timestamp: str, body: str) -> str:
+    key_pem = _broker_private_key()
+    if not key_pem:
+        raise RuntimeError("KRAVIA storage broker signing key is not configured")
+    key = serialization.load_pem_private_key(key_pem.encode("utf-8"), password=None)
+    if not isinstance(key, ec.EllipticCurvePrivateKey):
+        raise RuntimeError("KRAVIA storage broker key is invalid")
+    der = key.sign((timestamp + "." + body).encode("utf-8"), ec.ECDSA(hashes.SHA256()))
+    r, s = decode_dss_signature(der)
+    raw = r.to_bytes(32, "big") + s.to_bytes(32, "big")
+    return base64.b64encode(raw).decode("ascii")
+
+
+def _broker_request(action: str, **payload: Any) -> dict[str, Any]:
+    url = _broker_url()
+    if not url:
+        raise RuntimeError("KRAVIA storage broker URL is not configured")
+    body = json.dumps({"action": action, **payload}, sort_keys=True, separators=(",", ":"))
+    timestamp = str(int(time.time()))
+    signature = _broker_signature(timestamp, body)
+    response = httpx.post(
+        url,
+        content=body.encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "x-kravia-timestamp": timestamp,
+            "x-kravia-signature": signature,
+        },
+        timeout=float(os.getenv("KRAVIA_STORAGE_BROKER_TIMEOUT_SECONDS", "20")),
+    )
+    try:
+        result = response.json()
+    except ValueError as exc:
+        raise RuntimeError("KRAVIA storage broker returned an invalid response") from exc
+    if response.status_code >= 400:
+        detail = result.get("code") or result.get("detail") or "BROKER_REQUEST_FAILED"
+        raise RuntimeError(str(detail)[:160])
+    return result
+
+
+def _upload_signed(client: Client, bucket: str, path: str, data: bytes, mime: str) -> None:
+    signed = _broker_request("signed_upload", bucket=bucket, path=path, upsert=False)
+    token = str(signed.get("token") or "")
+    if not token:
+        raise RuntimeError("KRAVIA storage broker did not return an upload token")
+    client.storage.from_(bucket).upload_to_signed_url(
+        path=path,
+        token=token,
+        file=data,
+        file_options={"content-type": mime, "cache-control": "private, max-age=0, no-store"},
+    )
+
+
+def _download_private(bucket: str, path: str) -> bytes:
+    signed = _broker_request("signed_download", bucket=bucket, path=path, expires_in=120)
+    url = str(signed.get("url") or "")
+    if not url:
+        raise RuntimeError("KRAVIA storage broker did not return a download URL")
+    response = httpx.get(url, timeout=float(os.getenv("KRAVIA_STORAGE_DOWNLOAD_TIMEOUT_SECONDS", "30")))
+    response.raise_for_status()
+    return response.content
+
+
+def _delete_private(bucket: str, path: str) -> None:
+    _broker_request("delete", bucket=bucket, path=path)
 
 
 def _file_table_present(db: Session) -> bool:
@@ -429,10 +508,7 @@ def _process_claimed_file(db: Session, row: Any, storage: Client, version: str) 
     db.commit()
 
     try:
-        content = storage.storage.from_(row["quarantine_bucket"]).download(row["quarantine_path"])
-        if not isinstance(content, (bytes, bytearray)):
-            content = bytes(content)
-        payload = bytes(content)
+        payload = _download_private(row["quarantine_bucket"], row["quarantine_path"])
         if len(payload) != int(row["byte_size"]):
             raise RuntimeError("SIZE_MISMATCH")
         if hashlib.sha256(payload).hexdigest() != row["sha256"]:
@@ -444,7 +520,7 @@ def _process_claimed_file(db: Session, row: Any, storage: Client, version: str) 
         if not result["clean"]:
             quarantine_deleted = False
             try:
-                storage.storage.from_(row["quarantine_bucket"]).remove([row["quarantine_path"]])
+                _delete_private(row["quarantine_bucket"], row["quarantine_path"])
                 quarantine_deleted = True
             except Exception:
                 # Detection is authoritative even when cleanup is temporarily
@@ -483,18 +559,16 @@ def _process_claimed_file(db: Session, row: Any, storage: Client, version: str) 
 
         date_path = _now().strftime("%Y/%m")
         released_path = f"scanned/{date_path}/{row['id']}/{row['original_filename']}"
-        storage.storage.from_(row["target_bucket"]).upload(
+        _upload_signed(
+            storage,
+            row["target_bucket"],
             released_path,
             payload,
-            {
-                "content-type": row["detected_mime_type"],
-                "upsert": "false",
-                "cache-control": "private, max-age=0, no-store",
-            },
+            row["detected_mime_type"],
         )
         quarantine_deleted = False
         try:
-            storage.storage.from_(row["quarantine_bucket"]).remove([row["quarantine_path"]])
+            _delete_private(row["quarantine_bucket"], row["quarantine_path"])
             quarantine_deleted = True
         except Exception:
             quarantine_deleted = False
@@ -693,14 +767,12 @@ def build_file_security_router(get_db_dependency, actor_context_dependency):
         db.commit()
 
         try:
-            _storage_client().storage.from_(QUARANTINE_BUCKET).upload(
+            _upload_signed(
+                _storage_client(),
+                QUARANTINE_BUCKET,
                 quarantine_path,
                 data,
-                {
-                    "content-type": detected_mime,
-                    "upsert": "false",
-                    "cache-control": "private, max-age=0, no-store",
-                },
+                detected_mime,
             )
             db.execute(
                 text(
@@ -770,16 +842,21 @@ def build_file_security_router(get_db_dependency, actor_context_dependency):
             raise HTTPException(status_code=409, detail="File is not available until malware scanning passes")
         if not storage_configured():
             raise HTTPException(status_code=503, detail="Private storage is unavailable")
-        signed = _storage_client().storage.from_(row["target_bucket"]).create_signed_url(
-            row["released_path"],
-            60,
-        )
-        url = signed.get("signedURL") or signed.get("signedUrl") or signed.get("signed_url")
+        try:
+            signed = _broker_request(
+                "signed_download",
+                bucket=row["target_bucket"],
+                path=row["released_path"],
+                expires_in=60,
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="Could not create private file access URL") from exc
+        url = str(signed.get("url") or "")
         if not url:
             raise HTTPException(status_code=503, detail="Could not create private file access URL")
         return {
             "file_id": str(row["id"]),
-            "expires_in": 60,
+            "expires_in": int(signed.get("expires_in") or 60),
             "url": url,
             "cache_control": "no-store",
         }
