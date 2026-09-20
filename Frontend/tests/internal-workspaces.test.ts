@@ -11,6 +11,7 @@ const accessAdminSource = readFileSync(new URL("../lib/office/access-admin.ts", 
 const registrationSource = readFileSync(new URL("../components/office-register-form.tsx", import.meta.url), "utf8");
 const officeLoginSource = readFileSync(new URL("../app/office/login/page.tsx", import.meta.url), "utf8");
 const financeLoginSource = readFileSync(new URL("../app/finance/login/page.tsx", import.meta.url), "utf8");
+const guardSource = readFileSync(new URL("../lib/office/guard.ts", import.meta.url), "utf8");
 
 describe("KRAVIA path-based internal workspaces", () => {
   it("routes employees/governance roles to Office and finance professionals to Finance", () => {
@@ -67,6 +68,8 @@ describe("KRAVIA path-based internal workspaces", () => {
     expect(officeLoginSource).toContain("getOfficeRuntimeOrigin");
     expect(financeLoginSource).toContain("getOfficeRuntimeOrigin");
     expect(financeLoginSource).not.toContain("getOfficeEnvironment");
+    expect(guardSource).toContain("getOfficeRuntimeOrigin");
+    expect(guardSource).not.toContain("getOfficeEnvironment");
   });
 
   it("requires strong registration passwords and MFA", () => {
