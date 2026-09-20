@@ -61,7 +61,7 @@ def upgrade() -> None:
     op.create_index("ix_product_tax_profile_billing", "product_tax_profiles", ["billing_enabled"])
 
     bind = op.get_bind()
-    entity_id = "KRAVIA"
+    entity_id = "LE-KRAVIA-IN"
     for product_id, code, name, category, status, billing_enabled in PRODUCTS:
         exists = bind.execute(sa.text("select 1 from products where id = :id"), {"id": product_id}).first()
         if not exists:
