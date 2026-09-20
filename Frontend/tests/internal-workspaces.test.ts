@@ -9,6 +9,8 @@ const signInSource = readFileSync(new URL("../app/api/office-auth/sign-in/route.
 const runtimeProxySource = readFileSync(new URL("../app/api/office-runtime/[...path]/route.ts", import.meta.url), "utf8");
 const accessAdminSource = readFileSync(new URL("../lib/office/access-admin.ts", import.meta.url), "utf8");
 const registrationSource = readFileSync(new URL("../components/office-register-form.tsx", import.meta.url), "utf8");
+const officeLoginSource = readFileSync(new URL("../app/office/login/page.tsx", import.meta.url), "utf8");
+const financeLoginSource = readFileSync(new URL("../app/finance/login/page.tsx", import.meta.url), "utf8");
 
 describe("KRAVIA path-based internal workspaces", () => {
   it("routes employees/governance roles to Office and finance professionals to Finance", () => {
@@ -59,6 +61,12 @@ describe("KRAVIA path-based internal workspaces", () => {
     expect(accessAdminSource).toContain('"/api/v1/auth/invitations"');
     expect(accessAdminSource).toContain("AAL2 verification is required");
     expect(accessAdminSource).not.toContain("admin.auth.admin");
+  });
+
+  it("gates both Office and Finance login on the first-party FastAPI runtime", () => {
+    expect(officeLoginSource).toContain("getOfficeRuntimeOrigin");
+    expect(financeLoginSource).toContain("getOfficeRuntimeOrigin");
+    expect(financeLoginSource).not.toContain("getOfficeEnvironment");
   });
 
   it("requires strong registration passwords and MFA", () => {
