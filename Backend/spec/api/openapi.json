@@ -1827,9 +1827,11 @@
               {
                 "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
                 "type": "string"
+              },
+              {
+                "type": "null"
               }
             ],
-            "default": "18",
             "title": "Gst Rate"
           },
           "name": {
@@ -1904,6 +1906,95 @@
           "category"
         ],
         "title": "ProductCreate",
+        "type": "object"
+      },
+      "ProductTaxProfileApproval": {
+        "properties": {
+          "evidence_ref": {
+            "maxLength": 2000,
+            "minLength": 2,
+            "title": "Evidence Ref",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "required": [
+          "evidence_ref"
+        ],
+        "title": "ProductTaxProfileApproval",
+        "type": "object"
+      },
+      "ProductTaxProfileUpdate": {
+        "properties": {
+          "billing_enabled": {
+            "default": true,
+            "title": "Billing Enabled",
+            "type": "boolean"
+          },
+          "classification_basis": {
+            "maxLength": 2000,
+            "minLength": 20,
+            "title": "Classification Basis",
+            "type": "string"
+          },
+          "gst_rate": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gst Rate"
+          },
+          "sac": {
+            "pattern": "^[0-9]{6}$",
+            "title": "Sac",
+            "type": "string"
+          },
+          "source_ref": {
+            "maxLength": 2000,
+            "minLength": 10,
+            "title": "Source Ref",
+            "type": "string"
+          },
+          "supply_model": {
+            "default": "HOSTED_SAAS",
+            "pattern": "^(HOSTED_SAAS|SOFTWARE_LICENSE|HOSTING|CUSTOM_DEVELOPMENT|IT_SUPPORT)$",
+            "title": "Supply Model",
+            "type": "string"
+          },
+          "tax_treatment": {
+            "default": "TAXABLE",
+            "pattern": "^(TAXABLE|ZERO_RATED|EXEMPT|NON_GST)$",
+            "title": "Tax Treatment",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sac",
+          "classification_basis",
+          "source_ref"
+        ],
+        "title": "ProductTaxProfileUpdate",
         "type": "object"
       },
       "RefreshPayload": {
@@ -15462,6 +15553,98 @@
         "summary": "List Refunds"
       }
     },
+    "/api/v1/tax/gst/configuration": {
+      "get": {
+        "operationId": "gst_configuration_api_v1_tax_gst_configuration_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-kravia-office-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Kravia-Office-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Gst Configuration"
+      }
+    },
     "/api/v1/tax/gst/master": {
       "get": {
         "operationId": "gst_master_api_v1_tax_gst_master_get",
@@ -15552,6 +15735,421 @@
           }
         },
         "summary": "Gst Master"
+      }
+    },
+    "/api/v1/tax/gst/product-profiles": {
+      "get": {
+        "operationId": "list_product_tax_profiles_api_v1_tax_gst_product_profiles_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-kravia-office-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Kravia-Office-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Product Tax Profiles"
+      }
+    },
+    "/api/v1/tax/gst/product-profiles/{product_id}": {
+      "put": {
+        "operationId": "update_product_tax_profile_api_v1_tax_gst_product_profiles__product_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-kravia-office-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Kravia-Office-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductTaxProfileUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Product Tax Profile"
+      }
+    },
+    "/api/v1/tax/gst/product-profiles/{product_id}/approve": {
+      "post": {
+        "operationId": "approve_product_tax_profile_api_v1_tax_gst_product_profiles__product_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-kravia-office-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Kravia-Office-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductTaxProfileApproval"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve Product Tax Profile"
+      }
+    },
+    "/api/v1/tax/gst/product-profiles/{product_id}/reopen": {
+      "post": {
+        "operationId": "reopen_product_tax_profile_api_v1_tax_gst_product_profiles__product_id__reopen_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-kravia-office-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Kravia-Office-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reopen Product Tax Profile"
       }
     },
     "/api/v1/tax/gst/summary": {
