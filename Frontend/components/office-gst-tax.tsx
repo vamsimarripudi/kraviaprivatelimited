@@ -216,6 +216,8 @@ type WorkingTotals = {
   invoiceCount: number;
 };
 
+type ViewKey = "overview" | "sales" | "purchases" | "returns" | "settings";
+
 async function runtime<T>(path: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch("/api/office-runtime/" + path, {
     credentials: "same-origin",
@@ -284,6 +286,11 @@ function totals(rows: Invoice[]): WorkingTotals {
   );
 }
 
+function gstText(invoice: Invoice) {
+  if (Number(invoice.igst || 0) > 0) return "IGST " + money(invoice.igst, invoice.currency);
+  return "CGST " + money(invoice.cgst, invoice.currency) + " · SGST " + money(invoice.sgst, invoice.currency);
+}
+
 export function OfficeGstTaxWorkspace({
   canPrepare,
   canApprove,
@@ -304,6 +311,7 @@ export function OfficeGstTaxWorkspace({
   const [purchaseSummary, setPurchaseSummary] = useState<GstPurchaseSummary>();
   const [purchaseInvoices, setPurchaseInvoices] = useState<GstPurchaseInvoice[]>([]);
   const [returnWorkings, setReturnWorkings] = useState<GstReturnWorking[]>([]);
+  const [view, setView] = useState<ViewKey>("overview");
   const [returnPeriod, setReturnPeriod] = useState(() => new Date().toISOString().slice(0, 7));
   const [period, setPeriod] = useState("ALL");
   const [loading, setLoading] = useState(true);
@@ -328,50 +336,55 @@ export function OfficeGstTaxWorkspace({
     runtime<GstReturnWorking[]>("tax/gst/returns", signal),
   ]), []);
 
+  const applyRecords = useCallback((records: Awaited<ReturnType<typeof fetchRecords>>) => {
+    const [
+      nextSummary,
+      nextInvoices,
+      nextCustomers,
+      nextProducts,
+      nextGstMaster,
+      nextTaxProfiles,
+      nextConfiguration,
+      nextConnector,
+      nextEinvoices,
+      nextVasStatus,
+      nextPurchaseSummary,
+      nextPurchaseInvoices,
+      nextReturnWorkings,
+    ] = records;
+    setSummary(nextSummary);
+    setInvoices(nextInvoices);
+    setCustomers(nextCustomers);
+    setProducts(nextProducts);
+    setGstMaster(nextGstMaster);
+    setTaxProfiles(nextTaxProfiles);
+    setConfiguration(nextConfiguration);
+    setConnector(nextConnector);
+    setEinvoices(nextEinvoices);
+    setVasStatus(nextVasStatus);
+    setPurchaseSummary(nextPurchaseSummary);
+    setPurchaseInvoices(nextPurchaseInvoices);
+    setReturnWorkings(nextReturnWorkings);
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(undefined);
     try {
-      const [nextSummary, nextInvoices, nextCustomers, nextProducts, nextGstMaster, nextTaxProfiles, nextConfiguration, nextConnector, nextEinvoices, nextVasStatus, nextPurchaseSummary, nextPurchaseInvoices, nextReturnWorkings] = await fetchRecords();
-      setSummary(nextSummary);
-      setInvoices(nextInvoices);
-      setCustomers(nextCustomers);
-      setProducts(nextProducts);
-      setGstMaster(nextGstMaster);
-      setTaxProfiles(nextTaxProfiles);
-      setConfiguration(nextConfiguration);
-      setConnector(nextConnector);
-      setEinvoices(nextEinvoices);
-      setVasStatus(nextVasStatus);
-      setPurchaseSummary(nextPurchaseSummary);
-      setPurchaseInvoices(nextPurchaseInvoices);
-      setReturnWorkings(nextReturnWorkings);
+      applyRecords(await fetchRecords());
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to load GST working records");
     } finally {
       setLoading(false);
     }
-  }, [fetchRecords]);
+  }, [applyRecords, fetchRecords]);
 
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
     void fetchRecords(controller.signal)
-      .then(([nextSummary, nextInvoices, nextCustomers, nextProducts, nextGstMaster, nextTaxProfiles, nextConfiguration, nextConnector, nextEinvoices, nextVasStatus, nextPurchaseSummary, nextPurchaseInvoices, nextReturnWorkings]) => {
-        if (!active) return;
-        setSummary(nextSummary);
-        setInvoices(nextInvoices);
-        setCustomers(nextCustomers);
-        setProducts(nextProducts);
-        setGstMaster(nextGstMaster);
-        setTaxProfiles(nextTaxProfiles);
-        setConfiguration(nextConfiguration);
-        setConnector(nextConnector);
-        setEinvoices(nextEinvoices);
-        setVasStatus(nextVasStatus);
-        setPurchaseSummary(nextPurchaseSummary);
-        setPurchaseInvoices(nextPurchaseInvoices);
-        setReturnWorkings(nextReturnWorkings);
+      .then((records) => {
+        if (active) applyRecords(records);
       })
       .catch((caught) => {
         if (active && !(caught instanceof DOMException && caught.name === "AbortError")) {
@@ -385,7 +398,7 @@ export function OfficeGstTaxWorkspace({
       active = false;
       controller.abort();
     };
-  }, [fetchRecords]);
+  }, [applyRecords, fetchRecords]);
 
   const periods = useMemo(
     () => Array.from(new Set(invoices.map((invoice) => monthKey(invoice.issued_at)))).sort().reverse(),
@@ -430,277 +443,333 @@ export function OfficeGstTaxWorkspace({
         invoiceCount: Number(summary.invoice_count || 0),
       }
     : derived;
+
   const outputTax = working.cgst + working.sgst + working.igst;
+  const observedInputTax = Number(purchaseSummary?.cgst || 0) + Number(purchaseSummary?.sgst || 0) + Number(purchaseSummary?.igst || 0) + Number(purchaseSummary?.cess || 0);
+  const registrationActive = (configuration?.authoritative_gstin?.registration_status || "").toUpperCase() === "ACTIVE"
+    || (configuration?.authoritative_gstin?.registration_status || "").toUpperCase() === "ACT";
+  const reviewQueue = Number(purchaseSummary?.itc_review_required || 0) + Number(configuration?.profiles.pending_billing || 0);
+
+  const views: { key: ViewKey; label: string; count?: number }[] = [
+    { key: "overview", label: "Overview" },
+    { key: "sales", label: "Sales", count: working.invoiceCount },
+    { key: "purchases", label: "Purchases", count: purchaseSummary?.invoice_count || 0 },
+    { key: "returns", label: "Returns", count: returnWorkings.length },
+    { key: "settings", label: "Settings" },
+  ];
 
   return <section className={styles.shell}>
-    <header className={styles.hero}>
-      <div>
-        <p>GST & TAX · WORKING REGISTER</p>
-        <h2>Review invoice-derived output GST without fabricating filing or input-credit status.</h2>
-        <span>
-          This workspace combines the canonical GST register with a credential-gated IRIS IRP connector for
-          taxpayer verification and e-invoice operations. It does not infer return filing or input-tax credit.
-        </span>
+    <header className={styles.topbar}>
+      <div className={styles.titleBlock}>
+        <p>FINANCE / GST</p>
+        <h2>GST Control Center</h2>
+        <span>Sales tax, e-invoice, inward reconciliation and return preparation in one controlled workspace.</span>
       </div>
-      <div className={styles.authority} aria-label="GST workspace authority">
-        <span data-active={canPrepare}><ShieldCheck /> Prepare {canPrepare ? "assigned" : "not assigned"}</span>
-        <span data-active={canApprove}><BadgeCheck /> Review {canApprove ? "assigned" : "not assigned"}</span>
+      <div className={styles.topActions}>
+        <span className={styles.readiness} data-ready={configuration?.ready_for_production_invoicing}>
+          {configuration?.ready_for_production_invoicing ? <BadgeCheck /> : <CircleAlert />}
+          {configuration?.ready_for_production_invoicing ? "Production ready" : "Action required"}
+        </span>
+        <button type="button" onClick={() => void load()} disabled={loading}>
+          <RefreshCw className={loading ? styles.spin : undefined} /> Refresh
+        </button>
+        <Link href="/finance/billing"><FileCheck2 /> Billing</Link>
       </div>
     </header>
 
-    <div className={styles.toolbar}>
-      <label>
-        Working period
-        <select value={period} onChange={(event) => setPeriod(event.target.value)}>
-          <option value="ALL">All issued invoices</option>
-          {periods.map((item) => <option key={item} value={item}>{monthLabel(item)}</option>)}
-        </select>
-      </label>
-      <button type="button" onClick={() => void load()} disabled={loading}><RefreshCw /> Refresh</button>
-      <Link href="/finance/billing"><FileCheck2 /> Open billing evidence</Link>
-    </div>
+    <nav className={styles.tabs} aria-label="GST workspace views">
+      {views.map((item) => <button
+        key={item.key}
+        type="button"
+        aria-current={view === item.key ? "page" : undefined}
+        data-active={view === item.key}
+        onClick={() => setView(item.key)}
+      >
+        {item.label}
+        {typeof item.count === "number" ? <span>{item.count}</span> : null}
+      </button>)}
+    </nav>
 
     {notice ? <div className={styles.notice}><BadgeCheck />{notice}</div> : null}
     {error ? <div className={styles.error}><CircleAlert />{error}</div> : null}
-    {loading ? <div className={styles.state}><LoaderCircle className={styles.spin} />Loading canonical GST working data…</div> : <>
-      <div className={styles.metrics}>
-        <article><span>Net taxable sales</span><b>{money(working.netTaxable)}</b></article>
-        <article><span>Output GST</span><b>{money(outputTax)}</b></article>
-        <article><span>CGST</span><b>{money(working.cgst)}</b></article>
-        <article><span>SGST</span><b>{money(working.sgst)}</b></article>
-        <article><span>IGST</span><b>{money(working.igst)}</b></article>
-        <article><span>Gross invoice value</span><b>{money(working.total)}</b></article>
-        <article><span>Invoices in view</span><b>{working.invoiceCount}</b></article>
-        <article><span>Working state</span><b>{summary?.filing_status || "REVIEW_REQUIRED"}</b></article>
-      </div>
 
-      <section className={styles.connectorPanel} aria-label="GST IRP connector">
-        <header>
-          <div>
-            <p>LIVE GST CONNECTOR</p>
-            <h3>IRIS IRP core API</h3>
+    {loading ? <div className={styles.loading}><LoaderCircle className={styles.spin} />Loading GST workspace…</div> : <>
+      {view === "overview" ? <div className={styles.viewStack}>
+        <section className={styles.kpiGrid} aria-label="GST summary">
+          <article><span>Taxable sales</span><b>{money(working.netTaxable)}</b><small>{working.invoiceCount} invoices</small></article>
+          <article><span>Output GST</span><b>{money(outputTax)}</b><small>CGST + SGST + IGST</small></article>
+          <article><span>Observed inward GST</span><b>{money(observedInputTax)}</b><small>Not an ITC claim</small></article>
+          <article><span>Review queue</span><b>{reviewQueue}</b><small>Tax/profile checks pending</small></article>
+        </section>
+
+        <section className={styles.statusCard}>
+          <div className={styles.sectionTitle}>
+            <div><p>LIVE STATUS</p><h3>What needs attention now</h3></div>
+            <span>Technical details are kept under Settings.</span>
           </div>
-          <em data-ready={connector?.ready_for_live_irn}>{connector?.ready_for_live_irn ? "IRN READY" : connector?.core_configured ? "CONNECTED · IRN GATED" : "NOT CONFIGURED"}</em>
-        </header>
-        <div className={styles.connectorGrid}>
-          <article><span>Provider</span><b>{connector?.provider || "IRIS_IRP"}</b><small>{connector?.environment || "—"} environment</small></article>
-          <article><span>Core credentials</span><b>{connector?.core_configured ? "Configured" : "Not configured"}</b><small>{connector?.base_host || "No provider host"}</small></article>
-          <article><span>e-Invoice switch</span><b>{connector?.einvoice_enabled ? "Enabled" : "Disabled"}</b><small>Eligibility/operations gate</small></article>
-          <article><span>Seller INV-01 identity</span><b>{connector?.invoice_identity_configured ? "Configured" : "Incomplete"}</b><small>{connector?.gstin_masked || "GSTIN not configured"}</small></article>
-          <article><span>Last GSTIN verification</span><b>{connector?.last_gstin_verification?.registration_status || "No provider evidence"}</b><small>{connector?.last_gstin_verification?.legal_name || "Run verification after credentials are configured"}</small></article>
-          <article><span>Last provider operation</span><b>{connector?.last_operation?.status || "None"}</b><small>{connector?.last_operation ? connector.last_operation.operation + " · " + date(connector.last_operation.created_at || "") : "No API operation recorded"}</small></article>
-        </div>
-        <div className={styles.connectorActions}>
-          <button type="button" disabled={!canPrepare || !connector?.core_configured || Boolean(actionBusy)} onClick={() => void providerAction("health", "tax/gst/connector/health", undefined, () => "IRIS IRP health check succeeded.")}>
-            {actionBusy === "health" ? <LoaderCircle className={styles.spin} /> : <ShieldCheck />} Test IRP
-          </button>
-          <button type="button" disabled={!canPrepare || !connector?.core_configured || Boolean(actionBusy)} onClick={() => void providerAction("verify", "tax/gst/connector/verify-gstin", { sync_common_portal: false }, (result) => {
-            const row = result as { legal_name?: string; registration_status?: string };
-            return "GSTIN verified" + (row.legal_name ? " · " + row.legal_name : "") + (row.registration_status ? " · " + row.registration_status : "") + ".";
-          })}>
-            {actionBusy === "verify" ? <LoaderCircle className={styles.spin} /> : <BadgeCheck />} Verify GSTIN
-          </button>
-          <button type="button" disabled={!canPrepare || !connector?.core_configured || Boolean(actionBusy)} onClick={() => void providerAction("sync", "tax/gst/connector/verify-gstin", { sync_common_portal: true }, () => "GSTIN details synchronized from the GST Common Portal through IRIS IRP.")}>
-            {actionBusy === "sync" ? <LoaderCircle className={styles.spin} /> : <RefreshCw />} Sync Common Portal
-          </button>
-        </div>
-        {connector?.missing_configuration?.length ? <p className={styles.connectorNote}>Deployment configuration still required: {connector.missing_configuration.join(", ")}. No credential value is exposed or stored in the browser.</p> : <p className={styles.connectorNote}>{connector?.secret_storage || "Provider secrets remain server-side."}</p>}
-      </section>
+          <div className={styles.statusRows}>
+            <article>
+              <div><b>GST registration</b><small>{configuration?.authoritative_gstin?.legal_name || "Authoritative verification pending"}</small></div>
+              <em data-state={registrationActive ? "ok" : "warn"}>{registrationActive ? "ACTIVE" : "VERIFY"}</em>
+            </article>
+            <article>
+              <div><b>e-Invoice / IRP</b><small>{connector?.ready_for_live_irn ? "IRN operations available" : connector?.core_configured ? "Connected but gated" : "Provider credentials not configured"}</small></div>
+              <em data-state={connector?.ready_for_live_irn ? "ok" : "warn"}>{connector?.ready_for_live_irn ? "READY" : "GATED"}</em>
+            </article>
+            <article>
+              <div><b>Purchase data</b><small>{vasStatus?.data_api_configured ? "IRIS inward-data connector ready" : "VAS/Data API credentials not configured"}</small></div>
+              <em data-state={vasStatus?.data_api_configured ? "ok" : "warn"}>{vasStatus?.data_api_configured ? "READY" : "SETUP"}</em>
+            </article>
+            <article>
+              <div><b>GST returns</b><small>{vasStatus?.gsp.configured ? "GSP configured" : "Preparation only; filing provider not configured"}</small></div>
+              <em data-state={vasStatus?.gsp.configured ? "ok" : "neutral"}>{vasStatus?.gsp.configured ? "CONNECTED" : "PREP ONLY"}</em>
+            </article>
+          </div>
+        </section>
 
-      <section className={styles.configPanel} aria-label="GST production configuration">
-        <header>
-          <div><p>PRODUCTION TAX CONTROL</p><h3>{configuration?.ready_for_production_invoicing ? "Production invoicing tax gate is ready" : "Production invoicing remains gated"}</h3></div>
-          <em data-ready={configuration?.ready_for_production_invoicing}>{configuration?.ready_for_production_invoicing ? "READY" : "REVIEW REQUIRED"}</em>
-        </header>
-        <div className={styles.configGrid}>
-          <article><span>GSTIN configured</span><b>{configuration?.gstin.configured ? configuration.gstin.masked || "Configured" : "Not configured"}</b><small>{configuration?.gstin.structure_valid ? "Structure valid" : "Structure not validated"}</small></article>
-          <article><span>Supplier state</span><b>{configuration?.gstin.state_code || "—"}</b><small>{configuration?.gstin.state_matches ? "GSTIN state matches" : "State match pending"}</small></article>
-          <article><span>Tax config switch</span><b>{configuration?.tax_config_approved ? "Approved" : "Not approved"}</b><small>Controlled deployment setting</small></article>
-          <article><span>Product profiles</span><b>{configuration?.profiles.approved_billing || 0}/{configuration?.profiles.billing_enabled || 0}</b><small>Billing profiles CA-approved</small></article>
-          <article><span>GST registration evidence</span><b>{configuration?.portal_verification || "NOT_CONNECTED"}</b><small>{configuration?.authoritative_gstin?.verified_at ? "IRIS · " + date(configuration.authoritative_gstin.verified_at) : "Provider verification required"}</small></article>
-        </div>
-        <p className={styles.configNote}>{configuration?.note}</p>
-      </section>
+        <section className={styles.actionCard}>
+          <div className={styles.sectionTitle}>
+            <div><p>QUICK ACTIONS</p><h3>Common GST operations</h3></div>
+          </div>
+          <div className={styles.actionGrid}>
+            <button type="button" disabled={!canPrepare || !connector?.core_configured || Boolean(actionBusy)} onClick={() => void providerAction("verify", "tax/gst/connector/verify-gstin", { sync_common_portal: false }, (result) => {
+              const row = result as { legal_name?: string; registration_status?: string };
+              return "GSTIN verified" + (row.legal_name ? " · " + row.legal_name : "") + (row.registration_status ? " · " + row.registration_status : "") + ".";
+            })}>
+              {actionBusy === "verify" ? <LoaderCircle className={styles.spin} /> : <BadgeCheck />}
+              <span><b>Verify GSTIN</b><small>Check current taxpayer evidence</small></span>
+            </button>
+            <button type="button" disabled={!canPrepare || !connector?.core_configured || Boolean(actionBusy)} onClick={() => void providerAction("sync", "tax/gst/connector/verify-gstin", { sync_common_portal: true }, () => "GSTIN details synchronized from the GST Common Portal through IRIS IRP.")}>
+              {actionBusy === "sync" ? <LoaderCircle className={styles.spin} /> : <RefreshCw />}
+              <span><b>Sync Common Portal</b><small>Refresh GSTIN details through IRIS</small></span>
+            </button>
+            <button type="button" disabled={!canPrepare || Boolean(actionBusy)} onClick={() => void providerAction("reconcile-purchases", "tax/gst/purchases/reconcile", undefined, (result) => {
+              const row = result as { count?: number };
+              return "Purchase reconciliation completed for " + (row.count ?? 0) + " inward invoices.";
+            })}>
+              {actionBusy === "reconcile-purchases" ? <LoaderCircle className={styles.spin} /> : <Database />}
+              <span><b>Reconcile purchases</b><small>Match suppliers and bank debits</small></span>
+            </button>
+          </div>
+        </section>
+      </div> : null}
 
-      <section className={styles.profileRegister} aria-label="Product GST profiles">
-        <header>
-          <div><p>PRODUCT TAX PROFILES</p><h3>Backend-owned SAC and GST configuration</h3></div>
-          <span>Invoice and plan creation must match these controlled profiles.</span>
-        </header>
-        <div className={styles.tableWrap}>
-          <table>
-            <thead><tr><th>Product</th><th>Supply model</th><th>SAC</th><th>GST</th><th>Billing</th><th>Review state</th><th>Evidence</th></tr></thead>
-            <tbody>
-              {taxProfiles.map(profile => <tr key={profile.id}>
-                <td><strong>{profile.product_code || "—"} · {profile.product_name}</strong><small>{profile.classification_basis}</small></td>
-                <td>{profile.supply_model.replaceAll("_"," ")}</td>
-                <td><strong>{profile.sac}</strong></td>
-                <td>{profile.gst_rate}%</td>
-                <td><em data-status={profile.billing_enabled ? "PAID" : "DISABLED"}>{profile.billing_enabled ? "ENABLED" : "DISABLED"}</em></td>
-                <td><em data-status={profile.status === "APPROVED" ? "PAID" : profile.status}>{profile.status}</em></td>
-                <td>{profile.evidence_ref || "CA evidence required"}</td>
-              </tr>)}
-              {!taxProfiles.length ? <tr><td colSpan={7}><div className={styles.empty}>No product tax profiles are configured.</div></td></tr> : null}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      {view === "sales" ? <div className={styles.viewStack}>
+        <section className={styles.sectionCard}>
+          <div className={styles.sectionTitle}>
+            <div><p>SALES REGISTER</p><h3>Issued invoices and e-invoice state</h3></div>
+            <label className={styles.periodControl}>Period<select value={period} onChange={(event) => setPeriod(event.target.value)}>
+              <option value="ALL">All issued invoices</option>
+              {periods.map((item) => <option key={item} value={item}>{monthLabel(item)}</option>)}
+            </select></label>
+          </div>
+          <div className={styles.miniMetrics}>
+            <span><small>Taxable</small><b>{money(working.netTaxable)}</b></span>
+            <span><small>Output GST</small><b>{money(outputTax)}</b></span>
+            <span><small>Total</small><b>{money(working.total)}</b></span>
+          </div>
+          <div className={styles.tableWrap}>
+            <table className={styles.salesTable}>
+              <thead><tr><th>Invoice</th><th>Customer</th><th>Product</th><th>Taxable</th><th>GST</th><th>Total</th><th>IRN</th></tr></thead>
+              <tbody>
+                {visibleInvoices.map((invoice) => {
+                  const customer = customerMap.get(invoice.customer_id);
+                  const product = productMap.get(invoice.product_id);
+                  const einvoice = einvoiceMap.get(invoice.id);
+                  const buyerReady = Boolean(customer?.gstin && customer?.billing_address && customer?.billing_locality && customer?.billing_pincode);
+                  const canGenerate = Boolean(canPrepare && connector?.ready_for_live_irn && buyerReady && (!einvoice || einvoice.status === "FAILED"));
+                  const cancelDraft = cancelDrafts[invoice.id] || { reason: "1", remarks: "" };
+                  return <tr key={invoice.id}>
+                    <td><strong>{invoice.invoice_no}</strong><small>{date(invoice.issued_at)}</small></td>
+                    <td><strong>{customer?.display_name || customer?.legal_name || invoice.customer_id}</strong><small>{customer?.gstin || "No buyer GSTIN"}</small></td>
+                    <td>{product ? product.code + " · " + product.name : invoice.product_id}</td>
+                    <td>{money(invoice.net_taxable, invoice.currency)}</td>
+                    <td><strong>{money(Number(invoice.cgst || 0) + Number(invoice.sgst || 0) + Number(invoice.igst || 0), invoice.currency)}</strong><small>{gstText(invoice)}</small></td>
+                    <td><strong>{money(invoice.total, invoice.currency)}</strong><small>{invoice.status}</small></td>
+                    <td className={styles.irnCell}>
+                      <em data-state={einvoice?.status === "GENERATED" ? "ok" : einvoice?.status === "FAILED" ? "error" : "neutral"}>{einvoice?.status || "NOT GENERATED"}</em>
+                      {einvoice?.irn ? <small title={einvoice.irn}>IRN {einvoice.irn.slice(0, 14)}…</small> : null}
+                      {einvoice?.ack_no ? <small>Ack {einvoice.ack_no}</small> : null}
+                      {canGenerate ? <button type="button" disabled={Boolean(actionBusy)} onClick={() => void providerAction(
+                        "generate-" + invoice.id,
+                        "tax/gst/einvoice/" + encodeURIComponent(invoice.id) + "/generate",
+                        undefined,
+                        () => "IRN generated for " + invoice.invoice_no + ".",
+                      )}>{actionBusy === "generate-" + invoice.id ? <LoaderCircle className={styles.spin} /> : <FileCheck2 />} Generate</button> : null}
+                      {!einvoice && connector?.ready_for_live_irn && !buyerReady ? <small>Buyer GSTIN + address required.</small> : null}
+                      {einvoice?.last_error ? <small className={styles.inlineError}>{einvoice.last_error}</small> : null}
+                      {einvoice?.status === "GENERATED" && canApprove ? <details className={styles.cancelIrn}>
+                        <summary>Cancel IRN</summary>
+                        <label>Reason<select value={cancelDraft.reason} onChange={(event) => setCancelDrafts((current) => ({ ...current, [invoice.id]: { ...cancelDraft, reason: event.target.value } }))}>
+                          <option value="1">Duplicate</option>
+                          <option value="2">Data entry mistake</option>
+                          <option value="3">Order cancelled</option>
+                          <option value="4">Other</option>
+                        </select></label>
+                        <label>Remarks<input maxLength={100} value={cancelDraft.remarks} onChange={(event) => setCancelDrafts((current) => ({ ...current, [invoice.id]: { ...cancelDraft, remarks: event.target.value } }))} /></label>
+                        <button type="button" disabled={cancelDraft.remarks.trim().length < 3 || Boolean(actionBusy)} onClick={() => void providerAction(
+                          "cancel-" + invoice.id,
+                          "tax/gst/einvoice/" + encodeURIComponent(invoice.id) + "/cancel",
+                          { reason_code: cancelDraft.reason, remarks: cancelDraft.remarks.trim() },
+                          () => "IRN cancelled for " + invoice.invoice_no + ".",
+                        )}>{actionBusy === "cancel-" + invoice.id ? <LoaderCircle className={styles.spin} /> : <CircleAlert />} Confirm cancellation</button>
+                      </details> : null}
+                    </td>
+                  </tr>;
+                })}
+                {!visibleInvoices.length ? <tr><td colSpan={7}><div className={styles.empty}>No issued invoices in this period.</div></td></tr> : null}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div> : null}
 
-      <section className={styles.purchasePanel} aria-label="GST purchase reconciliation">
-        <header>
-          <div><p>INWARD GST · DATA & RECONCILIATION</p><h3>IRIS purchase evidence against Kravia books</h3></div>
-          <em data-ready={vasStatus?.data_api_configured}>{vasStatus?.data_api_configured ? "DATA API READY" : "VAS NOT CONFIGURED"}</em>
-        </header>
-        <div className={styles.purchaseGrid}>
-          <article><span>Imported inward invoices</span><b>{purchaseSummary?.invoice_count || 0}</b><small>{purchaseSummary?.unmatched || 0} need reconciliation</small></article>
-          <article><span>Observed taxable value</span><b>{money(Number(purchaseSummary?.taxable || 0))}</b><small>Provider invoice evidence</small></article>
-          <article><span>Observed CGST + SGST</span><b>{money(Number(purchaseSummary?.cgst || 0) + Number(purchaseSummary?.sgst || 0))}</b><small>Not an ITC claim</small></article>
-          <article><span>Observed IGST</span><b>{money(Number(purchaseSummary?.igst || 0))}</b><small>Not an ITC claim</small></article>
-          <article><span>ITC review queue</span><b>{purchaseSummary?.itc_review_required || 0}</b><small>Professional review required</small></article>
-          <article><span>Consent requirement</span><b>{vasStatus?.consent_required ? "Required" : "—"}</b><small>{vasStatus?.auth_model || "IRIS VAS authorisation"}</small></article>
-        </div>
-        <div className={styles.connectorActions}>
-          <button type="button" disabled={!canPrepare || Boolean(actionBusy)} onClick={() => void providerAction("reconcile-purchases", "tax/gst/purchases/reconcile", undefined, (result) => {
-            const row = result as { count?: number };
-            return "Purchase reconciliation completed for " + (row.count ?? 0) + " inward invoices.";
-          })}>{actionBusy === "reconcile-purchases" ? <LoaderCircle className={styles.spin} /> : <RefreshCw />} Reconcile purchases</button>
-        </div>
-        {vasStatus?.missing_configuration?.length ? <p className={styles.connectorNote}>To pull purchases directly from IRIS, configure: {vasStatus.missing_configuration.join(", ")}. Supplier sharing consent and recipient access consent remain mandatory.</p> : <p className={styles.connectorNote}>{purchaseSummary?.note}</p>}
-        <div className={styles.tableWrap}>
-          <table>
-            <thead><tr><th>Supplier</th><th>Document</th><th>Date</th><th>Total</th><th>Books match</th><th>ITC review</th></tr></thead>
-            <tbody>
-              {purchaseInvoices.map((invoice) => <tr key={invoice.id}>
-                <td><strong>{invoice.supplier_name || invoice.supplier_gstin}</strong><small>{invoice.supplier_gstin}</small></td>
-                <td><strong>{invoice.document_no}</strong><small>{invoice.document_type}</small></td>
-                <td>{date(invoice.document_date)}</td>
-                <td>{money(Number(invoice.total || 0))}</td>
-                <td><em data-status={invoice.reconciliation_status === "BANK_MATCHED" ? "PAID" : invoice.reconciliation_status}>{invoice.reconciliation_status}</em></td>
-                <td><em data-status={invoice.itc_review_status}>{invoice.itc_review_status}</em></td>
-              </tr>)}
-              {!purchaseInvoices.length ? <tr><td colSpan={6}><div className={styles.empty}>No inward e-invoice evidence has been imported yet.</div></td></tr> : null}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      {view === "purchases" ? <div className={styles.viewStack}>
+        <section className={styles.sectionCard}>
+          <div className={styles.sectionTitle}>
+            <div><p>PURCHASES</p><h3>Inward GST evidence and book matching</h3></div>
+            <button className={styles.primaryAction} type="button" disabled={!canPrepare || Boolean(actionBusy)} onClick={() => void providerAction("reconcile-purchases", "tax/gst/purchases/reconcile", undefined, (result) => {
+              const row = result as { count?: number };
+              return "Purchase reconciliation completed for " + (row.count ?? 0) + " inward invoices.";
+            })}>{actionBusy === "reconcile-purchases" ? <LoaderCircle className={styles.spin} /> : <RefreshCw />} Reconcile</button>
+          </div>
+          <div className={styles.kpiGridCompact}>
+            <article><span>Imported</span><b>{purchaseSummary?.invoice_count || 0}</b></article>
+            <article><span>Observed GST</span><b>{money(observedInputTax)}</b></article>
+            <article><span>Unmatched</span><b>{purchaseSummary?.unmatched || 0}</b></article>
+            <article><span>ITC review</span><b>{purchaseSummary?.itc_review_required || 0}</b></article>
+          </div>
+          <p className={styles.helper}>{purchaseSummary?.note || "Imported inward GST is observational. No ITC eligibility or claim is inferred."}</p>
+          <div className={styles.tableWrap}>
+            <table className={styles.purchaseTable}>
+              <thead><tr><th>Supplier</th><th>Document</th><th>Date</th><th>Total</th><th>Books match</th><th>ITC review</th></tr></thead>
+              <tbody>
+                {purchaseInvoices.map((invoice) => <tr key={invoice.id}>
+                  <td><strong>{invoice.supplier_name || invoice.supplier_gstin}</strong><small>{invoice.supplier_gstin}</small></td>
+                  <td><strong>{invoice.document_no}</strong><small>{invoice.document_type}</small></td>
+                  <td>{date(invoice.document_date)}</td>
+                  <td>{money(Number(invoice.total || 0))}</td>
+                  <td><em data-state={invoice.reconciliation_status === "BANK_MATCHED" ? "ok" : "warn"}>{invoice.reconciliation_status}</em></td>
+                  <td><em data-state="warn">{invoice.itc_review_status}</em></td>
+                </tr>)}
+                {!purchaseInvoices.length ? <tr><td colSpan={6}><div className={styles.empty}>No inward e-invoice evidence has been imported yet.</div></td></tr> : null}
+              </tbody>
+            </table>
+          </div>
+          <details className={styles.inlineDetails}>
+            <summary>Purchase-data connector details</summary>
+            <div className={styles.detailGrid}>
+              <span><b>IRIS VAS</b><small>{vasStatus?.data_api_configured ? "Configured" : "Not configured"}</small></span>
+              <span><b>Consent</b><small>{vasStatus?.consent_required ? "Supplier + recipient consent required" : "—"}</small></span>
+              <span><b>Authentication</b><small>{vasStatus?.auth_model || "—"}</small></span>
+            </div>
+            {vasStatus?.missing_configuration?.length ? <p className={styles.helper}>Missing: {vasStatus.missing_configuration.join(", ")}</p> : null}
+          </details>
+        </section>
+      </div> : null}
 
-      <section className={styles.returnPanel} aria-label="GST return workings">
-        <header>
-          <div><p>RETURN WORKINGS</p><h3>Prepare → CA review → external filing evidence</h3></div>
-          <span>{vasStatus?.gsp.configured ? "GSP configured" : "GSP filing not configured"}</span>
-        </header>
-        <div className={styles.returnActions}>
-          <label>Tax period<input type="month" value={returnPeriod} onChange={(event) => setReturnPeriod(event.target.value)} /></label>
-          <button type="button" disabled={!canPrepare || !returnPeriod || Boolean(actionBusy)} onClick={() => void providerAction("build-gstr1", "tax/gst/returns/build", { form_type: "GSTR1", period: returnPeriod }, () => "GSTR-1 working rebuilt from canonical sales.")}>{actionBusy === "build-gstr1" ? <LoaderCircle className={styles.spin} /> : <FileCheck2 />} Build GSTR-1 working</button>
-          <button type="button" disabled={!canPrepare || !returnPeriod || Boolean(actionBusy)} onClick={() => void providerAction("build-gstr3b", "tax/gst/returns/build", { form_type: "GSTR3B", period: returnPeriod }, () => "GSTR-3B working rebuilt. Inward GST remains observational pending ITC review.")}>{actionBusy === "build-gstr3b" ? <LoaderCircle className={styles.spin} /> : <FileCheck2 />} Build GSTR-3B working</button>
-        </div>
-        <p className={styles.connectorNote}>{vasStatus?.gsp.note || "Return filing requires a provider-specific GSTN-empanelled GSP adapter and filing acknowledgement."}</p>
-        <div className={styles.tableWrap}>
-          <table>
-            <thead><tr><th>Form</th><th>Period</th><th>Status</th><th>Review</th><th>Filing provider</th><th>ARN</th></tr></thead>
-            <tbody>
-              {returnWorkings.map((working) => <tr key={working.id}>
-                <td><strong>{working.form_type}</strong><small title={working.source_hash}>source {working.source_hash.slice(0, 12)}…</small></td>
-                <td>{working.period}</td>
-                <td><em data-status={working.status === "FILED_EVIDENCE_RECORDED" ? "PAID" : working.status}>{working.status}</em></td>
-                <td>{working.reviewed_by || "Pending CA review"}</td>
-                <td>{working.filing_provider || "—"}</td>
-                <td>{working.filing_arn || "—"}</td>
-              </tr>)}
-              {!returnWorkings.length ? <tr><td colSpan={6}><div className={styles.empty}>No GST return working has been built yet.</div></td></tr> : null}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      {view === "returns" ? <div className={styles.viewStack}>
+        <section className={styles.sectionCard}>
+          <div className={styles.sectionTitle}>
+            <div><p>RETURNS</p><h3>Prepare and review GST return workings</h3></div>
+            <span className={styles.mutedStatus}>{vasStatus?.gsp.configured ? "GSP configured" : "Preparation only"}</span>
+          </div>
+          <div className={styles.returnActions}>
+            <label>Tax period<input type="month" value={returnPeriod} onChange={(event) => setReturnPeriod(event.target.value)} /></label>
+            <button type="button" disabled={!canPrepare || !returnPeriod || Boolean(actionBusy)} onClick={() => void providerAction("build-gstr1", "tax/gst/returns/build", { form_type: "GSTR1", period: returnPeriod }, () => "GSTR-1 working rebuilt from canonical sales.")}>{actionBusy === "build-gstr1" ? <LoaderCircle className={styles.spin} /> : <FileCheck2 />} Build GSTR-1</button>
+            <button type="button" disabled={!canPrepare || !returnPeriod || Boolean(actionBusy)} onClick={() => void providerAction("build-gstr3b", "tax/gst/returns/build", { form_type: "GSTR3B", period: returnPeriod }, () => "GSTR-3B working rebuilt. Inward GST remains observational pending ITC review.")}>{actionBusy === "build-gstr3b" ? <LoaderCircle className={styles.spin} /> : <FileCheck2 />} Build GSTR-3B</button>
+          </div>
+          <p className={styles.helper}>{vasStatus?.gsp.note || "Return filing requires a provider-specific GSTN-empanelled GSP adapter and filing acknowledgement."}</p>
+          <div className={styles.tableWrap}>
+            <table className={styles.returnTable}>
+              <thead><tr><th>Form</th><th>Period</th><th>Status</th><th>CA review</th><th>Provider</th><th>ARN</th></tr></thead>
+              <tbody>
+                {returnWorkings.map((workingRow) => <tr key={workingRow.id}>
+                  <td><strong>{workingRow.form_type}</strong><small title={workingRow.source_hash}>source {workingRow.source_hash.slice(0, 12)}…</small></td>
+                  <td>{workingRow.period}</td>
+                  <td><em data-state={workingRow.status === "FILED_EVIDENCE_RECORDED" ? "ok" : workingRow.status === "REVIEW_REJECTED" ? "error" : "neutral"}>{workingRow.status}</em></td>
+                  <td>{workingRow.reviewed_by || "Pending"}</td>
+                  <td>{workingRow.filing_provider || "—"}</td>
+                  <td>{workingRow.filing_arn || "—"}</td>
+                </tr>)}
+                {!returnWorkings.length ? <tr><td colSpan={6}><div className={styles.empty}>No GST return working has been built yet.</div></td></tr> : null}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div> : null}
 
-      <section className={styles.rateMaster} aria-label="GST rate master">
-        <header>
-          <div><p>GSTN / IRP RATE MASTER</p><h3>Permitted standard GST percentages</h3></div>
-          <span>Verified {gstMaster?.verified_on || "—"} · IT services default {gstMaster?.it_services.default_rate || "18"}%</span>
-        </header>
-        <div className={styles.rateGrid}>
-          {(gstMaster?.standard_rates || []).map((rate) => <span key={rate} data-it-default={rate === gstMaster?.it_services.default_rate}>{rate}%</span>)}
-        </div>
-        <div className={styles.taxGuidance}>
-          <p><b>IT services:</b> {gstMaster?.it_services.classification_note || "CBIC IT-service rate reference is 18%."}</p>
-          <p><b>Tax split:</b> intra-state → {gstMaster?.calculation.intra_state || "CGST + SGST"}; inter-state → {gstMaster?.calculation.inter_state || "IGST"}.</p>
-          <p><b>0% control:</b> {gstMaster?.calculation.zero_rate_note || "Zero-rate treatment requires separate evidence."}</p>
-        </div>
-        <details>
-          <summary>IT-service SAC reference</summary>
-          <div className={styles.sacGrid}>{gstMaster?.it_services.sacs.map((item) => <span key={item.code}><b>{item.code}</b>{item.description}</span>)}</div>
+      {view === "settings" ? <div className={styles.viewStack}>
+        <section className={styles.settingsIntro}>
+          <div><p>ADVANCED CONFIGURATION</p><h3>Tax setup and provider diagnostics</h3></div>
+          <span>These controls are intentionally separated from day-to-day GST work.</span>
+        </section>
+
+        <details className={styles.settingsBlock} open>
+          <summary><span>Production tax control</span><em data-state={configuration?.ready_for_production_invoicing ? "ok" : "warn"}>{configuration?.ready_for_production_invoicing ? "READY" : "REVIEW REQUIRED"}</em></summary>
+          <div className={styles.detailGrid}>
+            <span><b>GSTIN</b><small>{configuration?.gstin.configured ? configuration.gstin.masked || "Configured" : "Not configured"}</small></span>
+            <span><b>Registration evidence</b><small>{configuration?.portal_verification || "NOT_CONNECTED"}</small></span>
+            <span><b>Supplier state</b><small>{configuration?.gstin.state_code || "—"}</small></span>
+            <span><b>Tax config</b><small>{configuration?.tax_config_approved ? "Approved" : "Not approved"}</small></span>
+            <span><b>Product profiles</b><small>{configuration?.profiles.approved_billing || 0}/{configuration?.profiles.billing_enabled || 0} approved</small></span>
+          </div>
+          <p className={styles.helper}>{configuration?.note}</p>
         </details>
-      </section>
 
-      <div className={styles.assurance}>
-        <article><Database /><div><b>Canonical source</b><span>Issued invoice snapshots and their recorded GST split.</span></div></article>
-        <article><ShieldCheck /><div><b>Output GST only</b><span>Input tax credit is not calculated by this source, so no net GST payable is claimed.</span></div></article>
-        <article><FileCheck2 /><div><b>Filing evidence</b><span>No GST portal filing is performed or inferred by this workspace. Filing evidence must come from an external authoritative source.</span></div></article>
-      </div>
+        <details className={styles.settingsBlock}>
+          <summary><span>IRIS IRP connector</span><em data-state={connector?.ready_for_live_irn ? "ok" : "warn"}>{connector?.ready_for_live_irn ? "IRN READY" : connector?.core_configured ? "GATED" : "NOT CONFIGURED"}</em></summary>
+          <div className={styles.detailGrid}>
+            <span><b>Provider</b><small>{connector?.provider || "IRIS_IRP"}</small></span>
+            <span><b>Environment</b><small>{connector?.environment || "—"}</small></span>
+            <span><b>Core credentials</b><small>{connector?.core_configured ? "Configured" : "Not configured"}</small></span>
+            <span><b>e-Invoice</b><small>{connector?.einvoice_enabled ? "Enabled" : "Disabled"}</small></span>
+            <span><b>Seller INV-01</b><small>{connector?.invoice_identity_configured ? "Configured" : "Incomplete"}</small></span>
+            <span><b>Last operation</b><small>{connector?.last_operation ? connector.last_operation.operation + " · " + connector.last_operation.status : "None"}</small></span>
+          </div>
+          <div className={styles.settingsActions}>
+            <button type="button" disabled={!canPrepare || !connector?.core_configured || Boolean(actionBusy)} onClick={() => void providerAction("health", "tax/gst/connector/health", undefined, () => "IRIS IRP health check succeeded.")}>
+              {actionBusy === "health" ? <LoaderCircle className={styles.spin} /> : <ShieldCheck />} Test IRP
+            </button>
+          </div>
+          {connector?.missing_configuration?.length ? <p className={styles.helper}>Missing: {connector.missing_configuration.join(", ")}. No credential value is exposed or stored in the browser.</p> : <p className={styles.helper}>{connector?.secret_storage}</p>}
+        </details>
 
-      <section className={styles.register} aria-label="GST invoice register">
-        <header>
-          <div><p>SALES REGISTER</p><h3>{period === "ALL" ? "All invoice periods" : monthLabel(period)}</h3></div>
-          <span>{summary?.note || "Working sales-register summary only."}</span>
-        </header>
-        <div className={styles.tableWrap}>
-          <table>
-            <thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Product</th><th>Taxable</th><th>CGST</th><th>SGST</th><th>IGST</th><th>Total</th><th>Status</th><th>IRP / IRN</th></tr></thead>
-            <tbody>
-              {visibleInvoices.map((invoice) => {
-                const customer = customerMap.get(invoice.customer_id);
-                const product = productMap.get(invoice.product_id);
-                const einvoice = einvoiceMap.get(invoice.id);
-                const buyerReady = Boolean(customer?.gstin && customer?.billing_address && customer?.billing_locality && customer?.billing_pincode);
-                const canGenerate = Boolean(canPrepare && connector?.ready_for_live_irn && buyerReady && (!einvoice || einvoice.status === "FAILED"));
-                const cancelDraft = cancelDrafts[invoice.id] || { reason: "1", remarks: "" };
-                return <tr key={invoice.id}>
-                  <td><strong>{invoice.invoice_no}</strong><small title={invoice.document_hash}>hash {invoice.document_hash?.slice(0, 12) || "—"}</small></td>
-                  <td>{date(invoice.issued_at)}</td>
-                  <td>{customer?.display_name || customer?.legal_name || invoice.customer_id}<small>{customer?.gstin || "No buyer GSTIN"}</small></td>
-                  <td>{product ? `${product.code} · ${product.name}` : invoice.product_id}</td>
-                  <td>{money(invoice.net_taxable, invoice.currency)}</td>
-                  <td>{money(invoice.cgst, invoice.currency)}</td>
-                  <td>{money(invoice.sgst, invoice.currency)}</td>
-                  <td>{money(invoice.igst, invoice.currency)}</td>
-                  <td>{money(invoice.total, invoice.currency)}</td>
-                  <td><em data-status={invoice.status}>{invoice.status}</em></td>
-                  <td className={styles.irpCell}>
-                    <em data-status={einvoice?.status === "GENERATED" ? "PAID" : einvoice?.status || "NONE"}>{einvoice?.status || "NOT GENERATED"}</em>
-                    {einvoice?.irn ? <small title={einvoice.irn}>IRN {einvoice.irn.slice(0, 16)}…</small> : null}
-                    {einvoice?.ack_no ? <small>Ack {einvoice.ack_no}</small> : null}
-                    {einvoice?.last_error ? <small className={styles.irpError}>{einvoice.last_error}</small> : null}
-                    {canGenerate ? <button type="button" disabled={Boolean(actionBusy)} onClick={() => void providerAction(
-                      "generate-" + invoice.id,
-                      "tax/gst/einvoice/" + encodeURIComponent(invoice.id) + "/generate",
-                      undefined,
-                      () => "IRN generated for " + invoice.invoice_no + ".",
-                    )}>{actionBusy === "generate-" + invoice.id ? <LoaderCircle className={styles.spin} /> : <FileCheck2 />} Generate IRN</button> : null}
-                    {!einvoice && connector?.ready_for_live_irn && !buyerReady ? <small>Buyer GSTIN + billing address/locality/pincode required.</small> : null}
-                    {einvoice?.status === "GENERATED" && canApprove ? <details className={styles.cancelIrn}>
-                      <summary>Cancel IRN</summary>
-                      <label>Reason<select value={cancelDraft.reason} onChange={(event) => setCancelDrafts((current) => ({ ...current, [invoice.id]: { ...cancelDraft, reason: event.target.value } }))}>
-                        <option value="1">Duplicate</option>
-                        <option value="2">Data entry mistake</option>
-                        <option value="3">Order cancelled</option>
-                        <option value="4">Other</option>
-                      </select></label>
-                      <label>Remarks<input maxLength={100} value={cancelDraft.remarks} onChange={(event) => setCancelDrafts((current) => ({ ...current, [invoice.id]: { ...cancelDraft, remarks: event.target.value } }))} /></label>
-                      <button type="button" disabled={cancelDraft.remarks.trim().length < 3 || Boolean(actionBusy)} onClick={() => void providerAction(
-                        "cancel-" + invoice.id,
-                        "tax/gst/einvoice/" + encodeURIComponent(invoice.id) + "/cancel",
-                        { reason_code: cancelDraft.reason, remarks: cancelDraft.remarks.trim() },
-                        () => "IRN cancelled for " + invoice.invoice_no + ".",
-                      )}>{actionBusy === "cancel-" + invoice.id ? <LoaderCircle className={styles.spin} /> : <CircleAlert />} Confirm cancellation</button>
-                    </details> : null}
-                  </td>
-                </tr>;
-              })}
-              {!visibleInvoices.length ? <tr><td colSpan={11}><div className={styles.empty}>No canonical invoices exist for this working period.</div></td></tr> : null}
-            </tbody>
-          </table>
-        </div>
-      </section>
+        <details className={styles.settingsBlock}>
+          <summary><span>Product tax profiles</span><em>{taxProfiles.length}</em></summary>
+          <div className={styles.tableWrap}>
+            <table className={styles.profileTable}>
+              <thead><tr><th>Product</th><th>Supply</th><th>SAC</th><th>GST</th><th>Billing</th><th>Review</th></tr></thead>
+              <tbody>{taxProfiles.map((profile) => <tr key={profile.id}>
+                <td><strong>{profile.product_code || "—"} · {profile.product_name}</strong><small>{profile.classification_basis}</small></td>
+                <td>{profile.supply_model.replaceAll("_", " ")}</td>
+                <td>{profile.sac}</td>
+                <td>{profile.gst_rate}%</td>
+                <td><em data-state={profile.billing_enabled ? "ok" : "neutral"}>{profile.billing_enabled ? "ENABLED" : "DISABLED"}</em></td>
+                <td><em data-state={profile.status === "APPROVED" ? "ok" : "warn"}>{profile.status}</em><small>{profile.evidence_ref || "CA evidence required"}</small></td>
+              </tr>)}</tbody>
+            </table>
+          </div>
+        </details>
+
+        <details className={styles.settingsBlock}>
+          <summary><span>GST rate master & SAC reference</span><em>{gstMaster?.verified_on || "—"}</em></summary>
+          <div className={styles.rateGrid}>
+            {(gstMaster?.standard_rates || []).map((rate) => <span key={rate} data-default={rate === gstMaster?.it_services.default_rate}>{rate}%</span>)}
+          </div>
+          <p className={styles.helper}><b>IT services:</b> {gstMaster?.it_services.classification_note || "CBIC IT-service rate reference is 18%."}</p>
+          <div className={styles.sacGrid}>{gstMaster?.it_services.sacs.map((item) => <span key={item.code}><b>{item.code}</b><small>{item.description}</small></span>)}</div>
+        </details>
+
+        <details className={styles.settingsBlock}>
+          <summary><span>Control notes</span></summary>
+          <div className={styles.controlNotes}>
+            <article><Database /><div><b>Canonical source</b><span>Issued invoice snapshots drive output GST.</span></div></article>
+            <article><ShieldCheck /><div><b>Input tax credit</b><span>Input tax credit is not calculated automatically; no net GST payable is claimed.</span></div></article>
+            <article><FileCheck2 /><div><b>Filing evidence</b><span>No GST portal filing is performed or inferred without external authoritative evidence.</span></div></article>
+          </div>
+        </details>
+      </div> : null}
     </>}
   </section>;
 }
