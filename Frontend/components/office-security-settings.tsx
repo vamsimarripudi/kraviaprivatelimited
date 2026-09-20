@@ -24,15 +24,14 @@ type AuthSession = {
   status: string;
   aal: string;
   mfa_verified: boolean;
-  risk_level: string;
   ip_address?: string | null;
-  user_agent_summary?: string | null;
-  started_at: string;
-  last_seen_at: string;
-  ended_at?: string | null;
-  end_reason?: string | null;
-  device_id?: string | null;
+  user_agent_hash?: string | null;
+  started_at?: string | null;
+  last_seen_at?: string | null;
+  expires_at?: string | null;
+  revoked_at?: string | null;
   current: boolean;
+  provider: "KRAVIA_FIRST_PARTY";
 };
 
 async function json<T>(url: string, options?: RequestInit): Promise<T> {
@@ -114,6 +113,25 @@ export function OfficeSecuritySettings({ identity }: { identity: OfficeIdentity 
     }
   }
 
+  async function revokeSession(sessionId: string) {
+    setBusyId(`session:${sessionId}`);
+    setError(undefined);
+    setNotice(undefined);
+    try {
+      await json("/api/office-auth/sessions", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId }),
+      });
+      await reload();
+      setNotice("The selected Office session has been revoked.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to revoke Office session");
+    } finally {
+      setBusyId(undefined);
+    }
+  }
+
   const currentDevice = devices?.find((device) => device.current);
   const currentSession = sessions?.find((session) => session.current);
 
@@ -141,17 +159,20 @@ export function OfficeSecuritySettings({ identity }: { identity: OfficeIdentity 
 
       <section className={styles.panel}>
         <header><div><p>AUTHENTICATION LEDGER</p><h3>Recent Office sessions</h3></div><ShieldCheck /></header>
-        {!sessions ? <div className={styles.loading}><LoaderCircle className="spin" /> Loading sessions…</div> : sessions.length === 0 ? <div className={styles.empty}>No tracked Office sessions are available yet.</div> : <div className={styles.sessionList}>{sessions.map((session) => <article key={session.id} className={styles.session} data-current={session.current}>
-          <div><b>{session.current ? "Current session" : session.status}</b><span>{session.aal.toUpperCase()} · {session.mfa_verified ? "MFA verified" : "MFA not verified"} · Risk {session.risk_level}</span></div>
-          <small>Started {dateTime(session.started_at)} · Last seen {dateTime(session.last_seen_at)}</small>
-          <small>{session.device_id ? "Linked to registered device" : "No trusted-device link"}{session.ip_address ? ` · Network ${session.ip_address}` : ""}</small>
-          {session.user_agent_summary ? <code title={session.user_agent_summary}>{session.user_agent_summary}</code> : null}
+        {!sessions ? <div className={styles.loading}><LoaderCircle className="spin" /> Loading sessions…</div> : sessions.length === 0 ? <div className={styles.empty}>No first-party Office sessions are available.</div> : <div className={styles.sessionList}>{sessions.map((session) => <article key={session.id} className={styles.session} data-current={session.current}>
+          <div>
+            <div><b>{session.current ? "Current session" : session.status}</b><span>{session.aal.toUpperCase()} · {session.mfa_verified ? "MFA verified" : "MFA not verified"} · KRAVIA first-party</span></div>
+            {!session.current && session.status === "ACTIVE" ? <button className={styles.sessionAction} type="button" disabled={Boolean(busyId)} onClick={() => void revokeSession(session.id)}>{busyId === `session:${session.id}` ? <LoaderCircle className="spin" /> : null} Revoke</button> : null}
+          </div>
+          <small>Started {dateTime(session.started_at)} · Last seen {dateTime(session.last_seen_at)} · Expires {dateTime(session.expires_at)}</small>
+          <small>{session.ip_address ? `Network ${session.ip_address}` : "Network metadata unavailable"}{session.revoked_at ? ` · Revoked ${dateTime(session.revoked_at)}` : ""}</small>
+          {session.user_agent_hash ? <code title={session.user_agent_hash}>Device fingerprint {session.user_agent_hash.slice(0, 16)}…</code> : null}
         </article>)}</div>}
       </section>
     </div>
 
     <section className={styles.policy}>
-      <ShieldCheck /><div><b>Security boundary</b><p>AAL2 proves the user completed MFA. Trusted-device binding separately proves that this browser possesses a secret bound to an administrator-approved, company-managed device. Authentication presence, device trust and business permissions remain independent controls.</p><small>Current session: {currentSession ? `${currentSession.aal.toUpperCase()} · ${currentSession.risk_level}` : "ledger pending"}</small></div>
+      <ShieldCheck /><div><b>Security boundary</b><p>AAL2 proves the user completed MFA. Trusted-device binding separately proves that this browser possesses a secret bound to an administrator-approved, company-managed device. Authentication presence, device trust and business permissions remain independent controls.</p><small>Current session: {currentSession ? `${currentSession.aal.toUpperCase()} · KRAVIA first-party` : "session evidence unavailable"}</small></div>
     </section>
   </div>;
 }
