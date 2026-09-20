@@ -328,6 +328,27 @@ export function OfficeGstTaxWorkspace({
   const derived = useMemo(() => totals(visibleInvoices), [visibleInvoices]);
   const customerMap = useMemo(() => new Map(customers.map((customer) => [customer.id, customer])), [customers]);
   const productMap = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
+  const einvoiceMap = useMemo(() => new Map(einvoices.map((record) => [record.invoice_id, record])), [einvoices]);
+
+  const providerAction = useCallback(async (
+    key: string,
+    actionPath: string,
+    payload: unknown | undefined,
+    success: (result: unknown) => string,
+  ) => {
+    setActionBusy(key);
+    setError(undefined);
+    setNotice(undefined);
+    try {
+      const result = await mutate<unknown>(actionPath, payload);
+      setNotice(success(result));
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "GST provider action failed");
+    } finally {
+      setActionBusy(undefined);
+    }
+  }, [load]);
 
   const working = period === "ALL" && summary
     ? {
@@ -347,8 +368,8 @@ export function OfficeGstTaxWorkspace({
         <p>GST & TAX · WORKING REGISTER</p>
         <h2>Review invoice-derived output GST without fabricating filing or input-credit status.</h2>
         <span>
-          This workspace is a controlled working register. It does not file returns, calculate input-tax credit,
-          or assert statutory compliance without external filing evidence and professional review.
+          This workspace combines the canonical GST register with a credential-gated IRIS IRP connector for
+          taxpayer verification and e-invoice operations. It does not infer return filing or input-tax credit.
         </span>
       </div>
       <div className={styles.authority} aria-label="GST workspace authority">
@@ -369,6 +390,7 @@ export function OfficeGstTaxWorkspace({
       <Link href="/finance/billing"><FileCheck2 /> Open billing evidence</Link>
     </div>
 
+    {notice ? <div className={styles.notice}><BadgeCheck />{notice}</div> : null}
     {error ? <div className={styles.error}><CircleAlert />{error}</div> : null}
     {loading ? <div className={styles.state}><LoaderCircle className={styles.spin} />Loading canonical GST working data…</div> : <>
       <div className={styles.metrics}>
@@ -382,6 +404,39 @@ export function OfficeGstTaxWorkspace({
         <article><span>Working state</span><b>{summary?.filing_status || "REVIEW_REQUIRED"}</b></article>
       </div>
 
+      <section className={styles.connectorPanel} aria-label="GST IRP connector">
+        <header>
+          <div>
+            <p>LIVE GST CONNECTOR</p>
+            <h3>IRIS IRP core API</h3>
+          </div>
+          <em data-ready={connector?.ready_for_live_irn}>{connector?.ready_for_live_irn ? "IRN READY" : connector?.core_configured ? "CONNECTED · IRN GATED" : "NOT CONFIGURED"}</em>
+        </header>
+        <div className={styles.connectorGrid}>
+          <article><span>Provider</span><b>{connector?.provider || "IRIS_IRP"}</b><small>{connector?.environment || "—"} environment</small></article>
+          <article><span>Core credentials</span><b>{connector?.core_configured ? "Configured" : "Not configured"}</b><small>{connector?.base_host || "No provider host"}</small></article>
+          <article><span>e-Invoice switch</span><b>{connector?.einvoice_enabled ? "Enabled" : "Disabled"}</b><small>Eligibility/operations gate</small></article>
+          <article><span>Seller INV-01 identity</span><b>{connector?.invoice_identity_configured ? "Configured" : "Incomplete"}</b><small>{connector?.gstin_masked || "GSTIN not configured"}</small></article>
+          <article><span>Last GSTIN verification</span><b>{connector?.last_gstin_verification?.registration_status || "No provider evidence"}</b><small>{connector?.last_gstin_verification?.legal_name || "Run verification after credentials are configured"}</small></article>
+          <article><span>Last provider operation</span><b>{connector?.last_operation?.status || "None"}</b><small>{connector?.last_operation ? connector.last_operation.operation + " · " + date(connector.last_operation.created_at || "") : "No API operation recorded"}</small></article>
+        </div>
+        <div className={styles.connectorActions}>
+          <button type="button" disabled={!canPrepare || !connector?.core_configured || Boolean(actionBusy)} onClick={() => void providerAction("health", "tax/gst/connector/health", undefined, () => "IRIS IRP health check succeeded.")}>
+            {actionBusy === "health" ? <LoaderCircle className={styles.spin} /> : <ShieldCheck />} Test IRP
+          </button>
+          <button type="button" disabled={!canPrepare || !connector?.core_configured || Boolean(actionBusy)} onClick={() => void providerAction("verify", "tax/gst/connector/verify-gstin", { sync_common_portal: false }, (result) => {
+            const row = result as { legal_name?: string; registration_status?: string };
+            return "GSTIN verified" + (row.legal_name ? " · " + row.legal_name : "") + (row.registration_status ? " · " + row.registration_status : "") + ".";
+          })}>
+            {actionBusy === "verify" ? <LoaderCircle className={styles.spin} /> : <BadgeCheck />} Verify GSTIN
+          </button>
+          <button type="button" disabled={!canPrepare || !connector?.core_configured || Boolean(actionBusy)} onClick={() => void providerAction("sync", "tax/gst/connector/verify-gstin", { sync_common_portal: true }, () => "GSTIN details synchronized from the GST Common Portal through IRIS IRP.")}>
+            {actionBusy === "sync" ? <LoaderCircle className={styles.spin} /> : <RefreshCw />} Sync Common Portal
+          </button>
+        </div>
+        {connector?.missing_configuration?.length ? <p className={styles.connectorNote}>Deployment configuration still required: {connector.missing_configuration.join(", ")}. No credential value is exposed or stored in the browser.</p> : <p className={styles.connectorNote}>{connector?.secret_storage || "Provider secrets remain server-side."}</p>}
+      </section>
+
       <section className={styles.configPanel} aria-label="GST production configuration">
         <header>
           <div><p>PRODUCTION TAX CONTROL</p><h3>{configuration?.ready_for_production_invoicing ? "Production invoicing tax gate is ready" : "Production invoicing remains gated"}</h3></div>
@@ -392,7 +447,7 @@ export function OfficeGstTaxWorkspace({
           <article><span>Supplier state</span><b>{configuration?.gstin.state_code || "—"}</b><small>{configuration?.gstin.state_matches ? "GSTIN state matches" : "State match pending"}</small></article>
           <article><span>Tax config switch</span><b>{configuration?.tax_config_approved ? "Approved" : "Not approved"}</b><small>Controlled deployment setting</small></article>
           <article><span>Product profiles</span><b>{configuration?.profiles.approved_billing || 0}/{configuration?.profiles.billing_enabled || 0}</b><small>Billing profiles CA-approved</small></article>
-          <article><span>GST portal evidence</span><b>{configuration?.portal_verification || "NOT_CONNECTED"}</b><small>Portal status is never inferred</small></article>
+          <article><span>GST registration evidence</span><b>{configuration?.portal_verification || "NOT_CONNECTED"}</b><small>{configuration?.authoritative_gstin?.verified_at ? "IRIS · " + date(configuration.authoritative_gstin.verified_at) : "Provider verification required"}</small></article>
         </div>
         <p className={styles.configNote}>{configuration?.note}</p>
       </section>
