@@ -14,6 +14,8 @@ class CustomerCreate(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     billing_address: Optional[str] = None
+    billing_locality: Optional[str] = Field(default=None, max_length=120)
+    billing_pincode: Optional[str] = Field(default=None, pattern=r"^[0-9]{6}$")
 
     @field_validator("gstin")
     @classmethod
