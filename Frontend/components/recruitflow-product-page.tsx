@@ -27,7 +27,7 @@ import {
 } from "@/lib/products/recruitflow-market";
 import styles from "./recruitflow-product-page.module.css";
 
-const contactHref = "/contact?product=recruitflow#enquiry-form";
+const contactHref = "/contact?product=nicerole#enquiry-form";
 const capabilityIcons = [BriefcaseBusiness, UsersRound, CalendarCheck2, BrainCircuit, Smartphone, ChartNoAxesCombined] as const;
 
 export function RecruitFlowProductPage() {
@@ -64,7 +64,7 @@ export function RecruitFlowProductPage() {
         </div>
 
         <aside className={styles.signal} aria-label="Nice Role product status">
-          <div><span>RF / RECRUITMENT OPERATIONS</span><strong>Public beta</strong></div>
+          <div><span>NR / RECRUITMENT OPERATIONS</span><strong>Public beta</strong></div>
           <div className={styles.flow} aria-hidden="true"><i /><i /><i /><i /><b /></div>
           <p><span>Role</span><span>Evidence</span><span>Decision</span></p>
         </aside>
