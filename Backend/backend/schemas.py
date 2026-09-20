@@ -2,6 +2,8 @@ from pydantic import BaseModel, Field, field_validator
 from decimal import Decimal
 from typing import Optional
 
+from .tax import ensure_standard_gst_rate
+
 class CustomerCreate(BaseModel):
     legal_name: str = Field(min_length=2, max_length=200)
     display_name: Optional[str] = None
@@ -39,6 +41,11 @@ class InvoiceCreate(BaseModel):
     gst_rate: Decimal = Field(default=Decimal("18"), ge=0, le=100)
     due_date: Optional[str] = None
     notes: Optional[str] = None
+
+    @field_validator("gst_rate")
+    @classmethod
+    def validate_gst_rate(cls, v):
+        return ensure_standard_gst_rate(v)
 
 class PaymentCreate(BaseModel):
     amount: Decimal = Field(gt=0)
@@ -121,6 +128,11 @@ class PlanCreate(BaseModel):
     sac: Optional[str] = None
     effective_from: str
     effective_to: Optional[str] = None
+
+    @field_validator("gst_rate")
+    @classmethod
+    def validate_gst_rate(cls, v):
+        return ensure_standard_gst_rate(v)
 
 class SubscriptionCreate(BaseModel):
     customer_id: str

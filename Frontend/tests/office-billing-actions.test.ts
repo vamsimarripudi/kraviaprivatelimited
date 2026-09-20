@@ -16,6 +16,13 @@ describe("KRAVIA Finance billing actions",()=>{
   expect(screen).toContain("OfficeBillingWorkspace");
  });
 
+ it("uses the canonical GST rate master instead of an arbitrary percentage input",()=>{
+  expect(component).toContain('runtime<GstMaster>("tax/gst/master")');
+  expect(component).toContain("gstMaster?.standard_rates");
+  expect(component).toContain("IT services");
+  expect(component).not.toContain('type="number" min="0" max="100" step="0.01"');
+ });
+
  it("keeps production tax invoicing fail-closed until controlled GST configuration is approved",()=>{
   expect(backend).toContain('if APP_ENV == "production" and (not KRAVIA_GSTIN or not TAX_CONFIG_APPROVED)');
   expect(backend).toContain("Production tax invoicing blocked until GSTIN and approved tax configuration are locked");

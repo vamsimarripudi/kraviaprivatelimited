@@ -44,6 +44,22 @@ type Product = {
   name: string;
 };
 
+type GstMaster = {
+  verified_on: string;
+  standard_rates: string[];
+  it_services: {
+    default_rate: string;
+    heading: string;
+    sacs: { code: string; description: string }[];
+    classification_note: string;
+  };
+  calculation: {
+    intra_state: string;
+    inter_state: string;
+    zero_rate_note: string;
+  };
+};
+
 type WorkingTotals = {
   netTaxable: number;
   cgst: number;
@@ -117,6 +133,7 @@ export function OfficeGstTaxWorkspace({
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [gstMaster, setGstMaster] = useState<GstMaster>();
   const [period, setPeriod] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
@@ -126,17 +143,19 @@ export function OfficeGstTaxWorkspace({
     runtime<Invoice[]>("invoices", signal),
     runtime<Customer[]>("customers", signal),
     runtime<Product[]>("products", signal),
+    runtime<GstMaster>("tax/gst/master", signal),
   ]), []);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(undefined);
     try {
-      const [nextSummary, nextInvoices, nextCustomers, nextProducts] = await fetchRecords();
+      const [nextSummary, nextInvoices, nextCustomers, nextProducts, nextGstMaster] = await fetchRecords();
       setSummary(nextSummary);
       setInvoices(nextInvoices);
       setCustomers(nextCustomers);
       setProducts(nextProducts);
+      setGstMaster(nextGstMaster);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to load GST working records");
     } finally {
@@ -148,12 +167,13 @@ export function OfficeGstTaxWorkspace({
     const controller = new AbortController();
     let active = true;
     void fetchRecords(controller.signal)
-      .then(([nextSummary, nextInvoices, nextCustomers, nextProducts]) => {
+      .then(([nextSummary, nextInvoices, nextCustomers, nextProducts, nextGstMaster]) => {
         if (!active) return;
         setSummary(nextSummary);
         setInvoices(nextInvoices);
         setCustomers(nextCustomers);
         setProducts(nextProducts);
+        setGstMaster(nextGstMaster);
       })
       .catch((caught) => {
         if (active && !(caught instanceof DOMException && caught.name === "AbortError")) {
@@ -233,6 +253,25 @@ export function OfficeGstTaxWorkspace({
         <article><span>Invoices in view</span><b>{working.invoiceCount}</b></article>
         <article><span>Working state</span><b>{summary?.filing_status || "REVIEW_REQUIRED"}</b></article>
       </div>
+
+      <section className={styles.rateMaster} aria-label="GST rate master">
+        <header>
+          <div><p>GSTN / IRP RATE MASTER</p><h3>Permitted standard GST percentages</h3></div>
+          <span>Verified {gstMaster?.verified_on || "—"} · IT services default {gstMaster?.it_services.default_rate || "18"}%</span>
+        </header>
+        <div className={styles.rateGrid}>
+          {(gstMaster?.standard_rates || []).map((rate) => <span key={rate} data-it-default={rate === gstMaster?.it_services.default_rate}>{rate}%</span>)}
+        </div>
+        <div className={styles.taxGuidance}>
+          <p><b>IT services:</b> {gstMaster?.it_services.classification_note || "CBIC IT-service rate reference is 18%."}</p>
+          <p><b>Tax split:</b> intra-state → {gstMaster?.calculation.intra_state || "CGST + SGST"}; inter-state → {gstMaster?.calculation.inter_state || "IGST"}.</p>
+          <p><b>0% control:</b> {gstMaster?.calculation.zero_rate_note || "Zero-rate treatment requires separate evidence."}</p>
+        </div>
+        <details>
+          <summary>IT-service SAC reference</summary>
+          <div className={styles.sacGrid}>{gstMaster?.it_services.sacs.map((item) => <span key={item.code}><b>{item.code}</b>{item.description}</span>)}</div>
+        </details>
+      </section>
 
       <div className={styles.assurance}>
         <article><Database /><div><b>Canonical source</b><span>Issued invoice snapshots and their recorded GST split.</span></div></article>
