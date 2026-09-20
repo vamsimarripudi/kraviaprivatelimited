@@ -14,6 +14,11 @@ describe("KRAVIA workforce authorization administration", () => {
     expect(server).toContain('office_device_registry');
   });
 
+  it("uses the KRAVIA first-party identity directory rather than Supabase Auth", () => {
+    expect(server).toContain('.from("office_auth_users")');
+    expect(server).not.toContain("admin.auth.admin");
+  });
+
   it("uses controlled database RPCs for workforce mutations", () => {
     expect(server).toContain('office_assign_job');
     expect(server).toContain('office_assign_access_profile');
