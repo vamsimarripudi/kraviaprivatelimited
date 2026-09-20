@@ -698,7 +698,7 @@ def build_gst_compliance_router(
             raise HTTPException(422, detail=str(exc))
         source_hash = _hash(summary)
         row = db.execute(select(GstReturnWorking).where(GstReturnWorking.form_type == payload.form_type, GstReturnWorking.period == payload.period)).scalar_one_or_none()
-        if row and row.status == "FILED":
+        if row and row.status in {"FILED", "FILED_EVIDENCE_RECORDED"}:
             raise HTTPException(409, "Filed return working is immutable")
         if not row:
             row = GstReturnWorking(id=uid("GSTRET"), form_type=payload.form_type, period=payload.period, prepared_by=ctx["actor"], source_hash=source_hash, summary_json=json.dumps(summary, sort_keys=True))
@@ -719,7 +719,7 @@ def build_gst_compliance_router(
         row = db.get(GstReturnWorking, return_id)
         if not row:
             raise HTTPException(404, "GST return working not found")
-        if row.status == "FILED":
+        if row.status in {"FILED", "FILED_EVIDENCE_RECORDED"}:
             raise HTTPException(409, "Filed return working is immutable")
         row.status = "APPROVED_FOR_FILING" if payload.decision == "APPROVE" else "REVIEW_REJECTED"
         row.reviewed_by = ctx["actor"]
