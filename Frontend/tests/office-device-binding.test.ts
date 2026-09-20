@@ -37,9 +37,19 @@ describe("KRAVIA Office trusted-device binding", () => {
     expect(permissionEngine).toContain("A trusted company-managed device is required");
   });
 
+  it("records device binding against the first-party identity runtime rather than the legacy session ledger", () => {
+    expect(deviceServer).toContain('"/api/v1/auth/device-event"');
+    expect(deviceServer).toContain('"LINKED"');
+    expect(deviceServer).toContain('"UNLINKED"');
+    expect(deviceServer).not.toContain('from("office_auth_sessions")');
+    expect(deviceServer).not.toContain("office_record_auth_session_event");
+    expect(deviceServer).not.toContain("trackedOfficeSessionId");
+  });
+
   it("requires AAL2 and same-origin mutation protection for device binding", () => {
     expect(deviceRoute).toContain("officeMutationIsSameOrigin");
     expect(deviceRoute).toContain('context.identity.aal !== "aal2"');
+    expect(deviceRoute).toContain("context.session.access_token");
     expect(deviceRoute).toContain("bindCurrentOfficeDevice");
   });
 });
