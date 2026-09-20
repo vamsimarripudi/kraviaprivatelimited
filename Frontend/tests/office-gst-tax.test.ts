@@ -46,7 +46,7 @@ describe("KRAVIA Finance GST working register",()=>{
     expect(component).toContain("PRODUCTION TAX CONTROL");
     expect(component).toContain("PRODUCT TAX PROFILES");
     expect(component).toContain("Backend-owned SAC and GST configuration");
-    expect(component).toContain("GST portal evidence");
+    expect(component).toContain("GST registration evidence");
     expect(component).toContain("CA evidence required");
   });
 
