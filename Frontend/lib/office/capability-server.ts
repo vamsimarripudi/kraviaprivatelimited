@@ -30,26 +30,10 @@ function active(expiresAt: unknown, now = Date.now()) {
   return Number.isFinite(parsed) && parsed > now;
 }
 
-export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdentity): Promise<OfficeCapabilitySnapshot> {
-  let admin;
-  let identity: OfficeIdentity;
-  if (identityOverride) {
-    identity = identityOverride;
-    try {
-      admin = createOfficeServiceClient();
-    } catch {
-      throw new OfficeCapabilityError(503, "Trusted Office authorization is not configured");
-    }
-  } else {
-    let actor: Awaited<ReturnType<typeof requireOfficeActor>>;
-    try {
-      actor = await requireOfficeActor();
-    } catch (error) {
-      if (error instanceof OfficePermissionError) throw new OfficeCapabilityError(error.status, error.message);
-      throw error;
-    }
-    ({ admin, identity } = actor);
-  }
+async function resolveOfficeCapabilitySnapshot(
+  admin: ReturnType<typeof createOfficeServiceClient>,
+  identity: OfficeIdentity,
+): Promise<OfficeCapabilitySnapshot> {
   const catalog = await admin
     .from("office_permission_catalog")
     .select("code,active")
@@ -129,4 +113,24 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
     permissions,
     scopes: scopes.filter((scope) => permissions.includes(scope.permission)),
   };
+}
+
+export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdentity): Promise<OfficeCapabilitySnapshot> {
+  if (identityOverride) {
+    try {
+      return resolveOfficeCapabilitySnapshot(createOfficeServiceClient(), identityOverride);
+    } catch (error) {
+      if (error instanceof OfficeCapabilityError) throw error;
+      throw new OfficeCapabilityError(503, "Trusted Office authorization is not configured");
+    }
+  }
+
+  let actor: Awaited<ReturnType<typeof requireOfficeActor>>;
+  try {
+    actor = await requireOfficeActor();
+  } catch (error) {
+    if (error instanceof OfficePermissionError) throw new OfficeCapabilityError(error.status, error.message);
+    throw error;
+  }
+  return resolveOfficeCapabilitySnapshot(actor.admin, actor.identity);
 }
