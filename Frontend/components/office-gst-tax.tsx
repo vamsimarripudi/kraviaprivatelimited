@@ -602,7 +602,7 @@ export function OfficeGstTaxWorkspace({
               {returnWorkings.map((working) => <tr key={working.id}>
                 <td><strong>{working.form_type}</strong><small title={working.source_hash}>source {working.source_hash.slice(0, 12)}…</small></td>
                 <td>{working.period}</td>
-                <td><em data-status={working.status === "FILED" ? "PAID" : working.status}>{working.status}</em></td>
+                <td><em data-status={working.status === "FILED_EVIDENCE_RECORDED" ? "PAID" : working.status}>{working.status}</em></td>
                 <td>{working.reviewed_by || "Pending CA review"}</td>
                 <td>{working.filing_provider || "—"}</td>
                 <td>{working.filing_arn || "—"}</td>
