@@ -36,10 +36,18 @@ describe("KRAVIA Finance GST working register",()=>{
     expect(backend).toContain("Working sales-register summary only; no GST portal filing is performed.");
   });
 
-  it("uses focused views instead of rendering every GST subsystem in one long screen",()=>{\n    expect(component).toContain('type ViewKey = "overview" | "sales" | "purchases" | "returns" | "settings"');\n    expect(component).toContain('aria-label="GST workspace views"');\n    expect(component).toContain('GST Control Center');\n    expect(component).toContain('Technical details are kept under Settings.');\n    expect(component).toContain('ADVANCED CONFIGURATION');\n  });\n\n  it("keeps the register invoice-derived and period filterable",()=>{
-    expect(component).toContain("Working period");
+  it("uses focused views instead of rendering every GST subsystem in one long screen",()=>{
+    expect(component).toContain('type ViewKey = "overview" | "sales" | "purchases" | "returns" | "settings"');
+    expect(component).toContain('aria-label="GST workspace views"');
+    expect(component).toContain('GST Control Center');
+    expect(component).toContain('Technical details are kept under Settings.');
+    expect(component).toContain('ADVANCED CONFIGURATION');
+  });
+
+  it("keeps the register invoice-derived and period filterable",()=>{
+    expect(component).toContain("All issued invoices");
     expect(component).toContain("SALES REGISTER");
-    expect(component).toContain("Net taxable sales");
+    expect(component).toContain("Taxable sales");
     expect(component).toContain("CGST");
     expect(component).toContain("SGST");
     expect(component).toContain("IGST");
@@ -61,7 +69,7 @@ describe("KRAVIA Finance GST working register",()=>{
     expect(component).toContain('"tax/gst/einvoice/" + encodeURIComponent(invoice.id) + "/generate"');
     expect(component).toContain('"tax/gst/einvoice/" + encodeURIComponent(invoice.id) + "/cancel"');
     expect(component).toContain("No credential value is exposed or stored in the browser.");
-    expect(component).toContain("Buyer GSTIN + billing address/locality/pincode required.");
+    expect(component).toContain("Buyer GSTIN + address required.");
   });
 
   it("shows real inward-data reconciliation and return-working controls without fabricating ITC or filing",()=>{
