@@ -52,16 +52,16 @@ def test_fynamics_gateway_and_taxpayer_auth_are_memory_only():
     seen = []
     def handler(request: httpx.Request) -> httpx.Response:
         seen.append((request.method, request.url.path, dict(request.headers), request.content))
-        if request.url.path == AUTH_PATH:
+        if request.url.path == "/api" + AUTH_PATH:
             assert request.headers["clientid"] == "client"
             assert request.headers["clientsecret"] == "secret"
             return httpx.Response(200, json={"access_token": "gateway-token", "expires_in": 3600})
-        if request.url.path == REQUEST_OTP_PATH:
+        if request.url.path == "/api" + REQUEST_OTP_PATH:
             assert request.headers["authorization"] == "Bearer gateway-token"
             assert request.headers["ip-usr"] == "203.0.113.10"
             assert json.loads(request.content) == {"action": "OTPREQUEST", "username": "gst-user"}
             return httpx.Response(200, json={"status_cd": "1", "message": "OTP sent"})
-        if request.url.path == AUTHTOKEN_PATH:
+        if request.url.path == "/api" + AUTHTOKEN_PATH:
             assert json.loads(request.content)["otp"] == "123456"
             return httpx.Response(200, json={
                 "status_cd": "1",
@@ -79,7 +79,7 @@ def test_fynamics_gateway_and_taxpayer_auth_are_memory_only():
         assert session.app_key == "app-key-value"
     finally:
         client.close()
-    assert [item[1] for item in seen] == [AUTH_PATH, REQUEST_OTP_PATH, AUTHTOKEN_PATH]
+    assert [item[1] for item in seen] == ["/api" + AUTH_PATH, "/api" + REQUEST_OTP_PATH, "/api" + AUTHTOKEN_PATH]
 
 
 def test_gstr1_builder_separates_b2b_b2cl_and_b2cs():
