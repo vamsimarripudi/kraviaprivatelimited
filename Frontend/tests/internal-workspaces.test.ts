@@ -72,8 +72,12 @@ describe("KRAVIA path-based internal workspaces", () => {
     expect(guardSource).toContain("getOfficeRuntimeOrigin");
     expect(guardSource).not.toContain("getOfficeEnvironment");
     expect(officeEnvSource).toContain("const officeAdminEnvironmentSchema = z.object");
-    expect(officeEnvSource).toContain("const secretKey = process.env.OFFICE_SUPABASE_SECRET_KEY");
-    expect(officeEnvSource).not.toContain("const environment = getOfficeEnvironment();");
+    const adminEnvironmentSource = officeEnvSource.slice(
+      officeEnvSource.indexOf("export function getOfficeAdminEnvironment"),
+      officeEnvSource.indexOf("export function requireOfficeAdminEnvironment"),
+    );
+    expect(adminEnvironmentSource).toContain("const secretKey = process.env.OFFICE_SUPABASE_SECRET_KEY");
+    expect(adminEnvironmentSource).not.toContain("getOfficeEnvironment");
   });
 
   it("requires strong registration passwords and MFA", () => {
