@@ -192,12 +192,12 @@ export async function getOfficeReadiness() {
     {
       key: "server-configuration",
       area: "Configuration",
-      state: process.env.OFFICE_SUPABASE_URL && process.env.OFFICE_SUPABASE_SECRET_KEY ? "READY" : "BLOCKED",
+      state: process.env.OFFICE_API_ORIGIN && process.env.OFFICE_SUPABASE_URL && process.env.OFFICE_SUPABASE_SECRET_KEY ? "READY" : "BLOCKED",
       title: "Trusted Office server configuration",
-      detail: "Reports only whether required server-side configuration exists. Secret values are never returned.",
+      detail: "Reports only whether the KRAVIA first-party runtime and trusted database control-plane configuration exist. Secret values are never returned.",
       evidence: [
-        { label: "Office auth configured", value: Boolean(process.env.OFFICE_SUPABASE_URL && process.env.OFFICE_SUPABASE_PUBLISHABLE_KEY) ? "YES" : "NO" },
-        { label: "Office service authority configured", value: Boolean(process.env.OFFICE_SUPABASE_SECRET_KEY) ? "YES" : "NO" },
+        { label: "First-party auth runtime configured", value: Boolean(process.env.OFFICE_API_ORIGIN) ? "YES" : "NO" },
+        { label: "Office control-plane database configured", value: Boolean(process.env.OFFICE_SUPABASE_URL && process.env.OFFICE_SUPABASE_SECRET_KEY) ? "YES" : "NO" },
         { label: "Backend origin configured", value: Boolean(process.env.OFFICE_API_ORIGIN) ? "YES" : "NO" },
         { label: "Managed-device enforcement", value: process.env.OFFICE_DEVICE_ENFORCEMENT?.toLowerCase() === "true" ? "ENABLED" : "NOT ENFORCED" },
       ],
