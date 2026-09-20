@@ -676,6 +676,12 @@ def build_gst_integration_router(
     @router.post("/connector/health")
     def connector_health(db: Session = Depends(get_db), ctx=Depends(require_roles("OWNER", "FINANCE", "CA"))):
         config = IrisConfig.from_env()
+        missing = config.missing_core()
+        if missing:
+            raise HTTPException(
+                status_code=409,
+                detail="IRIS IRP core credentials are not configured: " + ", ".join(missing),
+            )
         client = IrisIRPClient(config)
         try:
             result, response_hash = client.health()
@@ -696,6 +702,12 @@ def build_gst_integration_router(
         target = (payload.gstin or config.gstin).upper().strip()
         if len(target) != 15:
             raise HTTPException(422, "A 15-character GSTIN is required")
+        missing = config.missing_core()
+        if missing:
+            raise HTTPException(
+                status_code=409,
+                detail="IRIS IRP core credentials are not configured: " + ", ".join(missing),
+            )
         client = IrisIRPClient(config)
         operation = "SYNC_GSTIN" if payload.sync_common_portal else "GET_GSTIN"
         request_hash = _sha256({"gstin": target, "sync": payload.sync_common_portal})
