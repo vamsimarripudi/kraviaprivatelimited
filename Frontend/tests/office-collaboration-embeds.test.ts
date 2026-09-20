@@ -18,6 +18,11 @@ describe("KRAVIA Office collaboration and embedded workspaces", () => {
     expect(sourceSql).toContain("office_request_comments_deny_client_access");
   });
 
+  it("resolves mentions from the KRAVIA first-party identity directory", () => {
+    expect(collaboration).toContain('.from("office_auth_users")');
+    expect(collaboration).not.toContain("admin.auth.admin.listUsers");
+  });
+
   it("rejects cross-origin collaboration mutations", () => {
     expect(collaborationRoute).toContain("officeMutationIsSameOrigin(request)");
   });
