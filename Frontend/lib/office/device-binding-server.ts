@@ -1,11 +1,10 @@
 import "server-only";
 
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { isIP } from "node:net";
 import { cookies } from "next/headers";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { requireOfficeAdminEnvironment } from "@/lib/env/office";
-import { trackedOfficeSessionId } from "@/lib/office/auth-session-server";
+import { getOfficeRuntimeOrigin, requireOfficeAdminEnvironment } from "@/lib/env/office";
 
 const OFFICE_DEVICE_COOKIE = "kravia_office_device_binding";
 const DEVICE_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
@@ -27,7 +26,42 @@ function requestMetadata(request: Request) {
   const candidate = forwarded || realIp || "";
   const ip = isIP(candidate) ? candidate : null;
   const userAgent = (request.headers.get("user-agent") ?? "").trim().slice(0, 512);
-  return { ip, userAgentHash: userAgent ? sha256(userAgent) : null };
+  return { ip, userAgent, userAgentHash: userAgent ? sha256(userAgent) : null };
+}
+
+async function recordFirstPartyDeviceEvent(
+  request: Request,
+  accessToken: string,
+  deviceId: string,
+  action: "LINKED" | "UNLINKED",
+) {
+  const origin = getOfficeRuntimeOrigin();
+  if (!origin) throw new Error("KRAVIA Office identity runtime is not configured");
+  const metadata = requestMetadata(request);
+  const headers = new Headers({
+    Accept: "application/json",
+    Authorization: `Bearer ${accessToken}`,
+    "Content-Type": "application/json",
+    "X-Kravia-Gateway": "device-binding-bff",
+  });
+  if (metadata.userAgent) headers.set("User-Agent", metadata.userAgent);
+  if (metadata.ip) headers.set("X-Forwarded-For", metadata.ip);
+
+  const response = await fetch(new URL("/api/v1/auth/device-event", origin), {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ device_id: deviceId, action }),
+    cache: "no-store",
+    redirect: "manual",
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (response.status >= 300 && response.status < 400) {
+    throw new Error("Unexpected KRAVIA Office identity redirect");
+  }
+  const payload = await response.json().catch(() => ({})) as { detail?: string };
+  if (!response.ok) {
+    throw new Error(typeof payload.detail === "string" ? payload.detail : "Unable to record trusted-device event");
+  }
 }
 
 function parseBinding(value: string | undefined) {
@@ -74,7 +108,13 @@ export async function currentOfficeTrustedDeviceId(admin: SupabaseClient, userId
   return !error && data === true ? parsed.deviceId : null;
 }
 
-export async function bindCurrentOfficeDevice(request: Request, userId: string, deviceId: string, aal: "aal1" | "aal2") {
+export async function bindCurrentOfficeDevice(
+  request: Request,
+  userId: string,
+  deviceId: string,
+  aal: "aal1" | "aal2",
+  accessToken: string,
+) {
   if (aal !== "aal2") throw new Error("AAL2 verification is required to bind a device");
   const admin = serviceClient();
   const token = randomBytes(32).toString("base64url");
@@ -87,35 +127,46 @@ export async function bindCurrentOfficeDevice(request: Request, userId: string, 
   });
   if (error || data !== true) throw new Error(error?.message || "Unable to bind trusted device");
 
-  await setBindingCookie(deviceId, token);
-  const sessionId = await trackedOfficeSessionId();
-  if (sessionId) {
-    await admin.from("office_auth_sessions").update({ device_id: deviceId, updated_at: new Date().toISOString() }).eq("id", sessionId).eq("user_id", userId).eq("status", "ACTIVE");
-    await admin.rpc("office_record_auth_session_event", {
-      p_session_id: sessionId,
-      p_user: userId,
-      p_event_type: "DEVICE_LINKED",
-      p_aal: aal,
-      p_ip: metadata.ip,
-      p_user_agent_hash: metadata.userAgentHash,
-      p_event_id: randomUUID(),
-      p_metadata: { device_id: deviceId },
-    });
+  try {
+    await recordFirstPartyDeviceEvent(request, accessToken, deviceId, "LINKED");
+  } catch (error) {
+    await admin.from("office_device_registry")
+      .update({ binding_token_hash: null, bound_at: null, bound_user_agent_hash: null, updated_at: new Date().toISOString() })
+      .eq("id", deviceId)
+      .eq("user_id", userId);
+    throw error;
   }
+
+  await setBindingCookie(deviceId, token);
   return deviceId;
 }
 
-export async function unbindCurrentOfficeDevice(userId: string) {
+export async function unbindCurrentOfficeDevice(request: Request, userId: string, accessToken: string) {
   const admin = serviceClient();
   const store = await cookies();
   const parsed = parseBinding(store.get(OFFICE_DEVICE_COOKIE)?.value);
-  if (parsed) {
-    await admin.from("office_device_registry")
-      .update({ binding_token_hash: null, bound_at: null, bound_user_agent_hash: null, updated_at: new Date().toISOString() })
-      .eq("id", parsed.deviceId)
-      .eq("user_id", userId);
-    const sessionId = await trackedOfficeSessionId();
-    if (sessionId) await admin.from("office_auth_sessions").update({ device_id: null, updated_at: new Date().toISOString() }).eq("id", sessionId).eq("user_id", userId);
+  if (!parsed) {
+    await clearOfficeDeviceBindingCookie();
+    return;
+  }
+
+  const metadata = requestMetadata(request);
+  const { error } = await admin.from("office_device_registry")
+    .update({ binding_token_hash: null, bound_at: null, bound_user_agent_hash: null, updated_at: new Date().toISOString() })
+    .eq("id", parsed.deviceId)
+    .eq("user_id", userId);
+  if (error) throw new Error("Unable to clear trusted-device binding");
+
+  try {
+    await recordFirstPartyDeviceEvent(request, accessToken, parsed.deviceId, "UNLINKED");
+  } catch (eventError) {
+    await admin.rpc("office_bind_trusted_device", {
+      p_user: userId,
+      p_device: parsed.deviceId,
+      p_token_hash: sha256(parsed.token),
+      p_user_agent_hash: metadata.userAgentHash,
+    });
+    throw eventError;
   }
   await clearOfficeDeviceBindingCookie();
 }
