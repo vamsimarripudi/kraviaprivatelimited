@@ -102,7 +102,7 @@
           "purchase_value": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -230,7 +230,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -533,8 +533,8 @@
           "notice_days": {
             "anyOf": [
               {
-                "maximum": 3650.0,
-                "minimum": 0.0,
+                "maximum": 3650,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -565,7 +565,7 @@
           "value": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -624,7 +624,7 @@
           "taxable_value": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -770,6 +770,27 @@
           }
         },
         "title": "DecisionNote",
+        "type": "object"
+      },
+      "DeviceEventPayload": {
+        "properties": {
+          "action": {
+            "pattern": "^(LINKED|UNLINKED)$",
+            "title": "Action",
+            "type": "string"
+          },
+          "device_id": {
+            "maxLength": 36,
+            "minLength": 36,
+            "title": "Device Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "device_id",
+          "action"
+        ],
+        "title": "DeviceEventPayload",
         "type": "object"
       },
       "DocumentRenderRequest": {
@@ -933,7 +954,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1115,7 +1136,7 @@
           "max_call": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1448,7 +1469,7 @@
           "discount": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1473,8 +1494,8 @@
           "gst_rate": {
             "anyOf": [
               {
-                "maximum": 100.0,
-                "minimum": 0.0,
+                "maximum": 100,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1505,7 +1526,7 @@
           "qty": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1530,7 +1551,7 @@
           "taxable_value": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1555,7 +1576,7 @@
           "cess": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1569,7 +1590,7 @@
           "cgst": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1589,7 +1610,7 @@
           "igst": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1609,7 +1630,7 @@
           "sgst": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1680,7 +1701,7 @@
           "max_amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1886,7 +1907,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1932,7 +1953,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -2045,8 +2066,8 @@
           "gst_rate": {
             "anyOf": [
               {
-                "maximum": 100.0,
-                "minimum": 0.0,
+                "maximum": 100,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -2068,7 +2089,7 @@
           "price": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -2176,8 +2197,8 @@
           "gst_rate": {
             "anyOf": [
               {
-                "maximum": 100.0,
-                "minimum": 0.0,
+                "maximum": 100,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -2309,7 +2330,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -2445,8 +2466,8 @@
             "type": "string"
           },
           "retention_days": {
-            "maximum": 36500.0,
-            "minimum": 30.0,
+            "maximum": 36500,
+            "minimum": 30,
             "title": "Retention Days",
             "type": "integer"
           }
@@ -2533,7 +2554,7 @@
           "fee": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -2547,7 +2568,7 @@
           "gross": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -2560,7 +2581,7 @@
           "net": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -2581,7 +2602,7 @@
           "tax_on_fee": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -2687,7 +2708,7 @@
       "ShareClassCreate": {
         "properties": {
           "authorised_shares": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Authorised Shares",
             "type": "integer"
           },
@@ -2699,7 +2720,7 @@
           "face_value": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -2728,7 +2749,7 @@
           },
           "voting_rights_per_share": {
             "default": 1,
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Voting Rights Per Share",
             "type": "integer"
           }
@@ -2765,7 +2786,7 @@
             "title": "Note"
           },
           "quantity": {
-            "exclusiveMinimum": 0.0,
+            "exclusiveMinimum": 0,
             "title": "Quantity",
             "type": "integer"
           },
@@ -5074,6 +5095,63 @@
         ]
       }
     },
+    "/api/v1/auth/device-event": {
+      "post": {
+        "operationId": "record_device_event_api_v1_auth_device_event_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceEventPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Record Device Event",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
     "/api/v1/auth/invitation": {
       "get": {
         "operationId": "invitation_status_api_v1_auth_invitation_get",
@@ -5527,6 +5605,109 @@
           }
         },
         "summary": "Session State",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/sessions": {
+      "get": {
+        "operationId": "list_sessions_api_v1_auth_sessions_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Sessions",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/sessions/{session_id}/revoke": {
+      "post": {
+        "operationId": "revoke_session_api_v1_auth_sessions__session_id__revoke_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Session",
         "tags": [
           "identity"
         ]
