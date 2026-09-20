@@ -55,6 +55,9 @@ describe("Office operational assurance", () => {
     expect(readiness).toContain("Missing data is surfaced as missing or attention rather than assumed healthy");
     expect(readiness).toContain("First-party auth runtime configured");
     expect(readiness).toContain("OFFICE_API_ORIGIN");
+    expect(readiness).toContain('office_auth_sessions_v2');
+    expect(readiness).toContain("Active first-party sessions");
+    expect(readiness).not.toContain('from("office_auth_sessions")');
     expect(readiness).not.toContain("OFFICE_SUPABASE_PUBLISHABLE_KEY");
     expect(readinessRoute).toContain("export async function GET");
     expect(readinessRoute).not.toContain("export async function POST");
