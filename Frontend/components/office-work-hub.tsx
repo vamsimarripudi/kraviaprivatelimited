@@ -150,7 +150,7 @@ export function OfficeWorkHub({ identity, mode }: { identity: OfficeIdentity; mo
     setBusy(true);
     try {
       await json(`/api/office-work/requests/${decision.request.id}/decision`, {
-        method: "POST",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ decision: kind, note: decision.note || undefined }),
       });
