@@ -96,6 +96,13 @@ class IrisVasConfig:
         self.user_header = os.getenv("GST_IRP_VAS_USER_ID_HEADER", "user_id").strip()
         self.auth_header = os.getenv("GST_IRP_VAS_AUTH_TOKEN_HEADER", "auth-token").strip()
         self.max_download_bytes = int(os.getenv("GST_IRP_VAS_MAX_DOWNLOAD_BYTES", str(25 * 1024 * 1024)))
+        base_host = urlparse(self.base_url).hostname if self.base_url else None
+        configured_hosts = {
+            host.strip().lower()
+            for host in os.getenv("GST_IRP_VAS_DOWNLOAD_HOSTS", "").split(",")
+            if host.strip()
+        }
+        self.download_hosts = configured_hosts | ({base_host.lower()} if base_host else set())
 
     def missing(self) -> list[str]:
         values = {
@@ -151,9 +158,14 @@ class IrisVasClient:
 
     def download_result_file(self, url: str) -> bytes:
         parsed = urlparse(url)
-        if parsed.scheme != "https" or not parsed.hostname:
+        host = (parsed.hostname or "").lower()
+        if parsed.scheme != "https" or not host:
             raise ValueError("Provider result URL must use HTTPS")
-        response = self.client.get(url, headers={self.config.auth_header: self.config.auth_token})
+        if host not in self.config.download_hosts:
+            raise ValueError("Provider result host is not allowlisted")
+        base_host = (urlparse(self.config.base_url).hostname or "").lower()
+        headers = {self.config.auth_header: self.config.auth_token} if host == base_host else {}
+        response = self.client.get(url, headers=headers)
         response.raise_for_status()
         if len(response.content) > self.config.max_download_bytes:
             raise ValueError("Provider result file exceeds configured limit")
@@ -285,7 +297,7 @@ def _import_purchase_payload(db: Session, payload: Any, source_job_id: str | Non
         ).scalar_one_or_none()
         row = GstPurchaseInvoice(
             id=uid("GSTPUR"),
-            provider="IRIS_IRP",
+            provider="IRIS_IRP" if source_job_id else "MANUAL_IRIS_JSON",
             source_job_id=source_job_id,
             irn=normalized["irn"],
             supplier_gstin=normalized["supplier_gstin"],
@@ -723,12 +735,12 @@ def build_gst_compliance_router(
             raise HTTPException(404, "GST return working not found")
         if row.status != "APPROVED_FOR_FILING":
             raise HTTPException(409, "Return working must be CA-approved before filing evidence can be recorded")
-        row.status = "FILED"
+        row.status = "FILED_EVIDENCE_RECORDED"
         row.filing_provider = payload.provider
         row.filing_arn = payload.arn
         row.filing_evidence_ref = payload.evidence_ref
         row.filed_at = now_utc()
-        audit(db, ctx["actor"], ctx["role"], "gst.return.filing_evidence.recorded", "gst_return_working", row.id, {"provider": payload.provider, "arn": payload.arn, "evidence_ref": payload.evidence_ref}, "CONTROL")
+        audit(db, ctx["actor"], ctx["role"], "gst.return.filing_evidence.recorded", "gst_return_working", row.id, {"provider": payload.provider, "arn": payload.arn, "evidence_ref": payload.evidence_ref, "verification": "USER_RECORDED_EXTERNAL_EVIDENCE"}, "CONTROL")
         emit_event(db, "gst.return.filed_evidence", "gst_return_working", row.id, {"form_type": row.form_type, "period": row.period, "arn": payload.arn, "provider": payload.provider})
         db.commit()
         return _return_json(row)
