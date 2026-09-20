@@ -4,7 +4,7 @@
 
 Latest fully green quality run:
 
-- Root application: **85 Vitest files / 405 tests passed**.
+- Root application: **85 Vitest files / 408 tests passed**.
 - Office backend: **100 pytest tests passed**.
 - Office quality gate: **PASS**.
 - `npm ci`: **0 vulnerabilities**.
@@ -110,7 +110,7 @@ The production code path and live control plane were re-audited on 20 Sep 2026.
 
 - Current accepted `main` baseline: `faa24b2878e2884f0a3004ab5da0985ebed9f1c4`.
 - GitHub Actions quality run: **SUCCESS**.
-- Frontend quality: **85 files / 405 tests**, lint, typecheck, dependency audit, secret scan and Next.js build all pass.
+- Frontend quality: **85 files / 408 tests**, lint, typecheck, dependency audit, secret scan and Next.js build all pass.
 - Backend quality: **100 pytest tests**, OpenAPI drift, Alembic through v14, quality gate, API-container liveness and worker smoke all pass.
 - Railway API deployment: **SUCCESS**.
 - Railway worker deployment: **SUCCESS**; live heartbeat observed on the configured 60-second cadence with no recorded failure at audit time.
