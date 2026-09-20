@@ -62,26 +62,31 @@ def upgrade() -> None:
 
     bind = op.get_bind()
     entity_id = "LE-KRAVIA-IN"
-    for product_id, code, name, category, status, billing_enabled in PRODUCTS:
-        exists = bind.execute(sa.text("select 1 from products where id = :id"), {"id": product_id}).first()
-        if not exists:
-            bind.execute(
-                sa.text(
-                    "insert into products (id, code, name, category, legal_entity_id, status) "
-                    "values (:id, :code, :name, :category, :entity_id, :status)"
-                ),
-                {"id": product_id, "code": code, "name": name, "category": category, "entity_id": entity_id, "status": status},
-            )
-        profile_exists = bind.execute(sa.text("select 1 from product_tax_profiles where product_id = :pid"), {"pid": product_id}).first()
-        if not profile_exists:
-            bind.execute(
-                sa.text(
-                    "insert into product_tax_profiles "
-                    "(id, product_id, sac, gst_rate_bps, tax_treatment, supply_model, billing_enabled, status, classification_basis, source_ref) "
-                    "values (:id, :pid, '998319', 1800, 'TAXABLE', 'HOSTED_SAAS', :billing, 'REVIEW_REQUIRED', :basis, :source)"
-                ),
-                {"id": f"TAX-{code}", "pid": product_id, "billing": billing_enabled, "basis": BASIS, "source": SOURCE},
-            )
+    entity_exists = bind.execute(
+        sa.text("select 1 from legal_entities where id = :id"),
+        {"id": entity_id},
+    ).first()
+    if entity_exists:
+        for product_id, code, name, category, status, billing_enabled in PRODUCTS:
+            exists = bind.execute(sa.text("select 1 from products where id = :id"), {"id": product_id}).first()
+            if not exists:
+                bind.execute(
+                    sa.text(
+                        "insert into products (id, code, name, category, legal_entity_id, status) "
+                        "values (:id, :code, :name, :category, :entity_id, :status)"
+                    ),
+                    {"id": product_id, "code": code, "name": name, "category": category, "entity_id": entity_id, "status": status},
+                )
+            profile_exists = bind.execute(sa.text("select 1 from product_tax_profiles where product_id = :pid"), {"pid": product_id}).first()
+            if not profile_exists:
+                bind.execute(
+                    sa.text(
+                        "insert into product_tax_profiles "
+                        "(id, product_id, sac, gst_rate_bps, tax_treatment, supply_model, billing_enabled, status, classification_basis, source_ref) "
+                        "values (:id, :pid, '998319', 1800, 'TAXABLE', 'HOSTED_SAAS', :billing, 'REVIEW_REQUIRED', :basis, :source)"
+                    ),
+                    {"id": f"TAX-{code}", "pid": product_id, "billing": billing_enabled, "basis": BASIS, "source": SOURCE},
+                )
 
     if bind.dialect.name == "postgresql":
         op.execute(sa.text("alter table public.product_tax_profiles enable row level security"))
