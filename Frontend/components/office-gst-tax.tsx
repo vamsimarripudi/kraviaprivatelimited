@@ -508,15 +508,19 @@ export function OfficeGstTaxWorkspace({
         </header>
         <div className={styles.tableWrap}>
           <table>
-            <thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Product</th><th>Taxable</th><th>CGST</th><th>SGST</th><th>IGST</th><th>Total</th><th>Status</th></tr></thead>
+            <thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Product</th><th>Taxable</th><th>CGST</th><th>SGST</th><th>IGST</th><th>Total</th><th>Status</th><th>IRP / IRN</th></tr></thead>
             <tbody>
               {visibleInvoices.map((invoice) => {
                 const customer = customerMap.get(invoice.customer_id);
                 const product = productMap.get(invoice.product_id);
+                const einvoice = einvoiceMap.get(invoice.id);
+                const buyerReady = Boolean(customer?.gstin && customer?.billing_address && customer?.billing_locality && customer?.billing_pincode);
+                const canGenerate = Boolean(canPrepare && connector?.ready_for_live_irn && buyerReady && (!einvoice || einvoice.status === "FAILED"));
+                const cancelDraft = cancelDrafts[invoice.id] || { reason: "1", remarks: "" };
                 return <tr key={invoice.id}>
                   <td><strong>{invoice.invoice_no}</strong><small title={invoice.document_hash}>hash {invoice.document_hash?.slice(0, 12) || "—"}</small></td>
                   <td>{date(invoice.issued_at)}</td>
-                  <td>{customer?.display_name || customer?.legal_name || invoice.customer_id}</td>
+                  <td>{customer?.display_name || customer?.legal_name || invoice.customer_id}<small>{customer?.gstin || "No buyer GSTIN"}</small></td>
                   <td>{product ? `${product.code} · ${product.name}` : invoice.product_id}</td>
                   <td>{money(invoice.net_taxable, invoice.currency)}</td>
                   <td>{money(invoice.cgst, invoice.currency)}</td>
@@ -524,9 +528,38 @@ export function OfficeGstTaxWorkspace({
                   <td>{money(invoice.igst, invoice.currency)}</td>
                   <td>{money(invoice.total, invoice.currency)}</td>
                   <td><em data-status={invoice.status}>{invoice.status}</em></td>
+                  <td className={styles.irpCell}>
+                    <em data-status={einvoice?.status === "GENERATED" ? "PAID" : einvoice?.status || "NONE"}>{einvoice?.status || "NOT GENERATED"}</em>
+                    {einvoice?.irn ? <small title={einvoice.irn}>IRN {einvoice.irn.slice(0, 16)}…</small> : null}
+                    {einvoice?.ack_no ? <small>Ack {einvoice.ack_no}</small> : null}
+                    {einvoice?.last_error ? <small className={styles.irpError}>{einvoice.last_error}</small> : null}
+                    {canGenerate ? <button type="button" disabled={Boolean(actionBusy)} onClick={() => void providerAction(
+                      "generate-" + invoice.id,
+                      "tax/gst/einvoice/" + encodeURIComponent(invoice.id) + "/generate",
+                      undefined,
+                      () => "IRN generated for " + invoice.invoice_no + ".",
+                    )}>{actionBusy === "generate-" + invoice.id ? <LoaderCircle className={styles.spin} /> : <FileCheck2 />} Generate IRN</button> : null}
+                    {!einvoice && connector?.ready_for_live_irn && !buyerReady ? <small>Buyer GSTIN + billing address/locality/pincode required.</small> : null}
+                    {einvoice?.status === "GENERATED" && canApprove ? <details className={styles.cancelIrn}>
+                      <summary>Cancel IRN</summary>
+                      <label>Reason<select value={cancelDraft.reason} onChange={(event) => setCancelDrafts((current) => ({ ...current, [invoice.id]: { ...cancelDraft, reason: event.target.value } }))}>
+                        <option value="1">Duplicate</option>
+                        <option value="2">Data entry mistake</option>
+                        <option value="3">Order cancelled</option>
+                        <option value="4">Other</option>
+                      </select></label>
+                      <label>Remarks<input maxLength={100} value={cancelDraft.remarks} onChange={(event) => setCancelDrafts((current) => ({ ...current, [invoice.id]: { ...cancelDraft, remarks: event.target.value } }))} /></label>
+                      <button type="button" disabled={cancelDraft.remarks.trim().length < 3 || Boolean(actionBusy)} onClick={() => void providerAction(
+                        "cancel-" + invoice.id,
+                        "tax/gst/einvoice/" + encodeURIComponent(invoice.id) + "/cancel",
+                        { reason_code: cancelDraft.reason, remarks: cancelDraft.remarks.trim() },
+                        () => "IRN cancelled for " + invoice.invoice_no + ".",
+                      )}>{actionBusy === "cancel-" + invoice.id ? <LoaderCircle className={styles.spin} /> : <CircleAlert />} Confirm cancellation</button>
+                    </details> : null}
+                  </td>
                 </tr>;
               })}
-              {!visibleInvoices.length ? <tr><td colSpan={10}><div className={styles.empty}>No canonical invoices exist for this working period.</div></td></tr> : null}
+              {!visibleInvoices.length ? <tr><td colSpan={11}><div className={styles.empty}>No canonical invoices exist for this working period.</div></td></tr> : null}
             </tbody>
           </table>
         </div>
