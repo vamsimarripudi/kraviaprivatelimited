@@ -188,7 +188,7 @@ def test_purchase_import_reconcile_and_return_working():
             },
         )
         assert filed.status_code == 200
-        assert filed.json()["status"] == "FILED"
+        assert filed.json()["status"] == "FILED_EVIDENCE_RECORDED"
         assert filed.json()["filing_arn"] == "AA370926000001X"
 
 
