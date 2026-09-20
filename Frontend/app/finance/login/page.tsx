@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { WorkspaceLoginForm } from "@/components/workspace-login-form";
-import { getOfficeEnvironment } from "@/lib/env/office";
+import { getOfficeRuntimeOrigin } from "@/lib/env/office";
 
 type Props = { searchParams: Promise<{ reason?: string; next?: string }> };
 
@@ -16,7 +16,7 @@ export default async function FinanceLogin({ searchParams }: Props) {
       <Link href="/" className="text-link">Return to public website</Link>
     </div>
     <section className="login-card" aria-label="KRAVIA Finance sign in">
-      <WorkspaceLoginForm workspace="finance" nextPath={nextPath} configurationRequired={!getOfficeEnvironment()} reason={reason} />
+      <WorkspaceLoginForm workspace="finance" nextPath={nextPath} configurationRequired={!getOfficeRuntimeOrigin()} reason={reason} />
     </section>
   </main>;
 }
