@@ -37,6 +37,21 @@ export type OfficeSessionContext = {
   mfa: { enrolled: boolean };
 };
 
+export type OfficeAuthSessionRecord = {
+  id: string;
+  status: string;
+  aal: "aal1" | "aal2";
+  mfa_verified: boolean;
+  ip_address?: string | null;
+  user_agent_hash?: string | null;
+  started_at?: string | null;
+  last_seen_at?: string | null;
+  expires_at?: string | null;
+  revoked_at?: string | null;
+  current: boolean;
+  provider: "KRAVIA_FIRST_PARTY";
+};
+
 type FirstPartyAuthResponse = {
   authenticated: boolean;
   access_token: string;
@@ -334,6 +349,21 @@ export async function refreshOfficeIdentity(context: OfficeSessionContext): Prom
     identity: toIdentity(payload),
     mfa: { enrolled: payload.mfa?.enrolled === true },
   };
+}
+
+export async function listOfficeAuthSessions(context: OfficeSessionContext) {
+  const response = await rawApi("/api/v1/auth/sessions", {
+    headers: { Authorization: `Bearer ${context.session.access_token}` },
+  });
+  return parseOrThrow<{ sessions: OfficeAuthSessionRecord[] }>(response);
+}
+
+export async function revokeOfficeAuthSession(context: OfficeSessionContext, sessionId: string) {
+  const response = await rawApi(`/api/v1/auth/sessions/${encodeURIComponent(sessionId)}/revoke`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${context.session.access_token}` },
+  });
+  return parseOrThrow<{ revoked: true; session: OfficeAuthSessionRecord }>(response);
 }
 
 export async function signOutOffice(context?: OfficeSessionContext | null) {
