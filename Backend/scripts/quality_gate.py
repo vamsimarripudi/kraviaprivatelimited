@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = ROOT.parent
 checks = []
 
 
@@ -43,6 +44,8 @@ try:
     check("openapi:drive-readiness", "/api/v1/integrations/google-drive/evidence-readiness" in paths, "Drive evidence-readiness contract")
     check("openapi:identity-readiness", "/api/v1/auth/readiness" in paths, "identity readiness contract")
     check("openapi:mfa-verify", "/api/v1/auth/mfa/verify" in paths, "MFA verification contract")
+    check("openapi:first-party-sessions", "/api/v1/auth/sessions" in paths and "/api/v1/auth/sessions/{session_id}/revoke" in paths, "first-party session inventory/revocation contract")
+    check("openapi:device-event", "/api/v1/auth/device-event" in paths, "first-party trusted-device event contract")
 except (OSError, ValueError) as exc:
     check("openapi:parse", False, str(exc))
 
@@ -86,6 +89,8 @@ check("identity:role-claim", "office_roles" in identity, "Office role claim")
 check("identity:cookie-bridge", "kravia_office_access" in security_controls and "_inject_bearer" in security_controls, "HttpOnly cookie to verified Bearer bridge")
 check("identity:aal2-gate", "OFFICE_REQUIRED_AAL" in security_controls and "MFA verification required" in security_controls, "AAL2 production gate")
 check("identity:attached", "build_identity_router" in app, "identity router attached to canonical app")
+check("identity:session-management", '@router.get("/sessions")' in identity and '@router.post("/sessions/{session_id}/revoke")' in identity, "first-party session inventory and revocation")
+check("identity:device-events", '@router.post("/device-event")' in identity and "DEVICE_UNLINKED" in identity, "first-party trusted-device event audit")
 
 check("period-control:model", "class AccountingPeriodLock" in period_controls, "AccountingPeriodLock")
 check("period-control:api", "accounting/period-locks" in period_controls, "period-lock endpoints")
@@ -101,8 +106,24 @@ check("drive:metadata-only", "content_downloaded" in drive and "write_enabled" i
 migration_dir = ROOT / "backend" / "migrations" / "versions"
 finance_migrations = list(migration_dir.glob("*_v4_finance_ownership_treasury.py"))
 period_migrations = list(migration_dir.glob("*_v5_period_close_controls.py"))
+v11_migrations = list(migration_dir.glob("*_v11_product_tax_profiles.py"))
+v12_migrations = list(migration_dir.glob("*_v12_gst_irp_integration.py"))
+v13_migrations = list(migration_dir.glob("*_v13_gst_purchase_reconciliation.py"))
+v14_migrations = list(migration_dir.glob("*_v14_fynamics_gsp_filing.py"))
 check("finance-ownership-migration", len(finance_migrations) == 1, finance_migrations[0].name if len(finance_migrations) == 1 else f"found {len(finance_migrations)}")
 check("period-control-migration", len(period_migrations) == 1, period_migrations[0].name if len(period_migrations) == 1 else f"found {len(period_migrations)}")
+check("gst:v11-tax-profile-migration", len(v11_migrations) == 1, v11_migrations[0].name if len(v11_migrations) == 1 else f"found {len(v11_migrations)}")
+check("gst:v12-irp-migration", len(v12_migrations) == 1, v12_migrations[0].name if len(v12_migrations) == 1 else f"found {len(v12_migrations)}")
+check("gst:v13-purchase-reconciliation-migration", len(v13_migrations) == 1, v13_migrations[0].name if len(v13_migrations) == 1 else f"found {len(v13_migrations)}")
+check("gst:v14-gsp-filing-migration", len(v14_migrations) == 1, v14_migrations[0].name if len(v14_migrations) == 1 else f"found {len(v14_migrations)}")
+
+broker = REPO_ROOT / "Database" / "supabase" / "functions" / "kravia-storage-broker" / "index.ts"
+broker_source = broker.read_text(errors="ignore") if broker.exists() else ""
+storage_client = (ROOT / "backend" / "storage_broker_client.py").read_text(errors="ignore")
+file_security = (ROOT / "backend" / "file_security.py").read_text(errors="ignore")
+check("storage:broker-versioned", broker.exists() and "x-kravia-signature" in broker_source and "office-quarantine" in broker_source, str(broker.relative_to(REPO_ROOT)) if broker.exists() else "storage broker source missing")
+check("storage:signed-client", "KRAVIA_STORAGE_BROKER_PRIVATE_KEY" in storage_client and "signed_upload" in storage_client and "signed_download" in storage_client, "signed storage-broker client")
+check("storage:quarantine-scan", "office-quarantine" in file_security and "scan_bytes" in file_security and "CLAMAV_HOST" in file_security, "private quarantine + ClamAV scan pipeline")
 
 summary = {
     "generated_at": datetime.now(timezone.utc).isoformat(),
