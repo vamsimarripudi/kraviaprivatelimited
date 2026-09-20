@@ -2,6 +2,7 @@ import Link from "next/link";
 import { OfficeAuthLayout } from "@/components/office-auth-layout";
 import { OfficeRegisterForm } from "@/components/office-register-form";
 import { founderBootstrapStatus, invitationStatus } from "@/lib/office/auth-server";
+import { founderBootstrapIsPermitted } from "@/lib/office/bootstrap";
 
 type Props = { searchParams: Promise<{ invite?: string }> };
 
@@ -57,6 +58,12 @@ export default async function OfficeRegisterPage({ searchParams }: Props) {
         displayName={invitation.display_name ?? ""}
         roles={invitation.roles}
       />
+    </OfficeAuthLayout>;
+  }
+
+  if (!founderBootstrapIsPermitted()) {
+    return <OfficeAuthLayout>
+      <Closed message="Founder registration is unavailable on this public deployment. New people can join only through private links issued inside KRAVIA Office." />
     </OfficeAuthLayout>;
   }
 

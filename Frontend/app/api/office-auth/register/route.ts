@@ -8,6 +8,7 @@ import {
   registerInvitedOfficeUser,
 } from "@/lib/office/auth-server";
 import { officeMutationIsSameOrigin } from "@/lib/office/request-security";
+import { founderBootstrapIsPermitted } from "@/lib/office/bootstrap";
 
 const founderSchema = z.object({
   mode: z.literal("founder"),
@@ -42,7 +43,8 @@ export async function GET(request: NextRequest) {
   try {
     const token = request.nextUrl.searchParams.get("invite");
     if (token) return NextResponse.json({ mode: "invite", invitation: await invitationStatus(token) }, { headers: { "Cache-Control": "no-store" } });
-    return NextResponse.json({ mode: "founder", bootstrap: await founderBootstrapStatus() }, { headers: { "Cache-Control": "no-store" } });
+    const bootstrap = founderBootstrapIsPermitted() ? await founderBootstrapStatus() : { registration_open: false };
+    return NextResponse.json({ mode: "founder", bootstrap }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return NextResponse.json(
       { detail: error instanceof Error ? error.message : "Registration status is unavailable" },
@@ -57,6 +59,10 @@ export async function POST(request: Request) {
   }
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ detail: "Invalid Office registration request" }, { status: 400 });
+
+  if (parsed.data.mode === "founder" && !founderBootstrapIsPermitted()) {
+    return NextResponse.json({ detail: "Founder registration is not available" }, { status: 403, headers: { "Cache-Control": "no-store" } });
+  }
 
   try {
     const context = parsed.data.mode === "founder"

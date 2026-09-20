@@ -183,9 +183,10 @@ export function WorkspaceLoginForm({
   return (
     <form className={styles.form} onSubmit={signIn} noValidate>
       <div className={styles.icon}><KeyRound /></div>
-      <p className={styles.eyebrow}>{workspace === "finance" ? "KRAVIA FINANCE" : "AUTHORIZED ACCESS"}</p>
-      <h2>Sign in</h2>
-      <p className={styles.intro}>Use your KRAVIA company identity to continue.</p>
+      <p className={styles.eyebrow}>{workspace === "finance" ? "KRAVIA FINANCE · OFFICIAL ACCESS" : "KRAVIA OFFICE · OFFICIAL ACCESS"}</p>
+      <h2>Sign in to KRAVIA {workspace === "finance" ? "Finance" : "Office"}</h2>
+      <p className={styles.intro}>This private workspace is operated by Kravia Private Limited for authorised personnel only.</p>
+      <p className={styles.identityNotice}>Only enter a password you created for KRAVIA {workspace === "finance" ? "Finance" : "Office"} on <b>www.kraviaprivatelimited.com</b>. Kravia does not request this password by email, phone or on a third-party page.</p>
 
       {configurationRequired ? <p className={styles.alert}>Internal identity service is not active on this deployment.</p> : null}
       {reason === "mfa_required" ? <p className={styles.alert}>Complete multi-factor verification before opening this workspace.</p> : null}
@@ -230,14 +231,14 @@ export function WorkspaceLoginForm({
 
       <button className={styles.primary} type="submit" disabled={isPending || configurationRequired}>
         {isPending ? <LoaderCircle className={styles.spin} /> : <ArrowRight />}
-        Sign in securely
+        Sign in to KRAVIA {workspace === "finance" ? "Finance" : "Office"}
       </button>
 
       <div className={styles.links}>
         <Link href="/office/recover">Recover access</Link>
         {registrationOpen ? <Link href="/office/register">Founder registration</Link> : null}
       </div>
-      <p className={styles.note}>Private access only. New users join through a Founder-issued registration link.</p>
+      <p className={styles.note}>Private access only. New users join through private, Founder-issued registration links.</p>
     </form>
   );
 }

@@ -42,6 +42,7 @@ export function OfficeCommandPalette({ commands }: { commands: OfficeNavigationC
     if (!open) return;
     const previouslyFocused =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const trigger = triggerRef.current;
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const timer = window.setTimeout(() => inputRef.current?.focus(), 20);
@@ -79,7 +80,7 @@ export function OfficeCommandPalette({ commands }: { commands: OfficeNavigationC
       window.clearTimeout(timer);
       document.removeEventListener("keydown", onDialogKeyDown);
       document.body.style.overflow = originalOverflow;
-      window.requestAnimationFrame(() => (previouslyFocused ?? triggerRef.current)?.focus());
+      window.requestAnimationFrame(() => (previouslyFocused ?? trigger)?.focus());
     };
   }, [open]);
 

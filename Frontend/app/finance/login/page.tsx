@@ -1,8 +1,16 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { WorkspaceLoginForm } from "@/components/workspace-login-form";
 import { getOfficeEnvironment } from "@/lib/env/office";
 
 type Props = { searchParams: Promise<{ reason?: string; next?: string }> };
+
+export const metadata: Metadata = {
+  title: "KRAVIA Finance | Authorised company access",
+  description: "Private finance workspace for authorised Kravia personnel and professional advisers.",
+  alternates: { canonical: "/finance/login" },
+  robots: { index: false, follow: false, nocache: true },
+};
 
 export default async function FinanceLogin({ searchParams }: Props) {
   const { reason, next } = await searchParams;
