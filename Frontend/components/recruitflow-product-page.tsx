@@ -21,7 +21,7 @@ import { Accordion } from "@/components/ui";
 import { ProductAnalytics, ProductTrackedLink } from "@/components/product-interactions";
 import { recruitFlowProduct } from "@/lib/products/recruitflow";
 import {
-  formatNice RoleMarketValue,
+  formatRecruitFlowMarketValue,
   recruitFlowMarketEstimates,
   recruitFlowMarketResearchReviewedAt,
 } from "@/lib/products/recruitflow-market";
@@ -30,7 +30,7 @@ import styles from "./recruitflow-product-page.module.css";
 const contactHref = "/contact?product=recruitflow#enquiry-form";
 const capabilityIcons = [BriefcaseBusiness, UsersRound, CalendarCheck2, BrainCircuit, Smartphone, ChartNoAxesCombined] as const;
 
-export function Nice RoleProductPage() {
+export function RecruitFlowProductPage() {
   return <main id="main-content" className={styles.page}>
     <ProductAnalytics event="recruitflow_product_view" product="recruitflow" />
 
@@ -39,7 +39,7 @@ export function Nice RoleProductPage() {
         <div>
           <nav aria-label="Breadcrumb" className={styles.breadcrumb}><Link href="/products">Products</Link><span aria-current="page">Nice Role</span></nav>
           <p className="eyebrow">{recruitFlowProduct.hero.eyebrow}</p>
-          <p className={styles.wordmark} aria-label="Nice Role">Recruit<span>Flow</span></p>
+          <p className={styles.wordmark} aria-label="Nice Role">Nice <span>Role</span></p>
           <h1>{recruitFlowProduct.hero.title}</h1>
           <p className={styles.lede}>{recruitFlowProduct.hero.intro}</p>
           <div className={styles.actions}>
@@ -122,9 +122,9 @@ export function Nice RoleProductPage() {
             <div className={styles.marketTopline}><span>{estimate.geography}</span><span>{estimate.cagr}% CAGR</span></div>
             <h3>{estimate.market}</h3>
             <div className={styles.marketNumbers}>
-              <div><small>{estimate.baseYear} · published estimate</small><strong>{formatNice RoleMarketValue(estimate.baseValue, estimate.baseUnit)}</strong></div>
+              <div><small>{estimate.baseYear} · published estimate</small><strong>{formatRecruitFlowMarketValue(estimate.baseValue, estimate.baseUnit)}</strong></div>
               <i aria-hidden="true" />
-              <div><small>{estimate.forecastYear} · publisher forecast</small><strong>{formatNice RoleMarketValue(estimate.forecastValue, estimate.forecastUnit)}</strong></div>
+              <div><small>{estimate.forecastYear} · publisher forecast</small><strong>{formatRecruitFlowMarketValue(estimate.forecastValue, estimate.forecastUnit)}</strong></div>
             </div>
             <p>{estimate.scopeNote}</p>
             <a href={estimate.url} target="_blank" rel="noreferrer">Source: {estimate.source} <ArrowUpRight aria-hidden="true" /></a>
