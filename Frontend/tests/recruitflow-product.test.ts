@@ -5,13 +5,27 @@ import { recruitFlowProduct } from "../lib/products/recruitflow";
 import { recruitFlowMarketEstimates, selectedRecruitFlowIndiaEstimate } from "../lib/products/recruitflow-market";
 
 const page = readFileSync(new URL("../components/recruitflow-product-page.tsx", import.meta.url), "utf8");
+const canonicalRoute = readFileSync(new URL("../app/products/nicerole/page.tsx", import.meta.url), "utf8");
+const legacyRoute = readFileSync(new URL("../app/products/recruitflow/page.tsx", import.meta.url), "utf8");
+const footer = readFileSync(new URL("../components/footer.tsx", import.meta.url), "utf8");
 
-describe("RecruitFlow public product profile", () => {
+describe("Nice Role public product profile", () => {
   it("is registered as a public Kravia beta product with the approved external application destination", () => {
     expect(publicProducts).toContainEqual(recruitFlowProduct);
-    expect(recruitFlowProduct.href).toBe("/products/recruitflow");
-    expect(recruitFlowProduct.website).toBe("https://recruit-flow.vmnexa.co.in");
+    expect(recruitFlowProduct.name).toBe("Nice Role");
+    expect(recruitFlowProduct.slug).toBe("nicerole");
+    expect(recruitFlowProduct.href).toBe("/products/nicerole");
+    expect(recruitFlowProduct.website).toBe("https://nicerole.vmnexa.co.in");
     expect(recruitFlowProduct.status).toBe("BETA");
+  });
+
+  it("uses Nice Role across the public product page, canonical route and footer", () => {
+    expect(page).toContain("Nice Role");
+    expect(page).not.toContain("RecruitFlow");
+    expect(canonicalRoute).toContain('canonical: "/products/nicerole"');
+    expect(canonicalRoute).toContain('ProductJsonLd slug="nicerole"');
+    expect(legacyRoute).toContain('permanentRedirect("/products/nicerole")');
+    expect(footer).toContain('["Nice Role", "/products/nicerole"]');
   });
 
   it("keeps consequential hiring decisions human-controlled", () => {
@@ -29,8 +43,8 @@ describe("RecruitFlow public product profile", () => {
     expect(recruitFlowMarketEstimates.every((estimate) => estimate.url.startsWith("https://"))).toBe(true);
   });
 
-  it("does not present published market research as RecruitFlow performance", () => {
-    expect(page).toContain("not RecruitFlow revenue, valuation, market share, customer count or guaranteed demand");
+  it("does not present published market research as Nice Role performance", () => {
+    expect(page).toContain("not Nice Role revenue, valuation, market share, customer count or guaranteed demand");
     expect(page).toContain("no intermediate annual values are invented");
   });
 });
