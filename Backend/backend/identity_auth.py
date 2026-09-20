@@ -650,6 +650,26 @@ def _session_response(db: Session, user: OfficeAuthUser, session: OfficeAuthSess
     }
 
 
+def _session_listing_json(session: OfficeAuthSession, current_session_id: str) -> dict[str, Any]:
+    status = session.status
+    if status == "ACTIVE" and _aware(session.expires_at) <= _now():
+        status = "EXPIRED"
+    return {
+        "id": session.id,
+        "status": status,
+        "aal": session.aal,
+        "mfa_verified": session.aal == "aal2",
+        "ip_address": session.ip_address,
+        "user_agent_hash": session.user_agent_hash,
+        "started_at": session.created_at.isoformat() if session.created_at else None,
+        "last_seen_at": session.last_seen_at.isoformat() if session.last_seen_at else None,
+        "expires_at": session.expires_at.isoformat() if session.expires_at else None,
+        "revoked_at": session.revoked_at.isoformat() if session.revoked_at else None,
+        "current": session.id == current_session_id,
+        "provider": "KRAVIA_FIRST_PARTY",
+    }
+
+
 def _qr_data_uri(uri: str) -> str:
     image = qrcode.make(uri)
     buffer = io.BytesIO()
@@ -818,6 +838,69 @@ def build_identity_router() -> APIRouter:
             raise HTTPException(status_code=401, detail="Office session is invalid")
         db.commit()
         return _session_response(db, user, session)
+
+    @router.get("/sessions")
+    def list_sessions(
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ):
+        token = _bearer_token(authorization)
+        context = authenticate_office_access(token, db, require_aal2=True)
+        sessions = list(
+            db.execute(
+                select(OfficeAuthSession)
+                .where(OfficeAuthSession.user_id == context["user_id"])
+                .order_by(OfficeAuthSession.created_at.desc())
+                .limit(50)
+            ).scalars()
+        )
+        return {
+            "sessions": [
+                _session_listing_json(session, context["session_id"])
+                for session in sessions
+            ]
+        }
+
+    @router.post("/sessions/{session_id}/revoke")
+    def revoke_session(
+        session_id: str,
+        request: Request,
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ):
+        token = _bearer_token(authorization)
+        context = authenticate_office_access(token, db, require_aal2=True)
+        try:
+            normalized_session_id = str(uuid.UUID(session_id))
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail="Office session not found") from exc
+        if normalized_session_id == context["session_id"]:
+            raise HTTPException(status_code=409, detail="Use sign out to close the current Office session")
+
+        target = db.execute(
+            select(OfficeAuthSession).where(
+                OfficeAuthSession.id == normalized_session_id,
+                OfficeAuthSession.user_id == context["user_id"],
+            )
+        ).scalar_one_or_none()
+        if not target:
+            raise HTTPException(status_code=404, detail="Office session not found")
+        if target.status == "ACTIVE" and not target.revoked_at:
+            target.status = "REVOKED"
+            target.revoked_at = _now()
+            _event(
+                db,
+                "SESSION_REVOKED",
+                request,
+                user_id=context["user_id"],
+                session_id=target.id,
+                metadata={"revoked_by_session_id": context["session_id"]},
+            )
+            db.commit()
+        return {
+            "revoked": True,
+            "session": _session_listing_json(target, context["session_id"]),
+        }
 
     @router.post("/refresh")
     def refresh(payload: RefreshPayload, request: Request, db: Session = Depends(get_db)):
