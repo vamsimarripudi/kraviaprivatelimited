@@ -170,6 +170,20 @@ def test_purchase_import_reconcile_and_return_working():
         )
         assert denied.status_code == 403
 
+        itc_review = client.post(
+            f"/api/v1/tax/gst/gsp/returns/{body['id']}/itc-review",
+            headers=h("CA"),
+            json={
+                "igst": "0",
+                "cgst": "0",
+                "sgst": "0",
+                "cess": "0",
+                "evidence_ref": "CA/ITC/2026-09",
+                "note": "No ITC claimed in this test working.",
+            },
+        )
+        assert itc_review.status_code == 200
+
         reviewed = client.post(
             f"/api/v1/tax/gst/returns/{body['id']}/review",
             headers=h("CA"),

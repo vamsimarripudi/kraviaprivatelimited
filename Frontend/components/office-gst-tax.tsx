@@ -205,6 +205,43 @@ type GstReturnWorking = {
   reviewed_by?: string | null;
   filing_provider?: string | null;
   filing_arn?: string | null;
+  gsp_submission_ref?: string | null;
+  gsp_verified_status?: string | null;
+  gsp_verified_at?: string | null;
+  itc_review?: {
+    igst: string;
+    cgst: string;
+    sgst: string;
+    cess: string;
+    evidence_ref: string;
+    note: string;
+  } | null;
+  itc_reviewed_by?: string | null;
+  itc_reviewed_at?: string | null;
+};
+
+type GstGspStatus = {
+  provider: string;
+  provider_name: string;
+  api_version: string;
+  environment: string;
+  configured: boolean;
+  missing_configuration: string[];
+  taxpayer_authenticated: boolean;
+  filing_contract?: string | null;
+  filing_contract_ready: boolean;
+  capabilities: {
+    taxpayer_otp_auth: boolean;
+    gstr1_save: boolean;
+    gstr1_submit: boolean;
+    gstr1_evc_file: boolean;
+    gstr3b_save: boolean;
+    gstr3b_evc_file: boolean;
+    gstr2b: boolean;
+    ledgers: boolean;
+    return_status: boolean;
+  };
+  secret_storage: string;
 };
 
 type WorkingTotals = {
@@ -311,6 +348,11 @@ export function OfficeGstTaxWorkspace({
   const [purchaseSummary, setPurchaseSummary] = useState<GstPurchaseSummary>();
   const [purchaseInvoices, setPurchaseInvoices] = useState<GstPurchaseInvoice[]>([]);
   const [returnWorkings, setReturnWorkings] = useState<GstReturnWorking[]>([]);
+  const [gspStatus, setGspStatus] = useState<GstGspStatus>();
+  const [gspOtpRequested, setGspOtpRequested] = useState(false);
+  const [gspOtp, setGspOtp] = useState("");
+  const [evcDrafts, setEvcDrafts] = useState<Record<string, { pan: string; otp: string }>>({});
+  const [itcDrafts, setItcDrafts] = useState<Record<string, { igst: string; cgst: string; sgst: string; cess: string; evidence: string; note: string }>>({});
   const [view, setView] = useState<ViewKey>("overview");
   const [returnPeriod, setReturnPeriod] = useState(() => new Date().toISOString().slice(0, 7));
   const [period, setPeriod] = useState("ALL");
@@ -334,6 +376,7 @@ export function OfficeGstTaxWorkspace({
     runtime<GstPurchaseSummary>("tax/gst/purchases/summary", signal),
     runtime<GstPurchaseInvoice[]>("tax/gst/purchases?limit=20", signal),
     runtime<GstReturnWorking[]>("tax/gst/returns", signal),
+    runtime<GstGspStatus>("tax/gst/gsp/status", signal),
   ]), []);
 
   const applyRecords = useCallback((records: Awaited<ReturnType<typeof fetchRecords>>) => {
@@ -351,6 +394,7 @@ export function OfficeGstTaxWorkspace({
       nextPurchaseSummary,
       nextPurchaseInvoices,
       nextReturnWorkings,
+      nextGspStatus,
     ] = records;
     setSummary(nextSummary);
     setInvoices(nextInvoices);
@@ -365,6 +409,7 @@ export function OfficeGstTaxWorkspace({
     setPurchaseSummary(nextPurchaseSummary);
     setPurchaseInvoices(nextPurchaseInvoices);
     setReturnWorkings(nextReturnWorkings);
+    setGspStatus(nextGspStatus);
   }, []);
 
   const load = useCallback(async () => {
@@ -671,27 +716,136 @@ export function OfficeGstTaxWorkspace({
       {view === "returns" ? <div className={styles.viewStack}>
         <section className={styles.sectionCard}>
           <div className={styles.sectionTitle}>
-            <div><p>RETURNS</p><h3>Prepare and review GST return workings</h3></div>
-            <span className={styles.mutedStatus}>{vasStatus?.gsp.configured ? "GSP configured" : "Preparation only"}</span>
+            <div><p>RETURNS</p><h3>Prepare, review and file through FYN Gateway</h3></div>
+            <span className={styles.mutedStatus}>{gspStatus?.taxpayer_authenticated ? "GST session connected" : gspStatus?.configured ? "OTP connection required" : "GSP setup required"}</span>
+          </div>
+          <div className={styles.gspConnection}>
+            <div>
+              <b>FYN Gateway · GSTN GSP</b>
+              <small>{gspStatus?.configured ? (gspStatus.taxpayer_authenticated ? "Taxpayer session authenticated. PAN/OTP/session secrets are never stored." : "Provider configured. Connect the GST taxpayer session with OTP.") : "Provider credentials are not configured in the backend environment."}</small>
+            </div>
+            <div className={styles.gspConnectActions}>
+              {!gspStatus?.taxpayer_authenticated ? <button type="button" disabled={!canPrepare || !gspStatus?.configured || Boolean(actionBusy)} onClick={() => void providerAction(
+                "gsp-request-otp",
+                "tax/gst/gsp/taxpayer/request-otp",
+                undefined,
+                () => {
+                  setGspOtpRequested(true);
+                  return "GST taxpayer OTP sent to the registered channel.";
+                },
+              )}>{actionBusy === "gsp-request-otp" ? <LoaderCircle className={styles.spin} /> : <ShieldCheck />} Request GST OTP</button> : <span className={styles.sessionOk}><BadgeCheck /> Connected</span>}
+              {gspOtpRequested && !gspStatus?.taxpayer_authenticated ? <>
+                <input aria-label="GST taxpayer OTP" inputMode="numeric" autoComplete="one-time-code" placeholder="Enter GST OTP" value={gspOtp} onChange={(event) => setGspOtp(event.target.value.replace(/\D/g, "").slice(0, 8))} />
+                <button type="button" disabled={gspOtp.length < 4 || Boolean(actionBusy)} onClick={() => void providerAction(
+                  "gsp-auth",
+                  "tax/gst/gsp/taxpayer/auth",
+                  { otp: gspOtp },
+                  () => {
+                    setGspOtp("");
+                    setGspOtpRequested(false);
+                    return "GST taxpayer session connected through FYN Gateway.";
+                  },
+                )}>{actionBusy === "gsp-auth" ? <LoaderCircle className={styles.spin} /> : <BadgeCheck />} Connect</button>
+              </> : null}
+            </div>
           </div>
           <div className={styles.returnActions}>
             <label>Tax period<input type="month" value={returnPeriod} onChange={(event) => setReturnPeriod(event.target.value)} /></label>
             <button type="button" disabled={!canPrepare || !returnPeriod || Boolean(actionBusy)} onClick={() => void providerAction("build-gstr1", "tax/gst/returns/build", { form_type: "GSTR1", period: returnPeriod }, () => "GSTR-1 working rebuilt from canonical sales.")}>{actionBusy === "build-gstr1" ? <LoaderCircle className={styles.spin} /> : <FileCheck2 />} Build GSTR-1</button>
             <button type="button" disabled={!canPrepare || !returnPeriod || Boolean(actionBusy)} onClick={() => void providerAction("build-gstr3b", "tax/gst/returns/build", { form_type: "GSTR3B", period: returnPeriod }, () => "GSTR-3B working rebuilt. Inward GST remains observational pending ITC review.")}>{actionBusy === "build-gstr3b" ? <LoaderCircle className={styles.spin} /> : <FileCheck2 />} Build GSTR-3B</button>
           </div>
-          <p className={styles.helper}>{vasStatus?.gsp.note || "Return filing requires a provider-specific GSTN-empanelled GSP adapter and filing acknowledgement."}</p>
+          <p className={styles.helper}>Routine filing stays inside Kravia Office: CA review → GSP save/submit → authorized-signatory EVC → ARN verification. GST Portal passwords are never stored.</p>
           <div className={styles.tableWrap}>
             <table className={styles.returnTable}>
-              <thead><tr><th>Form</th><th>Period</th><th>Status</th><th>CA review</th><th>Provider</th><th>ARN</th></tr></thead>
+              <thead><tr><th>Form</th><th>Period</th><th>Status</th><th>CA / ITC review</th><th>Provider / ARN</th><th>Actions</th></tr></thead>
               <tbody>
-                {returnWorkings.map((workingRow) => <tr key={workingRow.id}>
-                  <td><strong>{workingRow.form_type}</strong><small title={workingRow.source_hash}>source {workingRow.source_hash.slice(0, 12)}…</small></td>
-                  <td>{workingRow.period}</td>
-                  <td><em data-state={workingRow.status === "FILED_EVIDENCE_RECORDED" ? "ok" : workingRow.status === "REVIEW_REJECTED" ? "error" : "neutral"}>{workingRow.status}</em></td>
-                  <td>{workingRow.reviewed_by || "Pending"}</td>
-                  <td>{workingRow.filing_provider || "—"}</td>
-                  <td>{workingRow.filing_arn || "—"}</td>
-                </tr>)}
+                {returnWorkings.map((workingRow) => {
+                  const evc = evcDrafts[workingRow.id] || { pan: "", otp: "" };
+                  const itc = itcDrafts[workingRow.id] || { igst: "0", cgst: "0", sgst: "0", cess: "0", evidence: "", note: "" };
+                  const verified = workingRow.status === "FILED_VERIFIED";
+                  return <tr key={workingRow.id}>
+                    <td><strong>{workingRow.form_type}</strong><small title={workingRow.source_hash}>source {workingRow.source_hash.slice(0, 12)}…</small></td>
+                    <td>{workingRow.period}</td>
+                    <td><em data-state={verified ? "ok" : workingRow.status === "REVIEW_REJECTED" ? "error" : workingRow.status === "APPROVED_FOR_FILING" || workingRow.status.startsWith("GSP_") || workingRow.status === "EVC_REQUESTED" ? "warn" : "neutral"}>{workingRow.status}</em>{workingRow.gsp_verified_status ? <small>GSTN/GSP: {workingRow.gsp_verified_status}</small> : null}</td>
+                    <td>
+                      <strong>{workingRow.reviewed_by || "CA review pending"}</strong>
+                      {workingRow.form_type === "GSTR3B" ? <small>{workingRow.itc_reviewed_by ? "ITC reviewed by " + workingRow.itc_reviewed_by : "ITC review required before approval"}</small> : <small>Outward-supply working</small>}
+                    </td>
+                    <td><strong>{workingRow.filing_provider || "—"}</strong><small>{workingRow.filing_arn ? "ARN " + workingRow.filing_arn : workingRow.gsp_submission_ref ? "Ref " + workingRow.gsp_submission_ref : "No filing reference yet"}</small></td>
+                    <td className={styles.returnFlowCell}>
+                      {workingRow.form_type === "GSTR3B" && !workingRow.itc_reviewed_at && canApprove ? <details>
+                        <summary>Review ITC</summary>
+                        <div className={styles.itcGrid}>
+                          {(["igst","cgst","sgst","cess"] as const).map((field) => <label key={field}>{field.toUpperCase()}<input inputMode="decimal" value={itc[field]} onChange={(event) => setItcDrafts((current) => ({ ...current, [workingRow.id]: { ...itc, [field]: event.target.value } }))} /></label>)}
+                          <label className={styles.wideField}>Evidence reference<input value={itc.evidence} onChange={(event) => setItcDrafts((current) => ({ ...current, [workingRow.id]: { ...itc, evidence: event.target.value } }))} /></label>
+                          <label className={styles.wideField}>CA note<input value={itc.note} onChange={(event) => setItcDrafts((current) => ({ ...current, [workingRow.id]: { ...itc, note: event.target.value } }))} /></label>
+                        </div>
+                        <button type="button" disabled={!itc.evidence.trim() || itc.note.trim().length < 3 || Boolean(actionBusy)} onClick={() => void providerAction(
+                          "itc-" + workingRow.id,
+                          "tax/gst/gsp/returns/" + encodeURIComponent(workingRow.id) + "/itc-review",
+                          { igst: itc.igst || "0", cgst: itc.cgst || "0", sgst: itc.sgst || "0", cess: itc.cess || "0", evidence_ref: itc.evidence.trim(), note: itc.note.trim() },
+                          () => "CA ITC review recorded for " + workingRow.period + ".",
+                        )}>{actionBusy === "itc-" + workingRow.id ? <LoaderCircle className={styles.spin} /> : <BadgeCheck />} Record ITC review</button>
+                      </details> : null}
+
+                      {(workingRow.status === "DRAFT" || workingRow.status === "REVIEW_REJECTED") && canApprove ? <button type="button" disabled={workingRow.form_type === "GSTR3B" && !workingRow.itc_reviewed_at || Boolean(actionBusy)} onClick={() => void providerAction(
+                        "approve-" + workingRow.id,
+                        "tax/gst/returns/" + encodeURIComponent(workingRow.id) + "/review",
+                        { decision: "APPROVE", note: "Reviewed in Kravia Office and approved for GST filing." },
+                        () => workingRow.form_type + " approved for filing.",
+                      )}><BadgeCheck /> CA approve</button> : null}
+
+                      {workingRow.status === "APPROVED_FOR_FILING" ? <button type="button" disabled={!gspStatus?.taxpayer_authenticated || Boolean(actionBusy)} onClick={() => void providerAction(
+                        "save-" + workingRow.id,
+                        "tax/gst/gsp/returns/" + encodeURIComponent(workingRow.id) + "/save",
+                        undefined,
+                        () => workingRow.form_type + " saved through FYN Gateway.",
+                      )}><FileCheck2 /> Save to GSTN</button> : null}
+
+                      {workingRow.status === "GSP_SAVED" && workingRow.form_type === "GSTR1" ? <button type="button" disabled={!gspStatus?.taxpayer_authenticated || Boolean(actionBusy)} onClick={() => void providerAction(
+                        "submit-" + workingRow.id,
+                        "tax/gst/gsp/returns/" + encodeURIComponent(workingRow.id) + "/submit",
+                        undefined,
+                        () => "GSTR-1 submitted and ready for authorized-signatory EVC.",
+                      )}><FileCheck2 /> Submit</button> : null}
+
+                      {(workingRow.status === "GSP_SUBMITTED" || (workingRow.status === "GSP_SAVED" && workingRow.form_type === "GSTR3B")) ? <details>
+                        <summary>Authorized signatory</summary>
+                        <label>PAN<input autoCapitalize="characters" maxLength={10} placeholder="ABCDE1234F" value={evc.pan} onChange={(event) => setEvcDrafts((current) => ({ ...current, [workingRow.id]: { ...evc, pan: event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10) } }))} /></label>
+                        <button type="button" disabled={!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(evc.pan) || Boolean(actionBusy)} onClick={() => void providerAction(
+                          "evc-request-" + workingRow.id,
+                          "tax/gst/gsp/returns/" + encodeURIComponent(workingRow.id) + "/evc/request",
+                          { pan: evc.pan },
+                          () => "EVC OTP sent to the GST authorized signatory.",
+                        )}><ShieldCheck /> Send EVC OTP</button>
+                      </details> : null}
+
+                      {workingRow.status === "EVC_REQUESTED" ? <div className={styles.evcInline}>
+                        <input aria-label={"Authorized signatory PAN for " + workingRow.form_type} autoCapitalize="characters" maxLength={10} placeholder="PAN" value={evc.pan} onChange={(event) => setEvcDrafts((current) => ({ ...current, [workingRow.id]: { ...evc, pan: event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10) } }))} />
+                        <input aria-label={"EVC OTP for " + workingRow.form_type} inputMode="numeric" autoComplete="one-time-code" maxLength={8} placeholder="EVC OTP" value={evc.otp} onChange={(event) => setEvcDrafts((current) => ({ ...current, [workingRow.id]: { ...evc, otp: event.target.value.replace(/\D/g, "").slice(0, 8) } }))} />
+                        <button type="button" disabled={!gspStatus?.filing_contract_ready || !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(evc.pan) || evc.otp.length < 4 || Boolean(actionBusy)} onClick={() => void providerAction(
+                          "file-" + workingRow.id,
+                          "tax/gst/gsp/returns/" + encodeURIComponent(workingRow.id) + "/file",
+                          { pan: evc.pan, otp: evc.otp },
+                          () => {
+                            setEvcDrafts((current) => ({ ...current, [workingRow.id]: { pan: "", otp: "" } }));
+                            return "GST filing request sent. Verify provider status for ARN.";
+                          },
+                        )}><BadgeCheck /> File with EVC</button>
+                        {!gspStatus?.filing_contract_ready ? <small>Final filing unlocks after FYN sandbox contract acceptance.</small> : null}
+                      </div> : null}
+
+                      {(workingRow.status === "GSP_FILE_REQUESTED" || workingRow.gsp_submission_ref) && !verified ? <button type="button" disabled={!gspStatus?.taxpayer_authenticated || Boolean(actionBusy)} onClick={() => void providerAction(
+                        "verify-return-" + workingRow.id,
+                        "tax/gst/gsp/returns/" + encodeURIComponent(workingRow.id) + "/verify",
+                        undefined,
+                        () => "Return status refreshed from FYN Gateway/GSTN.",
+                      )}><RefreshCw /> Verify filing</button> : null}
+
+                      {verified ? <span className={styles.verifiedFiled}><BadgeCheck /> ARN verified</span> : null}
+                    </td>
+                  </tr>;
+                })}
                 {!returnWorkings.length ? <tr><td colSpan={6}><div className={styles.empty}>No GST return working has been built yet.</div></td></tr> : null}
               </tbody>
             </table>
@@ -715,6 +869,19 @@ export function OfficeGstTaxWorkspace({
             <span><b>Product profiles</b><small>{configuration?.profiles.approved_billing || 0}/{configuration?.profiles.billing_enabled || 0} approved</small></span>
           </div>
           <p className={styles.helper}>{configuration?.note}</p>
+        </details>
+
+        <details className={styles.settingsBlock}>
+          <summary><span>FYN Gateway · GST return filing</span><em data-state={gspStatus?.taxpayer_authenticated ? "ok" : gspStatus?.configured ? "warn" : "neutral"}>{gspStatus?.taxpayer_authenticated ? "CONNECTED" : gspStatus?.configured ? "OTP REQUIRED" : "NOT CONFIGURED"}</em></summary>
+          <div className={styles.detailGrid}>
+            <span><b>Provider</b><small>{gspStatus?.provider_name || "Fynamics Techno Solutions Private Limited"}</small></span>
+            <span><b>API version</b><small>{gspStatus?.api_version || "3.0.3"}</small></span>
+            <span><b>Environment</b><small>{gspStatus?.environment || "—"}</small></span>
+            <span><b>Taxpayer session</b><small>{gspStatus?.taxpayer_authenticated ? "Authenticated" : "Not authenticated"}</small></span>
+            <span><b>Final EVC filing</b><small>{gspStatus?.filing_contract_ready ? "Acceptance-tested contract enabled" : "Sandbox acceptance pending"}</small></span>
+            <span><b>Secrets</b><small>Tokens, SEK/AppKey, PAN and OTP are never persisted</small></span>
+          </div>
+          {gspStatus?.missing_configuration?.length ? <p className={styles.helper}>Missing backend configuration: {gspStatus.missing_configuration.join(", ")}</p> : null}
         </details>
 
         <details className={styles.settingsBlock}>
