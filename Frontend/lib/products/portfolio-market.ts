@@ -4,7 +4,7 @@ import { selectedGlobalMarketEstimate, vorioMarketResearchReviewedAt } from "./v
 import { researchCheckedAt, yuktaMetrics, yuktaSources } from "./yukta-research";
 
 export type PortfolioMarketContext = {
-  productSlug: "vidyaluma" | "recruitflow" | "yukta" | "vorio";
+  productSlug: "vidyaluma" | "nicerole" | "yukta" | "vorio";
   marketLabel: string;
   geography: string;
   baseYear: number;
@@ -52,7 +52,7 @@ export const portfolioMarketContexts: readonly PortfolioMarketContext[] = [
     scopeNote: "Broad education technology and smart-classroom context; not VidyaLuma revenue, market share or demand.",
   },
   {
-    productSlug: "recruitflow",
+    productSlug: "nicerole",
     marketLabel: "Recruitment software market",
     geography: "India",
     baseYear: selectedRecruitFlowIndiaEstimate.baseYear,
@@ -66,7 +66,7 @@ export const portfolioMarketContexts: readonly PortfolioMarketContext[] = [
     sourceTitle: selectedRecruitFlowIndiaEstimate.reportTitle,
     sourceUrl: selectedRecruitFlowIndiaEstimate.url,
     reviewedAt: recruitFlowMarketResearchReviewedAt,
-    scopeNote: "Broader India recruitment-software context; not RecruitFlow revenue, market share, customer count or a guarantee of demand.",
+    scopeNote: "Broader India recruitment-software context; not Nice Role revenue, market share, customer count or a guarantee of demand.",
   },
   {
     productSlug: "yukta",
@@ -104,6 +104,6 @@ export const portfolioMarketContexts: readonly PortfolioMarketContext[] = [
 ] as const;
 
 export function marketContextForProductHref(href: string) {
-  const match = href.match(/\/products\/(vidyaluma|recruitflow|yukta|vorio)$/);
+  const match = href.match(/\/products\/(vidyaluma|nicerole|yukta|vorio)$/);
   return match ? portfolioMarketContexts.find((context) => context.productSlug === match[1]) : undefined;
 }
