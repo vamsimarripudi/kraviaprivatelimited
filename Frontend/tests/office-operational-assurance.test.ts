@@ -53,6 +53,9 @@ describe("Office operational assurance", () => {
   it("reports readiness as evidence gates rather than a compliance score", () => {
     expect(readiness).toContain("not a compliance certificate, legal opinion or uptime guarantee");
     expect(readiness).toContain("Missing data is surfaced as missing or attention rather than assumed healthy");
+    expect(readiness).toContain("First-party auth runtime configured");
+    expect(readiness).toContain("OFFICE_API_ORIGIN");
+    expect(readiness).not.toContain("OFFICE_SUPABASE_PUBLISHABLE_KEY");
     expect(readinessRoute).toContain("export async function GET");
     expect(readinessRoute).not.toContain("export async function POST");
   });
