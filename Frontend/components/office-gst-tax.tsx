@@ -566,8 +566,8 @@ export function OfficeGstTaxWorkspace({
               <em data-state={vasStatus?.data_api_configured ? "ok" : "warn"}>{vasStatus?.data_api_configured ? "READY" : "SETUP"}</em>
             </article>
             <article>
-              <div><b>GST returns</b><small>{vasStatus?.gsp.configured ? "GSP configured" : "Preparation only; filing provider not configured"}</small></div>
-              <em data-state={vasStatus?.gsp.configured ? "ok" : "neutral"}>{vasStatus?.gsp.configured ? "CONNECTED" : "PREP ONLY"}</em>
+              <div><b>GST returns</b><small>{gspStatus?.taxpayer_authenticated ? "FYN Gateway taxpayer session connected" : gspStatus?.configured ? "FYN Gateway configured; GST OTP connection required" : "Preparation only; FYN Gateway not configured"}</small></div>
+              <em data-state={gspStatus?.taxpayer_authenticated ? "ok" : gspStatus?.configured ? "warn" : "neutral"}>{gspStatus?.taxpayer_authenticated ? "CONNECTED" : gspStatus?.configured ? "OTP REQUIRED" : "PREP ONLY"}</em>
             </article>
           </div>
         </section>
