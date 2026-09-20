@@ -12,6 +12,8 @@ describe("KRAVIA Finance GST working register",()=>{
     expect(component).toContain('runtime<GstSummary>("tax/gst/summary"');
     expect(component).toContain('runtime<Invoice[]>("invoices"');
     expect(component).toContain('runtime<GstMaster>("tax/gst/master"');
+    expect(component).toContain('runtime<ProductTaxProfile[]>("tax/gst/product-profiles"');
+    expect(component).toContain('runtime<GstConfiguration>("tax/gst/configuration"');
     expect(component).toContain("document_hash");
   });
 
@@ -36,6 +38,14 @@ describe("KRAVIA Finance GST working register",()=>{
     expect(component).toContain("CGST");
     expect(component).toContain("SGST");
     expect(component).toContain("IGST");
+  });
+
+  it("renders controlled product tax profiles and production readiness without inferring portal status",()=>{
+    expect(component).toContain("PRODUCTION TAX CONTROL");
+    expect(component).toContain("PRODUCT TAX PROFILES");
+    expect(component).toContain("Backend-owned SAC and GST configuration");
+    expect(component).toContain("GST portal evidence");
+    expect(component).toContain("CA evidence required");
   });
 
   it("renders the GSTN rate master and keeps 18% explicit for IT services",()=>{

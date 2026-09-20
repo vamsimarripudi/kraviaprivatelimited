@@ -60,6 +60,46 @@ type GstMaster = {
   };
 };
 
+type ProductTaxProfile = {
+  id: string;
+  product_id: string;
+  product_code?: string | null;
+  product_name: string;
+  sac: string;
+  gst_rate: string;
+  tax_treatment: string;
+  supply_model: string;
+  billing_enabled: boolean;
+  status: string;
+  classification_basis: string;
+  source_ref: string;
+  approved_by?: string | null;
+  approved_at?: string | null;
+  evidence_ref?: string | null;
+};
+
+type GstConfiguration = {
+  gstin: {
+    configured: boolean;
+    masked?: string | null;
+    structure_valid: boolean;
+    state_matches: boolean;
+    state_code?: string | null;
+    portal_verification: string;
+    note: string;
+  };
+  tax_config_approved: boolean;
+  profiles: {
+    configured: number;
+    billing_enabled: number;
+    approved_billing: number;
+    pending_billing: number;
+  };
+  ready_for_production_invoicing: boolean;
+  portal_verification: string;
+  note: string;
+};
+
 type WorkingTotals = {
   netTaxable: number;
   cgst: number;
@@ -134,6 +174,8 @@ export function OfficeGstTaxWorkspace({
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [gstMaster, setGstMaster] = useState<GstMaster>();
+  const [taxProfiles, setTaxProfiles] = useState<ProductTaxProfile[]>([]);
+  const [configuration, setConfiguration] = useState<GstConfiguration>();
   const [period, setPeriod] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
@@ -144,18 +186,22 @@ export function OfficeGstTaxWorkspace({
     runtime<Customer[]>("customers", signal),
     runtime<Product[]>("products", signal),
     runtime<GstMaster>("tax/gst/master", signal),
+    runtime<ProductTaxProfile[]>("tax/gst/product-profiles", signal),
+    runtime<GstConfiguration>("tax/gst/configuration", signal),
   ]), []);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(undefined);
     try {
-      const [nextSummary, nextInvoices, nextCustomers, nextProducts, nextGstMaster] = await fetchRecords();
+      const [nextSummary, nextInvoices, nextCustomers, nextProducts, nextGstMaster, nextTaxProfiles, nextConfiguration] = await fetchRecords();
       setSummary(nextSummary);
       setInvoices(nextInvoices);
       setCustomers(nextCustomers);
       setProducts(nextProducts);
       setGstMaster(nextGstMaster);
+      setTaxProfiles(nextTaxProfiles);
+      setConfiguration(nextConfiguration);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to load GST working records");
     } finally {
@@ -167,13 +213,15 @@ export function OfficeGstTaxWorkspace({
     const controller = new AbortController();
     let active = true;
     void fetchRecords(controller.signal)
-      .then(([nextSummary, nextInvoices, nextCustomers, nextProducts, nextGstMaster]) => {
+      .then(([nextSummary, nextInvoices, nextCustomers, nextProducts, nextGstMaster, nextTaxProfiles, nextConfiguration]) => {
         if (!active) return;
         setSummary(nextSummary);
         setInvoices(nextInvoices);
         setCustomers(nextCustomers);
         setProducts(nextProducts);
         setGstMaster(nextGstMaster);
+        setTaxProfiles(nextTaxProfiles);
+        setConfiguration(nextConfiguration);
       })
       .catch((caught) => {
         if (active && !(caught instanceof DOMException && caught.name === "AbortError")) {
@@ -253,6 +301,45 @@ export function OfficeGstTaxWorkspace({
         <article><span>Invoices in view</span><b>{working.invoiceCount}</b></article>
         <article><span>Working state</span><b>{summary?.filing_status || "REVIEW_REQUIRED"}</b></article>
       </div>
+
+      <section className={styles.configPanel} aria-label="GST production configuration">
+        <header>
+          <div><p>PRODUCTION TAX CONTROL</p><h3>{configuration?.ready_for_production_invoicing ? "Production invoicing tax gate is ready" : "Production invoicing remains gated"}</h3></div>
+          <em data-ready={configuration?.ready_for_production_invoicing}>{configuration?.ready_for_production_invoicing ? "READY" : "REVIEW REQUIRED"}</em>
+        </header>
+        <div className={styles.configGrid}>
+          <article><span>GSTIN configured</span><b>{configuration?.gstin.configured ? configuration.gstin.masked || "Configured" : "Not configured"}</b><small>{configuration?.gstin.structure_valid ? "Structure valid" : "Structure not validated"}</small></article>
+          <article><span>Supplier state</span><b>{configuration?.gstin.state_code || "—"}</b><small>{configuration?.gstin.state_matches ? "GSTIN state matches" : "State match pending"}</small></article>
+          <article><span>Tax config switch</span><b>{configuration?.tax_config_approved ? "Approved" : "Not approved"}</b><small>Controlled deployment setting</small></article>
+          <article><span>Product profiles</span><b>{configuration?.profiles.approved_billing || 0}/{configuration?.profiles.billing_enabled || 0}</b><small>Billing profiles CA-approved</small></article>
+          <article><span>GST portal evidence</span><b>{configuration?.portal_verification || "NOT_CONNECTED"}</b><small>Portal status is never inferred</small></article>
+        </div>
+        <p className={styles.configNote}>{configuration?.note}</p>
+      </section>
+
+      <section className={styles.profileRegister} aria-label="Product GST profiles">
+        <header>
+          <div><p>PRODUCT TAX PROFILES</p><h3>Backend-owned SAC and GST configuration</h3></div>
+          <span>Invoice and plan creation must match these controlled profiles.</span>
+        </header>
+        <div className={styles.tableWrap}>
+          <table>
+            <thead><tr><th>Product</th><th>Supply model</th><th>SAC</th><th>GST</th><th>Billing</th><th>Review state</th><th>Evidence</th></tr></thead>
+            <tbody>
+              {taxProfiles.map(profile => <tr key={profile.id}>
+                <td><strong>{profile.product_code || "—"} · {profile.product_name}</strong><small>{profile.classification_basis}</small></td>
+                <td>{profile.supply_model.replaceAll("_"," ")}</td>
+                <td><strong>{profile.sac}</strong></td>
+                <td>{profile.gst_rate}%</td>
+                <td><em data-status={profile.billing_enabled ? "PAID" : "DISABLED"}>{profile.billing_enabled ? "ENABLED" : "DISABLED"}</em></td>
+                <td><em data-status={profile.status === "APPROVED" ? "PAID" : profile.status}>{profile.status}</em></td>
+                <td>{profile.evidence_ref || "CA evidence required"}</td>
+              </tr>)}
+              {!taxProfiles.length ? <tr><td colSpan={7}><div className={styles.empty}>No product tax profiles are configured.</div></td></tr> : null}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <section className={styles.rateMaster} aria-label="GST rate master">
         <header>

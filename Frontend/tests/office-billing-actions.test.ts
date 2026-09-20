@@ -16,11 +16,14 @@ describe("KRAVIA Finance billing actions",()=>{
   expect(screen).toContain("OfficeBillingWorkspace");
  });
 
- it("uses the canonical GST rate master instead of an arbitrary percentage input",()=>{
-  expect(component).toContain('runtime<GstMaster>("tax/gst/master")');
-  expect(component).toContain("gstMaster?.standard_rates");
-  expect(component).toContain("IT services");
-  expect(component).not.toContain('type="number" min="0" max="100" step="0.01"');
+ it("uses backend-owned product tax profiles instead of browser-controlled tax fields",()=>{
+  expect(component).toContain('runtime<ProductTaxProfile[]>("tax/gst/product-profiles")');
+  expect(component).toContain("taxProfileMap");
+  expect(component).toContain("GST rate · locked");
+  expect(component).toContain("SAC · locked");
+  expect(component).toContain("browser cannot override SAC or GST rate");
+  expect(component).not.toContain("gst_rate:Number");
+  expect(component).not.toContain("sac:draft.sac");
  });
 
  it("keeps production tax invoicing fail-closed until controlled GST configuration is approved",()=>{
