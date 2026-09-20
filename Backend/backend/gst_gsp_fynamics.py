@@ -837,7 +837,7 @@ def build_fynamics_gsp_router(get_db: Callable, actor_context: Callable, require
             client.close()
 
     @router.post("/returns/{return_id}/evc/request")
-    def request_evc(return_id: str, payload: EvcRequest, db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER", "CA"))):
+    def request_evc(return_id: str, payload: EvcRequest, db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER"))):
         row = db.get(GstReturnWorking, return_id)
         if not row:
             raise HTTPException(404, "GST return working not found")
@@ -864,7 +864,7 @@ def build_fynamics_gsp_router(get_db: Callable, actor_context: Callable, require
             client.close()
 
     @router.post("/returns/{return_id}/file")
-    def file_return(return_id: str, payload: EvcFileRequest, db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER", "CA"))):
+    def file_return(return_id: str, payload: EvcFileRequest, db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER"))):
         row = db.get(GstReturnWorking, return_id)
         if not row:
             raise HTTPException(404, "GST return working not found")
