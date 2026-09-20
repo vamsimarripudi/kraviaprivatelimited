@@ -953,15 +953,25 @@ def build_identity_router() -> APIRouter:
         except ValueError as exc:
             raise HTTPException(status_code=422, detail="Invalid Office device identifier") from exc
 
-        device = db.execute(
-            text(
+        if db.get_bind().dialect.name == "postgresql":
+            device_query = text(
                 """
                 select trust_state,company_managed,revoked_at
                 from office_device_registry
                 where id=cast(:device_id as uuid)
                   and user_id=cast(:user_id as uuid)
                 """
-            ),
+            )
+        else:
+            device_query = text(
+                """
+                select trust_state,company_managed,revoked_at
+                from office_device_registry
+                where id=:device_id and user_id=:user_id
+                """
+            )
+        device = db.execute(
+            device_query,
             {"device_id": device_id, "user_id": context["user_id"]},
         ).mappings().first()
         if not device:
