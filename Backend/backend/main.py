@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 
 from .database import Base, engine, get_db
-from .models import LegalEntity, Product, ProductTaxProfile, Customer, Invoice, Payment, Receipt, IdempotencyRecord, AuditEvent, WorkflowRun, ComplianceObligation, DomainEvent, ChartAccount, JournalEntry, JournalLine, BoardMeeting, Resolution, AuthorityGrant, Vendor, Contract, Employee, OfficeAsset, Document, DocumentVersion, CommercialPlan, Subscription, CreditNote, Refund, BankAccount, BankTransaction, Settlement, ApprovalRequest, NoticeCase, InspectionCase, IntegrationRecord, OperationalAlert, WorkerHeartbeat
+from .models import LegalEntity, Product, ProductTaxProfile, GstTaxpayerSnapshot, Customer, Invoice, Payment, Receipt, IdempotencyRecord, AuditEvent, WorkflowRun, ComplianceObligation, DomainEvent, ChartAccount, JournalEntry, JournalLine, BoardMeeting, Resolution, AuthorityGrant, Vendor, Contract, Employee, OfficeAsset, Document, DocumentVersion, CommercialPlan, Subscription, CreditNote, Refund, BankAccount, BankTransaction, Settlement, ApprovalRequest, NoticeCase, InspectionCase, IntegrationRecord, OperationalAlert, WorkerHeartbeat
 from .schemas import CustomerCreate, ProductCreate, ProductTaxProfileUpdate, ProductTaxProfileApproval, InvoiceCreate, PaymentCreate, ComplianceCreate, BoardMeetingCreate, ResolutionCreate, AuthorityCreate, VendorCreate, ContractCreate, EmployeeCreate, AssetCreate, PlanCreate, SubscriptionCreate, CreditNoteCreate, RefundCreate, BankAccountCreate, BankTransactionCreate, SettlementCreate, ApprovalCreate, ApprovalDecision, NoticeCreate, InspectionCreate, IntegrationCreate
 from .services import uid, paise, rupees, now_utc, allocate_invoice_no, allocate_controlled_no, audit, workflow, emit_event, post_journal, ENTITY_ID
 from .documents import invoice_pdf, receipt_pdf, ctc_pdf
@@ -431,10 +431,21 @@ def gst_configuration(db: Session=Depends(get_db), ctx=Depends(actor_context)):
     billing_profiles = [row for row in profiles if row.billing_enabled]
     approved_billing = [row for row in billing_profiles if row.status == "APPROVED"]
     gstin = gstin_structure_status(KRAVIA_GSTIN, entity.state_code if entity else None)
+    latest_gstin = None
+    if KRAVIA_GSTIN:
+        latest_gstin = db.execute(
+            select(GstTaxpayerSnapshot)
+            .where(GstTaxpayerSnapshot.gstin == KRAVIA_GSTIN.upper())
+            .order_by(GstTaxpayerSnapshot.verified_at.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+    registration_status = (latest_gstin.registration_status or "").strip().upper() if latest_gstin else ""
+    registration_active = registration_status in {"ACT", "ACTIVE"}
     ready = bool(
         gstin["configured"]
         and gstin["structure_valid"]
         and gstin["state_matches"]
+        and registration_active
         and TAX_CONFIG_APPROVED
         and billing_profiles
         and len(approved_billing) == len(billing_profiles)
@@ -449,8 +460,19 @@ def gst_configuration(db: Session=Depends(get_db), ctx=Depends(actor_context)):
             "pending_billing": len(billing_profiles) - len(approved_billing),
         },
         "ready_for_production_invoicing": ready,
-        "portal_verification": "NOT_CONNECTED",
-        "note": "GST portal active-registration verification is an external evidence gate and is not inferred by KRAVIA Office.",
+        "portal_verification": "IRP_VERIFIED_ACTIVE" if registration_active else ("IRP_VERIFIED" if latest_gstin else "NOT_CONNECTED"),
+        "authoritative_gstin": {
+            "provider": latest_gstin.provider,
+            "registration_status": latest_gstin.registration_status,
+            "legal_name": latest_gstin.legal_name,
+            "trade_name": latest_gstin.trade_name,
+            "verified_at": latest_gstin.verified_at.isoformat(),
+            "response_hash": latest_gstin.source_response_hash,
+        } if latest_gstin else None,
+        "note": (
+            "GSTIN registration evidence is read from the latest IRIS IRP taxpayer snapshot. "
+            "Return filing status is not inferred by KRAVIA Office."
+        ),
     }
 
 
