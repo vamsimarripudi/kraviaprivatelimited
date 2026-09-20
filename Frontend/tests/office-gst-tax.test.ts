@@ -16,6 +16,9 @@ describe("KRAVIA Finance GST working register",()=>{
     expect(component).toContain('runtime<GstConfiguration>("tax/gst/configuration"');
     expect(component).toContain('runtime<GstConnectorStatus>("tax/gst/connector/status"');
     expect(component).toContain('runtime<EinvoiceRecord[]>("tax/gst/einvoice"');
+    expect(component).toContain('runtime<GstVasStatus>("tax/gst/vas/status"');
+    expect(component).toContain('runtime<GstPurchaseSummary>("tax/gst/purchases/summary"');
+    expect(component).toContain('runtime<GstReturnWorking[]>("tax/gst/returns"');
     expect(component).toContain("document_hash");
   });
 
@@ -59,6 +62,16 @@ describe("KRAVIA Finance GST working register",()=>{
     expect(component).toContain('"tax/gst/einvoice/" + encodeURIComponent(invoice.id) + "/cancel"');
     expect(component).toContain("No credential value is exposed or stored in the browser.");
     expect(component).toContain("Buyer GSTIN + billing address/locality/pincode required.");
+  });
+
+  it("shows real inward-data reconciliation and return-working controls without fabricating ITC or filing",()=>{
+    expect(component).toContain("INWARD GST · DATA & RECONCILIATION");
+    expect(component).toContain("Reconcile purchases");
+    expect(component).toContain("Supplier sharing consent and recipient access consent remain mandatory.");
+    expect(component).toContain("Build GSTR-1 working");
+    expect(component).toContain("Build GSTR-3B working");
+    expect(component).toContain("GSP filing not configured");
+    expect(component).toContain("Inward GST remains observational pending ITC review.");
   });
 
   it("renders the GSTN rate master and keeps 18% explicit for IT services",()=>{
