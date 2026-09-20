@@ -65,15 +65,14 @@ async function activeIdentityIds(admin: SupabaseClient, ids: string[]) {
 async function mentionedUserIds(admin: SupabaseClient, body: string) {
   const emails = Array.from(new Set(body.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)?.map((value) => value.toLowerCase()) ?? []));
   if (!emails.length) return [] as string[];
-  const users: { id: string; email?: string | null }[] = [];
-  const perPage = 200;
-  for (let page = 1; page <= 100; page += 1) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
-    fail(error, "Unable to resolve mentioned users");
-    users.push(...(data.users ?? []));
-    if ((data.users ?? []).length < perPage) break;
-  }
-  return users.filter((user) => user.email && emails.includes(user.email.toLowerCase())).map((user) => user.id);
+  const { data: users, error } = await admin
+    .from("office_auth_users")
+    .select("id,email")
+    .in("email", emails);
+  fail(error, "Unable to resolve mentioned users");
+  return (users ?? [])
+    .filter((user) => typeof user.email === "string" && emails.includes(user.email.toLowerCase()))
+    .map((user) => user.id);
 }
 
 export async function listRequestComments(requestId: string) {
