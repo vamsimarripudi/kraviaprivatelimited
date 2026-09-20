@@ -19,7 +19,7 @@ def test_end_to_end_billing_and_tax():
             "legal_name":"Enterprise Test School","state":"Andhra Pradesh","state_code":"37","country":"India","billing_address":"Test Address"
         }).json()
         inv=c.post("/api/v1/invoices",headers=H|{"Idempotency-Key":"inv-1"},json={
-            "customer_id":customer["id"],"product_id":vl["id"],"description":"VidyaLuma annual subscription","sac":"9983","qty":"1","taxable_value":"1000.00","discount":"0","gst_rate":"18"
+            "customer_id":customer["id"],"product_id":vl["id"],"description":"VidyaLuma annual subscription","sac":"998319","qty":"1","taxable_value":"1000.00","discount":"0","gst_rate":"18"
         }).json()
         assert inv["invoice_no"].startswith("VL/")
         assert inv["cgst"] == "90.00" and inv["sgst"] == "90.00" and inv["igst"] == "0.00"
