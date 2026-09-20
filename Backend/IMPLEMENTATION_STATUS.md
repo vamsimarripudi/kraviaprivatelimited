@@ -117,7 +117,7 @@ Canonical browser surfaces are now:
 - [ ] Provider edge/WAF abuse controls — external infrastructure gate; application-level cross-replica rate limiting is complete
 - [x] Durable background-worker runtime with distributed advisory locking, bounded outbox processing, heartbeat and failure alerts
 - [x] Runtime monitoring/alerting, SLO-readiness boundaries, worker health, audit-retention policies, legal holds and archive-manifest controls
-- [ ] Deploy the dedicated worker process/service and connect verified external SLO telemetry/archive sink — production operations gates
+- [x] Dedicated Railway worker process/service deployed; external SLO telemetry/archive sink acceptance remains a production operations gate
 - [ ] Final staging penetration/security/accessibility acceptance
 
 ## Verified automated validation
@@ -139,21 +139,24 @@ Latest fully green `main` quality run verified:
 - [x] period-close, HTTP security, Drive taxonomy, finance/ownership/provider/idempotency, RBAC, governance, audit-chain and document controls
 - [x] hardened Office quality gate: **PASS**
 
-## Deployment state
+## Deployment state — verified 20 Sep 2026
 
-Repository `main` includes `53e633e80540be8d1ff6392f27bae890b8437f89`; the RLS change passed the full pull-request quality gates, while the current main run is reconfirming the same frontend/backend/database/repository checks: frontend, backend, database-structure, repository-structure and the quality-gated Railway deployment job all passed. The backend suite reports **75 tests passed** and Alembic upgrades cleanly through v9.
+GitHub combined status for baseline `main` commit `3cc0759e178cecabc76a685e11a65b44301c1173` reports both Railway services green:
 
-Railway is connected to `vamsimarripudi/kraviaprivatelimited` with service `kravia-office-api`, branch `main`, root directory `Backend`, Dockerfile `Dockerfile.api`, pre-deploy `alembic upgrade head`, health check `/health/live`, one configured Singapore replica and the Railway domain `kravia-office-api-production.up.railway.app`. Deployment `7ace95b8-b966-43be-aa4a-f2656624ed74` for commit `2e706e4e20838b00688b0c76f60f61d2e21c935e` reached **SUCCESS** after pre-deploy migrations and health acceptance with `DATABASE_EXECUTION_ROLE=kravia_office_backend`. The dedicated worker service is still absent because Railway rejected additional resource provisioning on the current Free-plan limit.
+- `kravia-office-api` deployment check: **SUCCESS**;
+- `kravia-office-worker` deployment check: **SUCCESS**.
 
-GitHub now reports the `Vercel` deployment check for current `main` as **SUCCESS** under the separate `kravia1/kraviaprivatelimited` project context. The currently connected Vercel token is not authorized for the `kravia1` scope, so project settings, production environment variables and domain assignment still require connector re-authentication/read-back before acceptance.
+The dedicated worker is therefore no longer an unprovisioned Free-plan gate. It is deployed through Railway's native GitHub integration and should now be accepted operationally through heartbeat/failure-alert observation, durable outbox processing and external telemetry/archive evidence.
 
-The canonical browser remains path-based at `kraviaprivatelimited.com/office` and `/finance`; the Railway domain is the backend API origin, not a second public Office UI.
+The Vercel check on the same baseline commit is **PENDING** at this verification point. A pending provider deployment is not production acceptance and is not evidence of a Next.js compile failure. Do not attach Office to an unrelated Vercel project merely to clear status; wait for the canonical `kravia1/kraviaprivatelimited` deployment result and read back its root/build/environment/domain configuration before production acceptance.
+
+The canonical browser remains path-based at `kraviaprivatelimited.com/office` and `/finance`; Railway is the backend API/worker runtime, not a second public Office UI.
 
 ## External production gates intentionally not faked
 
 - production first-party auth cutover: Railway signing secret + shared Founder bootstrap secret + `AUTH_MODE=first_party`
 - first Founder registration and live TOTP/AAL2 verification
-- re-authenticate the Vercel connector to the `kravia1` scope and read back the successful KRAVIA project's root/build/environment/domain configuration
+- confirm the canonical `kravia1/kraviaprivatelimited` Vercel deployment reaches a terminal green state, resolve any recurring quota/capacity gate, re-authenticate connector access to that scope, and read back root/build/environment/domain configuration
 - apex `kraviaprivatelimited.com` domain attachment / DNS validation; optional `www` redirect
 - set/verify frontend `OFFICE_API_ORIGIN` against the accepted Railway API origin once the canonical Vercel project is accessible
 - decide and test the defense-in-depth RLS policy plan for the 52 legacy FastAPI tables; browser roles currently have zero CRUD and runtime transactions are constrained to `kravia_office_backend`
@@ -163,7 +166,7 @@ The canonical browser remains path-based at `kraviaprivatelimited.com/office` an
 - production private object storage + malware scanner
 - eSign/DSC where required
 - Google Drive runtime service identity
-- upgrade/provision Railway capacity for the dedicated production worker service/process (current Free-plan resource limit blocks creation); then connect verified external SLO telemetry and audit archive sink and configure provider edge/WAF controls
+- accept the deployed Railway worker with observed heartbeat/failure-alert/outbox evidence; then connect verified external SLO telemetry and audit archive sink and configure provider edge/WAF controls
 - complete first-party identity cutover acceptance and final staging browser/accessibility/security assessment
 
 ## Release rule
