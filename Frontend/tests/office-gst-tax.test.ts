@@ -19,6 +19,7 @@ describe("KRAVIA Finance GST working register",()=>{
     expect(component).toContain('runtime<GstVasStatus>("tax/gst/vas/status"');
     expect(component).toContain('runtime<GstPurchaseSummary>("tax/gst/purchases/summary"');
     expect(component).toContain('runtime<GstReturnWorking[]>("tax/gst/returns"');
+    expect(component).toContain('runtime<GstGspStatus>("tax/gst/gsp/status"');
     expect(component).toContain("document_hash");
   });
 
@@ -80,6 +81,22 @@ describe("KRAVIA Finance GST working register",()=>{
     expect(component).toContain("Build GSTR-3B");
     expect(component).toContain("Preparation only");
     expect(component).toContain("Inward GST remains observational pending ITC review.");
+  });
+
+  it("provides the CA-to-authorized-signatory Fynamics filing flow without storing portal passwords",()=>{
+    expect(component).toContain("FYN Gateway · GSTN GSP");
+    expect(component).toContain('"tax/gst/gsp/taxpayer/request-otp"');
+    expect(component).toContain('"tax/gst/gsp/taxpayer/auth"');
+    expect(component).toContain('"/itc-review"');
+    expect(component).toContain('"/save"');
+    expect(component).toContain('"/submit"');
+    expect(component).toContain('"/evc/request"');
+    expect(component).toContain('"/file"');
+    expect(component).toContain('"/verify"');
+    expect(component).toContain("CA approve");
+    expect(component).toContain("File with EVC");
+    expect(component).toContain("ARN verified");
+    expect(component).toContain("GST Portal passwords are never stored");
   });
 
   it("renders the GSTN rate master and keeps 18% explicit for IT services",()=>{
