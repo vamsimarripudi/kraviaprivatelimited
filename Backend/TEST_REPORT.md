@@ -4,13 +4,13 @@
 
 Latest fully green quality run:
 
-- Root application: **84 Vitest files / 394 tests passed**.
-- Office backend: **77 pytest tests passed**.
+- Root application: **85 Vitest files / 405 tests passed**.
+- Office backend: **100 pytest tests passed**.
 - Office quality gate: **PASS**.
 - `npm ci`: **0 vulnerabilities**.
 - Blocking `npm audit --audit-level=high`: **0 vulnerabilities**.
 - ESLint, TypeScript typecheck, secret scan and Next.js 16.3.5 production build: **PASS**.
-- Python compile, OpenAPI drift verification and clean Alembic migration chain through v10: **PASS**.
+- Python compile, OpenAPI drift verification and clean Alembic migration chain through v14: **PASS**.
 
 The production Next build explicitly contains `/office`, `/office/login`, `/office/[section]`, `/finance`, `/finance/login`, `/finance/[section]`, `/admin/login`, Office auth APIs and runtime gateways. Route audit additionally confirms **50/50 Office sections and 20/20 Finance sections have specialised surfaces with zero generic section fallbacks**.
 
@@ -31,7 +31,7 @@ Crawler/sitemap tests additionally verify that `/office` and `/finance` are priv
 
 ## Office backend coverage
 
-The 75-test backend suite verifies, among other controls:
+The 100-test backend suite verifies, among other controls:
 
 - customer → invoice → payment → receipt → GST working summary;
 - same-state CGST/SGST and inter-state IGST;
@@ -96,42 +96,51 @@ The clean CI database upgrades through:
 - v7 audit-retention policies, legal holds and archive manifests;
 - v8 shared application rate-limit windows;
 - v9 background-worker cadence metadata;
-- v10 KRAVIA first-party Office identity, sessions, roles, invitations and auth-event persistence.
+- v10 KRAVIA first-party Office identity, sessions, roles, invitations and auth-event persistence;
+- v11 GST product tax profiles;
+- v12 IRIS IRP/e-Invoice integration controls;
+- v13 GST purchase-data reconciliation and return workings;
+- v14 Fynamics/FYN Gateway GSP filing evidence and verification controls.
 
 Legacy Supabase Auth/RBAC provisioning remains versioned separately in `spec/identity/SUPABASE_IDENTITY.sql` for rollback/reference only because it targets the hosted Supabase `auth` schema; it is not part of the active Office identity production gate.
 
 ## Deployment validation
 
-The production code path is validated independently from provider deployment state.
+The production code path and live control plane were re-audited on 20 Sep 2026.
 
-- GitHub Actions baseline: frontend, backend, database-structure and repository-structure quality gates are the source acceptance boundary.
-- Next.js production build baseline: **PASS**, including private Office/Finance route families and their specialised sections.
-- Railway on baseline `main` commit `3cc0759e178cecabc76a685e11a65b44301c1173`: `kravia-office-api` deployment check **SUCCESS**.
-- Railway worker on the same baseline commit: `kravia-office-worker` deployment check **SUCCESS**. This supersedes the earlier Free-plan provisioning note; operational acceptance still requires observed heartbeat/failure-alert/outbox evidence.
-- Vercel on the same baseline commit: **PENDING** at the verification point. This is not production acceptance and is not evidence of a current Next.js compile defect. Canonical `kravia1/kraviaprivatelimited` terminal deployment status and environment/domain read-back remain pending.
+- Current accepted `main` baseline: `faa24b2878e2884f0a3004ab5da0985ebed9f1c4`.
+- GitHub Actions quality run: **SUCCESS**.
+- Frontend quality: **85 files / 405 tests**, lint, typecheck, dependency audit, secret scan and Next.js build all pass.
+- Backend quality: **100 pytest tests**, OpenAPI drift, Alembic through v14, quality gate, API-container liveness and worker smoke all pass.
+- Railway API deployment: **SUCCESS**.
+- Railway worker deployment: **SUCCESS**; live heartbeat observed on the configured 60-second cadence with no recorded failure at audit time.
+- Vercel deployment check on current `main`: **SUCCESS**.
+- Live Supabase/PostgreSQL revision: **v14** (`63d2f419ab77`).
+- Live first-party auth evidence: Founder ACTIVE, MFA verified, successful LOGIN_SUCCESS / SESSION_REFRESHED / MFA_VERIFIED events, and active first-party sessions.
+- The connected Vercel connector cannot currently read the canonical `kravia1` project because it is scoped to another team; environment/domain read-back is therefore still an evidence gap.
+- Railway exposes one staged production change whose contents are not readable with the present connector. This audit did not accept or deploy it.
 
-A green source/CI build proves committed software controls. It does not fabricate live-provider acceptance.
+A green source/CI build and healthy runtime prove the implemented controls; they do not fabricate provider or statutory acceptance.
 
 ## Not claimed as complete without production evidence
 
-Automated tests do not fabricate production acceptance for:
+Automated tests and the live checks above do not fabricate production acceptance for:
 
-- production first-party auth secrets and `AUTH_MODE=first_party` cutover;
-- first Founder bootstrap registration and live TOTP/AAL2 session;
-- terminal green acceptance of the canonical Vercel deployment, resolution of any recurring quota/capacity gate, `kravia1` scope re-authentication, project environment/domain read-back and end-to-end browser acceptance;
-- accepted frontend `OFFICE_API_ORIGIN` and end-to-end browser→BFF→Railway verification;
-- full all-role IDOR/BOLA acceptance using production-like identities;
-- production PostgreSQL concurrency/failover/backups/PITR restore;
+- canonical Vercel environment/domain read-back, including direct confirmation of `OFFICE_API_ORIGIN`;
+- the unread Railway staged change;
+- full all-role IDOR/BOLA, browser, accessibility and penetration acceptance;
+- production PostgreSQL restricted networking, backup/PITR and restore drill;
+- live IRIS IRP credentials and e-Invoice/IRN provider acceptance;
+- live IRIS VAS purchase-data authorization and ingestion acceptance;
+- Fynamics/FYN Gateway GSP credentials, taxpayer session authorization and version-gated final filing contract acceptance;
 - live Razorpay/RazorpayX/payment-provider eligibility and settlements;
 - live bank/accounting feeds;
 - CA-approved tax/accounting golden cases;
 - CS/legal approval of governance/ownership/statutory workflows;
 - eSign/DSC provider behavior;
 - malware scanning/private object-storage integration;
-- external staging CSRF/XSS/injection/file-upload penetration testing;
-- provider edge/WAF abuse controls;
-- acceptance of the deployed worker through observed heartbeat/failure-alert/outbox evidence;
-- verified external SLO telemetry and audit archive sink;
+- external SLO telemetry, audit archive sink and edge/WAF controls;
 - authoritative Drive evidence completeness and inspection-pack dry run.
 
-Those are deployment/provider/professional acceptance gates, not missing unit-test placeholders.
+The first-party Founder bootstrap, login, refresh and TOTP/AAL2 path is no longer an unverified gate: live database evidence confirms it has been exercised successfully.
+
