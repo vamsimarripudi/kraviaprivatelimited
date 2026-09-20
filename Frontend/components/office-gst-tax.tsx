@@ -154,6 +154,59 @@ type EinvoiceRecord = {
   last_error?: string | null;
 };
 
+type GstVasStatus = {
+  provider: string;
+  data_api_configured: boolean;
+  missing_configuration: string[];
+  recipient_download_path: string;
+  download_status_path: string;
+  consent_required: boolean;
+  auth_model: string;
+  gsp: {
+    provider?: string | null;
+    configured: boolean;
+    filing_enabled: boolean;
+    note: string;
+  };
+};
+
+type GstPurchaseSummary = {
+  invoice_count: number;
+  taxable: string;
+  cgst: string;
+  sgst: string;
+  igst: string;
+  cess: string;
+  total: string;
+  unmatched: number;
+  itc_review_required: number;
+  note: string;
+};
+
+type GstPurchaseInvoice = {
+  id: string;
+  supplier_gstin: string;
+  supplier_name?: string | null;
+  document_type: string;
+  document_no: string;
+  document_date: string;
+  total: string;
+  reconciliation_status: string;
+  itc_review_status: string;
+};
+
+type GstReturnWorking = {
+  id: string;
+  form_type: string;
+  period: string;
+  status: string;
+  source_hash: string;
+  summary: Record<string, unknown>;
+  reviewed_by?: string | null;
+  filing_provider?: string | null;
+  filing_arn?: string | null;
+};
+
 type WorkingTotals = {
   netTaxable: number;
   cgst: number;
@@ -247,6 +300,11 @@ export function OfficeGstTaxWorkspace({
   const [configuration, setConfiguration] = useState<GstConfiguration>();
   const [connector, setConnector] = useState<GstConnectorStatus>();
   const [einvoices, setEinvoices] = useState<EinvoiceRecord[]>([]);
+  const [vasStatus, setVasStatus] = useState<GstVasStatus>();
+  const [purchaseSummary, setPurchaseSummary] = useState<GstPurchaseSummary>();
+  const [purchaseInvoices, setPurchaseInvoices] = useState<GstPurchaseInvoice[]>([]);
+  const [returnWorkings, setReturnWorkings] = useState<GstReturnWorking[]>([]);
+  const [returnPeriod, setReturnPeriod] = useState(() => new Date().toISOString().slice(0, 7));
   const [period, setPeriod] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [actionBusy, setActionBusy] = useState<string>();
@@ -264,13 +322,17 @@ export function OfficeGstTaxWorkspace({
     runtime<GstConfiguration>("tax/gst/configuration", signal),
     runtime<GstConnectorStatus>("tax/gst/connector/status", signal),
     runtime<EinvoiceRecord[]>("tax/gst/einvoice", signal),
+    runtime<GstVasStatus>("tax/gst/vas/status", signal),
+    runtime<GstPurchaseSummary>("tax/gst/purchases/summary", signal),
+    runtime<GstPurchaseInvoice[]>("tax/gst/purchases?limit=20", signal),
+    runtime<GstReturnWorking[]>("tax/gst/returns", signal),
   ]), []);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(undefined);
     try {
-      const [nextSummary, nextInvoices, nextCustomers, nextProducts, nextGstMaster, nextTaxProfiles, nextConfiguration, nextConnector, nextEinvoices] = await fetchRecords();
+      const [nextSummary, nextInvoices, nextCustomers, nextProducts, nextGstMaster, nextTaxProfiles, nextConfiguration, nextConnector, nextEinvoices, nextVasStatus, nextPurchaseSummary, nextPurchaseInvoices, nextReturnWorkings] = await fetchRecords();
       setSummary(nextSummary);
       setInvoices(nextInvoices);
       setCustomers(nextCustomers);
@@ -280,6 +342,10 @@ export function OfficeGstTaxWorkspace({
       setConfiguration(nextConfiguration);
       setConnector(nextConnector);
       setEinvoices(nextEinvoices);
+      setVasStatus(nextVasStatus);
+      setPurchaseSummary(nextPurchaseSummary);
+      setPurchaseInvoices(nextPurchaseInvoices);
+      setReturnWorkings(nextReturnWorkings);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to load GST working records");
     } finally {
@@ -291,7 +357,7 @@ export function OfficeGstTaxWorkspace({
     const controller = new AbortController();
     let active = true;
     void fetchRecords(controller.signal)
-      .then(([nextSummary, nextInvoices, nextCustomers, nextProducts, nextGstMaster, nextTaxProfiles, nextConfiguration, nextConnector, nextEinvoices]) => {
+      .then(([nextSummary, nextInvoices, nextCustomers, nextProducts, nextGstMaster, nextTaxProfiles, nextConfiguration, nextConnector, nextEinvoices, nextVasStatus, nextPurchaseSummary, nextPurchaseInvoices, nextReturnWorkings]) => {
         if (!active) return;
         setSummary(nextSummary);
         setInvoices(nextInvoices);
@@ -302,6 +368,10 @@ export function OfficeGstTaxWorkspace({
         setConfiguration(nextConfiguration);
         setConnector(nextConnector);
         setEinvoices(nextEinvoices);
+        setVasStatus(nextVasStatus);
+        setPurchaseSummary(nextPurchaseSummary);
+        setPurchaseInvoices(nextPurchaseInvoices);
+        setReturnWorkings(nextReturnWorkings);
       })
       .catch((caught) => {
         if (active && !(caught instanceof DOMException && caught.name === "AbortError")) {
@@ -471,6 +541,73 @@ export function OfficeGstTaxWorkspace({
                 <td>{profile.evidence_ref || "CA evidence required"}</td>
               </tr>)}
               {!taxProfiles.length ? <tr><td colSpan={7}><div className={styles.empty}>No product tax profiles are configured.</div></td></tr> : null}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className={styles.purchasePanel} aria-label="GST purchase reconciliation">
+        <header>
+          <div><p>INWARD GST · DATA & RECONCILIATION</p><h3>IRIS purchase evidence against Kravia books</h3></div>
+          <em data-ready={vasStatus?.data_api_configured}>{vasStatus?.data_api_configured ? "DATA API READY" : "VAS NOT CONFIGURED"}</em>
+        </header>
+        <div className={styles.purchaseGrid}>
+          <article><span>Imported inward invoices</span><b>{purchaseSummary?.invoice_count || 0}</b><small>{purchaseSummary?.unmatched || 0} need reconciliation</small></article>
+          <article><span>Observed taxable value</span><b>{money(Number(purchaseSummary?.taxable || 0))}</b><small>Provider invoice evidence</small></article>
+          <article><span>Observed CGST + SGST</span><b>{money(Number(purchaseSummary?.cgst || 0) + Number(purchaseSummary?.sgst || 0))}</b><small>Not an ITC claim</small></article>
+          <article><span>Observed IGST</span><b>{money(Number(purchaseSummary?.igst || 0))}</b><small>Not an ITC claim</small></article>
+          <article><span>ITC review queue</span><b>{purchaseSummary?.itc_review_required || 0}</b><small>Professional review required</small></article>
+          <article><span>Consent requirement</span><b>{vasStatus?.consent_required ? "Required" : "—"}</b><small>{vasStatus?.auth_model || "IRIS VAS authorisation"}</small></article>
+        </div>
+        <div className={styles.connectorActions}>
+          <button type="button" disabled={!canPrepare || Boolean(actionBusy)} onClick={() => void providerAction("reconcile-purchases", "tax/gst/purchases/reconcile", undefined, (result) => {
+            const row = result as { count?: number };
+            return "Purchase reconciliation completed for " + (row.count ?? 0) + " inward invoices.";
+          })}>{actionBusy === "reconcile-purchases" ? <LoaderCircle className={styles.spin} /> : <RefreshCw />} Reconcile purchases</button>
+        </div>
+        {vasStatus?.missing_configuration?.length ? <p className={styles.connectorNote}>To pull purchases directly from IRIS, configure: {vasStatus.missing_configuration.join(", ")}. Supplier sharing consent and recipient access consent remain mandatory.</p> : <p className={styles.connectorNote}>{purchaseSummary?.note}</p>}
+        <div className={styles.tableWrap}>
+          <table>
+            <thead><tr><th>Supplier</th><th>Document</th><th>Date</th><th>Total</th><th>Books match</th><th>ITC review</th></tr></thead>
+            <tbody>
+              {purchaseInvoices.map((invoice) => <tr key={invoice.id}>
+                <td><strong>{invoice.supplier_name || invoice.supplier_gstin}</strong><small>{invoice.supplier_gstin}</small></td>
+                <td><strong>{invoice.document_no}</strong><small>{invoice.document_type}</small></td>
+                <td>{date(invoice.document_date)}</td>
+                <td>{money(Number(invoice.total || 0))}</td>
+                <td><em data-status={invoice.reconciliation_status === "BANK_MATCHED" ? "PAID" : invoice.reconciliation_status}>{invoice.reconciliation_status}</em></td>
+                <td><em data-status={invoice.itc_review_status}>{invoice.itc_review_status}</em></td>
+              </tr>)}
+              {!purchaseInvoices.length ? <tr><td colSpan={6}><div className={styles.empty}>No inward e-invoice evidence has been imported yet.</div></td></tr> : null}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className={styles.returnPanel} aria-label="GST return workings">
+        <header>
+          <div><p>RETURN WORKINGS</p><h3>Prepare → CA review → external filing evidence</h3></div>
+          <span>{vasStatus?.gsp.configured ? "GSP configured" : "GSP filing not configured"}</span>
+        </header>
+        <div className={styles.returnActions}>
+          <label>Tax period<input type="month" value={returnPeriod} onChange={(event) => setReturnPeriod(event.target.value)} /></label>
+          <button type="button" disabled={!canPrepare || !returnPeriod || Boolean(actionBusy)} onClick={() => void providerAction("build-gstr1", "tax/gst/returns/build", { form_type: "GSTR1", period: returnPeriod }, () => "GSTR-1 working rebuilt from canonical sales.")}>{actionBusy === "build-gstr1" ? <LoaderCircle className={styles.spin} /> : <FileCheck2 />} Build GSTR-1 working</button>
+          <button type="button" disabled={!canPrepare || !returnPeriod || Boolean(actionBusy)} onClick={() => void providerAction("build-gstr3b", "tax/gst/returns/build", { form_type: "GSTR3B", period: returnPeriod }, () => "GSTR-3B working rebuilt. Inward GST remains observational pending ITC review.")}>{actionBusy === "build-gstr3b" ? <LoaderCircle className={styles.spin} /> : <FileCheck2 />} Build GSTR-3B working</button>
+        </div>
+        <p className={styles.connectorNote}>{vasStatus?.gsp.note || "Return filing requires a provider-specific GSTN-empanelled GSP adapter and filing acknowledgement."}</p>
+        <div className={styles.tableWrap}>
+          <table>
+            <thead><tr><th>Form</th><th>Period</th><th>Status</th><th>Review</th><th>Filing provider</th><th>ARN</th></tr></thead>
+            <tbody>
+              {returnWorkings.map((working) => <tr key={working.id}>
+                <td><strong>{working.form_type}</strong><small title={working.source_hash}>source {working.source_hash.slice(0, 12)}…</small></td>
+                <td>{working.period}</td>
+                <td><em data-status={working.status === "FILED_EVIDENCE_RECORDED" ? "PAID" : working.status}>{working.status}</em></td>
+                <td>{working.reviewed_by || "Pending CA review"}</td>
+                <td>{working.filing_provider || "—"}</td>
+                <td>{working.filing_arn || "—"}</td>
+              </tr>)}
+              {!returnWorkings.length ? <tr><td colSpan={6}><div className={styles.empty}>No GST return working has been built yet.</div></td></tr> : null}
             </tbody>
           </table>
         </div>

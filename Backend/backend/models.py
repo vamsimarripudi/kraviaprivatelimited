@@ -115,6 +115,98 @@ class GstProviderOperation(Base):
     )
 
 
+class GstDataDownloadJob(Base):
+    __tablename__ = "gst_data_download_jobs"
+    id = Column(String, primary_key=True)
+    provider = Column(String(40), nullable=False)
+    provider_environment = Column(String(24), nullable=False)
+    direction = Column(String(24), nullable=False, default="PURCHASE")
+    status = Column(String(30), nullable=False, default="REQUESTED")
+    provider_request_id = Column(String(160), nullable=True)
+    period_from = Column(String(10), nullable=True)
+    period_to = Column(String(10), nullable=True)
+    request_hash = Column(String(64), nullable=False)
+    response_hash = Column(String(64), nullable=True)
+    provider_status_json = Column(Text, nullable=False, default="{}")
+    result_file_hash = Column(String(64), nullable=True)
+    imported_count = Column(Integer, nullable=False, default=0)
+    requested_by = Column(String(200), nullable=False)
+    requested_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    last_error = Column(Text, nullable=True)
+    __table_args__ = (
+        Index("ix_gst_data_download_status", "status", "requested_at"),
+    )
+
+
+class GstPurchaseInvoice(Base):
+    __tablename__ = "gst_purchase_invoices"
+    id = Column(String, primary_key=True)
+    provider = Column(String(40), nullable=False)
+    source_job_id = Column(String, ForeignKey("gst_data_download_jobs.id"), nullable=True)
+    irn = Column(String(64), nullable=True)
+    supplier_gstin = Column(String(15), nullable=False)
+    supplier_name = Column(String(240), nullable=True)
+    document_type = Column(String(12), nullable=False)
+    document_no = Column(String(32), nullable=False)
+    document_date = Column(String(10), nullable=False)
+    place_of_supply = Column(String(2), nullable=True)
+    taxable_paise = Column(Integer, nullable=False, default=0)
+    cgst_paise = Column(Integer, nullable=False, default=0)
+    sgst_paise = Column(Integer, nullable=False, default=0)
+    igst_paise = Column(Integer, nullable=False, default=0)
+    cess_paise = Column(Integer, nullable=False, default=0)
+    total_paise = Column(Integer, nullable=False, default=0)
+    irn_status = Column(String(30), nullable=True)
+    source_hash = Column(String(64), nullable=False, unique=True)
+    raw_json = Column(Text, nullable=False)
+    vendor_id = Column(String, ForeignKey("vendors.id"), nullable=True)
+    bank_transaction_id = Column(String, ForeignKey("bank_transactions.id"), nullable=True)
+    reconciliation_status = Column(String(30), nullable=False, default="UNMATCHED")
+    itc_review_status = Column(String(30), nullable=False, default="REVIEW_REQUIRED")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    __table_args__ = (
+        Index("ix_gst_purchase_period", "document_date"),
+        Index("ix_gst_purchase_supplier_doc", "supplier_gstin", "document_no"),
+        Index("ix_gst_purchase_reconciliation", "reconciliation_status"),
+    )
+
+
+class GstReconciliationRun(Base):
+    __tablename__ = "gst_reconciliation_runs"
+    id = Column(String, primary_key=True)
+    period_from = Column(String(10), nullable=True)
+    period_to = Column(String(10), nullable=True)
+    status = Column(String(30), nullable=False)
+    summary_json = Column(Text, nullable=False, default="{}")
+    run_by = Column(String(200), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class GstReturnWorking(Base):
+    __tablename__ = "gst_return_workings"
+    id = Column(String, primary_key=True)
+    form_type = Column(String(20), nullable=False)
+    period = Column(String(7), nullable=False)
+    status = Column(String(30), nullable=False, default="DRAFT")
+    source_hash = Column(String(64), nullable=False)
+    summary_json = Column(Text, nullable=False, default="{}")
+    prepared_by = Column(String(200), nullable=False)
+    reviewed_by = Column(String(200), nullable=True)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
+    filing_provider = Column(String(80), nullable=True)
+    filing_arn = Column(String(80), nullable=True)
+    filing_evidence_ref = Column(Text, nullable=True)
+    filed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    __table_args__ = (
+        UniqueConstraint("form_type", "period", name="uq_gst_return_working_period"),
+        Index("ix_gst_return_status_period", "status", "period"),
+    )
+
+
 class Customer(Base):
     __tablename__ = "customers"
     id = Column(String, primary_key=True)
