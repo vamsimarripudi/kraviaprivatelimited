@@ -36,48 +36,56 @@ describe("KRAVIA Finance GST working register",()=>{
     expect(backend).toContain("Working sales-register summary only; no GST portal filing is performed.");
   });
 
+  it("uses focused views instead of rendering every GST subsystem in one long screen",()=>{
+    expect(component).toContain('type ViewKey = "overview" | "sales" | "purchases" | "returns" | "settings"');
+    expect(component).toContain('aria-label="GST workspace views"');
+    expect(component).toContain('GST Control Center');
+    expect(component).toContain('Technical details are kept under Settings.');
+    expect(component).toContain('ADVANCED CONFIGURATION');
+  });
+
   it("keeps the register invoice-derived and period filterable",()=>{
-    expect(component).toContain("Working period");
+    expect(component).toContain("All issued invoices");
     expect(component).toContain("SALES REGISTER");
-    expect(component).toContain("Net taxable sales");
+    expect(component).toContain("Taxable sales");
     expect(component).toContain("CGST");
     expect(component).toContain("SGST");
     expect(component).toContain("IGST");
   });
 
   it("renders controlled product tax profiles and production readiness without inferring portal status",()=>{
-    expect(component).toContain("PRODUCTION TAX CONTROL");
-    expect(component).toContain("PRODUCT TAX PROFILES");
-    expect(component).toContain("Backend-owned SAC and GST configuration");
-    expect(component).toContain("GST registration evidence");
+    expect(component).toContain("Production tax control");
+    expect(component).toContain("Product tax profiles");
+    expect(component).toContain("Tax setup and provider diagnostics");
+    expect(component).toContain("Registration evidence");
     expect(component).toContain("CA evidence required");
   });
 
   it("exposes credential-gated real IRP operations without fake provider success",()=>{
-    expect(component).toContain("LIVE GST CONNECTOR");
-    expect(component).toContain("IRIS IRP core API");
+    expect(component).toContain("IRIS IRP connector");
+    expect(component).toContain("IRIS IRP");
     expect(component).toContain('"tax/gst/connector/health"');
     expect(component).toContain('"tax/gst/connector/verify-gstin"');
     expect(component).toContain('"tax/gst/einvoice/" + encodeURIComponent(invoice.id) + "/generate"');
     expect(component).toContain('"tax/gst/einvoice/" + encodeURIComponent(invoice.id) + "/cancel"');
     expect(component).toContain("No credential value is exposed or stored in the browser.");
-    expect(component).toContain("Buyer GSTIN + billing address/locality/pincode required.");
+    expect(component).toContain("Buyer GSTIN + address required.");
   });
 
   it("shows real inward-data reconciliation and return-working controls without fabricating ITC or filing",()=>{
-    expect(component).toContain("INWARD GST · DATA & RECONCILIATION");
+    expect(component).toContain("Inward GST evidence and book matching");
     expect(component).toContain("Reconcile purchases");
-    expect(component).toContain("Supplier sharing consent and recipient access consent remain mandatory.");
-    expect(component).toContain("Build GSTR-1 working");
-    expect(component).toContain("Build GSTR-3B working");
-    expect(component).toContain("GSP filing not configured");
+    expect(component).toContain("Supplier + recipient consent required");
+    expect(component).toContain("Build GSTR-1");
+    expect(component).toContain("Build GSTR-3B");
+    expect(component).toContain("Preparation only");
     expect(component).toContain("Inward GST remains observational pending ITC review.");
   });
 
   it("renders the GSTN rate master and keeps 18% explicit for IT services",()=>{
-    expect(component).toContain("GSTN / IRP RATE MASTER");
-    expect(component).toContain("IT services default");
-    expect(component).toContain("IT-service SAC reference");
-    expect(component).toContain("0% control");
+    expect(component).toContain("GST rate master & SAC reference");
+    expect(component).toContain("IT services:");
+    expect(component).toContain("gstMaster?.it_services.sacs");
+    expect(component).toContain("gstMaster?.standard_rates");
   });
 });
