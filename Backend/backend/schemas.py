@@ -34,7 +34,7 @@ class ProductCreate(BaseModel):
 
 class ProductTaxProfileUpdate(BaseModel):
     sac: str = Field(pattern=r"^[0-9]{6}$")
-    gst_rate: Optional[Decimal] = Field(default=None, ge=0, le=100)
+    gst_rate: Decimal = Field(default=Decimal("18"), ge=0, le=100)
     tax_treatment: str = Field(default="TAXABLE", pattern=r"^(TAXABLE|ZERO_RATED|EXEMPT|NON_GST)$")
     supply_model: str = Field(default="HOSTED_SAAS", pattern=r"^(HOSTED_SAAS|SOFTWARE_LICENSE|HOSTING|CUSTOM_DEVELOPMENT|IT_SUPPORT)$")
     billing_enabled: bool = True
@@ -60,7 +60,7 @@ class InvoiceCreate(BaseModel):
     qty: Decimal = Field(default=Decimal("1"), gt=0)
     taxable_value: Decimal = Field(gt=0)
     discount: Decimal = Field(default=Decimal("0"), ge=0)
-    gst_rate: Decimal = Field(default=Decimal("18"), ge=0, le=100)
+    gst_rate: Optional[Decimal] = Field(default=None, ge=0, le=100)
     due_date: Optional[str] = None
     notes: Optional[str] = None
 
