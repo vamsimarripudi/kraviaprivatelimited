@@ -128,7 +128,7 @@ Latest fully green `main` quality run verified:
 - [x] secret scan
 - [x] ESLint
 - [x] TypeScript typecheck
-- [x] root Vitest suite: **405 tests passed across 85 files**
+- [x] root Vitest suite: **408 tests passed across 85 files**
 - [x] Next.js 16.3.5 production build, including `/office`, `/office/register`, `/finance`, first-party Office auth and Office runtime gateway routes
 - [x] Python compilation
 - [x] committed OpenAPI drift verification
