@@ -4,12 +4,12 @@ KRAVIA Office must not be promoted to production until all mandatory gates are e
 
 ## Implemented and continuously tested controls
 
-- Dedicated Supabase Auth identity tenant isolated for KRAVIA Office.
-- Server-side OIDC/JWT validation with issuer, audience, signature, expiry and explicit `office_roles` claims.
-- Same-origin identity BFF using HttpOnly/SameSite cookies; bearer/refresh tokens are not exposed to Office JavaScript.
-- TOTP MFA flow plus production `aal2` gate on protected Office APIs.
-- Explicit identity admission/role records with deny-by-default client access and a deployed Custom Access Token Hook function.
-- No Office public self-signup endpoint.
+- KRAVIA first-party Office identity authority in FastAPI/PostgreSQL; active Office login, registration, invitation and MFA flows do not use Supabase Auth.
+- Argon2id password hashing, short-lived signed access JWTs and rotating refresh tokens stored only as SHA-256 hashes.
+- Same-origin identity BFF using HttpOnly/SameSite=Strict cookies; bearer/refresh tokens are not exposed to Office JavaScript.
+- Encrypted-at-rest TOTP MFA plus production `aal2` enforcement on protected Office APIs.
+- Explicit Office identity/role records with deny-by-default browser access, one-time Founder bootstrap and private single-use invitations.
+- No public Office self-signup endpoint after Founder bootstrap closes.
 - Server-side RBAC with deny-by-default privileged mutation routes.
 - Maker-checker approval primitive preventing requester self-approval.
 - Finance/payment idempotency and Razorpay webhook-signature verification logic.
@@ -18,27 +18,26 @@ KRAVIA Office must not be promoted to production until all mandatory gates are e
 - Append-only/tamper-evident audit chain with audit writes in the same transaction as controlled mutations.
 - Private document versioning, SHA-256 integrity, MIME allowlist and upload-size limits.
 - Application CSP/security headers, trusted-host option and browser Origin guard.
-- Baseline per-process mutation rate limiter with 429/retry semantics.
+- Shared database-backed mutation rate limiter across application replicas, with development fallback and production fail-closed shared mode.
 - Secret scan and blocking `npm audit --audit-level=high` in CI.
 - Reproducible committed OpenAPI contract with CI drift detection.
 - Read-only Google Drive evidence metadata boundary and evidence-taxonomy readiness reporting.
 
 These controls are necessary but do not by themselves prove the deployed production environment is compliant or operationally approved.
 
-## Identity — hosted activation / production evidence required
+## Identity — production activation / evidence required
 
-The dedicated Supabase tenant and Office integration now exist. Production promotion still requires evidence for these hosted/manual controls:
+The first-party identity implementation exists in code and database migrations. Production promotion still requires operator evidence for these deployment controls:
 
-- migrate the Supabase project from legacy JWT secret signing to the signing-keys system and activate an asymmetric key (ES256/P-256 preferred);
-- enable `public.office_custom_access_token_hook` under Authentication → Hooks;
-- restrict/disable public self-registration for the Office tenant;
-- verify TOTP MFA is enabled and enroll the first human Office identity;
-- add that identity to `office_identity_users` as `ACTIVE` and assign only its approved `office_user_roles`;
-- verify a real issued JWT has `aud=authenticated`, `aal=aal2`, the expected `office_roles`, and `office_access_status=ACTIVE`;
-- define and test session revocation/recovery handling;
-- pass the full staging all-role authorization/IDOR/BOLA acceptance matrix.
+- configure a strong `OFFICE_AUTH_SIGNING_SECRET` in the FastAPI production secret store;
+- configure the same strong `OFFICE_AUTH_BOOTSTRAP_SECRET` in the trusted FastAPI and Next.js server environments, never in browser-visible variables;
+- set and verify `AUTH_MODE=first_party` and `OFFICE_REQUIRED_AAL=aal2` on the accepted production deployment;
+- complete the one-time Founder registration, TOTP enrollment and live AAL2 sign-in acceptance, then verify Founder bootstrap is permanently closed;
+- issue, consume once and retire a test private invitation for a non-owner role;
+- verify session revocation, controlled MFA reset/recovery and inactive-user denial;
+- pass the full staging all-role authorization/IDOR/BOLA matrix.
 
-Do not share user passwords, TOTP secrets, recovery material or private signing keys through Git, chat, tickets or ordinary documents.
+Supabase Auth is not the active Office identity authority. Supabase Auth signing-key, leaked-password, hook and public-signup settings are therefore not Office production identity acceptance gates.
 
 ## Secrets / infrastructure — production evidence required
 
@@ -74,7 +73,7 @@ CI currently enforces secret scanning, dependency audit, lint, type checking, ap
 - external/staging IDOR/BOLA tests;
 - CSRF/XSS/injection/file-upload security tests;
 - browser/device/accessibility review;
-- shared edge/WAF rate limiting when Office runs more than one application process/replica;
+- provider edge/WAF abuse controls as defense in depth; application mutation limiting is already shared across replicas;
 - monitoring, alerting, incident routing and SLO configuration.
 
 ## Integrations — production evidence required
@@ -96,4 +95,4 @@ CI currently enforces secret scanning, dependency audit, lint, type checking, ap
 
 ## Release rule
 
-A green CI build proves the committed software controls pass their automated gates. It does **not** convert missing hosted Auth activation, provider credentials, unverified legal evidence or professional sign-off into production readiness. Office must surface such conditions as setup-required/unverified states rather than fabricated success.
+A green CI build proves the committed software controls pass their automated gates. It does **not** convert missing production identity activation, provider credentials, unverified legal evidence or professional sign-off into production readiness. Office must surface such conditions as setup-required/unverified states rather than fabricated success.

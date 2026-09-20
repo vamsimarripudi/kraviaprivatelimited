@@ -98,19 +98,19 @@ The clean CI database upgrades through:
 - v9 background-worker cadence metadata;
 - v10 KRAVIA first-party Office identity, sessions, roles, invitations and auth-event persistence.
 
-Supabase Auth/RBAC provisioning remains separate in `spec/identity/SUPABASE_IDENTITY.sql` because it targets the hosted Supabase `auth` schema rather than the Office application database.
+Legacy Supabase Auth/RBAC provisioning remains versioned separately in `spec/identity/SUPABASE_IDENTITY.sql` for rollback/reference only because it targets the hosted Supabase `auth` schema; it is not part of the active Office identity production gate.
 
 ## Deployment validation
 
 The production code path is validated independently from provider deployment state.
 
-- GitHub Actions on current `main`: frontend, backend, database-structure and repository-structure gates **PASS**.
-- Next.js production build: **PASS**, including the private Office/Finance route families and their specialised sections.
-- Railway: `kravia-office-api` deployment `7ace95b8-b966-43be-aa4a-f2656624ed74` for backend commit `2e706e4e20838b00688b0c76f60f61d2e21c935e` reached **SUCCESS** after Alembic v9 pre-deploy and `/health/live` acceptance with `DATABASE_EXECUTION_ROLE=kravia_office_backend`.
-- Railway worker: provisioning a separate `kravia-office-worker` service was rejected by the current Free-plan resource limit; no partial worker service remains.
-- Vercel: GitHub reports the current-main `kravia1/kraviaprivatelimited` deployment check as **SUCCESS**. Direct project inspection remains unavailable because the connected Vercel token is not authorized for the `kravia1` scope, so production environment/domain read-back is still pending.
+- GitHub Actions baseline: frontend, backend, database-structure and repository-structure quality gates are the source acceptance boundary.
+- Next.js production build baseline: **PASS**, including private Office/Finance route families and their specialised sections.
+- Railway on baseline `main` commit `3cc0759e178cecabc76a685e11a65b44301c1173`: `kravia-office-api` deployment check **SUCCESS**.
+- Railway worker on the same baseline commit: `kravia-office-worker` deployment check **SUCCESS**. This supersedes the earlier Free-plan provisioning note; operational acceptance still requires observed heartbeat/failure-alert/outbox evidence.
+- Vercel on the same baseline commit: **PENDING** at the verification point. This is not production acceptance and is not evidence of a current Next.js compile defect. Canonical `kravia1/kraviaprivatelimited` terminal deployment status and environment/domain read-back remain pending.
 
-A green local/CI build proves source correctness, not live-provider acceptance.
+A green source/CI build proves committed software controls. It does not fabricate live-provider acceptance.
 
 ## Not claimed as complete without production evidence
 
@@ -118,7 +118,7 @@ Automated tests do not fabricate production acceptance for:
 
 - production first-party auth secrets and `AUTH_MODE=first_party` cutover;
 - first Founder bootstrap registration and live TOTP/AAL2 session;
-- Vercel `kravia1` scope re-authentication plus project environment/domain read-back and end-to-end browser acceptance;
+- terminal green acceptance of the canonical Vercel deployment, resolution of any recurring quota/capacity gate, `kravia1` scope re-authentication, project environment/domain read-back and end-to-end browser acceptance;
 - accepted frontend `OFFICE_API_ORIGIN` and end-to-end browser→BFF→Railway verification;
 - full all-role IDOR/BOLA acceptance using production-like identities;
 - production PostgreSQL concurrency/failover/backups/PITR restore;
@@ -130,7 +130,7 @@ Automated tests do not fabricate production acceptance for:
 - malware scanning/private object-storage integration;
 - external staging CSRF/XSS/injection/file-upload penetration testing;
 - provider edge/WAF abuse controls;
-- deployment of the dedicated worker service/process;
+- acceptance of the deployed worker through observed heartbeat/failure-alert/outbox evidence;
 - verified external SLO telemetry and audit archive sink;
 - authoritative Drive evidence completeness and inspection-pack dry run.
 

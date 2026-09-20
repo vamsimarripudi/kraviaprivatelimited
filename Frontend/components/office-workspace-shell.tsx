@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   BriefcaseBusiness,
@@ -10,16 +10,17 @@ import {
   Gauge,
   Landmark,
   LayoutDashboard,
+  Menu,
   Scale,
   Settings,
   ShieldCheck,
   Users,
+  X,
 } from "lucide-react";
 import { OfficeNavLink } from "@/components/office-nav-link";
 import { OfficePrefetchRoutes } from "@/components/office-prefetch-routes";
 import { OfficePresenceControl } from "@/components/office-presence-control";
 import { OfficeCommandPalette } from "@/components/office-command-palette";
-import { OfficeCommandCenter } from "@/components/office-command-center";
 import { WorkspaceSignOutButton } from "@/components/workspace-sign-out-button";
 import { OfficeWorkspaceProvider } from "@/components/office-workspace-context";
 import type { OfficeIdentity } from "@/lib/office/auth-server";
@@ -107,10 +108,13 @@ export function OfficeWorkspaceShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [mobileNav, setMobileNav] = useState({ path: pathname, open: false });
+  const mobileNavOpen = mobileNav.path === pathname && mobileNav.open;
   const definition = workspaceDefinitions[workspace];
   const sections = workspace === "finance" ? financeSections : officeSections;
   const section = sectionFromPath(pathname, workspace);
   const item = (sections as Record<string, WorkspaceSection>)[section];
+  const navigationId = `${workspace}-workspace-navigation`;
 
   const entries = useMemo(
     () =>
@@ -151,8 +155,9 @@ export function OfficeWorkspaceShell({
   return (
     <OfficeWorkspaceProvider identity={identity} permissions={permissions}>
       <main className={`office office-v2 workspace-shell workspace-${workspace}`}>
+        <a className="office-skip-link" href="#office-main-content">Skip to main content</a>
         <OfficePrefetchRoutes hrefs={prefetchedRoutes} />
-        <aside>
+        <aside data-mobile-open={mobileNavOpen ? "true" : "false"}>
           <OfficeNavLink
             href={`${definition.basePath}/dashboard`}
             className="wordmark"
@@ -162,12 +167,24 @@ export function OfficeWorkspaceShell({
             <span>{workspace === "finance" ? "FINANCE" : "OFFICE"}</span>
           </OfficeNavLink>
 
+          <button
+            type="button"
+            className="office-mobile-menu"
+            aria-expanded={mobileNavOpen}
+            aria-controls={navigationId}
+            aria-label={mobileNavOpen ? "Close workspace navigation" : "Open workspace navigation"}
+            onClick={() => setMobileNav({ path: pathname, open: !mobileNavOpen })}
+          >
+            {mobileNavOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
+            <span>{mobileNavOpen ? "Close" : "Menu"}</span>
+          </button>
+
           <div className="workspace-context">
             <span>PRIVATE OPERATING SYSTEM</span>
             <b>{workspace === "finance" ? "Finance & Tax" : "Company Operations"}</b>
           </div>
 
-          <nav aria-label={`${definition.label} navigation`}>
+          <nav id={navigationId} aria-label={`${definition.label} navigation`}>
             {groups.map((group) => (
               <div className="workspace-nav-group" key={group}>
                 <p>{group}</p>
@@ -195,7 +212,7 @@ export function OfficeWorkspaceShell({
           <p className="office-side-note">Private · AAL2 protected</p>
         </aside>
 
-        <section className="office-main">
+        <section className="office-main" id="office-main-content" tabIndex={-1}>
           <header className="office-topbar">
             <div>
               <p className="eyebrow">{item?.eyebrow ?? definition.label}</p>
@@ -204,7 +221,6 @@ export function OfficeWorkspaceShell({
             <div className="office-topbar-actions">
               <OfficePresenceControl />
               <OfficeCommandPalette commands={commands} />
-              <OfficeCommandCenter />
               <IdentityCard identity={identity} />
             </div>
           </header>

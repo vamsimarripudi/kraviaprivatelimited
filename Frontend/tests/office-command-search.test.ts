@@ -8,6 +8,7 @@ const searchRoute = readFileSync(new URL("../app/api/office-search/route.ts", im
 const palette = readFileSync(new URL("../components/office-command-palette.tsx", import.meta.url), "utf8");
 const screen = readFileSync(new URL("../components/internal-workspace-screen.tsx", import.meta.url), "utf8");
 const shell = readFileSync(new URL("../components/office-workspace-shell.tsx", import.meta.url), "utf8");
+const enterpriseCss = readFileSync(new URL("../app/office/office-enterprise.css", import.meta.url), "utf8");
 const officeWorkspaceLayout = readFileSync(new URL("../app/office/(workspace)/layout.tsx", import.meta.url), "utf8");
 
 describe("Office command and search boundary", () => {
@@ -40,11 +41,27 @@ describe("Office command and search boundary", () => {
     expect(searchRoute).not.toContain("export async function DELETE");
   });
 
-  it("offers keyboard-first navigation but no direct high-risk execution command", () => {
+  it("offers one capability-aware keyboard command surface with dialog focus safety", () => {
     expect(palette).toContain('event.key.toLowerCase() === "k"');
     expect(palette).toContain("/api/office-search");
     expect(palette).toContain("Navigation is capability-filtered");
+    expect(palette).toContain("document.activeElement");
+    expect(palette).toContain("querySelectorAll<HTMLElement>");
+    expect(palette).toContain("aria-expanded={open}");
+    expect(shell).toContain("<OfficeCommandPalette");
+    expect(shell).not.toContain("<OfficeCommandCenter");
     expect(palette).not.toContain("pay vendor");
     expect(palette).not.toContain("deploy production");
+  });
+
+  it("provides mobile navigation, skip navigation and reduced-motion fallbacks", () => {
+    expect(shell).toContain('className="office-skip-link"');
+    expect(shell).toContain('id="office-main-content"');
+    expect(shell).toContain('className="office-mobile-menu"');
+    expect(shell).toContain("aria-expanded={mobileNavOpen}");
+    expect(shell).toContain('data-mobile-open={mobileNavOpen ? "true" : "false"}');
+    expect(enterpriseCss).toContain('data-mobile-open="true"');
+    expect(enterpriseCss).toContain("@media(prefers-reduced-motion:reduce)");
+    expect(enterpriseCss).toContain(":focus-visible");
   });
 });
