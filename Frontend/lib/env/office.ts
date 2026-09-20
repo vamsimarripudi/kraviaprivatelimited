@@ -10,7 +10,8 @@ const officeEnvironmentSchema = officeBaseEnvironmentSchema.extend({
   OFFICE_SUPABASE_SECRET_KEY: z.string().min(20).optional(),
 });
 
-const officeAdminEnvironmentSchema = officeBaseEnvironmentSchema.extend({
+const officeAdminEnvironmentSchema = z.object({
+  OFFICE_SUPABASE_URL: z.string().url(),
   OFFICE_SUPABASE_SECRET_KEY: z.string().min(20),
 });
 
@@ -53,9 +54,13 @@ export function requireOfficeEnvironment(): OfficeEnvironment {
  * be returned to the browser or stored in source control.
  */
 export function getOfficeAdminEnvironment(): OfficeAdminEnvironment | null {
-  const environment = getOfficeEnvironment();
-  if (!environment?.OFFICE_SUPABASE_SECRET_KEY) return null;
-  const parsed = officeAdminEnvironmentSchema.safeParse(environment);
+  const url = process.env.OFFICE_SUPABASE_URL?.trim();
+  const secretKey = process.env.OFFICE_SUPABASE_SECRET_KEY?.trim();
+  if (!url || !secretKey) return null;
+  const parsed = officeAdminEnvironmentSchema.safeParse({
+    OFFICE_SUPABASE_URL: url,
+    OFFICE_SUPABASE_SECRET_KEY: secretKey,
+  });
   return parsed.success ? parsed.data : null;
 }
 
