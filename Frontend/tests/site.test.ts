@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { crawlerPolicy, isPublicSitemapPath, privatePathPrefixes } from "../lib/crawler-policy";
+import { crawlerPolicy, isPublicSitemapPath, privatePathPrefixes, publicPageRobots } from "../lib/crawler-policy";
 import { companyProfile, publicPages } from "../lib/site";
 
 describe("public company data", () => {
@@ -34,6 +34,11 @@ describe("public crawler boundaries", () => {
 
   it("blocks preview indexing without advertising private routes", () => {
     expect(crawlerPolicy(false, "https://preview.example.vercel.app").rules).toEqual([{ userAgent: "*", disallow: "/" }]);
+  });
+
+  it("applies noindex metadata to previews as defense in depth", () => {
+    expect(publicPageRobots(true)).toEqual({ index: true, follow: true });
+    expect(publicPageRobots(false)).toEqual({ index: false, follow: false, nocache: true });
   });
 
   it("allows only public route families into sitemap generation", () => {

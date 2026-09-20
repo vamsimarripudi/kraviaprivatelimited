@@ -3,7 +3,8 @@ import { Cormorant_Garamond, DM_Mono, Manrope } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import "./workspaces.css";
-import { siteUrl } from "@/lib/site";
+import { isProductionSite, siteUrl } from "@/lib/site";
+import { publicPageRobots } from "@/lib/crawler-policy";
 import { BrandSplash } from "@/components/brand-splash";
 import { OrganizationJsonLd } from "@/components/structured-data";
 
@@ -16,12 +17,13 @@ export const metadata: Metadata = {
   title: { default: "Kravia Private Limited", template: "%s — Kravia" },
   description: "Kravia builds software products, intelligent systems and digital infrastructure.",
   alternates: { canonical: "/" },
-  robots: { index: true, follow: true },
+  robots: publicPageRobots(isProductionSite),
   openGraph: {
     type: "website",
     siteName: "Kravia Private Limited",
     title: "Kravia Private Limited",
     description: "Building technology for what comes next.",
+    url: "/",
   },
   twitter: {
     card: "summary_large_image",
