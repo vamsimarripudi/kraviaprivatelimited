@@ -36,7 +36,7 @@ describe("KRAVIA Finance GST working register",()=>{
     expect(backend).toContain("Working sales-register summary only; no GST portal filing is performed.");
   });
 
-  it("keeps the register invoice-derived and period filterable",()=>{
+  it("uses focused views instead of rendering every GST subsystem in one long screen",()=>{\n    expect(component).toContain('type ViewKey = "overview" | "sales" | "purchases" | "returns" | "settings"');\n    expect(component).toContain('aria-label="GST workspace views"');\n    expect(component).toContain('GST Control Center');\n    expect(component).toContain('Technical details are kept under Settings.');\n    expect(component).toContain('ADVANCED CONFIGURATION');\n  });\n\n  it("keeps the register invoice-derived and period filterable",()=>{
     expect(component).toContain("Working period");
     expect(component).toContain("SALES REGISTER");
     expect(component).toContain("Net taxable sales");
@@ -46,16 +46,16 @@ describe("KRAVIA Finance GST working register",()=>{
   });
 
   it("renders controlled product tax profiles and production readiness without inferring portal status",()=>{
-    expect(component).toContain("PRODUCTION TAX CONTROL");
-    expect(component).toContain("PRODUCT TAX PROFILES");
-    expect(component).toContain("Backend-owned SAC and GST configuration");
-    expect(component).toContain("GST registration evidence");
+    expect(component).toContain("Production tax control");
+    expect(component).toContain("Product tax profiles");
+    expect(component).toContain("Tax setup and provider diagnostics");
+    expect(component).toContain("Registration evidence");
     expect(component).toContain("CA evidence required");
   });
 
   it("exposes credential-gated real IRP operations without fake provider success",()=>{
-    expect(component).toContain("LIVE GST CONNECTOR");
-    expect(component).toContain("IRIS IRP core API");
+    expect(component).toContain("IRIS IRP connector");
+    expect(component).toContain("IRIS IRP");
     expect(component).toContain('"tax/gst/connector/health"');
     expect(component).toContain('"tax/gst/connector/verify-gstin"');
     expect(component).toContain('"tax/gst/einvoice/" + encodeURIComponent(invoice.id) + "/generate"');
@@ -65,19 +65,19 @@ describe("KRAVIA Finance GST working register",()=>{
   });
 
   it("shows real inward-data reconciliation and return-working controls without fabricating ITC or filing",()=>{
-    expect(component).toContain("INWARD GST · DATA & RECONCILIATION");
+    expect(component).toContain("Inward GST evidence and book matching");
     expect(component).toContain("Reconcile purchases");
-    expect(component).toContain("Supplier sharing consent and recipient access consent remain mandatory.");
-    expect(component).toContain("Build GSTR-1 working");
-    expect(component).toContain("Build GSTR-3B working");
-    expect(component).toContain("GSP filing not configured");
+    expect(component).toContain("Supplier + recipient consent required");
+    expect(component).toContain("Build GSTR-1");
+    expect(component).toContain("Build GSTR-3B");
+    expect(component).toContain("Preparation only");
     expect(component).toContain("Inward GST remains observational pending ITC review.");
   });
 
   it("renders the GSTN rate master and keeps 18% explicit for IT services",()=>{
-    expect(component).toContain("GSTN / IRP RATE MASTER");
-    expect(component).toContain("IT services default");
-    expect(component).toContain("IT-service SAC reference");
-    expect(component).toContain("0% control");
+    expect(component).toContain("GST rate master & SAC reference");
+    expect(component).toContain("IT services:");
+    expect(component).toContain("gstMaster?.it_services.sacs");
+    expect(component).toContain("gstMaster?.standard_rates");
   });
 });
