@@ -223,6 +223,16 @@ def _ci_get(obj: dict[str, Any], key: str) -> Any:
     return None
 
 
+def _normalize_doc_date(value: str) -> str:
+    raw = str(value or "").strip()
+    for fmt in ("%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(raw[:10], fmt).date().isoformat()
+        except ValueError:
+            continue
+    raise ValueError("Unsupported IRIS document date format")
+
+
 def _normalize_purchase(node: dict[str, Any]) -> dict[str, Any]:
     seller = _ci_get(node, "SellerDtls") or {}
     doc = _ci_get(node, "DocDtls") or {}
@@ -230,10 +240,11 @@ def _normalize_purchase(node: dict[str, Any]) -> dict[str, Any]:
     buyer = _ci_get(node, "BuyerDtls") or {}
     supplier_gstin = str(_ci_get(seller, "Gstin") or "").upper().strip()
     doc_no = str(_ci_get(doc, "No") or "").strip()
-    doc_date = str(_ci_get(doc, "Dt") or "").strip()
+    doc_date_raw = str(_ci_get(doc, "Dt") or "").strip()
     doc_type = str(_ci_get(doc, "Typ") or "INV").upper().strip()
-    if not supplier_gstin or not doc_no or not doc_date:
+    if not supplier_gstin or not doc_no or not doc_date_raw:
         raise ValueError("IRIS purchase invoice is missing supplier GSTIN/document identity")
+    doc_date = _normalize_doc_date(doc_date_raw)
     return {
         "irn": str(_ci_get(node, "Irn") or _ci_get(node, "IRN") or "").strip() or None,
         "supplier_gstin": supplier_gstin,
@@ -421,13 +432,8 @@ def _period_bounds(period: str) -> tuple[str, str]:
 
 def _build_return_summary(db: Session, form_type: str, period: str) -> dict[str, Any]:
     start, end = _period_bounds(period)
-    sales = db.execute(
-        select(Invoice).where(
-            func.substr(func.cast(Invoice.issued_at, type_=Invoice.issued_at.type), 1, 7) == period
-        )
-    ).scalars().all()
-    # SQLite/PostgreSQL date casting differs; fall back to Python period selection
-    # using canonical timestamps to keep the working calculation deterministic.
+    # Select canonical timestamps in Python so the working calculation behaves
+    # identically on SQLite CI and PostgreSQL production.
     all_sales = db.execute(select(Invoice)).scalars().all()
     sales = [row for row in all_sales if row.issued_at and row.issued_at.strftime("%Y-%m") == period]
     purchases = db.execute(
