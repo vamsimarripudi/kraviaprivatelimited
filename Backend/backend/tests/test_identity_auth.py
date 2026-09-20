@@ -21,6 +21,18 @@ def make_client(tmp_path, monkeypatch):
         future=True,
     )
     Base.metadata.create_all(bind=engine)
+    with engine.begin() as connection:
+        connection.exec_driver_sql(
+            """
+            create table if not exists office_device_registry (
+                id text primary key,
+                user_id text not null,
+                trust_state text not null,
+                company_managed boolean not null default 0,
+                revoked_at datetime null
+            )
+            """
+        )
     Session = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
     def test_db():
@@ -238,5 +250,156 @@ def test_readiness_identifies_kravia_as_identity_provider(tmp_path, monkeypatch)
         assert body["mfa_policy"] == "AAL2_REQUIRED"
         assert body["invitation_registration"] == "SINGLE_USE_PRIVATE_LINK"
         assert "supabase" not in response.text.lower()
+    finally:
+        engine.dispose()
+
+
+def test_first_party_session_inventory_is_user_scoped_and_other_sessions_can_be_revoked(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        current = aal2_founder(client)
+        current_token = current["access_token"]
+
+        second = client.post(
+            "/api/v1/auth/sign-in",
+            json={"email": FOUNDER["email"], "password": FOUNDER["password"]},
+        )
+        assert second.status_code == 200, second.text
+
+        listed = client.get(
+            "/api/v1/auth/sessions",
+            headers={"Authorization": f"Bearer {current_token}"},
+        )
+        assert listed.status_code == 200, listed.text
+        sessions = listed.json()["sessions"]
+        assert len(sessions) == 2
+        assert sum(1 for row in sessions if row["current"]) == 1
+        other = next(row for row in sessions if not row["current"])
+        assert other["provider"] == "KRAVIA_FIRST_PARTY"
+        assert "refresh_token_hash" not in other
+
+        revoked = client.post(
+            f"/api/v1/auth/sessions/{other['id']}/revoke",
+            headers={"Authorization": f"Bearer {current_token}"},
+        )
+        assert revoked.status_code == 200, revoked.text
+        assert revoked.json()["session"]["status"] == "REVOKED"
+
+        cannot_revoke_current = client.post(
+            f"/api/v1/auth/sessions/{next(row for row in sessions if row['current'])['id']}/revoke",
+            headers={"Authorization": f"Bearer {current_token}"},
+        )
+        assert cannot_revoke_current.status_code == 409
+    finally:
+        engine.dispose()
+
+
+def test_first_party_session_revoke_rejects_cross_user_idor(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        owner = aal2_founder(client)
+        headers = {"Authorization": f"Bearer {owner['access_token']}"}
+        invited = client.post(
+            "/api/v1/auth/invitations",
+            headers=headers,
+            json={
+                "email": "session-member@example.test",
+                "display_name": "Session Member",
+                "department": "OPERATIONS",
+                "roles": ["MEMBER"],
+                "reason": "Session isolation test",
+            },
+        )
+        assert invited.status_code == 201, invited.text
+        registered = client.post(
+            "/api/v1/auth/invitation/register",
+            json={
+                "token": invited.json()["registration_token"],
+                "display_name": "Session Member",
+                "password": "Member-Session1!",
+            },
+        )
+        assert registered.status_code == 201, registered.text
+        member_user_id = registered.json()["user_id"]
+
+        with engine.connect() as connection:
+            member_session_id = connection.exec_driver_sql(
+                "select id from office_auth_sessions_v2 where user_id=? limit 1",
+                (member_user_id,),
+            ).scalar_one()
+
+        hidden = client.get("/api/v1/auth/sessions", headers=headers)
+        assert hidden.status_code == 200
+        assert all(row["id"] != member_session_id for row in hidden.json()["sessions"])
+
+        blocked = client.post(
+            f"/api/v1/auth/sessions/{member_session_id}/revoke",
+            headers=headers,
+        )
+        assert blocked.status_code == 404
+    finally:
+        engine.dispose()
+
+
+def test_device_events_require_aal2_and_device_ownership(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        initial = founder(client)
+        user_id = initial["user_id"]
+        own_device = "11111111-1111-4111-8111-111111111111"
+        foreign_device = "22222222-2222-4222-8222-222222222222"
+        foreign_user = "33333333-3333-4333-8333-333333333333"
+        with engine.begin() as connection:
+            connection.exec_driver_sql(
+                "insert into office_device_registry(id,user_id,trust_state,company_managed,revoked_at) values(?,?,?,?,null)",
+                (own_device, user_id, "TRUSTED", True),
+            )
+            connection.exec_driver_sql(
+                "insert into office_device_registry(id,user_id,trust_state,company_managed,revoked_at) values(?,?,?,?,null)",
+                (foreign_device, foreign_user, "TRUSTED", True),
+            )
+
+        aal1_blocked = client.post(
+            "/api/v1/auth/device-event",
+            headers={"Authorization": f"Bearer {initial['access_token']}"},
+            json={"device_id": own_device, "action": "LINKED"},
+        )
+        assert aal1_blocked.status_code == 403
+
+        enrolled = client.post(
+            "/api/v1/auth/mfa/enroll",
+            headers={"Authorization": f"Bearer {initial['access_token']}"},
+        )
+        verified = client.post(
+            "/api/v1/auth/mfa/verify",
+            headers={"Authorization": f"Bearer {initial['access_token']}"},
+            json={"code": pyotp.TOTP(enrolled.json()["manual_key"]).now()},
+        )
+        assert verified.status_code == 200
+        token = verified.json()["access_token"]
+
+        linked = client.post(
+            "/api/v1/auth/device-event",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"device_id": own_device, "action": "LINKED"},
+        )
+        assert linked.status_code == 200, linked.text
+        assert linked.json()["event_type"] == "DEVICE_LINKED"
+
+        foreign = client.post(
+            "/api/v1/auth/device-event",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"device_id": foreign_device, "action": "LINKED"},
+        )
+        assert foreign.status_code == 404
+
+        with engine.connect() as connection:
+            event = connection.exec_driver_sql(
+                "select event_type, user_id, session_id from office_auth_events_v2 where event_type='DEVICE_LINKED' order by created_at desc limit 1"
+            ).first()
+        assert event is not None
+        assert event[0] == "DEVICE_LINKED"
+        assert event[1] == user_id
+        assert event[2]
     finally:
         engine.dispose()
