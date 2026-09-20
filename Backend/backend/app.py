@@ -21,6 +21,7 @@ from .file_security import build_file_security_router
 from .drive_integration import build_google_drive_router
 from .identity_auth import build_identity_router
 from .gst_integration import build_gst_integration_router
+from .gst_compliance import build_gst_compliance_router
 from .period_controls import PeriodLockedError, build_period_control_router
 from .audit_retention import build_audit_retention_router
 from .public_status import register_public_status
@@ -49,6 +50,7 @@ app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
 
 app.include_router(build_identity_router())
 app.include_router(build_gst_integration_router(get_db, office_main.actor_context, require_roles))
+app.include_router(build_gst_compliance_router(get_db, office_main.actor_context, require_roles))
 app.include_router(build_finance_ownership_router(get_db, require_roles))
 app.include_router(build_google_drive_router(get_db, require_roles))
 app.include_router(build_period_control_router(get_db, require_roles))
