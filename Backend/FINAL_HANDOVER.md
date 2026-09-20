@@ -80,7 +80,7 @@ Latest fully green `main` quality run verified:
 - secret scan: **PASS**
 - ESLint: **PASS**
 - TypeScript typecheck: **PASS**
-- root Vitest: **85 files / 405 tests passed**
+- root Vitest: **85 files / 408 tests passed**
 - Next.js 16.3.5 production build: **PASS**
 - production build route manifest includes `/office`, `/finance`, their login/dynamic routes, Office auth APIs and Office runtime gateway
 - Python compile: **PASS**
@@ -166,7 +166,7 @@ Supabase may still report leaked-password protection as disabled. That setting i
 Current accepted `main` commit: `faa24b2878e2884f0a3004ab5da0985ebed9f1c4`.
 
 - GitHub Actions: **SUCCESS**.
-- Frontend quality: **85 Vitest files / 405 tests**, lint, typecheck, npm dependency audit, secret scan and Next.js production build all pass.
+- Frontend quality: **85 Vitest files / 408 tests**, lint, typecheck, npm dependency audit, secret scan and Next.js production build all pass.
 - Backend quality: **100 pytest tests**, OpenAPI drift verification, Alembic through v14, quality gate, API-container liveness and worker smoke all pass.
 - Vercel deployment check on current `main`: **SUCCESS**.
 - Railway API latest deployment: **SUCCESS**.
@@ -204,7 +204,7 @@ Branch `office/audit-resume-20260920` fixes the cutover inconsistencies found du
 - Operations Readiness now reads `office_auth_sessions_v2` rather than the empty legacy tracking-session table;
 - environment documentation now describes Supabase as the data/control plane, not the active identity provider.
 
-These changes remain pending PR CI/merge at the point this handover was updated.
+These changes remain unmerged at the point this handover was updated and are gated by PR CI on the exact branch head.
 
 ## Run checks
 
