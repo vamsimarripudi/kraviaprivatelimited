@@ -11,6 +11,7 @@ describe("KRAVIA Finance GST working register",()=>{
     expect(screen).toContain("OfficeGstTaxWorkspace");
     expect(component).toContain('runtime<GstSummary>("tax/gst/summary"');
     expect(component).toContain('runtime<Invoice[]>("invoices"');
+    expect(component).toContain('runtime<GstMaster>("tax/gst/master"');
     expect(component).toContain("document_hash");
   });
 
@@ -35,5 +36,12 @@ describe("KRAVIA Finance GST working register",()=>{
     expect(component).toContain("CGST");
     expect(component).toContain("SGST");
     expect(component).toContain("IGST");
+  });
+
+  it("renders the GSTN rate master and keeps 18% explicit for IT services",()=>{
+    expect(component).toContain("GSTN / IRP RATE MASTER");
+    expect(component).toContain("IT services default");
+    expect(component).toContain("IT-service SAC reference");
+    expect(component).toContain("0% control");
   });
 });

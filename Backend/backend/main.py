@@ -16,6 +16,7 @@ from .schemas import CustomerCreate, ProductCreate, InvoiceCreate, PaymentCreate
 from .services import uid, paise, rupees, now_utc, allocate_invoice_no, allocate_controlled_no, audit, workflow, emit_event, post_journal, ENTITY_ID
 from .documents import invoice_pdf, receipt_pdf, ctc_pdf
 from .identity_auth import authenticate_office_access, validate_first_party_auth_configuration
+from .tax import gst_master_payload
 
 APP_ENV = os.getenv("APP_ENV", "development")
 AUTH_MODE = os.getenv("AUTH_MODE", "bootstrap" if APP_ENV != "production" else "first_party").lower()
@@ -265,6 +266,10 @@ def record_payment(invoice_id: str, payload: PaymentCreate, db: Session=Depends(
     workflow(db,"WF-PAYMENT-RECORD","payment",pay.id,[{"step":"validate","status":"SUCCESS"},{"step":"match_invoice","status":"SUCCESS"},{"step":"update_receivable","status":"SUCCESS"},{"step":"issue_receipt","status":"SUCCESS"},{"step":"bank_reconciliation","status":"SOURCE_NOT_CONNECTED"}],"PARTIAL_SUCCESS")
     result={"payment":{"id":pay.id,"amount":rupees(amount),"method":pay.method,"reference":pay.external_reference,"status":pay.status},"receipt":{"id":receipt.id,"receipt_no":receipt.receipt_no,"amount":rupees(amount)},"invoice":invoice_json(inv)}
     store_idempotent(db,idempotency_key,"payment.record",result); db.commit(); return result
+
+@app.get("/api/v1/tax/gst/master")
+def gst_master(ctx=Depends(actor_context)):
+    return gst_master_payload()
 
 @app.get("/api/v1/tax/gst/summary")
 def gst_summary(db: Session=Depends(get_db), ctx=Depends(actor_context)):
