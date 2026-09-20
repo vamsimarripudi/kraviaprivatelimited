@@ -93,6 +93,11 @@ class MfaVerifyPayload(BaseModel):
     code: str = Field(pattern=r"^[0-9]{6}$")
 
 
+class DeviceEventPayload(BaseModel):
+    device_id: str = Field(min_length=36, max_length=36)
+    action: str = Field(pattern=r"^(LINKED|UNLINKED)$")
+
+
 class InviteCreatePayload(BaseModel):
     email: str = Field(min_length=3, max_length=320)
     display_name: str | None = Field(default=None, max_length=160)
@@ -850,6 +855,52 @@ def build_identity_router() -> APIRouter:
             _event(db, "LOGOUT", request, user_id=context["user_id"], session_id=session.id)
             db.commit()
         return {"signed_out": True}
+
+    @router.post("/device-event")
+    def record_device_event(
+        payload: DeviceEventPayload,
+        request: Request,
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ):
+        token = _bearer_token(authorization)
+        context = authenticate_office_access(token, db, require_aal2=True)
+        try:
+            device_id = str(uuid.UUID(payload.device_id))
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail="Invalid Office device identifier") from exc
+
+        device = db.execute(
+            text(
+                """
+                select trust_state,company_managed,revoked_at
+                from office_device_registry
+                where id=cast(:device_id as uuid)
+                  and user_id=cast(:user_id as uuid)
+                """
+            ),
+            {"device_id": device_id, "user_id": context["user_id"]},
+        ).mappings().first()
+        if not device:
+            raise HTTPException(status_code=404, detail="Office device not found")
+        if payload.action == "LINKED" and (
+            device["trust_state"] != "TRUSTED"
+            or device["company_managed"] is not True
+            or device["revoked_at"] is not None
+        ):
+            raise HTTPException(status_code=409, detail="Only a trusted company-managed device can be linked")
+
+        event_type = "DEVICE_LINKED" if payload.action == "LINKED" else "DEVICE_UNLINKED"
+        _event(
+            db,
+            event_type,
+            request,
+            user_id=context["user_id"],
+            session_id=context["session_id"],
+            metadata={"device_id": device_id},
+        )
+        db.commit()
+        return {"recorded": True, "event_type": event_type, "device_id": device_id}
 
     @router.post("/mfa/enroll")
     def enroll_mfa(
