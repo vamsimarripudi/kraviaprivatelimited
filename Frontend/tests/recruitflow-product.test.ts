@@ -21,7 +21,9 @@ describe("Nice Role public product profile", () => {
 
   it("uses Nice Role across the public product page, canonical route and footer", () => {
     expect(page).toContain("Nice Role");
-    expect(page).not.toContain("RecruitFlow");
+    expect(page).not.toContain("Open RecruitFlow");
+    expect(page).not.toContain("RecruitFlow is");
+    expect(page).not.toContain("RECRUITFLOW / A KRAVIA PRODUCT");
     expect(canonicalRoute).toContain('canonical: "/products/nicerole"');
     expect(canonicalRoute).toContain('ProductJsonLd slug="nicerole"');
     expect(legacyRoute).toContain('permanentRedirect("/products/nicerole")');
