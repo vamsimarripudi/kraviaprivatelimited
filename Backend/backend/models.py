@@ -48,6 +48,73 @@ class ProductTaxProfile(Base):
         Index("ix_product_tax_profile_billing", "billing_enabled"),
     )
 
+class GstTaxpayerSnapshot(Base):
+    __tablename__ = "gst_taxpayer_snapshots"
+    id = Column(String, primary_key=True)
+    provider = Column(String(40), nullable=False)
+    gstin = Column(String(15), nullable=False)
+    legal_name = Column(String(240), nullable=True)
+    trade_name = Column(String(240), nullable=True)
+    taxpayer_type = Column(String(80), nullable=True)
+    registration_status = Column(String(40), nullable=True)
+    state_code = Column(String(2), nullable=True)
+    pincode = Column(String(6), nullable=True)
+    source_response_hash = Column(String(64), nullable=False)
+    raw_json = Column(Text, nullable=False)
+    verified_at = Column(DateTime(timezone=True), nullable=False)
+    __table_args__ = (
+        Index("ix_gst_taxpayer_snapshot_gstin_verified", "gstin", "verified_at"),
+    )
+
+
+class GstEinvoiceRecord(Base):
+    __tablename__ = "gst_einvoice_records"
+    id = Column(String, primary_key=True)
+    invoice_id = Column(String, ForeignKey("invoices.id"), nullable=False, unique=True)
+    provider = Column(String(40), nullable=False)
+    provider_environment = Column(String(24), nullable=False)
+    status = Column(String(30), nullable=False, default="PENDING")
+    irn = Column(String(64), nullable=True, unique=True)
+    ack_no = Column(String(40), nullable=True)
+    ack_at = Column(String(40), nullable=True)
+    signed_invoice = Column(Text, nullable=True)
+    signed_qr_code = Column(Text, nullable=True)
+    request_hash = Column(String(64), nullable=False)
+    response_hash = Column(String(64), nullable=True)
+    generated_at = Column(DateTime(timezone=True), nullable=True)
+    cancelled_at = Column(DateTime(timezone=True), nullable=True)
+    cancel_reason_code = Column(String(2), nullable=True)
+    cancel_remarks = Column(String(200), nullable=True)
+    last_error = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    __table_args__ = (
+        Index("ix_gst_einvoice_status_created", "status", "created_at"),
+    )
+
+
+class GstProviderOperation(Base):
+    __tablename__ = "gst_provider_operations"
+    id = Column(String, primary_key=True)
+    provider = Column(String(40), nullable=False)
+    provider_environment = Column(String(24), nullable=False)
+    operation = Column(String(80), nullable=False)
+    entity_type = Column(String(80), nullable=True)
+    entity_id = Column(String(160), nullable=True)
+    status = Column(String(30), nullable=False)
+    request_hash = Column(String(64), nullable=True)
+    response_hash = Column(String(64), nullable=True)
+    http_status = Column(Integer, nullable=True)
+    error_code = Column(String(80), nullable=True)
+    error_message = Column(Text, nullable=True)
+    actor = Column(String(200), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    __table_args__ = (
+        Index("ix_gst_provider_operation_created", "provider", "created_at"),
+        Index("ix_gst_provider_operation_entity", "entity_type", "entity_id"),
+    )
+
+
 class Customer(Base):
     __tablename__ = "customers"
     id = Column(String, primary_key=True)
@@ -60,6 +127,8 @@ class Customer(Base):
     email = Column(String, nullable=True)
     phone = Column(String, nullable=True)
     billing_address = Column(Text, nullable=True)
+    billing_locality = Column(String(120), nullable=True)
+    billing_pincode = Column(String(6), nullable=True)
     status = Column(String, nullable=False, default="ACTIVE")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 

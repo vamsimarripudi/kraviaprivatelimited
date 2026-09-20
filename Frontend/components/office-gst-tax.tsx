@@ -36,6 +36,10 @@ type Customer = {
   id: string;
   legal_name: string;
   display_name: string;
+  gstin?: string | null;
+  billing_address?: string | null;
+  billing_locality?: string | null;
+  billing_pincode?: string | null;
 };
 
 type Product = {
@@ -97,7 +101,57 @@ type GstConfiguration = {
   };
   ready_for_production_invoicing: boolean;
   portal_verification: string;
+  authoritative_gstin?: {
+    provider: string;
+    registration_status?: string | null;
+    legal_name?: string | null;
+    trade_name?: string | null;
+    verified_at: string;
+    response_hash: string;
+  } | null;
   note: string;
+};
+
+type GstConnectorStatus = {
+  provider: string;
+  environment: string;
+  base_host?: string | null;
+  core_configured: boolean;
+  einvoice_enabled: boolean;
+  invoice_identity_configured: boolean;
+  ready_for_live_irn: boolean;
+  missing_configuration: string[];
+  gstin_masked?: string | null;
+  last_gstin_verification?: {
+    gstin: string;
+    legal_name?: string | null;
+    trade_name?: string | null;
+    registration_status?: string | null;
+    verified_at: string;
+  } | null;
+  last_operation?: {
+    operation: string;
+    status: string;
+    created_at?: string | null;
+    error_code?: string | null;
+  } | null;
+  secret_storage: string;
+};
+
+type EinvoiceRecord = {
+  id: string;
+  invoice_id: string;
+  provider: string;
+  environment: string;
+  status: string;
+  irn?: string | null;
+  ack_no?: string | null;
+  ack_at?: string | null;
+  generated_at?: string | null;
+  cancelled_at?: string | null;
+  cancel_reason_code?: string | null;
+  cancel_remarks?: string | null;
+  last_error?: string | null;
 };
 
 type WorkingTotals = {
@@ -118,6 +172,21 @@ async function runtime<T>(path: string, signal?: AbortSignal): Promise<T> {
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(typeof body.detail === "string" ? body.detail : "GST runtime request failed");
+  }
+  return body as T;
+}
+
+async function mutate<T>(path: string, payload?: unknown): Promise<T> {
+  const response = await fetch("/api/office-runtime/" + path, {
+    method: "POST",
+    credentials: "same-origin",
+    cache: "no-store",
+    headers: payload === undefined ? undefined : { "Content-Type": "application/json" },
+    body: payload === undefined ? undefined : JSON.stringify(payload),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(typeof body.detail === "string" ? body.detail : "GST provider action failed");
   }
   return body as T;
 }
@@ -176,8 +245,13 @@ export function OfficeGstTaxWorkspace({
   const [gstMaster, setGstMaster] = useState<GstMaster>();
   const [taxProfiles, setTaxProfiles] = useState<ProductTaxProfile[]>([]);
   const [configuration, setConfiguration] = useState<GstConfiguration>();
+  const [connector, setConnector] = useState<GstConnectorStatus>();
+  const [einvoices, setEinvoices] = useState<EinvoiceRecord[]>([]);
   const [period, setPeriod] = useState("ALL");
   const [loading, setLoading] = useState(true);
+  const [actionBusy, setActionBusy] = useState<string>();
+  const [notice, setNotice] = useState<string>();
+  const [cancelDrafts, setCancelDrafts] = useState<Record<string, { reason: string; remarks: string }>>({});
   const [error, setError] = useState<string>();
 
   const fetchRecords = useCallback((signal?: AbortSignal) => Promise.all([
@@ -188,13 +262,15 @@ export function OfficeGstTaxWorkspace({
     runtime<GstMaster>("tax/gst/master", signal),
     runtime<ProductTaxProfile[]>("tax/gst/product-profiles", signal),
     runtime<GstConfiguration>("tax/gst/configuration", signal),
+    runtime<GstConnectorStatus>("tax/gst/connector/status", signal),
+    runtime<EinvoiceRecord[]>("tax/gst/einvoice", signal),
   ]), []);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(undefined);
     try {
-      const [nextSummary, nextInvoices, nextCustomers, nextProducts, nextGstMaster, nextTaxProfiles, nextConfiguration] = await fetchRecords();
+      const [nextSummary, nextInvoices, nextCustomers, nextProducts, nextGstMaster, nextTaxProfiles, nextConfiguration, nextConnector, nextEinvoices] = await fetchRecords();
       setSummary(nextSummary);
       setInvoices(nextInvoices);
       setCustomers(nextCustomers);
@@ -202,6 +278,8 @@ export function OfficeGstTaxWorkspace({
       setGstMaster(nextGstMaster);
       setTaxProfiles(nextTaxProfiles);
       setConfiguration(nextConfiguration);
+      setConnector(nextConnector);
+      setEinvoices(nextEinvoices);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to load GST working records");
     } finally {
@@ -213,7 +291,7 @@ export function OfficeGstTaxWorkspace({
     const controller = new AbortController();
     let active = true;
     void fetchRecords(controller.signal)
-      .then(([nextSummary, nextInvoices, nextCustomers, nextProducts, nextGstMaster, nextTaxProfiles, nextConfiguration]) => {
+      .then(([nextSummary, nextInvoices, nextCustomers, nextProducts, nextGstMaster, nextTaxProfiles, nextConfiguration, nextConnector, nextEinvoices]) => {
         if (!active) return;
         setSummary(nextSummary);
         setInvoices(nextInvoices);
@@ -222,6 +300,8 @@ export function OfficeGstTaxWorkspace({
         setGstMaster(nextGstMaster);
         setTaxProfiles(nextTaxProfiles);
         setConfiguration(nextConfiguration);
+        setConnector(nextConnector);
+        setEinvoices(nextEinvoices);
       })
       .catch((caught) => {
         if (active && !(caught instanceof DOMException && caught.name === "AbortError")) {
@@ -248,6 +328,27 @@ export function OfficeGstTaxWorkspace({
   const derived = useMemo(() => totals(visibleInvoices), [visibleInvoices]);
   const customerMap = useMemo(() => new Map(customers.map((customer) => [customer.id, customer])), [customers]);
   const productMap = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
+  const einvoiceMap = useMemo(() => new Map(einvoices.map((record) => [record.invoice_id, record])), [einvoices]);
+
+  const providerAction = useCallback(async (
+    key: string,
+    actionPath: string,
+    payload: unknown | undefined,
+    success: (result: unknown) => string,
+  ) => {
+    setActionBusy(key);
+    setError(undefined);
+    setNotice(undefined);
+    try {
+      const result = await mutate<unknown>(actionPath, payload);
+      setNotice(success(result));
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "GST provider action failed");
+    } finally {
+      setActionBusy(undefined);
+    }
+  }, [load]);
 
   const working = period === "ALL" && summary
     ? {
@@ -267,8 +368,8 @@ export function OfficeGstTaxWorkspace({
         <p>GST & TAX · WORKING REGISTER</p>
         <h2>Review invoice-derived output GST without fabricating filing or input-credit status.</h2>
         <span>
-          This workspace is a controlled working register. It does not file returns, calculate input-tax credit,
-          or assert statutory compliance without external filing evidence and professional review.
+          This workspace combines the canonical GST register with a credential-gated IRIS IRP connector for
+          taxpayer verification and e-invoice operations. It does not infer return filing or input-tax credit.
         </span>
       </div>
       <div className={styles.authority} aria-label="GST workspace authority">
@@ -289,6 +390,7 @@ export function OfficeGstTaxWorkspace({
       <Link href="/finance/billing"><FileCheck2 /> Open billing evidence</Link>
     </div>
 
+    {notice ? <div className={styles.notice}><BadgeCheck />{notice}</div> : null}
     {error ? <div className={styles.error}><CircleAlert />{error}</div> : null}
     {loading ? <div className={styles.state}><LoaderCircle className={styles.spin} />Loading canonical GST working data…</div> : <>
       <div className={styles.metrics}>
@@ -302,6 +404,39 @@ export function OfficeGstTaxWorkspace({
         <article><span>Working state</span><b>{summary?.filing_status || "REVIEW_REQUIRED"}</b></article>
       </div>
 
+      <section className={styles.connectorPanel} aria-label="GST IRP connector">
+        <header>
+          <div>
+            <p>LIVE GST CONNECTOR</p>
+            <h3>IRIS IRP core API</h3>
+          </div>
+          <em data-ready={connector?.ready_for_live_irn}>{connector?.ready_for_live_irn ? "IRN READY" : connector?.core_configured ? "CONNECTED · IRN GATED" : "NOT CONFIGURED"}</em>
+        </header>
+        <div className={styles.connectorGrid}>
+          <article><span>Provider</span><b>{connector?.provider || "IRIS_IRP"}</b><small>{connector?.environment || "—"} environment</small></article>
+          <article><span>Core credentials</span><b>{connector?.core_configured ? "Configured" : "Not configured"}</b><small>{connector?.base_host || "No provider host"}</small></article>
+          <article><span>e-Invoice switch</span><b>{connector?.einvoice_enabled ? "Enabled" : "Disabled"}</b><small>Eligibility/operations gate</small></article>
+          <article><span>Seller INV-01 identity</span><b>{connector?.invoice_identity_configured ? "Configured" : "Incomplete"}</b><small>{connector?.gstin_masked || "GSTIN not configured"}</small></article>
+          <article><span>Last GSTIN verification</span><b>{connector?.last_gstin_verification?.registration_status || "No provider evidence"}</b><small>{connector?.last_gstin_verification?.legal_name || "Run verification after credentials are configured"}</small></article>
+          <article><span>Last provider operation</span><b>{connector?.last_operation?.status || "None"}</b><small>{connector?.last_operation ? connector.last_operation.operation + " · " + date(connector.last_operation.created_at || "") : "No API operation recorded"}</small></article>
+        </div>
+        <div className={styles.connectorActions}>
+          <button type="button" disabled={!canPrepare || !connector?.core_configured || Boolean(actionBusy)} onClick={() => void providerAction("health", "tax/gst/connector/health", undefined, () => "IRIS IRP health check succeeded.")}>
+            {actionBusy === "health" ? <LoaderCircle className={styles.spin} /> : <ShieldCheck />} Test IRP
+          </button>
+          <button type="button" disabled={!canPrepare || !connector?.core_configured || Boolean(actionBusy)} onClick={() => void providerAction("verify", "tax/gst/connector/verify-gstin", { sync_common_portal: false }, (result) => {
+            const row = result as { legal_name?: string; registration_status?: string };
+            return "GSTIN verified" + (row.legal_name ? " · " + row.legal_name : "") + (row.registration_status ? " · " + row.registration_status : "") + ".";
+          })}>
+            {actionBusy === "verify" ? <LoaderCircle className={styles.spin} /> : <BadgeCheck />} Verify GSTIN
+          </button>
+          <button type="button" disabled={!canPrepare || !connector?.core_configured || Boolean(actionBusy)} onClick={() => void providerAction("sync", "tax/gst/connector/verify-gstin", { sync_common_portal: true }, () => "GSTIN details synchronized from the GST Common Portal through IRIS IRP.")}>
+            {actionBusy === "sync" ? <LoaderCircle className={styles.spin} /> : <RefreshCw />} Sync Common Portal
+          </button>
+        </div>
+        {connector?.missing_configuration?.length ? <p className={styles.connectorNote}>Deployment configuration still required: {connector.missing_configuration.join(", ")}. No credential value is exposed or stored in the browser.</p> : <p className={styles.connectorNote}>{connector?.secret_storage || "Provider secrets remain server-side."}</p>}
+      </section>
+
       <section className={styles.configPanel} aria-label="GST production configuration">
         <header>
           <div><p>PRODUCTION TAX CONTROL</p><h3>{configuration?.ready_for_production_invoicing ? "Production invoicing tax gate is ready" : "Production invoicing remains gated"}</h3></div>
@@ -312,7 +447,7 @@ export function OfficeGstTaxWorkspace({
           <article><span>Supplier state</span><b>{configuration?.gstin.state_code || "—"}</b><small>{configuration?.gstin.state_matches ? "GSTIN state matches" : "State match pending"}</small></article>
           <article><span>Tax config switch</span><b>{configuration?.tax_config_approved ? "Approved" : "Not approved"}</b><small>Controlled deployment setting</small></article>
           <article><span>Product profiles</span><b>{configuration?.profiles.approved_billing || 0}/{configuration?.profiles.billing_enabled || 0}</b><small>Billing profiles CA-approved</small></article>
-          <article><span>GST portal evidence</span><b>{configuration?.portal_verification || "NOT_CONNECTED"}</b><small>Portal status is never inferred</small></article>
+          <article><span>GST registration evidence</span><b>{configuration?.portal_verification || "NOT_CONNECTED"}</b><small>{configuration?.authoritative_gstin?.verified_at ? "IRIS · " + date(configuration.authoritative_gstin.verified_at) : "Provider verification required"}</small></article>
         </div>
         <p className={styles.configNote}>{configuration?.note}</p>
       </section>
@@ -373,15 +508,19 @@ export function OfficeGstTaxWorkspace({
         </header>
         <div className={styles.tableWrap}>
           <table>
-            <thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Product</th><th>Taxable</th><th>CGST</th><th>SGST</th><th>IGST</th><th>Total</th><th>Status</th></tr></thead>
+            <thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Product</th><th>Taxable</th><th>CGST</th><th>SGST</th><th>IGST</th><th>Total</th><th>Status</th><th>IRP / IRN</th></tr></thead>
             <tbody>
               {visibleInvoices.map((invoice) => {
                 const customer = customerMap.get(invoice.customer_id);
                 const product = productMap.get(invoice.product_id);
+                const einvoice = einvoiceMap.get(invoice.id);
+                const buyerReady = Boolean(customer?.gstin && customer?.billing_address && customer?.billing_locality && customer?.billing_pincode);
+                const canGenerate = Boolean(canPrepare && connector?.ready_for_live_irn && buyerReady && (!einvoice || einvoice.status === "FAILED"));
+                const cancelDraft = cancelDrafts[invoice.id] || { reason: "1", remarks: "" };
                 return <tr key={invoice.id}>
                   <td><strong>{invoice.invoice_no}</strong><small title={invoice.document_hash}>hash {invoice.document_hash?.slice(0, 12) || "—"}</small></td>
                   <td>{date(invoice.issued_at)}</td>
-                  <td>{customer?.display_name || customer?.legal_name || invoice.customer_id}</td>
+                  <td>{customer?.display_name || customer?.legal_name || invoice.customer_id}<small>{customer?.gstin || "No buyer GSTIN"}</small></td>
                   <td>{product ? `${product.code} · ${product.name}` : invoice.product_id}</td>
                   <td>{money(invoice.net_taxable, invoice.currency)}</td>
                   <td>{money(invoice.cgst, invoice.currency)}</td>
@@ -389,9 +528,38 @@ export function OfficeGstTaxWorkspace({
                   <td>{money(invoice.igst, invoice.currency)}</td>
                   <td>{money(invoice.total, invoice.currency)}</td>
                   <td><em data-status={invoice.status}>{invoice.status}</em></td>
+                  <td className={styles.irpCell}>
+                    <em data-status={einvoice?.status === "GENERATED" ? "PAID" : einvoice?.status || "NONE"}>{einvoice?.status || "NOT GENERATED"}</em>
+                    {einvoice?.irn ? <small title={einvoice.irn}>IRN {einvoice.irn.slice(0, 16)}…</small> : null}
+                    {einvoice?.ack_no ? <small>Ack {einvoice.ack_no}</small> : null}
+                    {einvoice?.last_error ? <small className={styles.irpError}>{einvoice.last_error}</small> : null}
+                    {canGenerate ? <button type="button" disabled={Boolean(actionBusy)} onClick={() => void providerAction(
+                      "generate-" + invoice.id,
+                      "tax/gst/einvoice/" + encodeURIComponent(invoice.id) + "/generate",
+                      undefined,
+                      () => "IRN generated for " + invoice.invoice_no + ".",
+                    )}>{actionBusy === "generate-" + invoice.id ? <LoaderCircle className={styles.spin} /> : <FileCheck2 />} Generate IRN</button> : null}
+                    {!einvoice && connector?.ready_for_live_irn && !buyerReady ? <small>Buyer GSTIN + billing address/locality/pincode required.</small> : null}
+                    {einvoice?.status === "GENERATED" && canApprove ? <details className={styles.cancelIrn}>
+                      <summary>Cancel IRN</summary>
+                      <label>Reason<select value={cancelDraft.reason} onChange={(event) => setCancelDrafts((current) => ({ ...current, [invoice.id]: { ...cancelDraft, reason: event.target.value } }))}>
+                        <option value="1">Duplicate</option>
+                        <option value="2">Data entry mistake</option>
+                        <option value="3">Order cancelled</option>
+                        <option value="4">Other</option>
+                      </select></label>
+                      <label>Remarks<input maxLength={100} value={cancelDraft.remarks} onChange={(event) => setCancelDrafts((current) => ({ ...current, [invoice.id]: { ...cancelDraft, remarks: event.target.value } }))} /></label>
+                      <button type="button" disabled={cancelDraft.remarks.trim().length < 3 || Boolean(actionBusy)} onClick={() => void providerAction(
+                        "cancel-" + invoice.id,
+                        "tax/gst/einvoice/" + encodeURIComponent(invoice.id) + "/cancel",
+                        { reason_code: cancelDraft.reason, remarks: cancelDraft.remarks.trim() },
+                        () => "IRN cancelled for " + invoice.invoice_no + ".",
+                      )}>{actionBusy === "cancel-" + invoice.id ? <LoaderCircle className={styles.spin} /> : <CircleAlert />} Confirm cancellation</button>
+                    </details> : null}
+                  </td>
                 </tr>;
               })}
-              {!visibleInvoices.length ? <tr><td colSpan={10}><div className={styles.empty}>No canonical invoices exist for this working period.</div></td></tr> : null}
+              {!visibleInvoices.length ? <tr><td colSpan={11}><div className={styles.empty}>No canonical invoices exist for this working period.</div></td></tr> : null}
             </tbody>
           </table>
         </div>

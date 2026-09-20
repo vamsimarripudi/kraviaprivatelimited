@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 
 from .database import Base, engine, get_db
-from .models import LegalEntity, Product, ProductTaxProfile, Customer, Invoice, Payment, Receipt, IdempotencyRecord, AuditEvent, WorkflowRun, ComplianceObligation, DomainEvent, ChartAccount, JournalEntry, JournalLine, BoardMeeting, Resolution, AuthorityGrant, Vendor, Contract, Employee, OfficeAsset, Document, DocumentVersion, CommercialPlan, Subscription, CreditNote, Refund, BankAccount, BankTransaction, Settlement, ApprovalRequest, NoticeCase, InspectionCase, IntegrationRecord, OperationalAlert, WorkerHeartbeat
+from .models import LegalEntity, Product, ProductTaxProfile, GstTaxpayerSnapshot, Customer, Invoice, Payment, Receipt, IdempotencyRecord, AuditEvent, WorkflowRun, ComplianceObligation, DomainEvent, ChartAccount, JournalEntry, JournalLine, BoardMeeting, Resolution, AuthorityGrant, Vendor, Contract, Employee, OfficeAsset, Document, DocumentVersion, CommercialPlan, Subscription, CreditNote, Refund, BankAccount, BankTransaction, Settlement, ApprovalRequest, NoticeCase, InspectionCase, IntegrationRecord, OperationalAlert, WorkerHeartbeat
 from .schemas import CustomerCreate, ProductCreate, ProductTaxProfileUpdate, ProductTaxProfileApproval, InvoiceCreate, PaymentCreate, ComplianceCreate, BoardMeetingCreate, ResolutionCreate, AuthorityCreate, VendorCreate, ContractCreate, EmployeeCreate, AssetCreate, PlanCreate, SubscriptionCreate, CreditNoteCreate, RefundCreate, BankAccountCreate, BankTransactionCreate, SettlementCreate, ApprovalCreate, ApprovalDecision, NoticeCreate, InspectionCreate, IntegrationCreate
 from .services import uid, paise, rupees, now_utc, allocate_invoice_no, allocate_controlled_no, audit, workflow, emit_event, post_journal, ENTITY_ID
 from .documents import invoice_pdf, receipt_pdf, ctc_pdf
@@ -255,15 +255,15 @@ def create_product(payload: ProductCreate, db: Session=Depends(get_db), ctx=Depe
 
 @app.get("/api/v1/customers")
 def customers(db: Session=Depends(get_db), ctx=Depends(actor_context), limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000)):
-    return [{"id":c.id,"legal_name":c.legal_name,"display_name":c.display_name,"gstin":c.gstin,"state":c.state,"state_code":c.state_code,"country":c.country,"email":c.email,"phone":c.phone,"billing_address":c.billing_address,"status":c.status,"created_at":c.created_at.isoformat() if c.created_at else None} for c in db.execute(select(Customer).order_by(Customer.created_at.desc()).limit(limit).offset(offset)).scalars()]
+    return [{"id":c.id,"legal_name":c.legal_name,"display_name":c.display_name,"gstin":c.gstin,"state":c.state,"state_code":c.state_code,"country":c.country,"email":c.email,"phone":c.phone,"billing_address":c.billing_address,"billing_locality":c.billing_locality,"billing_pincode":c.billing_pincode,"status":c.status,"created_at":c.created_at.isoformat() if c.created_at else None} for c in db.execute(select(Customer).order_by(Customer.created_at.desc()).limit(limit).offset(offset)).scalars()]
 
 @app.post("/api/v1/customers", status_code=201)
 def create_customer(payload: CustomerCreate, db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","FINANCE")), idempotency_key: str|None=Header(default=None, alias="Idempotency-Key")):
     cached=get_idempotent(db,idempotency_key,"customer.create")
     if cached:return JSONResponse(cached,status_code=200)
-    c=Customer(id=uid("CUS"),legal_name=payload.legal_name.strip(),display_name=(payload.display_name or payload.legal_name).strip(),gstin=payload.gstin,state=payload.state.strip(),state_code=payload.state_code,country=payload.country,email=payload.email,phone=payload.phone,billing_address=payload.billing_address)
+    c=Customer(id=uid("CUS"),legal_name=payload.legal_name.strip(),display_name=(payload.display_name or payload.legal_name).strip(),gstin=payload.gstin,state=payload.state.strip(),state_code=payload.state_code,country=payload.country,email=payload.email,phone=payload.phone,billing_address=payload.billing_address,billing_locality=payload.billing_locality,billing_pincode=payload.billing_pincode)
     db.add(c); audit(db,ctx["actor"],ctx["role"],"customer.created","customer",c.id,{"legal_name":c.legal_name,"state_code":c.state_code})
-    result={"id":c.id,"legal_name":c.legal_name,"display_name":c.display_name,"gstin":c.gstin,"state":c.state,"state_code":c.state_code,"country":c.country,"status":c.status}
+    result={"id":c.id,"legal_name":c.legal_name,"display_name":c.display_name,"gstin":c.gstin,"state":c.state,"state_code":c.state_code,"country":c.country,"billing_locality":c.billing_locality,"billing_pincode":c.billing_pincode,"status":c.status}
     store_idempotent(db,idempotency_key,"customer.create",result); db.commit(); return result
 
 @app.get("/api/v1/invoices")
@@ -294,7 +294,7 @@ def create_invoice(payload: InvoiceCreate, db: Session=Depends(get_db), ctx=Depe
     same_state=(c.state_code==e.state_code)
     cgst=tax//2 if same_state else 0; sgst=tax-cgst if same_state else 0; igst=0 if same_state else tax
     total=net+tax; no=allocate_invoice_no(db,p.code); inv_id=uid("INV")
-    snapshot={"company":{"legal_name":e.legal_name,"cin":e.cin,"registered_office":e.registered_office,"state_code":e.state_code,"gstin":KRAVIA_GSTIN or None,"verification_status":e.status},"customer":{"id":c.id,"legal_name":c.legal_name,"display_name":c.display_name,"gstin":c.gstin,"state":c.state,"state_code":c.state_code,"country":c.country,"billing_address":c.billing_address},"product":{"id":p.id,"code":p.code,"name":p.name,"category":p.category,"tax_profile":{"id":profile.id,"sac":profile.sac,"gst_rate":str(resolved_rate),"tax_treatment":profile.tax_treatment,"supply_model":profile.supply_model,"status":profile.status}}}
+    snapshot={"company":{"legal_name":e.legal_name,"cin":e.cin,"registered_office":e.registered_office,"state_code":e.state_code,"gstin":KRAVIA_GSTIN or None,"verification_status":e.status},"customer":{"id":c.id,"legal_name":c.legal_name,"display_name":c.display_name,"gstin":c.gstin,"state":c.state,"state_code":c.state_code,"country":c.country,"billing_address":c.billing_address,"billing_locality":c.billing_locality,"billing_pincode":c.billing_pincode},"product":{"id":p.id,"code":p.code,"name":p.name,"category":p.category,"tax_profile":{"id":profile.id,"sac":profile.sac,"gst_rate":str(resolved_rate),"tax_treatment":profile.tax_treatment,"supply_model":profile.supply_model,"status":profile.status}}}
     immutable_payload={"invoice_no":no,"legal_entity_id":e.id,"customer_id":c.id,"product_id":p.id,"description":payload.description,"sac":profile.sac,"qty_milli":int(payload.qty*1000),"taxable_paise":taxable,"discount_paise":discount,"net_taxable_paise":net,"gst_rate_bps":rate_bps,"cgst_paise":cgst,"sgst_paise":sgst,"igst_paise":igst,"total_paise":total,"currency":"INR","tax_profile_id":profile.id,"snapshot":snapshot}
     document_hash=hashlib.sha256(json.dumps(immutable_payload,sort_keys=True,separators=(",",":"),default=str).encode()).hexdigest()
     inv=Invoice(id=inv_id,invoice_no=no,legal_entity_id=e.id,customer_id=c.id,product_id=p.id,status="ISSUED",issued_at=now_utc(),due_date=payload.due_date,description=payload.description,sac=profile.sac,qty_milli=int(payload.qty*1000),taxable_paise=taxable,discount_paise=discount,net_taxable_paise=net,gst_rate_bps=rate_bps,cgst_paise=cgst,sgst_paise=sgst,igst_paise=igst,total_paise=total,paid_paise=0,balance_paise=total,snapshot_json=json.dumps(snapshot,sort_keys=True),notes=payload.notes,document_hash=document_hash)
@@ -431,10 +431,21 @@ def gst_configuration(db: Session=Depends(get_db), ctx=Depends(actor_context)):
     billing_profiles = [row for row in profiles if row.billing_enabled]
     approved_billing = [row for row in billing_profiles if row.status == "APPROVED"]
     gstin = gstin_structure_status(KRAVIA_GSTIN, entity.state_code if entity else None)
+    latest_gstin = None
+    if KRAVIA_GSTIN:
+        latest_gstin = db.execute(
+            select(GstTaxpayerSnapshot)
+            .where(GstTaxpayerSnapshot.gstin == KRAVIA_GSTIN.upper())
+            .order_by(GstTaxpayerSnapshot.verified_at.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+    registration_status = (latest_gstin.registration_status or "").strip().upper() if latest_gstin else ""
+    registration_active = registration_status in {"ACT", "ACTIVE"}
     ready = bool(
         gstin["configured"]
         and gstin["structure_valid"]
         and gstin["state_matches"]
+        and registration_active
         and TAX_CONFIG_APPROVED
         and billing_profiles
         and len(approved_billing) == len(billing_profiles)
@@ -449,8 +460,19 @@ def gst_configuration(db: Session=Depends(get_db), ctx=Depends(actor_context)):
             "pending_billing": len(billing_profiles) - len(approved_billing),
         },
         "ready_for_production_invoicing": ready,
-        "portal_verification": "NOT_CONNECTED",
-        "note": "GST portal active-registration verification is an external evidence gate and is not inferred by KRAVIA Office.",
+        "portal_verification": "IRP_VERIFIED_ACTIVE" if registration_active else ("IRP_VERIFIED" if latest_gstin else "NOT_CONNECTED"),
+        "authoritative_gstin": {
+            "provider": latest_gstin.provider,
+            "registration_status": latest_gstin.registration_status,
+            "legal_name": latest_gstin.legal_name,
+            "trade_name": latest_gstin.trade_name,
+            "verified_at": latest_gstin.verified_at.isoformat(),
+            "response_hash": latest_gstin.source_response_hash,
+        } if latest_gstin else None,
+        "note": (
+            "GSTIN registration evidence is read from the latest IRIS IRP taxpayer snapshot. "
+            "Return filing status is not inferred by KRAVIA Office."
+        ),
     }
 
 
