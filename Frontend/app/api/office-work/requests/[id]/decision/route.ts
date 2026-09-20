@@ -10,7 +10,7 @@ const schema = z.object({
 
 type Props = { params: Promise<{ id: string }> };
 
-export async function POST(request: Request, { params }: Props) {
+export async function PATCH(request: Request, { params }: Props) {
   if (!officeMutationIsSameOrigin(request)) {
     return NextResponse.json({ detail: "Cross-origin Office approval is not allowed" }, { status: 403 });
   }
@@ -28,3 +28,6 @@ export async function POST(request: Request, { params }: Props) {
     return NextResponse.json({ detail }, { status, headers: { "Cache-Control": "no-store" } });
   }
 }
+
+// Compatibility alias for older clients; Office UI uses PATCH for decision state changes.
+export const POST = PATCH;
