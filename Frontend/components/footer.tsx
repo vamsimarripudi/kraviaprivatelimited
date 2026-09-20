@@ -17,6 +17,7 @@ const footerColumns = [
     title: "Products",
     links: [
       ["VidyaLuma", "/products/vidyaluma"],
+      ["Nice Role", "/products/nicerole"],
       ["YUKTA", "/products/yukta"],
       ["VORIO", "/products/vorio"],
       ["Portfolio", "/products"],
