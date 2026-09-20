@@ -331,9 +331,11 @@ function gstText(invoice: Invoice) {
 export function OfficeGstTaxWorkspace({
   canPrepare,
   canApprove,
+  canSignatory,
 }: {
   canPrepare: boolean;
   canApprove: boolean;
+  canSignatory: boolean;
 }) {
   const [summary, setSummary] = useState<GstSummary>();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -809,7 +811,7 @@ export function OfficeGstTaxWorkspace({
                         () => "GSTR-1 submitted and ready for authorized-signatory EVC.",
                       )}><FileCheck2 /> Submit</button> : null}
 
-                      {(workingRow.status === "GSP_SUBMITTED" || (workingRow.status === "GSP_SAVED" && workingRow.form_type === "GSTR3B")) ? <details>
+                      {canSignatory && (workingRow.status === "GSP_SUBMITTED" || (workingRow.status === "GSP_SAVED" && workingRow.form_type === "GSTR3B")) ? <details>
                         <summary>Authorized signatory</summary>
                         <label>PAN<input autoCapitalize="characters" maxLength={10} placeholder="ABCDE1234F" value={evc.pan} onChange={(event) => setEvcDrafts((current) => ({ ...current, [workingRow.id]: { ...evc, pan: event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10) } }))} /></label>
                         <button type="button" disabled={!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(evc.pan) || Boolean(actionBusy)} onClick={() => void providerAction(
@@ -820,7 +822,7 @@ export function OfficeGstTaxWorkspace({
                         )}><ShieldCheck /> Send EVC OTP</button>
                       </details> : null}
 
-                      {workingRow.status === "EVC_REQUESTED" ? <div className={styles.evcInline}>
+                      {workingRow.status === "EVC_REQUESTED" && canSignatory ? <div className={styles.evcInline}>
                         <input aria-label={"Authorized signatory PAN for " + workingRow.form_type} autoCapitalize="characters" maxLength={10} placeholder="PAN" value={evc.pan} onChange={(event) => setEvcDrafts((current) => ({ ...current, [workingRow.id]: { ...evc, pan: event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10) } }))} />
                         <input aria-label={"EVC OTP for " + workingRow.form_type} inputMode="numeric" autoComplete="one-time-code" maxLength={8} placeholder="EVC OTP" value={evc.otp} onChange={(event) => setEvcDrafts((current) => ({ ...current, [workingRow.id]: { ...evc, otp: event.target.value.replace(/\D/g, "").slice(0, 8) } }))} />
                         <button type="button" disabled={!gspStatus?.filing_contract_ready || !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(evc.pan) || evc.otp.length < 4 || Boolean(actionBusy)} onClick={() => void providerAction(
