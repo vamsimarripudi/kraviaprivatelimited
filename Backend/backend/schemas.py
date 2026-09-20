@@ -30,6 +30,26 @@ class ProductCreate(BaseModel):
     name: str = Field(min_length=2, max_length=120)
     category: str = Field(min_length=2, max_length=120)
 
+class ProductTaxProfileUpdate(BaseModel):
+    sac: str = Field(pattern=r"^[0-9]{6}$")
+    gst_rate: Optional[Decimal] = Field(default=None, ge=0, le=100)
+    tax_treatment: str = Field(default="TAXABLE", pattern=r"^(TAXABLE|ZERO_RATED|EXEMPT|NON_GST)$")
+    supply_model: str = Field(default="HOSTED_SAAS", pattern=r"^(HOSTED_SAAS|SOFTWARE_LICENSE|HOSTING|CUSTOM_DEVELOPMENT|IT_SUPPORT)$")
+    billing_enabled: bool = True
+    classification_basis: str = Field(min_length=20, max_length=2000)
+    source_ref: str = Field(min_length=10, max_length=2000)
+
+    @field_validator("gst_rate")
+    @classmethod
+    def validate_gst_rate(cls, v):
+        return ensure_standard_gst_rate(v)
+
+
+class ProductTaxProfileApproval(BaseModel):
+    evidence_ref: str = Field(min_length=2, max_length=2000)
+    note: Optional[str] = Field(default=None, max_length=2000)
+
+
 class InvoiceCreate(BaseModel):
     customer_id: str
     product_id: str
@@ -45,7 +65,7 @@ class InvoiceCreate(BaseModel):
     @field_validator("gst_rate")
     @classmethod
     def validate_gst_rate(cls, v):
-        return ensure_standard_gst_rate(v)
+        return ensure_standard_gst_rate(v) if v is not None else None
 
 class PaymentCreate(BaseModel):
     amount: Decimal = Field(gt=0)
@@ -124,7 +144,7 @@ class PlanCreate(BaseModel):
     name: str = Field(min_length=2, max_length=120)
     billing_cycle: str = Field(pattern=r"^(MONTHLY|ANNUAL|ONE_TIME|USAGE)$")
     price: Decimal = Field(ge=0)
-    gst_rate: Decimal = Field(default=Decimal("18"), ge=0, le=100)
+    gst_rate: Optional[Decimal] = Field(default=None, ge=0, le=100)
     sac: Optional[str] = None
     effective_from: str
     effective_to: Optional[str] = None
@@ -132,7 +152,7 @@ class PlanCreate(BaseModel):
     @field_validator("gst_rate")
     @classmethod
     def validate_gst_rate(cls, v):
-        return ensure_standard_gst_rate(v)
+        return ensure_standard_gst_rate(v) if v is not None else None
 
 class SubscriptionCreate(BaseModel):
     customer_id: str
