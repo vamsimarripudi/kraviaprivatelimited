@@ -351,6 +351,27 @@ export async function refreshOfficeIdentity(context: OfficeSessionContext): Prom
   };
 }
 
+export async function changeOfficePassword(
+  context: OfficeSessionContext,
+  currentPassword: string,
+  newPassword: string,
+) {
+  const response = await rawApi("/api/v1/auth/password", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${context.session.access_token}` },
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  });
+  return parseOrThrow<{ changed: true; revoked_other_sessions: number }>(response);
+}
+
+export async function completeOfficePasswordRecovery(token: string, newPassword: string) {
+  const response = await rawApi("/api/v1/auth/recovery/password", {
+    method: "POST",
+    body: JSON.stringify({ token, new_password: newPassword }),
+  });
+  return parseOrThrow<{ recovered: true; revoked_sessions: number }>(response);
+}
+
 export async function listOfficeAuthSessions(context: OfficeSessionContext) {
   const response = await rawApi("/api/v1/auth/sessions", {
     headers: { Authorization: `Bearer ${context.session.access_token}` },
