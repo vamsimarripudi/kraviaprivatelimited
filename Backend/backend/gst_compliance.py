@@ -718,6 +718,19 @@ def build_gst_compliance_router(
             row.prepared_by = ctx["actor"]
             row.reviewed_by = None
             row.reviewed_at = None
+            row.itc_review_json = None
+            row.itc_reviewed_by = None
+            row.itc_reviewed_at = None
+            row.filing_provider = None
+            row.filing_arn = None
+            row.filing_evidence_ref = None
+            row.filed_at = None
+            row.gsp_submission_ref = None
+            row.gsp_response_hash = None
+            row.gsp_status_json = "{}"
+            row.gsp_last_sync_at = None
+            row.gsp_verified_at = None
+            row.gsp_verified_status = None
         audit(db, ctx["actor"], ctx["role"], "gst.return_working.built", "gst_return_working", row.id, {"form_type": row.form_type, "period": row.period, "source_hash": source_hash}, "CONTROL")
         db.commit()
         return _return_json(row)
