@@ -11,12 +11,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 
 from .database import Base, engine, get_db
-from .models import LegalEntity, Product, Customer, Invoice, Payment, Receipt, IdempotencyRecord, AuditEvent, WorkflowRun, ComplianceObligation, DomainEvent, ChartAccount, JournalEntry, JournalLine, BoardMeeting, Resolution, AuthorityGrant, Vendor, Contract, Employee, OfficeAsset, Document, DocumentVersion, CommercialPlan, Subscription, CreditNote, Refund, BankAccount, BankTransaction, Settlement, ApprovalRequest, NoticeCase, InspectionCase, IntegrationRecord, OperationalAlert, WorkerHeartbeat
-from .schemas import CustomerCreate, ProductCreate, InvoiceCreate, PaymentCreate, ComplianceCreate, BoardMeetingCreate, ResolutionCreate, AuthorityCreate, VendorCreate, ContractCreate, EmployeeCreate, AssetCreate, PlanCreate, SubscriptionCreate, CreditNoteCreate, RefundCreate, BankAccountCreate, BankTransactionCreate, SettlementCreate, ApprovalCreate, ApprovalDecision, NoticeCreate, InspectionCreate, IntegrationCreate
+from .models import LegalEntity, Product, ProductTaxProfile, Customer, Invoice, Payment, Receipt, IdempotencyRecord, AuditEvent, WorkflowRun, ComplianceObligation, DomainEvent, ChartAccount, JournalEntry, JournalLine, BoardMeeting, Resolution, AuthorityGrant, Vendor, Contract, Employee, OfficeAsset, Document, DocumentVersion, CommercialPlan, Subscription, CreditNote, Refund, BankAccount, BankTransaction, Settlement, ApprovalRequest, NoticeCase, InspectionCase, IntegrationRecord, OperationalAlert, WorkerHeartbeat
+from .schemas import CustomerCreate, ProductCreate, ProductTaxProfileUpdate, ProductTaxProfileApproval, InvoiceCreate, PaymentCreate, ComplianceCreate, BoardMeetingCreate, ResolutionCreate, AuthorityCreate, VendorCreate, ContractCreate, EmployeeCreate, AssetCreate, PlanCreate, SubscriptionCreate, CreditNoteCreate, RefundCreate, BankAccountCreate, BankTransactionCreate, SettlementCreate, ApprovalCreate, ApprovalDecision, NoticeCreate, InspectionCreate, IntegrationCreate
 from .services import uid, paise, rupees, now_utc, allocate_invoice_no, allocate_controlled_no, audit, workflow, emit_event, post_journal, ENTITY_ID
 from .documents import invoice_pdf, receipt_pdf, ctc_pdf
 from .identity_auth import authenticate_office_access, validate_first_party_auth_configuration
-from .tax import gst_master_payload
+from .tax import gst_master_payload, gstin_structure_status, CANONICAL_PRODUCT_SEEDS, PRODUCT_TAX_DEFAULTS, PRODUCT_TAX_SOURCE_REF
 
 APP_ENV = os.getenv("APP_ENV", "development")
 AUTH_MODE = os.getenv("AUTH_MODE", "bootstrap" if APP_ENV != "production" else "first_party").lower()
@@ -63,14 +63,35 @@ def initialize_database():
                 source_ref="Controlled company master configuration is required before production lock"
             )
             db.add(entity)
-        seeds = [
-            ("PROD-VL","VL","VidyaLuma","Education SaaS"),
-            ("PROD-VM","VM","Vaanmeet","Video Conferencing"),
-            ("PROD-VF","VF","VFormix","Forms & Workflow SaaS"),
-        ]
-        for pid, code, name, cat in seeds:
-            if not db.get(Product, pid):
-                db.add(Product(id=pid, code=code, name=name, category=cat, legal_entity_id=ENTITY_ID))
+        for seed in CANONICAL_PRODUCT_SEEDS:
+            if not db.get(Product, seed["id"]):
+                db.add(Product(
+                    id=seed["id"],
+                    code=seed["code"],
+                    name=seed["name"],
+                    category=seed["category"],
+                    status=seed["status"],
+                    legal_entity_id=ENTITY_ID,
+                ))
+        db.flush()
+        for seed in CANONICAL_PRODUCT_SEEDS:
+            profile = PRODUCT_TAX_DEFAULTS[seed["code"]]
+            existing = db.execute(
+                select(ProductTaxProfile).where(ProductTaxProfile.product_id == seed["id"])
+            ).scalar_one_or_none()
+            if not existing:
+                db.add(ProductTaxProfile(
+                    id=f"TAX-{seed['code']}",
+                    product_id=seed["id"],
+                    sac=profile["sac"],
+                    gst_rate_bps=int(profile["gst_rate"] * 100),
+                    tax_treatment=profile["tax_treatment"],
+                    supply_model=profile["supply_model"],
+                    billing_enabled=profile["billing_enabled"],
+                    status="REVIEW_REQUIRED",
+                    classification_basis=profile["classification_basis"],
+                    source_ref=PRODUCT_TAX_SOURCE_REF,
+                ))
         accounts=[
             ("1000","Bank / Payment Clearing","ASSET","DEBIT"),
             ("1100","Accounts Receivable","ASSET","DEBIT"),
@@ -148,6 +169,53 @@ def store_idempotent(db, key, operation, payload):
     if key:
         db.add(IdempotencyRecord(idempotency_key=key, operation=operation, response_json=json.dumps(payload, default=str)))
 
+def _tax_profile_json(db: Session, row: ProductTaxProfile):
+    product = db.get(Product, row.product_id)
+    return {
+        "id": row.id,
+        "product_id": row.product_id,
+        "product_code": product.code if product else None,
+        "product_name": product.name if product else row.product_id,
+        "sac": row.sac,
+        "gst_rate": str(Decimal(row.gst_rate_bps) / 100),
+        "tax_treatment": row.tax_treatment,
+        "supply_model": row.supply_model,
+        "billing_enabled": bool(row.billing_enabled),
+        "status": row.status,
+        "classification_basis": row.classification_basis,
+        "source_ref": row.source_ref,
+        "approved_by": row.approved_by,
+        "approved_at": row.approved_at.isoformat() if row.approved_at else None,
+        "evidence_ref": row.evidence_ref,
+        "approval_note": row.approval_note,
+    }
+
+
+def _resolve_product_tax_profile(
+    db: Session,
+    product: Product,
+    submitted_sac: str | None,
+    submitted_rate: Decimal | None,
+    *,
+    require_approved: bool,
+):
+    profile = db.execute(
+        select(ProductTaxProfile).where(ProductTaxProfile.product_id == product.id)
+    ).scalar_one_or_none()
+    if not profile:
+        raise HTTPException(409, "Product tax profile is not configured")
+    if not profile.billing_enabled:
+        raise HTTPException(409, "Billing is disabled for this product tax profile")
+    if require_approved and profile.status != "APPROVED":
+        raise HTTPException(409, "Product tax profile requires CA approval before production billing")
+    expected_rate = Decimal(profile.gst_rate_bps) / 100
+    if submitted_sac and submitted_sac != profile.sac:
+        raise HTTPException(422, "Invoice/plan SAC must match the controlled product tax profile")
+    if submitted_rate is not None and Decimal(submitted_rate) != expected_rate:
+        raise HTTPException(422, "Invoice/plan GST rate must match the controlled product tax profile")
+    return profile, expected_rate
+
+
 def invoice_json(inv):
     return {
         "id": inv.id, "invoice_no": inv.invoice_no, "status": inv.status,
@@ -213,17 +281,23 @@ def create_invoice(payload: InvoiceCreate, db: Session=Depends(get_db), ctx=Depe
     c=db.get(Customer,payload.customer_id); p=db.get(Product,payload.product_id); e=db.get(LegalEntity,ENTITY_ID)
     if not c:raise HTTPException(404,"Customer not found")
     if not p:raise HTTPException(404,"Product not found")
+    gstin_state = gstin_structure_status(KRAVIA_GSTIN, e.state_code)
+    if APP_ENV == "production" and not (gstin_state["structure_valid"] and gstin_state["state_matches"]):
+        raise HTTPException(409, "Production tax invoicing blocked: GSTIN structure/state configuration is invalid")
+    profile, resolved_rate = _resolve_product_tax_profile(
+        db, p, payload.sac, payload.gst_rate, require_approved=APP_ENV == "production"
+    )
     taxable=paise(payload.taxable_value); discount=paise(payload.discount)
     if discount>taxable:raise HTTPException(422,"Discount cannot exceed taxable value")
-    net=taxable-discount; rate_bps=int((payload.gst_rate*Decimal(100)).to_integral_value())
+    net=taxable-discount; rate_bps=profile.gst_rate_bps
     tax=(net*rate_bps+5000)//10000
     same_state=(c.state_code==e.state_code)
     cgst=tax//2 if same_state else 0; sgst=tax-cgst if same_state else 0; igst=0 if same_state else tax
     total=net+tax; no=allocate_invoice_no(db,p.code); inv_id=uid("INV")
-    snapshot={"company":{"legal_name":e.legal_name,"cin":e.cin,"registered_office":e.registered_office,"state_code":e.state_code,"gstin":KRAVIA_GSTIN or None,"verification_status":e.status},"customer":{"id":c.id,"legal_name":c.legal_name,"display_name":c.display_name,"gstin":c.gstin,"state":c.state,"state_code":c.state_code,"country":c.country,"billing_address":c.billing_address},"product":{"id":p.id,"code":p.code,"name":p.name,"category":p.category}}
-    immutable_payload={"invoice_no":no,"legal_entity_id":e.id,"customer_id":c.id,"product_id":p.id,"description":payload.description,"sac":payload.sac,"qty_milli":int(payload.qty*1000),"taxable_paise":taxable,"discount_paise":discount,"net_taxable_paise":net,"gst_rate_bps":rate_bps,"cgst_paise":cgst,"sgst_paise":sgst,"igst_paise":igst,"total_paise":total,"currency":"INR","snapshot":snapshot}
+    snapshot={"company":{"legal_name":e.legal_name,"cin":e.cin,"registered_office":e.registered_office,"state_code":e.state_code,"gstin":KRAVIA_GSTIN or None,"verification_status":e.status},"customer":{"id":c.id,"legal_name":c.legal_name,"display_name":c.display_name,"gstin":c.gstin,"state":c.state,"state_code":c.state_code,"country":c.country,"billing_address":c.billing_address},"product":{"id":p.id,"code":p.code,"name":p.name,"category":p.category,"tax_profile":{"id":profile.id,"sac":profile.sac,"gst_rate":str(resolved_rate),"tax_treatment":profile.tax_treatment,"supply_model":profile.supply_model,"status":profile.status}}}
+    immutable_payload={"invoice_no":no,"legal_entity_id":e.id,"customer_id":c.id,"product_id":p.id,"description":payload.description,"sac":profile.sac,"qty_milli":int(payload.qty*1000),"taxable_paise":taxable,"discount_paise":discount,"net_taxable_paise":net,"gst_rate_bps":rate_bps,"cgst_paise":cgst,"sgst_paise":sgst,"igst_paise":igst,"total_paise":total,"currency":"INR","tax_profile_id":profile.id,"snapshot":snapshot}
     document_hash=hashlib.sha256(json.dumps(immutable_payload,sort_keys=True,separators=(",",":"),default=str).encode()).hexdigest()
-    inv=Invoice(id=inv_id,invoice_no=no,legal_entity_id=e.id,customer_id=c.id,product_id=p.id,status="ISSUED",issued_at=now_utc(),due_date=payload.due_date,description=payload.description,sac=payload.sac,qty_milli=int(payload.qty*1000),taxable_paise=taxable,discount_paise=discount,net_taxable_paise=net,gst_rate_bps=rate_bps,cgst_paise=cgst,sgst_paise=sgst,igst_paise=igst,total_paise=total,paid_paise=0,balance_paise=total,snapshot_json=json.dumps(snapshot,sort_keys=True),notes=payload.notes,document_hash=document_hash)
+    inv=Invoice(id=inv_id,invoice_no=no,legal_entity_id=e.id,customer_id=c.id,product_id=p.id,status="ISSUED",issued_at=now_utc(),due_date=payload.due_date,description=payload.description,sac=profile.sac,qty_milli=int(payload.qty*1000),taxable_paise=taxable,discount_paise=discount,net_taxable_paise=net,gst_rate_bps=rate_bps,cgst_paise=cgst,sgst_paise=sgst,igst_paise=igst,total_paise=total,paid_paise=0,balance_paise=total,snapshot_json=json.dumps(snapshot,sort_keys=True),notes=payload.notes,document_hash=document_hash)
     db.add(inv); db.flush()
     journal_lines=[
         {"account_code":"1100","debit_paise":total,"customer_id":c.id,"product_id":p.id,"memo":no},
@@ -234,7 +308,7 @@ def create_invoice(payload: InvoiceCreate, db: Session=Depends(get_db), ctx=Depe
     if igst: journal_lines.append({"account_code":"2020","credit_paise":igst,"customer_id":c.id,"product_id":p.id,"memo":no})
     post_journal(db,"INVOICE",inv.id,f"Invoice {no}",journal_lines,entry_date=inv.issued_at.date().isoformat())
     emit_event(db,"invoice.issued","invoice",inv.id,{"invoice_no":no,"customer_id":c.id,"product_id":p.id,"total_paise":total,"document_hash":document_hash})
-    audit(db,ctx["actor"],ctx["role"],"invoice.issued","invoice",inv.id,{"invoice_no":no,"total_paise":total,"tax_mode":"CGST_SGST" if same_state else "IGST"},"FINANCIAL")
+    audit(db,ctx["actor"],ctx["role"],"invoice.issued","invoice",inv.id,{"invoice_no":no,"total_paise":total,"tax_mode":"CGST_SGST" if same_state else "IGST","tax_profile_id":profile.id,"sac":profile.sac,"gst_rate_bps":profile.gst_rate_bps},"FINANCIAL")
     workflow(db,"WF-BILL-ISSUE","invoice",inv.id,[{"step":"validate","status":"SUCCESS"},{"step":"allocate_sequence","status":"SUCCESS"},{"step":"snapshot","status":"SUCCESS"},{"step":"calculate_tax","status":"SUCCESS"},{"step":"issue","status":"SUCCESS"},{"step":"external_delivery","status":"NOT_CONNECTED"}],"PARTIAL_SUCCESS")
     result=invoice_json(inv); store_idempotent(db,idempotency_key,"invoice.issue",result); db.commit(); return result
 
@@ -270,6 +344,115 @@ def record_payment(invoice_id: str, payload: PaymentCreate, db: Session=Depends(
 @app.get("/api/v1/tax/gst/master")
 def gst_master(ctx=Depends(actor_context)):
     return gst_master_payload()
+
+
+@app.get("/api/v1/tax/gst/product-profiles")
+def list_product_tax_profiles(db: Session=Depends(get_db), ctx=Depends(actor_context)):
+    rows = db.execute(select(ProductTaxProfile).order_by(ProductTaxProfile.product_id)).scalars().all()
+    return [_tax_profile_json(db, row) for row in rows]
+
+
+@app.put("/api/v1/tax/gst/product-profiles/{product_id}")
+def update_product_tax_profile(
+    product_id: str,
+    payload: ProductTaxProfileUpdate,
+    db: Session=Depends(get_db),
+    ctx=Depends(require_roles("OWNER","FINANCE","CA")),
+):
+    product = db.get(Product, product_id)
+    if not product:
+        raise HTTPException(404, "Product not found")
+    row = db.execute(select(ProductTaxProfile).where(ProductTaxProfile.product_id == product_id)).scalar_one_or_none()
+    if row and row.status == "APPROVED":
+        raise HTTPException(409, "Approved tax profile must be reopened by CA before editing")
+    if not row:
+        row = ProductTaxProfile(id=uid("TAX"), product_id=product_id, classification_basis=payload.classification_basis, source_ref=payload.source_ref)
+        db.add(row)
+    row.sac = payload.sac
+    row.gst_rate_bps = int(payload.gst_rate * 100)
+    row.tax_treatment = payload.tax_treatment
+    row.supply_model = payload.supply_model
+    row.billing_enabled = payload.billing_enabled
+    row.classification_basis = payload.classification_basis
+    row.source_ref = payload.source_ref
+    row.status = "REVIEW_REQUIRED"
+    row.approved_by = None
+    row.approved_at = None
+    row.evidence_ref = None
+    row.approval_note = None
+    audit(db,ctx["actor"],ctx["role"],"tax.product_profile.updated","product_tax_profile",row.id,{"product_id":product_id,"sac":row.sac,"gst_rate_bps":row.gst_rate_bps,"billing_enabled":row.billing_enabled},"CONTROL")
+    db.commit()
+    return _tax_profile_json(db, row)
+
+
+@app.post("/api/v1/tax/gst/product-profiles/{product_id}/approve")
+def approve_product_tax_profile(
+    product_id: str,
+    payload: ProductTaxProfileApproval,
+    db: Session=Depends(get_db),
+    ctx=Depends(require_roles("CA")),
+):
+    row = db.execute(select(ProductTaxProfile).where(ProductTaxProfile.product_id == product_id)).scalar_one_or_none()
+    if not row:
+        raise HTTPException(404, "Product tax profile not found")
+    row.status = "APPROVED"
+    row.approved_by = ctx["actor"]
+    row.approved_at = now_utc()
+    row.evidence_ref = payload.evidence_ref
+    row.approval_note = payload.note
+    audit(db,ctx["actor"],ctx["role"],"tax.product_profile.approved","product_tax_profile",row.id,{"product_id":product_id,"evidence_ref":payload.evidence_ref},"CONTROL")
+    db.commit()
+    return _tax_profile_json(db, row)
+
+
+@app.post("/api/v1/tax/gst/product-profiles/{product_id}/reopen")
+def reopen_product_tax_profile(
+    product_id: str,
+    db: Session=Depends(get_db),
+    ctx=Depends(require_roles("CA")),
+):
+    row = db.execute(select(ProductTaxProfile).where(ProductTaxProfile.product_id == product_id)).scalar_one_or_none()
+    if not row:
+        raise HTTPException(404, "Product tax profile not found")
+    row.status = "REVIEW_REQUIRED"
+    row.approved_by = None
+    row.approved_at = None
+    row.evidence_ref = None
+    row.approval_note = None
+    audit(db,ctx["actor"],ctx["role"],"tax.product_profile.reopened","product_tax_profile",row.id,{"product_id":product_id},"CONTROL")
+    db.commit()
+    return _tax_profile_json(db, row)
+
+
+@app.get("/api/v1/tax/gst/configuration")
+def gst_configuration(db: Session=Depends(get_db), ctx=Depends(actor_context)):
+    entity = db.get(LegalEntity, ENTITY_ID)
+    profiles = db.execute(select(ProductTaxProfile)).scalars().all()
+    billing_profiles = [row for row in profiles if row.billing_enabled]
+    approved_billing = [row for row in billing_profiles if row.status == "APPROVED"]
+    gstin = gstin_structure_status(KRAVIA_GSTIN, entity.state_code if entity else None)
+    ready = bool(
+        gstin["configured"]
+        and gstin["structure_valid"]
+        and gstin["state_matches"]
+        and TAX_CONFIG_APPROVED
+        and billing_profiles
+        and len(approved_billing) == len(billing_profiles)
+    )
+    return {
+        "gstin": gstin,
+        "tax_config_approved": TAX_CONFIG_APPROVED,
+        "profiles": {
+            "configured": len(profiles),
+            "billing_enabled": len(billing_profiles),
+            "approved_billing": len(approved_billing),
+            "pending_billing": len(billing_profiles) - len(approved_billing),
+        },
+        "ready_for_production_invoicing": ready,
+        "portal_verification": "NOT_CONNECTED",
+        "note": "GST portal active-registration verification is an external evidence gate and is not inferred by KRAVIA Office.",
+    }
+
 
 @app.get("/api/v1/tax/gst/summary")
 def gst_summary(db: Session=Depends(get_db), ctx=Depends(actor_context)):
@@ -577,8 +760,12 @@ def list_plans(db: Session=Depends(get_db), ctx=Depends(actor_context), product_
 
 @app.post("/api/v1/commercial/plans", status_code=201)
 def create_plan(payload: PlanCreate, db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","FINANCE"))):
-    if not db.get(Product,payload.product_id): raise HTTPException(404,"Product not found")
-    row=CommercialPlan(id=uid("PLAN"),product_id=payload.product_id,code=payload.code,name=payload.name,billing_cycle=payload.billing_cycle,price_paise=paise(payload.price),gst_rate_bps=int(payload.gst_rate*100),sac=payload.sac,currency="INR",status="ACTIVE",effective_from=payload.effective_from,effective_to=payload.effective_to,config_json="{}")
+    product=db.get(Product,payload.product_id)
+    if not product: raise HTTPException(404,"Product not found")
+    profile, _resolved_rate = _resolve_product_tax_profile(
+        db, product, payload.sac, payload.gst_rate, require_approved=APP_ENV == "production"
+    )
+    row=CommercialPlan(id=uid("PLAN"),product_id=payload.product_id,code=payload.code,name=payload.name,billing_cycle=payload.billing_cycle,price_paise=paise(payload.price),gst_rate_bps=profile.gst_rate_bps,sac=profile.sac,currency="INR",status="ACTIVE",effective_from=payload.effective_from,effective_to=payload.effective_to,config_json=json.dumps({"tax_profile_id":profile.id}))
     db.add(row); emit_event(db,"commercial.plan.created","plan",row.id,{"code":row.code,"product_id":row.product_id}); audit(db,ctx["actor"],ctx["role"],"commercial.plan.created","plan",row.id,{"code":row.code},"CONTROL"); db.commit(); return _plan_json(row)
 
 @app.get("/api/v1/commercial/subscriptions")

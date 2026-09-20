@@ -10,10 +10,10 @@ def test_plan_subscription_credit_note_refund_banking_and_command_center():
     with TestClient(app) as c:
         prod=next(x for x in c.get('/api/v1/products',headers=h()).json() if x['code']=='VL')
         cust=c.post('/api/v1/customers',headers=h()|{'Idempotency-Key':'v2-cust'},json={'legal_name':'V2 School','state':'Andhra Pradesh','state_code':'37'}).json()
-        plan=c.post('/api/v1/commercial/plans',headers=h(),json={'product_id':prod['id'],'code':'GROWTH','name':'Growth','billing_cycle':'MONTHLY','price':'6999','gst_rate':'18','sac':'9983','effective_from':'2026-09-01'}).json()
+        plan=c.post('/api/v1/commercial/plans',headers=h(),json={'product_id':prod['id'],'code':'GROWTH','name':'Growth','billing_cycle':'MONTHLY','price':'6999','gst_rate':'18','sac':'998319','effective_from':'2026-09-01'}).json()
         sub=c.post('/api/v1/commercial/subscriptions',headers=h()|{'Idempotency-Key':'v2-sub'},json={'customer_id':cust['id'],'plan_id':plan['id'],'started_at':'2026-09-12','current_period_start':'2026-09-12','current_period_end':'2026-10-11'}).json()
         assert sub['status']=='ACTIVE'
-        inv=c.post('/api/v1/invoices',headers=h()|{'Idempotency-Key':'v2-inv'},json={'customer_id':cust['id'],'product_id':prod['id'],'description':'Growth plan','sac':'9983','taxable_value':'1000','gst_rate':'18'}).json()
+        inv=c.post('/api/v1/invoices',headers=h()|{'Idempotency-Key':'v2-inv'},json={'customer_id':cust['id'],'product_id':prod['id'],'description':'Growth plan','sac':'998319','taxable_value':'1000','gst_rate':'18'}).json()
         pay=c.post(f"/api/v1/invoices/{inv['id']}/payments",headers=h()|{'Idempotency-Key':'v2-pay'},json={'amount':'1180','method':'Bank Transfer','external_reference':'V2-UTR','received_date':'2026-09-12'}).json()
         cn=c.post(f"/api/v1/invoices/{inv['id']}/credit-notes",headers=h()|{'Idempotency-Key':'v2-cn'},json={'reason':'Approved service adjustment','taxable_value':'100'}).json()
         assert cn['total']=='118.00' and len(cn['credit_note_no'])<=16

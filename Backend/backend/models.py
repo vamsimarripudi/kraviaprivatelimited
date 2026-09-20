@@ -25,6 +25,29 @@ class Product(Base):
     status = Column(String, nullable=False, default="ACTIVE_CONFIG")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
+class ProductTaxProfile(Base):
+    __tablename__ = "product_tax_profiles"
+    id = Column(String, primary_key=True)
+    product_id = Column(String, ForeignKey("products.id"), nullable=False, unique=True)
+    sac = Column(String(6), nullable=False)
+    gst_rate_bps = Column(Integer, nullable=False, default=1800)
+    tax_treatment = Column(String(24), nullable=False, default="TAXABLE")
+    supply_model = Column(String(32), nullable=False, default="HOSTED_SAAS")
+    billing_enabled = Column(Boolean, nullable=False, default=True)
+    status = Column(String(24), nullable=False, default="REVIEW_REQUIRED")
+    classification_basis = Column(Text, nullable=False)
+    source_ref = Column(Text, nullable=False)
+    approved_by = Column(String(200), nullable=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    evidence_ref = Column(Text, nullable=True)
+    approval_note = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    __table_args__ = (
+        Index("ix_product_tax_profile_status", "status"),
+        Index("ix_product_tax_profile_billing", "billing_enabled"),
+    )
+
 class Customer(Base):
     __tablename__ = "customers"
     id = Column(String, primary_key=True)
