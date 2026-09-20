@@ -39,8 +39,8 @@ Canonical browser surfaces are now:
 - [x] Future registration is single-use/private-link only; links are issued by AAL2 OWNER/ADMIN authority and raw invite tokens are never stored
 - [x] Failed-login lockout, auditable login/MFA/session events, session revocation and controlled MFA reset
 - [x] Legacy Supabase Auth invite/recovery UI and callbacks removed from the active Office identity path
-- [ ] Production first-party secrets configured on Railway/Vercel and accepted live — cutover gate
-- [ ] First Founder registration + live TOTP/AAL2 acceptance — operator gate
+- [x] KRAVIA first-party identity runtime accepted live: production Founder registration, login, refresh and TOTP/AAL2 events are present in the live database
+- [x] Founder identity is ACTIVE with verified MFA and no current lockout
 - [ ] Full staging IDOR/BOLA/all-role acceptance matrix — production acceptance gate
 
 ### Path/workspace security
@@ -60,7 +60,7 @@ Canonical browser surfaces are now:
 - [x] Request-size bound, no-store responses and upstream redirect refusal
 - [x] Same-origin mutation protection for runtime and Office-auth mutations
 - [x] FastAPI remains the downstream RBAC/business-rule authority
-- [ ] Production `OFFICE_API_ORIGIN` — waits for canonical FastAPI production hosting
+- [ ] Canonical Vercel `OFFICE_API_ORIGIN` environment/domain read-back — GitHub deployment is green, but the connected Vercel connector is scoped to a different team and cannot currently inspect the production project
 
 ### Finance & Ownership
 - [x] Append-only share ledger / ownership summary / controlled transfers
@@ -128,12 +128,12 @@ Latest fully green `main` quality run verified:
 - [x] secret scan
 - [x] ESLint
 - [x] TypeScript typecheck
-- [x] root Vitest suite: **394 tests passed across 84 files**
+- [x] root Vitest suite: **405 tests passed across 85 files**
 - [x] Next.js 16.3.5 production build, including `/office`, `/office/register`, `/finance`, first-party Office auth and Office runtime gateway routes
 - [x] Python compilation
 - [x] committed OpenAPI drift verification
-- [x] clean Alembic migration chain through v10
-- [x] Office backend suite: **77 tests passed**
+- [x] clean Alembic migration chain through v14
+- [x] Office backend suite: **100 tests passed**
 - [x] first-party Argon2id credentials / hashed refresh sessions / HttpOnly cookies / one-time Founder bootstrap / private single-use invites / encrypted TOTP AAL2 / inactive-user / role-admission controls
 - [x] path-workspace role boundaries, legacy redirects, same-origin mutation guard and fixed-origin runtime gateway regression tests
 - [x] period-close, HTTP security, Drive taxonomy, finance/ownership/provider/idempotency, RBAC, governance, audit-chain and document controls
@@ -141,33 +141,39 @@ Latest fully green `main` quality run verified:
 
 ## Deployment state — verified 20 Sep 2026
 
-GitHub combined status for baseline `main` commit `3cc0759e178cecabc76a685e11a65b44301c1173` reports both Railway services green:
+Current accepted `main` baseline: `faa24b2878e2884f0a3004ab5da0985ebed9f1c4`.
 
-- `kravia-office-api` deployment check: **SUCCESS**;
-- `kravia-office-worker` deployment check: **SUCCESS**.
+- GitHub Actions quality run: **SUCCESS**.
+- Vercel deployment check on the current `main` HEAD: **SUCCESS**.
+- Railway `kravia-office-api`: latest deployment **SUCCESS**.
+- Railway `kravia-office-worker`: latest deployment **SUCCESS**.
+- Live worker heartbeat: successful 60-second cadence, no recorded failure at audit time.
+- Live Supabase/PostgreSQL Alembic revision: **v14** (`63d2f419ab77`).
+- Live first-party identity: Founder ACTIVE, MFA verified; successful login, refresh and MFA events observed.
+- Browser-role grants on the checked first-party auth/GST tables: **none** for `anon` / `authenticated`; RLS remains fail-closed.
+- Railway reports one staged production change whose exact field cannot be read with the current connector. It has **not** been accepted or deployed by this audit.
 
-The dedicated worker is therefore no longer an unprovisioned Free-plan gate. It is deployed through Railway's native GitHub integration and should now be accepted operationally through heartbeat/failure-alert observation, durable outbox processing and external telemetry/archive evidence.
+### GST production integration reality
 
-The Vercel check on the same baseline commit is **PENDING** at this verification point. A pending provider deployment is not production acceptance and is not evidence of a Next.js compile failure. Do not attach Office to an unrelated Vercel project merely to clear status; wait for the canonical `kravia1/kraviaprivatelimited` deployment result and read back its root/build/environment/domain configuration before production acceptance.
+The codebase now contains the IRIS IRP/e-Invoice adapter, IRIS VAS purchase-data reconciliation, GST return workings, and Fynamics/FYN Gateway GSP filing flow through v14. The production Railway API environment does **not** currently expose the required `GST_IRP_*`, `GST_IRP_VAS_*`, or `GST_GSP_*` provider configuration. Those flows therefore remain correctly fail-closed until provider credentials, taxpayer authorization and sandbox/production acceptance are supplied.
 
-The canonical browser remains path-based at `kraviaprivatelimited.com/office` and `/finance`; Railway is the backend API/worker runtime, not a second public Office UI.
+Audit branch `office/audit-resume-20260920` additionally fixes first-party cutover regressions found during this review: Finance login gating, shared workspace gating, collaboration mention lookup, workforce directory lookup, and Operations Readiness auth/session signals. These changes must pass PR CI before merge/deployment.
 
 ## External production gates intentionally not faked
 
-- production first-party auth cutover: Railway signing secret + shared Founder bootstrap secret + `AUTH_MODE=first_party`
-- first Founder registration and live TOTP/AAL2 verification
-- confirm the canonical `kravia1/kraviaprivatelimited` Vercel deployment reaches a terminal green state, resolve any recurring quota/capacity gate, re-authenticate connector access to that scope, and read back root/build/environment/domain configuration
-- apex `kraviaprivatelimited.com` domain attachment / DNS validation; optional `www` redirect
-- set/verify frontend `OFFICE_API_ORIGIN` against the accepted Railway API origin once the canonical Vercel project is accessible
-- decide and test the defense-in-depth RLS policy plan for the 52 legacy FastAPI tables; browser roles currently have zero CRUD and runtime transactions are constrained to `kravia_office_backend`
-- verify restricted database networking, backups/PITR, restore drill and secret-management/rotation controls
+- read back the canonical Vercel production project environment/domain configuration from the correct `kravia1` team scope and confirm `OFFICE_API_ORIGIN`
+- review the unread Railway staged production change before any acceptance/deploy action
+- complete all-role staging IDOR/BOLA, browser, accessibility and penetration acceptance
+- verify restricted database networking, backups/PITR, restore drill and secret rotation
+- configure and acceptance-test IRIS IRP credentials before live e-Invoice/IRN generation
+- configure and acceptance-test IRIS VAS credentials for authoritative purchase-data ingestion
+- onboard Fynamics/FYN Gateway GSP credentials, taxpayer OTP/session authorization and the version-gated filing contract before final EVC filing
 - real verified Company Master/GST/ownership evidence and CA/CS/legal approvals
 - live Razorpay/RazorpayX and bank/accounting authorizations
 - production private object storage + malware scanner
-- eSign/DSC where required
+- production eSign/DSC provider
 - Google Drive runtime service identity
-- accept the deployed Railway worker with observed heartbeat/failure-alert/outbox evidence; then connect verified external SLO telemetry and audit archive sink and configure provider edge/WAF controls
-- complete first-party identity cutover acceptance and final staging browser/accessibility/security assessment
+- verified external SLO telemetry, audit archive sink and provider edge/WAF controls
 
 ## Release rule
 
