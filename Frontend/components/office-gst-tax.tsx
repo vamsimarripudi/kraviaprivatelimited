@@ -36,6 +36,10 @@ type Customer = {
   id: string;
   legal_name: string;
   display_name: string;
+  gstin?: string | null;
+  billing_address?: string | null;
+  billing_locality?: string | null;
+  billing_pincode?: string | null;
 };
 
 type Product = {
@@ -97,7 +101,57 @@ type GstConfiguration = {
   };
   ready_for_production_invoicing: boolean;
   portal_verification: string;
+  authoritative_gstin?: {
+    provider: string;
+    registration_status?: string | null;
+    legal_name?: string | null;
+    trade_name?: string | null;
+    verified_at: string;
+    response_hash: string;
+  } | null;
   note: string;
+};
+
+type GstConnectorStatus = {
+  provider: string;
+  environment: string;
+  base_host?: string | null;
+  core_configured: boolean;
+  einvoice_enabled: boolean;
+  invoice_identity_configured: boolean;
+  ready_for_live_irn: boolean;
+  missing_configuration: string[];
+  gstin_masked?: string | null;
+  last_gstin_verification?: {
+    gstin: string;
+    legal_name?: string | null;
+    trade_name?: string | null;
+    registration_status?: string | null;
+    verified_at: string;
+  } | null;
+  last_operation?: {
+    operation: string;
+    status: string;
+    created_at?: string | null;
+    error_code?: string | null;
+  } | null;
+  secret_storage: string;
+};
+
+type EinvoiceRecord = {
+  id: string;
+  invoice_id: string;
+  provider: string;
+  environment: string;
+  status: string;
+  irn?: string | null;
+  ack_no?: string | null;
+  ack_at?: string | null;
+  generated_at?: string | null;
+  cancelled_at?: string | null;
+  cancel_reason_code?: string | null;
+  cancel_remarks?: string | null;
+  last_error?: string | null;
 };
 
 type WorkingTotals = {
@@ -118,6 +172,21 @@ async function runtime<T>(path: string, signal?: AbortSignal): Promise<T> {
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(typeof body.detail === "string" ? body.detail : "GST runtime request failed");
+  }
+  return body as T;
+}
+
+async function mutate<T>(path: string, payload?: unknown): Promise<T> {
+  const response = await fetch("/api/office-runtime/" + path, {
+    method: "POST",
+    credentials: "same-origin",
+    cache: "no-store",
+    headers: payload === undefined ? undefined : { "Content-Type": "application/json" },
+    body: payload === undefined ? undefined : JSON.stringify(payload),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(typeof body.detail === "string" ? body.detail : "GST provider action failed");
   }
   return body as T;
 }
@@ -176,8 +245,13 @@ export function OfficeGstTaxWorkspace({
   const [gstMaster, setGstMaster] = useState<GstMaster>();
   const [taxProfiles, setTaxProfiles] = useState<ProductTaxProfile[]>([]);
   const [configuration, setConfiguration] = useState<GstConfiguration>();
+  const [connector, setConnector] = useState<GstConnectorStatus>();
+  const [einvoices, setEinvoices] = useState<EinvoiceRecord[]>([]);
   const [period, setPeriod] = useState("ALL");
   const [loading, setLoading] = useState(true);
+  const [actionBusy, setActionBusy] = useState<string>();
+  const [notice, setNotice] = useState<string>();
+  const [cancelDrafts, setCancelDrafts] = useState<Record<string, { reason: string; remarks: string }>>({});
   const [error, setError] = useState<string>();
 
   const fetchRecords = useCallback((signal?: AbortSignal) => Promise.all([
@@ -188,13 +262,15 @@ export function OfficeGstTaxWorkspace({
     runtime<GstMaster>("tax/gst/master", signal),
     runtime<ProductTaxProfile[]>("tax/gst/product-profiles", signal),
     runtime<GstConfiguration>("tax/gst/configuration", signal),
+    runtime<GstConnectorStatus>("tax/gst/connector/status", signal),
+    runtime<EinvoiceRecord[]>("tax/gst/einvoice", signal),
   ]), []);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(undefined);
     try {
-      const [nextSummary, nextInvoices, nextCustomers, nextProducts, nextGstMaster, nextTaxProfiles, nextConfiguration] = await fetchRecords();
+      const [nextSummary, nextInvoices, nextCustomers, nextProducts, nextGstMaster, nextTaxProfiles, nextConfiguration, nextConnector, nextEinvoices] = await fetchRecords();
       setSummary(nextSummary);
       setInvoices(nextInvoices);
       setCustomers(nextCustomers);
@@ -202,6 +278,8 @@ export function OfficeGstTaxWorkspace({
       setGstMaster(nextGstMaster);
       setTaxProfiles(nextTaxProfiles);
       setConfiguration(nextConfiguration);
+      setConnector(nextConnector);
+      setEinvoices(nextEinvoices);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to load GST working records");
     } finally {
@@ -213,7 +291,7 @@ export function OfficeGstTaxWorkspace({
     const controller = new AbortController();
     let active = true;
     void fetchRecords(controller.signal)
-      .then(([nextSummary, nextInvoices, nextCustomers, nextProducts, nextGstMaster, nextTaxProfiles, nextConfiguration]) => {
+      .then(([nextSummary, nextInvoices, nextCustomers, nextProducts, nextGstMaster, nextTaxProfiles, nextConfiguration, nextConnector, nextEinvoices]) => {
         if (!active) return;
         setSummary(nextSummary);
         setInvoices(nextInvoices);
@@ -222,6 +300,8 @@ export function OfficeGstTaxWorkspace({
         setGstMaster(nextGstMaster);
         setTaxProfiles(nextTaxProfiles);
         setConfiguration(nextConfiguration);
+        setConnector(nextConnector);
+        setEinvoices(nextEinvoices);
       })
       .catch((caught) => {
         if (active && !(caught instanceof DOMException && caught.name === "AbortError")) {
