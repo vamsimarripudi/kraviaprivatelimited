@@ -27,7 +27,7 @@ jobs:
         with:
           node-version: 22
       - name: Install exact app dependencies
-        run: npm install --no-fund --no-audit
+        run: npm install --legacy-peer-deps --no-fund --no-audit
       - name: Dependency audit
         run: npm audit --audit-level=high
       - name: TypeScript
