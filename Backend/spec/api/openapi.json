@@ -5211,6 +5211,63 @@
         ]
       }
     },
+    "/api/v1/auth/founder/recovery-link": {
+      "post": {
+        "operationId": "issue_founder_break_glass_recovery_api_v1_auth_founder_recovery_link_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Kravia-Break-Glass-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Kravia-Break-Glass-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoveryIssuePayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Issue Founder Break Glass Recovery",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
     "/api/v1/auth/invitation": {
       "get": {
         "operationId": "invitation_status_api_v1_auth_invitation_get",
