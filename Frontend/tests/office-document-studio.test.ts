@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const migration = readFileSync(new URL("../../Database/supabase/migrations/202609180003_document_engine.sql", import.meta.url), "utf8");
+const executionMigration = readFileSync(new URL("../../Database/supabase/migrations/202609210002_document_execution_state_machine.sql", import.meta.url), "utf8");
 const server = readFileSync(new URL("../lib/office/document-studio-server.ts", import.meta.url), "utf8");
 const route = readFileSync(new URL("../app/api/office-documents/route.ts", import.meta.url), "utf8");
 const component = readFileSync(new URL("../components/office-document-studio.tsx", import.meta.url), "utf8");
@@ -52,6 +53,25 @@ describe("KRAVIA Document Studio", () => {
     expect(backend).toContain("escape(str(block.get");
   });
 
+  it("records signed PDF bytes and delivery evidence without fabricating provider execution", () => {
+    expect(executionMigration).toContain("office_document_signature_evidence");
+    expect(executionMigration).toContain("office_document_record_signature");
+    expect(executionMigration).toContain("office_document_record_delivery");
+    expect(executionMigration).toContain("A PDF source render is required for signature evidence");
+    expect(executionMigration).toContain("Document signature-record permission is required");
+    expect(executionMigration).toContain("Document delivery-record permission is required");
+    expect(server).toContain("recordOfficeSignedDocument");
+    expect(server).toContain('input.mimeType !== "application/pdf"');
+    expect(server).toContain('storage.from("office-documents").upload');
+    expect(server).toContain("Signed document integrity check failed");
+    expect(route).toContain("export async function PUT");
+    expect(route).toContain("signedUploadSchema");
+    expect(route).toContain("RECORD_DELIVERY");
+    expect(component).toContain("Record signed PDF");
+    expect(component).toContain("Record delivery");
+    expect(component).toContain("do not mark a document signed without the signed artifact");
+  });
+
   it("protects mutations and wires Document Studio into both Office and Finance documents", () => {
     expect(route).toContain("officeMutationIsSameOrigin");
     expect(route).toContain("PUBLISH_TEMPLATE_VERSION");
@@ -60,5 +80,7 @@ describe("KRAVIA Document Studio", () => {
     expect(screen).toContain('section === "documents"');
     expect(capabilities).toContain("document.hr.create");
     expect(capabilities).toContain("document.finance.create");
+    expect(capabilities).toContain("document.signature.record");
+    expect(capabilities).toContain("document.delivery.record");
   });
 });
