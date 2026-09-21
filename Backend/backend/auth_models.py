@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, Index
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, Index
 from sqlalchemy.sql import func
 
 from .database import Base
@@ -15,6 +15,7 @@ class OfficeAuthUser(Base):
     founder_slot = Column(String(32), nullable=True, unique=True)
     mfa_secret_ciphertext = Column(Text, nullable=True)
     mfa_verified_at = Column(DateTime(timezone=True), nullable=True)
+    mfa_last_accepted_counter = Column(BigInteger, nullable=True)
     failed_login_count = Column(Integer, nullable=False, default=0)
     locked_until = Column(DateTime(timezone=True), nullable=True)
     last_login_at = Column(DateTime(timezone=True), nullable=True)
@@ -53,6 +54,7 @@ class OfficeAuthSession(Base):
     refresh_token_hash = Column(String(64), nullable=False, unique=True)
     status = Column(String(24), nullable=False, default="ACTIVE")
     aal = Column(String(8), nullable=False, default="aal1")
+    mfa_failed_attempts = Column(Integer, nullable=False, default=0)
     ip_address = Column(String(64), nullable=True)
     user_agent_hash = Column(String(64), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
