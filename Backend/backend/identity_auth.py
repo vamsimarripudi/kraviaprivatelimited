@@ -46,6 +46,11 @@ RECOVERY_TTL_SECONDS = int(os.getenv("OFFICE_AUTH_RECOVERY_TTL_SECONDS", "1800")
 ISSUER = os.getenv("OFFICE_AUTH_ISSUER", "kravia-office")
 AUDIENCE = os.getenv("OFFICE_AUTH_AUDIENCE", "kravia-office-api")
 FOUNDER_SLOT = "PRIMARY_FOUNDER"
+MFA_ISSUER = "KRAVIA Office"
+MFA_AUTHENTICATOR_APP = "KRAVIA Authenticator"
+MFA_ALGORITHM = "SHA1"
+MFA_DIGITS = 6
+MFA_PERIOD_SECONDS = 30
 
 OFFICE_ROLES = {
     "OWNER",
@@ -834,6 +839,12 @@ def build_identity_router() -> APIRouter:
             "bootstrap_open": _bootstrap_open(db),
             "mfa_policy": "AAL2_REQUIRED",
             "mfa_factor": "TOTP",
+            "mfa_authenticator_app": MFA_AUTHENTICATOR_APP,
+            "mfa_required_for_all_roles": True,
+            "mfa_issuer": MFA_ISSUER,
+            "mfa_algorithm": MFA_ALGORITHM,
+            "mfa_digits": MFA_DIGITS,
+            "mfa_period_seconds": MFA_PERIOD_SECONDS,
             "founder_break_glass_configured": break_glass_configured(),
             "public_registration": "ONE_TIME_FOUNDER_ONLY" if _bootstrap_open(db) else "DISABLED",
             "invitation_registration": "SINGLE_USE_PRIVATE_LINK",
@@ -1181,14 +1192,25 @@ def build_identity_router() -> APIRouter:
         secret = pyotp.random_base32()
         user.mfa_secret_ciphertext = _encrypt_mfa_secret(secret)
         user.mfa_verified_at = None
-        uri = pyotp.TOTP(secret).provisioning_uri(name=user.email, issuer_name="KRAVIA Office")
+        factor = pyotp.TOTP(
+            secret,
+            digits=MFA_DIGITS,
+            interval=MFA_PERIOD_SECONDS,
+            digest=hashlib.sha1,
+        )
+        uri = factor.provisioning_uri(name=user.email, issuer_name=MFA_ISSUER)
         _event(db, "MFA_ENROLLMENT_STARTED", request, user_id=user.id, session_id=context["session_id"])
         db.commit()
         return {
             "factor_id": "totp",
             "qr_code": _qr_data_uri(uri),
             "manual_key": secret,
-            "friendly_name": "KRAVIA Office",
+            "friendly_name": MFA_AUTHENTICATOR_APP,
+            "issuer": MFA_ISSUER,
+            "algorithm": MFA_ALGORITHM,
+            "digits": MFA_DIGITS,
+            "period_seconds": MFA_PERIOD_SECONDS,
+            "required_for_all_roles": True,
         }
 
     @router.post("/mfa/verify")
@@ -1205,7 +1227,13 @@ def build_identity_router() -> APIRouter:
         if not user or not session or not user.mfa_secret_ciphertext:
             raise HTTPException(status_code=409, detail="Authenticator enrollment is required")
         secret = _decrypt_mfa_secret(user.mfa_secret_ciphertext)
-        if not pyotp.TOTP(secret).verify(payload.code, valid_window=1):
+        factor = pyotp.TOTP(
+            secret,
+            digits=MFA_DIGITS,
+            interval=MFA_PERIOD_SECONDS,
+            digest=hashlib.sha1,
+        )
+        if not factor.verify(payload.code, valid_window=1):
             _event(db, "MFA_FAILED", request, user_id=user.id, session_id=session.id)
             db.commit()
             raise HTTPException(status_code=400, detail="The authenticator code was not accepted")
