@@ -7,7 +7,6 @@ import { isOfficeRole, type OfficeRole } from "@/lib/office/workspaces";
 
 export const OFFICE_ACCESS_COOKIE = "kravia_office_access";
 export const OFFICE_REFRESH_COOKIE = "kravia_office_refresh";
-export const OFFICE_RECOVERY_COOKIE = "kravia_office_recovery";
 
 const ACCESS_COOKIE_MAX_AGE_SECONDS = 60 * 60;
 const REFRESH_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
@@ -168,17 +167,6 @@ export async function writeOfficeSessionCookies(session: OfficeSession) {
   }
 }
 
-export async function clearOfficeRecoveryCookie() {
-  const store = await cookies();
-  store.set(OFFICE_RECOVERY_COOKIE, "", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    path: "/",
-    maxAge: 0,
-  });
-}
-
 export async function clearOfficeSessionCookies() {
   const store = await cookies();
   const options = {
@@ -190,7 +178,6 @@ export async function clearOfficeSessionCookies() {
   };
   store.set(OFFICE_ACCESS_COOKIE, "", options);
   store.set(OFFICE_REFRESH_COOKIE, "", options);
-  store.set(OFFICE_RECOVERY_COOKIE, "", options);
 }
 
 async function contextFromPayload(payload: FirstPartyAuthResponse): Promise<OfficeSessionContext> {
@@ -251,7 +238,6 @@ export async function signInOffice(email: string, password: string): Promise<Off
   });
   const payload = await parseOrThrow<FirstPartyAuthResponse>(response);
   const context = await contextFromPayload(payload);
-  await clearOfficeRecoveryCookie();
   await writeOfficeSessionCookies(context.session);
   return context;
 }
@@ -401,18 +387,3 @@ export async function signOutOffice(context?: OfficeSessionContext | null) {
   await clearOfficeSessionCookies();
 }
 
-// Recovery is intentionally administrator-assisted in the first-party rollout.
-// No email-based self-service recovery endpoint is exposed until its provider and
-// anti-takeover workflow are separately approved.
-export async function requestOfficePasswordRecovery() {
-  throw new Error("ADMINISTRATOR_ASSISTED_RECOVERY_REQUIRED");
-}
-export async function verifyOfficeRecoveryToken() {
-  throw new Error("ADMINISTRATOR_ASSISTED_RECOVERY_REQUIRED");
-}
-export async function writeOfficeRecoveryCookie() {
-  throw new Error("ADMINISTRATOR_ASSISTED_RECOVERY_REQUIRED");
-}
-export async function officeRecoveryIsVerified() {
-  return false;
-}
