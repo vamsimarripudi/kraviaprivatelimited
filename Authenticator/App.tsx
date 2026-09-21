@@ -642,7 +642,7 @@ const styles = StyleSheet.create({
   info: { color: "#42524a", backgroundColor: "#eef1ef", borderRadius: 12, padding: 12, lineHeight: 19 },
   securityNote: { color: "#78827d", fontSize: 11, lineHeight: 17, textAlign: "center" },
   scannerShell: { flex: 1, backgroundColor: "#0d1511" },
-  camera: { ...StyleSheet.absoluteFillObject },
+  camera: { ...StyleSheet.absoluteFill },
   scannerOverlay: { flex: 1, justifyContent: "flex-end", padding: 24, gap: 12, backgroundColor: "rgba(0,0,0,.25)" },
   scanFrame: { position: "absolute", alignSelf: "center", top: "22%", width: 250, height: 250, borderRadius: 24, borderWidth: 3, borderColor: "#d9ffe8", backgroundColor: "transparent" },
   scannerTitle: { color: "#fff", fontSize: 25, fontWeight: "900" },
