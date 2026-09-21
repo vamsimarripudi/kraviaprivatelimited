@@ -22,6 +22,8 @@ describe("KRAVIA Authenticator boundary", () => {
       expect(login).toContain(`"${role}"`);
     }
     expect(login).toContain("KRAVIA Authenticator is required for every Office role");
+    expect(login).toContain("showManualKey");
+    expect(login).toContain("Can’t scan the QR? Show setup key");
     expect(login).toContain('href="/office/authenticator"');
     expect(installPage).toContain("MANDATORY FOR EVERY OFFICE ROLE");
     expect(installPage).toContain("KRAVIA_AUTHENTICATOR_ANDROID_URL");
