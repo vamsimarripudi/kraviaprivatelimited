@@ -28,16 +28,13 @@ Secrets:
   - Strong independent backup-encryption secret.
   - Never reuse the Office signing or Founder bootstrap secrets.
 
-Variable:
-
-- `KRAVIA_BACKUPS_ENABLED=true`
-  - Scheduled backups remain disabled until this variable is explicitly enabled.
+The production backup schedule is enabled directly in the workflow and does not depend on a repository variable. Missing secrets fail the run closed rather than silently skipping the backup.
 
 ## Schedule
 
 The committed schedule is daily at **02:00 Asia/Kolkata** (20:30 UTC on the previous date).
 
-Manual `workflow_dispatch` is always available for validation and restore-drill preparation.
+Manual `workflow_dispatch` is always available for validation and restore-drill preparation. A change to the backup workflow on `main` also triggers an immediate proof run.
 
 ## Backup contents
 
