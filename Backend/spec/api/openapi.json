@@ -326,6 +326,17 @@
             ],
             "title": "Context Id"
           },
+          "context_metadata": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context Metadata"
+          },
           "context_type": {
             "anyOf": [
               {
