@@ -1,0 +1,14 @@
+appId: com.kraviaprivatelimited.authenticator
+name: Manual KRAVIA enrollment after OS unlock
+---
+- assertVisible: "Enroll this phone"
+- tapOn: "Enter setup key"
+- assertVisible: "Add KRAVIA Office"
+- tapOn: "name@kraviaprivatelimited.com"
+- inputText: "qa@kraviaprivatelimited.com"
+- tapOn: "JBSW Y3DP ..."
+- inputText: "JBSWY3DPEHPK3PXP"
+- tapOn: "Save authenticator"
+- assertVisible: "Login code"
+- assertVisible: "qa@kraviaprivatelimited.com"
+- assertVisible: "Clipboard export is disabled."

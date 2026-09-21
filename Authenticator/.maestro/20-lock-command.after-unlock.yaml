@@ -1,0 +1,6 @@
+appId: com.kraviaprivatelimited.authenticator
+name: Manual lock returns to protected boundary
+---
+- tapOn: "Lock"
+- assertVisible: "Unlock authenticator"
+- assertVisible: "No password · No network · No clipboard export"

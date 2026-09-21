@@ -1,0 +1,61 @@
+name: KRAVIA Office browser E2E
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "Testing/playwright/**"
+      - "Frontend/next.config.ts"
+      - "Frontend/tests/office-auth-cache-policy.test.ts"
+      - ".github/workflows/office-e2e.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kravia-office-browser-e2e
+  cancel-in-progress: true
+
+jobs:
+  chromium:
+    name: Office browser E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Install canonical Frontend dependencies
+        working-directory: Frontend
+        run: npm ci --no-fund --no-audit
+
+      - name: Install pinned Playwright test harness
+        working-directory: Testing/playwright
+        run: npm install --no-fund --no-audit
+
+      - name: Install Chromium runtime
+        working-directory: Testing/playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Run desktop + mobile Chromium Office auth E2E
+        working-directory: Testing/playwright
+        env:
+          CI: "1"
+        run: npm run test:ci
+
+      - name: Upload failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kravia-office-playwright-failure-evidence
+          path: |
+            Testing/playwright/test-results
+            Testing/playwright/playwright-report
+          if-no-files-found: ignore
+          retention-days: 5

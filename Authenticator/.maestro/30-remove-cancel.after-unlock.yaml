@@ -1,0 +1,8 @@
+appId: com.kraviaprivatelimited.authenticator
+name: Enrollment removal requires explicit confirmation
+---
+- assertVisible: "Login code"
+- tapOn: "Remove enrollment"
+- assertVisible: "Remove KRAVIA Office account?"
+- tapOn: "Cancel"
+- assertVisible: "Login code"

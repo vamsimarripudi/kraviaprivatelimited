@@ -8,22 +8,22 @@ Verified: **21 Sep 2026**
 
 The validated completion baseline before documentation-only closeout was:
 
-- branch: `office/internal-completion-20260921`
-- commit: `c2736b30da78780d8cc8dfd069803bd40f6145e3`
-- GitHub Actions run: `35555188569`
+- branch: `main`
+- commit: `00d16e1aaa8561683726f6d962efea751546c2ff`
+- GitHub Actions run: `35569335468`
 - all four quality jobs: **PASS**
 
 ### Automated acceptance
 
-- Frontend: **89 / 89 test files, 431 / 431 tests passed**
-- Backend: **110 / 110 tests passed**
+- Frontend: **90 / 90 test files, 435 / 435 tests passed**
+- Backend: **114 / 114 tests passed**
 - ESLint: **PASS**
 - TypeScript: **PASS**
 - dependency audit: **0 vulnerabilities**
 - secret scan: **PASS**
 - Next.js production build: **PASS**
 - OpenAPI drift check: **PASS**
-- Alembic migration chain through **v14**: **PASS**
+- Alembic migration chain through **v15**: **PASS**
 - hardened Office quality gate: **PASS**
 - Railway API container build + liveness smoke: **PASS**
 - background worker container build + one-shot smoke: **PASS**
@@ -60,7 +60,7 @@ Live evidence already observed:
 - MFA verified;
 - successful first-party login, refresh and MFA events;
 - active first-party sessions;
-- live PostgreSQL/Alembic revision v14.
+- repository migration chain through v15; live production revision still requires deployment read-back.
 
 ## Authorization/security — complete
 
@@ -158,14 +158,25 @@ The KRAVIA Office Supabase project now includes:
 - signed-document quarantine context;
 - signed delivery bound to verified signature evidence.
 
+## Browser/native E2E closeout
+
+The repository now also carries:
+
+- Playwright Office authentication/MFA browser E2E under `Testing/playwright/`;
+- a low-usage GitHub Actions browser workflow that runs only when the E2E harness or auth cache policy changes, plus manual dispatch;
+- native Maestro flows under `Authenticator/.maestro/`;
+- a global `no-store` response policy for every `/api/office-auth/*` route, including early failures.
+
+Native biometric, screen-capture and reinstall behavior still require emulator/physical-device acceptance because KRAVIA intentionally provides no production biometric bypass.
+
 ## External production gates — remaining work is external-only
 
 No major code-owned feature is intentionally left for the current Office scope.
 
 The remaining activation items require credentials, provider accounts, professional review, infrastructure access or independent acceptance:
 
-1. canonical Vercel `kravia1` team/project access and production environment read-back;
-2. merge/deploy this internally accepted release to production;
+1. canonical Vercel production project creation/reconnection and production environment read-back; the connected Vercel workspace audited on 21 Sep 2026 did not expose a `kraviaprivatelimited` project;
+2. deploy the internally accepted `main` release to the approved production host;
 3. production `OFFICE_AUTH_BREAK_GLASS_SECRET` generation/storage and controlled drill;
 4. production ClamAV service + EICAR acceptance;
 5. IRIS IRP credentials/sandbox acceptance;

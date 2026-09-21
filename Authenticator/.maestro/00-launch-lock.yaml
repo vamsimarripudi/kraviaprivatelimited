@@ -1,0 +1,7 @@
+appId: com.kraviaprivatelimited.authenticator
+name: KRAVIA Authenticator cold launch stays locked
+---
+- launchApp:
+    clearState: true
+- assertVisible: "Unlock authenticator"
+- assertVisible: "No password · No network · No clipboard export"

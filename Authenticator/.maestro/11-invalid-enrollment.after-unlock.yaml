@@ -1,0 +1,11 @@
+appId: com.kraviaprivatelimited.authenticator
+name: Reject non-corporate manual enrollment after OS unlock
+---
+- assertVisible: "Enroll this phone"
+- tapOn: "Enter setup key"
+- tapOn: "name@kraviaprivatelimited.com"
+- inputText: "qa@example.com"
+- tapOn: "JBSW Y3DP ..."
+- inputText: "JBSWY3DPEHPK3PXP"
+- tapOn: "Save authenticator"
+- assertVisible: "KRAVIA enrollment must use a corporate kraviaprivatelimited.com account"

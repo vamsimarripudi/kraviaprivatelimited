@@ -9,14 +9,14 @@ The **code-owned KRAVIA Office product scope is internally complete**.
 Validated completion baseline:
 
 - branch: `office/internal-completion-20260921`
-- validated code head before documentation-only closeout: `c2736b30da78780d8cc8dfd069803bd40f6145e3`
-- GitHub Actions run: `35555188569`
+- validated baseline before the current E2E closeout: `00d16e1aaa8561683726f6d962efea751546c2ff`
+- GitHub Actions run: `35569335468`
 - result: **SUCCESS**
-- frontend: **89 / 89 files, 431 / 431 tests**
-- backend: **110 / 110 tests**
+- frontend: **90 / 90 files, 435 / 435 tests**
+- backend: **114 / 114 tests**
 - production Next.js build: **PASS**
 - OpenAPI: **PASS**
-- Alembic through v14: **PASS**
+- Alembic through v15: **PASS**
 - API container/liveness: **PASS**
 - worker container/smoke: **PASS**
 
@@ -150,14 +150,14 @@ These are the only actions that still block full external/production acceptance.
 ### P0 — do today before calling the release production-ready
 
 1. **Vercel**
-   - use/reconnect the canonical KRAVIA / `kravia1` team;
+   - create/reconnect the canonical KRAVIA Vercel production project; the connected Vercel workspace audited on 21 Sep 2026 did not expose a `kraviaprivatelimited` project;
    - ensure old preview deployments are cleaned enough to remove the Functions Storage block;
    - confirm `kraviaprivatelimited` production project points to the correct repository/root;
    - verify `OFFICE_API_ORIGIN` and Office server-only variables;
    - confirm the post-merge production deployment reaches green.
 
 2. **Railway**
-   - verify API + worker production services track the accepted `main`;
+   - verify the approved production API + worker services track the accepted `main`; the connected Railway workspace audited on 21 Sep 2026 did not expose a KRAVIA Office project;
    - inspect the currently staged Railway production change before accepting it;
    - confirm API and worker secret sets are consistent where required.
 

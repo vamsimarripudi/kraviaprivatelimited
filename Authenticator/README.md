@@ -229,3 +229,29 @@ TOTP remains the offline second factor.
 If KRAVIA later requires cryptographic proof that the **official signed app** approved each login, add device/app attestation plus a per-login signed challenge (for example Play Integrity/App Attest or passkeys). A standards-compliant TOTP server cannot distinguish which compatible authenticator generated a valid code if someone has copied the underlying seed.
 
 Do not replace RFC 6238 with proprietary OTP mathematics.
+
+
+## Native UI automation
+
+Free/local native UI acceptance helpers live under `.maestro/`.
+
+The cold-launch flow is fully automated and proves the application starts behind the local-authentication boundary:
+
+```bash
+maestro test .maestro/00-launch-lock.yaml
+```
+
+Flows suffixed with `.after-unlock.yaml` intentionally require the tester to satisfy the operating-system biometric/device-authentication prompt first. KRAVIA does not add a production biometric bypass for automation.
+
+Examples:
+
+```bash
+maestro test .maestro/10-manual-enrollment.after-unlock.yaml
+maestro test .maestro/11-invalid-enrollment.after-unlock.yaml
+maestro test .maestro/20-lock-command.after-unlock.yaml
+maestro test .maestro/30-remove-cancel.after-unlock.yaml
+```
+
+The manual-enrollment flow uses the non-production test identity `qa@kraviaprivatelimited.com` and RFC-compatible test secret `JBSWY3DPEHPK3PXP`. Never replace it with a production enrollment seed in source control.
+
+Maestro is a UI runner, not a substitute for the existing RFC/security unit tests or final physical-device biometric, screenshot-protection and reinstall acceptance.
