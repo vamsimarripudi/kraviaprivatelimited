@@ -38,7 +38,10 @@ describe("KRAVIA Office repository-wide security matrix", () => {
 
     for (const path of files) {
       const source = readFileSync(path, "utf8");
-      const mutates = /\.(?:insert|update|delete|upsert|rpc)\s*\(/.test(source);
+      // RPCs can be read-only (for example office_current_company_identity).
+      // Direct table writers are unambiguously mutation-capable and must carry
+      // an explicit server-side identity/permission boundary in this layer.
+      const mutates = /\.(?:insert|update|delete|upsert)\s*\(/.test(source);
       const serviceAuthority = /createOfficeServiceClient|requireOfficeAdminEnvironment|createClient\(/.test(source);
       if (!mutates || !serviceAuthority) continue;
 
@@ -53,6 +56,19 @@ describe("KRAVIA Office repository-wide security matrix", () => {
 
       if (!hasBoundary) violations.push(relative(officeRoot, path).replaceAll("\\", "/"));
     }
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps retired authentication ledgers out of active Office server modules", () => {
+    const officeRoot = resolve(import.meta.dirname, "../lib/office");
+    const violations = filesUnder(officeRoot)
+      .filter((path) => path.endsWith(".ts"))
+      .filter((path) => {
+        const source = readFileSync(path, "utf8");
+        return /\.from\(\s*["'`]office_auth_sessions["'`]\s*\)|\.from\(\s*["'`]office_auth_events["'`]\s*\)/.test(source);
+      })
+      .map((path) => relative(officeRoot, path).replaceAll("\\", "/"));
 
     expect(violations).toEqual([]);
   });
