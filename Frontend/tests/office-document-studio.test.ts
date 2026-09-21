@@ -63,9 +63,12 @@ describe("KRAVIA Document Studio", () => {
     expect(server).toContain("queueOfficeSignedDocumentEvidence");
     expect(server).toContain('input.mimeType !== "application/pdf"');
     expect(server).toContain('storage.from("office-documents").upload');
-    expect(server).toContain("Signed document integrity check failed");\n    expect(server).toContain('context_type", "DOCUMENT_SIGNATURE"');\n    expect(server).not.toContain('storage.from("office-documents").upload(storageReference, input.bytes');
+    expect(server).toContain("Signed document integrity check failed");
+    expect(server).toContain('context_type", "DOCUMENT_SIGNATURE"');
+    expect(server).not.toContain('storage.from("office-documents").upload(storageReference, input.bytes');
     expect(route).toContain("export async function PUT");
-    expect(route).toContain("signedUploadSchema");\n    expect(component).toContain("entered private quarantine");
+    expect(route).toContain("signedUploadSchema");
+    expect(component).toContain("entered private quarantine");
     expect(route).toContain("RECORD_DELIVERY");
     expect(component).toContain("Record signed PDF");
     expect(component).toContain("Record delivery");
