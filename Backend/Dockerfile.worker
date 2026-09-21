@@ -13,4 +13,4 @@ RUN mkdir -p /app/runtime/private-vault \
     && useradd --create-home --uid 10001 --shell /usr/sbin/nologin kravia \
     && chown -R kravia:kravia /app /opt/venv
 USER kravia
-CMD ["python","-m","backend.worker"]
+CMD ["/opt/venv/bin/python","-m","backend.worker"]
