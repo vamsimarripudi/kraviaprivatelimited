@@ -3,7 +3,7 @@ import { KeyRound } from "lucide-react";
 import { OfficeAuthLayout } from "@/components/office-auth-layout";
 import { OfficePasswordRecoveryForm } from "@/components/office-password-recovery-form";
 
-type SearchParams = Promise<{ token?: string | string[] }>;
+export const metadata = { robots: { index: false, follow: false }, referrer: "no-referrer" as const };\n\ntype SearchParams = Promise<{ token?: string | string[] }>;
 
 export default async function OfficeResetPasswordPage({ searchParams }: { searchParams: SearchParams }) {
   const { token } = await searchParams;
