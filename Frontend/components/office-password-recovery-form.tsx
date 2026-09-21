@@ -1,12 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Eye, EyeOff, KeyRound, LoaderCircle, ShieldCheck } from "lucide-react";
 import styles from "./workspace-login-form.module.css";
 
 export function OfficePasswordRecoveryForm({ token }: { token: string }) {
   const [password, setPassword] = useState("");
+
+  useEffect(() => {
+    if (window.location.search) window.history.replaceState(null, "", "/office/reset-password");
+  }, []);
   const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [pending, setPending] = useState(false);
