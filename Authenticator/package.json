@@ -7,6 +7,8 @@
     "node": ">=22.13"
   },
   "scripts": {
+    "prepare": "npm run prepare:assets",
+    "prepare:assets": "node scripts/prepare-brand-assets.mjs",
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
@@ -14,23 +16,25 @@
     "test": "vitest run",
     "export:android": "expo export --platform android --output-dir dist/android",
     "export:ios": "expo export --platform ios --output-dir dist/ios",
-    "prepare:assets": "node scripts/generate-icon.mjs",
     "prestart": "npm run prepare:assets",
     "preandroid": "npm run prepare:assets",
     "preios": "npm run prepare:assets",
-    "eas-build-pre-install": "node scripts/generate-icon.mjs"
+    "preexport:android": "npm run prepare:assets",
+    "preexport:ios": "npm run prepare:assets",
+    "eas-build-pre-install": "node scripts/prepare-brand-assets.mjs"
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",
     "expo": "~57.0.24",
     "expo-camera": "~57.0.5",
+    "expo-file-system": "~57.0.7",
     "expo-haptics": "~57.0.3",
     "expo-local-authentication": "~57.0.3",
     "expo-screen-capture": "~57.0.3",
     "expo-secure-store": "~57.0.4",
+    "expo-splash-screen": "~57.0.9",
     "react": "19.2.3",
-    "react-native": "0.86.3",
-    "expo-file-system": "~57.0.7"
+    "react-native": "0.86.3"
   },
   "devDependencies": {
     "@types/node": "26.6.2",

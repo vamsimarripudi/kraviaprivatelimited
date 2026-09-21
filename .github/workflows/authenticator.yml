@@ -42,20 +42,26 @@ jobs:
       - name: Dependency audit
         run: npm audit --package-lock-only --audit-level=high
 
+      - name: Reconstruct and verify locked generated artwork
+        run: npm run prepare:assets
+
+      - name: Verify generated artwork dimensions
+        shell: bash
+        run: |
+          test -s assets/brand/icon.png
+          test -s assets/brand/splash.jpg
+          test -s assets/brand/loading.jpg
+          test -s assets/brand/settings-reference.jpg
+          file assets/brand/icon.png | grep -q 'PNG image data, 1024 x 1024'
+          file assets/brand/splash.jpg | grep -q '360x640'
+          file assets/brand/loading.jpg | grep -q '360x640'
+          file assets/brand/settings-reference.jpg | grep -q '360x640'
+
       - name: TypeScript
         run: npm run typecheck
 
-      - name: RFC/provisioning/security tests
+      - name: RFC/provisioning/security/brand tests
         run: npm test
-
-      - name: Generate deterministic KRAVIA native assets
-        run: npm run prepare:assets
-
-      - name: Verify generated app icon
-        shell: bash
-        run: |
-          test -s assets/icon.png
-          file assets/icon.png | grep -q 'PNG image data, 1024 x 1024'
 
       - name: Android JS bundle export
         env:
@@ -115,23 +121,9 @@ jobs:
           "$build_tools/zipalign" -f -p 4 "$unsigned" "$aligned"
           "$build_tools/zipalign" -c -P 16 -v 4 "$aligned"
 
-          keytool -genkeypair \
-            -keystore "$keystore" \
-            -storepass "$password" \
-            -keypass "$password" \
-            -alias kravia-ci-test \
-            -keyalg RSA \
-            -keysize 4096 \
-            -validity 7 \
-            -dname "CN=KRAVIA Authenticator CI Test,OU=Engineering,O=Kravia Private Limited,C=IN"
+          keytool -genkeypair             -keystore "$keystore"             -storepass "$password"             -keypass "$password"             -alias kravia-ci-test             -keyalg RSA             -keysize 4096             -validity 7             -dname "CN=KRAVIA Authenticator CI Test,OU=Engineering,O=Kravia Private Limited,C=IN"
 
-          "$build_tools/apksigner" sign \
-            --ks "$keystore" \
-            --ks-key-alias kravia-ci-test \
-            --ks-pass "pass:$password" \
-            --key-pass "pass:$password" \
-            --out "$output" \
-            "$aligned"
+          "$build_tools/apksigner" sign             --ks "$keystore"             --ks-key-alias kravia-ci-test             --ks-pass "pass:$password"             --key-pass "pass:$password"             --out "$output"             "$aligned"
 
           "$build_tools/apksigner" verify --verbose --print-certs "$output" | tee kravia-authenticator-ci-test.signature.txt
           rm -f "$aligned" "$keystore"

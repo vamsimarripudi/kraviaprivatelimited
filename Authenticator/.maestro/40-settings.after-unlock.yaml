@@ -1,0 +1,14 @@
+appId: com.kraviaprivatelimited.authenticator
+name: KRAVIA Settings security state after OS unlock
+---
+- assertVisible: "Authenticator"
+- tapOn: "Settings"
+- assertVisible: "Settings"
+- assertVisible: "Biometric Lock"
+- assertVisible: "Lock on Background"
+- assertVisible: "Clipboard Export"
+- assertVisible: "Manual Enrollment Help"
+- assertVisible: "Privacy & Security"
+- assertVisible: "About KRAVIA Authenticator"
+- assertVisible: "App Version"
+- tapOn: "Authenticator"

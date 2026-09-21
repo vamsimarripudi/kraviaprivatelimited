@@ -9,3 +9,4 @@ ios/
 *.p12
 .env*
 assets/icon.png
+assets/brand/

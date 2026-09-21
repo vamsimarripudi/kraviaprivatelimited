@@ -5,7 +5,7 @@ const flow = (name: string) =>
   readFileSync(new URL(`../.maestro/${name}`, import.meta.url), "utf8");
 
 describe("KRAVIA Authenticator Maestro acceptance profile", () => {
-  it("keeps cold launch behind the local-auth boundary", () => {
+  it("keeps cold launch behind the branded splash and local-auth boundary", () => {
     const source = flow("00-launch-lock.yaml");
     expect(source).toContain("clearState: true");
     expect(source).toContain('assertVisible: "Unlock authenticator"');
@@ -23,5 +23,14 @@ describe("KRAVIA Authenticator Maestro acceptance profile", () => {
     const source = flow("11-invalid-enrollment.after-unlock.yaml");
     expect(source).toContain("qa@example.com");
     expect(source).toContain("KRAVIA enrollment must use a corporate kraviaprivatelimited.com account");
+  });
+
+  it("covers the Settings tab without weakening mandatory controls", () => {
+    const source = flow("40-settings.after-unlock.yaml");
+    expect(source).toContain('tapOn: "Settings"');
+    expect(source).toContain('assertVisible: "Biometric Lock"');
+    expect(source).toContain('assertVisible: "Lock on Background"');
+    expect(source).toContain('assertVisible: "Clipboard Export"');
+    expect(source).toContain('assertVisible: "App Version"');
   });
 });

@@ -27,11 +27,21 @@
         "android.permission.USE_BIOMETRIC"
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#123D2E"
+        "foregroundImage": "./assets/brand/icon.png",
+        "backgroundColor": "#05251C"
       }
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#05251C",
+          "image": "./assets/brand/splash.jpg",
+          "imageWidth": 360,
+          "resizeMode": "cover",
+          "enableFullScreenImage_legacy": true
+        }
+      ],
       [
         "expo-camera",
         {
@@ -57,7 +67,8 @@
     "extra": {
       "mfaIssuer": "KRAVIA Office",
       "networkModel": "OFFLINE_TOTP_ONLY",
-      "otpClipboard": "DISABLED"
+      "otpClipboard": "DISABLED",
+      "brandAssets": "LOCKED_GENERATED_ARTWORK"
     },
     "platforms": [
       "ios",
@@ -66,6 +77,6 @@
     "updates": {
       "enabled": false
     },
-    "icon": "./assets/icon.png"
+    "icon": "./assets/brand/icon.png"
   }
 }
