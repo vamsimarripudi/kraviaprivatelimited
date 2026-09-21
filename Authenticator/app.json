@@ -17,7 +17,15 @@
     "android": {
       "package": "com.kraviaprivatelimited.authenticator",
       "versionCode": 1,
-      "allowBackup": false
+      "allowBackup": false,
+      "blockedPermissions": [
+        "android.permission.INTERNET",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.USE_BIOMETRIC"
+      ]
     },
     "plugins": [
       [
@@ -43,7 +51,15 @@
       ]
     ],
     "extra": {
-      "mfaIssuer": "KRAVIA Office"
+      "mfaIssuer": "KRAVIA Office",
+      "networkModel": "OFFLINE_TOTP_ONLY"
+    },
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "updates": {
+      "enabled": false
     }
   }
 }
