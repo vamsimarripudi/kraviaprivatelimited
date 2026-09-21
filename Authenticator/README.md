@@ -1,38 +1,138 @@
 # KRAVIA Authenticator
 
-Private companion authenticator for KRAVIA Office and KRAVIA Finance.
+Private native second-factor application for KRAVIA Office and KRAVIA Finance.
 
-## Security model
+## Authentication model
 
-- Standard RFC 6238 TOTP; no proprietary OTP algorithm.
-- KRAVIA Office issuer only.
-- Six digits, 30-second period, HMAC-SHA1 as required by the interoperable TOTP profile.
-- Enrollment secret is stored only in native secure storage.
-- No cloud sync.
-- No Office password inside the app.
-- No network request is required to generate codes.
-- Android production manifests explicitly block `INTERNET` and `RECORD_AUDIO` permissions.
-- Expo runtime OTA updates are disabled; executable code ships with the signed native binary.
-- Device authentication protects access to the app.
-- Screen capture/recording is blocked while the app is open.
-- App-switcher content is protected on iOS.
-- Only one KRAVIA Office identity is stored per app installation.
-- The secret is never shown again after enrollment.
-- Lost/replaced phones require a governed Office MFA reset and fresh enrollment.
+KRAVIA Authenticator uses **RFC 6238 TOTP**, not a proprietary "encrypted OTP" algorithm.
 
-SHA-1 is used only inside the HMAC construction required by this TOTP profile, not as a general-purpose password or document hash.
+KRAVIA Office generates a cryptographically random Base32 seed during MFA enrollment. The server encrypts that seed at rest. The phone stores the same seed in native secure storage and derives the current six-digit code from the seed and the current 30-second time counter.
+
+The six-digit code is deliberately short-lived standard proof. The **seed** is the credential that must remain secret.
+
+Profile:
+
+- issuer: `KRAVIA Office`
+- type: TOTP
+- HMAC: SHA-1 for RFC interoperability
+- digits: 6
+- period: 30 seconds
+- account label: authorised `@kraviaprivatelimited.com` identity
+
+The backend additionally rejects reuse of an already accepted TOTP counter and revokes an AAL1 session after the configured number of consecutive bad MFA attempts.
+
+## Mandatory Office policy
+
+Every admitted Office/Finance role must complete AAL2 MFA:
+
+- OWNER
+- DIRECTOR
+- ADMIN
+- MEMBER
+- FINANCE
+- CA
+- CS
+- LEGAL
+- HR
+- OPERATIONS
+- AUDITOR
+- PRODUCT_ADMIN
+
+There is no role-specific MFA bypass.
+
+Canonical login:
+
+1. enter KRAVIA corporate email and first-party Office password;
+2. password success creates an AAL1 session only;
+3. if no factor exists, Office displays the KRAVIA Authenticator QR/manual setup key;
+4. scan the QR or enter the setup key in this app;
+5. enter the current six-digit code in Office;
+6. FastAPI verifies the TOTP, replay counter and attempt policy;
+7. only successful verification promotes the session to AAL2 and opens protected Office/Finance routes.
+
+## Phone-side security boundary
+
+The app is intentionally an **offline credential vault**, not an Office client.
+
+- no Office password;
+- no Office access/refresh tokens;
+- no Office API calls to generate codes;
+- Android INTERNET permission explicitly removed from the final manifest;
+- Android RECORD_AUDIO permission removed;
+- Expo OTA executable updates disabled;
+- camera only for enrollment QR scanning;
+- no cloud seed sync;
+- no OTP clipboard export;
+- strong enrolled biometric required before vault unlock;
+- device passcode remains OS fallback after supported biometric authentication;
+- TOTP seed stored with `WHEN_PASSCODE_SET_THIS_DEVICE_ONLY`;
+- screen capture/recording blocked while active;
+- iOS app-switcher content protected;
+- app locks on background/inactive transition;
+- in-memory account/seed cleared on lock;
+- manual setup key input masked;
+- one KRAVIA identity per app installation;
+- stored account is validated before use;
+- reinstall boundary prevents an iOS Keychain seed from silently reappearing in a fresh app container.
+
+### Reinstall boundary
+
+iOS Keychain values can survive an uninstall. KRAVIA Authenticator therefore pairs:
+
+- a non-secret marker in the application document container; and
+- a marker in secure storage.
+
+If the local marker is missing or the pair does not match, any surviving TOTP account is deleted and the phone must enroll again through Office.
+
+The marker is not an authentication credential and does not need cryptographic secrecy.
+
+## Server-side MFA hardening
+
+KRAVIA Office maintains the authoritative MFA state.
+
+The current first-party backend includes:
+
+- encrypted MFA seed storage;
+- mandatory AAL2;
+- one-time accepted-counter tracking to stop replay of a code that was already used;
+- bounded ±1 time-window compatibility;
+- failed-MFA attempt counting;
+- AAL1 session revocation after repeated bad MFA attempts;
+- audited enrollment, verification, replay-block and reset events;
+- governed OWNER/ADMIN reset for eligible users;
+- separate Founder break-glass recovery that forces fresh MFA enrollment.
 
 ## Enrollment
 
-1. User signs into KRAVIA Office/Finance with corporate email and password.
-2. First-party identity returns an AAL1 session.
-3. Because all Office roles require AAL2, the login screen displays the KRAVIA Office enrollment QR when no factor exists.
-4. User opens KRAVIA Authenticator and scans the QR.
-5. App rejects any issuer other than `KRAVIA Office`.
-6. App stores the TOTP secret in native secure storage.
-7. User enters the current six-digit code in Office.
-8. FastAPI verifies the TOTP and upgrades the session to AAL2.
-9. Subsequent sign-ins require the current KRAVIA Authenticator code.
+1. Install KRAVIA Authenticator on a company-approved phone.
+2. Enable a device passcode and strong fingerprint, Touch ID or Face ID.
+3. Sign into KRAVIA Office/Finance.
+4. Scan the QR shown after password acceptance.
+5. If scanning is impossible, reveal the manual setup key in Office and enter it into the masked setup-key field.
+6. Enter the current six-digit code into Office.
+7. Confirm that Office opens only after the session reaches AAL2.
+
+The QR parser rejects:
+
+- non-`KRAVIA Office` issuers;
+- HOTP;
+- non-SHA1 TOTP parameters;
+- non-six-digit profiles;
+- periods other than 30 seconds;
+- non-corporate account labels.
+
+## Lost/replaced phone
+
+Never export or copy the old seed.
+
+1. authorised Office administrator performs the governed MFA reset;
+2. old factor state is removed and applicable sessions are revoked;
+3. replacement phone installs KRAVIA Authenticator;
+4. user receives a newly generated seed and enrolls again.
+
+Founder recovery uses the separate break-glass process and also requires a fresh authenticator enrollment.
+
+There is intentionally no seed export, QR re-display, cloud backup, app recovery code or seed-sharing feature.
 
 ## Local development
 
@@ -42,44 +142,84 @@ npm ci
 npx expo install --check
 npm run typecheck
 npm test
+npm run prepare:assets
 npx expo start
 ```
 
-Use a physical device for realistic biometric/SecureStore testing. Face ID is not fully testable in Expo Go; use a development build.
+Use physical devices for SecureStore, biometric, screen-capture and reinstall testing. Face ID requires a native/development build for full behavior.
 
-## Native builds
+## CI
 
-CI also produces an **offline release-smoke APK** with the JavaScript bundle embedded. That artifact is signed with Expo/React Native's debug key and is only for controlled internal device testing. Do not distribute that debug-key artifact as the long-term employee authenticator.
+`.github/workflows/authenticator.yml` runs:
 
-Approved internal Android distribution:
+- locked `npm ci`;
+- Expo SDK compatibility check;
+- dependency audit;
+- TypeScript;
+- RFC/provisioning/security tests;
+- deterministic 1024×1024 KRAVIA icon generation;
+- Android JS export;
+- iOS JS export;
+- Android native prebuild;
+- release-smoke APK build;
+- merged release-manifest verification proving:
+  - camera permission present;
+  - backup disabled;
+  - INTERNET permission absent;
+  - microphone permission absent;
+- APK SHA-256 generation;
+- short-retention CI artifact publication.
+
+The release-smoke APK is for controlled internal testing. It is **not** the long-term employee distribution artifact unless it is signed with the approved persistent KRAVIA release identity.
+
+## Production distribution
+
+Before EAS or store builds, generate the deterministic native assets:
 
 ```bash
+npm run prepare:assets
 npx eas build --platform android --profile preview
-```
 
-Production:
-
-```bash
+npm run prepare:assets
 npx eas build --platform android --profile production
+
+npm run prepare:assets
 npx eas build --platform ios --profile production
 ```
 
-The EAS project/account, Android signing key, Apple signing identity, Play Console and App Store Connect are external release credentials and are intentionally not committed. Employee distribution must use a persistent KRAVIA-controlled signing identity so updates cannot be replaced by an unrelated build.
+Production rollout requires external signing/distribution credentials:
 
-## Test coverage
+- KRAVIA-controlled Android signing identity;
+- Google Play internal/private distribution or approved MDM;
+- Apple signing identity;
+- TestFlight/App Store/private MDM channel.
 
-- RFC 6238 SHA-1 reference vectors.
-- KRAVIA-only provisioning URI validation.
-- Rejection of non-KRAVIA issuers.
-- Enforcement of six-digit/30-second KRAVIA parameters.
-- Manual setup-key fallback.
+The persistent signing identity matters because it prevents an unrelated build from replacing the installed authenticator through the normal update channel.
 
-## Protocol boundary
+## Acceptance before every-role rollout
 
-KRAVIA policy requires employees to enroll **KRAVIA Authenticator**, and the app only accepts the `KRAVIA Office` issuer. The six-digit factor itself is deliberately standard RFC 6238 TOTP. A TOTP server cannot cryptographically distinguish which compatible authenticator generated a valid code if the enrollment secret is copied.
+- RFC 6238 vectors pass;
+- dependency graph locked and audited;
+- Expo compatibility check passes;
+- Android release manifest contains no INTERNET or RECORD_AUDIO permission;
+- Android backup disabled;
+- strong biometric unlock tested on physical Android and iPhone;
+- screen capture protection tested;
+- background/foreground requires unlock;
+- reinstall requires fresh enrollment;
+- manual setup key remains hidden in Office until explicitly revealed;
+- first-time account completes password → enrollment → TOTP → AAL2;
+- existing factor completes password → TOTP → AAL2;
+- replaying the same accepted TOTP is rejected;
+- five bad MFA codes revoke the AAL1 session under current server policy;
+- MFA reset invalidates the old factor and replacement phone enrolls a new seed;
+- recovery procedure rehearsed;
+- final Android/iOS production signing/distribution accepted.
 
-If KRAVIA later needs cryptographic proof that each login originated from the official signed app, add device/app attestation plus a per-login signed challenge (for example Play Integrity/App Attest). Do not replace the TOTP algorithm with proprietary "encrypted OTP" math.
+## Future direction
 
-## Future hardening
+TOTP remains the offline second factor.
 
-TOTP remains the offline second factor. A later v2 can add device-bound challenge approval, app attestation or passkeys while preserving the existing fail-closed AAL2 policy.
+If KRAVIA later requires cryptographic proof that the **official signed app** approved each login, add device/app attestation plus a per-login signed challenge (for example Play Integrity/App Attest or passkeys). A standards-compliant TOTP server cannot distinguish which compatible authenticator generated a valid code if someone has copied the underlying seed.
+
+Do not replace RFC 6238 with proprietary OTP mathematics.
