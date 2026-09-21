@@ -46,7 +46,9 @@ describe("KRAVIA Authenticator production signing contract", () => {
     expect(script).toContain('System.getenv("KRAVIA_ANDROID_KEY_ALIAS")');
     expect(script).toContain('System.getenv("KRAVIA_ANDROID_KEY_PASSWORD")');
     expect(script).toContain("signingConfig signingConfigs.release");
-    expect(script).not.toMatch(/storePassword\s+['"][^'"]+['"]/);
-    expect(script).not.toMatch(/keyPassword\s+['"][^'"]+['"]/);
+    expect(script).toContain("storePassword kraviaStorePassword");
+    expect(script).toContain("keyPassword kraviaKeyPassword");
+    expect(script).not.toContain("KRAVIA_ANDROID_KEYSTORE_PASSWORD =");
+    expect(script).not.toContain("KRAVIA_ANDROID_KEY_PASSWORD =");
   });
 });
