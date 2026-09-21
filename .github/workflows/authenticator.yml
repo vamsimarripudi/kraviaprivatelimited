@@ -26,44 +26,88 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: Authenticator/package-lock.json
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Install exact app dependencies
-        run: npm install --legacy-peer-deps --no-fund --no-audit
+      - name: Install locked app dependencies
+        run: npm ci --no-fund --no-audit
+
+      - name: Verify Expo SDK dependency compatibility
+        run: npx expo install --check
 
       - name: Dependency audit
-        run: npm audit --audit-level=high
+        run: npm audit --package-lock-only --audit-level=high
 
       - name: TypeScript
         run: npm run typecheck
 
-      - name: RFC/provisioning tests
+      - name: RFC/provisioning/security tests
         run: npm test
+
+      - name: Generate deterministic KRAVIA native assets
+        run: npm run prepare:assets
+
+      - name: Verify generated app icon
+        shell: bash
+        run: |
+          test -s assets/icon.png
+          file assets/icon.png | grep -q 'PNG image data, 1024 x 1024'
 
       - name: Android JS bundle export
         env:
           CI: "1"
         run: npm run export:android
 
+      - name: iOS JS bundle export
+        env:
+          CI: "1"
+        run: npm run export:ios
+
       - name: Generate Android native project
         env:
           CI: "1"
         run: npx expo prebuild --platform android --no-install --non-interactive
 
-      - name: Build installable internal APK
+      - name: Build offline release-smoke APK
         working-directory: Authenticator/android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleRelease --no-daemon
 
-      - name: Stage KRAVIA Authenticator APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk kravia-authenticator-internal.apk
+      - name: Verify final offline Android manifest boundary
+        shell: bash
+        run: |
+          manifest="$(find android/app/build/intermediates -path '*release*' -path '*merged_manifests*' -name AndroidManifest.xml -print -quit)"
+          if [ -z "$manifest" ] || [ ! -f "$manifest" ]; then
+            echo "Merged release AndroidManifest.xml was not found" >&2
+            find android/app/build/intermediates -name AndroidManifest.xml -print || true
+            exit 1
+          fi
+          grep -q 'android.permission.CAMERA' "$manifest"
+          grep -q 'android:allowBackup="false"' "$manifest"
+          if grep -q 'android.permission.INTERNET' "$manifest"; then
+            echo "KRAVIA Authenticator release manifest must not request Android INTERNET permission" >&2
+            exit 1
+          fi
+          if grep -q 'android.permission.RECORD_AUDIO' "$manifest"; then
+            echo "KRAVIA Authenticator release manifest must not request audio recording permission" >&2
+            exit 1
+          fi
 
-      - name: Upload KRAVIA Authenticator APK
+      - name: Stage KRAVIA Authenticator release-smoke APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk kravia-authenticator-release-smoke.apk
+
+      - name: Hash KRAVIA Authenticator release-smoke APK
+        run: sha256sum kravia-authenticator-release-smoke.apk | tee kravia-authenticator-release-smoke.apk.sha256
+
+      - name: Upload KRAVIA Authenticator release-smoke APK
         uses: actions/upload-artifact@v4
         with:
-          name: kravia-authenticator-internal-apk
-          path: Authenticator/kravia-authenticator-internal.apk
+          name: kravia-authenticator-release-smoke-apk
+          path: |
+            Authenticator/kravia-authenticator-release-smoke.apk
+            Authenticator/kravia-authenticator-release-smoke.apk.sha256
           if-no-files-found: error
           retention-days: 7

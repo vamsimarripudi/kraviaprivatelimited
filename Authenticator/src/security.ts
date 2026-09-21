@@ -1,11 +1,20 @@
 import * as LocalAuthentication from "expo-local-authentication";
 
 export async function unlockAuthenticator() {
-  const level = await LocalAuthentication.getEnrolledLevelAsync();
-  if (level === LocalAuthentication.SecurityLevel.NONE) {
+  const [hasHardware, enrolled, level] = await Promise.all([
+    LocalAuthentication.hasHardwareAsync(),
+    LocalAuthentication.isEnrolledAsync(),
+    LocalAuthentication.getEnrolledLevelAsync(),
+  ]);
+
+  if (
+    !hasHardware
+    || !enrolled
+    || level < LocalAuthentication.SecurityLevel.BIOMETRIC_STRONG
+  ) {
     return {
       ok: false as const,
-      message: "Set a device passcode and biometric unlock before using KRAVIA Authenticator.",
+      message: "Enroll a strong fingerprint, Touch ID or Face ID and keep a device passcode enabled before using KRAVIA Authenticator.",
     };
   }
 

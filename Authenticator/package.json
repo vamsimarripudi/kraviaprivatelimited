@@ -13,23 +13,29 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "export:android": "expo export --platform android --output-dir dist/android",
-    "export:ios": "expo export --platform ios --output-dir dist/ios"
+    "export:ios": "expo export --platform ios --output-dir dist/ios",
+    "prepare:assets": "node scripts/generate-icon.mjs",
+    "prestart": "npm run prepare:assets",
+    "preandroid": "npm run prepare:assets",
+    "preios": "npm run prepare:assets",
+    "eas-build-pre-install": "node scripts/generate-icon.mjs"
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",
-    "expo": "57.0.22",
-    "expo-camera": "57.0.5",
-    "expo-clipboard": "57.0.2",
-    "expo-haptics": "57.0.3",
-    "expo-local-authentication": "57.0.2",
-    "expo-screen-capture": "57.0.3",
-    "expo-secure-store": "57.0.4",
+    "expo": "~57.0.24",
+    "expo-camera": "~57.0.5",
+    "expo-haptics": "~57.0.3",
+    "expo-local-authentication": "~57.0.3",
+    "expo-screen-capture": "~57.0.3",
+    "expo-secure-store": "~57.0.4",
     "react": "19.2.3",
-    "react-native": "0.86.2"
+    "react-native": "0.86.3",
+    "expo-file-system": "~57.0.7"
   },
   "devDependencies": {
-    "@types/react": "^19.2.0",
-    "typescript": "5.9.3",
+    "@types/node": "26.6.2",
+    "@types/react": "~19.2.2",
+    "typescript": "~6.0.3",
     "vitest": "4.1.11"
   }
 }

@@ -55,6 +55,7 @@ export function WorkspaceLoginForm({
   const [phase, setPhase] = useState<Phase>("password");
   const [qrCode, setQrCode] = useState<string>();
   const [manualKey, setManualKey] = useState<string>();
+  const [showManualKey, setShowManualKey] = useState(false);
   const [code, setCode] = useState("");
   const [status, setStatus] = useState<string>();
   const [isPending, setIsPending] = useState(false);
@@ -87,6 +88,7 @@ export function WorkspaceLoginForm({
     const enrolled = await jsonRequest<{ factor_id: string; qr_code: string; manual_key: string; friendly_name: "KRAVIA Authenticator"; required_for_all_roles: true }>("/api/office-auth/mfa", { action: "enroll" });
     setQrCode(enrolled.qr_code);
     setManualKey(enrolled.manual_key);
+    setShowManualKey(false);
     setPhase("enroll");
     setStatus("Open KRAVIA Authenticator, scan this QR code, then enter the current 6-digit code.");
   }
@@ -151,7 +153,15 @@ export function WorkspaceLoginForm({
         ) : null}
 
         {phase === "enroll" && manualKey ? (
-          <div className={styles.manualKey}><span>KRAVIA Authenticator manual setup key</span><code>{manualKey}</code></div>
+          showManualKey ? (
+            <div className={styles.manualKey}>
+              <span>KRAVIA Authenticator manual setup key</span>
+              <code>{manualKey}</code>
+              <button type="button" className={styles.manualToggle} onClick={() => setShowManualKey(false)}>Hide setup key</button>
+            </div>
+          ) : (
+            <button type="button" className={styles.manualToggle} onClick={() => setShowManualKey(true)}>Can’t scan the QR? Show setup key</button>
+          )
         ) : null}
 
         <label className={styles.field} htmlFor="workspace-mfa-code">

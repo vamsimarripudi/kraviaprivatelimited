@@ -608,3 +608,97 @@ def test_founder_break_glass_requires_secret_revokes_sessions_and_resets_mfa(tmp
         assert enrolled.status_code == 200
     finally:
         engine.dispose()
+
+
+def test_totp_code_cannot_be_replayed_across_office_sessions(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        initial = founder(client)
+        enrolled = client.post(
+            "/api/v1/auth/mfa/enroll",
+            headers={"Authorization": f"Bearer {initial['access_token']}"},
+        )
+        assert enrolled.status_code == 200, enrolled.text
+        secret = enrolled.json()["manual_key"]
+        fixed_now = identity_auth._now().replace(microsecond=0)
+        monkeypatch.setattr(identity_auth, "_now", lambda: fixed_now)
+        code = pyotp.TOTP(secret).at(fixed_now)
+
+        first = client.post(
+            "/api/v1/auth/mfa/verify",
+            headers={"Authorization": f"Bearer {initial['access_token']}"},
+            json={"code": code},
+        )
+        assert first.status_code == 200, first.text
+
+        second = client.post(
+            "/api/v1/auth/sign-in",
+            json={"email": FOUNDER["email"], "password": FOUNDER["password"]},
+        )
+        assert second.status_code == 200, second.text
+        replay = client.post(
+            "/api/v1/auth/mfa/verify",
+            headers={"Authorization": f"Bearer {second.json()['access_token']}"},
+            json={"code": code},
+        )
+        assert replay.status_code == 400
+        assert "already used" in replay.json()["detail"].lower()
+
+        with engine.connect() as connection:
+            accepted = connection.exec_driver_sql(
+                "select mfa_last_accepted_counter from office_auth_users where email=?",
+                (FOUNDER["email"],),
+            ).scalar_one()
+            event = connection.exec_driver_sql(
+                "select event_type from office_auth_events_v2 where event_type='MFA_REPLAY_BLOCKED' order by created_at desc limit 1"
+            ).scalar_one()
+        assert accepted == int(fixed_now.timestamp()) // identity_auth.MFA_PERIOD_SECONDS
+        assert event == "MFA_REPLAY_BLOCKED"
+    finally:
+        engine.dispose()
+
+
+def test_five_wrong_totp_codes_revoke_the_aal1_session(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        initial = founder(client)
+        enrolled = client.post(
+            "/api/v1/auth/mfa/enroll",
+            headers={"Authorization": f"Bearer {initial['access_token']}"},
+        )
+        assert enrolled.status_code == 200
+        secret = enrolled.json()["manual_key"]
+        fixed_now = identity_auth._now().replace(microsecond=0)
+        monkeypatch.setattr(identity_auth, "_now", lambda: fixed_now)
+        valid_code = pyotp.TOTP(secret).at(fixed_now)
+        invalid_code = "000000" if valid_code != "000000" else "000001"
+
+        for attempt in range(1, identity_auth.MFA_MAX_FAILED_ATTEMPTS + 1):
+            response = client.post(
+                "/api/v1/auth/mfa/verify",
+                headers={"Authorization": f"Bearer {initial['access_token']}"},
+                json={"code": invalid_code},
+            )
+            expected = 429 if attempt == identity_auth.MFA_MAX_FAILED_ATTEMPTS else 400
+            assert response.status_code == expected, response.text
+
+        denied = client.get(
+            "/api/v1/auth/session",
+            headers={"Authorization": f"Bearer {initial['access_token']}"},
+        )
+        assert denied.status_code == 401
+
+        with engine.connect() as connection:
+            session = connection.exec_driver_sql(
+                "select status,mfa_failed_attempts,revoked_at from office_auth_sessions_v2 limit 1"
+            ).first()
+            event = connection.exec_driver_sql(
+                "select event_type from office_auth_events_v2 where event_type='MFA_SESSION_REVOKED' order by created_at desc limit 1"
+            ).scalar_one()
+        assert session is not None
+        assert session[0] == "REVOKED"
+        assert session[1] == identity_auth.MFA_MAX_FAILED_ATTEMPTS
+        assert session[2] is not None
+        assert event == "MFA_SESSION_REVOKED"
+    finally:
+        engine.dispose()

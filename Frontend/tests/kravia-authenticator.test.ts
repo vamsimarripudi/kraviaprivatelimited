@@ -7,6 +7,8 @@ const storage = readFileSync(new URL("../../Authenticator/src/storage.ts", impor
 const security = readFileSync(new URL("../../Authenticator/src/security.ts", import.meta.url), "utf8");
 const totp = readFileSync(new URL("../../Authenticator/src/totp.ts", import.meta.url), "utf8");
 const packageJson = readFileSync(new URL("../../Authenticator/package.json", import.meta.url), "utf8");
+const appJson = readFileSync(new URL("../../Authenticator/app.json", import.meta.url), "utf8");
+const accountValidation = readFileSync(new URL("../../Authenticator/src/account-validation.ts", import.meta.url), "utf8");
 const backend = readFileSync(new URL("../../Backend/backend/identity_auth.py", import.meta.url), "utf8");
 const login = readFileSync(new URL("../components/workspace-login-form.tsx", import.meta.url), "utf8");
 const installPage = readFileSync(new URL("../app/office/authenticator/page.tsx", import.meta.url), "utf8");
@@ -20,6 +22,8 @@ describe("KRAVIA Authenticator boundary", () => {
       expect(login).toContain(`"${role}"`);
     }
     expect(login).toContain("KRAVIA Authenticator is required for every Office role");
+    expect(login).toContain("showManualKey");
+    expect(login).toContain("Can’t scan the QR? Show setup key");
     expect(login).toContain('href="/office/authenticator"');
     expect(installPage).toContain("MANDATORY FOR EVERY OFFICE ROLE");
     expect(installPage).toContain("KRAVIA_AUTHENTICATOR_ANDROID_URL");
@@ -33,24 +37,44 @@ describe("KRAVIA Authenticator boundary", () => {
     expect(backend).toContain("MFA_PERIOD_SECONDS = 30");
     expect(totp).toContain("hmac(sha1");
     expect(totp).toContain("Math.floor(timestampMs / 1000 / period)");
+    expect(backend).toContain("mfa_last_accepted_counter");
+    expect(backend).toContain("MFA_REPLAY_BLOCKED");
+    expect(backend).toContain("MFA_MAX_FAILED_ATTEMPTS");
   });
 
   it("keeps the enrollment secret on-device and blocks non-KRAVIA QR codes", () => {
     expect(storage).toContain("expo-secure-store");
     expect(storage).toContain("WHEN_PASSCODE_SET_THIS_DEVICE_ONLY");
+    expect(accountValidation).toContain("kraviaprivatelimited");
+    expect(accountValidation).toContain("normalizedSecret.length < 16");
     expect(provisioning).toContain('issuer !== KRAVIA_ISSUER');
     expect(provisioning).toContain("This QR code was not issued by KRAVIA Office");
     expect(app).toContain("usePreventScreenCapture");
     expect(app).toContain("enableAppSwitcherProtectionAsync");
     expect(app).toContain("unlockAuthenticator");
+    expect(storage).toContain("enforceInstallationBoundary");
+    expect(storage).toContain("INSTALL_SECURE_KEY");
+    expect(security).toContain("SecurityLevel.BIOMETRIC_STRONG");
+    expect(app).toContain("setAccount(null)");
+    expect(app).toContain("secureTextEntry");
+    expect(app).not.toContain("Clipboard.setString");
+    expect(app).not.toContain("copyCode");
+    expect(app).toContain("Clipboard export is disabled");
   });
 
   it("ships a native Android/iOS Expo app instead of a web OTP widget", () => {
-    expect(packageJson).toContain('"expo": "57.0.22"');
-    expect(packageJson).toContain('"react-native": "0.86.2"');
+    expect(packageJson).toContain('"expo": "~57.0.24"');
+    expect(packageJson).toContain('"react-native": "0.86.3"');
     expect(packageJson).toContain('"expo-camera"');
     expect(packageJson).toContain('"expo-local-authentication"');
     expect(packageJson).toContain('"expo-secure-store"');
+    expect(packageJson).toContain('"expo-file-system"');
+    expect(packageJson).not.toContain('"expo-clipboard"');
+    expect(packageJson).toContain('"expo": "~57.0.24"');
+    expect(appJson).toContain('"enabled": false');
+    expect(appJson).toContain('"android.permission.INTERNET"');
+    expect(appJson).toContain('"otpClipboard": "DISABLED"');
+    expect(appJson).toContain('"./assets/icon.png"');
     expect(app).toContain("CameraView");
     expect(app).toContain("generateTotp");
   });
