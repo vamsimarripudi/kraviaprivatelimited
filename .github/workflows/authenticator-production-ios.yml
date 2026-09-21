@@ -51,8 +51,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for name in             KRAVIA_IOS_DISTRIBUTION_P12_B64             KRAVIA_IOS_DISTRIBUTION_P12_PASSWORD             KRAVIA_IOS_PROVISION_PROFILE_B64             KRAVIA_IOS_TEAM_ID
-          do
+          for name in KRAVIA_IOS_DISTRIBUTION_P12_B64 KRAVIA_IOS_DISTRIBUTION_P12_PASSWORD KRAVIA_IOS_PROVISION_PROFILE_B64 KRAVIA_IOS_TEAM_ID; do
             if [ -z "${!name:-}" ]; then
               echo "::error::Required protected secret $name is not configured."
               exit 1
@@ -84,49 +83,34 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           p12="$RUNNER_TEMP/kravia-ios-distribution.p12"
           profile="$RUNNER_TEMP/kravia.mobileprovision"
           keychain="$RUNNER_TEMP/kravia-build.keychain-db"
           keychain_password="$(openssl rand -hex 24)"
-
           printf '%s' "$KRAVIA_IOS_DISTRIBUTION_P12_B64" | base64 --decode > "$p12"
           printf '%s' "$KRAVIA_IOS_PROVISION_PROFILE_B64" | base64 --decode > "$profile"
           chmod 600 "$p12" "$profile"
-
           security create-keychain -p "$keychain_password" "$keychain"
           security set-keychain-settings -lut 21600 "$keychain"
           security unlock-keychain -p "$keychain_password" "$keychain"
-          security import "$p12"             -k "$keychain"             -P "$KRAVIA_IOS_DISTRIBUTION_P12_PASSWORD"             -T /usr/bin/codesign             -T /usr/bin/security
-          security set-key-partition-list             -S apple-tool:,apple:,codesign:             -s             -k "$keychain_password"             "$keychain"
+          security import "$p12" -k "$keychain" -P "$KRAVIA_IOS_DISTRIBUTION_P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain"
           security list-keychains -d user -s "$keychain"
           security default-keychain -s "$keychain"
-
           identities="$(security find-identity -v -p codesigning "$keychain")"
           printf '%s\n' "$identities"
           printf '%s\n' "$identities" | grep -q "Apple Distribution"
-
           profile_plist="$RUNNER_TEMP/profile.plist"
           security cms -D -i "$profile" > "$profile_plist"
-
           profile_uuid="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$profile_plist")"
           profile_name="$(/usr/libexec/PlistBuddy -c 'Print :Name' "$profile_plist")"
           profile_team="$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$profile_plist")"
           app_identifier="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$profile_plist")"
-
-          if [ "$profile_team" != "$KRAVIA_IOS_TEAM_ID" ]; then
-            echo "::error::Provisioning profile TeamIdentifier does not match KRAVIA_IOS_TEAM_ID."
-            exit 1
-          fi
-          if [ "$app_identifier" != "$KRAVIA_IOS_TEAM_ID.$EXPECTED_BUNDLE_ID" ]; then
-            echo "::error::Provisioning profile is not bound to the KRAVIA Authenticator bundle identifier."
-            exit 1
-          fi
-
+          test "$profile_team" = "$KRAVIA_IOS_TEAM_ID"
+          test "$app_identifier" = "$KRAVIA_IOS_TEAM_ID.$EXPECTED_BUNDLE_ID"
           profile_dir="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$profile_dir"
           cp "$profile" "$profile_dir/$profile_uuid.mobileprovision"
-
           echo "KRAVIA_IOS_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
           echo "KRAVIA_IOS_PROFILE_UUID=$profile_uuid" >> "$GITHUB_ENV"
           echo "KRAVIA_IOS_PROFILE_NAME=$profile_name" >> "$GITHUB_ENV"
@@ -140,20 +124,9 @@ jobs:
             echo "::error::No generated iOS workspace was found."
             exit 1
           fi
-
           list_json="$RUNNER_TEMP/xcode-list.json"
           xcodebuild -workspace "$workspace" -list -json > "$list_json"
-          scheme="$(python3 - "$list_json" <<'PY'
-import json, sys
-data = json.load(open(sys.argv[1]))
-schemes = data.get("workspace", {}).get("schemes", [])
-schemes = [s for s in schemes if not s.lower().startswith("pods-")]
-if not schemes:
-    raise SystemExit("No app scheme found")
-print(schemes[0])
-PY
-          )"
-
+          scheme="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); s=[x for x in d.get("workspace",{}).get("schemes",[]) if not x.lower().startswith("pods-")]; print(s[0] if s else (_ for _ in ()).throw(SystemExit("No app scheme found")))' "$list_json")"
           echo "KRAVIA_IOS_WORKSPACE=$workspace" >> "$GITHUB_ENV"
           echo "KRAVIA_IOS_SCHEME=$scheme" >> "$GITHUB_ENV"
           echo "Using workspace: $workspace"
@@ -164,41 +137,18 @@ PY
         run: |
           set -euo pipefail
           archive="$RUNNER_TEMP/KRAVIA-Authenticator.xcarchive"
-          xcodebuild             -workspace "$KRAVIA_IOS_WORKSPACE"             -scheme "$KRAVIA_IOS_SCHEME"             -configuration Release             -sdk iphoneos             -archivePath "$archive"             DEVELOPMENT_TEAM="$KRAVIA_IOS_TEAM_ID"             CODE_SIGN_STYLE=Manual             CODE_SIGN_IDENTITY="Apple Distribution"             PROVISIONING_PROFILE_SPECIFIER="$KRAVIA_IOS_PROFILE_NAME"             PRODUCT_BUNDLE_IDENTIFIER="$EXPECTED_BUNDLE_ID"             CURRENT_PROJECT_VERSION="$EXPECTED_BUILD_NUMBER"             MARKETING_VERSION="$EXPECTED_APP_VERSION"             archive
+          xcodebuild -workspace "$KRAVIA_IOS_WORKSPACE" -scheme "$KRAVIA_IOS_SCHEME" -configuration Release -sdk iphoneos -archivePath "$archive" DEVELOPMENT_TEAM="$KRAVIA_IOS_TEAM_ID" CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Apple Distribution" PROVISIONING_PROFILE_SPECIFIER="$KRAVIA_IOS_PROFILE_NAME" PRODUCT_BUNDLE_IDENTIFIER="$EXPECTED_BUNDLE_ID" CURRENT_PROJECT_VERSION="$EXPECTED_BUILD_NUMBER" MARKETING_VERSION="$EXPECTED_APP_VERSION" archive
           echo "KRAVIA_IOS_ARCHIVE=$archive" >> "$GITHUB_ENV"
 
       - name: Export signed IPA
         shell: bash
         run: |
           set -euo pipefail
-
           export_plist="$RUNNER_TEMP/ExportOptions.plist"
-          cat > "$export_plist" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>method</key>
-  <string>$KRAVIA_IOS_EXPORT_METHOD</string>
-  <key>signingStyle</key>
-  <string>manual</string>
-  <key>teamID</key>
-  <string>$KRAVIA_IOS_TEAM_ID</string>
-  <key>manageAppVersionAndBuildNumber</key>
-  <false/>
-  <key>provisioningProfiles</key>
-  <dict>
-    <key>$EXPECTED_BUNDLE_ID</key>
-    <string>$KRAVIA_IOS_PROFILE_NAME</string>
-  </dict>
-</dict>
-</plist>
-PLIST
-
+          python3 -c 'import os,plistlib; d={"method":os.environ["KRAVIA_IOS_EXPORT_METHOD"],"signingStyle":"manual","teamID":os.environ["KRAVIA_IOS_TEAM_ID"],"manageAppVersionAndBuildNumber":False,"provisioningProfiles":{os.environ["EXPECTED_BUNDLE_ID"]:os.environ["KRAVIA_IOS_PROFILE_NAME"]}}; plistlib.dump(d,open(os.environ["RUNNER_TEMP"]+"/ExportOptions.plist","wb"))'
           export_dir="$RUNNER_TEMP/kravia-ios-export"
           mkdir -p "$export_dir"
-          xcodebuild             -exportArchive             -archivePath "$KRAVIA_IOS_ARCHIVE"             -exportPath "$export_dir"             -exportOptionsPlist "$export_plist"
-
+          xcodebuild -exportArchive -archivePath "$KRAVIA_IOS_ARCHIVE" -exportPath "$export_dir" -exportOptionsPlist "$export_plist"
           ipa="$(find "$export_dir" -maxdepth 1 -name '*.ipa' -print -quit)"
           if [ -z "$ipa" ] || [ ! -s "$ipa" ]; then
             echo "::error::Signed KRAVIA Authenticator IPA was not produced."
@@ -210,24 +160,19 @@ PLIST
         shell: bash
         run: |
           set -euo pipefail
-
           verify_dir="$RUNNER_TEMP/ipa-verify"
           mkdir -p "$verify_dir"
           unzip -q "$KRAVIA_IOS_IPA" -d "$verify_dir"
           app="$(find "$verify_dir/Payload" -maxdepth 1 -name '*.app' -print -quit)"
           test -n "$app"
           test -d "$app"
-
           codesign --verify --deep --strict --verbose=2 "$app"
-
           bundle_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")"
           version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Info.plist")"
           build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Info.plist")"
-
           test "$bundle_id" = "$EXPECTED_BUNDLE_ID"
           test "$version" = "$EXPECTED_APP_VERSION"
           test "$build" = "$EXPECTED_BUILD_NUMBER"
-
           test -s "$app/embedded.mobileprovision"
           embedded="$RUNNER_TEMP/embedded-profile.plist"
           security cms -D -i "$app/embedded.mobileprovision" > "$embedded"
@@ -235,7 +180,6 @@ PLIST
           embedded_app_id="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$embedded")"
           test "$embedded_team" = "$KRAVIA_IOS_TEAM_ID"
           test "$embedded_app_id" = "$KRAVIA_IOS_TEAM_ID.$EXPECTED_BUNDLE_ID"
-
           codesign -d --entitlements :- "$app" > "$RUNNER_TEMP/kravia-entitlements.plist" 2>/dev/null || true
           codesign -dv --verbose=4 "$app" 2> "$RUNNER_TEMP/kravia-codesign.txt"
 
@@ -249,20 +193,9 @@ PLIST
           if [ -s "$RUNNER_TEMP/kravia-entitlements.plist" ]; then
             cp "$RUNNER_TEMP/kravia-entitlements.plist" production-ios-artifacts/ENTITLEMENTS.plist
           fi
-          (
-            cd production-ios-artifacts
-            shasum -a 256 KRAVIA-Authenticator-1.0.0-production.ipa > SHA256SUMS.txt
-          )
-          {
-            echo "KRAVIA Authenticator production iOS build"
-            echo "commit=$GITHUB_SHA"
-            echo "bundle_id=$EXPECTED_BUNDLE_ID"
-            echo "app_version=$EXPECTED_APP_VERSION"
-            echo "build_number=$EXPECTED_BUILD_NUMBER"
-            echo "team_id=$KRAVIA_IOS_TEAM_ID"
-            echo "export_method=$KRAVIA_IOS_EXPORT_METHOD"
-            echo "distribution=Apple/TestFlight/private organizational upload pending provider-side action"
-          } > production-ios-artifacts/BUILD-EVIDENCE.txt
+          cd production-ios-artifacts
+          shasum -a 256 KRAVIA-Authenticator-1.0.0-production.ipa > SHA256SUMS.txt
+          printf '%s\n'             "KRAVIA Authenticator production iOS build"             "commit=$GITHUB_SHA"             "bundle_id=$EXPECTED_BUNDLE_ID"             "app_version=$EXPECTED_APP_VERSION"             "build_number=$EXPECTED_BUILD_NUMBER"             "team_id=$KRAVIA_IOS_TEAM_ID"             "export_method=$KRAVIA_IOS_EXPORT_METHOD"             "distribution=Apple/TestFlight/private organizational upload pending provider-side action"             > BUILD-EVIDENCE.txt
 
       - name: Remove temporary signing material
         if: always()
