@@ -20,6 +20,8 @@ function authPayload(overrides = {}) {
   };
 }
 
+const passwordInput = (page) => page.getByPlaceholder("Enter your password");
+
 async function mockSignIn(page, payload, status = 200) {
   await page.route("**/api/office-auth/sign-in", async (route) => {
     expect(route.request().method()).toBe("POST");
@@ -49,7 +51,7 @@ test("renders the configured private Office sign-in boundary", async ({ page }) 
   await page.goto("/office/login");
   await expect(page.getByRole("heading", { name: "Sign in to KRAVIA Office" })).toBeVisible();
   await expect(page.getByLabel("Corporate email")).toBeEnabled();
-  await expect(page.getByLabel("Password")).toBeEnabled();
+  await expect(passwordInput(page)).toBeEnabled();
   await expect(page.getByText("Internal identity service is not active on this deployment.")).toHaveCount(0);
   await expect(page.getByText(/Only enter a password you created for KRAVIA Office/)).toBeVisible();
 });
@@ -58,7 +60,7 @@ test("keeps an invalid password at the first factor", async ({ page }) => {
   await mockSignIn(page, { detail: "Corporate email or password was not accepted" }, 401);
   await page.goto("/office/login");
   await page.getByLabel("Corporate email").fill(account);
-  await page.getByLabel("Password").fill("Wrong-Pass1!");
+  await passwordInput(page).fill("Wrong-Pass1!");
   await page.getByRole("button", { name: "Sign in to KRAVIA Office" }).click();
   await expect(page.getByRole("status")).toContainText("Corporate email or password was not accepted");
   await expect(page.getByRole("heading", { name: "Sign in to KRAVIA Office" })).toBeVisible();
@@ -81,7 +83,7 @@ test("first enrollment hides the setup key until explicitly requested and does n
 
   await page.goto("/office/login");
   await page.getByLabel("Corporate email").fill(account);
-  await page.getByLabel("Password").fill(password);
+  await passwordInput(page).fill(password);
   await page.getByRole("button", { name: "Sign in to KRAVIA Office" }).click();
 
   await expect(page.getByRole("heading", { name: "Secure your account" })).toBeVisible();
@@ -108,7 +110,7 @@ test("existing enrollment accepts six digits only and surfaces a rejected code",
 
   await page.goto("/office/login");
   await page.getByLabel("Corporate email").fill(account);
-  await page.getByLabel("Password").fill(password);
+  await passwordInput(page).fill(password);
   await page.getByRole("button", { name: "Sign in to KRAVIA Office" }).click();
 
   await expect(page.getByRole("heading", { name: "Verify your identity" })).toBeVisible();
@@ -125,15 +127,16 @@ test("successful MFA continues to the requested Office destination", async ({ pa
     expect(body).toEqual({ action: "verify", code: "123456" });
     return { body: { verified: true, aal: "aal2" } };
   });
-  await page.route("**/office/e2e-complete", (route) =>
-    route.fulfill({ status: 200, contentType: "text/html", body: "<main><h1>AAL2 destination reached</h1></main>" }),
-  );
 
   await page.goto("/office/login?next=/office/e2e-complete");
   await page.getByLabel("Corporate email").fill(account);
-  await page.getByLabel("Password").fill(password);
+  await passwordInput(page).fill(password);
   await page.getByRole("button", { name: "Sign in to KRAVIA Office" }).click();
   await page.getByLabel("KRAVIA Authenticator code").fill("123456");
+
+  await page.route((url) => url.pathname === "/office/e2e-complete", (route) =>
+    route.fulfill({ status: 200, contentType: "text/html", body: "<main><h1>AAL2 destination reached</h1></main>" }),
+  );
   await page.getByRole("button", { name: "Verify and continue" }).click();
 
   await expect(page).toHaveURL(/\/office\/e2e-complete$/);
