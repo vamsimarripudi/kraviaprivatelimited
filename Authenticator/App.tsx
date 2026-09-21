@@ -14,13 +14,12 @@ import {
   View,
 } from "react-native";
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from "expo-camera";
-import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import * as ScreenCapture from "expo-screen-capture";
 import { usePreventScreenCapture } from "expo-screen-capture";
 import { generateTotp, totpWindow } from "./src/totp";
 import { manualKraviaAccount, parseKraviaProvisioningUri } from "./src/provisioning";
-import { clearAccount, loadAccount, saveAccount } from "./src/storage";
+import { clearAccount, enforceInstallationBoundary, loadAccount, saveAccount } from "./src/storage";
 import { unlockAuthenticator } from "./src/security";
 import type { KraviaTotpAccount } from "./src/types";
 
@@ -142,7 +141,10 @@ export default function App() {
     const subscription = AppState.addEventListener("change", (state) => {
       if (state !== "active") {
         setLocked(true);
+        setAccount(null);
         setMode("home");
+        setManualEmail("");
+        setManualSecret("");
         setMessage(undefined);
       }
     });
@@ -164,9 +166,13 @@ export default function App() {
         setMessage(result.message);
         return;
       }
+      const boundary = await enforceInstallationBoundary();
       const stored = await loadAccount();
       setAccount(stored);
       setLocked(false);
+      if (boundary.reset) {
+        setMessage("A previous installation credential was removed. Re-enroll this phone from KRAVIA Office.");
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "KRAVIA Authenticator could not unlock.");
     } finally {
@@ -201,22 +207,6 @@ export default function App() {
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Manual enrollment failed.");
     }
-  }
-
-  async function copyCode() {
-    if (!code) return;
-    const copiedCode = code;
-    await Clipboard.setStringAsync(copiedCode);
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setMessage("Code copied. Clipboard will be cleared shortly.");
-    setTimeout(() => {
-      void (async () => {
-        const currentClipboard = await Clipboard.getStringAsync().catch(() => "");
-        if (currentClipboard === copiedCode) {
-          await Clipboard.setStringAsync("");
-        }
-      })();
-    }, 15_000);
   }
 
   function removeEnrollment() {
@@ -262,7 +252,7 @@ export default function App() {
             onPress={() => void unlock()}
             disabled={unlocking}
           />
-          <Text style={styles.securityNote}>No password · No cloud sync · No OTP network call</Text>
+          <Text style={styles.securityNote}>No password · No network · No clipboard export</Text>
         </View>
       </SafeAreaView>
     );
@@ -302,6 +292,7 @@ export default function App() {
               style={[styles.input, styles.monoInput]}
               autoCapitalize="characters"
               autoCorrect={false}
+              secureTextEntry
               value={manualSecret}
               onChangeText={(value) => setManualSecret(value.toUpperCase())}
               placeholder="JBSW Y3DP ..."
@@ -324,7 +315,7 @@ export default function App() {
               <Text style={styles.kicker}>KRAVIA AUTHENTICATOR</Text>
               <Text style={styles.sectionTitle}>Enroll this phone</Text>
             </View>
-            <Pressable onPress={() => setLocked(true)}><Text style={styles.link}>Lock</Text></Pressable>
+            <Pressable onPress={() => { setLocked(true); setAccount(null); setManualEmail(""); setManualSecret(""); setMessage(undefined); }}><Text style={styles.link}>Lock</Text></Pressable>
           </View>
           <View style={styles.panel}>
             <Text style={styles.panelTitle}>1. Sign in to KRAVIA Office</Text>
@@ -351,23 +342,21 @@ export default function App() {
             <Text style={styles.kicker}>KRAVIA AUTHENTICATOR</Text>
             <Text style={styles.sectionTitle}>Login code</Text>
           </View>
-          <Pressable onPress={() => setLocked(true)}><Text style={styles.link}>Lock</Text></Pressable>
+          <Pressable onPress={() => { setLocked(true); setAccount(null); setManualEmail(""); setManualSecret(""); setMessage(undefined); }}><Text style={styles.link}>Lock</Text></Pressable>
         </View>
 
         <View style={styles.accountCard}>
           <Text style={styles.issuer}>{account.issuer}</Text>
           <Text style={styles.account}>{account.account}</Text>
-          <Pressable onPress={() => void copyCode()} accessibilityRole="button" accessibilityLabel="Copy current login code">
-            <Text style={styles.code}>{code.slice(0, 3)} {code.slice(3)}</Text>
-          </Pressable>
+          <Text accessibilityRole="text" accessibilityLabel={`Current KRAVIA login code ${code}`} style={styles.code}>{code.slice(0, 3)} {code.slice(3)}</Text>
           <Text style={styles.remaining}>{window.remaining}s remaining</Text>
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${Math.round(Math.max(0, Math.min(100, window.progress * 100)))}%` as `${number}%` }]} />
           </View>
-          <Text style={styles.tapHint}>Tap the code to copy it for 15 seconds.</Text>
+          <Text style={styles.tapHint}>Read and type this code into KRAVIA Office. Clipboard export is disabled.</Text>
         </View>
 
-        {message ? <Text style={message.startsWith("Code copied") ? styles.success : styles.info}>{message}</Text> : null}
+        {message ? <Text style={styles.info}>{message}</Text> : null}
 
         <View style={styles.panel}>
           <Text style={styles.panelTitle}>How to sign in</Text>
