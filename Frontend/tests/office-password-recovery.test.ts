@@ -10,6 +10,9 @@ const resetPage = readFileSync(new URL("../app/office/reset-password/page.tsx", 
 const recoveryForm = readFileSync(new URL("../components/office-password-recovery-form.tsx", import.meta.url), "utf8");
 const accessPanel = readFileSync(new URL("../components/access-governance-panel.tsx", import.meta.url), "utf8");
 const securitySettings = readFileSync(new URL("../components/office-security-settings.tsx", import.meta.url), "utf8");
+const founderRecoveryRoute = readFileSync(new URL("../app/api/office-auth/recovery/founder/route.ts", import.meta.url), "utf8");
+const founderRecoveryForm = readFileSync(new URL("../components/office-founder-recovery-form.tsx", import.meta.url), "utf8");
+const founderRecoveryPage = readFileSync(new URL("../app/office/recover/founder/page.tsx", import.meta.url), "utf8");
 
 describe("KRAVIA Office password and recovery controls", () => {
   it("supports AAL2 self-service password change and revokes other sessions", () => {
@@ -34,6 +37,18 @@ describe("KRAVIA Office password and recovery controls", () => {
     expect(adminRecoveryRoute).toContain("issueOfficePasswordRecovery");
     expect(accessPanel).toContain("Issue recovery link");
     expect(accessPanel).toContain("Private recovery link");
+  });
+
+  it("provides a separate Founder break-glass recovery path", () => {
+    expect(backendAuth).toContain('@router.post("/founder/recovery-link")');
+    expect(backendAuth).toContain("OFFICE_AUTH_BREAK_GLASS_SECRET");
+    expect(backendAuth).toContain("FOUNDER_BREAK_GLASS_RECOVERY_ISSUED");
+    expect(backendAuth).toContain("founder.mfa_secret_ciphertext = None");
+    expect(founderRecoveryRoute).toContain("officeMutationIsSameOrigin");
+    expect(founderRecoveryRoute).toContain("issueFounderBreakGlassRecovery");
+    expect(founderRecoveryForm).toContain("recovery_key");
+    expect(founderRecoveryForm).toContain("setKey(\"\")");
+    expect(founderRecoveryPage).toContain('referrer: "no-referrer"');
   });
 
   it("completes recovery without email or SMS and invalidates the token by password version", () => {
