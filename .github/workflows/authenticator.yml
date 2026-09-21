@@ -58,25 +58,29 @@ jobs:
           CI: "1"
         run: npx expo prebuild --platform android --no-install --non-interactive
 
-      - name: Verify offline Android manifest boundary
-        shell: bash
-        run: |
-          manifest="android/app/src/main/AndroidManifest.xml"
-          test -f "$manifest"
-          grep -q 'android.permission.CAMERA' "$manifest"
-          grep -q 'android:allowBackup="false"' "$manifest"
-          if grep -q 'android.permission.INTERNET' "$manifest"; then
-            echo "KRAVIA Authenticator must not request Android INTERNET permission" >&2
-            exit 1
-          fi
-          if grep -q 'android.permission.RECORD_AUDIO' "$manifest"; then
-            echo "KRAVIA Authenticator must not request audio recording permission" >&2
-            exit 1
-          fi
-
       - name: Build offline release-smoke APK
         working-directory: Authenticator/android
         run: ./gradlew assembleRelease --no-daemon
+
+      - name: Verify final offline Android manifest boundary
+        shell: bash
+        run: |
+          manifest="$(find android/app/build/intermediates -path '*release*' -path '*merged_manifests*' -name AndroidManifest.xml -print -quit)"
+          if [ -z "$manifest" ] || [ ! -f "$manifest" ]; then
+            echo "Merged release AndroidManifest.xml was not found" >&2
+            find android/app/build/intermediates -name AndroidManifest.xml -print || true
+            exit 1
+          fi
+          grep -q 'android.permission.CAMERA' "$manifest"
+          grep -q 'android:allowBackup="false"' "$manifest"
+          if grep -q 'android.permission.INTERNET' "$manifest"; then
+            echo "KRAVIA Authenticator release manifest must not request Android INTERNET permission" >&2
+            exit 1
+          fi
+          if grep -q 'android.permission.RECORD_AUDIO' "$manifest"; then
+            echo "KRAVIA Authenticator release manifest must not request audio recording permission" >&2
+            exit 1
+          fi
 
       - name: Stage KRAVIA Authenticator release-smoke APK
         run: cp android/app/build/outputs/apk/release/app-release.apk kravia-authenticator-release-smoke.apk
