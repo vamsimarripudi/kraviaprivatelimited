@@ -39,7 +39,7 @@ export default function KraviaAuthenticatorPage() {
         </div>
 
         <div>
-          <p style={{ margin: "0 0 5px", fontSize: 10, letterSpacing: ".16em", fontWeight: 800, color: "#8a6a30" }}>REQUIRED FOR EVERY OFFICE ROLE</p>
+          <p style={{ margin: "0 0 5px", fontSize: 10, letterSpacing: ".16em", fontWeight: 800, color: "#8a6a30" }}>MANDATORY FOR EVERY OFFICE ROLE</p>
           <h2 style={{ margin: 0, fontSize: 29, letterSpacing: "-.035em", color: "#10241c" }}>Install and enroll your phone</h2>
         </div>
 
