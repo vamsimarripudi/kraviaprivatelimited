@@ -97,6 +97,15 @@ check("identity:device-events", '@router.post("/device-event")' in identity and 
 check("identity:password-change", '@router.post("/password")' in identity and "PASSWORD_CHANGED" in identity, "AAL2 password rotation")
 check("identity:private-recovery", '@router.post("/recovery/password")' in identity and '@router.post("/users/{user_id}/recovery-link")' in identity and "PASSWORD_RECOVERY_COMPLETED" in identity, "provider-free single-use recovery")
 check("identity:founder-break-glass", '@router.post("/founder/recovery-link")' in identity and "OFFICE_AUTH_BREAK_GLASS_SECRET" in identity and "FOUNDER_BREAK_GLASS_RECOVERY_ISSUED" in identity, "separate Founder emergency recovery")
+check(
+    "identity:kravia-authenticator",
+    'MFA_AUTHENTICATOR_APP = "KRAVIA Authenticator"' in identity
+    and '"mfa_required_for_all_roles": True' in identity
+    and 'MFA_ISSUER = "KRAVIA Office"' in identity
+    and "MFA_DIGITS = 6" in identity
+    and "MFA_PERIOD_SECONDS = 30" in identity,
+    "dedicated KRAVIA Authenticator is the all-role TOTP factor",
+)
 
 check("period-control:model", "class AccountingPeriodLock" in period_controls, "AccountingPeriodLock")
 check("period-control:api", "accounting/period-locks" in period_controls, "period-lock endpoints")
