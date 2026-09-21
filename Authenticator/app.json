@@ -24,7 +24,11 @@
       ],
       "permissions": [
         "android.permission.CAMERA"
-      ]
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#123D2E"
+      }
     },
     "plugins": [
       [
@@ -53,6 +57,7 @@
       "mfaIssuer": "KRAVIA Office",
       "networkMode": "OFFLINE_ONLY",
       "otpClipboard": "DISABLED"
-    }
+    },
+    "icon": "./assets/icon.png"
   }
 }
