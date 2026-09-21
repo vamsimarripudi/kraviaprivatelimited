@@ -403,3 +403,144 @@ def test_device_events_require_aal2_and_device_ownership(tmp_path, monkeypatch):
         assert event[2]
     finally:
         engine.dispose()
+
+
+def test_password_change_requires_aal2_and_revokes_other_sessions(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        initial = founder(client)
+        blocked = client.post(
+            "/api/v1/auth/password",
+            headers={"Authorization": f"Bearer {initial['access_token']}"},
+            json={"current_password": FOUNDER["password"], "new_password": "Changed-Strong2!"},
+        )
+        assert blocked.status_code == 403
+
+        enrolled = client.post(
+            "/api/v1/auth/mfa/enroll",
+            headers={"Authorization": f"Bearer {initial['access_token']}"},
+        )
+        verified = client.post(
+            "/api/v1/auth/mfa/verify",
+            headers={"Authorization": f"Bearer {initial['access_token']}"},
+            json={"code": pyotp.TOTP(enrolled.json()["manual_key"]).now()},
+        )
+        assert verified.status_code == 200
+        aal2_token = verified.json()["access_token"]
+
+        second = client.post(
+            "/api/v1/auth/sign-in",
+            json={"email": FOUNDER["email"], "password": FOUNDER["password"]},
+        )
+        assert second.status_code == 200
+        second_refresh = second.json()["refresh_token"]
+
+        changed = client.post(
+            "/api/v1/auth/password",
+            headers={"Authorization": f"Bearer {aal2_token}"},
+            json={"current_password": FOUNDER["password"], "new_password": "Changed-Strong2!"},
+        )
+        assert changed.status_code == 200, changed.text
+        assert changed.json()["changed"] is True
+        assert changed.json()["revoked_other_sessions"] >= 1
+
+        stale_refresh = client.post("/api/v1/auth/refresh", json={"refresh_token": second_refresh})
+        assert stale_refresh.status_code == 401
+
+        old_password = client.post(
+            "/api/v1/auth/sign-in",
+            json={"email": FOUNDER["email"], "password": FOUNDER["password"]},
+        )
+        assert old_password.status_code == 401
+
+        new_password = client.post(
+            "/api/v1/auth/sign-in",
+            json={"email": FOUNDER["email"], "password": "Changed-Strong2!"},
+        )
+        assert new_password.status_code == 200
+    finally:
+        engine.dispose()
+
+
+def test_administrator_recovery_link_is_single_use_and_revokes_target_sessions(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        owner = aal2_founder(client)
+        headers = {"Authorization": f"Bearer {owner['access_token']}"}
+
+        invited = client.post(
+            "/api/v1/auth/invitations",
+            headers=headers,
+            json={
+                "email": "recoverable@example.test",
+                "display_name": "Recoverable Member",
+                "department": "OPERATIONS",
+                "roles": ["MEMBER"],
+                "reason": "Recovery test account",
+            },
+        )
+        assert invited.status_code == 201, invited.text
+        registered = client.post(
+            "/api/v1/auth/invitation/register",
+            json={
+                "token": invited.json()["registration_token"],
+                "display_name": "Recoverable Member",
+                "password": "Member-Original1!",
+            },
+        )
+        assert registered.status_code == 201, registered.text
+        member_id = registered.json()["user_id"]
+
+        issued = client.post(
+            f"/api/v1/auth/users/{member_id}/recovery-link",
+            headers=headers,
+            json={"reason": "User lost access to the password"},
+        )
+        assert issued.status_code == 200, issued.text
+        body = issued.json()
+        assert body["issued"] is True
+        assert body["target_user_id"] == member_id
+        assert body["recovery_path"].startswith("/office/reset-password?token=")
+        assert body["revoked_sessions"] >= 1
+        recovery_token = body["recovery_token"]
+
+        recovered = client.post(
+            "/api/v1/auth/recovery/password",
+            json={"token": recovery_token, "new_password": "Member-Recovered2!"},
+        )
+        assert recovered.status_code == 200, recovered.text
+        assert recovered.json()["recovered"] is True
+
+        reused = client.post(
+            "/api/v1/auth/recovery/password",
+            json={"token": recovery_token, "new_password": "Member-Recovered3!"},
+        )
+        assert reused.status_code == 410
+
+        old_password = client.post(
+            "/api/v1/auth/sign-in",
+            json={"email": "recoverable@example.test", "password": "Member-Original1!"},
+        )
+        assert old_password.status_code == 401
+
+        new_password = client.post(
+            "/api/v1/auth/sign-in",
+            json={"email": "recoverable@example.test", "password": "Member-Recovered2!"},
+        )
+        assert new_password.status_code == 200
+    finally:
+        engine.dispose()
+
+
+def test_owner_recovery_cannot_be_issued_through_ordinary_administration(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        owner = aal2_founder(client)
+        blocked = client.post(
+            f"/api/v1/auth/users/{owner['user_id']}/recovery-link",
+            headers={"Authorization": f"Bearer {owner['access_token']}"},
+            json={"reason": "Ordinary recovery must not handle OWNER"},
+        )
+        assert blocked.status_code == 409
+    finally:
+        engine.dispose()
