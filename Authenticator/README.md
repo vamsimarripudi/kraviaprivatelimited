@@ -11,6 +11,8 @@ Private companion authenticator for KRAVIA Office and KRAVIA Finance.
 - No cloud sync.
 - No Office password inside the app.
 - No network request is required to generate codes.
+- Android production manifests explicitly block `INTERNET` and `RECORD_AUDIO` permissions.
+- Expo runtime OTA updates are disabled; executable code ships with the signed native binary.
 - Device authentication protects access to the app.
 - Screen capture/recording is blocked while the app is open.
 - App-switcher content is protected on iOS.
@@ -36,7 +38,8 @@ SHA-1 is used only inside the HMAC construction required by this TOTP profile, n
 
 ```bash
 cd Authenticator
-npm install
+npm ci
+npx expo install --check
 npm run typecheck
 npm test
 npx expo start
@@ -46,7 +49,9 @@ Use a physical device for realistic biometric/SecureStore testing. Face ID is no
 
 ## Native builds
 
-Internal Android APK:
+CI also produces an **offline release-smoke APK** with the JavaScript bundle embedded. That artifact is signed with Expo/React Native's debug key and is only for controlled internal device testing. Do not distribute that debug-key artifact as the long-term employee authenticator.
+
+Approved internal Android distribution:
 
 ```bash
 npx eas build --platform android --profile preview
@@ -59,7 +64,7 @@ npx eas build --platform android --profile production
 npx eas build --platform ios --profile production
 ```
 
-The EAS project/account, Android signing key, Apple signing identity, Play Console and App Store Connect are external release credentials and are intentionally not committed.
+The EAS project/account, Android signing key, Apple signing identity, Play Console and App Store Connect are external release credentials and are intentionally not committed. Employee distribution must use a persistent KRAVIA-controlled signing identity so updates cannot be replaced by an unrelated build.
 
 ## Test coverage
 
@@ -69,6 +74,12 @@ The EAS project/account, Android signing key, Apple signing identity, Play Conso
 - Enforcement of six-digit/30-second KRAVIA parameters.
 - Manual setup-key fallback.
 
+## Protocol boundary
+
+KRAVIA policy requires employees to enroll **KRAVIA Authenticator**, and the app only accepts the `KRAVIA Office` issuer. The six-digit factor itself is deliberately standard RFC 6238 TOTP. A TOTP server cannot cryptographically distinguish which compatible authenticator generated a valid code if the enrollment secret is copied.
+
+If KRAVIA later needs cryptographic proof that each login originated from the official signed app, add device/app attestation plus a per-login signed challenge (for example Play Integrity/App Attest). Do not replace the TOTP algorithm with proprietary "encrypted OTP" math.
+
 ## Future hardening
 
-TOTP remains the offline second factor. A later v2 can add device-bound challenge approval or passkeys, but it must not silently replace the existing fail-closed AAL2 policy.
+TOTP remains the offline second factor. A later v2 can add device-bound challenge approval, app attestation or passkeys while preserving the existing fail-closed AAL2 policy.
