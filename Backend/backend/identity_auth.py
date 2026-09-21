@@ -51,6 +51,7 @@ MFA_AUTHENTICATOR_APP = "KRAVIA Authenticator"
 MFA_ALGORITHM = "SHA1"
 MFA_DIGITS = 6
 MFA_PERIOD_SECONDS = 30
+MFA_MAX_FAILED_ATTEMPTS = int(os.getenv("OFFICE_AUTH_MFA_MAX_FAILED_ATTEMPTS", "5"))
 
 OFFICE_ROLES = {
     "OWNER",
@@ -756,6 +757,15 @@ def _session_listing_json(session: OfficeAuthSession, current_session_id: str) -
     }
 
 
+def _matching_totp_counter(factor: pyotp.TOTP, code: str, now: datetime | None = None) -> int | None:
+    current = int((now or _now()).timestamp()) // MFA_PERIOD_SECONDS
+    for offset in (-1, 0, 1):
+        counter = current + offset
+        if counter >= 0 and hmac.compare_digest(factor.generate_otp(counter), code):
+            return counter
+    return None
+
+
 def _qr_data_uri(uri: str) -> str:
     image = qrcode.make(uri)
     buffer = io.BytesIO()
@@ -1192,6 +1202,7 @@ def build_identity_router() -> APIRouter:
         secret = pyotp.random_base32()
         user.mfa_secret_ciphertext = _encrypt_mfa_secret(secret)
         user.mfa_verified_at = None
+        user.mfa_last_accepted_counter = None
         factor = pyotp.TOTP(
             secret,
             digits=MFA_DIGITS,
@@ -1233,15 +1244,66 @@ def build_identity_router() -> APIRouter:
             interval=MFA_PERIOD_SECONDS,
             digest=hashlib.sha1,
         )
-        if not factor.verify(payload.code, valid_window=1):
-            _event(db, "MFA_FAILED", request, user_id=user.id, session_id=session.id)
+        matched_counter = _matching_totp_counter(factor, payload.code)
+        if matched_counter is None:
+            session.mfa_failed_attempts = int(session.mfa_failed_attempts or 0) + 1
+            attempts = session.mfa_failed_attempts
+            _event(
+                db,
+                "MFA_FAILED",
+                request,
+                user_id=user.id,
+                session_id=session.id,
+                metadata={"attempt": attempts, "max_attempts": MFA_MAX_FAILED_ATTEMPTS},
+            )
+            if attempts >= MFA_MAX_FAILED_ATTEMPTS:
+                session.status = "REVOKED"
+                session.revoked_at = _now()
+                _event(
+                    db,
+                    "MFA_SESSION_REVOKED",
+                    request,
+                    user_id=user.id,
+                    session_id=session.id,
+                    metadata={"reason": "mfa_attempt_limit", "attempts": attempts},
+                )
+                db.commit()
+                raise HTTPException(
+                    status_code=429,
+                    detail="Too many authenticator failures. Sign in again to start a new Office session",
+                )
             db.commit()
             raise HTTPException(status_code=400, detail="The authenticator code was not accepted")
 
+        last_counter = user.mfa_last_accepted_counter
+        if last_counter is not None and matched_counter <= int(last_counter):
+            _event(
+                db,
+                "MFA_REPLAY_BLOCKED",
+                request,
+                user_id=user.id,
+                session_id=session.id,
+                metadata={"counter": matched_counter},
+            )
+            db.commit()
+            raise HTTPException(
+                status_code=400,
+                detail="That authenticator code was already used. Wait for the next KRAVIA Authenticator code",
+            )
+
+        user.mfa_last_accepted_counter = matched_counter
         user.mfa_verified_at = user.mfa_verified_at or _now()
         session.aal = "aal2"
+        session.mfa_failed_attempts = 0
         session.last_seen_at = _now()
-        _event(db, "MFA_VERIFIED", request, user_id=user.id, session_id=session.id)
+        _event(
+            db,
+            "MFA_VERIFIED",
+            request,
+            user_id=user.id,
+            session_id=session.id,
+            metadata={"counter": matched_counter},
+        )
         access_token = _encode_access(db, user, session)
         db.commit()
         return {
@@ -1358,6 +1420,7 @@ def build_identity_router() -> APIRouter:
 
         founder.mfa_secret_ciphertext = None
         founder.mfa_verified_at = None
+        founder.mfa_last_accepted_counter = None
         recovery_token = _issue_recovery_token(founder, "BREAK_GLASS")
         _event(
             db,
@@ -1565,6 +1628,7 @@ def build_identity_router() -> APIRouter:
             raise HTTPException(status_code=403, detail="Founder MFA cannot be reset through delegated administration")
         user.mfa_secret_ciphertext = None
         user.mfa_verified_at = None
+        user.mfa_last_accepted_counter = None
         sessions = db.execute(
             select(OfficeAuthSession).where(
                 OfficeAuthSession.user_id == user_id,
