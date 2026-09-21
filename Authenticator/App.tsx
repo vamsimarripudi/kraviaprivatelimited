@@ -356,7 +356,7 @@ export default function App() {
           </Pressable>
           <Text style={styles.remaining}>{window.remaining}s remaining</Text>
           <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${Math.max(0, Math.min(100, window.progress * 100))}%` }]} />
+            <View style={[styles.progressFill, { width: `${Math.round(Math.max(0, Math.min(100, window.progress * 100)))}%` as `${number}%` }]} />
           </View>
           <Text style={styles.tapHint}>Tap the code to copy it for 15 seconds.</Text>
         </View>
@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
   brandMarkText: { color: "#fff", fontSize: 30, fontWeight: "900" },
   kicker: { color: "#53645c", fontSize: 11, fontWeight: "800", letterSpacing: 1.7 },
   title: { color: "#101612", fontSize: 48, fontWeight: "900", letterSpacing: -2.1, lineHeight: 49 },
-  sectionTitle: { color: "#101612", fontSize: 30, fontWeight: "850", letterSpacing: -1.1, marginTop: 4 },
+  sectionTitle: { color: "#101612", fontSize: 30, fontWeight: "800", letterSpacing: -1.1, marginTop: 4 },
   body: { color: "#5d6862", fontSize: 15, lineHeight: 22 },
   bodyCenter: { color: "#5d6862", fontSize: 15, lineHeight: 23, textAlign: "left", maxWidth: 420 },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
   scannerText: { color: "#e8eee9", fontSize: 14, lineHeight: 20, marginBottom: 4 },
   accountCard: { backgroundColor: "#102f24", borderRadius: 24, padding: 24, gap: 8, shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 24, shadowOffset: { width: 0, height: 14 }, elevation: 5 },
   issuer: { color: "#b9d8c8", fontSize: 12, fontWeight: "800", letterSpacing: 1 },
-  account: { color: "#fff", fontSize: 15, fontWeight: "650" },
+  account: { color: "#fff", fontSize: 15, fontWeight: "600" },
   code: { color: "#fff", fontSize: 48, fontWeight: "900", letterSpacing: 3, marginTop: 16, fontVariant: ["tabular-nums"] },
   remaining: { color: "#b9d8c8", fontSize: 12, marginTop: 4 },
   progressTrack: { height: 6, borderRadius: 99, backgroundColor: "rgba(255,255,255,.16)", overflow: "hidden", marginTop: 4 },
