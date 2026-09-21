@@ -1,11 +1,13 @@
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const appConfig = JSON.parse(readFileSync(new URL("../app.json", import.meta.url), "utf8"));
-const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-const app = readFileSync(new URL("../App.tsx", import.meta.url), "utf8");
-const storage = readFileSync(new URL("../src/storage.ts", import.meta.url), "utf8");
-const security = readFileSync(new URL("../src/security.ts", import.meta.url), "utf8");
+const root = resolve(import.meta.dirname, "..");
+const appConfig = JSON.parse(readFileSync(resolve(root, "app.json"), "utf8"));
+const pkg = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
+const app = readFileSync(resolve(root, "App.tsx"), "utf8");
+const storage = readFileSync(resolve(root, "src/storage.ts"), "utf8");
+const security = readFileSync(resolve(root, "src/security.ts"), "utf8");
 
 describe("KRAVIA Authenticator security profile", () => {
   it("is offline-only in the Android production manifest", () => {
@@ -37,7 +39,7 @@ describe("KRAVIA Authenticator security profile", () => {
     expect(security).toContain('biometricsSecurityLevel: "strong"');
     expect(app).toContain('if (state !== "active")');
     expect(app).toContain("setAccount(null)");
-    expect(app).toContain("setManualSecret(\"\")");
+    expect(app).toContain('setManualSecret("")');
     expect(app).toContain("secureTextEntry");
   });
 
