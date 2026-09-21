@@ -45,13 +45,27 @@ jobs:
       - name: TypeScript
         run: npm run typecheck
 
-      - name: RFC/provisioning tests
+      - name: RFC/provisioning/security tests
         run: npm test
+
+      - name: Generate deterministic KRAVIA native assets
+        run: npm run prepare:assets
+
+      - name: Verify generated app icon
+        shell: bash
+        run: |
+          test -s assets/icon.png
+          file assets/icon.png | grep -q 'PNG image data, 1024 x 1024'
 
       - name: Android JS bundle export
         env:
           CI: "1"
         run: npm run export:android
+
+      - name: iOS JS bundle export
+        env:
+          CI: "1"
+        run: npm run export:ios
 
       - name: Generate Android native project
         env:
@@ -85,10 +99,15 @@ jobs:
       - name: Stage KRAVIA Authenticator release-smoke APK
         run: cp android/app/build/outputs/apk/release/app-release.apk kravia-authenticator-release-smoke.apk
 
+      - name: Hash KRAVIA Authenticator release-smoke APK
+        run: sha256sum kravia-authenticator-release-smoke.apk | tee kravia-authenticator-release-smoke.apk.sha256
+
       - name: Upload KRAVIA Authenticator release-smoke APK
         uses: actions/upload-artifact@v4
         with:
           name: kravia-authenticator-release-smoke-apk
-          path: Authenticator/kravia-authenticator-release-smoke.apk
+          path: |
+            Authenticator/kravia-authenticator-release-smoke.apk
+            Authenticator/kravia-authenticator-release-smoke.apk.sha256
           if-no-files-found: error
           retention-days: 7
