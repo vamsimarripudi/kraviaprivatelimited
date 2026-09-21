@@ -12,7 +12,7 @@ on:
       - ".github/workflows/authenticator.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   authenticator:
@@ -23,6 +23,8 @@ jobs:
         working-directory: Authenticator
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -34,13 +36,20 @@ jobs:
       - name: Install exact app dependencies
         run: npm install --legacy-peer-deps --no-fund --no-audit
 
-      - name: Capture generated lockfile
-        uses: actions/upload-artifact@v4
-        with:
-          name: kravia-authenticator-package-lock
-          path: Authenticator/package-lock.json
-          if-no-files-found: error
-          retention-days: 1
+      - name: Commit generated lockfile to this PR branch
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        working-directory: ${{ github.workspace }}
+        env:
+          HEAD_BRANCH: ${{ github.head_ref }}
+        run: |
+          git config user.name "kravia-ci"
+          git config user.email "ci@kraviaprivatelimited.com"
+          git add Authenticator/package-lock.json
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "chore(authenticator): lock production dependencies"
+          git push origin HEAD:"$HEAD_BRANCH"
 
       - name: Dependency audit
         run: npm audit --audit-level=high
