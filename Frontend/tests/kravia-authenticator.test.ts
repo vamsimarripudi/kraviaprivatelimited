@@ -47,6 +47,8 @@ describe("KRAVIA Authenticator boundary", () => {
     expect(app).toContain("usePreventScreenCapture");
     expect(app).toContain("enableAppSwitcherProtectionAsync");
     expect(app).toContain("unlockAuthenticator");
+    expect(app).toContain("Clipboard.getStringAsync");
+    expect(app).toContain("currentClipboard === copiedCode");
   });
 
   it("ships a native Android/iOS Expo app instead of a web OTP widget", () => {
@@ -55,6 +57,7 @@ describe("KRAVIA Authenticator boundary", () => {
     expect(packageJson).toContain('"expo-camera"');
     expect(packageJson).toContain('"expo-local-authentication"');
     expect(packageJson).toContain('"expo-secure-store"');
+    expect(packageJson).toContain('"expo": "~57.0.24"');
     expect(appJson).toContain('"enabled": false');
     expect(appJson).toContain('"android.permission.INTERNET"');
     expect(app).toContain("CameraView");
