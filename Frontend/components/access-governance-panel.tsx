@@ -217,6 +217,7 @@ function UserCard({ user, state, owner, currentUserId, pending, mutate }: {
   const [recoveryUrl, setRecoveryUrl] = useState("");
   const [recoveryBusy, setRecoveryBusy] = useState(false);
   const [recoveryCopied, setRecoveryCopied] = useState(false);
+  const [recoveryError, setRecoveryError] = useState<string>();
   const reasonReady = reason.trim().length >= 3;
 
   async function post(url: string, body: Record<string, unknown>, success: string) {
@@ -228,6 +229,7 @@ function UserCard({ user, state, owner, currentUserId, pending, mutate }: {
     setRecoveryBusy(true);
     setRecoveryUrl("");
     setRecoveryCopied(false);
+    setRecoveryError(undefined);
     try {
       const result = await json<{ recovery_url: string; expires_in: number; revoked_sessions: number }>("/api/office-access/password-recovery", {
         method: "POST",
@@ -235,6 +237,8 @@ function UserCard({ user, state, owner, currentUserId, pending, mutate }: {
         body: JSON.stringify({ target_user_id: user.user_id, reason }),
       });
       setRecoveryUrl(result.recovery_url);
+    } catch (error) {
+      setRecoveryError(error instanceof Error ? error.message : "Unable to issue a recovery link");
     } finally {
       setRecoveryBusy(false);
     }
@@ -271,6 +275,7 @@ function UserCard({ user, state, owner, currentUserId, pending, mutate }: {
         <button type="button" disabled={pending || user.user_id === currentUserId} onClick={() => void post("/api/office-access/review", { target_user_id: user.user_id, decision: "APPROVED", notes: reason || undefined }, "Access review approved.")}>Approve review</button>
         <button type="button" disabled={pending || user.user_id === currentUserId} onClick={() => void post("/api/office-access/review", { target_user_id: user.user_id, decision: "CHANGES_REQUIRED", notes: reason || undefined }, "Access review marked for changes.")}>Review changes</button>
       </div>
+      {recoveryError ? <p className={styles.recoveryError}>{recoveryError}</p> : null}
       {recoveryUrl ? <div className={styles.privateLink}>
         <div><Link2 /><span><b>Private recovery link</b><small>Single-use. Issuing it revoked the user’s active sessions. Send it only to the intended person.</small></span></div>
         <div className={styles.privateLinkRow}><input readOnly value={new URL(recoveryUrl, "https://www.kraviaprivatelimited.com").toString()} aria-label="Private password recovery URL" /><button type="button" onClick={() => void copyRecoveryLink()}><Copy />{recoveryCopied ? "Copied" : "Copy link"}</button></div>
