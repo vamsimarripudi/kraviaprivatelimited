@@ -30,7 +30,7 @@ from argon2.exceptions import VerificationError, VerifyMismatchError
 from cryptography.fernet import Fernet, InvalidToken
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import inspect, select, text
+from sqlalchemy import inspect, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -766,6 +766,23 @@ def _matching_totp_counter(factor: pyotp.TOTP, code: str, now: datetime | None =
     return None
 
 
+def _claim_mfa_counter(db: Session, user_id: str, counter: int) -> bool:
+    """Atomically claim a TOTP counter so concurrent requests cannot reuse it."""
+    result = db.execute(
+        update(OfficeAuthUser)
+        .where(
+            OfficeAuthUser.id == user_id,
+            or_(
+                OfficeAuthUser.mfa_last_accepted_counter.is_(None),
+                OfficeAuthUser.mfa_last_accepted_counter < counter,
+            ),
+        )
+        .values(mfa_last_accepted_counter=counter)
+        .execution_options(synchronize_session=False)
+    )
+    return int(result.rowcount or 0) == 1
+
+
 def _qr_data_uri(uri: str) -> str:
     image = qrcode.make(uri)
     buffer = io.BytesIO()
@@ -1237,6 +1254,9 @@ def build_identity_router() -> APIRouter:
         session = db.get(OfficeAuthSession, context["session_id"])
         if not user or not session or not user.mfa_secret_ciphertext:
             raise HTTPException(status_code=409, detail="Authenticator enrollment is required")
+        if session.aal == "aal2":
+            raise HTTPException(status_code=409, detail="MFA is already completed for this Office session")
+
         secret = _decrypt_mfa_secret(user.mfa_secret_ciphertext)
         factor = pyotp.TOTP(
             secret,
@@ -1246,8 +1266,25 @@ def build_identity_router() -> APIRouter:
         )
         matched_counter = _matching_totp_counter(factor, payload.code)
         if matched_counter is None:
-            session.mfa_failed_attempts = int(session.mfa_failed_attempts or 0) + 1
-            attempts = session.mfa_failed_attempts
+            failure = db.execute(
+                update(OfficeAuthSession)
+                .where(
+                    OfficeAuthSession.id == session.id,
+                    OfficeAuthSession.status == "ACTIVE",
+                    OfficeAuthSession.aal == "aal1",
+                )
+                .values(
+                    mfa_failed_attempts=OfficeAuthSession.mfa_failed_attempts + 1,
+                    last_seen_at=_now(),
+                )
+                .execution_options(synchronize_session=False)
+            )
+            if int(failure.rowcount or 0) != 1:
+                db.rollback()
+                raise HTTPException(status_code=409, detail="MFA can no longer be verified for this Office session")
+            db.flush()
+            db.refresh(session)
+            attempts = int(session.mfa_failed_attempts or 0)
             _event(
                 db,
                 "MFA_FAILED",
@@ -1275,8 +1312,7 @@ def build_identity_router() -> APIRouter:
             db.commit()
             raise HTTPException(status_code=400, detail="The authenticator code was not accepted")
 
-        last_counter = user.mfa_last_accepted_counter
-        if last_counter is not None and matched_counter <= int(last_counter):
+        if not _claim_mfa_counter(db, user.id, matched_counter):
             _event(
                 db,
                 "MFA_REPLAY_BLOCKED",
@@ -1291,11 +1327,28 @@ def build_identity_router() -> APIRouter:
                 detail="That authenticator code was already used. Wait for the next KRAVIA Authenticator code",
             )
 
-        user.mfa_last_accepted_counter = matched_counter
-        user.mfa_verified_at = user.mfa_verified_at or _now()
-        session.aal = "aal2"
-        session.mfa_failed_attempts = 0
-        session.last_seen_at = _now()
+        verified_at = _now()
+        promoted = db.execute(
+            update(OfficeAuthSession)
+            .where(
+                OfficeAuthSession.id == session.id,
+                OfficeAuthSession.status == "ACTIVE",
+                OfficeAuthSession.aal == "aal1",
+            )
+            .values(
+                aal="aal2",
+                mfa_failed_attempts=0,
+                last_seen_at=verified_at,
+            )
+            .execution_options(synchronize_session=False)
+        )
+        if int(promoted.rowcount or 0) != 1:
+            db.rollback()
+            raise HTTPException(status_code=409, detail="MFA can no longer be verified for this Office session")
+
+        user.mfa_verified_at = user.mfa_verified_at or verified_at
+        db.flush()
+        db.refresh(session)
         _event(
             db,
             "MFA_VERIFIED",

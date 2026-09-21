@@ -702,3 +702,81 @@ def test_five_wrong_totp_codes_revoke_the_aal1_session(tmp_path, monkeypatch):
         assert event == "MFA_SESSION_REVOKED"
     finally:
         engine.dispose()
+
+def test_mfa_counter_claim_is_atomic_and_single_use(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        initial = founder(client)
+        enrolled = client.post(
+            "/api/v1/auth/mfa/enroll",
+            headers={"Authorization": f"Bearer {initial['access_token']}"},
+        )
+        assert enrolled.status_code == 200, enrolled.text
+
+        with engine.connect() as connection:
+            user_id = connection.exec_driver_sql(
+                "select id from office_auth_users where email=?",
+                (FOUNDER["email"],),
+            ).scalar_one()
+
+        counter = int(identity_auth._now().timestamp()) // identity_auth.MFA_PERIOD_SECONDS
+        Session = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+
+        with Session() as db:
+            assert identity_auth._claim_mfa_counter(db, user_id, counter) is True
+            db.commit()
+
+        with Session() as db:
+            assert identity_auth._claim_mfa_counter(db, user_id, counter) is False
+            db.rollback()
+
+        with engine.connect() as connection:
+            accepted = connection.exec_driver_sql(
+                "select mfa_last_accepted_counter from office_auth_users where id=?",
+                (user_id,),
+            ).scalar_one()
+        assert accepted == counter
+    finally:
+        engine.dispose()
+
+
+def test_stale_aal1_token_cannot_mutate_mfa_after_promotion(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        initial = founder(client)
+        access = initial["access_token"]
+        enrolled = client.post(
+            "/api/v1/auth/mfa/enroll",
+            headers={"Authorization": f"Bearer {access}"},
+        )
+        assert enrolled.status_code == 200, enrolled.text
+        secret = enrolled.json()["manual_key"]
+        valid_code = pyotp.TOTP(secret).now()
+
+        verified = client.post(
+            "/api/v1/auth/mfa/verify",
+            headers={"Authorization": f"Bearer {access}"},
+            json={"code": valid_code},
+        )
+        assert verified.status_code == 200, verified.text
+
+        invalid_code = "000000" if valid_code != "000000" else "000001"
+        stale = client.post(
+            "/api/v1/auth/mfa/verify",
+            headers={"Authorization": f"Bearer {access}"},
+            json={"code": invalid_code},
+        )
+        assert stale.status_code == 409
+        assert "already completed" in stale.json()["detail"].lower()
+
+        with engine.connect() as connection:
+            state = connection.exec_driver_sql(
+                "select status,aal,mfa_failed_attempts from office_auth_sessions_v2 limit 1"
+            ).first()
+        assert state is not None
+        assert state[0] == "ACTIVE"
+        assert state[1] == "aal2"
+        assert state[2] == 0
+    finally:
+        engine.dispose()
+
