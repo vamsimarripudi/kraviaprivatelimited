@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Laptop, LoaderCircle, MonitorSmartphone, ShieldCheck, ShieldOff } from "lucide-react";
+import { FormEvent, useEffect, useState } from "react";
+import { KeyRound, Laptop, LoaderCircle, MonitorSmartphone, ShieldCheck, ShieldOff } from "lucide-react";
 import type { OfficeIdentity } from "@/lib/office/auth-server";
 import styles from "./office-security-settings.module.css";
 
@@ -54,6 +54,10 @@ export function OfficeSecuritySettings({ identity }: { identity: OfficeIdentity 
   const [busyId, setBusyId] = useState<string>();
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordBusy, setPasswordBusy] = useState(false);
 
   async function reload() {
     const [deviceData, sessionData] = await Promise.all([
@@ -132,6 +136,33 @@ export function OfficeSecuritySettings({ identity }: { identity: OfficeIdentity 
     }
   }
 
+  async function changePassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(undefined);
+    setNotice(undefined);
+    if (newPassword !== confirmPassword) {
+      setError("The new-password confirmation does not match.");
+      return;
+    }
+    setPasswordBusy(true);
+    try {
+      const result = await json<{ changed: true; revoked_other_sessions: number }>("/api/office-auth/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+      });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setNotice(`Password changed. ${result.revoked_other_sessions} other session(s) were revoked.`);
+      await reload();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to change password");
+    } finally {
+      setPasswordBusy(false);
+    }
+  }
+
   const currentDevice = devices?.find((device) => device.current);
   const currentSession = sessions?.find((session) => session.current);
 
@@ -170,6 +201,17 @@ export function OfficeSecuritySettings({ identity }: { identity: OfficeIdentity 
         </article>)}</div>}
       </section>
     </div>
+
+    <section className={styles.passwordPanel}>
+      <header><div><p>PASSWORD SECURITY</p><h3>Change your KRAVIA Office password</h3></div><KeyRound /></header>
+      <form className={styles.passwordForm} onSubmit={changePassword}>
+        <label>Current password<input type="password" autoComplete="current-password" required maxLength={256} value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} disabled={passwordBusy} /></label>
+        <label>New password<input type="password" autoComplete="new-password" required minLength={12} maxLength={256} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} disabled={passwordBusy} /></label>
+        <label>Confirm new password<input type="password" autoComplete="new-password" required minLength={12} maxLength={256} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} disabled={passwordBusy} /></label>
+        <button type="submit" disabled={passwordBusy || currentPassword.length === 0 || newPassword.length < 12 || confirmPassword.length < 12}>{passwordBusy ? <LoaderCircle className="spin" /> : <KeyRound />} Change password</button>
+      </form>
+      <small>Changing your password keeps this verified session active and revokes every other active Office session.</small>
+    </section>
 
     <section className={styles.policy}>
       <ShieldCheck /><div><b>Security boundary</b><p>AAL2 proves the user completed MFA. Trusted-device binding separately proves that this browser possesses a secret bound to an administrator-approved, company-managed device. Authentication presence, device trust and business permissions remain independent controls.</p><small>Current session: {currentSession ? `${currentSession.aal.toUpperCase()} · KRAVIA first-party` : "session evidence unavailable"}</small></div>
