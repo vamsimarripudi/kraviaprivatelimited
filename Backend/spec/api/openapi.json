@@ -102,7 +102,7 @@
           "purchase_value": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -230,7 +230,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -533,8 +533,8 @@
           "notice_days": {
             "anyOf": [
               {
-                "maximum": 3650.0,
-                "minimum": 0.0,
+                "maximum": 3650,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -565,7 +565,7 @@
           "value": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -624,7 +624,7 @@
           "taxable_value": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -954,7 +954,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1136,7 +1136,7 @@
           "max_call": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1469,7 +1469,7 @@
           "discount": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1494,8 +1494,8 @@
           "gst_rate": {
             "anyOf": [
               {
-                "maximum": 100.0,
-                "minimum": 0.0,
+                "maximum": 100,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1526,7 +1526,7 @@
           "qty": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1551,7 +1551,7 @@
           "taxable_value": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1576,7 +1576,7 @@
           "cess": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1590,7 +1590,7 @@
           "cgst": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1610,7 +1610,7 @@
           "igst": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1630,7 +1630,7 @@
           "sgst": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1701,7 +1701,7 @@
           "max_amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1902,12 +1902,34 @@
         "title": "OtpRequest",
         "type": "object"
       },
+      "PasswordChangePayload": {
+        "properties": {
+          "current_password": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Current Password",
+            "type": "string"
+          },
+          "new_password": {
+            "maxLength": 256,
+            "minLength": 12,
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "PasswordChangePayload",
+        "type": "object"
+      },
       "PaymentCreate": {
         "properties": {
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1953,7 +1975,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -2066,8 +2088,8 @@
           "gst_rate": {
             "anyOf": [
               {
-                "maximum": 100.0,
-                "minimum": 0.0,
+                "maximum": 100,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -2089,7 +2111,7 @@
           "price": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -2197,8 +2219,8 @@
           "gst_rate": {
             "anyOf": [
               {
-                "maximum": 100.0,
-                "minimum": 0.0,
+                "maximum": 100,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -2310,6 +2332,43 @@
         "title": "PurchaseImportRequest",
         "type": "object"
       },
+      "RecoveryCompletePayload": {
+        "properties": {
+          "new_password": {
+            "maxLength": 256,
+            "minLength": 12,
+            "title": "New Password",
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 4096,
+            "minLength": 64,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "new_password"
+        ],
+        "title": "RecoveryCompletePayload",
+        "type": "object"
+      },
+      "RecoveryIssuePayload": {
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "RecoveryIssuePayload",
+        "type": "object"
+      },
       "RefreshPayload": {
         "properties": {
           "refresh_token": {
@@ -2330,7 +2389,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -2466,8 +2525,8 @@
             "type": "string"
           },
           "retention_days": {
-            "maximum": 36500.0,
-            "minimum": 30.0,
+            "maximum": 36500,
+            "minimum": 30,
             "title": "Retention Days",
             "type": "integer"
           }
@@ -2554,7 +2613,7 @@
           "fee": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -2568,7 +2627,7 @@
           "gross": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -2581,7 +2640,7 @@
           "net": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -2602,7 +2661,7 @@
           "tax_on_fee": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -2708,7 +2767,7 @@
       "ShareClassCreate": {
         "properties": {
           "authorised_shares": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Authorised Shares",
             "type": "integer"
           },
@@ -2720,7 +2779,7 @@
           "face_value": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -2749,7 +2808,7 @@
           },
           "voting_rights_per_share": {
             "default": 1,
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Voting Rights Per Share",
             "type": "integer"
           }
@@ -2786,7 +2845,7 @@
             "title": "Note"
           },
           "quantity": {
-            "exclusiveMinimum": 0.0,
+            "exclusiveMinimum": 0,
             "title": "Quantity",
             "type": "integer"
           },
@@ -5448,6 +5507,63 @@
         ]
       }
     },
+    "/api/v1/auth/password": {
+      "post": {
+        "operationId": "change_password_api_v1_auth_password_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChangePayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change Password",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
     "/api/v1/auth/readiness": {
       "get": {
         "operationId": "readiness_api_v1_auth_readiness_get",
@@ -5462,6 +5578,45 @@
           }
         },
         "summary": "Readiness",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/recovery/password": {
+      "post": {
+        "operationId": "complete_password_recovery_api_v1_auth_recovery_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoveryCompletePayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Complete Password Recovery",
         "tags": [
           "identity"
         ]
@@ -5850,6 +6005,72 @@
           }
         },
         "summary": "Reset Mfa",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/users/{user_id}/recovery-link": {
+      "post": {
+        "operationId": "issue_password_recovery_link_api_v1_auth_users__user_id__recovery_link_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoveryIssuePayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Issue Password Recovery Link",
         "tags": [
           "identity"
         ]
