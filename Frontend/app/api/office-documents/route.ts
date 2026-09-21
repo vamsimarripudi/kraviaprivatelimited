@@ -14,7 +14,7 @@ import {
   publishDocumentClauseVersion,
   publishDocumentTemplateVersion,
   recordOfficeDocumentDelivery,
-  recordOfficeSignedDocument,
+  queueOfficeSignedDocumentEvidence,
   renderOfficeDocument,
   submitDocumentInstance,
   syncDocumentInstanceApproval,
@@ -187,7 +187,7 @@ export async function PUT(request: Request) {
 
   try {
     const bytes = Buffer.from(await file.arrayBuffer());
-    const result = await recordOfficeSignedDocument({
+    const result = await queueOfficeSignedDocumentEvidence({
       instanceId: parsed.data.instance_id,
       renderId: parsed.data.render_id,
       provider: parsed.data.provider,
