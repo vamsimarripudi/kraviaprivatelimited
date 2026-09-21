@@ -358,6 +358,22 @@ export async function completeOfficePasswordRecovery(token: string, newPassword:
   return parseOrThrow<{ recovered: true; revoked_sessions: number }>(response);
 }
 
+export async function issueFounderBreakGlassRecovery(recoveryKey: string, reason: string) {
+  const response = await rawApi("/api/v1/auth/founder/recovery-link", {
+    method: "POST",
+    headers: { "X-Kravia-Break-Glass-Key": recoveryKey },
+    body: JSON.stringify({ reason }),
+  });
+  return parseOrThrow<{
+    issued: true;
+    expires_in: number;
+    recovery_token: string;
+    recovery_path: string;
+    revoked_sessions: number;
+    mfa_reset: true;
+  }>(response);
+}
+
 export async function listOfficeAuthSessions(context: OfficeSessionContext) {
   const response = await rawApi("/api/v1/auth/sessions", {
     headers: { Authorization: `Bearer ${context.session.access_token}` },
