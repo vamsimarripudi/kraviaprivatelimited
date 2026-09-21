@@ -175,6 +175,7 @@ export function WorkspaceLoginForm({
           {isPending ? <LoaderCircle className={styles.spin} /> : <ShieldCheck />}
           Verify and continue
         </button>
+        <div className={styles.links}><Link href="/office/authenticator">Install / setup KRAVIA Authenticator</Link></div>
         <p className={styles.note}>KRAVIA Authenticator generates the code locally on your phone. The verification code is never stored by the KRAVIA website.</p>
       </form>
     );
@@ -235,6 +236,7 @@ export function WorkspaceLoginForm({
       </button>
 
       <div className={styles.links}>
+        <Link href="/office/authenticator">Get KRAVIA Authenticator</Link>
         <Link href="/office/recover">Recover access</Link>
         {registrationOpen ? <Link href="/office/register">Founder registration</Link> : null}
       </div>
