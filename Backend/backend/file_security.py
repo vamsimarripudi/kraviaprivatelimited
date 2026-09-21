@@ -35,6 +35,12 @@ MAX_FILE_BYTES = 50 * 1024 * 1024
 SCAN_BATCH_DEFAULT = 10
 SCAN_RETRY_LIMIT = 5
 EICAR_TEST_BYTES = b"X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*"
+PRIVATE_FILE_SELF_TEST_BYTES = (
+    b"%PDF-1.4\n"
+    b"% KRAVIA PRIVATE FILE PIPELINE SELF TEST\n"
+    b"1 0 obj\n<< /Type /Catalog >>\nendobj\n"
+    b"trailer\n<<>>\n%%EOF\n"
+)
 
 _PURPOSES: dict[str, dict[str, Any]] = {
     "CORPORATE": {
@@ -356,6 +362,81 @@ def clamav_eicar_self_test() -> dict[str, Any]:
         "scanner_version": version,
         "threat": threat,
     }
+
+
+def private_file_pipeline_self_test() -> dict[str, Any]:
+    """Exercise private quarantine, clean scan, release, signed read-back, and cleanup.
+
+    The test object is a tiny synthetic PDF under a randomized healthchecks/
+    path. It never enters business tables and is deleted from both private
+    buckets before the self-test returns successfully.
+    """
+    if not file_security_ready():
+        raise RuntimeError("PRIVATE_FILE_PIPELINE_UNCONFIGURED")
+
+    marker = uuid.uuid4().hex
+    quarantine_path = f"healthchecks/{marker}/clean.pdf"
+    released_path = f"healthchecks/{marker}/clean.pdf"
+    payload = PRIVATE_FILE_SELF_TEST_BYTES
+    payload_sha256 = hashlib.sha256(payload).hexdigest()
+
+    quarantine_created = False
+    release_created = False
+    cleanup_ok = True
+    result: dict[str, Any] | None = None
+
+    try:
+        upload_private(
+            QUARANTINE_BUCKET,
+            quarantine_path,
+            payload,
+            "application/pdf",
+        )
+        quarantine_created = True
+
+        quarantined = download_private(QUARANTINE_BUCKET, quarantine_path, 30)
+        if quarantined != payload:
+            raise RuntimeError("PRIVATE_FILE_QUARANTINE_ROUNDTRIP_MISMATCH")
+
+        scan = scan_bytes(quarantined)
+        if not scan["clean"]:
+            raise RuntimeError("PRIVATE_FILE_CLEAN_SAMPLE_REJECTED")
+
+        upload_private(
+            "office-documents",
+            released_path,
+            quarantined,
+            "application/pdf",
+        )
+        release_created = True
+
+        released = download_private("office-documents", released_path, 30)
+        if released != payload:
+            raise RuntimeError("PRIVATE_FILE_RELEASE_ROUNDTRIP_MISMATCH")
+
+        signed_url = signed_download_url("office-documents", released_path, 15)
+        if not signed_url.startswith("https://"):
+            raise RuntimeError("PRIVATE_FILE_SIGNED_DOWNLOAD_INVALID")
+
+        result = {
+            "status": "PASSED",
+            "quarantine_bucket": QUARANTINE_BUCKET,
+            "release_bucket": "office-documents",
+            "sha256": payload_sha256,
+            "clean_scan": True,
+            "signed_download_ttl_seconds": 15,
+        }
+    finally:
+        if release_created and not delete_private("office-documents", released_path):
+            cleanup_ok = False
+        if quarantine_created and not delete_private(QUARANTINE_BUCKET, quarantine_path):
+            cleanup_ok = False
+
+    if not cleanup_ok:
+        raise RuntimeError("PRIVATE_FILE_SELF_TEST_CLEANUP_FAILED")
+    if result is None:
+        raise RuntimeError("PRIVATE_FILE_SELF_TEST_INCOMPLETE")
+    return result
 
 
 def _retry_delay(attempts: int) -> timedelta:

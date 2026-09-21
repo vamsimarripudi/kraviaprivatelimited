@@ -20,7 +20,11 @@ from sqlalchemy.orm import Session
 
 from .automation import ensure_alert, resolve_alert, tick
 from .database import Base, SessionLocal, engine
-from .file_security import clamav_eicar_self_test, process_file_scan_queue
+from .file_security import (
+    clamav_eicar_self_test,
+    private_file_pipeline_self_test,
+    process_file_scan_queue,
+)
 from .models import WorkerHeartbeat
 from .services import now_utc
 
@@ -68,6 +72,36 @@ def run_clamav_startup_self_test() -> dict[str, Any]:
 
     raise RuntimeError(
         f"ClamAV EICAR startup self-test failed after {attempts} attempts ({last_error})"
+    )
+
+
+def file_pipeline_startup_self_test_enabled() -> bool:
+    app_env = os.getenv("APP_ENV", "development").strip().lower()
+    return _env_flag("KRAVIA_FILE_PIPELINE_SELF_TEST_ON_STARTUP", app_env == "production")
+
+
+def run_file_pipeline_startup_self_test() -> dict[str, Any]:
+    if not file_pipeline_startup_self_test_enabled():
+        return {"status": "SKIPPED"}
+
+    attempts = _bounded_int("KRAVIA_FILE_PIPELINE_SELF_TEST_ATTEMPTS", 5, 1, 10)
+    delay_seconds = _bounded_int("KRAVIA_FILE_PIPELINE_SELF_TEST_RETRY_SECONDS", 5, 0, 30)
+    last_error = "UNKNOWN"
+
+    for attempt in range(1, attempts + 1):
+        try:
+            result = private_file_pipeline_self_test()
+            return {
+                **result,
+                "attempt": attempt,
+            }
+        except Exception as exc:
+            last_error = type(exc).__name__
+            if attempt < attempts and delay_seconds:
+                time.sleep(delay_seconds)
+
+    raise RuntimeError(
+        f"Private file pipeline startup self-test failed after {attempts} attempts ({last_error})"
     )
 
 
@@ -237,6 +271,13 @@ def run_forever(interval_seconds: int | None = None, batch_size: int | None = No
         _log("worker.clamav_self_test", result=self_test)
     except Exception as exc:
         _log("worker.clamav_self_test_failed", error_type=type(exc).__name__)
+        raise
+
+    try:
+        file_pipeline_test = run_file_pipeline_startup_self_test()
+        _log("worker.file_pipeline_self_test", result=file_pipeline_test)
+    except Exception as exc:
+        _log("worker.file_pipeline_self_test_failed", error_type=type(exc).__name__)
         raise
 
     _log("worker.started", interval_seconds=interval, batch_size=batch)

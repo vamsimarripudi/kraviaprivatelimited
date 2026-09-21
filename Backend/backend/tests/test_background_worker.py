@@ -140,3 +140,27 @@ def test_clamav_startup_self_test_fails_closed_after_retries(monkeypatch):
     )
     with pytest.raises(RuntimeError, match="failed after 2 attempts"):
         worker.run_clamav_startup_self_test()
+
+
+def test_private_file_pipeline_startup_self_test_defaults_on_in_production(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.delenv("KRAVIA_FILE_PIPELINE_SELF_TEST_ON_STARTUP", raising=False)
+    monkeypatch.setattr(
+        worker,
+        "private_file_pipeline_self_test",
+        lambda: {
+            "status": "PASSED",
+            "quarantine_bucket": "office-quarantine",
+            "release_bucket": "office-documents",
+            "clean_scan": True,
+        },
+    )
+    result = worker.run_file_pipeline_startup_self_test()
+    assert result["status"] == "PASSED"
+    assert result["attempt"] == 1
+
+
+def test_private_file_pipeline_startup_self_test_skips_outside_production(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.delenv("KRAVIA_FILE_PIPELINE_SELF_TEST_ON_STARTUP", raising=False)
+    assert worker.run_file_pipeline_startup_self_test() == {"status": "SKIPPED"}

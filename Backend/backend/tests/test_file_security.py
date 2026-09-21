@@ -225,3 +225,75 @@ def test_signed_document_context_rejects_incomplete_metadata():
             },
             "scanned/2026/09/file/signed.pdf",
         )
+
+
+def test_private_file_pipeline_self_test_round_trips_and_cleans_up(monkeypatch):
+    stored = {}
+    deleted = []
+
+    def upload(bucket, path, data, mime):
+        assert mime == "application/pdf"
+        stored[(bucket, path)] = bytes(data)
+
+    def download(bucket, path, _expires):
+        return stored[(bucket, path)]
+
+    def delete(bucket, path):
+        deleted.append((bucket, path))
+        stored.pop((bucket, path), None)
+        return True
+
+    monkeypatch.setattr(file_security, "file_security_ready", lambda: True)
+    monkeypatch.setattr(file_security, "upload_private", upload)
+    monkeypatch.setattr(file_security, "download_private", download)
+    monkeypatch.setattr(file_security, "delete_private", delete)
+    monkeypatch.setattr(
+        file_security,
+        "scan_bytes",
+        lambda _payload: {"clean": True, "threat": None, "response": "stream: OK"},
+    )
+    monkeypatch.setattr(
+        file_security,
+        "signed_download_url",
+        lambda bucket, path, expires: f"https://storage.example/{bucket}/{path}?ttl={expires}",
+    )
+
+    result = file_security.private_file_pipeline_self_test()
+
+    assert result["status"] == "PASSED"
+    assert result["clean_scan"] is True
+    assert result["quarantine_bucket"] == "office-quarantine"
+    assert result["release_bucket"] == "office-documents"
+    assert result["signed_download_ttl_seconds"] == 15
+    assert len(deleted) == 2
+    assert stored == {}
+
+
+def test_private_file_pipeline_self_test_fails_if_cleanup_does_not_complete(monkeypatch):
+    stored = {}
+
+    monkeypatch.setattr(file_security, "file_security_ready", lambda: True)
+    monkeypatch.setattr(
+        file_security,
+        "upload_private",
+        lambda bucket, path, data, _mime: stored.__setitem__((bucket, path), bytes(data)),
+    )
+    monkeypatch.setattr(
+        file_security,
+        "download_private",
+        lambda bucket, path, _expires: stored[(bucket, path)],
+    )
+    monkeypatch.setattr(
+        file_security,
+        "scan_bytes",
+        lambda _payload: {"clean": True, "threat": None, "response": "stream: OK"},
+    )
+    monkeypatch.setattr(
+        file_security,
+        "signed_download_url",
+        lambda _bucket, _path, _expires: "https://storage.example/signed",
+    )
+    monkeypatch.setattr(file_security, "delete_private", lambda _bucket, _path: False)
+
+    with pytest.raises(RuntimeError, match="PRIVATE_FILE_SELF_TEST_CLEANUP_FAILED"):
+        file_security.private_file_pipeline_self_test()
