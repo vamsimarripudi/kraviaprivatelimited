@@ -15,6 +15,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy import text
 
 from .database import engine
+from .identity_auth import first_party_auth_configured
 
 SERVICE_NAME = "KRAVIA Office Backend"
 SERVICE_SLUG = "kravia-office-backend"
@@ -30,18 +31,48 @@ def _database_status() -> str:
         return "unavailable"
 
 
+def _auth_mode() -> str:
+    app_env = os.getenv("APP_ENV", "development").strip().lower()
+    return os.getenv(
+        "AUTH_MODE",
+        "first_party" if app_env == "production" else "bootstrap",
+    ).strip().lower()
+
+
 def _identity_status() -> str:
     app_env = os.getenv("APP_ENV", "development").strip().lower()
-    auth_mode = os.getenv("AUTH_MODE", "bootstrap" if app_env != "production" else "oidc").strip().lower()
-    if auth_mode != "oidc":
-        return "development" if app_env != "production" else "misconfigured"
+    auth_mode = _auth_mode()
 
-    required = (
-        os.getenv("OIDC_ISSUER", "").strip(),
-        os.getenv("OIDC_AUDIENCE", "").strip(),
-        os.getenv("OIDC_JWKS_URL", "").strip(),
-    )
-    return "ready" if all(required) else "misconfigured"
+    if auth_mode == "first_party":
+        return "ready" if first_party_auth_configured() else "misconfigured"
+
+    if auth_mode == "oidc":
+        required = (
+            os.getenv("OIDC_ISSUER", "").strip(),
+            os.getenv("OIDC_AUDIENCE", "").strip(),
+            os.getenv("OIDC_JWKS_URL", "").strip(),
+        )
+        return "ready" if all(required) else "misconfigured"
+
+    return "development" if app_env != "production" else "misconfigured"
+
+
+def _identity_provider_label() -> str:
+    auth_mode = _auth_mode()
+    if auth_mode == "first_party":
+        return "KRAVIA First-Party Auth"
+    if auth_mode == "oidc":
+        return "OIDC / JWKS"
+    return "Development bootstrap"
+
+
+def _identity_control_label() -> str:
+    auth_mode = _auth_mode()
+    if auth_mode == "first_party":
+        return "Signed first-party session verification"
+    if auth_mode == "oidc":
+        return "OIDC/JWKS token verification"
+    return "Development-only bootstrap identity"
 
 
 def _health_snapshot() -> dict[str, object]:
@@ -78,6 +109,8 @@ def _landing_html(snapshot: dict[str, object]) -> str:
     database = html.escape(str(checks.get("database", "unknown")))
     identity = html.escape(str(checks.get("identity", "unknown")))
     provider = html.escape(_data_provider_label())
+    identity_provider = html.escape(_identity_provider_label())
+    identity_control = html.escape(_identity_control_label())
     badge_class = "status-badge status-healthy" if status == "healthy" else "status-badge status-degraded"
 
     return f"""<!doctype html>
@@ -110,7 +143,7 @@ def _landing_html(snapshot: dict[str, object]) -> str:
     <section class="metric-grid" aria-label="Runtime status">
       <article class="metric-card"><span class="metric-label">API runtime</span><strong>FastAPI · Python 3.13</strong><p>Containerized ASGI runtime on Railway with controlled startup and deploy-time health checks.</p></article>
       <article class="metric-card"><span class="metric-label">Data plane</span><strong>{provider}</strong><p>SQLAlchemy persistence with Alembic-controlled schema evolution and isolated application ownership.</p></article>
-      <article class="metric-card"><span class="metric-label">Identity boundary</span><strong>Supabase Auth · OIDC</strong><p>Signed JWT verification, role claims and MFA assurance are enforced before protected business operations.</p></article>
+      <article class="metric-card"><span class="metric-label">Identity boundary</span><strong>{identity_provider}</strong><p>Signed sessions, role claims and MFA assurance are enforced before protected business operations.</p></article>
       <article class="metric-card"><span class="metric-label">Operational posture</span><strong>Fail closed</strong><p>Sensitive provider execution and controlled finance actions remain gated until their production prerequisites are approved.</p></article>
     </section>
 
@@ -141,7 +174,7 @@ def _landing_html(snapshot: dict[str, object]) -> str:
         <div class="section-kicker">Security boundary</div>
         <h2>Designed for restricted access</h2>
         <ul class="security-list">
-          <li>OIDC/JWKS token verification</li>
+          <li>{identity_control}</li>
           <li>MFA AAL2 enforcement for protected sessions</li>
           <li>Role and permission checks at execution time</li>
           <li>Host and browser-origin allowlists</li>
@@ -198,6 +231,6 @@ def register_public_status(app: FastAPI) -> None:
             status_code=200,
             headers={
                 "Cache-Control": "no-store, max-age=0",
-                "X-Robots-Tag": "noindex, nofollow, noarchive",
+                "X-Robots-Tag": "noindex, nofollow,noarchive",
             },
         )
