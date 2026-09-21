@@ -171,6 +171,24 @@ def _signing_secret() -> str:
     return secret
 
 
+def _break_glass_secret() -> str:
+    secret = os.getenv("OFFICE_AUTH_BREAK_GLASS_SECRET", "").strip()
+    app_env = os.getenv("APP_ENV", "development").strip().lower()
+    if not secret and app_env != "production":
+        secret = "kravia-office-development-break-glass-secret-change-me-123456"
+    if len(secret) < 48:
+        raise RuntimeError("OFFICE_AUTH_BREAK_GLASS_SECRET must be at least 48 characters")
+    return secret
+
+
+def break_glass_configured() -> bool:
+    try:
+        _break_glass_secret()
+        return True
+    except RuntimeError:
+        return False
+
+
 def first_party_auth_configured() -> bool:
     try:
         _signing_secret()
@@ -816,6 +834,7 @@ def build_identity_router() -> APIRouter:
             "bootstrap_open": _bootstrap_open(db),
             "mfa_policy": "AAL2_REQUIRED",
             "mfa_factor": "TOTP",
+            "founder_break_glass_configured": break_glass_configured(),
             "public_registration": "ONE_TIME_FOUNDER_ONLY" if _bootstrap_open(db) else "DISABLED",
             "invitation_registration": "SINGLE_USE_PRIVATE_LINK",
             "password_hash": "ARGON2ID",
@@ -1276,6 +1295,63 @@ def build_identity_router() -> APIRouter:
             raise HTTPException(status_code=403, detail="OWNER or ADMIN authority is required")
         return context
 
+    @router.post("/founder/recovery-link")
+    def issue_founder_break_glass_recovery(
+        payload: RecoveryIssuePayload,
+        request: Request,
+        x_kravia_break_glass_key: str | None = Header(default=None, alias="X-Kravia-Break-Glass-Key"),
+        db: Session = Depends(get_db),
+    ):
+        try:
+            expected = _break_glass_secret()
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail="Founder break-glass recovery is not configured") from exc
+        provided = (x_kravia_break_glass_key or "").strip()
+        if not provided or not hmac.compare_digest(provided, expected):
+            _event(db, "FOUNDER_BREAK_GLASS_RECOVERY_BLOCKED", request, metadata={"reason": "invalid_break_glass_key"})
+            db.commit()
+            raise HTTPException(status_code=403, detail="Founder break-glass recovery was not accepted")
+
+        founder = db.execute(
+            select(OfficeAuthUser).where(OfficeAuthUser.founder_slot == FOUNDER_SLOT)
+        ).scalar_one_or_none()
+        if not founder or founder.status not in {"ACTIVE", "SUSPENDED"}:
+            raise HTTPException(status_code=404, detail="Founder recovery identity is unavailable")
+
+        active_sessions = db.execute(
+            select(OfficeAuthSession).where(
+                OfficeAuthSession.user_id == founder.id,
+                OfficeAuthSession.status == "ACTIVE",
+            )
+        ).scalars().all()
+        for session in active_sessions:
+            session.status = "REVOKED"
+            session.revoked_at = _now()
+
+        founder.mfa_secret_ciphertext = None
+        founder.mfa_verified_at = None
+        recovery_token = _issue_recovery_token(founder, "BREAK_GLASS")
+        _event(
+            db,
+            "FOUNDER_BREAK_GLASS_RECOVERY_ISSUED",
+            request,
+            user_id=founder.id,
+            metadata={
+                "reason": payload.reason.strip(),
+                "revoked_sessions": len(active_sessions),
+                "mfa_reset": True,
+            },
+        )
+        db.commit()
+        return {
+            "issued": True,
+            "expires_in": RECOVERY_TTL_SECONDS,
+            "recovery_token": recovery_token,
+            "recovery_path": f"/office/reset-password?token={recovery_token}",
+            "revoked_sessions": len(active_sessions),
+            "mfa_reset": True,
+        }
+
     @router.post("/users/{user_id}/recovery-link")
     def issue_password_recovery_link(
         user_id: str,
@@ -1487,6 +1563,7 @@ def build_identity_router() -> APIRouter:
 __all__ = [
     "OFFICE_ROLES",
     "authenticate_office_access",
+    "break_glass_configured",
     "build_identity_router",
     "first_party_auth_configured",
     "validate_first_party_auth_configuration",
