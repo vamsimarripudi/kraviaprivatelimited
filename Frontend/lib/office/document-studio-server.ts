@@ -56,27 +56,31 @@ function text(value: unknown) { return typeof value === "string" ? value : value
 
 export async function getOfficeDocumentStudioOverview() {
   const current = await actor();
-  const [canReadTemplates, canManageTemplates, canPublishTemplates, canReadInstances, canReviewInstances, canRender] = await Promise.all([
+  const [canReadTemplates, canManageTemplates, canPublishTemplates, canReadInstances, canReviewInstances, canRender, canSign, canDeliver] = await Promise.all([
     decision(current, "document.template.read", current.identity.userId, current.identity.department),
     decision(current, "document.template.manage", current.identity.userId, current.identity.department),
     decision(current, "document.template.publish", current.identity.userId, current.identity.department),
     decision(current, "document.instance.read", current.identity.userId, current.identity.department),
     decision(current, "document.instance.review", current.identity.userId, current.identity.department),
     decision(current, "document.render", current.identity.userId, current.identity.department),
+    decision(current, "document.signature.record", current.identity.userId, current.identity.department),
+    decision(current, "document.delivery.record", current.identity.userId, current.identity.department),
   ]);
   const ownerOverride = current.identity.roles.includes("OWNER");
   if (!canReadTemplates && !canReadInstances && !ownerOverride) throw new OfficeDocumentStudioError(403, "Document Studio permission is required");
 
-  const [templates, versions, clauses, clauseVersions, instances, renders, identities] = await Promise.all([
+  const [templates, versions, clauses, clauseVersions, instances, renders, signatures, deliveries, identities] = await Promise.all([
     canReadTemplates || ownerOverride ? current.admin.from("office_document_templates").select("id,template_code,title,category,owner_department,classification,required_creator_permission,requires_instance_approval,allowed_outputs,status,created_by,created_at,updated_at").eq("status", "ACTIVE").order("category").order("title") : Promise.resolve({ data: [], error: null }),
     canReadTemplates || ownerOverride ? current.admin.from("office_document_template_versions").select("id,template_id,version,design_schema,content_schema,variables_schema,clause_rules,clause_snapshot,source_reference,source_hash,effective_from,effective_to,status,created_by,published_by,published_at,created_at,updated_at").order("version", { ascending: false }).limit(500) : Promise.resolve({ data: [], error: null }),
     canReadTemplates || ownerOverride ? current.admin.from("office_document_clauses").select("id,clause_code,title,category,owner_department,status,created_by,created_at,updated_at").eq("status", "ACTIVE").order("category").order("title") : Promise.resolve({ data: [], error: null }),
     canReadTemplates || ownerOverride ? current.admin.from("office_document_clause_versions").select("id,clause_id,version,content,variables_schema,source_reference,content_hash,effective_from,status,created_by,published_by,published_at,created_at,updated_at").order("version", { ascending: false }).limit(500) : Promise.resolve({ data: [], error: null }),
     canReadInstances || ownerOverride ? current.admin.from("office_document_instances").select("id,document_code,template_id,template_version_id,subject_type,subject_reference,business_record_type,business_record_key,title,classification,owner_user_id,input_hash,approval_request_id,status,created_by,approved_by,approved_at,signed_at,delivered_at,created_at,updated_at").order("created_at", { ascending: false }).limit(500) : Promise.resolve({ data: [], error: null }),
     canReadInstances || ownerOverride ? current.admin.from("office_document_renders").select("id,document_instance_id,output_format,mime_type,storage_reference,sha256,byte_size,status,generated_by,generated_at").order("generated_at", { ascending: false }).limit(1000) : Promise.resolve({ data: [], error: null }),
+    canReadInstances || ownerOverride ? current.admin.from("office_document_signature_evidence").select("id,document_instance_id,source_render_id,provider,provider_reference,signature_method,signer_reference_masked,signed_sha256,byte_size,status,signed_at,recorded_by,recorded_at").order("recorded_at", { ascending: false }).limit(1000) : Promise.resolve({ data: [], error: null }),
+    canReadInstances || ownerOverride ? current.admin.from("office_document_delivery_events").select("id,delivery_code,document_instance_id,render_id,channel,destination_masked,provider_reference,event_type,metadata,actor_user_id,created_at").order("created_at", { ascending: false }).limit(1000) : Promise.resolve({ data: [], error: null }),
     current.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").eq("status", "ACTIVE").order("display_name"),
   ]);
-  for (const result of [templates, versions, clauses, clauseVersions, instances, renders, identities]) fail(result.error, "Document Studio data is temporarily unavailable");
+  for (const result of [templates, versions, clauses, clauseVersions, instances, renders, signatures, deliveries, identities]) fail(result.error, "Document Studio data is temporarily unavailable");
 
   const requestIds = (instances.data ?? []).map((row) => row.approval_request_id).filter((value): value is string => typeof value === "string" && Boolean(value));
   const approvals = requestIds.length ? await current.admin.from("office_requests").select("id,title,status,current_step_order,due_at,submitted_at,completed_at,updated_at").in("id", requestIds) : { data: [], error: null };
@@ -98,6 +102,8 @@ export async function getOfficeDocumentStudioOverview() {
       read_instances: Boolean(canReadInstances) || ownerOverride,
       review_instances: Boolean(canReviewInstances) || ownerOverride,
       render: Boolean(canRender) || ownerOverride,
+      sign: Boolean(canSign) || ownerOverride,
+      deliver: Boolean(canDeliver) || ownerOverride,
     },
     creator_permissions: Object.fromEntries(permissionMap),
     templates: templates.data ?? [],
@@ -106,6 +112,8 @@ export async function getOfficeDocumentStudioOverview() {
     clause_versions: clauseVersions.data ?? [],
     instances: instances.data ?? [],
     renders: renders.data ?? [],
+    signatures: signatures.data ?? [],
+    deliveries: deliveries.data ?? [],
     identities: identities.data ?? [],
     approvals: approvals.data ?? [],
     disclaimer: "The canonical document is the published template version plus immutable input snapshot. PDF, DOCX, HTML and XLSX are rendered outputs and never replace historical source data.",
@@ -226,6 +234,148 @@ export async function renderOfficeDocument(instanceId: string, outputFormat: "PD
     throw new OfficeDocumentStudioError(503, record.error?.message ?? "Document render metadata could not be committed");
   }
   return { render_id: renderId, sha256: digest, byte_size: bytes.length, output_format: outputFormat, download_path: `/api/office-documents?download=${renderId}` };
+}
+
+export async function recordOfficeSignedDocument(input: {
+  instanceId: string;
+  renderId: string;
+  provider: string;
+  providerReference?: string;
+  signatureMethod: "ESIGN" | "DSC" | "WET_SIGNATURE" | "OTHER";
+  signerReferenceMasked?: string;
+  signedAt: string;
+  evidence: Record<string, unknown>;
+  bytes: Buffer;
+  mimeType: string;
+}) {
+  const current = await actor();
+  const instanceResult = await current.admin
+    .from("office_document_instances")
+    .select("id,document_code,owner_user_id,created_by,status")
+    .eq("id", input.instanceId)
+    .maybeSingle();
+  if (instanceResult.error || !instanceResult.data) throw new OfficeDocumentStudioError(404, "Document instance not found");
+  const instance = instanceResult.data;
+  await requirePermission(current, "document.signature.record", instance.owner_user_id, current.identity.department);
+
+  const renderResult = await current.admin
+    .from("office_document_renders")
+    .select("id,document_instance_id,output_format,status")
+    .eq("id", input.renderId)
+    .maybeSingle();
+  if (renderResult.error || !renderResult.data || renderResult.data.document_instance_id !== instance.id) {
+    throw new OfficeDocumentStudioError(404, "Source document output not found");
+  }
+  if (renderResult.data.output_format !== "PDF") throw new OfficeDocumentStudioError(400, "Signed evidence must reference a PDF output");
+  if (!["RENDERED", "SIGNING", "SIGNED"].includes(instance.status)) {
+    throw new OfficeDocumentStudioError(409, "Document must be rendered before signed evidence can be recorded");
+  }
+  if (input.mimeType !== "application/pdf" || !input.bytes.subarray(0, 5).equals(Buffer.from("%PDF-"))) {
+    throw new OfficeDocumentStudioError(415, "Signed evidence must be a valid PDF");
+  }
+  if (!input.bytes.length || input.bytes.length > 50 * 1024 * 1024) {
+    throw new OfficeDocumentStudioError(413, "Signed PDF exceeds the 50 MB evidence limit");
+  }
+  const signedAt = new Date(input.signedAt);
+  if (Number.isNaN(signedAt.getTime()) || signedAt.getTime() > Date.now() + 5 * 60_000) {
+    throw new OfficeDocumentStudioError(400, "Valid signature timestamp is required");
+  }
+
+  const digest = createHash("sha256").update(input.bytes).digest("hex");
+  const storageReference = `signed/${instance.document_code}/${randomUUID()}.pdf`;
+  const upload = await current.admin.storage.from("office-documents").upload(storageReference, input.bytes, {
+    contentType: "application/pdf",
+    upsert: false,
+    cacheControl: "0",
+  });
+  if (upload.error) throw new OfficeDocumentStudioError(503, "Signed PDF could not be written to the private vault");
+
+  const record = await current.admin.rpc("office_document_record_signature", {
+    p_actor: current.identity.userId,
+    p_instance: instance.id,
+    p_render: input.renderId,
+    p_provider: input.provider.trim(),
+    p_provider_reference: input.providerReference?.trim() || null,
+    p_method: input.signatureMethod,
+    p_signer_masked: input.signerReferenceMasked?.trim() || null,
+    p_storage: storageReference,
+    p_sha: digest,
+    p_size: input.bytes.length,
+    p_signed_at: signedAt.toISOString(),
+    p_evidence: input.evidence,
+  });
+  if (record.error || typeof record.data !== "string") {
+    await current.admin.storage.from("office-documents").remove([storageReference]);
+    throw new OfficeDocumentStudioError(400, record.error?.message ?? "Signed document evidence could not be committed");
+  }
+  return {
+    signature_evidence_id: record.data,
+    sha256: digest,
+    byte_size: input.bytes.length,
+    download_path: `/api/office-documents?signed=${record.data}`,
+  };
+}
+
+export async function downloadOfficeSignedDocument(signatureId: string) {
+  const current = await actor();
+  const signatureResult = await current.admin
+    .from("office_document_signature_evidence")
+    .select("id,document_instance_id,signed_storage_reference,signed_sha256,byte_size,status")
+    .eq("id", signatureId)
+    .maybeSingle();
+  if (signatureResult.error || !signatureResult.data) throw new OfficeDocumentStudioError(404, "Signed document evidence not found");
+
+  const instanceResult = await current.admin
+    .from("office_document_instances")
+    .select("document_code,title,created_by,owner_user_id,classification")
+    .eq("id", signatureResult.data.document_instance_id)
+    .maybeSingle();
+  if (instanceResult.error || !instanceResult.data) throw new OfficeDocumentStudioError(404, "Document instance not found");
+  await requirePermission(current, "document.instance.read", instanceResult.data.owner_user_id, current.identity.department);
+
+  const download = await current.admin.storage.from("office-documents").download(signatureResult.data.signed_storage_reference);
+  if (download.error || !download.data) throw new OfficeDocumentStudioError(503, "Signed document is temporarily unavailable");
+  const bytes = Buffer.from(await download.data.arrayBuffer());
+  if (bytes.length !== signatureResult.data.byte_size) throw new OfficeDocumentStudioError(500, "Signed document size verification failed");
+  const digest = createHash("sha256").update(bytes).digest("hex");
+  if (digest !== signatureResult.data.signed_sha256) throw new OfficeDocumentStudioError(500, "Signed document integrity check failed");
+  return {
+    bytes,
+    mime_type: "application/pdf",
+    filename: `${instanceResult.data.document_code}-signed.pdf`,
+    sha256: digest,
+  };
+}
+
+export async function recordOfficeDocumentDelivery(input: {
+  instanceId: string;
+  renderId: string;
+  channel: "EMAIL" | "SMS" | "SECURE_LINK" | "IN_APP" | "ESIGN" | "OTHER";
+  destinationMasked?: string;
+  providerReference?: string;
+  eventType: string;
+  metadata: Record<string, unknown>;
+}) {
+  const current = await actor();
+  const instanceResult = await current.admin
+    .from("office_document_instances")
+    .select("id,owner_user_id,status")
+    .eq("id", input.instanceId)
+    .maybeSingle();
+  if (instanceResult.error || !instanceResult.data) throw new OfficeDocumentStudioError(404, "Document instance not found");
+  await requirePermission(current, "document.delivery.record", instanceResult.data.owner_user_id, current.identity.department);
+  const { data, error } = await current.admin.rpc("office_document_record_delivery", {
+    p_actor: current.identity.userId,
+    p_instance: input.instanceId,
+    p_render: input.renderId,
+    p_channel: input.channel,
+    p_destination_masked: input.destinationMasked?.trim() || null,
+    p_provider_reference: input.providerReference?.trim() || null,
+    p_event_type: input.eventType.trim().toUpperCase(),
+    p_metadata: input.metadata,
+  });
+  if (error || typeof data !== "string") throw new OfficeDocumentStudioError(400, error?.message ?? "Document delivery evidence could not be recorded");
+  return { delivery_event_id: data };
 }
 
 export async function downloadOfficeDocumentRender(renderId: string) {
