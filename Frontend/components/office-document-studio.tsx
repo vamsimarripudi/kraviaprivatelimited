@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, CircleAlert, FileOutput, FileText, Layers3, LoaderCircle, Plus, RefreshCw, ShieldCheck, Stamp, X } from "lucide-react";
 import styles from "./office-document-studio.module.css";
 
-type Capabilities = { read_templates: boolean; manage_templates: boolean; publish_templates: boolean; read_instances: boolean; review_instances: boolean; render: boolean };
+type Capabilities = { read_templates: boolean; manage_templates: boolean; publish_templates: boolean; read_instances: boolean; review_instances: boolean; render: boolean; sign: boolean; deliver: boolean };
 type Identity = { user_id: string; display_name?: string | null; job_title?: string | null; primary_department?: string | null };
 type Template = { id: string; template_code: string; title: string; category: string; owner_department?: string | null; classification: string; required_creator_permission: string; requires_instance_approval: boolean; allowed_outputs: string[]; created_by: string };
 type Version = { id: string; template_id: string; version: number; design_schema: Record<string, unknown>; content_schema: unknown[]; variables_schema: Record<string, unknown>; clause_rules: unknown[]; clause_snapshot: Record<string, unknown>; source_reference: string; source_hash: string; effective_from?: string | null; effective_to?: string | null; status: string; created_by: string; published_at?: string | null };
@@ -12,10 +12,12 @@ type Clause = { id: string; clause_code: string; title: string; category: string
 type ClauseVersion = { id: string; clause_id: string; version: number; content: string; variables_schema: Record<string, unknown>; source_reference: string; content_hash: string; effective_from?: string | null; status: string; created_by: string; published_at?: string | null };
 type Instance = { id: string; document_code: string; template_id: string; template_version_id: string; subject_type: string; subject_reference: string; title: string; classification: string; owner_user_id: string; input_hash: string; approval_request_id?: string | null; status: string; created_by: string; created_at: string };
 type Render = { id: string; document_instance_id: string; output_format: string; mime_type: string; sha256: string; byte_size: number; status: string; generated_at: string };
+type SignatureEvidence = { id: string; document_instance_id: string; source_render_id: string; provider: string; provider_reference?: string | null; signature_method: string; signer_reference_masked?: string | null; signed_sha256: string; byte_size: number; status: string; signed_at: string; recorded_at: string };
+type DeliveryEvent = { id: string; delivery_code: string; document_instance_id: string; render_id?: string | null; channel: string; destination_masked?: string | null; provider_reference?: string | null; event_type: string; created_at: string };
 type Approval = { id: string; status: string };
-type Payload = { actor: { user_id: string }; capabilities: Capabilities; creator_permissions: Record<string, boolean>; templates: Template[]; versions: Version[]; clauses: Clause[]; clause_versions: ClauseVersion[]; instances: Instance[]; renders: Render[]; identities: Identity[]; approvals: Approval[]; disclaimer: string };
+type Payload = { actor: { user_id: string }; capabilities: Capabilities; creator_permissions: Record<string, boolean>; templates: Template[]; versions: Version[]; clauses: Clause[]; clause_versions: ClauseVersion[]; instances: Instance[]; renders: Render[]; signatures: SignatureEvidence[]; deliveries: DeliveryEvent[]; identities: Identity[]; approvals: Approval[]; disclaimer: string };
 type View = "documents" | "templates" | "clauses" | "outputs";
-type Modal = { kind: "TEMPLATE" } | { kind: "VERSION"; template: Template } | { kind: "CLAUSE" } | { kind: "CLAUSE_VERSION"; clause: Clause } | { kind: "DOCUMENT" };
+type Modal = { kind: "TEMPLATE" } | { kind: "VERSION"; template: Template } | { kind: "CLAUSE" } | { kind: "CLAUSE_VERSION"; clause: Clause } | { kind: "DOCUMENT" } | { kind: "SIGNATURE"; instance: Instance } | { kind: "DELIVERY"; instance: Instance };
 
 async function api<T>(options?: RequestInit): Promise<T> {
   const response = await fetch("/api/office-documents", { ...options, cache: "no-store", credentials: "same-origin" });
@@ -35,6 +37,7 @@ export function OfficeDocumentStudio() {
   const [notice, setNotice] = useState<string>();
   const [modal, setModal] = useState<Modal>();
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [signedFile, setSignedFile] = useState<File>();
   const [busy, setBusy] = useState(false);
 
   async function reload(message?: string) { const next = await api<Payload>(); setData(next); if (message) setNotice(message); }
@@ -44,17 +47,30 @@ export function OfficeDocumentStudio() {
   const approvals = useMemo(() => new Map((data?.approvals ?? []).map((row) => [row.id, row])), [data?.approvals]);
   const publishedTemplates = useMemo(() => (data?.templates ?? []).filter((template) => (data?.versions ?? []).some((version) => version.template_id === template.id && version.status === "PUBLISHED") && data?.creator_permissions[template.required_creator_permission]), [data]);
 
-  function open(kind: Modal["kind"], subject?: Template | Clause) {
+  function open(kind: Modal["kind"], subject?: Template | Clause | Instance) {
+    setSignedFile(undefined);
     if (kind === "TEMPLATE") { setDraft({ category: "HR", classification: "HR", creator_permission: "document.hr.create", requires_approval: "true", outputs: "PDF,DOCX" }); setModal({ kind }); }
     else if (kind === "VERSION" && subject) { setDraft({ design: JSON.stringify({ page_size: "A4", margins_mm: { top: 22, right: 20, bottom: 22, left: 20 }, font_size: 10.5, footer_text: "" }, null, 2), content: "[]", variables: "{}", clause_rules: "[]" }); setModal({ kind, template: subject as Template }); }
     else if (kind === "CLAUSE") { setDraft({ category: "LEGAL" }); setModal({ kind }); }
     else if (kind === "CLAUSE_VERSION" && subject) { setDraft({ variables: "{}" }); setModal({ kind, clause: subject as Clause }); }
     else if (kind === "DOCUMENT") { setDraft({ input_snapshot: "{}", subject_type: "EMPLOYEE" }); setModal({ kind }); }
+    else if (kind === "SIGNATURE" && subject) {
+      const instance = subject as Instance;
+      const pdf = data?.renders.find((render) => render.document_instance_id === instance.id && render.output_format === "PDF");
+      const local = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+      setDraft({ render_id: pdf?.id || "", provider: "MANUAL", signature_method: "DSC", signed_at: local, evidence: "{}" });
+      setModal({ kind, instance });
+    } else if (kind === "DELIVERY" && subject) {
+      const instance = subject as Instance;
+      const output = data?.renders.find((render) => render.document_instance_id === instance.id);
+      setDraft({ render_id: output?.id || "", channel: "SECURE_LINK", event_type: "DELIVERED", metadata: "{}" });
+      setModal({ kind, instance });
+    }
   }
 
   async function action(payload: Record<string, unknown>, message: string) {
     setBusy(true); setError(undefined);
-    try { const result = await api<Record<string, unknown>>({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }); await reload(message); setModal(undefined); setDraft({}); return result; }
+    try { const result = await api<Record<string, unknown>>({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }); await reload(message); setModal(undefined); setDraft({}); setSignedFile(undefined); return result; }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Document Studio update failed"); return undefined; }
     finally { setBusy(false); }
   }
@@ -62,6 +78,42 @@ export function OfficeDocumentStudio() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!modal) return;
     try {
+      if (modal.kind === "SIGNATURE") {
+        if (!signedFile) throw new Error("Choose the signed PDF evidence file.");
+        const signedAt = new Date(draft.signed_at || "");
+        if (Number.isNaN(signedAt.getTime())) throw new Error("Enter a valid signature time.");
+        const form = new FormData();
+        form.set("instance_id", modal.instance.id);
+        form.set("render_id", draft.render_id);
+        form.set("provider", draft.provider);
+        form.set("provider_reference", draft.provider_reference || "");
+        form.set("signature_method", draft.signature_method);
+        form.set("signer_reference_masked", draft.signer_reference_masked || "");
+        form.set("signed_at", signedAt.toISOString());
+        form.set("evidence", JSON.stringify(jsonObject(draft.evidence || "{}", "Signature evidence")));
+        form.set("file", signedFile);
+        setBusy(true); setError(undefined);
+        try {
+          const response = await fetch("/api/office-documents", { method: "PUT", body: form, credentials: "same-origin", cache: "no-store" });
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(typeof body.detail === "string" ? body.detail : "Signed document evidence upload failed");
+          await reload("Signed PDF verified, hashed and stored in the private document vault.");
+          setModal(undefined); setDraft({}); setSignedFile(undefined);
+        } finally { setBusy(false); }
+        return;
+      }
+      if (modal.kind === "DELIVERY") {
+        return void action({
+          action: "RECORD_DELIVERY",
+          instance_id: modal.instance.id,
+          render_id: draft.render_id,
+          channel: draft.channel,
+          destination_masked: draft.destination_masked || undefined,
+          provider_reference: draft.provider_reference || undefined,
+          event_type: draft.event_type,
+          metadata: jsonObject(draft.metadata || "{}", "Delivery metadata"),
+        }, "Document delivery evidence recorded.");
+      }
       if (modal.kind === "TEMPLATE") return void action({ action: "CREATE_TEMPLATE", code: draft.code, title: draft.title, category: draft.category, department: draft.department || undefined, classification: draft.classification, creator_permission: draft.creator_permission, requires_approval: draft.requires_approval !== "false", outputs: (draft.outputs || "PDF").split(",").map((item) => item.trim().toUpperCase()).filter(Boolean) }, "Reusable document template created. Create and independently publish a version before use.");
       if (modal.kind === "VERSION") return void action({ action: "CREATE_TEMPLATE_VERSION", template_id: modal.template.id, design: jsonObject(draft.design, "Design schema"), content: jsonArray(draft.content, "Content schema"), variables: jsonObject(draft.variables, "Variable schema"), clause_rules: jsonArray(draft.clause_rules, "Clause rules"), source_reference: draft.source_reference, effective_from: draft.effective_from || undefined, effective_to: draft.effective_to || undefined }, "Template version drafted. Published versions are never overwritten.");
       if (modal.kind === "CLAUSE") return void action({ action: "CREATE_CLAUSE", code: draft.code, title: draft.title, category: draft.category, department: draft.department || undefined }, "Reusable clause created. Add and publish a clause version before a template can snapshot it.");
