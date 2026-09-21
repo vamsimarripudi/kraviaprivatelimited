@@ -302,7 +302,17 @@ export async function enrollOfficeMfa(context: OfficeSessionContext) {
     method: "POST",
     headers: { Authorization: `Bearer ${context.session.access_token}` },
   });
-  return parseOrThrow<{ factor_id: string; qr_code: string; manual_key: string; friendly_name: string }>(response);
+  return parseOrThrow<{
+    factor_id: string;
+    qr_code: string;
+    manual_key: string;
+    friendly_name: "KRAVIA Authenticator";
+    issuer: "KRAVIA Office";
+    algorithm: "SHA1";
+    digits: 6;
+    period_seconds: 30;
+    required_for_all_roles: true;
+  }>(response);
 }
 
 export async function verifyOfficeMfa(context: OfficeSessionContext, code: string) {
