@@ -205,11 +205,17 @@ export default function App() {
 
   async function copyCode() {
     if (!code) return;
-    await Clipboard.setStringAsync(code);
+    const copiedCode = code;
+    await Clipboard.setStringAsync(copiedCode);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setMessage("Code copied. Clipboard will be cleared shortly.");
     setTimeout(() => {
-      void Clipboard.setStringAsync("");
+      void (async () => {
+        const currentClipboard = await Clipboard.getStringAsync().catch(() => "");
+        if (currentClipboard === copiedCode) {
+          await Clipboard.setStringAsync("");
+        }
+      })();
     }, 15_000);
   }
 
