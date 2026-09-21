@@ -38,7 +38,7 @@ describe("KRAVIA Document Studio", () => {
     expect(migration).toContain("'office-documents','office-documents',false");
     expect(server).toContain('createHash("sha256")');
     expect(server).toContain("Document renderer integrity check failed");
-    expect(server).toContain('storage.from("office-documents").upload');
+    expect(server).toContain('new URL("/api/v1/files/upload", runtimeOrigin)');
     expect(server).toContain('storage.from("office-documents").remove');
     expect(server).toContain("Stored document integrity check failed");
   });
@@ -60,12 +60,12 @@ describe("KRAVIA Document Studio", () => {
     expect(executionMigration).toContain("A PDF source render is required for signature evidence");
     expect(executionMigration).toContain("Document signature-record permission is required");
     expect(executionMigration).toContain("Document delivery-record permission is required");
-    expect(server).toContain("recordOfficeSignedDocument");
+    expect(server).toContain("queueOfficeSignedDocumentEvidence");
     expect(server).toContain('input.mimeType !== "application/pdf"');
     expect(server).toContain('storage.from("office-documents").upload');
-    expect(server).toContain("Signed document integrity check failed");
+    expect(server).toContain("Signed document integrity check failed");\n    expect(server).toContain('context_type", "DOCUMENT_SIGNATURE"');\n    expect(server).not.toContain('storage.from("office-documents").upload(storageReference, input.bytes');
     expect(route).toContain("export async function PUT");
-    expect(route).toContain("signedUploadSchema");
+    expect(route).toContain("signedUploadSchema");\n    expect(component).toContain("entered private quarantine");
     expect(route).toContain("RECORD_DELIVERY");
     expect(component).toContain("Record signed PDF");
     expect(component).toContain("Record delivery");
