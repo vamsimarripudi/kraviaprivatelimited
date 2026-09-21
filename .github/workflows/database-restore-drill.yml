@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/database-restore-drill.yml"
+      - ".github/workflows/database-backup.yml"
 
 permissions:
   contents: read
