@@ -8,7 +8,8 @@ const security = readFileSync(new URL("../../Authenticator/src/security.ts", imp
 const totp = readFileSync(new URL("../../Authenticator/src/totp.ts", import.meta.url), "utf8");
 const packageJson = readFileSync(new URL("../../Authenticator/package.json", import.meta.url), "utf8");
 const backend = readFileSync(new URL("../../Backend/backend/identity_auth.py", import.meta.url), "utf8");
-const login = readFileSync(new URL("../components/workspace-login-form.tsx", import.meta.url), "utf8");\nconst installPage = readFileSync(new URL("../app/office/authenticator/page.tsx", import.meta.url), "utf8");
+const login = readFileSync(new URL("../components/workspace-login-form.tsx", import.meta.url), "utf8");
+const installPage = readFileSync(new URL("../app/office/authenticator/page.tsx", import.meta.url), "utf8");
 
 describe("KRAVIA Authenticator boundary", () => {
   it("makes the dedicated authenticator mandatory for every Office role", () => {
