@@ -1,110 +1,183 @@
-# KRAVIA Office — Production Identity, MFA and Delegated Access
+# KRAVIA Office — first-party identity and KRAVIA Authenticator
 
-## Identity provider
+Verified architecture: 21 Sep 2026
 
-KRAVIA Office uses its dedicated Supabase Auth project in `ap-south-1`. The public website/admin Supabase tenant remains separate.
+## Identity authority
 
-- issuer: `https://xjtazosozxmudkbxqhjl.supabase.co/auth/v1`
-- audience: `authenticated`
-- JWKS: `https://xjtazosozxmudkbxqhjl.supabase.co/auth/v1/.well-known/jwks.json`
-- required assurance: `aal2`
-- MFA: TOTP authenticator
-- role claim: `office_roles`
-- admission claim: `office_access_status`
-- department claim: `office_department`
-- authorization revision: `office_authz_version`
+KRAVIA Office and KRAVIA Finance use the KRAVIA-owned FastAPI/PostgreSQL identity subsystem.
 
-No API secret, password, invite token hash, JWT, refresh token, TOTP secret or recovery credential belongs in source control.
+Supabase is the managed PostgreSQL/control-plane and private Storage provider. **Supabase Auth is not the active Office password, session or MFA provider.**
 
-## Current hosted state
+The browser talks only to the same-origin Next.js Office BFF. The BFF forwards trusted identity operations to the canonical FastAPI runtime.
 
-Completed in the dedicated project:
+## Mandatory sign-in assurance
 
-- asymmetric JWT signing-key migration/rotation;
-- Custom Access Token Hook activation;
-- public self-signup disabled;
-- protected first OWNER identity created/admitted;
-- OWNER claim output verified;
-- deny-by-default client RLS for access-governance and workflow tables;
-- delegated OWNER → ADMIN → workforce/professional role schema;
-- neutral `MEMBER` workforce admission role;
-- one-OWNER database guard;
-- position, reporting-line, access-profile, scoped permission and device-policy catalogs;
-- generic request/approval workflow engine;
-- role-expiry and authorization-version controls;
-- AUDITOR separation-of-duties database guard;
-- immutable access-audit and request-event guards.
+Every admitted Office role must reach **AAL2** before protected Office or Finance workspace access.
 
-The first OWNER TOTP enrollment remains a human acceptance action because the authenticator secret/code must stay exclusively with the user.
+Covered roles include:
 
-## Authentication and authorization
+- OWNER
+- DIRECTOR
+- ADMIN
+- MEMBER
+- FINANCE
+- CA
+- CS
+- LEGAL
+- HR
+- OPERATIONS
+- AUDITOR
+- PRODUCT_ADMIN
 
-A protected Office/Finance request requires all of the following:
+There is no role-specific MFA bypass.
 
-1. cryptographically valid Supabase session;
-2. admitted `ACTIVE` Office identity;
-3. at least one current, non-expired explicit Office role;
-4. TOTP-verified `aal2` session;
-5. workspace/module admission where applicable;
-6. for fine-grained actions, effective permission, resource scope, expiry and device policy.
+Canonical flow:
 
-The Next.js BFF stores access/refresh tokens in HttpOnly, SameSite=Strict cookies. When `OFFICE_SUPABASE_SECRET_KEY` is configured, the BFF also reads current admission and roles from the trusted Office tables on each protected server flow; a stale JWT therefore cannot preserve browser access after a role/status change.
+1. user enters KRAVIA corporate email and Office password;
+2. FastAPI verifies the Argon2id password and creates an AAL1 first-party session;
+3. if no MFA factor exists, Office starts KRAVIA Authenticator enrollment;
+4. user scans the enrollment QR or enters the manual setup key in KRAVIA Authenticator;
+5. user enters the current six-digit code back into Office;
+6. FastAPI verifies the TOTP and promotes the current session to AAL2;
+7. protected Office/Finance routes reject the session until AAL2 is present.
 
-## Delegation
+## KRAVIA Authenticator
 
-OWNER is the bootstrap authority and is protected from ordinary deletion, suspension, role removal or transfer. Only OWNER can appoint/remove ADMIN and DIRECTOR. ADMIN can onboard/manage normal workforce and delegated professional roles, but cannot modify itself or another privileged identity.
+KRAVIA Authenticator is a separate native mobile application under `Authenticator/`.
 
-ADMIN is deliberately not a Finance/Legal/HR/security-data superuser. Additional business access requires explicit roles/access profiles/permissions within scope.
+It is intentionally **not** an Office client:
 
-See `ACCESS_GOVERNANCE.md` for lifecycle, review, recovery, workflow and audit rules.
+- it does not store the Office password;
+- it does not receive Office access/refresh tokens;
+- it does not call KRAVIA APIs to generate codes;
+- it does not synchronize seeds to cloud storage;
+- it has no OTP clipboard-export feature;
+- Android production configuration explicitly blocks INTERNET permission;
+- the camera is used only for QR enrollment.
 
-## Invitation activation
+The app accepts only the KRAVIA Office TOTP profile:
 
-Production invitation email must send the token hash to the server-side confirmation route:
+- URI type: `otpauth://totp`
+- issuer: `KRAVIA Office`
+- algorithm: HMAC-SHA1
+- digits: 6
+- period: 30 seconds
+- account: authorised `@kraviaprivatelimited.com` identity
 
-```text
-{{ .SiteURL }}/office/invite/confirm?token_hash={{ .TokenHash }}&type=invite
-```
+HMAC-SHA1 is used only for the RFC 6238 interoperable TOTP construction. Password hashing, document hashing and other integrity controls use separate modern primitives.
 
-After confirmation, `/office/activate` requires a 14+ character mixed password and TOTP enrollment/verification before the workspace can open. Cancelled or expired invitations are rejected by the application invitation ledger even if an old email link still exists.
+## Seed generation and storage
+
+The TOTP seed is generated server-side using a cryptographically secure random Base32 generator.
+
+Server side:
+
+- the seed is encrypted before database storage;
+- the plaintext seed is returned only during initial enrollment;
+- a verified factor cannot be silently re-enrolled;
+- MFA reset removes the old encrypted seed and revokes affected access according to the governed recovery path.
+
+Phone side:
+
+- the seed is stored in native SecureStore/Keychain/Keystore;
+- storage is device-bound/passcode-gated;
+- Android app backup is disabled;
+- the app requires strong enrolled biometrics before vault unlock;
+- screen capture is blocked while the app is active;
+- the app locks when backgrounded;
+- the in-memory seed is cleared on lock;
+- manual setup-key entry is masked;
+- a reinstall boundary prevents a surviving iOS Keychain seed from being silently resurrected into a fresh app installation.
+
+The seed is never written to logs, source control, analytics or ordinary application storage.
+
+## TOTP verification
+
+The phone computes:
+
+`TOTP = HOTP(seed, floor(unix_time / 30))`
+
+and displays the six-digit result.
+
+FastAPI independently computes the same RFC 6238 value from the encrypted server-side seed and accepts the configured narrow time window. A successful verification sets the current first-party session to `aal2`.
+
+The OTP itself is short-lived proof. It is not encrypted and does not need to be; the security property comes from possession of the secret seed and the time window. The seed is the credential that must remain protected.
+
+## Enrollment UX
+
+The Office login screen already implements the required sequence.
+
+When the password succeeds:
+
+- an already-verified AAL2 session continues;
+- an account with an enrolled factor moves to six-digit verification;
+- an account without a factor receives the QR/manual key and is told to use KRAVIA Authenticator.
+
+The login screen links to `/office/authenticator` for installation and setup guidance.
+
+## Recovery and replacement phones
+
+Normal MFA reset is an audited OWNER/ADMIN action within delegated authority.
+
+After MFA reset:
+
+- the old seed is no longer valid;
+- affected sessions are revoked by the governed access/recovery flow;
+- the replacement phone must enroll a newly generated seed.
+
+Founder/OWNER recovery is not delegated to ordinary administrators. It uses the separate Founder break-glass recovery flow and forces fresh MFA enrollment.
+
+There is intentionally no seed export, QR re-display, cloud backup or authenticator recovery code.
 
 ## Deployment variables
+
+FastAPI:
+
+```text
+APP_ENV=production
+AUTH_MODE=first_party
+OFFICE_REQUIRED_AAL=aal2
+OFFICE_AUTH_SIGNING_SECRET=<server-only>
+OFFICE_AUTH_BOOTSTRAP_SECRET=<server-only>
+OFFICE_AUTH_BREAK_GLASS_SECRET=<offline-protected emergency secret>
+OFFICE_AUTH_EMAIL_DOMAIN=kraviaprivatelimited.com
+```
 
 Next.js trusted server:
 
 ```text
-OFFICE_SUPABASE_URL=https://xjtazosozxmudkbxqhjl.supabase.co
-OFFICE_SUPABASE_PUBLISHABLE_KEY=YOUR_OFFICE_SUPABASE_PUBLISHABLE_KEY
-OFFICE_SUPABASE_SECRET_KEY=YOUR_OFFICE_SUPABASE_SECRET_KEY
-OFFICE_API_ORIGIN=https://YOUR_RAILWAY_FASTAPI_ORIGIN
+OFFICE_API_ORIGIN=https://<accepted-office-api-origin>
+OFFICE_SUPABASE_URL=https://<office-control-plane>.supabase.co
+OFFICE_SUPABASE_SECRET_KEY=<server-only control-plane key>
 ```
 
-FastAPI runtime:
+No authenticator seed, OTP, Office password or first-party token belongs in a public/mobile build variable.
 
-```text
-APP_ENV=production
-AUTH_MODE=oidc
-OIDC_ISSUER=https://xjtazosozxmudkbxqhjl.supabase.co/auth/v1
-OIDC_AUDIENCE=authenticated
-OIDC_JWKS_URL=https://xjtazosozxmudkbxqhjl.supabase.co/auth/v1/.well-known/jwks.json
-OIDC_ROLE_CLAIM=office_roles
-OIDC_ACTOR_CLAIM=email
-OIDC_REQUIRED_AAL=aal2
-```
+## Distribution
 
-## Recovery
+The repository CI builds an installable Android internal APK for controlled pilot installation.
 
-Normal user TOTP reset is a controlled OWNER/ADMIN operation within delegated authority and is audited. Supabase deletes the factor and terminates sessions for a verified-factor deletion; the user must enroll MFA again.
+Production employee rollout should use a release-signed Android/iOS build through an approved company distribution channel such as:
 
-OWNER recovery is intentionally excluded from ordinary self-service/ADMIN flows. It is a break-glass identity-provider procedure. Supabase does not provide recovery codes; a separately protected backup TOTP factor is the preferred owner recovery control.
+- Google Play internal/private distribution or MDM for Android;
+- TestFlight/App Store/private MDM distribution for iOS.
 
-## Remaining hosted settings
+Store accounts and signing identities are external release credentials and are never committed to Git.
 
-Before production onboarding begins:
+## Acceptance checklist
 
-- set Auth Site URL to `https://kraviaprivatelimited.com` and allow the Office confirmation/activation redirect paths;
-- install the invite email template above;
-- configure production SMTP/email delivery;
-- enroll the OWNER TOTP factor and preferably a separately protected backup factor;
-- keep JWT expiry appropriate for the sensitivity of Office access;
-- note that Supabase leaked-password protection and advanced session-lifetime controls depend on plan availability. The application still enforces strong invite passwords and AAL2 regardless.
+Before company-wide rollout:
+
+- RFC 6238 vectors pass;
+- KRAVIA-only QR parser tests pass;
+- Android INTERNET permission is absent from the generated application manifest;
+- Android backup is disabled;
+- strong biometric gate is tested on a physical device;
+- screenshot/recording protection is tested on a physical device;
+- background → foreground requires unlock again;
+- uninstall/reinstall requires fresh Office enrollment;
+- one test identity completes password → enroll → TOTP → AAL2;
+- one existing identity completes password → TOTP → AAL2;
+- MFA reset invalidates the old phone and permits fresh enrollment;
+- lost-phone recovery procedure is rehearsed;
+- Android release signing and iOS signing/distribution are accepted before general employee deployment.
