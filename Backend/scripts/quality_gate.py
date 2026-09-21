@@ -97,6 +97,8 @@ check("identity:device-events", '@router.post("/device-event")' in identity and 
 check("identity:password-change", '@router.post("/password")' in identity and "PASSWORD_CHANGED" in identity, "AAL2 password rotation")
 check("identity:private-recovery", '@router.post("/recovery/password")' in identity and '@router.post("/users/{user_id}/recovery-link")' in identity and "PASSWORD_RECOVERY_COMPLETED" in identity, "provider-free single-use recovery")
 check("identity:founder-break-glass", '@router.post("/founder/recovery-link")' in identity and "OFFICE_AUTH_BREAK_GLASS_SECRET" in identity and "FOUNDER_BREAK_GLASS_RECOVERY_ISSUED" in identity, "separate Founder emergency recovery")
+check("identity:mfa-replay-protection", "mfa_last_accepted_counter" in identity and "MFA_REPLAY_BLOCKED" in identity and "_matching_totp_counter" in identity, "TOTP counters are accepted once per user")
+check("identity:mfa-attempt-cap", "MFA_MAX_FAILED_ATTEMPTS" in identity and "MFA_SESSION_REVOKED" in identity and "mfa_failed_attempts" in identity, "AAL1 session revoked after repeated invalid OTPs")
 check(
     "identity:kravia-authenticator",
     'MFA_AUTHENTICATOR_APP = "KRAVIA Authenticator"' in identity
@@ -125,12 +127,14 @@ v11_migrations = list(migration_dir.glob("*_v11_product_tax_profiles.py"))
 v12_migrations = list(migration_dir.glob("*_v12_gst_irp_integration.py"))
 v13_migrations = list(migration_dir.glob("*_v13_gst_purchase_reconciliation.py"))
 v14_migrations = list(migration_dir.glob("*_v14_fynamics_gsp_filing.py"))
+v15_migrations = list(migration_dir.glob("*_v15_mfa_replay_protection.py"))
 check("finance-ownership-migration", len(finance_migrations) == 1, finance_migrations[0].name if len(finance_migrations) == 1 else f"found {len(finance_migrations)}")
 check("period-control-migration", len(period_migrations) == 1, period_migrations[0].name if len(period_migrations) == 1 else f"found {len(period_migrations)}")
 check("gst:v11-tax-profile-migration", len(v11_migrations) == 1, v11_migrations[0].name if len(v11_migrations) == 1 else f"found {len(v11_migrations)}")
 check("gst:v12-irp-migration", len(v12_migrations) == 1, v12_migrations[0].name if len(v12_migrations) == 1 else f"found {len(v12_migrations)}")
 check("gst:v13-purchase-reconciliation-migration", len(v13_migrations) == 1, v13_migrations[0].name if len(v13_migrations) == 1 else f"found {len(v13_migrations)}")
 check("gst:v14-gsp-filing-migration", len(v14_migrations) == 1, v14_migrations[0].name if len(v14_migrations) == 1 else f"found {len(v14_migrations)}")
+check("identity:v15-mfa-replay-migration", len(v15_migrations) == 1, v15_migrations[0].name if len(v15_migrations) == 1 else f"found {len(v15_migrations)}")
 
 broker = REPO_ROOT / "Database" / "supabase" / "functions" / "kravia-storage-broker" / "index.ts"
 broker_source = broker.read_text(errors="ignore") if broker.exists() else ""
