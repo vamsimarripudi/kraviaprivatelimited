@@ -9,14 +9,25 @@ function requiredKraviaSecret(value: string | null) {
   return secret;
 }
 
-function accountFromLabel(pathname: string) {
-  const decoded = decodeURIComponent(pathname.replace(/^\//, ""));
-  const prefix = `${KRAVIA_ISSUER}:`;
-  const account = decoded.startsWith(prefix) ? decoded.slice(prefix.length) : decoded;
-  if (!account || !account.includes("@")) {
-    throw new Error("KRAVIA enrollment is missing the corporate account");
+function corporateAccount(value: string) {
+  const account = value.trim().toLowerCase();
+  if (!/^[^\s@]+@kraviaprivatelimited\.com$/.test(account)) {
+    throw new Error("KRAVIA enrollment must use a corporate kraviaprivatelimited.com account");
   }
   return account;
+}
+
+function accountFromLabel(pathname: string) {
+  const decoded = decodeURIComponent(pathname.replace(/^\//, ""));
+  const separator = decoded.indexOf(":");
+  if (separator >= 0) {
+    const labelIssuer = decoded.slice(0, separator);
+    if (labelIssuer !== KRAVIA_ISSUER) {
+      throw new Error("This QR code label was not issued by KRAVIA Office");
+    }
+    return corporateAccount(decoded.slice(separator + 1));
+  }
+  return corporateAccount(decoded);
 }
 
 export function parseKraviaProvisioningUri(value: string): KraviaTotpAccount {
@@ -56,10 +67,7 @@ export function parseKraviaProvisioningUri(value: string): KraviaTotpAccount {
 }
 
 export function manualKraviaAccount(email: string, secretInput: string): KraviaTotpAccount {
-  const account = email.trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(account)) {
-    throw new Error("Enter the KRAVIA Office account email");
-  }
+  const account = corporateAccount(email);
   return {
     version: 1,
     issuer: KRAVIA_ISSUER,
