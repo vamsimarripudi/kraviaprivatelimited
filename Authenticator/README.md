@@ -167,10 +167,14 @@ Use physical devices for SecureStore, biometric, screen-capture and reinstall te
   - backup disabled;
   - INTERNET permission absent;
   - microphone permission absent;
-- APK SHA-256 generation;
-- short-retention CI artifact publication.
+- test-only APK zip alignment;
+- ephemeral per-run CI signing so the artifact can be installed on a physical Android device;
+- APK signature verification plus SHA-256 generation;
+- short-retention CI artifact publication with an explicit test-only notice.
 
-The release-smoke APK is for controlled internal testing. It is **not** the long-term employee distribution artifact unless it is signed with the approved persistent KRAVIA release identity.
+The CI-test APK is installable for controlled physical-device validation. Its signing key is generated inside that workflow run and discarded immediately, so a later CI-test build is **not** an upgrade path: uninstall the earlier CI-test package before installing a build from a different run.
+
+The CI-test signature is never a production trust identity. Long-term employee distribution must use the persistent KRAVIA-controlled Android signing identity.
 
 ## Production distribution
 
@@ -203,6 +207,8 @@ The persistent signing identity matters because it prevents an unrelated build f
 - Expo compatibility check passes;
 - Android release manifest contains no INTERNET or RECORD_AUDIO permission;
 - Android backup disabled;
+- CI-test APK is zip-aligned, signed and independently verified by `apksigner`;
+- production package is signed by the persistent KRAVIA-controlled release identity rather than the ephemeral CI identity;
 - strong biometric unlock tested on physical Android and iPhone;
 - screen capture protection tested;
 - background/foreground requires unlock;

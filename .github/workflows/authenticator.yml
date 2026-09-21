@@ -96,18 +96,70 @@ jobs:
             exit 1
           fi
 
-      - name: Stage KRAVIA Authenticator release-smoke APK
-        run: cp android/app/build/outputs/apk/release/app-release.apk kravia-authenticator-release-smoke.apk
+      - name: Build installable CI-test APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          unsigned="android/app/build/outputs/apk/release/app-release.apk"
+          test -s "$unsigned"
 
-      - name: Hash KRAVIA Authenticator release-smoke APK
-        run: sha256sum kravia-authenticator-release-smoke.apk | tee kravia-authenticator-release-smoke.apk.sha256
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d -print | sort -V | tail -n 1)"
+          test -x "$build_tools/zipalign"
+          test -x "$build_tools/apksigner"
 
-      - name: Upload KRAVIA Authenticator release-smoke APK
+          aligned="kravia-authenticator-ci-test-aligned.apk"
+          output="kravia-authenticator-ci-test.apk"
+          keystore="$RUNNER_TEMP/kravia-authenticator-ci-test.jks"
+          password="$(openssl rand -hex 24)"
+
+          "$build_tools/zipalign" -f -p 4 "$unsigned" "$aligned"
+          "$build_tools/zipalign" -c -P 16 -v 4 "$aligned"
+
+          keytool -genkeypair \
+            -keystore "$keystore" \
+            -storepass "$password" \
+            -keypass "$password" \
+            -alias kravia-ci-test \
+            -keyalg RSA \
+            -keysize 4096 \
+            -validity 7 \
+            -dname "CN=KRAVIA Authenticator CI Test,OU=Engineering,O=Kravia Private Limited,C=IN"
+
+          "$build_tools/apksigner" sign \
+            --ks "$keystore" \
+            --ks-key-alias kravia-ci-test \
+            --ks-pass "pass:$password" \
+            --key-pass "pass:$password" \
+            --out "$output" \
+            "$aligned"
+
+          "$build_tools/apksigner" verify --verbose --print-certs "$output" | tee kravia-authenticator-ci-test.signature.txt
+          rm -f "$aligned" "$keystore"
+          unset password
+
+      - name: Record CI-test build evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum kravia-authenticator-ci-test.apk | tee kravia-authenticator-ci-test.apk.sha256
+          {
+            echo "KRAVIA Authenticator CI test build"
+            echo "commit=$GITHUB_SHA"
+            echo "purpose=physical-device security and enrollment verification only"
+            echo "signing=ephemeral workflow-run-only Android key"
+            echo "production=false"
+            echo "upgrade_note=uninstall an older CI-test build before installing a build from another workflow run"
+            echo "production_requirement=use the persistent KRAVIA-controlled Android signing identity"
+          } > kravia-authenticator-ci-test.README.txt
+
+      - name: Upload installable KRAVIA Authenticator CI-test APK
         uses: actions/upload-artifact@v4
         with:
-          name: kravia-authenticator-release-smoke-apk
+          name: kravia-authenticator-ci-test-apk
           path: |
-            Authenticator/kravia-authenticator-release-smoke.apk
-            Authenticator/kravia-authenticator-release-smoke.apk.sha256
+            Authenticator/kravia-authenticator-ci-test.apk
+            Authenticator/kravia-authenticator-ci-test.apk.sha256
+            Authenticator/kravia-authenticator-ci-test.signature.txt
+            Authenticator/kravia-authenticator-ci-test.README.txt
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 3
