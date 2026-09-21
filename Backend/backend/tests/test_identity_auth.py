@@ -14,6 +14,7 @@ def make_client(tmp_path, monkeypatch):
     monkeypatch.setenv("APP_ENV", "development")
     monkeypatch.setenv("OFFICE_AUTH_SIGNING_SECRET", "test-first-party-signing-secret-at-least-32-chars")
     monkeypatch.setenv("OFFICE_AUTH_BOOTSTRAP_SECRET", "test-bootstrap-secret-at-least-32-characters")
+    monkeypatch.setenv("OFFICE_AUTH_BREAK_GLASS_SECRET", "test-break-glass-secret-at-least-48-characters-long-123456")
     monkeypatch.setenv("OFFICE_AUTH_EMAIL_DOMAIN", "example.test")
     engine = create_engine(
         f"sqlite:///{tmp_path / 'first-party-auth.db'}",
@@ -249,6 +250,7 @@ def test_readiness_identifies_kravia_as_identity_provider(tmp_path, monkeypatch)
         assert body["password_hash"] == "ARGON2ID"
         assert body["mfa_policy"] == "AAL2_REQUIRED"
         assert body["invitation_registration"] == "SINGLE_USE_PRIVATE_LINK"
+        assert body["founder_break_glass_configured"] is True
         assert "supabase" not in response.text.lower()
     finally:
         engine.dispose()
@@ -542,5 +544,60 @@ def test_owner_recovery_cannot_be_issued_through_ordinary_administration(tmp_pat
             json={"reason": "Ordinary recovery must not handle OWNER"},
         )
         assert blocked.status_code == 409
+    finally:
+        engine.dispose()
+
+
+def test_founder_break_glass_requires_secret_revokes_sessions_and_resets_mfa(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        founder_aal2 = aal2_founder(client)
+        access_token = founder_aal2["access_token"]
+
+        wrong = client.post(
+            "/api/v1/auth/founder/recovery-link",
+            headers={"X-Kravia-Break-Glass-Key": "wrong-break-glass-secret-that-is-definitely-long-enough-123456"},
+            json={"reason": "Emergency recovery test"},
+        )
+        assert wrong.status_code == 403
+
+        issued = client.post(
+            "/api/v1/auth/founder/recovery-link",
+            headers={"X-Kravia-Break-Glass-Key": "test-break-glass-secret-at-least-48-characters-long-123456"},
+            json={"reason": "Founder lost both password and MFA access"},
+        )
+        assert issued.status_code == 200, issued.text
+        body = issued.json()
+        assert body["issued"] is True
+        assert body["mfa_reset"] is True
+        assert body["revoked_sessions"] >= 1
+        assert body["recovery_path"].startswith("/office/reset-password?token=")
+
+        revoked_session = client.get(
+            "/api/v1/auth/session",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert revoked_session.status_code == 401
+
+        recovered = client.post(
+            "/api/v1/auth/recovery/password",
+            json={"token": body["recovery_token"], "new_password": "Founder-Recovered3!"},
+        )
+        assert recovered.status_code == 200, recovered.text
+
+        signed_in = client.post(
+            "/api/v1/auth/sign-in",
+            json={"email": FOUNDER["email"], "password": "Founder-Recovered3!"},
+        )
+        assert signed_in.status_code == 200, signed_in.text
+        signed = signed_in.json()
+        assert signed["aal"] == "aal1"
+        assert signed["mfa"]["enrolled"] is False
+
+        enrolled = client.post(
+            "/api/v1/auth/mfa/enroll",
+            headers={"Authorization": f"Bearer {signed['access_token']}"},
+        )
+        assert enrolled.status_code == 200
     finally:
         engine.dispose()
