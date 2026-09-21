@@ -107,3 +107,92 @@ def test_clamav_stream_detects_threat(monkeypatch):
     result = file_security.scan_bytes(b"test payload")
     assert result["clean"] is False
     assert result["threat"] == "Eicar-Signature"
+
+
+class _ScalarResult:
+    def __init__(self, value):
+        self.value = value
+
+    def scalar_one(self):
+        return self.value
+
+
+class _FinalizeDb:
+    def __init__(self):
+        self.calls = []
+
+    def execute(self, statement, params=None):
+        self.calls.append((str(statement), params or {}))
+        return _ScalarResult("44444444-4444-4444-8444-444444444444")
+
+
+def test_non_signature_clean_context_needs_no_document_finalization():
+    db = _FinalizeDb()
+    result = file_security._finalize_clean_context(
+        db,
+        {"context_type": "CANDIDATE_PROFILE"},
+        "scanned/2026/09/file/document.pdf",
+    )
+    assert result is None
+    assert db.calls == []
+
+
+def test_clean_signed_document_context_finalizes_canonical_signature(monkeypatch):
+    db = _FinalizeDb()
+    events = []
+    monkeypatch.setattr(
+        file_security,
+        "_event",
+        lambda _db, file_id, event_type, **kwargs: events.append(
+            (file_id, event_type, kwargs)
+        ),
+    )
+    row = {
+        "id": "55555555-5555-4555-8555-555555555555",
+        "owner_user_id": "11111111-1111-4111-8111-111111111111",
+        "context_type": "DOCUMENT_SIGNATURE",
+        "context_id": "22222222-2222-4222-8222-222222222222",
+        "context_metadata": {
+            "instance_id": "22222222-2222-4222-8222-222222222222",
+            "render_id": "33333333-3333-4333-8333-333333333333",
+            "provider": "MANUAL",
+            "provider_reference": "verified-ref",
+            "signature_method": "DSC",
+            "signer_reference_masked": "Director ending 1234",
+            "signed_at": "2026-09-21T02:00:00+00:00",
+            "evidence": {"source": "verified signed PDF"},
+        },
+        "sha256": "a" * 64,
+        "byte_size": 1234,
+    }
+
+    result = file_security._finalize_clean_context(
+        db,
+        row,
+        "scanned/2026/09/file/signed.pdf",
+    )
+
+    assert result == {
+        "signature_evidence_id": "44444444-4444-4444-8444-444444444444"
+    }
+    sql, params = db.calls[0]
+    assert "office_document_record_signature" in sql
+    assert params["actor"] == row["owner_user_id"]
+    assert params["instance"] == row["context_metadata"]["instance_id"]
+    assert params["render"] == row["context_metadata"]["render_id"]
+    assert params["storage"] == "scanned/2026/09/file/signed.pdf"
+    assert params["sha"] == "a" * 64
+    assert events[0][1] == "WORKFLOW_CONTEXT_FINALIZED"
+
+
+def test_signed_document_context_rejects_incomplete_metadata():
+    db = _FinalizeDb()
+    with pytest.raises(RuntimeError, match="SIGNATURE_CONTEXT_INCOMPLETE"):
+        file_security._finalize_clean_context(
+            db,
+            {
+                "context_type": "DOCUMENT_SIGNATURE",
+                "context_metadata": {"provider": "MANUAL"},
+            },
+            "scanned/2026/09/file/signed.pdf",
+        )
