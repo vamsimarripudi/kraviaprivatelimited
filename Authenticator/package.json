@@ -1,0 +1,35 @@
+{
+  "name": "kravia-authenticator",
+  "version": "1.0.0",
+  "private": true,
+  "main": "node_modules/expo/AppEntry.js",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "export:android": "expo export --platform android --output-dir dist/android",
+    "export:ios": "expo export --platform ios --output-dir dist/ios"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.4.0",
+    "expo": "57.0.22",
+    "expo-camera": "57.0.5",
+    "expo-clipboard": "57.0.2",
+    "expo-haptics": "57.0.3",
+    "expo-local-authentication": "57.0.2",
+    "expo-screen-capture": "57.0.3",
+    "expo-secure-store": "57.0.4",
+    "react": "19.2.3",
+    "react-native": "0.86.2"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}

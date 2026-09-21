@@ -249,6 +249,13 @@ def test_readiness_identifies_kravia_as_identity_provider(tmp_path, monkeypatch)
         assert body["provider"] == "KRAVIA_FIRST_PARTY"
         assert body["password_hash"] == "ARGON2ID"
         assert body["mfa_policy"] == "AAL2_REQUIRED"
+        assert body["mfa_factor"] == "TOTP"
+        assert body["mfa_authenticator_app"] == "KRAVIA Authenticator"
+        assert body["mfa_required_for_all_roles"] is True
+        assert body["mfa_issuer"] == "KRAVIA Office"
+        assert body["mfa_algorithm"] == "SHA1"
+        assert body["mfa_digits"] == 6
+        assert body["mfa_period_seconds"] == 30
         assert body["invitation_registration"] == "SINGLE_USE_PRIVATE_LINK"
         assert body["founder_break_glass_configured"] is True
         assert "supabase" not in response.text.lower()
