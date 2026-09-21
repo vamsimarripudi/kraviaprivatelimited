@@ -1,0 +1,185 @@
+name: KRAVIA Authenticator production Android
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kravia-authenticator-production-android
+  cancel-in-progress: false
+
+jobs:
+  production-android:
+    name: Production Android AAB and APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: Authenticator
+    env:
+      KRAVIA_ANDROID_KEYSTORE_B64: ${{ secrets.KRAVIA_ANDROID_KEYSTORE_B64 }}
+      KRAVIA_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.KRAVIA_ANDROID_KEYSTORE_PASSWORD }}
+      KRAVIA_ANDROID_KEY_ALIAS: ${{ secrets.KRAVIA_ANDROID_KEY_ALIAS }}
+      KRAVIA_ANDROID_KEY_PASSWORD: ${{ secrets.KRAVIA_ANDROID_KEY_PASSWORD }}
+      EXPECTED_SIGNING_SHA256: "1008958AD5191C64DAA3D403C56B687B674C26913ACB8D86E2EF2971E8647B75"
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Authenticator/package-lock.json
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Validate protected signing inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in             KRAVIA_ANDROID_KEYSTORE_B64             KRAVIA_ANDROID_KEYSTORE_PASSWORD             KRAVIA_ANDROID_KEY_ALIAS             KRAVIA_ANDROID_KEY_PASSWORD
+          do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Required protected secret $name is not configured."
+              exit 1
+            fi
+          done
+          if [ "$KRAVIA_ANDROID_KEY_ALIAS" != "kravia-authenticator-production" ]; then
+            echo "::error::Production key alias does not match the KRAVIA-controlled signing identity."
+            exit 1
+          fi
+
+      - name: Install locked dependencies
+        run: npm ci --no-fund --no-audit
+
+      - name: Verify Expo SDK dependency compatibility
+        run: npx expo install --check
+
+      - name: Verify application quality before signing
+        run: |
+          npm run prepare:assets
+          npm run typecheck
+          npm test
+
+      - name: Materialize protected production keystore
+        shell: bash
+        run: |
+          set -euo pipefail
+          keystore="$RUNNER_TEMP/kravia-authenticator-production.jks"
+          printf '%s' "$KRAVIA_ANDROID_KEYSTORE_B64" | base64 --decode > "$keystore"
+          chmod 600 "$keystore"
+          echo "KRAVIA_ANDROID_KEYSTORE_PATH=$keystore" >> "$GITHUB_ENV"
+
+          actual="$(
+            keytool -list -v               -keystore "$keystore"               -storepass "$KRAVIA_ANDROID_KEYSTORE_PASSWORD"               -alias "$KRAVIA_ANDROID_KEY_ALIAS"             | sed -n 's/^[[:space:]]*SHA256: //p'             | head -n 1             | tr -d ':[:space:]'
+          )"
+          if [ "$actual" != "$EXPECTED_SIGNING_SHA256" ]; then
+            echo "::error::Production keystore certificate fingerprint mismatch."
+            exit 1
+          fi
+          echo "KRAVIA production keystore fingerprint verified."
+
+      - name: Generate Android native project
+        env:
+          CI: "1"
+        run: npx expo prebuild --platform android --no-install --non-interactive
+
+      - name: Bind release build to protected KRAVIA signer
+        run: node scripts/configure-production-android-signing.mjs
+
+      - name: Build production AAB and APK
+        working-directory: Authenticator/android
+        run: ./gradlew bundleRelease assembleRelease --no-daemon
+
+      - name: Verify offline manifest and production signatures
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest="$(find android/app/build/intermediates -path '*release*' -path '*merged_manifests*' -name AndroidManifest.xml -print -quit)"
+          test -n "$manifest"
+          test -f "$manifest"
+          grep -q 'android.permission.CAMERA' "$manifest"
+          grep -q 'android:allowBackup="false"' "$manifest"
+          if grep -q 'android.permission.INTERNET' "$manifest"; then
+            echo "::error::Production KRAVIA Authenticator must remain offline."
+            exit 1
+          fi
+          if grep -q 'android.permission.RECORD_AUDIO' "$manifest"; then
+            echo "::error::Production KRAVIA Authenticator must not request audio recording."
+            exit 1
+          fi
+
+          apk="android/app/build/outputs/apk/release/app-release.apk"
+          aab="android/app/build/outputs/bundle/release/app-release.aab"
+          test -s "$apk"
+          test -s "$aab"
+
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d -print | sort -V | tail -n 1)"
+          "$build_tools/apksigner" verify --verbose --print-certs "$apk"             | tee kravia-authenticator-production-apk.signature.txt
+
+          apk_fp="$(
+            sed -n 's/^Signer #1 certificate SHA-256 digest: //p' kravia-authenticator-production-apk.signature.txt             | head -n 1             | tr '[:lower:]' '[:upper:]'             | tr -d ':[:space:]'
+          )"
+          if [ "$apk_fp" != "$EXPECTED_SIGNING_SHA256" ]; then
+            echo "::error::APK signer does not match the KRAVIA production certificate."
+            exit 1
+          fi
+
+          jarsigner -verify -strict "$aab" > kravia-authenticator-production-aab.signature.txt
+          keytool -printcert -jarfile "$aab" > kravia-authenticator-production-aab.certificate.txt
+          aab_fp="$(
+            sed -n 's/^[[:space:]]*SHA256: //p' kravia-authenticator-production-aab.certificate.txt             | head -n 1             | tr -d ':[:space:]'
+          )"
+          if [ "$aab_fp" != "$EXPECTED_SIGNING_SHA256" ]; then
+            echo "::error::AAB signer does not match the KRAVIA production certificate."
+            exit 1
+          fi
+
+      - name: Record production build evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p production-artifacts
+          cp android/app/build/outputs/apk/release/app-release.apk             production-artifacts/KRAVIA-Authenticator-1.0.0-production.apk
+          cp android/app/build/outputs/bundle/release/app-release.aab             production-artifacts/KRAVIA-Authenticator-1.0.0-production.aab
+          cp kravia-authenticator-production-apk.signature.txt production-artifacts/
+          cp kravia-authenticator-production-aab.signature.txt production-artifacts/
+          cp kravia-authenticator-production-aab.certificate.txt production-artifacts/
+
+          (
+            cd production-artifacts
+            sha256sum               KRAVIA-Authenticator-1.0.0-production.apk               KRAVIA-Authenticator-1.0.0-production.aab               > SHA256SUMS.txt
+          )
+
+          {
+            echo "KRAVIA Authenticator production Android build"
+            echo "commit=$GITHUB_SHA"
+            echo "package=com.kraviaprivatelimited.authenticator"
+            echo "app_version=1.0.0"
+            echo "version_code=1"
+            echo "signing_alias=kravia-authenticator-production"
+            echo "signing_sha256=$EXPECTED_SIGNING_SHA256"
+            echo "distribution=Google Play / managed private distribution pending provider-side upload"
+          } > production-artifacts/BUILD-EVIDENCE.txt
+
+      - name: Remove production keystore
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "${KRAVIA_ANDROID_KEYSTORE_PATH:-}" ]; then
+            rm -f "$KRAVIA_ANDROID_KEYSTORE_PATH"
+          fi
+
+      - name: Upload production Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kravia-authenticator-production-android
+          path: Authenticator/production-artifacts/
+          if-no-files-found: error
+          retention-days: 7
