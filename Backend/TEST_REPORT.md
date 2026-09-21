@@ -1,137 +1,89 @@
-# KRAVIA Office v2.0 — Verified Test Report
+# KRAVIA Office — final internal test report
 
-## Automated result on `main`
+Verified: **21 Sep 2026**
 
-Latest fully green quality run:
+## Accepted software baseline
 
-- Root application: **84 Vitest files / 394 tests passed**.
-- Office backend: **77 pytest tests passed**.
-- Office quality gate: **PASS**.
-- `npm ci`: **0 vulnerabilities**.
-- Blocking `npm audit --audit-level=high`: **0 vulnerabilities**.
-- ESLint, TypeScript typecheck, secret scan and Next.js 16.3.5 production build: **PASS**.
-- Python compile, OpenAPI drift verification and clean Alembic migration chain through v10: **PASS**.
+Validated completion commit before documentation-only closeout:
 
-The production Next build explicitly contains `/office`, `/office/login`, `/office/[section]`, `/finance`, `/finance/login`, `/finance/[section]`, `/admin/login`, Office auth APIs and runtime gateways. Route audit additionally confirms **50/50 Office sections and 20/20 Finance sections have specialised surfaces with zero generic section fallbacks**.
+`c2736b30da78780d8cc8dfd069803bd40f6145e3`
 
-Pytest treats unexpected warnings as errors. The known upstream Starlette/AnyIO TestClient deprecation remains narrowly suppressed because it originates in the dependency rather than KRAVIA code.
+GitHub Actions run:
 
-## Root/path-workspace coverage
+`35555188569`
 
-The root suite now verifies the existing public application plus the new internal-workspace boundaries. The path-workspace regression suite specifically verifies:
+Result: **SUCCESS**
 
-1. Office roles and Finance roles are independently scoped;
-2. sensitive finance modules can be narrower than general Finance access;
-3. legacy `/corporate/*` routes map to `/office`, `/finance` or `/admin` without coupling website-admin identity to Office identity;
-4. Office access/refresh tokens remain server-managed HttpOnly/SameSite=Strict cookies and are not disclosed by the sign-in API;
-5. Office-auth and runtime mutation endpoints reject cross-origin browser requests;
-6. the canonical runtime gateway uses a fixed server-controlled origin, blocks provider webhook/auth paths, does not follow upstream redirects and requires the verified Office session.
+## Frontend
 
-Crawler/sitemap tests additionally verify that `/office` and `/finance` are private route families and that production uses the apex company canonical origin `https://kraviaprivatelimited.com`.
+- Test files: **89 / 89 passed**
+- Tests: **431 / 431 passed**
+- ESLint: **PASS**
+- TypeScript typecheck: **PASS**
+- Next.js production build: **PASS**
+- dependency audit: **0 vulnerabilities**
+- repository secret scan: **PASS**
 
-## Office backend coverage
+The production build includes the public site, `/office`, `/finance`, first-party auth BFF routes, recovery routes, Office runtime gateway and document workflows.
 
-The 75-test backend suite verifies, among other controls:
+## Backend
 
-- customer → invoice → payment → receipt → GST working summary;
-- same-state CGST/SGST and inter-state IGST;
-- controlled invoice numbering and immutable billing snapshots;
-- invoice/payment idempotency, overpayment and duplicate external-reference rejection;
-- safe public invoice verification and PDF rendering;
-- double-entry journal/trial-balance balancing;
-- Board Meeting → Resolution → CTC → Authority Grant;
-- vendor / contract / employee / asset / private Document Vault flows;
-- server-side role guards and maker-checker self-approval prevention;
-- commercial Plan → Subscription;
-- credit-note and refund accounting;
-- bank-account/transaction import and deterministic payment reconciliation;
-- Command Center derived metrics;
-- Notice Case and Inspection Case/manifest generation;
-- secret-bearing integration configuration rejection;
-- audit-chain and ledger-event integrity, retention policies, legal holds and deterministic archive manifests;
-- Finance & Ownership ledger/funding/mandate/payment-provider controls;
-- disabled/sandbox finance execution, idempotency and signed provider-event handling;
-- durable background worker locking/heartbeat/failure alerts and backend observability/SLO-readiness boundaries;
-- controlled company bootstrap/source-control boundary;
-- read-only Google Drive metadata integration and evidence-taxonomy readiness;
-- accounting/tax period close and maker-checker reopen;
-- CSP/security headers, cross-origin mutation guard, shared database-backed cross-replica mutation rate limiting and production fail-closed shared-mode configuration;
-- KRAVIA first-party Argon2id password authentication with no plaintext credential storage;
-- one-time, server-secret-protected Founder bootstrap that permanently closes after first success;
-- single-use expiring private registration links with only token hashes persisted;
-- rotating refresh credentials persisted only as hashes and browser tokens retained in HttpOnly/SameSite=Strict cookies;
-- encrypted-at-rest TOTP enrollment and verification promoting sessions to `aal2`;
-- protected production APIs rejecting `aal1`;
-- inactive/suspended Office identities being rejected;
-- first-party identity/MFA/invite routes present in the committed OpenAPI contract.
+- Pytest: **110 / 110 passed**
+- Python compile: **PASS**
+- package/dependency check: **PASS**
+- OpenAPI drift: **PASS**
+- Alembic clean upgrade through **v14**: **PASS**
+- hardened Office quality gate: **PASS**
+- Railway API container build: **PASS**
+- PostgreSQL driver packaging check: **PASS**
+- packaged liveness smoke: **PASS**
+- worker container build: **PASS**
+- worker one-shot smoke: **PASS**
 
-## Identity and PostgreSQL control-plane validation
+## Database/repository
 
-The release candidate removes **Supabase Auth** from the active KRAVIA Office identity path. Supabase/PostgreSQL remains the hosted database/control plane.
+- database structure workflow: **PASS**
+- repository/application-boundary workflow: **PASS**
+- live Supabase migrations for the completion controls applied successfully
+- checked Office storage buckets remain private
 
-Verified in source/CI:
+## Security coverage added during completion
 
-- KRAVIA FastAPI owns password verification, session issuance/refresh, MFA, Founder bootstrap and invitation registration;
-- Argon2id hashes passwords; refresh tokens are stored only as SHA-256 hashes;
-- TOTP secrets are encrypted at rest and Office business access remains AAL2-gated;
-- the one-time Founder bootstrap requires a separate trusted BFF bootstrap secret and closes permanently after successful use;
-- private invitation links are single-use/expiring and only their token hashes persist;
-- existing `office_identity_users`, `office_user_roles`, departments, permission profiles and access-audit records remain authoritative authorization/control-plane data;
-- first-party auth tables are RLS-enabled with anon/authenticated table access revoked;
-- browser application code does not use Supabase Auth clients or administrative Auth APIs;
-- the old hosted Supabase Auth project may remain temporarily as rollback history until production cutover acceptance, but it is not part of the target Office login/register/MFA architecture.
+The accepted suites now cover:
 
-The previously reported Supabase Auth leaked-password warning is no longer an Office identity production gate after this cutover.
+- first-party session inventory;
+- user-scoped session revocation;
+- cross-user session IDOR rejection;
+- trusted-device ownership/AAL2 enforcement;
+- first-party device-event recording;
+- service-layer device actor revalidation;
+- no active Supabase Auth admin dependency;
+- no active reads from retired auth-session/event ledgers;
+- repository-wide same-origin mutation matrix;
+- first-party security/intelligence/workforce session models;
+- AAL2 password change;
+- other-session revocation on password rotation;
+- administrator single-use recovery links;
+- recovery-token invalidation by password version;
+- protected OWNER recovery boundary;
+- Founder break-glass recovery;
+- session revocation + MFA reset during Founder break-glass;
+- private storage-broker signature contract;
+- file quarantine and malware-scan finalization;
+- signed-document evidence only after CLEAN scan;
+- signed-PDF SHA-256 integrity;
+- document signature evidence state machine;
+- document delivery state machine;
+- signed delivery bound to verified signature evidence;
+- v11 product-tax-profile migration;
+- v12 IRIS IRP migration;
+- v13 GST purchase reconciliation migration;
+- v14 Fynamics GSP filing migration.
 
-## Migration validation
+## What this report proves
 
-The clean CI database upgrades through:
+This report proves the committed **code-owned** KRAVIA Office controls pass their automated acceptance gates.
 
-- initial KRAVIA Office schema;
-- v2 commercial/finance controls;
-- v3 tamper-evident audit chain;
-- v4 Finance & Ownership / controlled treasury;
-- v5 accounting and tax period-close controls;
-- v6 durable background-worker heartbeat;
-- v7 audit-retention policies, legal holds and archive manifests;
-- v8 shared application rate-limit windows;
-- v9 background-worker cadence metadata;
-- v10 KRAVIA first-party Office identity, sessions, roles, invitations and auth-event persistence.
+It does not claim that missing third-party credentials, bank/provider approvals, statutory evidence, CA/CS/legal review, independent penetration testing or external SLO measurements already exist.
 
-Legacy Supabase Auth/RBAC provisioning remains versioned separately in `spec/identity/SUPABASE_IDENTITY.sql` for rollback/reference only because it targets the hosted Supabase `auth` schema; it is not part of the active Office identity production gate.
-
-## Deployment validation
-
-The production code path is validated independently from provider deployment state.
-
-- GitHub Actions baseline: frontend, backend, database-structure and repository-structure quality gates are the source acceptance boundary.
-- Next.js production build baseline: **PASS**, including private Office/Finance route families and their specialised sections.
-- Railway on baseline `main` commit `3cc0759e178cecabc76a685e11a65b44301c1173`: `kravia-office-api` deployment check **SUCCESS**.
-- Railway worker on the same baseline commit: `kravia-office-worker` deployment check **SUCCESS**. This supersedes the earlier Free-plan provisioning note; operational acceptance still requires observed heartbeat/failure-alert/outbox evidence.
-- Vercel on the same baseline commit: **PENDING** at the verification point. This is not production acceptance and is not evidence of a current Next.js compile defect. Canonical `kravia1/kraviaprivatelimited` terminal deployment status and environment/domain read-back remain pending.
-
-A green source/CI build proves committed software controls. It does not fabricate live-provider acceptance.
-
-## Not claimed as complete without production evidence
-
-Automated tests do not fabricate production acceptance for:
-
-- production first-party auth secrets and `AUTH_MODE=first_party` cutover;
-- first Founder bootstrap registration and live TOTP/AAL2 session;
-- terminal green acceptance of the canonical Vercel deployment, resolution of any recurring quota/capacity gate, `kravia1` scope re-authentication, project environment/domain read-back and end-to-end browser acceptance;
-- accepted frontend `OFFICE_API_ORIGIN` and end-to-end browser→BFF→Railway verification;
-- full all-role IDOR/BOLA acceptance using production-like identities;
-- production PostgreSQL concurrency/failover/backups/PITR restore;
-- live Razorpay/RazorpayX/payment-provider eligibility and settlements;
-- live bank/accounting feeds;
-- CA-approved tax/accounting golden cases;
-- CS/legal approval of governance/ownership/statutory workflows;
-- eSign/DSC provider behavior;
-- malware scanning/private object-storage integration;
-- external staging CSRF/XSS/injection/file-upload penetration testing;
-- provider edge/WAF abuse controls;
-- acceptance of the deployed worker through observed heartbeat/failure-alert/outbox evidence;
-- verified external SLO telemetry and audit archive sink;
-- authoritative Drive evidence completeness and inspection-pack dry run.
-
-Those are deployment/provider/professional acceptance gates, not missing unit-test placeholders.
+Those are the final external activation phase.
