@@ -236,7 +236,7 @@ export async function renderOfficeDocument(instanceId: string, outputFormat: "PD
   return { render_id: renderId, sha256: digest, byte_size: bytes.length, output_format: outputFormat, download_path: `/api/office-documents?download=${renderId}` };
 }
 
-export async function recordOfficeSignedDocument(input: {
+export async function queueOfficeSignedDocumentEvidence(input: {
   instanceId: string;
   renderId: string;
   provider: string;
@@ -281,38 +281,67 @@ export async function recordOfficeSignedDocument(input: {
     throw new OfficeDocumentStudioError(400, "Valid signature timestamp is required");
   }
 
-  const digest = createHash("sha256").update(input.bytes).digest("hex");
-  const storageReference = `signed/${instance.document_code}/${randomUUID()}.pdf`;
-  const upload = await current.admin.storage.from("office-documents").upload(storageReference, input.bytes, {
-    contentType: "application/pdf",
-    upsert: false,
-    cacheControl: "0",
-  });
-  if (upload.error) throw new OfficeDocumentStudioError(503, "Signed PDF could not be written to the private vault");
+  const runtimeOrigin = getOfficeRuntimeOrigin();
+  if (!runtimeOrigin) throw new OfficeDocumentStudioError(503, "KRAVIA Office file quarantine is not configured");
+  const session = await getOfficeSessionContext();
+  if (!session || session.identity.userId !== current.identity.userId || session.identity.aal !== "aal2") {
+    throw new OfficeDocumentStudioError(403, "AAL2 Office session is required for signed-document intake");
+  }
 
-  const record = await current.admin.rpc("office_document_record_signature", {
-    p_actor: current.identity.userId,
-    p_instance: instance.id,
-    p_render: input.renderId,
-    p_provider: input.provider.trim(),
-    p_provider_reference: input.providerReference?.trim() || null,
-    p_method: input.signatureMethod,
-    p_signer_masked: input.signerReferenceMasked?.trim() || null,
-    p_storage: storageReference,
-    p_sha: digest,
-    p_size: input.bytes.length,
-    p_signed_at: signedAt.toISOString(),
-    p_evidence: input.evidence,
-  });
-  if (record.error || typeof record.data !== "string") {
-    await current.admin.storage.from("office-documents").remove([storageReference]);
-    throw new OfficeDocumentStudioError(400, record.error?.message ?? "Signed document evidence could not be committed");
+  const contextMetadata = {
+    instance_id: instance.id,
+    render_id: input.renderId,
+    provider: input.provider.trim(),
+    provider_reference: input.providerReference?.trim() || null,
+    signature_method: input.signatureMethod,
+    signer_reference_masked: input.signerReferenceMasked?.trim() || null,
+    signed_at: signedAt.toISOString(),
+    evidence: input.evidence,
+  };
+  const form = new FormData();
+  form.set("purpose", "DOCUMENT");
+  form.set("context_type", "DOCUMENT_SIGNATURE");
+  form.set("context_id", instance.id);
+  form.set("context_metadata", JSON.stringify(contextMetadata));
+  form.set("file", new Blob([input.bytes], { type: "application/pdf" }), `${instance.document_code}-signed.pdf`);
+
+  let response: Response;
+  try {
+    response = await fetch(new URL("/api/v1/files/upload", runtimeOrigin), {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${session.session.access_token}`,
+        "X-Kravia-Gateway": "document-signature-intake",
+      },
+      body: form,
+      cache: "no-store",
+      redirect: "manual",
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch {
+    throw new OfficeDocumentStudioError(502, "Private signed-document quarantine is unavailable");
+  }
+  if (response.status >= 300 && response.status < 400) {
+    throw new OfficeDocumentStudioError(502, "Unexpected signed-document quarantine redirect");
+  }
+  const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+  if (!response.ok) {
+    throw new OfficeDocumentStudioError(
+      response.status,
+      typeof payload.detail === "string" ? payload.detail : "Signed document could not enter private quarantine",
+    );
+  }
+  if (payload.status !== "QUARANTINED" || typeof payload.file_id !== "string") {
+    throw new OfficeDocumentStudioError(502, "Signed document quarantine returned an invalid acceptance state");
   }
   return {
-    signature_evidence_id: record.data,
-    sha256: digest,
-    byte_size: input.bytes.length,
-    download_path: `/api/office-documents?signed=${record.data}`,
+    file_id: payload.file_id,
+    status: "QUARANTINED",
+    sha256: payload.sha256,
+    byte_size: payload.byte_size,
+    scan_required: true,
+    finalization: "AUTOMATIC_AFTER_CLEAN_SCAN",
   };
 }
 
