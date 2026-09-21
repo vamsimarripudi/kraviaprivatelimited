@@ -97,7 +97,7 @@ export function OfficeDocumentStudio() {
           const response = await fetch("/api/office-documents", { method: "PUT", body: form, credentials: "same-origin", cache: "no-store" });
           const body = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(typeof body.detail === "string" ? body.detail : "Signed document evidence upload failed");
-          await reload("Signed PDF verified, hashed and stored in the private document vault.");
+          await reload("Signed PDF entered private quarantine. The document will become SIGNED automatically only after the malware scan passes.");
           setModal(undefined); setDraft({}); setSignedFile(undefined);
         } finally { setBusy(false); }
         return;
