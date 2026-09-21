@@ -4,7 +4,14 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
-    "types": ["vitest/globals"]
+    "types": [
+      "node",
+      "vitest/globals"
+    ]
   },
-  "include": ["App.tsx", "src/**/*.ts", "tests/**/*.ts"]
+  "include": [
+    "App.tsx",
+    "src/**/*.ts",
+    "tests/**/*.ts"
+  ]
 }
