@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const migration = readFileSync(new URL("../../Database/supabase/migrations/202609180003_document_engine.sql", import.meta.url), "utf8");
 const executionMigration = readFileSync(new URL("../../Database/supabase/migrations/202609210002_document_execution_state_machine.sql", import.meta.url), "utf8");
+const deliveryBindingMigration = readFileSync(new URL("../../Database/supabase/migrations/202609210004_signed_delivery_binding.sql", import.meta.url), "utf8");
 const server = readFileSync(new URL("../lib/office/document-studio-server.ts", import.meta.url), "utf8");
 const route = readFileSync(new URL("../app/api/office-documents/route.ts", import.meta.url), "utf8");
 const component = readFileSync(new URL("../components/office-document-studio.tsx", import.meta.url), "utf8");
@@ -60,6 +61,8 @@ describe("KRAVIA Document Studio", () => {
     expect(executionMigration).toContain("A PDF source render is required for signature evidence");
     expect(executionMigration).toContain("Document signature-record permission is required");
     expect(executionMigration).toContain("Document delivery-record permission is required");
+    expect(deliveryBindingMigration).toContain("signature_evidence_id");
+    expect(deliveryBindingMigration).toContain("Signed document delivery requires verified signature evidence");
     expect(server).toContain("queueOfficeSignedDocumentEvidence");
     expect(server).toContain('input.mimeType !== "application/pdf"');
     expect(server).toContain('storage.from("office-documents").upload');
