@@ -5,6 +5,7 @@ import { isIP } from "node:net";
 import { cookies } from "next/headers";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getOfficeRuntimeOrigin, requireOfficeAdminEnvironment } from "@/lib/env/office";
+import { getOfficeSessionContext, officeIdentityIsProvisioned } from "@/lib/office/auth-server";
 
 const OFFICE_DEVICE_COOKIE = "kravia_office_device_binding";
 const DEVICE_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
@@ -18,6 +19,15 @@ function serviceClient() {
 
 function sha256(value: string) {
   return createHash("sha256").update(value).digest("hex");
+}
+
+async function requireCurrentDeviceActor(userId: string, accessToken: string) {
+  const context = await getOfficeSessionContext();
+  if (!context || !officeIdentityIsProvisioned(context.identity)) throw new Error("Office sign-in required");
+  if (context.identity.userId !== userId) throw new Error("Office device identity does not match the current session");
+  if (context.identity.aal !== "aal2") throw new Error("AAL2 verification is required for trusted-device changes");
+  if (context.session.access_token !== accessToken) throw new Error("Office device token does not match the current session");
+  return context;
 }
 
 function requestMetadata(request: Request) {
@@ -116,6 +126,7 @@ export async function bindCurrentOfficeDevice(
   accessToken: string,
 ) {
   if (aal !== "aal2") throw new Error("AAL2 verification is required to bind a device");
+  await requireCurrentDeviceActor(userId, accessToken);
   const admin = serviceClient();
   const token = randomBytes(32).toString("base64url");
   const metadata = requestMetadata(request);
@@ -142,6 +153,7 @@ export async function bindCurrentOfficeDevice(
 }
 
 export async function unbindCurrentOfficeDevice(request: Request, userId: string, accessToken: string) {
+  await requireCurrentDeviceActor(userId, accessToken);
   const admin = serviceClient();
   const store = await cookies();
   const parsed = parseBinding(store.get(OFFICE_DEVICE_COOKIE)?.value);
