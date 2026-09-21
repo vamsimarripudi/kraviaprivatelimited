@@ -158,7 +158,7 @@ The KRAVIA Office Supabase project now includes:
 - signed-document quarantine context;
 - signed delivery bound to verified signature evidence.
 
-## Remaining work: external-only
+## External production gates — remaining work is external-only
 
 No major code-owned feature is intentionally left for the current Office scope.
 
