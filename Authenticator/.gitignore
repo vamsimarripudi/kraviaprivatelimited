@@ -8,3 +8,4 @@ ios/
 *.mobileprovision
 *.p12
 .env*
+assets/icon.png
