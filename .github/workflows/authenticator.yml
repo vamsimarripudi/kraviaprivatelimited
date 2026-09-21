@@ -1,0 +1,40 @@
+name: KRAVIA Authenticator quality
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Authenticator/**"
+      - ".github/workflows/authenticator.yml"
+  pull_request:
+    paths:
+      - "Authenticator/**"
+      - ".github/workflows/authenticator.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  authenticator:
+    name: Authenticator quality
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Authenticator
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Install exact app dependencies
+        run: npm install --no-fund --no-audit
+      - name: Dependency audit
+        run: npm audit --audit-level=high
+      - name: TypeScript
+        run: npm run typecheck
+      - name: RFC/provisioning tests
+        run: npm test
+      - name: Android JS bundle export
+        env:
+          CI: "1"
+        run: npm run export:android
