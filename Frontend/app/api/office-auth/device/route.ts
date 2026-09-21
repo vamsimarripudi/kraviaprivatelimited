@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   const parsed = bindSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ detail: "Invalid device binding request" }, { status: 400 });
   try {
-    const deviceId = await bindCurrentOfficeDevice(request, context.identity.userId, parsed.data.device_id, "aal2");
+    const deviceId = await bindCurrentOfficeDevice(request, context.identity.userId, parsed.data.device_id, "aal2", context.session.access_token);
     return NextResponse.json({ bound: true, device_id: deviceId, devices: await getMyOfficeDevices(context.identity.userId) }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Unable to bind device";
@@ -42,7 +42,7 @@ export async function DELETE(request: Request) {
   const context = await aal2Context();
   if (!context) return NextResponse.json({ detail: "AAL2 Office session required" }, { status: 401 });
   try {
-    await unbindCurrentOfficeDevice(context.identity.userId);
+    await unbindCurrentOfficeDevice(request, context.identity.userId, context.session.access_token);
     return NextResponse.json({ bound: false, devices: await getMyOfficeDevices(context.identity.userId) }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ detail: "Unable to unbind device" }, { status: 503, headers: { "Cache-Control": "no-store" } });

@@ -5,6 +5,8 @@ const screen = readFileSync(new URL("../components/internal-workspace-screen.tsx
 const panel = readFileSync(new URL("../components/office-security-settings.tsx", import.meta.url), "utf8");
 const deviceServer = readFileSync(new URL("../lib/office/device-binding-server.ts", import.meta.url), "utf8");
 const deviceSql = readFileSync(new URL("../../Backend/spec/identity/SUPABASE_DEVICE_BINDING.sql", import.meta.url), "utf8");
+const overviewServer = readFileSync(new URL("../lib/office/security-overview-server.ts", import.meta.url), "utf8");
+const overviewUi = readFileSync(new URL("../components/office-security-overview.tsx", import.meta.url), "utf8");
 
 describe("KRAVIA Office security settings", () => {
   it("renders the live security control in Office settings", () => {
@@ -22,6 +24,17 @@ describe("KRAVIA Office security settings", () => {
     expect(deviceServer).toContain('aal !== "aal2"');
     expect(deviceSql).toContain("trust_state<>'TRUSTED'");
     expect(deviceSql).toContain("company_managed is not true");
+  });
+
+  it("uses canonical first-party sessions for security observability without fabricated risk scores", () => {
+    expect(overviewServer).toContain('from("office_auth_sessions_v2")');
+    expect(overviewServer).toContain('from("office_auth_events_v2")');
+    expect(overviewServer).not.toContain('from("office_auth_sessions")');
+    expect(overviewServer).not.toContain('from("office_auth_events")');
+    expect(overviewServer).not.toContain("risk_level");
+    expect(overviewUi).toContain("closed / expired");
+    expect(overviewUi).toContain("FIRST-PARTY");
+    expect(overviewUi).not.toContain("elevated risk");
   });
 
   it("stores device proof as an HttpOnly browser secret and database hash", () => {

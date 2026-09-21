@@ -28,6 +28,14 @@ describe("KRAVIA Intelligence", () => {
     expect(server).not.toContain('select("id,invoice_no,status,total,balance');
   });
 
+  it("uses canonical first-party sessions without fabricated risk scoring", () => {
+    expect(server).toContain('from("office_auth_sessions_v2")');
+    expect(server).not.toContain('from("office_auth_sessions")');
+    expect(server).toContain("auth_sessions_without_aal2");
+    expect(server).not.toContain("risk_level");
+    expect(server).not.toContain("high_risk_auth_sessions");
+  });
+
   it("surfaces operational exceptions without claiming legal or provider conclusions", () => {
     expect(server).toContain("it is not a legal conclusion about compliance");
     expect(server).toContain("does not independently probe provider uptime");

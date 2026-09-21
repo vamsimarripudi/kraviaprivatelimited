@@ -7,7 +7,6 @@ import { isOfficeRole, type OfficeRole } from "@/lib/office/workspaces";
 
 export const OFFICE_ACCESS_COOKIE = "kravia_office_access";
 export const OFFICE_REFRESH_COOKIE = "kravia_office_refresh";
-export const OFFICE_RECOVERY_COOKIE = "kravia_office_recovery";
 
 const ACCESS_COOKIE_MAX_AGE_SECONDS = 60 * 60;
 const REFRESH_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
@@ -35,6 +34,21 @@ export type OfficeSessionContext = {
   session: OfficeSession;
   identity: OfficeIdentity;
   mfa: { enrolled: boolean };
+};
+
+export type OfficeAuthSessionRecord = {
+  id: string;
+  status: string;
+  aal: "aal1" | "aal2";
+  mfa_verified: boolean;
+  ip_address?: string | null;
+  user_agent_hash?: string | null;
+  started_at?: string | null;
+  last_seen_at?: string | null;
+  expires_at?: string | null;
+  revoked_at?: string | null;
+  current: boolean;
+  provider: "KRAVIA_FIRST_PARTY";
 };
 
 type FirstPartyAuthResponse = {
@@ -153,17 +167,6 @@ export async function writeOfficeSessionCookies(session: OfficeSession) {
   }
 }
 
-export async function clearOfficeRecoveryCookie() {
-  const store = await cookies();
-  store.set(OFFICE_RECOVERY_COOKIE, "", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    path: "/",
-    maxAge: 0,
-  });
-}
-
 export async function clearOfficeSessionCookies() {
   const store = await cookies();
   const options = {
@@ -175,7 +178,6 @@ export async function clearOfficeSessionCookies() {
   };
   store.set(OFFICE_ACCESS_COOKIE, "", options);
   store.set(OFFICE_REFRESH_COOKIE, "", options);
-  store.set(OFFICE_RECOVERY_COOKIE, "", options);
 }
 
 async function contextFromPayload(payload: FirstPartyAuthResponse): Promise<OfficeSessionContext> {
@@ -236,7 +238,6 @@ export async function signInOffice(email: string, password: string): Promise<Off
   });
   const payload = await parseOrThrow<FirstPartyAuthResponse>(response);
   const context = await contextFromPayload(payload);
-  await clearOfficeRecoveryCookie();
   await writeOfficeSessionCookies(context.session);
   return context;
 }
@@ -336,6 +337,58 @@ export async function refreshOfficeIdentity(context: OfficeSessionContext): Prom
   };
 }
 
+export async function changeOfficePassword(
+  context: OfficeSessionContext,
+  currentPassword: string,
+  newPassword: string,
+) {
+  const response = await rawApi("/api/v1/auth/password", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${context.session.access_token}` },
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  });
+  return parseOrThrow<{ changed: true; revoked_other_sessions: number }>(response);
+}
+
+export async function completeOfficePasswordRecovery(token: string, newPassword: string) {
+  const response = await rawApi("/api/v1/auth/recovery/password", {
+    method: "POST",
+    body: JSON.stringify({ token, new_password: newPassword }),
+  });
+  return parseOrThrow<{ recovered: true; revoked_sessions: number }>(response);
+}
+
+export async function issueFounderBreakGlassRecovery(recoveryKey: string, reason: string) {
+  const response = await rawApi("/api/v1/auth/founder/recovery-link", {
+    method: "POST",
+    headers: { "X-Kravia-Break-Glass-Key": recoveryKey },
+    body: JSON.stringify({ reason }),
+  });
+  return parseOrThrow<{
+    issued: true;
+    expires_in: number;
+    recovery_token: string;
+    recovery_path: string;
+    revoked_sessions: number;
+    mfa_reset: true;
+  }>(response);
+}
+
+export async function listOfficeAuthSessions(context: OfficeSessionContext) {
+  const response = await rawApi("/api/v1/auth/sessions", {
+    headers: { Authorization: `Bearer ${context.session.access_token}` },
+  });
+  return parseOrThrow<{ sessions: OfficeAuthSessionRecord[] }>(response);
+}
+
+export async function revokeOfficeAuthSession(context: OfficeSessionContext, sessionId: string) {
+  const response = await rawApi(`/api/v1/auth/sessions/${encodeURIComponent(sessionId)}/revoke`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${context.session.access_token}` },
+  });
+  return parseOrThrow<{ revoked: true; session: OfficeAuthSessionRecord }>(response);
+}
+
 export async function signOutOffice(context?: OfficeSessionContext | null) {
   if (context) {
     try {
@@ -350,18 +403,3 @@ export async function signOutOffice(context?: OfficeSessionContext | null) {
   await clearOfficeSessionCookies();
 }
 
-// Recovery is intentionally administrator-assisted in the first-party rollout.
-// No email-based self-service recovery endpoint is exposed until its provider and
-// anti-takeover workflow are separately approved.
-export async function requestOfficePasswordRecovery() {
-  throw new Error("ADMINISTRATOR_ASSISTED_RECOVERY_REQUIRED");
-}
-export async function verifyOfficeRecoveryToken() {
-  throw new Error("ADMINISTRATOR_ASSISTED_RECOVERY_REQUIRED");
-}
-export async function writeOfficeRecoveryCookie() {
-  throw new Error("ADMINISTRATOR_ASSISTED_RECOVERY_REQUIRED");
-}
-export async function officeRecoveryIsVerified() {
-  return false;
-}

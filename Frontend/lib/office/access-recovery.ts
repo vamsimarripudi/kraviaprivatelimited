@@ -202,3 +202,50 @@ export async function resetOfficeMfa(input: { targetUserId: string; reason: stri
   });
   return { ...result, target_user_id: targetIdentity.userId };
 }
+
+
+export async function issueOfficePasswordRecovery(input: { targetUserId: string; reason: string }) {
+  const { admin, actor, accessToken } = await authority();
+  const targetIdentity = await target(admin, input.targetUserId);
+  if (targetIdentity.status === "INVITED" || targetIdentity.status === "REVOKED") {
+    throw new OfficeAccessError(409, "Password recovery requires an active or suspended identity");
+  }
+  const decision = canManageTarget(actor.userId, actor.roles, targetIdentity.userId, targetIdentity.roles);
+  if (!decision.allowed) throw new OfficeAccessError(403, decision.reason);
+
+  const result = await identityApi<{
+    issued: true;
+    target_user_id: string;
+    expires_in: number;
+    recovery_token: string;
+    recovery_path: string;
+    revoked_sessions: number;
+  }>(
+    accessToken,
+    `/api/v1/auth/users/${encodeURIComponent(input.targetUserId)}/recovery-link`,
+    {
+      method: "POST",
+      body: JSON.stringify({ reason: input.reason }),
+    },
+  );
+
+  await audit(admin, actor, {
+    targetUserId: targetIdentity.userId,
+    targetEmail: targetIdentity.email,
+    action: "PASSWORD_RECOVERY_ISSUED",
+    reason: input.reason,
+    metadata: {
+      provider: "KRAVIA_FIRST_PARTY",
+      expires_in: result.expires_in,
+      revoked_sessions: result.revoked_sessions,
+    },
+  });
+
+  return {
+    issued: true as const,
+    target_user_id: result.target_user_id,
+    expires_in: result.expires_in,
+    recovery_url: result.recovery_path,
+    revoked_sessions: result.revoked_sessions,
+  };
+}

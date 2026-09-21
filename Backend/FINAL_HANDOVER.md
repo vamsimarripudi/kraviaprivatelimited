@@ -1,233 +1,219 @@
-# KRAVIA Office v2.0 — Audited Development Handover
+# KRAVIA Office — final internal handover
 
-## Purpose and canonical URLs
+Verified: **21 Sep 2026**
 
-KRAVIA Office is the company operating system for KRAVIA PRIVATE LIMITED and present/future KRAVIA products. The source remains the `Backend/` FastAPI subsystem plus the `Frontend/` Next.js path-workspace surface inside `vamsimarripudi/kraviaprivatelimited`; a separate Office repository is not required.
+## Executive state
 
-Canonical browser model:
+The **code-owned KRAVIA Office product scope is internally complete**.
 
-- `https://kraviaprivatelimited.com/` — public company website;
-- `https://kraviaprivatelimited.com/office` — directors, corporate operations, governance, HR, legal/CS and product administration;
-- `https://kraviaprivatelimited.com/finance` — Finance/CA/Auditor/GST/accounting/banking/reconciliation and authorised ownership/funding views;
-- `https://kraviaprivatelimited.com/admin` — public website/content/request administration using its separate website-admin identity boundary.
+Validated completion baseline:
 
-`office.kraviaprivatelimited.com` is no longer the canonical application URL. Keep it until the path deployment has been accepted, then redirect or retire it.
+- branch: `office/internal-completion-20260921`
+- validated code head before documentation-only closeout: `c2736b30da78780d8cc8dfd069803bd40f6145e3`
+- GitHub Actions run: `35555188569`
+- result: **SUCCESS**
+- frontend: **89 / 89 files, 431 / 431 tests**
+- backend: **110 / 110 tests**
+- production Next.js build: **PASS**
+- OpenAPI: **PASS**
+- Alembic through v14: **PASS**
+- API container/liveness: **PASS**
+- worker container/smoke: **PASS**
 
-## Architecture principle
+No major internal feature is deliberately being deferred to a future coding phase for the current Office scope.
 
-Products create business. KRAVIA Office provides the canonical corporate/commercial control layer:
+## Canonical architecture
 
-`Product event → customer/commercial context → billing/tax → payment → accounting → reconciliation → evidence → governance/compliance/audit`.
+### Browser/UI
+`www.kraviaprivatelimited.com`
 
-Legal ownership, shareholder/director funding, customer revenue and vendor/company payouts are separate domains. A payment or contribution never changes ownership automatically.
+- `/office` — internal business workspace
+- `/finance` — Finance/CA/Auditor workspace
+- same-origin Office auth BFF
+- same-origin Office runtime gateway
 
-## Path-workspace security architecture
+### Application runtime
+Railway FastAPI:
 
-The public Next.js application remains the browser-facing gateway for `/office` and `/finance`.
+- first-party identity;
+- business APIs;
+- finance/accounting/GST;
+- document renderer;
+- private file quarantine API;
+- provider adapters.
 
-- KRAVIA now owns Office identity: FastAPI/PostgreSQL handles passwords, sessions, MFA, Founder bootstrap and private invitations.
-- Supabase Auth is not used by the target Office login/register/MFA flow; Supabase/PostgreSQL remains the hosted database/control plane.
-- Passwords use Argon2id and are never stored in plaintext.
-- Refresh credentials are random, rotated and stored only as hashes; short-lived access JWTs are signed by KRAVIA.
-- Access/refresh credentials remain server-side in HttpOnly, SameSite=Strict cookies and are not returned to application JavaScript.
-- TOTP MFA is mandatory for Office business access; its secret is encrypted at rest.
-- The one-time Founder registration uses a locked Founder display role, maps internally to the protected OWNER authorization boundary, requires a trusted server bootstrap secret and permanently closes after first success.
-- New people register only from single-use, expiring private links issued inside Office by AAL2 OWNER/ADMIN authority.
-- Existing `office_identity_users`, `office_user_roles`, departments and permission profiles remain the live authorization source of truth.
-- Browser mutations retain explicit same-origin protection.
-- `/api/office-runtime/[...path]` forwards allowlisted requests using the server-held KRAVIA access token.
-- Browser-supplied Authorization/cookies/host headers are not forwarded to FastAPI.
-- Provider webhook/public backend paths are not reachable through the browser runtime gateway.
-- Upstream redirects are refused, body size is bounded and responses are uncached.
-- FastAPI remains the downstream session/RBAC/business-rule authority.
+Railway worker:
 
-Crawler/sitemap controls continue to classify `/office`, `/finance`, `/admin`, `/api`, `/auth` and legacy `/corporate` as private route families.
+- durable worker lock/heartbeat;
+- outbox;
+- automation;
+- private-file malware scan;
+- CLEAN signed-document workflow finalization.
 
-## Included executable capabilities
+### Data/control plane
+Supabase/PostgreSQL:
 
-- FastAPI API with SQLAlchemy persistence and Alembic migrations through v9
-- PostgreSQL-ready configuration
-- KRAVIA first-party JWT/session verification with mandatory `aal2`
-- root Next.js `/office` and `/finance` role-scoped workspaces
-- same-origin FastAPI BFF gateway for canonical operational data
-- one-time Founder registration plus private single-use invitation registration and TOTP activation
-- server-side RBAC and maker-checker approval controls
-- company/product/customer masters and commercial plans/subscriptions
-- invoices, GST calculations, payments, receipts, credit notes, refunds and settlements
-- double-entry operational journal and trial balance
-- accounting/TAX/BOTH period locks with controlled reopen
-- bank-account registry, bank transaction ingestion and reconciliation
-- Finance & Ownership share ledger, funding, expenses, contribution calls, mandates and payment instructions
-- disabled/sandbox/live finance execution boundary, RazorpayX adapter and signed Razorpay webhook handling
-- governance meetings, resolutions, CTC generation and authority grants
-- compliance, authority notices, vendors, contracts, people and assets
-- versioned/locked private document vault with SHA-256 integrity
-- inspection cases and evidence-pack manifests
-- read-only Google Drive metadata discovery/readiness
-- transactional outbox/domain-event model and workflow registry
-- dedicated durable background-worker runtime with distributed advisory locking, heartbeat and bounded outbox processing
-- backend-owned runtime alerts/operations summary and explicit SLO measurement-readiness boundaries
-- audit-retention policies, legal holds and deterministic archive manifests with destructive purge disabled
-- CSP/security headers, Origin guard, trusted-host option and shared database-backed cross-replica mutation rate limiting
-- reproducible OpenAPI drift verification, secret scan and blocking dependency audit
+- Office business/control tables;
+- first-party auth persistence;
+- private Storage buckets;
+- signed `kravia-storage-broker` Edge Function;
+- RLS/browser denial boundaries.
 
-## Verified automated state
+Supabase Auth is **not** the active Office password/session authority.
 
-Latest fully green `main` quality run verified:
+## Identity final state
 
-- `npm ci`: **0 vulnerabilities**
-- blocking `npm audit --audit-level=high`: **0 vulnerabilities**
-- secret scan: **PASS**
-- ESLint: **PASS**
-- TypeScript typecheck: **PASS**
-- root Vitest: **84 files / 394 tests passed**
-- Next.js 16.3.5 production build: **PASS**
-- production build route manifest includes `/office`, `/finance`, their login/dynamic routes, Office auth APIs and Office runtime gateway
-- Python compile: **PASS**
-- OpenAPI drift check: **PASS**
-- clean Alembic upgrade through v10: **PASS**
-- Office backend: **77 tests passed**
-- hardened Office quality gate: **PASS**
+Implemented:
 
-The test suite covers path-workspace roles, legacy redirects, cookie token non-disclosure, same-origin mutations, fixed-origin runtime proxy controls, identity/MFA/AAL2, Finance & Ownership, GST, accounting close, banking/reconciliation, treasury, expenses/funding, ownership posting, financial assurance, company registrations, Office/runtime audit evidence, Drive taxonomy, security middleware, RBAC, governance and document controls. Route audit confirms **50/50 Office sections and 20/20 Finance sections use specialised surfaces**.
+- Founder bootstrap;
+- Argon2id credentials;
+- JWT access tokens;
+- rotating refresh tokens;
+- TOTP AAL2;
+- private invitations;
+- role/department identity;
+- first-party sessions;
+- secondary-session revocation;
+- trusted devices;
+- password change;
+- administrator recovery links;
+- Founder break-glass recovery;
+- MFA reset;
+- access reviews;
+- suspension/reactivation/offboarding controls.
 
-## Production identity state
+Recovery does not require email/SMS. An authorised administrator can create a private short-lived single-use recovery link. Founder recovery uses a separate high-entropy break-glass secret and resets both sessions and MFA.
 
-Target identity architecture is **KRAVIA first-party**.
+## Document/evidence final state
 
-Source/CI-complete:
+Implemented:
 
-- one-time protected Founder bootstrap;
-- Argon2id passwords;
-- signed short-lived access JWTs;
-- rotating hashed refresh sessions;
-- encrypted-at-rest TOTP with AAL2;
-- failed-login lockout and auditable authentication events;
-- private single-use registration links for future people;
-- existing authorization/role ledgers reused rather than replaced.
+- reusable versioned document templates;
+- versioned clauses;
+- immutable input snapshots;
+- approval workflow;
+- PDF/DOCX/HTML/XLSX rendering;
+- private storage;
+- SHA-256 verification;
+- signed-PDF evidence;
+- malware quarantine before signed-state finalization;
+- signature-evidence ledger;
+- delivery-evidence ledger;
+- signed deliveries bound to verified signature evidence.
 
-Production cutover remains intentionally pending until the required Railway/Vercel secrets are present and the new backend can deploy outside Railway Free-tier Singapore peak hours. The former Supabase Auth tenant is retained only as a rollback asset until this cutover is accepted; do not delete it before first-party login/MFA acceptance.
+This means Protean/eSign/DSC automation is now an external adapter step. KRAVIA Office can already complete the governed lifecycle using a real signed PDF artifact without pretending a provider acted.
 
-## Canonical FastAPI runtime
+## Finance/GST final internal state
 
-ASGI application:
+Implemented:
 
-```text
-backend.app:app
-```
+- billing/invoice domain;
+- payments/receipts/refunds;
+- double-entry accounting;
+- trial balance;
+- bank transaction/reconciliation model;
+- maker-checker;
+- period locking/reopen;
+- ownership ledger;
+- GST tax profiles;
+- e-Invoice/IRP adapter;
+- purchase-data/VAS reconciliation;
+- GST return workings;
+- GSP filing evidence boundary.
 
-Development:
+Real filing/payment execution remains disabled until the applicable provider is accepted.
 
-```bash
-cd Backend
-python -m pip install -r backend/requirements.txt
-alembic upgrade head
-python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000
-```
+## Storage/file-security final state
 
-The production browser should not use the old static Office frontend as a second canonical application. Root Next.js path workspaces call FastAPI through the same-origin BFF.
+Live private buckets:
 
-## Root deployment variables
+- `corporate-private`
+- `office-candidate-documents`
+- `office-documents`
+- `office-quarantine`
 
-```text
-NEXT_PUBLIC_SITE_URL=https://kraviaprivatelimited.com
-OFFICE_SUPABASE_URL=https://xjtazosozxmudkbxqhjl.supabase.co
-OFFICE_SUPABASE_PUBLISHABLE_KEY=<active modern publishable key>
-OFFICE_API_ORIGIN=https://<canonical FastAPI runtime origin>
-```
+Inbound files are fail-closed:
 
-The FastAPI runtime must use `AUTH_MODE=first_party`, a strong `OFFICE_AUTH_SIGNING_SECRET`, `OFFICE_REQUIRED_AAL=aal2`, and a strong `OFFICE_AUTH_BOOTSTRAP_SECRET`. The bootstrap secret must match the trusted Vercel BFF value until the first Founder registration succeeds.
+1. validate size/type/name;
+2. write to private quarantine;
+3. worker scans via ClamAV;
+4. reject infected files;
+5. promote CLEAN objects;
+6. finalize any bound business workflow only after CLEAN status.
 
-## Live Supabase security state — verified 18 Sep 2026
+Signed documents follow this same path.
 
-The connected `KRAVIA Office` Supabase project is active in `ap-south-1`.
+## What must be done today outside code
 
-Verified live changes:
+These are the only actions that still block full external/production acceptance.
 
-- the governed company-registration registry migration is applied;
-- `office_company_registrations` and `office_registration_events` have RLS enabled;
-- anon/authenticated cannot SELECT the registration tables; service role can;
-- registration lifecycle functions are SECURITY INVOKER and browser EXECUTE is denied;
-- trigger-only SECURITY DEFINER helpers `office_identity_create_person()` and `office_sync_employment_identity()` have PUBLIC/anon/authenticated EXECUTE revoked and service-role EXECUTE retained;
-- all 52 legacy FastAPI tables are owned by `kravia_office_backend`, have RLS enabled and still expose zero anon/authenticated CRUD;
-- production SQLAlchemy runtime and Alembic migrations apply transaction-scoped `SET LOCAL ROLE kravia_office_backend` via `DATABASE_EXECUTION_ROLE`;
-- the five Alembic v6-v9 service tables are owned by `kravia_office_backend`, have RLS enabled, and explicitly deny anon/authenticated CRUD;
-- the live role/ownership/RLS state was read back after migration.
+### P0 — do today before calling the release production-ready
 
-The legacy FastAPI RLS rollout is complete: all 52 tables are RLS-enabled, browser roles retain zero CRUD, production transactions execute under `kravia_office_backend`, and no permissive browser policies were added. Supabase may still report informational no-policy findings for intentionally service-only tables.
+1. **Vercel**
+   - use/reconnect the canonical KRAVIA / `kravia1` team;
+   - ensure old preview deployments are cleaned enough to remove the Functions Storage block;
+   - confirm `kraviaprivatelimited` production project points to the correct repository/root;
+   - verify `OFFICE_API_ORIGIN` and Office server-only variables;
+   - confirm the post-merge production deployment reaches green.
 
-Outstanding Supabase Auth setting: leaked-password protection is currently disabled and should be enabled before production identity acceptance.
+2. **Railway**
+   - verify API + worker production services track the accepted `main`;
+   - inspect the currently staged Railway production change before accepting it;
+   - confirm API and worker secret sets are consistent where required.
 
-## Current deployment reality — verified 18 Sep 2026
+3. **Identity secrets**
+   - generate/store a strong production `OFFICE_AUTH_BREAK_GLASS_SECRET` separately from signing/bootstrap secrets;
+   - retain it offline/private;
+   - do one controlled staging drill and destroy any recovery token produced by the drill.
 
-### Railway backend
+4. **ClamAV**
+   - provide a production/private ClamAV service;
+   - configure `CLAMAV_HOST` / `CLAMAV_PORT`;
+   - run an EICAR clean/infected acceptance test through Office quarantine.
 
-An existing Railway production service is already connected:
+### P1 — external integrations; can be enabled one by one
 
-- service: `kravia-office-api`
-- GitHub source: `vamsimarripudi/kraviaprivatelimited`
-- branch: `main`
-- root directory: `Backend`
-- builder: `Dockerfile.api`
-- health check: `/health/live`
-- service domain: `kravia-office-api-production.up.railway.app`
-- deployment variable names include the expected production OIDC, database, Company Master, security and finance-mode configuration.
+5. IRIS IRP sandbox credentials and e-Invoice acceptance.
+6. IRIS VAS credentials + taxpayer/user consent.
+7. Fynamics/FYN Gateway GSP credentials + taxpayer OTP/session + final filing contract acceptance.
+8. Razorpay/RazorpayX live credentials/eligibility.
+9. bank/accounting feed authorization.
+10. Google Drive service identity/root folder.
+11. Protean/eSign/DSC provider automation.
+12. external monitoring/SLO and durable audit archive.
+13. provider edge/WAF controls.
 
-The database URL normalizer in current source also permanently canonicalizes the historical `sshmode` typo to `sslmode` and supports the configured Supabase IPv4 pooler path. The 16 Sep failure caused by `sshmode` is therefore historical.
+### P2 — professional/statutory acceptance
 
-Railway deployment `7ace95b8-b966-43be-aa4a-f2656624ed74` for backend commit `2e706e4e20838b00688b0c76f60f61d2e21c935e` reached **SUCCESS**. The service still tracks `main`, watches `Backend/**`, uses `Dockerfile.api`, runs `alembic upgrade head` before deploy, checks `/health/live`, and is configured for one Singapore replica. Alembic reached v9 and the pre-deploy/startup path passed with `DATABASE_EXECUTION_ROLE=kravia_office_backend`. A dedicated worker service is not currently provisioned because Railway rejected additional resource creation under the current Free-plan resource limit.
+14. authoritative Company Master evidence.
+15. current GST evidence.
+16. cap-table/share-register/share-certificate reconciliation.
+17. CA approval for GST/tax/accounting mappings and close procedure.
+18. CS approval for governance/register/ownership handling.
+19. applicable legal/auditor review.
+20. independent browser/accessibility/penetration/IDOR acceptance.
 
-### Vercel frontend
+## Start-tomorrow rule
 
-GitHub now reports the Vercel deployment check for current `main` as **SUCCESS** under `kravia1/kraviaprivatelimited`. The connected Vercel token remains scoped to `vamsimarripudis-projects`; direct inspection of the `kravia1` project returns 403 until the connector is re-authenticated to that team. Build success is verified, while root/build settings, production environment variables and domain assignment still require read-back from the correct scope.
+Tomorrow, work should start from the accepted `main` release and focus on **real operations**, not another architecture rewrite.
 
-Do not attach Office to an unrelated Vercel project simply to clear the status. The canonical browser model remains the company site with `/office` and `/finance`; Railway is the API runtime.
+Recommended first-day operating sequence:
 
-## Run checks
+1. sign in as Founder with AAL2;
+2. verify Security Settings sessions/devices;
+3. verify worker heartbeat;
+4. create one controlled document;
+5. render PDF;
+6. exercise quarantine with a safe file;
+7. run one private recovery-link drill for a non-owner test identity;
+8. verify finance/GST provider readiness screens remain fail-closed;
+9. start connecting external providers in priority order;
+10. retain evidence for every acceptance step.
 
-```bash
-npm ci
-npm audit --audit-level=high
-npm run lint
-npm run typecheck
-npm test
-npm run build
+## Non-negotiable release rule
 
-cd Backend
-python -m pytest backend/tests -q
-python scripts/export_openapi.py --check
-python scripts/quality_gate.py
-```
+Do not change a provider/statutory state to READY/FILLED/COMPLIANT merely because the internal software is complete.
 
-## Drive evidence boundary
+Internal completion is proven by green software gates.
 
-The reviewed KRAVIA Office Drive taxonomy covers Company Master, Governance, Compliance, Finance & Accounting, GST & Tax, Banking & Payments, Customers & Contracts, Vendors & Procurement, and People & HR. The application reports evidence areas by metadata and can flag obvious filing anomalies without copying private documents.
-
-Evidence presence is not treated as legal approval. Company, ownership, tax and governance values must come from authoritative reviewed records.
-
-## Production activation sequence
-
-1. Configure the same strong `OFFICE_AUTH_BOOTSTRAP_SECRET` in the Railway API and trusted Vercel production BFF; never expose it to browser code.
-2. Configure a separate strong `OFFICE_AUTH_SIGNING_SECRET` in Railway and set `OFFICE_REQUIRED_AAL=aal2`.
-3. Keep the currently live backend on its accepted auth mode until the first-party backend deployment is possible; at cutover set `AUTH_MODE=first_party`.
-4. Merge/deploy the first-party identity release, allow Alembic v10 to create/harden the identity tables, then verify `/health/live` and `/api/v1/auth/readiness`.
-5. Verify Vercel has the canonical `OFFICE_API_ORIGIN` and deploy the matching frontend release.
-6. Open `/office/register`, perform the **one-time Founder registration**, enroll TOTP, verify AAL2 and confirm the page is permanently closed afterward.
-7. Sign out and sign back in through `/office/login` using the newly registered first-party credentials.
-8. From Office Access Administration, issue a test private registration link for a non-owner role, verify it can be used once only, and revoke/delete the test identity as appropriate.
-9. Keep the previous Supabase Auth tenant available only for rollback until this acceptance is complete; then schedule controlled retirement rather than adding new users there.
-10. Verify restricted database networking, backups/PITR, restore drill and secret-management/rotation controls.
-11. Load/lock verified Company Master and ownership evidence from authoritative sources.
-12. Obtain CA approval for GSTIN/tax/SAC/invoice/accounting mappings and close procedure.
-13. Obtain CS/legal review for governance, ownership/register handling, retention and controlled funding/mandate language.
-14. Configure private object storage + malware scanning and read-only Google Drive runtime identity.
-15. Configure Razorpay/RazorpayX, bank/accounting and eSign/DSC providers only after eligibility/approval.
-16. Upgrade/provision Railway capacity and deploy the dedicated background-worker service; then connect verified external SLO telemetry/audit archive storage and edge/WAF controls.
-17. Perform staging browser/accessibility/security and all-role IDOR/BOLA acceptance plus backup restore drill.
-18. Enable live finance execution only after every applicable production gate has evidence.
-
-## Production rule
-
-Never turn a configuration or evidence gap into fabricated success. If a bank feed, GST status, payment provider, FastAPI runtime, cap table or statutory record is not connected and verified, Office must say so explicitly and remain fail-closed for high-risk actions.
-
-The software implements controls and workflows; it does not replace statutory judgment by the company's CA, CS, auditor or legal counsel.
+External readiness is proven only by actual provider, infrastructure, legal, tax, audit and professional evidence.

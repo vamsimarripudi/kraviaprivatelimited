@@ -76,7 +76,7 @@ export async function getOfficeIntelligenceBrief() {
       ...result,
       data:(result.data??[]).filter((row)=>Number(row.balance_paise||0)>0).sort((a,b)=>String(a.due_date||"9999-12-31").localeCompare(String(b.due_date||"9999-12-31"))).slice(0,300),
     })),
-    admin.from("office_auth_sessions").select("id,user_id,status,risk_level,last_seen_at,aal,mfa_verified").eq("status", "ACTIVE").order("last_seen_at", { ascending: false }).limit(300),
+    admin.from("office_auth_sessions_v2").select("id,user_id,status,last_seen_at,aal,expires_at,revoked_at").eq("status", "ACTIVE").order("last_seen_at", { ascending: false }).limit(300),
     admin.from("office_access_reviews").select("id,user_id,status,due_at").eq("status", "PENDING").order("due_at", { ascending: true }).limit(300),
     admin.from("office_notifications").select("id,user_id,kind,title,status,created_at").eq("status", "UNREAD").order("created_at", { ascending: false }).limit(300),
     readOfficeRuntimeResult<Array<Record<string,unknown>>>("contracts").then((result)=>({
@@ -95,7 +95,10 @@ export async function getOfficeIntelligenceBrief() {
   const opportunityRows = opportunities.data ?? [];
   const complianceRows = compliance.data ?? [];
   const invoiceRows = invoices.data ?? [];
-  const authRows = authSessions.data ?? [];
+  const authRows = (authSessions.data ?? []).filter((row) => {
+    const expiry = typeof row.expires_at === "string" ? Date.parse(row.expires_at) : Number.NaN;
+    return !row.revoked_at && Number.isFinite(expiry) && expiry > now;
+  });
   const reviewRows = accessReviews.data ?? [];
   const unreadRows = notifications.data ?? [];
   const contractRows = contracts.data ?? [];
@@ -106,7 +109,7 @@ export async function getOfficeIntelligenceBrief() {
   const criticalIncidents = incidentRows.filter((row) => row.severity === "SEV1" || row.severity === "SEV2");
   const overdueCompliance = complianceRows.filter((row) => Number.isFinite(timestamp(row.due_date)) && timestamp(row.due_date) < now);
   const overdueInvoices = invoiceRows.filter((row) => Number.isFinite(timestamp(row.due_date)) && timestamp(row.due_date) < now);
-  const highRiskSessions = authRows.filter((row) => String(row.risk_level).toUpperCase() === "HIGH" || String(row.risk_level).toUpperCase() === "CRITICAL");
+  const sessionsWithoutAal2 = authRows.filter((row) => row.aal !== "aal2");
   const overdueAccessReviews = reviewRows.filter((row) => Number.isFinite(timestamp(row.due_at)) && timestamp(row.due_at) < now);
   const expiredContracts = contractRows.filter((row) => Number.isFinite(timestamp(row.expiry_date)) && timestamp(row.expiry_date) < now);
   const nonActiveServices = serviceRows.filter((row) => String(row.status).toUpperCase() !== "ACTIVE");
@@ -115,7 +118,7 @@ export async function getOfficeIntelligenceBrief() {
 
   const attention: Attention[] = [];
   if (criticalIncidents.length) attention.push({ key: "critical-incidents", severity: "CRITICAL", area: "Engineering", title: `${criticalIncidents.length} high-severity incident${criticalIncidents.length === 1 ? "" : "s"} active`, detail: "SEV1/SEV2 incidents require explicit incident ownership and lifecycle action.", href: "/office/engineering" });
-  if (highRiskSessions.length) attention.push({ key: "high-risk-sessions", severity: "CRITICAL", area: "Security", title: `${highRiskSessions.length} active high-risk authentication session${highRiskSessions.length === 1 ? "" : "s"}`, detail: "Review session context and revoke access if the session is not expected.", href: "/office/settings" });
+  if (sessionsWithoutAal2.length) attention.push({ key: "aal2-sessions", severity: "HIGH", area: "Security", title: `${sessionsWithoutAal2.length} active authentication session${sessionsWithoutAal2.length === 1 ? "" : "s"} without AAL2`, detail: "Office business access requires MFA promotion; review and revoke unexpected sessions.", href: "/office/settings" });
   if (overdueCompliance.length) attention.push({ key: "compliance-overdue", severity: "HIGH", area: "Compliance", title: `${overdueCompliance.length} compliance obligation${overdueCompliance.length === 1 ? "" : "s"} past due`, detail: "This is based on stored due dates and status; it is not a legal conclusion about compliance.", href: "/office/compliance" });
   if (overdueInvoices.length) attention.push({ key: "invoices-overdue", severity: "HIGH", area: "Finance", title: `${overdueInvoices.length} invoice${overdueInvoices.length === 1 ? "" : "s"} with balance past due`, detail: "Receivable follow-up may be required; payment state remains governed by canonical finance records.", href: "/finance/billing" });
   if (overdueTasks.length) attention.push({ key: "tasks-overdue", severity: "HIGH", area: "Work", title: `${overdueTasks.length} active task${overdueTasks.length === 1 ? "" : "s"} past due`, detail: "Reassign, unblock or complete the affected Company Inbox work.", href: "/office/tasks" });
@@ -148,7 +151,7 @@ export async function getOfficeIntelligenceBrief() {
       engineering_services_not_active: nonActiveServices.length,
       unread_notifications: unreadRows.length,
       active_auth_sessions: authRows.length,
-      high_risk_auth_sessions: highRiskSessions.length,
+      auth_sessions_without_aal2: sessionsWithoutAal2.length,
     },
     attention,
   };

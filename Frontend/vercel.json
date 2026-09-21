@@ -3,7 +3,8 @@
   "framework": "nextjs",
   "git": {
     "deploymentEnabled": {
-      "office/first-party-auth-20260919": false
+      "*": false,
+      "main": true
     }
   },
   "ignoreCommand": "git diff --quiet HEAD^ HEAD ./",

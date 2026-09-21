@@ -10,6 +10,13 @@ describe("KRAVIA Office live workforce overview", () => {
     expect(overviewServer).toContain('requireOfficePermission("people.basic.read", { type: "COMPANY" })');
   });
 
+  it("uses only canonical first-party sessions for online presence", () => {
+    expect(overviewServer).toContain('from("office_auth_sessions_v2")');
+    expect(overviewServer).not.toContain('from("office_auth_sessions")');
+    expect(overviewServer).not.toContain("risk_level");
+    expect(overviewUi).toContain("KRAVIA first-party session");
+  });
+
   it("keeps authentication, availability, workforce status and attendance as separate signals", () => {
     expect(overviewServer).toContain('online_state: sessionPresence(authSession, now)');
     expect(overviewServer).toContain("availability_status: effectivePresence.availability_status");

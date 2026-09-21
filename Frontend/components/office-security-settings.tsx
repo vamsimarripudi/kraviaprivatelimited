@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Laptop, LoaderCircle, MonitorSmartphone, ShieldCheck, ShieldOff } from "lucide-react";
+import { FormEvent, useEffect, useState } from "react";
+import { KeyRound, Laptop, LoaderCircle, MonitorSmartphone, ShieldCheck, ShieldOff } from "lucide-react";
 import type { OfficeIdentity } from "@/lib/office/auth-server";
 import styles from "./office-security-settings.module.css";
 
@@ -24,15 +24,14 @@ type AuthSession = {
   status: string;
   aal: string;
   mfa_verified: boolean;
-  risk_level: string;
   ip_address?: string | null;
-  user_agent_summary?: string | null;
-  started_at: string;
-  last_seen_at: string;
-  ended_at?: string | null;
-  end_reason?: string | null;
-  device_id?: string | null;
+  user_agent_hash?: string | null;
+  started_at?: string | null;
+  last_seen_at?: string | null;
+  expires_at?: string | null;
+  revoked_at?: string | null;
   current: boolean;
+  provider: "KRAVIA_FIRST_PARTY";
 };
 
 async function json<T>(url: string, options?: RequestInit): Promise<T> {
@@ -55,6 +54,10 @@ export function OfficeSecuritySettings({ identity }: { identity: OfficeIdentity 
   const [busyId, setBusyId] = useState<string>();
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordBusy, setPasswordBusy] = useState(false);
 
   async function reload() {
     const [deviceData, sessionData] = await Promise.all([
@@ -114,6 +117,52 @@ export function OfficeSecuritySettings({ identity }: { identity: OfficeIdentity 
     }
   }
 
+  async function revokeSession(sessionId: string) {
+    setBusyId(`session:${sessionId}`);
+    setError(undefined);
+    setNotice(undefined);
+    try {
+      await json("/api/office-auth/sessions", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId }),
+      });
+      await reload();
+      setNotice("The selected Office session has been revoked.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to revoke Office session");
+    } finally {
+      setBusyId(undefined);
+    }
+  }
+
+  async function changePassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(undefined);
+    setNotice(undefined);
+    if (newPassword !== confirmPassword) {
+      setError("The new-password confirmation does not match.");
+      return;
+    }
+    setPasswordBusy(true);
+    try {
+      const result = await json<{ changed: true; revoked_other_sessions: number }>("/api/office-auth/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+      });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setNotice(`Password changed. ${result.revoked_other_sessions} other session(s) were revoked.`);
+      await reload();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to change password");
+    } finally {
+      setPasswordBusy(false);
+    }
+  }
+
   const currentDevice = devices?.find((device) => device.current);
   const currentSession = sessions?.find((session) => session.current);
 
@@ -141,17 +190,31 @@ export function OfficeSecuritySettings({ identity }: { identity: OfficeIdentity 
 
       <section className={styles.panel}>
         <header><div><p>AUTHENTICATION LEDGER</p><h3>Recent Office sessions</h3></div><ShieldCheck /></header>
-        {!sessions ? <div className={styles.loading}><LoaderCircle className="spin" /> Loading sessions…</div> : sessions.length === 0 ? <div className={styles.empty}>No tracked Office sessions are available yet.</div> : <div className={styles.sessionList}>{sessions.map((session) => <article key={session.id} className={styles.session} data-current={session.current}>
-          <div><b>{session.current ? "Current session" : session.status}</b><span>{session.aal.toUpperCase()} · {session.mfa_verified ? "MFA verified" : "MFA not verified"} · Risk {session.risk_level}</span></div>
-          <small>Started {dateTime(session.started_at)} · Last seen {dateTime(session.last_seen_at)}</small>
-          <small>{session.device_id ? "Linked to registered device" : "No trusted-device link"}{session.ip_address ? ` · Network ${session.ip_address}` : ""}</small>
-          {session.user_agent_summary ? <code title={session.user_agent_summary}>{session.user_agent_summary}</code> : null}
+        {!sessions ? <div className={styles.loading}><LoaderCircle className="spin" /> Loading sessions…</div> : sessions.length === 0 ? <div className={styles.empty}>No first-party Office sessions are available.</div> : <div className={styles.sessionList}>{sessions.map((session) => <article key={session.id} className={styles.session} data-current={session.current}>
+          <div>
+            <div><b>{session.current ? "Current session" : session.status}</b><span>{session.aal.toUpperCase()} · {session.mfa_verified ? "MFA verified" : "MFA not verified"} · KRAVIA first-party</span></div>
+            {!session.current && session.status === "ACTIVE" ? <button className={styles.sessionAction} type="button" disabled={Boolean(busyId)} onClick={() => void revokeSession(session.id)}>{busyId === `session:${session.id}` ? <LoaderCircle className="spin" /> : null} Revoke</button> : null}
+          </div>
+          <small>Started {dateTime(session.started_at)} · Last seen {dateTime(session.last_seen_at)} · Expires {dateTime(session.expires_at)}</small>
+          <small>{session.ip_address ? `Network ${session.ip_address}` : "Network metadata unavailable"}{session.revoked_at ? ` · Revoked ${dateTime(session.revoked_at)}` : ""}</small>
+          {session.user_agent_hash ? <code title={session.user_agent_hash}>Device fingerprint {session.user_agent_hash.slice(0, 16)}…</code> : null}
         </article>)}</div>}
       </section>
     </div>
 
+    <section className={styles.passwordPanel}>
+      <header><div><p>PASSWORD SECURITY</p><h3>Change your KRAVIA Office password</h3></div><KeyRound /></header>
+      <form className={styles.passwordForm} onSubmit={changePassword}>
+        <label>Current password<input type="password" autoComplete="current-password" required maxLength={256} value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} disabled={passwordBusy} /></label>
+        <label>New password<input type="password" autoComplete="new-password" required minLength={12} maxLength={256} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} disabled={passwordBusy} /></label>
+        <label>Confirm new password<input type="password" autoComplete="new-password" required minLength={12} maxLength={256} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} disabled={passwordBusy} /></label>
+        <button type="submit" disabled={passwordBusy || currentPassword.length === 0 || newPassword.length < 12 || confirmPassword.length < 12}>{passwordBusy ? <LoaderCircle className="spin" /> : <KeyRound />} Change password</button>
+      </form>
+      <small>Changing your password keeps this verified session active and revokes every other active Office session.</small>
+    </section>
+
     <section className={styles.policy}>
-      <ShieldCheck /><div><b>Security boundary</b><p>AAL2 proves the user completed MFA. Trusted-device binding separately proves that this browser possesses a secret bound to an administrator-approved, company-managed device. Authentication presence, device trust and business permissions remain independent controls.</p><small>Current session: {currentSession ? `${currentSession.aal.toUpperCase()} · ${currentSession.risk_level}` : "ledger pending"}</small></div>
+      <ShieldCheck /><div><b>Security boundary</b><p>AAL2 proves the user completed MFA. Trusted-device binding separately proves that this browser possesses a secret bound to an administrator-approved, company-managed device. Authentication presence, device trust and business permissions remain independent controls.</p><small>Current session: {currentSession ? `${currentSession.aal.toUpperCase()} · KRAVIA first-party` : "session evidence unavailable"}</small></div>
     </section>
   </div>;
 }

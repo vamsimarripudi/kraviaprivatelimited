@@ -42,6 +42,7 @@ REFRESH_TTL_SECONDS = int(os.getenv("OFFICE_AUTH_REFRESH_TTL_SECONDS", str(7 * 2
 INVITE_TTL_SECONDS = int(os.getenv("OFFICE_AUTH_INVITE_TTL_SECONDS", str(72 * 60 * 60)))
 MAX_FAILED_LOGINS = int(os.getenv("OFFICE_AUTH_MAX_FAILED_LOGINS", "5"))
 LOCKOUT_SECONDS = int(os.getenv("OFFICE_AUTH_LOCKOUT_SECONDS", "900"))
+RECOVERY_TTL_SECONDS = int(os.getenv("OFFICE_AUTH_RECOVERY_TTL_SECONDS", "1800"))
 ISSUER = os.getenv("OFFICE_AUTH_ISSUER", "kravia-office")
 AUDIENCE = os.getenv("OFFICE_AUTH_AUDIENCE", "kravia-office-api")
 FOUNDER_SLOT = "PRIMARY_FOUNDER"
@@ -91,6 +92,25 @@ class RefreshPayload(BaseModel):
 
 class MfaVerifyPayload(BaseModel):
     code: str = Field(pattern=r"^[0-9]{6}$")
+
+
+class DeviceEventPayload(BaseModel):
+    device_id: str = Field(min_length=36, max_length=36)
+    action: str = Field(pattern=r"^(LINKED|UNLINKED)$")
+
+
+class PasswordChangePayload(BaseModel):
+    current_password: str = Field(min_length=1, max_length=256)
+    new_password: str = Field(min_length=12, max_length=256)
+
+
+class RecoveryIssuePayload(BaseModel):
+    reason: str = Field(min_length=3, max_length=500)
+
+
+class RecoveryCompletePayload(BaseModel):
+    token: str = Field(min_length=64, max_length=4096)
+    new_password: str = Field(min_length=12, max_length=256)
 
 
 class InviteCreatePayload(BaseModel):
@@ -149,6 +169,24 @@ def _signing_secret() -> str:
     if len(secret) < 32:
         raise RuntimeError("OFFICE_AUTH_SIGNING_SECRET must be at least 32 characters")
     return secret
+
+
+def _break_glass_secret() -> str:
+    secret = os.getenv("OFFICE_AUTH_BREAK_GLASS_SECRET", "").strip()
+    app_env = os.getenv("APP_ENV", "development").strip().lower()
+    if not secret and app_env != "production":
+        secret = "kravia-office-development-break-glass-secret-change-me-123456"
+    if len(secret) < 48:
+        raise RuntimeError("OFFICE_AUTH_BREAK_GLASS_SECRET must be at least 48 characters")
+    return secret
+
+
+def break_glass_configured() -> bool:
+    try:
+        _break_glass_secret()
+        return True
+    except RuntimeError:
+        return False
 
 
 def first_party_auth_configured() -> bool:
@@ -531,6 +569,54 @@ def _issue_session(db: Session, user: OfficeAuthUser, request: Request, *, aal: 
     }
 
 
+def _password_version(user: OfficeAuthUser) -> str:
+    value = user.password_changed_at or user.created_at
+    return _aware(value).isoformat() if value else "UNVERSIONED"
+
+
+def _issue_recovery_token(user: OfficeAuthUser, actor_user_id: str) -> str:
+    now = _now()
+    return jwt.encode(
+        {
+            "iss": ISSUER,
+            "aud": AUDIENCE,
+            "sub": user.id,
+            "purpose": "password_recovery",
+            "pwdv": _password_version(user),
+            "issued_by": actor_user_id,
+            "iat": int(now.timestamp()),
+            "exp": int((now + timedelta(seconds=RECOVERY_TTL_SECONDS)).timestamp()),
+            "jti": str(uuid.uuid4()),
+        },
+        _signing_secret(),
+        algorithm="HS256",
+    )
+
+
+def _recovery_user(token: str, db: Session) -> OfficeAuthUser:
+    try:
+        claims = jwt.decode(
+            token,
+            _signing_secret(),
+            algorithms=["HS256"],
+            issuer=ISSUER,
+            audience=AUDIENCE,
+            options={"require": ["exp", "iat", "sub"]},
+        )
+    except jwt.ExpiredSignatureError as exc:
+        raise HTTPException(status_code=410, detail="Recovery link has expired") from exc
+    except jwt.InvalidTokenError as exc:
+        raise HTTPException(status_code=400, detail="Recovery link is invalid") from exc
+    if claims.get("purpose") != "password_recovery":
+        raise HTTPException(status_code=400, detail="Recovery link is invalid")
+    user = db.get(OfficeAuthUser, str(claims.get("sub") or ""))
+    if not user or user.status not in {"ACTIVE", "SUSPENDED"}:
+        raise HTTPException(status_code=404, detail="Recoverable Office identity not found")
+    if not hmac.compare_digest(str(claims.get("pwdv") or ""), _password_version(user)):
+        raise HTTPException(status_code=410, detail="Recovery link has already been used or superseded")
+    return user
+
+
 def _decode_access(token: str) -> dict[str, Any]:
     try:
         return jwt.decode(
@@ -645,6 +731,26 @@ def _session_response(db: Session, user: OfficeAuthUser, session: OfficeAuthSess
     }
 
 
+def _session_listing_json(session: OfficeAuthSession, current_session_id: str) -> dict[str, Any]:
+    status = session.status
+    if status == "ACTIVE" and _aware(session.expires_at) <= _now():
+        status = "EXPIRED"
+    return {
+        "id": session.id,
+        "status": status,
+        "aal": session.aal,
+        "mfa_verified": session.aal == "aal2",
+        "ip_address": session.ip_address,
+        "user_agent_hash": session.user_agent_hash,
+        "started_at": session.created_at.isoformat() if session.created_at else None,
+        "last_seen_at": session.last_seen_at.isoformat() if session.last_seen_at else None,
+        "expires_at": session.expires_at.isoformat() if session.expires_at else None,
+        "revoked_at": session.revoked_at.isoformat() if session.revoked_at else None,
+        "current": session.id == current_session_id,
+        "provider": "KRAVIA_FIRST_PARTY",
+    }
+
+
 def _qr_data_uri(uri: str) -> str:
     image = qrcode.make(uri)
     buffer = io.BytesIO()
@@ -728,6 +834,7 @@ def build_identity_router() -> APIRouter:
             "bootstrap_open": _bootstrap_open(db),
             "mfa_policy": "AAL2_REQUIRED",
             "mfa_factor": "TOTP",
+            "founder_break_glass_configured": break_glass_configured(),
             "public_registration": "ONE_TIME_FOUNDER_ONLY" if _bootstrap_open(db) else "DISABLED",
             "invitation_registration": "SINGLE_USE_PRIVATE_LINK",
             "password_hash": "ARGON2ID",
@@ -814,6 +921,156 @@ def build_identity_router() -> APIRouter:
         db.commit()
         return _session_response(db, user, session)
 
+    @router.get("/sessions")
+    def list_sessions(
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ):
+        token = _bearer_token(authorization)
+        context = authenticate_office_access(token, db, require_aal2=True)
+        sessions = list(
+            db.execute(
+                select(OfficeAuthSession)
+                .where(OfficeAuthSession.user_id == context["user_id"])
+                .order_by(OfficeAuthSession.created_at.desc())
+                .limit(50)
+            ).scalars()
+        )
+        return {
+            "sessions": [
+                _session_listing_json(session, context["session_id"])
+                for session in sessions
+            ]
+        }
+
+    @router.post("/sessions/{session_id}/revoke")
+    def revoke_session(
+        session_id: str,
+        request: Request,
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ):
+        token = _bearer_token(authorization)
+        context = authenticate_office_access(token, db, require_aal2=True)
+        try:
+            normalized_session_id = str(uuid.UUID(session_id))
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail="Office session not found") from exc
+        if normalized_session_id == context["session_id"]:
+            raise HTTPException(status_code=409, detail="Use sign out to close the current Office session")
+
+        target = db.execute(
+            select(OfficeAuthSession).where(
+                OfficeAuthSession.id == normalized_session_id,
+                OfficeAuthSession.user_id == context["user_id"],
+            )
+        ).scalar_one_or_none()
+        if not target:
+            raise HTTPException(status_code=404, detail="Office session not found")
+        if target.status == "ACTIVE" and not target.revoked_at:
+            target.status = "REVOKED"
+            target.revoked_at = _now()
+            _event(
+                db,
+                "SESSION_REVOKED",
+                request,
+                user_id=context["user_id"],
+                session_id=target.id,
+                metadata={"revoked_by_session_id": context["session_id"]},
+            )
+            db.commit()
+        return {
+            "revoked": True,
+            "session": _session_listing_json(target, context["session_id"]),
+        }
+
+    @router.post("/password")
+    def change_password(
+        payload: PasswordChangePayload,
+        request: Request,
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ):
+        token = _bearer_token(authorization)
+        context = authenticate_office_access(token, db, require_aal2=True)
+        user = db.get(OfficeAuthUser, context["user_id"])
+        if not user:
+            raise HTTPException(status_code=401, detail="Office identity is unavailable")
+        try:
+            PASSWORD_HASHER.verify(user.password_hash, payload.current_password)
+        except (VerifyMismatchError, VerificationError):
+            raise HTTPException(status_code=400, detail="Current password was not accepted")
+        try:
+            if PASSWORD_HASHER.verify(user.password_hash, payload.new_password):
+                raise HTTPException(status_code=400, detail="New password must be different from the current password")
+        except (VerifyMismatchError, VerificationError):
+            pass
+        _validate_password(payload.new_password)
+
+        user.password_hash = PASSWORD_HASHER.hash(payload.new_password)
+        user.password_changed_at = _now()
+        user.failed_login_count = 0
+        user.locked_until = None
+        revoked = 0
+        other_sessions = db.execute(
+            select(OfficeAuthSession).where(
+                OfficeAuthSession.user_id == user.id,
+                OfficeAuthSession.status == "ACTIVE",
+                OfficeAuthSession.id != context["session_id"],
+            )
+        ).scalars().all()
+        for session in other_sessions:
+            session.status = "REVOKED"
+            session.revoked_at = _now()
+            revoked += 1
+        _event(
+            db,
+            "PASSWORD_CHANGED",
+            request,
+            user_id=user.id,
+            session_id=context["session_id"],
+            metadata={"revoked_other_sessions": revoked},
+        )
+        db.commit()
+        return {"changed": True, "revoked_other_sessions": revoked}
+
+    @router.post("/recovery/password")
+    def complete_password_recovery(
+        payload: RecoveryCompletePayload,
+        request: Request,
+        db: Session = Depends(get_db),
+    ):
+        user = _recovery_user(payload.token, db)
+        _validate_password(payload.new_password)
+        try:
+            if PASSWORD_HASHER.verify(user.password_hash, payload.new_password):
+                raise HTTPException(status_code=400, detail="New password must be different from the previous password")
+        except (VerifyMismatchError, VerificationError):
+            pass
+
+        user.password_hash = PASSWORD_HASHER.hash(payload.new_password)
+        user.password_changed_at = _now()
+        user.failed_login_count = 0
+        user.locked_until = None
+        sessions = db.execute(
+            select(OfficeAuthSession).where(
+                OfficeAuthSession.user_id == user.id,
+                OfficeAuthSession.status == "ACTIVE",
+            )
+        ).scalars().all()
+        for session in sessions:
+            session.status = "REVOKED"
+            session.revoked_at = _now()
+        _event(
+            db,
+            "PASSWORD_RECOVERY_COMPLETED",
+            request,
+            user_id=user.id,
+            metadata={"revoked_sessions": len(sessions)},
+        )
+        db.commit()
+        return {"recovered": True, "revoked_sessions": len(sessions)}
+
     @router.post("/refresh")
     def refresh(payload: RefreshPayload, request: Request, db: Session = Depends(get_db)):
         session = db.execute(
@@ -850,6 +1107,62 @@ def build_identity_router() -> APIRouter:
             _event(db, "LOGOUT", request, user_id=context["user_id"], session_id=session.id)
             db.commit()
         return {"signed_out": True}
+
+    @router.post("/device-event")
+    def record_device_event(
+        payload: DeviceEventPayload,
+        request: Request,
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ):
+        token = _bearer_token(authorization)
+        context = authenticate_office_access(token, db, require_aal2=True)
+        try:
+            device_id = str(uuid.UUID(payload.device_id))
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail="Invalid Office device identifier") from exc
+
+        if db.get_bind().dialect.name == "postgresql":
+            device_query = text(
+                """
+                select trust_state,company_managed,revoked_at
+                from office_device_registry
+                where id=cast(:device_id as uuid)
+                  and user_id=cast(:user_id as uuid)
+                """
+            )
+        else:
+            device_query = text(
+                """
+                select trust_state,company_managed,revoked_at
+                from office_device_registry
+                where id=:device_id and user_id=:user_id
+                """
+            )
+        device = db.execute(
+            device_query,
+            {"device_id": device_id, "user_id": context["user_id"]},
+        ).mappings().first()
+        if not device:
+            raise HTTPException(status_code=404, detail="Office device not found")
+        if payload.action == "LINKED" and (
+            device["trust_state"] != "TRUSTED"
+            or not bool(device["company_managed"])
+            or device["revoked_at"] is not None
+        ):
+            raise HTTPException(status_code=409, detail="Only a trusted company-managed device can be linked")
+
+        event_type = "DEVICE_LINKED" if payload.action == "LINKED" else "DEVICE_UNLINKED"
+        _event(
+            db,
+            event_type,
+            request,
+            user_id=context["user_id"],
+            session_id=context["session_id"],
+            metadata={"device_id": device_id},
+        )
+        db.commit()
+        return {"recorded": True, "event_type": event_type, "device_id": device_id}
 
     @router.post("/mfa/enroll")
     def enroll_mfa(
@@ -981,6 +1294,116 @@ def build_identity_router() -> APIRouter:
         if not (context["roles"] & {"OWNER", "ADMIN"}):
             raise HTTPException(status_code=403, detail="OWNER or ADMIN authority is required")
         return context
+
+    @router.post("/founder/recovery-link")
+    def issue_founder_break_glass_recovery(
+        payload: RecoveryIssuePayload,
+        request: Request,
+        x_kravia_break_glass_key: str | None = Header(default=None, alias="X-Kravia-Break-Glass-Key"),
+        db: Session = Depends(get_db),
+    ):
+        try:
+            expected = _break_glass_secret()
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail="Founder break-glass recovery is not configured") from exc
+        provided = (x_kravia_break_glass_key or "").strip()
+        if not provided or not hmac.compare_digest(provided, expected):
+            _event(db, "FOUNDER_BREAK_GLASS_RECOVERY_BLOCKED", request, metadata={"reason": "invalid_break_glass_key"})
+            db.commit()
+            raise HTTPException(status_code=403, detail="Founder break-glass recovery was not accepted")
+
+        founder = db.execute(
+            select(OfficeAuthUser).where(OfficeAuthUser.founder_slot == FOUNDER_SLOT)
+        ).scalar_one_or_none()
+        if not founder or founder.status not in {"ACTIVE", "SUSPENDED"}:
+            raise HTTPException(status_code=404, detail="Founder recovery identity is unavailable")
+
+        active_sessions = db.execute(
+            select(OfficeAuthSession).where(
+                OfficeAuthSession.user_id == founder.id,
+                OfficeAuthSession.status == "ACTIVE",
+            )
+        ).scalars().all()
+        for session in active_sessions:
+            session.status = "REVOKED"
+            session.revoked_at = _now()
+
+        founder.mfa_secret_ciphertext = None
+        founder.mfa_verified_at = None
+        recovery_token = _issue_recovery_token(founder, "BREAK_GLASS")
+        _event(
+            db,
+            "FOUNDER_BREAK_GLASS_RECOVERY_ISSUED",
+            request,
+            user_id=founder.id,
+            metadata={
+                "reason": payload.reason.strip(),
+                "revoked_sessions": len(active_sessions),
+                "mfa_reset": True,
+            },
+        )
+        db.commit()
+        return {
+            "issued": True,
+            "expires_in": RECOVERY_TTL_SECONDS,
+            "recovery_token": recovery_token,
+            "recovery_path": f"/office/reset-password?token={recovery_token}",
+            "revoked_sessions": len(active_sessions),
+            "mfa_reset": True,
+        }
+
+    @router.post("/users/{user_id}/recovery-link")
+    def issue_password_recovery_link(
+        user_id: str,
+        payload: RecoveryIssuePayload,
+        request: Request,
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ):
+        actor = _invite_actor(authorization, db)
+        if user_id == actor["user_id"]:
+            raise HTTPException(status_code=409, detail="Use authenticated password change for your own account")
+        target = db.get(OfficeAuthUser, user_id)
+        if not target or target.status not in {"ACTIVE", "SUSPENDED"}:
+            raise HTTPException(status_code=404, detail="Recoverable Office identity not found")
+        target_roles = set(_active_roles(db, user_id))
+        if target.founder_slot == FOUNDER_SLOT or "OWNER" in target_roles:
+            raise HTTPException(status_code=403, detail="OWNER recovery requires the protected break-glass procedure")
+        if "ADMIN" in actor["roles"] and not (actor["roles"] & {"OWNER"}):
+            if target_roles & {"DIRECTOR", "ADMIN"}:
+                raise HTTPException(status_code=403, detail="ADMIN cannot recover a privileged Office identity")
+
+        active_sessions = db.execute(
+            select(OfficeAuthSession).where(
+                OfficeAuthSession.user_id == user_id,
+                OfficeAuthSession.status == "ACTIVE",
+            )
+        ).scalars().all()
+        for session in active_sessions:
+            session.status = "REVOKED"
+            session.revoked_at = _now()
+        recovery_token = _issue_recovery_token(target, actor["user_id"])
+        _event(
+            db,
+            "PASSWORD_RECOVERY_ISSUED",
+            request,
+            user_id=user_id,
+            session_id=actor["session_id"],
+            metadata={
+                "issued_by": actor["user_id"],
+                "reason": payload.reason.strip(),
+                "revoked_sessions": len(active_sessions),
+            },
+        )
+        db.commit()
+        return {
+            "issued": True,
+            "target_user_id": user_id,
+            "expires_in": RECOVERY_TTL_SECONDS,
+            "recovery_token": recovery_token,
+            "recovery_path": f"/office/reset-password?token={recovery_token}",
+            "revoked_sessions": len(active_sessions),
+        }
 
     @router.post("/invitations", status_code=201)
     def create_invitation(
@@ -1140,6 +1563,7 @@ def build_identity_router() -> APIRouter:
 __all__ = [
     "OFFICE_ROLES",
     "authenticate_office_access",
+    "break_glass_configured",
     "build_identity_router",
     "first_party_auth_configured",
     "validate_first_party_auth_configuration",

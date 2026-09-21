@@ -17,7 +17,7 @@ type JobRow = { user_id: string; position_code: string | null; department_code: 
 type PresenceRow = { user_id: string; availability_status: OfficeAvailabilityStatus; work_mode: OfficeWorkMode; status_note: string | null; status_until: string | null; last_interaction_at: string | null };
 type WorkStatusRow = { user_id: string; status: OfficeEmploymentStatus; effective_from: string; effective_to: string | null; source: string; reason: string | null };
 type AttendanceRow = { id: string; user_id: string; work_mode: Exclude<OfficeWorkMode, "UNSPECIFIED">; check_in_at: string; time_zone: string };
-type AuthRow = { user_id: string; status: string; aal: string; mfa_verified: boolean; started_at: string; last_seen_at: string; risk_level: string };
+type AuthRow = { user_id: string; status: string; aal: string; created_at: string; last_seen_at: string; expires_at: string; revoked_at: string | null };
 
 function latestByUser<T extends { user_id: string }>(rows: T[], compare: (row: T) => string) {
   const map = new Map<string, T>();
@@ -68,7 +68,7 @@ export async function getOfficeWorkforceLiveOverview() {
     admin.from("office_presence_state").select("user_id,availability_status,work_mode,status_note,status_until,last_interaction_at"),
     admin.from("office_work_status_assignments").select("user_id,status,effective_from,effective_to,source,reason").lte("effective_from", nowIso).or(`effective_to.is.null,effective_to.gt.${nowIso}`).order("effective_from", { ascending: false }),
     admin.from("office_attendance_sessions").select("id,user_id,work_mode,check_in_at,time_zone").eq("status", "OPEN"),
-    admin.from("office_auth_sessions").select("user_id,status,aal,mfa_verified,started_at,last_seen_at,risk_level").eq("status", "ACTIVE").order("last_seen_at", { ascending: false }),
+    admin.from("office_auth_sessions_v2").select("user_id,status,aal,created_at,last_seen_at,expires_at,revoked_at").eq("status", "ACTIVE").order("last_seen_at", { ascending: false }),
   ]);
 
   const failed = [identitiesResult, peopleRegistryResult, employmentsResult, jobsResult, presenceResult, statusesResult, attendanceResult, authResult].find((result) => result.error);
@@ -82,7 +82,11 @@ export async function getOfficeWorkforceLiveOverview() {
   const statuses = latestByUser((statusesResult.data ?? []) as WorkStatusRow[], (row) => row.effective_from);
   const attendanceRows = (attendanceResult.data ?? []) as AttendanceRow[];
   const attendance = new Map(attendanceRows.map((row) => [row.user_id, row]));
-  const auth = latestByUser((authResult.data ?? []) as AuthRow[], (row) => row.last_seen_at);
+  const authRows = ((authResult.data ?? []) as AuthRow[]).filter((row) => {
+    const expiry = Date.parse(row.expires_at);
+    return !row.revoked_at && Number.isFinite(expiry) && expiry > now;
+  });
+  const auth = latestByUser(authRows, (row) => row.last_seen_at);
 
   const openAttendanceIds = attendanceRows.map((row) => row.id);
   const breaksResult = openAttendanceIds.length
@@ -117,10 +121,9 @@ export async function getOfficeWorkforceLiveOverview() {
       workforce_status_source: workStatus?.source ?? "SYSTEM",
       online_state: sessionPresence(authSession, now),
       session_aal: authSession?.aal ?? null,
-      mfa_verified: authSession?.mfa_verified ?? false,
-      session_started_at: authSession?.started_at ?? null,
+      mfa_verified: authSession?.aal === "aal2",
+      session_started_at: authSession?.created_at ?? null,
       last_seen_at: authSession?.last_seen_at ?? null,
-      risk_level: authSession?.risk_level ?? null,
       attendance_state: openAttendance ? (usersOnBreak.has(identity.user_id) ? "ON_BREAK" : "WORKING") : "OFF_CLOCK",
       check_in_at: openAttendance?.check_in_at ?? null,
       attendance_time_zone: openAttendance?.time_zone ?? null,

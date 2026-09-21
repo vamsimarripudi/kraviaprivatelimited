@@ -1,98 +1,133 @@
-# Production security gates
+# KRAVIA Office — production security gates
 
-KRAVIA Office must not be promoted to production until all mandatory gates are evidenced. This document distinguishes controls already implemented and tested in code from deployment/provider/professional evidence that cannot be fabricated in source control.
+This document separates **software controls that are implemented and continuously testable** from **external deployment/provider/professional evidence** that must be supplied only during final activation.
 
-## Implemented and continuously tested controls
+## Implemented software controls
 
-- KRAVIA first-party Office identity authority in FastAPI/PostgreSQL; active Office login, registration, invitation and MFA flows do not use Supabase Auth.
-- Argon2id password hashing, short-lived signed access JWTs and rotating refresh tokens stored only as SHA-256 hashes.
-- Same-origin identity BFF using HttpOnly/SameSite=Strict cookies; bearer/refresh tokens are not exposed to Office JavaScript.
-- Encrypted-at-rest TOTP MFA plus production `aal2` enforcement on protected Office APIs.
-- Explicit Office identity/role records with deny-by-default browser access, one-time Founder bootstrap and private single-use invitations.
-- No public Office self-signup endpoint after Founder bootstrap closes.
-- Server-side RBAC with deny-by-default privileged mutation routes.
-- Maker-checker approval primitive preventing requester self-approval.
-- Finance/payment idempotency and Razorpay webhook-signature verification logic.
-- Invoice/controlled-document sequencing and issued-document immutability controls.
-- Accounting/tax period locks with approved maker-checker reopen workflow.
-- Append-only/tamper-evident audit chain with audit writes in the same transaction as controlled mutations.
-- Private document versioning, SHA-256 integrity, MIME allowlist and upload-size limits.
-- Application CSP/security headers, trusted-host option and browser Origin guard.
-- Shared database-backed mutation rate limiter across application replicas, with development fallback and production fail-closed shared mode.
-- Secret scan and blocking `npm audit --audit-level=high` in CI.
-- Reproducible committed OpenAPI contract with CI drift detection.
-- Read-only Google Drive evidence metadata boundary and evidence-taxonomy readiness reporting.
+### Identity and access
+- KRAVIA first-party FastAPI/PostgreSQL identity authority; Supabase Auth is not used by active Office login, invitation, MFA or recovery flows.
+- Argon2id password hashing.
+- Short-lived signed access JWTs.
+- Rotating refresh tokens stored only as SHA-256 hashes.
+- HttpOnly/SameSite=Strict browser cookies through the same-origin Next.js BFF.
+- TOTP MFA with encrypted-at-rest factor secret and AAL2 enforcement.
+- Failed-login lockout and auditable first-party authentication events.
+- Actual first-party session inventory with user-scoped revocation; cross-user session IDOR is regression-tested.
+- Private single-use invitation registration with no ordinary OWNER assignment.
+- AAL2 current-password change that revokes other sessions.
+- Administrator-issued short-lived single-use password recovery links, with delegated-role restrictions.
+- Separate high-entropy Founder break-glass recovery that revokes Founder sessions and resets MFA.
+- Trusted-device binding with hashed browser proof, company-managed approval, first-party device-event audit and no legacy session-ledger dependency.
+- Server-side capability/permission enforcement and repository-wide mutation-security tests.
+- Same-origin protection for browser-facing Office mutations; signed external webhook paths are the explicit exception.
 
-These controls are necessary but do not by themselves prove the deployed production environment is compliant or operationally approved.
+### Data/control plane
+- RLS-enabled protected Office tables.
+- anon/authenticated browser roles denied direct access to checked identity/GST/control-plane tables.
+- least-privilege `kravia_office_backend` PostgreSQL execution role.
+- transaction-scoped role application in production runtime/migrations.
+- no direct browser access to SQLAlchemy-owned business tables.
 
-## Identity — production activation / evidence required
+### Finance, accounting and tax
+- integer-paise money model and immutable billing snapshots;
+- maker-checker controls and idempotency;
+- signed Razorpay webhook validation;
+- controlled RazorpayX payout boundary;
+- double-entry journal/trial balance;
+- accounting/TAX period locks and approved reopen workflow;
+- product tax profiles;
+- IRIS IRP/e-Invoice adapter;
+- IRIS VAS purchase-data/reconciliation adapter;
+- GST return workings;
+- Fynamics/FYN Gateway GSP filing/evidence boundary;
+- provider-dependent execution remains fail-closed when configuration is absent.
 
-The first-party identity implementation exists in code and database migrations. Production promotion still requires operator evidence for these deployment controls:
+### Documents and files
+- versioned/hashed controlled documents;
+- private Supabase Storage buckets;
+- version-controlled signed `kravia-storage-broker` Edge Function;
+- private quarantine;
+- size/MIME/extension/SHA-256 verification;
+- ClamAV streaming pipeline with retry/failure states;
+- clean-object promotion only after malware scan;
+- short-lived signed private downloads;
+- browser roles do not receive unrestricted private-bucket access.
 
-- configure a strong `OFFICE_AUTH_SIGNING_SECRET` in the FastAPI production secret store;
-- configure the same strong `OFFICE_AUTH_BOOTSTRAP_SECRET` in the trusted FastAPI and Next.js server environments, never in browser-visible variables;
-- set and verify `AUTH_MODE=first_party` and `OFFICE_REQUIRED_AAL=aal2` on the accepted production deployment;
-- complete the one-time Founder registration, TOTP enrollment and live AAL2 sign-in acceptance, then verify Founder bootstrap is permanently closed;
-- issue, consume once and retire a test private invitation for a non-owner role;
-- verify session revocation, controlled MFA reset/recovery and inactive-user denial;
-- pass the full staging all-role authorization/IDOR/BOLA matrix.
+### Runtime and operations
+- CSP and browser security headers;
+- trusted-host and Origin guards;
+- shared database-backed mutation rate limiting;
+- durable worker with distributed locking, heartbeat and failure alerts;
+- outbox/automation processing;
+- operations summary that never fabricates SLO measurements;
+- audit retention, legal holds and deterministic archive manifests;
+- encrypted backup and isolated restore-drill workflows;
+- secret scanning, blocking dependency audit, lint, typecheck, tests, build, migrations and OpenAPI drift in CI.
 
-Supabase Auth is not the active Office identity authority. Supabase Auth signing-key, leaked-password, hook and public-signup settings are therefore not Office production identity acceptance gates.
+## Internal release gates
 
-## Secrets / infrastructure — production evidence required
+A candidate Office software release is internally acceptable only when all repository gates are green:
 
-- No secrets in source, localStorage, client bundles, logs or documents.
-- AWS Parameter Store/Secrets Manager or approved equivalent configured.
-- Key rotation process documented and exercised.
-- Production PostgreSQL uses encryption at rest and TLS with restricted network access.
-- Backup/PITR retention configured and a restore drill completed successfully.
-- Time synchronization and critical audit failure alerting monitored.
+- frontend dependency audit and secret scan;
+- ESLint and TypeScript;
+- full frontend test suite;
+- Next.js production build;
+- Python compile;
+- OpenAPI drift check;
+- Alembic upgrade through current head;
+- backend pytest;
+- hardened Office quality gate;
+- API-container liveness;
+- background-worker one-shot smoke.
 
-## Financial controls — production evidence required
+Any red gate blocks merge.
 
-The application-side maker-checker, idempotency, webhook verification, refund linkage, journal balancing and period locks are implemented. Production promotion additionally requires:
+## External identity/deployment evidence — final phase
 
-- CA-approved GSTIN, tax catalog, SAC mappings, invoice series and accounting policy/mapping.
-- Provider/bank sandbox acceptance with signed-webhook replay cases.
-- Live payment/payout/provider eligibility and credentials.
-- Bank/accounting integration scopes and reconciliation procedure approved.
-- Close/reopen operating procedure approved and tested by Finance/CA.
+After internal software acceptance:
 
-## Documents / evidence — production evidence required
+- configure production `OFFICE_AUTH_SIGNING_SECRET`;
+- configure production `OFFICE_AUTH_BOOTSTRAP_SECRET`;
+- configure a separate offline `OFFICE_AUTH_BREAK_GLASS_SECRET`;
+- set `AUTH_MODE=first_party` and `OFFICE_REQUIRED_AAL=aal2`;
+- verify canonical Vercel `OFFICE_API_ORIGIN`;
+- verify canonical production domain/TLS;
+- exercise a private non-owner invitation and recovery link in production-like staging;
+- store the Founder break-glass secret offline and perform a controlled drill without retaining the returned token;
+- complete external/browser all-role security acceptance.
 
-- Private production object storage/Drive authorization scoped to minimum privilege.
-- Malware scanner integrated for uploaded files before production use.
-- Retention/legal-hold policy approved.
-- Authoritative Company Master, governance, ownership, tax, finance, banking, vendor and HR evidence loaded/linked only after review.
-- Public verification surfaces confirmed not to reveal confidential content.
+## External infrastructure evidence — final phase
 
-## Application security — production acceptance required
+- production database networking restrictions;
+- provider backup/PITR settings and restore evidence;
+- production secret rotation procedure;
+- ClamAV production service and EICAR acceptance test;
+- external telemetry/SLO source;
+- durable audit archive sink;
+- provider edge/WAF defense in depth.
 
-CI currently enforces secret scanning, dependency audit, lint, type checking, application tests, migrations, Office tests, OpenAPI drift checking and Office quality gates. Pytest fails on unexpected warnings, with only the specifically identified upstream Starlette/AnyIO TestClient deprecation suppressed. Before production promotion also complete:
+## External finance/GST/provider evidence — final phase
 
-- external/staging IDOR/BOLA tests;
-- CSRF/XSS/injection/file-upload security tests;
-- browser/device/accessibility review;
-- provider edge/WAF abuse controls as defense in depth; application mutation limiting is already shared across replicas;
-- monitoring, alerting, incident routing and SLO configuration.
+- CA-approved GSTIN/tax/SAC/invoice/accounting mapping;
+- IRIS IRP sandbox then production acceptance;
+- IRIS VAS taxpayer/user authorization;
+- Fynamics/FYN Gateway GSP taxpayer OTP/session and final filing contract acceptance;
+- Razorpay/RazorpayX eligibility and credentials;
+- bank/accounting authorization;
+- signed provider-webhook replay tests;
+- eSign/DSC provider where required.
 
-## Integrations — production evidence required
+## Professional/statutory evidence — final phase
 
-- Razorpay/payment webhook signatures validated with live/sandbox provider configuration.
-- Google Drive/Workspace scopes minimized and service identity approved.
-- Bank/accounting integrations read/write scoped by need.
-- Integration failure queues/outbox workers monitored.
-- eSign/DSC provider configured where legally required.
-
-## Legal / professional review — production evidence required
-
-- Current legal entity and registered-office data verified from authoritative evidence.
-- Current GST status/effective details verified.
-- Current cap table/share register/share certificates/shareholder agreement reconciled and approved before production ownership bootstrap.
-- CA approves tax/accounting configuration.
-- CS approves governance/minute/register/ownership handling.
-- Legal/management approves retention, privacy and controlled funding/mandate language where applicable.
+- authoritative Company Master and registered-office evidence;
+- current GST evidence;
+- reconciled cap table/share register/share certificates;
+- CA approval of tax/accounting policy and close procedure;
+- CS approval of governance/minutes/register/ownership handling;
+- legal/management approval of retention, privacy and controlled funding/mandate language.
 
 ## Release rule
 
-A green CI build proves the committed software controls pass their automated gates. It does **not** convert missing production identity activation, provider credentials, unverified legal evidence or professional sign-off into production readiness. Office must surface such conditions as setup-required/unverified states rather than fabricated success.
+A green build proves the committed software controls. It does not fabricate provider approval, statutory status, bank connectivity, tax filing, legal review or external SLO attainment.
+
+When external evidence is missing, KRAVIA Office must remain fail-closed or visibly unverified. Missing evidence must never be converted into fake success.

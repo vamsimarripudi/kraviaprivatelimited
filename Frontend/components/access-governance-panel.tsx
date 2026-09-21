@@ -214,11 +214,45 @@ function UserCard({ user, state, owner, currentUserId, pending, mutate }: {
   const [department, setDepartment] = useState(user.department ?? state.departments[0]?.code ?? "OPERATIONS");
   const [reason, setReason] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
+  const [recoveryUrl, setRecoveryUrl] = useState("");
+  const [recoveryBusy, setRecoveryBusy] = useState(false);
+  const [recoveryCopied, setRecoveryCopied] = useState(false);
+  const [recoveryError, setRecoveryError] = useState<string>();
   const reasonReady = reason.trim().length >= 3;
 
   async function post(url: string, body: Record<string, unknown>, success: string) {
     const ok = await mutate(() => json(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }), success);
     if (ok) setReason("");
+  }
+
+  async function issueRecovery() {
+    setRecoveryBusy(true);
+    setRecoveryUrl("");
+    setRecoveryCopied(false);
+    setRecoveryError(undefined);
+    try {
+      const result = await json<{ recovery_url: string; expires_in: number; revoked_sessions: number }>("/api/office-access/password-recovery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target_user_id: user.user_id, reason }),
+      });
+      setRecoveryUrl(result.recovery_url);
+    } catch (error) {
+      setRecoveryError(error instanceof Error ? error.message : "Unable to issue a recovery link");
+    } finally {
+      setRecoveryBusy(false);
+    }
+  }
+
+  async function copyRecoveryLink() {
+    if (!recoveryUrl) return;
+    try {
+      await navigator.clipboard.writeText(new URL(recoveryUrl, window.location.origin).toString());
+      setRecoveryCopied(true);
+      window.setTimeout(() => setRecoveryCopied(false), 2500);
+    } catch {
+      setRecoveryCopied(false);
+    }
   }
 
   return <article className={styles.user}>
@@ -237,9 +271,15 @@ function UserCard({ user, state, owner, currentUserId, pending, mutate }: {
         {user.status === "ACTIVE" ? <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/status", { target_user_id: user.user_id, status: "SUSPENDED", reason }, "Identity suspended.")}>Suspend</button> : <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/status", { target_user_id: user.user_id, status: "ACTIVE", reason }, "Identity reactivated.")}>Reactivate</button>}
         <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/status", { target_user_id: user.user_id, status: "REVOKED", reason }, "Identity revoked.")}>Revoke access</button>
         <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/mfa-reset", { target_user_id: user.user_id, reason }, "Authenticator factors reset; the user must enroll MFA again.")}>Reset MFA</button>
+        <button type="button" disabled={pending || recoveryBusy || !reasonReady} onClick={() => void issueRecovery()}>{recoveryBusy ? "Issuing…" : "Issue recovery link"}</button>
         <button type="button" disabled={pending || user.user_id === currentUserId} onClick={() => void post("/api/office-access/review", { target_user_id: user.user_id, decision: "APPROVED", notes: reason || undefined }, "Access review approved.")}>Approve review</button>
         <button type="button" disabled={pending || user.user_id === currentUserId} onClick={() => void post("/api/office-access/review", { target_user_id: user.user_id, decision: "CHANGES_REQUIRED", notes: reason || undefined }, "Access review marked for changes.")}>Review changes</button>
       </div>
+      {recoveryError ? <p className={styles.recoveryError}>{recoveryError}</p> : null}
+      {recoveryUrl ? <div className={styles.privateLink}>
+        <div><Link2 /><span><b>Private recovery link</b><small>Single-use. Issuing it revoked the user’s active sessions. Send it only to the intended person.</small></span></div>
+        <div className={styles.privateLinkRow}><input readOnly value={new URL(recoveryUrl, "https://www.kraviaprivatelimited.com").toString()} aria-label="Private password recovery URL" /><button type="button" onClick={() => void copyRecoveryLink()}><Copy />{recoveryCopied ? "Copied" : "Copy link"}</button></div>
+      </div> : null}
     </div> : <p className={styles.protected}>{user.status === "INVITED" ? "Pending invitation — no workspace access exists yet. Manage this identity through the invitation ledger until acceptance." : user.status === "REVOKED" ? "Revoked identity — ordinary role and lifecycle administration is permanently closed. Re-entry requires a new controlled onboarding decision." : roles.includes("OWNER") ? "Protected OWNER identity — ordinary administration cannot suspend, revoke, reset MFA or transfer this authority." : "This privileged identity is outside your delegated administration boundary."}</p>}
   </article>;
 }

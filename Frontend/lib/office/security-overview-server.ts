@@ -49,9 +49,9 @@ function scopeUsers<T>(query: T, column: string, userIds: string[] | null) {
 
 export async function getOfficeSecurityOverview() {
   const read = await authority();
-  let sessionsQuery = read.admin.from("office_auth_sessions").select("id,user_id,device_id,status,aal,mfa_verified,risk_level,ip_address,user_agent_summary,started_at,last_seen_at,ended_at,end_reason").order("last_seen_at", { ascending: false }).limit(200);
+  let sessionsQuery = read.admin.from("office_auth_sessions_v2").select("id,user_id,status,aal,ip_address,user_agent_hash,created_at,last_seen_at,expires_at,revoked_at").order("last_seen_at", { ascending: false }).limit(200);
   let devicesQuery = read.admin.from("office_device_registry").select("id,user_id,device_label,device_kind,platform,trust_state,company_managed,approved_at,revoked_at,last_seen_at,created_at").order("last_seen_at", { ascending: false }).limit(200);
-  let authEventsQuery = read.admin.from("office_auth_events").select("id,event_id,session_id,user_id,event_type,aal,ip_address,metadata,created_at").order("created_at", { ascending: false }).limit(250);
+  let authEventsQuery = read.admin.from("office_auth_events_v2").select("id,session_id,user_id,event_type,ip_address,user_agent_hash,metadata_json,created_at").order("created_at", { ascending: false }).limit(250);
   let incidentsQuery = read.admin.from("office_engineering_incidents").select("id,incident_code,service_id,severity,title,summary,status,owner_user_id,started_at,resolved_at,created_at,updated_at").order("updated_at", { ascending: false }).limit(150);
   sessionsQuery = scopeUsers(sessionsQuery, "user_id", read.userIds);
   devicesQuery = scopeUsers(devicesQuery, "user_id", read.userIds);
@@ -72,24 +72,52 @@ export async function getOfficeSecurityOverview() {
   const sessionRows = sessions.data ?? [];
   const deviceRows = devices.data ?? [];
   const incidentRows = incidents.data ?? [];
-  const activeSessions = sessionRows.filter((row) => row.status === "ACTIVE");
+  const now = Date.now();
+  const activeSessions = sessionRows.filter((row) => {
+    const expiry = typeof row.expires_at === "string" ? Date.parse(row.expires_at) : Number.NaN;
+    return row.status === "ACTIVE" && !row.revoked_at && Number.isFinite(expiry) && expiry > now;
+  });
+  const normalizedSessions = sessionRows.map((row) => ({
+    ...row,
+    mfa_verified: row.aal === "aal2",
+    started_at: row.created_at,
+  }));
+  const normalizedAuthEvents = (authEvents.data ?? []).map((row) => {
+    let metadata: Record<string, unknown> = {};
+    if (typeof row.metadata_json === "string" && row.metadata_json) {
+      try {
+        const parsed = JSON.parse(row.metadata_json);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed as Record<string, unknown>;
+      } catch { /* malformed historical metadata remains non-authoritative */ }
+    }
+    const metadataAal = typeof metadata.aal === "string" ? metadata.aal : null;
+    return {
+      id: row.id,
+      session_id: row.session_id,
+      user_id: row.user_id,
+      event_type: row.event_type,
+      aal: row.event_type === "MFA_VERIFIED" ? "aal2" : metadataAal,
+      ip_address: row.ip_address,
+      created_at: row.created_at,
+    };
+  });
   return {
     actor: { user_id: read.identity.userId, roles: read.identity.roles, department: read.identity.department ?? null },
     scope: { source: read.decision.source ?? null, type: read.decision.scopeType ?? null, key: read.decision.scopeKey ?? null },
     summary: {
       active_sessions: activeSessions.length,
-      active_without_aal2: activeSessions.filter((row) => row.aal !== "aal2" || row.mfa_verified !== true).length,
-      elevated_risk_sessions: activeSessions.filter((row) => ["HIGH", "BLOCKED"].includes(String(row.risk_level))).length,
+      active_without_aal2: activeSessions.filter((row) => row.aal !== "aal2").length,
+      closed_or_expired_sessions: sessionRows.length - activeSessions.length,
       pending_devices: deviceRows.filter((row) => row.trust_state === "PENDING").length,
       trusted_managed_devices: deviceRows.filter((row) => row.trust_state === "TRUSTED" && row.company_managed === true).length,
       open_incidents: incidentRows.filter((row) => !["RESOLVED", "CLOSED"].includes(String(row.status))).length,
     },
     people: people.data ?? [],
-    sessions: sessionRows,
+    sessions: normalizedSessions,
     devices: deviceRows,
-    auth_events: authEvents.data ?? [],
+    auth_events: normalizedAuthEvents,
     incidents: incidentRows,
     access_audit: audit.data ?? [],
-    disclaimer: "Security observability is limited to authentication, device, access-control and incident records. KRAVIA Office does not capture keystrokes, screenshots or continuous employee surveillance.",
+    disclaimer: "Security observability is limited to KRAVIA first-party authentication, device, access-control and incident records. No risk score is fabricated when no risk engine is connected, and KRAVIA Office does not capture keystrokes, screenshots or continuous employee surveillance.",
   };
 }

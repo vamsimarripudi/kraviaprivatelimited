@@ -25,7 +25,6 @@ type PersonRow = {
   mfa_verified: boolean;
   session_started_at: string | null;
   last_seen_at: string | null;
-  risk_level: string | null;
   attendance_state: "OFF_CLOCK" | "WORKING" | "ON_BREAK";
   check_in_at: string | null;
   attendance_time_zone: string | null;
@@ -110,7 +109,7 @@ export function WorkforceLiveOverview() {
               <td><span className={styles.state}>{availability.emoji} {availability.label}</span><small>{mode ? `${mode.emoji} ${mode.label}` : "Mode not set"}</small></td>
               <td><span className={styles.state}>{employment.emoji} {employment.label}</span><small>{person.workforce_status_source}</small></td>
               <td><span className={styles.state}>{person.attendance_state === "WORKING" ? "⏱️ Working" : person.attendance_state === "ON_BREAK" ? "☕ On break" : "— Off clock"}</span><small>{person.check_in_at ? `In ${time(person.check_in_at)}` : "No open session"}</small></td>
-              <td><span className={styles.state}>{person.mfa_verified ? "🛡️ AAL2" : person.session_aal ? "🔐 AAL1" : "—"}</span><small>{person.risk_level ? `${person.risk_level} risk` : "No active session"}</small></td>
+              <td><span className={styles.state}>{person.mfa_verified ? "🛡️ AAL2" : person.session_aal ? "🔐 AAL1" : "—"}</span><small>{person.session_aal ? "KRAVIA first-party session" : "No active session"}</small></td>
             </tr>;
           })}</tbody>
         </table>

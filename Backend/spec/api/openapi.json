@@ -326,6 +326,17 @@
             ],
             "title": "Context Id"
           },
+          "context_metadata": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context Metadata"
+          },
           "context_type": {
             "anyOf": [
               {
@@ -770,6 +781,27 @@
           }
         },
         "title": "DecisionNote",
+        "type": "object"
+      },
+      "DeviceEventPayload": {
+        "properties": {
+          "action": {
+            "pattern": "^(LINKED|UNLINKED)$",
+            "title": "Action",
+            "type": "string"
+          },
+          "device_id": {
+            "maxLength": 36,
+            "minLength": 36,
+            "title": "Device Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "device_id",
+          "action"
+        ],
+        "title": "DeviceEventPayload",
         "type": "object"
       },
       "DocumentRenderRequest": {
@@ -1881,6 +1913,28 @@
         "title": "OtpRequest",
         "type": "object"
       },
+      "PasswordChangePayload": {
+        "properties": {
+          "current_password": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Current Password",
+            "type": "string"
+          },
+          "new_password": {
+            "maxLength": 256,
+            "minLength": 12,
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "PasswordChangePayload",
+        "type": "object"
+      },
       "PaymentCreate": {
         "properties": {
           "amount": {
@@ -2287,6 +2341,43 @@
           "payload"
         ],
         "title": "PurchaseImportRequest",
+        "type": "object"
+      },
+      "RecoveryCompletePayload": {
+        "properties": {
+          "new_password": {
+            "maxLength": 256,
+            "minLength": 12,
+            "title": "New Password",
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 4096,
+            "minLength": 64,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "new_password"
+        ],
+        "title": "RecoveryCompletePayload",
+        "type": "object"
+      },
+      "RecoveryIssuePayload": {
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "RecoveryIssuePayload",
         "type": "object"
       },
       "RefreshPayload": {
@@ -5074,6 +5165,120 @@
         ]
       }
     },
+    "/api/v1/auth/device-event": {
+      "post": {
+        "operationId": "record_device_event_api_v1_auth_device_event_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceEventPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Record Device Event",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/founder/recovery-link": {
+      "post": {
+        "operationId": "issue_founder_break_glass_recovery_api_v1_auth_founder_recovery_link_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Kravia-Break-Glass-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Kravia-Break-Glass-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoveryIssuePayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Issue Founder Break Glass Recovery",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
     "/api/v1/auth/invitation": {
       "get": {
         "operationId": "invitation_status_api_v1_auth_invitation_get",
@@ -5370,6 +5575,63 @@
         ]
       }
     },
+    "/api/v1/auth/password": {
+      "post": {
+        "operationId": "change_password_api_v1_auth_password_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChangePayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change Password",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
     "/api/v1/auth/readiness": {
       "get": {
         "operationId": "readiness_api_v1_auth_readiness_get",
@@ -5384,6 +5646,45 @@
           }
         },
         "summary": "Readiness",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/recovery/password": {
+      "post": {
+        "operationId": "complete_password_recovery_api_v1_auth_recovery_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoveryCompletePayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Complete Password Recovery",
         "tags": [
           "identity"
         ]
@@ -5532,6 +5833,109 @@
         ]
       }
     },
+    "/api/v1/auth/sessions": {
+      "get": {
+        "operationId": "list_sessions_api_v1_auth_sessions_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Sessions",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/sessions/{session_id}/revoke": {
+      "post": {
+        "operationId": "revoke_session_api_v1_auth_sessions__session_id__revoke_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Session",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
     "/api/v1/auth/sign-in": {
       "post": {
         "operationId": "sign_in_api_v1_auth_sign_in_post",
@@ -5669,6 +6073,72 @@
           }
         },
         "summary": "Reset Mfa",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/users/{user_id}/recovery-link": {
+      "post": {
+        "operationId": "issue_password_recovery_link_api_v1_auth_users__user_id__recovery_link_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoveryIssuePayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Issue Password Recovery Link",
         "tags": [
           "identity"
         ]

@@ -1,5 +1,5 @@
 import "server-only";
-import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { requireOfficeAdminEnvironment } from "@/lib/env/office";
 import { getOfficeSessionContext, officeIdentityIsProvisioned } from "@/lib/office/auth-server";
 import { activeRoleNames, canAdministerAccess, canManageTarget, type OfficeDepartment } from "@/lib/office/access-policy";
@@ -16,6 +16,7 @@ type Actor = { userId: string; email?: string; roles: OfficeRole[] };
 type Authority = { admin: SupabaseClient; actor: Actor };
 
 type Target = { userId: string; status: string; email?: string; roles: OfficeRole[] };
+type DirectoryUser = { id: string; email?: string | null; last_sign_in_at?: string | null };
 
 function client() {
   const env = requireOfficeAdminEnvironment();
@@ -40,31 +41,33 @@ function fail(error: { message?: string } | null, message: string) {
   if (error) throw new WorkforceAdminError(500, message);
 }
 
-async function listAllUsers(admin: SupabaseClient): Promise<User[]> {
-  const users: User[] = [];
-  const perPage = 200;
-  for (let page = 1; page <= 100; page += 1) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
-    fail(error, "Unable to read workforce directory");
-    users.push(...(data.users ?? []));
-    if ((data.users ?? []).length < perPage) return users;
-  }
-  throw new WorkforceAdminError(503, "Workforce directory exceeds the supported listing window");
+async function listAllUsers(admin: SupabaseClient): Promise<DirectoryUser[]> {
+  const { data, error } = await admin
+    .from("office_auth_users")
+    .select("id,email,last_login_at")
+    .order("created_at", { ascending: true })
+    .limit(5000);
+  fail(error, "Unable to read workforce directory");
+  return (data ?? []).map((user) => ({
+    id: user.id,
+    email: user.email,
+    last_sign_in_at: user.last_login_at,
+  }));
 }
 
 async function target(admin: SupabaseClient, userId: string): Promise<Target> {
   const [identityResult, rolesResult, authResult] = await Promise.all([
     admin.from("office_identity_users").select("status").eq("user_id", userId).maybeSingle(),
     admin.from("office_user_roles").select("role,expires_at").eq("user_id", userId),
-    admin.auth.admin.getUserById(userId),
+    admin.from("office_auth_users").select("id,email").eq("id", userId).maybeSingle(),
   ]);
-  if (identityResult.error || rolesResult.error || authResult.error || !identityResult.data || !authResult.data.user) {
+  if (identityResult.error || rolesResult.error || authResult.error || !identityResult.data || !authResult.data) {
     throw new WorkforceAdminError(404, "Workforce identity not found");
   }
   return {
     userId,
     status: String(identityResult.data.status),
-    email: authResult.data.user.email,
+    email: authResult.data.email ?? undefined,
     roles: activeRoleNames((rolesResult.data ?? []) as { role: unknown; expires_at?: unknown }[]),
   };
 }

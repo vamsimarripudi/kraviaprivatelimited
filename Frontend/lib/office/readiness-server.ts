@@ -43,7 +43,7 @@ export async function getOfficeReadiness() {
     admin.from("office_job_assignments").select("user_id,status,department_code,position_code"),
     admin.from("office_user_access_profiles").select("user_id,status,expires_at"),
     admin.from("office_device_registry").select("id,user_id,trust_state,company_managed,last_seen_at"),
-    admin.from("office_auth_sessions").select("id,user_id,status,aal,mfa_verified,risk_level,last_seen_at"),
+    admin.from("office_auth_sessions_v2").select("id,user_id,status,aal,last_seen_at,expires_at,revoked_at"),
     admin.from("office_requests").select("id,request_type_code,priority,status,due_at,created_at,updated_at"),
     admin.from("office_request_steps").select("id,request_id,status,assigned_user_id,created_at").eq("status", "PENDING"),
     admin.from("office_engineering_incidents").select("id,severity,status,started_at,updated_at"),
@@ -70,9 +70,13 @@ export async function getOfficeReadiness() {
   const noProfiles = Array.from(activeIds).filter((id) => !activeProfileIds.has(id));
 
   const sessionRows = sessions.data ?? [];
-  const activeSessions = sessionRows.filter((row) => row.status === "ACTIVE");
-  const noAal2 = activeSessions.filter((row) => row.aal !== "aal2" || row.mfa_verified !== true);
-  const elevatedRisk = activeSessions.filter((row) => ["HIGH", "BLOCKED", "CRITICAL"].includes(String(row.risk_level).toUpperCase()));
+  const activeSessions = sessionRows.filter((row) =>
+    row.status === "ACTIVE" &&
+    !row.revoked_at &&
+    Number.isFinite(timestamp(row.expires_at)) &&
+    timestamp(row.expires_at) > now
+  );
+  const noAal2 = activeSessions.filter((row) => row.aal !== "aal2");
   const pendingDevices = (devices.data ?? []).filter((row) => row.trust_state === "PENDING");
   const openIncidents = (incidents.data ?? []).filter((row) => openStatus(row.status));
   const severeIncidents = openIncidents.filter((row) => ["SEV1", "SEV2", "CRITICAL", "HIGH"].includes(String(row.severity).toUpperCase()));
@@ -115,13 +119,12 @@ export async function getOfficeReadiness() {
     {
       key: "security-control",
       area: "Security",
-      state: elevatedRisk.length || severeIncidents.length ? "BLOCKED" : noAal2.length || pendingDevices.length ? "ATTENTION" : "READY",
+      state: severeIncidents.length ? "BLOCKED" : noAal2.length || pendingDevices.length ? "ATTENTION" : "READY",
       title: "Authentication and incident posture",
-      detail: "Derived from current Office authentication, trusted-device and engineering incident records.",
+      detail: "Derived from KRAVIA first-party authentication sessions, trusted-device and engineering incident records.",
       evidence: [
-        { label: "Active sessions", value: activeSessions.length },
+        { label: "Active first-party sessions", value: activeSessions.length },
         { label: "Active without AAL2", value: noAal2.length },
-        { label: "Elevated-risk sessions", value: elevatedRisk.length },
         { label: "Pending devices", value: pendingDevices.length },
         { label: "Severe open incidents", value: severeIncidents.length },
       ],
@@ -192,12 +195,12 @@ export async function getOfficeReadiness() {
     {
       key: "server-configuration",
       area: "Configuration",
-      state: process.env.OFFICE_SUPABASE_URL && process.env.OFFICE_SUPABASE_SECRET_KEY ? "READY" : "BLOCKED",
+      state: process.env.OFFICE_API_ORIGIN && process.env.OFFICE_SUPABASE_URL && process.env.OFFICE_SUPABASE_SECRET_KEY ? "READY" : "BLOCKED",
       title: "Trusted Office server configuration",
-      detail: "Reports only whether required server-side configuration exists. Secret values are never returned.",
+      detail: "Reports only whether the KRAVIA first-party runtime and trusted database control-plane configuration exist. Secret values are never returned.",
       evidence: [
-        { label: "Office auth configured", value: Boolean(process.env.OFFICE_SUPABASE_URL && process.env.OFFICE_SUPABASE_PUBLISHABLE_KEY) ? "YES" : "NO" },
-        { label: "Office service authority configured", value: Boolean(process.env.OFFICE_SUPABASE_SECRET_KEY) ? "YES" : "NO" },
+        { label: "First-party auth runtime configured", value: Boolean(process.env.OFFICE_API_ORIGIN) ? "YES" : "NO" },
+        { label: "Office control-plane database configured", value: Boolean(process.env.OFFICE_SUPABASE_URL && process.env.OFFICE_SUPABASE_SECRET_KEY) ? "YES" : "NO" },
         { label: "Backend origin configured", value: Boolean(process.env.OFFICE_API_ORIGIN) ? "YES" : "NO" },
         { label: "Managed-device enforcement", value: process.env.OFFICE_DEVICE_ENFORCEMENT?.toLowerCase() === "true" ? "ENABLED" : "NOT ENFORCED" },
       ],

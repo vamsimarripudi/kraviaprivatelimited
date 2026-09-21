@@ -1,6 +1,6 @@
 import "server-only";
 import { redirect } from "next/navigation";
-import { getOfficeEnvironment } from "@/lib/env/office";
+import { getOfficeRuntimeOrigin } from "@/lib/env/office";
 import { getOfficeSessionContext, officeIdentityIsProvisioned } from "@/lib/office/auth-server";
 import { preferredWorkspace, roleCanAccessWorkspace, workspaceDefinitions, type WorkspaceKind } from "@/lib/office/workspaces";
 
@@ -11,7 +11,7 @@ function loginUrl(workspace: WorkspaceKind, nextPath: string, reason?: string) {
 }
 
 export async function requireWorkspaceIdentity(workspace: WorkspaceKind, nextPath: string) {
-  if (!getOfficeEnvironment()) redirect(loginUrl(workspace, nextPath, "configuration_required"));
+  if (!getOfficeRuntimeOrigin()) redirect(loginUrl(workspace, nextPath, "configuration_required"));
   const context = await getOfficeSessionContext();
   if (!context) redirect(loginUrl(workspace, nextPath));
   if (!officeIdentityIsProvisioned(context.identity)) redirect(loginUrl(workspace, nextPath, "access_not_active"));

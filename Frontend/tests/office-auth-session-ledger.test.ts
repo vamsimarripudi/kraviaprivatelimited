@@ -8,6 +8,8 @@ const authServer = readFileSync(new URL("../lib/office/auth-server.ts", import.m
 const signInRoute = readFileSync(new URL("../app/api/office-auth/sign-in/route.ts", import.meta.url), "utf8");
 const mfaRoute = readFileSync(new URL("../app/api/office-auth/mfa/route.ts", import.meta.url), "utf8");
 const registerRoute = readFileSync(new URL("../app/api/office-auth/register/route.ts", import.meta.url), "utf8");
+const sessionsRoute = readFileSync(new URL("../app/api/office-auth/sessions/route.ts", import.meta.url), "utf8");
+const securitySettings = readFileSync(new URL("../components/office-security-settings.tsx", import.meta.url), "utf8");
 
 describe("KRAVIA Office first-party identity boundary", () => {
   it("stores only password hashes and refresh-token hashes in the canonical database", () => {
@@ -42,6 +44,18 @@ describe("KRAVIA Office first-party identity boundary", () => {
     expect(authApi).toContain("_encrypt_mfa_secret");
     expect(mfaRoute).toContain("verifyOfficeMfa");
     expect(mfaRoute).not.toContain("context.client.auth");
+  });
+
+  it("exposes the real first-party session inventory and scoped revocation", () => {
+    expect(authApi).toContain('@router.get("/sessions")');
+    expect(authApi).toContain('@router.post("/sessions/{session_id}/revoke")');
+    expect(authApi).toContain("OfficeAuthSession.user_id == context");
+    expect(sessionsRoute).toContain("listOfficeAuthSessions");
+    expect(sessionsRoute).toContain("revokeOfficeAuthSession");
+    expect(sessionsRoute).toContain("officeMutationIsSameOrigin");
+    expect(sessionsRoute).not.toContain('id: "current"');
+    expect(securitySettings).toContain("Revoke");
+    expect(securitySettings).toContain("KRAVIA first-party");
   });
 
   it("does not use Supabase Auth in the active BFF identity flow", () => {

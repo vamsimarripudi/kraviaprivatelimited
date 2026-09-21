@@ -10,7 +10,8 @@ const officeEnvironmentSchema = officeBaseEnvironmentSchema.extend({
   OFFICE_SUPABASE_SECRET_KEY: z.string().min(20).optional(),
 });
 
-const officeAdminEnvironmentSchema = officeBaseEnvironmentSchema.extend({
+const officeAdminEnvironmentSchema = z.object({
+  OFFICE_SUPABASE_URL: z.string().url(),
   OFFICE_SUPABASE_SECRET_KEY: z.string().min(20),
 });
 
@@ -18,9 +19,11 @@ export type OfficeEnvironment = z.infer<typeof officeEnvironmentSchema>;
 export type OfficeAdminEnvironment = z.infer<typeof officeAdminEnvironmentSchema>;
 
 /**
- * KRAVIA Office uses a dedicated Supabase Auth tenant. These variables are
- * intentionally server-only so the public-site Supabase configuration and the
- * internal Office identity boundary can never be mixed accidentally.
+ * KRAVIA Office uses Supabase/PostgreSQL as a trusted data/control plane.
+ * These variables do not define the active password/session authority; KRAVIA's
+ * first-party FastAPI identity runtime does that through OFFICE_API_ORIGIN.
+ * Keep this configuration server-only so public-site data access and the
+ * internal Office control plane cannot be mixed accidentally.
  */
 export function getOfficeEnvironment(): OfficeEnvironment | null {
   const url = process.env.OFFICE_SUPABASE_URL?.trim();
@@ -39,20 +42,25 @@ export function getOfficeEnvironment(): OfficeEnvironment | null {
 export function requireOfficeEnvironment(): OfficeEnvironment {
   const environment = getOfficeEnvironment();
   if (!environment) {
-    throw new Error("KRAVIA Office identity is not configured. Set OFFICE_SUPABASE_URL and OFFICE_SUPABASE_PUBLISHABLE_KEY.");
+    throw new Error("KRAVIA Office control-plane database is not configured. Set OFFICE_SUPABASE_URL and OFFICE_SUPABASE_PUBLISHABLE_KEY.");
   }
   return environment;
 }
 
 /**
- * Secret-key access is used only in trusted server code for invite/user/role
- * administration and authoritative current-role checks. The key must never be
- * returned to the browser or stored in source control.
+ * Secret-key access is used only by trusted server code for governed
+ * control-plane reads/writes. First-party password, session, invitation and
+ * MFA authority stays behind the FastAPI identity runtime. The key must never
+ * be returned to the browser or stored in source control.
  */
 export function getOfficeAdminEnvironment(): OfficeAdminEnvironment | null {
-  const environment = getOfficeEnvironment();
-  if (!environment?.OFFICE_SUPABASE_SECRET_KEY) return null;
-  const parsed = officeAdminEnvironmentSchema.safeParse(environment);
+  const url = process.env.OFFICE_SUPABASE_URL?.trim();
+  const secretKey = process.env.OFFICE_SUPABASE_SECRET_KEY?.trim();
+  if (!url || !secretKey) return null;
+  const parsed = officeAdminEnvironmentSchema.safeParse({
+    OFFICE_SUPABASE_URL: url,
+    OFFICE_SUPABASE_SECRET_KEY: secretKey,
+  });
   return parsed.success ? parsed.data : null;
 }
 
