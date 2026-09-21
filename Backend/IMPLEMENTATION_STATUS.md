@@ -187,4 +187,6 @@ The remaining activation items require credentials, provider accounts, professio
 
 **Production/statutory readiness = internal completion + applicable external evidence.**
 
+Do not describe KRAVIA Office as production/statutory ready until each applicable external production gate has real evidence.
+
 KRAVIA Office must never fabricate provider, legal, tax, bank, signature or compliance success when the external evidence is absent.
