@@ -303,7 +303,9 @@ export async function queueOfficeSignedDocumentEvidence(input: {
   form.set("context_type", "DOCUMENT_SIGNATURE");
   form.set("context_id", instance.id);
   form.set("context_metadata", JSON.stringify(contextMetadata));
-  form.set("file", new Blob([input.bytes], { type: "application/pdf" }), `${instance.document_code}-signed.pdf`);
+  const uploadBuffer = new ArrayBuffer(input.bytes.byteLength);
+  new Uint8Array(uploadBuffer).set(input.bytes);
+  form.set("file", new Blob([uploadBuffer], { type: "application/pdf" }), `${instance.document_code}-signed.pdf`);
 
   let response: Response;
   try {
