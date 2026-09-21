@@ -1128,7 +1128,7 @@ def build_identity_router() -> APIRouter:
             raise HTTPException(status_code=404, detail="Office device not found")
         if payload.action == "LINKED" and (
             device["trust_state"] != "TRUSTED"
-            or device["company_managed"] is not True
+            or not bool(device["company_managed"])
             or device["revoked_at"] is not None
         ):
             raise HTTPException(status_code=409, detail="Only a trusted company-managed device can be linked")
