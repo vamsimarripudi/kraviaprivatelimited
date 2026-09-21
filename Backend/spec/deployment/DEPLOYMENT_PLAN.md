@@ -58,6 +58,10 @@ Never put production customer, employee, shareholder, financial, tax or private 
 - `OFFICE_SUPABASE_URL=<KRAVIA Office Supabase URL>`
 - `OFFICE_SUPABASE_SECRET_KEY=<trusted server-only control-plane key>`
 - `OFFICE_AUTH_BOOTSTRAP_SECRET=<same bootstrap value used by Railway only while required by bootstrap controls>`
+- `KRAVIA_AUTHENTICATOR_ANDROID_URL=<approved KRAVIA-signed Android distribution URL>`
+- `KRAVIA_AUTHENTICATOR_IOS_URL=<approved TestFlight/App Store distribution URL>`
+
+Do not populate Authenticator distribution URLs with CI release-smoke artifacts. The public install buttons are enabled only after a persistent KRAVIA-controlled signing identity is used.
 
 ### Railway API
 - `APP_ENV=production`
