@@ -20,6 +20,7 @@ export default function OfficeRecoveryPage() {
         <div style={{display:"flex",gap:10,alignItems:"flex-start",padding:13,borderRadius:13,background:"#edf5ef",border:"1px solid #d4e4d8",fontSize:12,color:"#365b49"}}><ShieldCheck size={18}/><span>No email or SMS provider is required. The link is delivered privately by an authorised administrator and becomes invalid after the password is changed.</span></div>
         <p style={{margin:0,color:"#7b817e",fontSize:11,lineHeight:1.55}}>If MFA was also lost, the administrator must separately perform the governed MFA-reset action. OWNER recovery remains outside ordinary delegated administration.</p>
         <Link href="/office/login" style={{height:50,borderRadius:14,display:"grid",placeItems:"center",background:"#0b3023",color:"#fff",textDecoration:"none",fontWeight:750,fontSize:14}}>Return to sign in</Link>
+        <Link href="/office/recover/founder" style={{textAlign:"center",color:"#7a5a24",fontSize:11,fontWeight:700,textDecoration:"none"}}>Founder break-glass recovery</Link>
       </div>
     </OfficeAuthLayout>
   );
