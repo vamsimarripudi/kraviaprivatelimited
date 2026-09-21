@@ -46,6 +46,9 @@ try:
     check("openapi:mfa-verify", "/api/v1/auth/mfa/verify" in paths, "MFA verification contract")
     check("openapi:first-party-sessions", "/api/v1/auth/sessions" in paths and "/api/v1/auth/sessions/{session_id}/revoke" in paths, "first-party session inventory/revocation contract")
     check("openapi:device-event", "/api/v1/auth/device-event" in paths, "first-party trusted-device event contract")
+    check("openapi:password-change", "/api/v1/auth/password" in paths, "AAL2 password-change contract")
+    check("openapi:password-recovery", "/api/v1/auth/recovery/password" in paths and "/api/v1/auth/users/{user_id}/recovery-link" in paths, "single-use administrator recovery contract")
+    check("openapi:founder-break-glass", "/api/v1/auth/founder/recovery-link" in paths, "Founder break-glass recovery contract")
 except (OSError, ValueError) as exc:
     check("openapi:parse", False, str(exc))
 
@@ -91,6 +94,9 @@ check("identity:aal2-gate", "OFFICE_REQUIRED_AAL" in security_controls and "MFA 
 check("identity:attached", "build_identity_router" in app, "identity router attached to canonical app")
 check("identity:session-management", '@router.get("/sessions")' in identity and '@router.post("/sessions/{session_id}/revoke")' in identity, "first-party session inventory and revocation")
 check("identity:device-events", '@router.post("/device-event")' in identity and "DEVICE_UNLINKED" in identity, "first-party trusted-device event audit")
+check("identity:password-change", '@router.post("/password")' in identity and "PASSWORD_CHANGED" in identity, "AAL2 password rotation")
+check("identity:private-recovery", '@router.post("/recovery/password")' in identity and '@router.post("/users/{user_id}/recovery-link")' in identity and "PASSWORD_RECOVERY_COMPLETED" in identity, "provider-free single-use recovery")
+check("identity:founder-break-glass", '@router.post("/founder/recovery-link")' in identity and "OFFICE_AUTH_BREAK_GLASS_SECRET" in identity and "FOUNDER_BREAK_GLASS_RECOVERY_ISSUED" in identity, "separate Founder emergency recovery")
 
 check("period-control:model", "class AccountingPeriodLock" in period_controls, "AccountingPeriodLock")
 check("period-control:api", "accounting/period-locks" in period_controls, "period-lock endpoints")
