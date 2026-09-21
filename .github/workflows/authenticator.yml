@@ -40,13 +40,18 @@ jobs:
       - name: TypeScript
         run: npm run typecheck
 
-      - name: RFC/provisioning tests
+      - name: RFC/provisioning/security tests
         run: npm test
 
       - name: Android JS bundle export
         env:
           CI: "1"
         run: npm run export:android
+
+      - name: iOS JS bundle export
+        env:
+          CI: "1"
+        run: npm run export:ios
 
       - name: Generate Android native project
         env:
@@ -57,13 +62,38 @@ jobs:
         working-directory: Authenticator/android
         run: ./gradlew assembleDebug --no-daemon
 
+      - name: Verify merged Android security manifest
+        shell: bash
+        run: |
+          manifest=$(find android/app/build/intermediates -type f -name AndroidManifest.xml -path '*merged_manifests*debug*' -print -quit)
+          if [ -z "$manifest" ]; then
+            echo "Merged debug AndroidManifest.xml was not found" >&2
+            exit 1
+          fi
+          echo "Inspecting $manifest"
+          grep -q 'android:allowBackup="false"' "$manifest"
+          grep -q 'android.permission.CAMERA' "$manifest"
+          if grep -q 'android.permission.INTERNET' "$manifest"; then
+            echo "KRAVIA Authenticator must not request Android INTERNET permission" >&2
+            exit 1
+          fi
+          if grep -q 'android.permission.RECORD_AUDIO' "$manifest"; then
+            echo "KRAVIA Authenticator must not request Android microphone permission" >&2
+            exit 1
+          fi
+
       - name: Stage KRAVIA Authenticator APK
         run: cp android/app/build/outputs/apk/debug/app-debug.apk kravia-authenticator-internal.apk
+
+      - name: Hash KRAVIA Authenticator APK
+        run: sha256sum kravia-authenticator-internal.apk | tee kravia-authenticator-internal.apk.sha256
 
       - name: Upload KRAVIA Authenticator APK
         uses: actions/upload-artifact@v4
         with:
           name: kravia-authenticator-internal-apk
-          path: Authenticator/kravia-authenticator-internal.apk
+          path: |
+            Authenticator/kravia-authenticator-internal.apk
+            Authenticator/kravia-authenticator-internal.apk.sha256
           if-no-files-found: error
           retention-days: 7
