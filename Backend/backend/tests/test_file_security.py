@@ -100,6 +100,35 @@ def test_clamav_stream_clean(monkeypatch):
     assert fake.sent.startswith(b"zINSTREAM\0")
 
 
+def test_clamav_eicar_self_test_passes_only_when_eicar_is_detected(monkeypatch):
+    monkeypatch.setattr(file_security, "clamav_version", lambda: "ClamAV 1.5.4")
+    monkeypatch.setattr(
+        file_security,
+        "scan_bytes",
+        lambda payload: {
+            "clean": False,
+            "threat": "Win.Test.EICAR_HDB-1",
+            "response": "stream: Win.Test.EICAR_HDB-1 FOUND",
+        },
+    )
+    result = file_security.clamav_eicar_self_test()
+    assert result["status"] == "PASSED"
+    assert result["scanner"] == "CLAMAV"
+    assert "EICAR" in result["threat"]
+    assert len(file_security.EICAR_TEST_BYTES) == 68
+
+
+def test_clamav_eicar_self_test_fails_closed_when_scanner_returns_clean(monkeypatch):
+    monkeypatch.setattr(file_security, "clamav_version", lambda: "ClamAV 1.5.4")
+    monkeypatch.setattr(
+        file_security,
+        "scan_bytes",
+        lambda _payload: {"clean": True, "threat": None, "response": "stream: OK"},
+    )
+    with pytest.raises(RuntimeError, match="CLAMAV_EICAR_NOT_DETECTED"):
+        file_security.clamav_eicar_self_test()
+
+
 def test_clamav_stream_detects_threat(monkeypatch):
     fake = _FakeSocket(b"stream: Eicar-Signature FOUND\0")
     monkeypatch.setenv("CLAMAV_HOST", "clamav.internal")

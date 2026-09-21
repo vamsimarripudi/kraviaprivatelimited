@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from .automation import ensure_alert, resolve_alert, tick
 from .database import Base, SessionLocal, engine
-from .file_security import process_file_scan_queue
+from .file_security import clamav_eicar_self_test, process_file_scan_queue
 from .models import WorkerHeartbeat
 from .services import now_utc
 
@@ -28,6 +28,47 @@ WORKER_LOCK_KEY = 5_821_841_907_269_011_847
 WORKER_ERROR_ALERT_KEY = "runtime:background-worker-error"
 WORKER_HEARTBEAT_KEY = "office-automation"
 FILE_SCAN_ALERT_KEY = "runtime:file-malware-scan"
+
+
+def _env_flag(name: str, default: bool) -> bool:
+    raw = os.getenv(name, "").strip().lower()
+    if not raw:
+        return default
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    if raw in {"0", "false", "no", "off"}:
+        return False
+    raise RuntimeError(f"{name} must be a boolean value")
+
+
+def clamav_startup_self_test_enabled() -> bool:
+    app_env = os.getenv("APP_ENV", "development").strip().lower()
+    return _env_flag("KRAVIA_CLAMAV_SELF_TEST_ON_STARTUP", app_env == "production")
+
+
+def run_clamav_startup_self_test() -> dict[str, Any]:
+    if not clamav_startup_self_test_enabled():
+        return {"status": "SKIPPED"}
+
+    attempts = _bounded_int("KRAVIA_CLAMAV_SELF_TEST_ATTEMPTS", 5, 1, 10)
+    delay_seconds = _bounded_int("KRAVIA_CLAMAV_SELF_TEST_RETRY_SECONDS", 5, 0, 30)
+    last_error = "UNKNOWN"
+
+    for attempt in range(1, attempts + 1):
+        try:
+            result = clamav_eicar_self_test()
+            return {
+                **result,
+                "attempt": attempt,
+            }
+        except Exception as exc:
+            last_error = type(exc).__name__
+            if attempt < attempts and delay_seconds:
+                time.sleep(delay_seconds)
+
+    raise RuntimeError(
+        f"ClamAV EICAR startup self-test failed after {attempts} attempts ({last_error})"
+    )
 
 
 def _bounded_int(name: str, default: int, minimum: int, maximum: int) -> int:
@@ -190,6 +231,13 @@ def run_forever(interval_seconds: int | None = None, batch_size: int | None = No
 
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
+
+    try:
+        self_test = run_clamav_startup_self_test()
+        _log("worker.clamav_self_test", result=self_test)
+    except Exception as exc:
+        _log("worker.clamav_self_test_failed", error_type=type(exc).__name__)
+        raise
 
     _log("worker.started", interval_seconds=interval, batch_size=batch)
     while not stop_event.is_set():

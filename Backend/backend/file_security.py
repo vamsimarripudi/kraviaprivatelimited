@@ -34,6 +34,7 @@ QUARANTINE_BUCKET = "office-quarantine"
 MAX_FILE_BYTES = 50 * 1024 * 1024
 SCAN_BATCH_DEFAULT = 10
 SCAN_RETRY_LIMIT = 5
+EICAR_TEST_BYTES = b"X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*"
 
 _PURPOSES: dict[str, dict[str, Any]] = {
     "CORPORATE": {
@@ -333,6 +334,28 @@ def scan_bytes(data: bytes) -> dict[str, Any]:
         threat = message.split(":", 1)[-1].rsplit(" FOUND", 1)[0].strip()
         return {"clean": False, "threat": threat or "MALWARE_DETECTED", "response": message}
     raise RuntimeError(f"Unexpected ClamAV response: {message[:240]}")
+
+
+def clamav_eicar_self_test() -> dict[str, Any]:
+    """Prove the configured scanner detects the standard EICAR test signature.
+
+    This sends the harmless industry-standard EICAR test string directly to
+    ClamAV using the same INSTREAM protocol as real quarantine scans. No test
+    payload is written to KRAVIA storage.
+    """
+    version = clamav_version()
+    result = scan_bytes(EICAR_TEST_BYTES)
+    if result["clean"]:
+        raise RuntimeError("CLAMAV_EICAR_NOT_DETECTED")
+    threat = str(result.get("threat") or "")
+    if "eicar" not in threat.lower():
+        raise RuntimeError("CLAMAV_EICAR_UNEXPECTED_SIGNATURE")
+    return {
+        "status": "PASSED",
+        "scanner": "CLAMAV",
+        "scanner_version": version,
+        "threat": threat,
+    }
 
 
 def _retry_delay(attempts: int) -> timedelta:

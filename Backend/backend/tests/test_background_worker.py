@@ -103,3 +103,40 @@ def test_worker_failure_records_sanitized_alert_and_heartbeat(worker_db, monkeyp
         assert alert.status == "OPEN"
         assert "RuntimeError" in alert.detail_json
         assert "sensitive provider detail" not in alert.detail_json
+
+
+def test_clamav_startup_self_test_defaults_on_in_production(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.delenv("KRAVIA_CLAMAV_SELF_TEST_ON_STARTUP", raising=False)
+    monkeypatch.setattr(
+        worker,
+        "clamav_eicar_self_test",
+        lambda: {
+            "status": "PASSED",
+            "scanner": "CLAMAV",
+            "scanner_version": "ClamAV 1.5.4",
+            "threat": "Win.Test.EICAR_HDB-1",
+        },
+    )
+    result = worker.run_clamav_startup_self_test()
+    assert result["status"] == "PASSED"
+    assert result["attempt"] == 1
+
+
+def test_clamav_startup_self_test_skips_by_default_outside_production(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.delenv("KRAVIA_CLAMAV_SELF_TEST_ON_STARTUP", raising=False)
+    assert worker.run_clamav_startup_self_test() == {"status": "SKIPPED"}
+
+
+def test_clamav_startup_self_test_fails_closed_after_retries(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("KRAVIA_CLAMAV_SELF_TEST_ATTEMPTS", "2")
+    monkeypatch.setenv("KRAVIA_CLAMAV_SELF_TEST_RETRY_SECONDS", "0")
+    monkeypatch.setattr(
+        worker,
+        "clamav_eicar_self_test",
+        lambda: (_ for _ in ()).throw(RuntimeError("scanner unavailable")),
+    )
+    with pytest.raises(RuntimeError, match="failed after 2 attempts"):
+        worker.run_clamav_startup_self_test()
