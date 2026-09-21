@@ -344,9 +344,9 @@ def _claim_next_file(db: Session) -> Any | None:
     return db.execute(
         text(
             """
-            select id,owner_user_id,purpose,original_filename,detected_mime_type,
-                   byte_size,sha256,quarantine_bucket,quarantine_path,target_bucket,
-                   scan_attempts
+            select id,owner_user_id,purpose,context_type,context_id,context_metadata,
+                   original_filename,detected_mime_type,byte_size,sha256,
+                   quarantine_bucket,quarantine_path,target_bucket,scan_attempts
             from office_file_objects
             where (
               status='QUARANTINED'
@@ -395,6 +395,91 @@ def _mark_failed(db: Session, row: Any, code: str) -> None:
         result="FAILED",
         detail={"error_code": code[:120], "attempt": attempts, "terminal": terminal},
     )
+
+
+def _finalize_clean_context(db: Session, row: Any, released_path: str) -> dict[str, Any] | None:
+    context_type = str(row.get("context_type") or "").strip().upper()
+    if context_type != "DOCUMENT_SIGNATURE":
+        return None
+
+    metadata = row.get("context_metadata") or {}
+    if isinstance(metadata, str):
+        try:
+            metadata = json.loads(metadata)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError("SIGNATURE_CONTEXT_INVALID") from exc
+    if not isinstance(metadata, dict):
+        raise RuntimeError("SIGNATURE_CONTEXT_INVALID")
+
+    required = {
+        "instance_id",
+        "render_id",
+        "provider",
+        "signature_method",
+        "signed_at",
+    }
+    if any(not str(metadata.get(key) or "").strip() for key in required):
+        raise RuntimeError("SIGNATURE_CONTEXT_INCOMPLETE")
+
+    try:
+        instance_id = str(uuid.UUID(str(metadata["instance_id"])))
+        render_id = str(uuid.UUID(str(metadata["render_id"])))
+        actor_id = str(uuid.UUID(str(row["owner_user_id"])))
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise RuntimeError("SIGNATURE_CONTEXT_INVALID_ID") from exc
+
+    evidence = metadata.get("evidence") or {}
+    if not isinstance(evidence, dict):
+        raise RuntimeError("SIGNATURE_EVIDENCE_INVALID")
+
+    signature_id = db.execute(
+        text(
+            """
+            select public.office_document_record_signature(
+              cast(:actor as uuid),
+              cast(:instance as uuid),
+              cast(:render as uuid),
+              :provider,
+              :provider_reference,
+              :method,
+              :signer_masked,
+              :storage,
+              :sha,
+              :size,
+              cast(:signed_at as timestamptz),
+              cast(:evidence as jsonb)
+            )
+            """
+        ),
+        {
+            "actor": actor_id,
+            "instance": instance_id,
+            "render": render_id,
+            "provider": str(metadata["provider"])[:100],
+            "provider_reference": str(metadata.get("provider_reference") or "")[:500] or None,
+            "method": str(metadata["signature_method"])[:40],
+            "signer_masked": str(metadata.get("signer_reference_masked") or "")[:240] or None,
+            "storage": released_path,
+            "sha": row["sha256"],
+            "size": int(row["byte_size"]),
+            "signed_at": str(metadata["signed_at"]),
+            "evidence": json.dumps(evidence, sort_keys=True, separators=(",", ":")),
+        },
+    ).scalar_one()
+    _event(
+        db,
+        str(row["id"]),
+        "WORKFLOW_CONTEXT_FINALIZED",
+        engine="KRAVIA_OFFICE",
+        result="SIGNED",
+        detail={
+            "context_type": "DOCUMENT_SIGNATURE",
+            "document_instance_id": instance_id,
+            "source_render_id": render_id,
+            "signature_evidence_id": str(signature_id),
+        },
+    )
+    return {"signature_evidence_id": str(signature_id)}
 
 
 def _process_claimed_file(db: Session, row: Any, version: str) -> str:
@@ -469,6 +554,15 @@ def _process_claimed_file(db: Session, row: Any, version: str) -> str:
             payload,
             row["detected_mime_type"],
         )
+        try:
+            context_result = _finalize_clean_context(db, row, released_path)
+        except Exception:
+            try:
+                delete_private(row["target_bucket"], released_path)
+            except Exception:
+                pass
+            raise
+
         quarantine_deleted = False
         try:
             quarantine_deleted = delete_private(row["quarantine_bucket"], row["quarantine_path"])
@@ -495,7 +589,7 @@ def _process_claimed_file(db: Session, row: Any, version: str) -> str:
             engine="CLAMAV",
             engine_version=version,
             result="CLEAN",
-            detail={"target_bucket": row["target_bucket"], "released_path": released_path},
+            detail={"target_bucket": row["target_bucket"], "released_path": released_path, "workflow_context": context_result},
         )
         db.commit()
         return "CLEAN"
@@ -595,6 +689,7 @@ def build_file_security_router(get_db_dependency, actor_context_dependency):
         purpose: str = Form(...),
         context_type: str | None = Form(default=None),
         context_id: str | None = Form(default=None),
+        context_metadata: str | None = Form(default=None),
         file: UploadFile = File(...),
         db: Session = Depends(get_db_dependency),
         ctx=Depends(require_file_roles(*_UPLOAD_ROLES)),
@@ -617,6 +712,18 @@ def build_file_security_router(get_db_dependency, actor_context_dependency):
             data=data,
         )
 
+        context_payload: dict[str, Any] = {}
+        if context_metadata and context_metadata.strip():
+            if len(context_metadata.encode("utf-8")) > 16 * 1024:
+                raise HTTPException(status_code=413, detail="File workflow metadata is too large")
+            try:
+                parsed_context = json.loads(context_metadata)
+            except json.JSONDecodeError as exc:
+                raise HTTPException(status_code=422, detail="File workflow metadata must be valid JSON") from exc
+            if not isinstance(parsed_context, dict):
+                raise HTTPException(status_code=422, detail="File workflow metadata must be a JSON object")
+            context_payload = parsed_context
+
         user_id = _actor_user_id(ctx)
         file_id = str(uuid.uuid4())
         digest = hashlib.sha256(data).hexdigest()
@@ -627,11 +734,11 @@ def build_file_security_router(get_db_dependency, actor_context_dependency):
             text(
                 """
                 insert into office_file_objects(
-                  id,owner_user_id,purpose,context_type,context_id,original_filename,
+                  id,owner_user_id,purpose,context_type,context_id,context_metadata,original_filename,
                   declared_mime_type,detected_mime_type,byte_size,sha256,
                   quarantine_bucket,quarantine_path,target_bucket,status
                 ) values (
-                  cast(:id as uuid),cast(:owner as uuid),:purpose,:context_type,:context_id,:filename,
+                  cast(:id as uuid),cast(:owner as uuid),:purpose,:context_type,:context_id,cast(:context_metadata as jsonb),:filename,
                   :declared_mime,:detected_mime,:byte_size,:sha256,
                   :quarantine_bucket,:quarantine_path,:target_bucket,'UPLOADING'
                 )
@@ -643,6 +750,7 @@ def build_file_security_router(get_db_dependency, actor_context_dependency):
                 "purpose": normalized_purpose,
                 "context_type": (context_type or "").strip()[:80] or None,
                 "context_id": (context_id or "").strip()[:160] or None,
+                "context_metadata": json.dumps(context_payload, sort_keys=True, separators=(",", ":")),
                 "filename": normalized_name,
                 "declared_mime": (file.content_type or "").split(";", 1)[0].strip().lower() or None,
                 "detected_mime": detected_mime,
@@ -660,6 +768,7 @@ def build_file_security_router(get_db_dependency, actor_context_dependency):
             result="UPLOADING",
             detail={
                 "purpose": normalized_purpose,
+                "context_type": (context_type or "").strip()[:80] or None,
                 "detected_mime_type": detected_mime,
                 "byte_size": len(data),
                 "sha256": digest,
