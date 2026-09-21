@@ -37,6 +37,9 @@ describe("KRAVIA Authenticator boundary", () => {
     expect(backend).toContain("MFA_PERIOD_SECONDS = 30");
     expect(totp).toContain("hmac(sha1");
     expect(totp).toContain("Math.floor(timestampMs / 1000 / period)");
+    expect(backend).toContain("mfa_last_accepted_counter");
+    expect(backend).toContain("MFA_REPLAY_BLOCKED");
+    expect(backend).toContain("MFA_MAX_FAILED_ATTEMPTS");
   });
 
   it("keeps the enrollment secret on-device and blocks non-KRAVIA QR codes", () => {
@@ -49,8 +52,14 @@ describe("KRAVIA Authenticator boundary", () => {
     expect(app).toContain("usePreventScreenCapture");
     expect(app).toContain("enableAppSwitcherProtectionAsync");
     expect(app).toContain("unlockAuthenticator");
-    expect(app).toContain("Clipboard.getStringAsync");
-    expect(app).toContain("currentClipboard === copiedCode");
+    expect(storage).toContain("enforceInstallationBoundary");
+    expect(storage).toContain("INSTALL_SECURE_KEY");
+    expect(security).toContain("SecurityLevel.BIOMETRIC_STRONG");
+    expect(app).toContain("setAccount(null)");
+    expect(app).toContain("secureTextEntry");
+    expect(app).not.toContain("Clipboard.setString");
+    expect(app).not.toContain("copyCode");
+    expect(app).toContain("Clipboard export is disabled");
   });
 
   it("ships a native Android/iOS Expo app instead of a web OTP widget", () => {
@@ -59,9 +68,13 @@ describe("KRAVIA Authenticator boundary", () => {
     expect(packageJson).toContain('"expo-camera"');
     expect(packageJson).toContain('"expo-local-authentication"');
     expect(packageJson).toContain('"expo-secure-store"');
+    expect(packageJson).toContain('"expo-file-system"');
+    expect(packageJson).not.toContain('"expo-clipboard"');
     expect(packageJson).toContain('"expo": "~57.0.24"');
     expect(appJson).toContain('"enabled": false');
     expect(appJson).toContain('"android.permission.INTERNET"');
+    expect(appJson).toContain('"otpClipboard": "DISABLED"');
+    expect(appJson).toContain('"./assets/icon.png"');
     expect(app).toContain("CameraView");
     expect(app).toContain("generateTotp");
   });
