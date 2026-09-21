@@ -34,6 +34,14 @@ jobs:
       - name: Install exact app dependencies
         run: npm install --legacy-peer-deps --no-fund --no-audit
 
+      - name: Capture generated lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: kravia-authenticator-package-lock
+          path: Authenticator/package-lock.json
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Dependency audit
         run: npm audit --audit-level=high
 
