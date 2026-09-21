@@ -7,6 +7,8 @@ const storage = readFileSync(new URL("../../Authenticator/src/storage.ts", impor
 const security = readFileSync(new URL("../../Authenticator/src/security.ts", import.meta.url), "utf8");
 const totp = readFileSync(new URL("../../Authenticator/src/totp.ts", import.meta.url), "utf8");
 const packageJson = readFileSync(new URL("../../Authenticator/package.json", import.meta.url), "utf8");
+const appJson = readFileSync(new URL("../../Authenticator/app.json", import.meta.url), "utf8");
+const accountValidation = readFileSync(new URL("../../Authenticator/src/account-validation.ts", import.meta.url), "utf8");
 const backend = readFileSync(new URL("../../Backend/backend/identity_auth.py", import.meta.url), "utf8");
 const login = readFileSync(new URL("../components/workspace-login-form.tsx", import.meta.url), "utf8");
 const installPage = readFileSync(new URL("../app/office/authenticator/page.tsx", import.meta.url), "utf8");
@@ -38,6 +40,8 @@ describe("KRAVIA Authenticator boundary", () => {
   it("keeps the enrollment secret on-device and blocks non-KRAVIA QR codes", () => {
     expect(storage).toContain("expo-secure-store");
     expect(storage).toContain("WHEN_PASSCODE_SET_THIS_DEVICE_ONLY");
+    expect(accountValidation).toContain("kraviaprivatelimited");
+    expect(accountValidation).toContain("normalizedSecret.length < 16");
     expect(provisioning).toContain('issuer !== KRAVIA_ISSUER');
     expect(provisioning).toContain("This QR code was not issued by KRAVIA Office");
     expect(app).toContain("usePreventScreenCapture");
@@ -46,11 +50,13 @@ describe("KRAVIA Authenticator boundary", () => {
   });
 
   it("ships a native Android/iOS Expo app instead of a web OTP widget", () => {
-    expect(packageJson).toContain('"expo": "57.0.22"');
-    expect(packageJson).toContain('"react-native": "0.86.2"');
+    expect(packageJson).toContain('"expo": "~57.0.24"');
+    expect(packageJson).toContain('"react-native": "0.86.3"');
     expect(packageJson).toContain('"expo-camera"');
     expect(packageJson).toContain('"expo-local-authentication"');
     expect(packageJson).toContain('"expo-secure-store"');
+    expect(appJson).toContain('"enabled": false');
+    expect(appJson).toContain('"android.permission.INTERNET"');
     expect(app).toContain("CameraView");
     expect(app).toContain("generateTotp");
   });
