@@ -74,17 +74,17 @@ jobs:
             exit 1
           fi
 
-      - name: Build installable internal APK
+      - name: Build offline release-smoke APK
         working-directory: Authenticator/android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleRelease --no-daemon
 
-      - name: Stage KRAVIA Authenticator APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk kravia-authenticator-internal.apk
+      - name: Stage KRAVIA Authenticator release-smoke APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk kravia-authenticator-release-smoke.apk
 
-      - name: Upload KRAVIA Authenticator APK
+      - name: Upload KRAVIA Authenticator release-smoke APK
         uses: actions/upload-artifact@v4
         with:
-          name: kravia-authenticator-internal-apk
-          path: Authenticator/kravia-authenticator-internal.apk
+          name: kravia-authenticator-release-smoke-apk
+          path: Authenticator/kravia-authenticator-release-smoke.apk
           if-no-files-found: error
           retention-days: 7
