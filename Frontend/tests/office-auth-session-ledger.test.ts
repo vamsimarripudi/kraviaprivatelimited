@@ -39,9 +39,11 @@ describe("KRAVIA Office first-party identity boundary", () => {
   });
 
   it("requires KRAVIA first-party MFA before workspace access", () => {
-    expect(authApi).toContain('session.aal = "aal2"');
     expect(authApi).toContain("pyotp.TOTP");
     expect(authApi).toContain("_encrypt_mfa_secret");
+    expect(authApi).toContain("_claim_mfa_counter");
+    expect(authApi).toContain('OfficeAuthSession.aal == "aal1"');
+    expect(authApi).toContain('aal="aal2"');
     expect(mfaRoute).toContain("verifyOfficeMfa");
     expect(mfaRoute).not.toContain("context.client.auth");
   });

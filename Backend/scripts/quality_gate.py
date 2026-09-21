@@ -87,7 +87,15 @@ for token in ["ShareLedgerEntry", "ShareTransferRequest", "FundingPolicy", "Expe
 
 check("identity:first-party-core", "PASSWORD_HASHER = PasswordHasher" in identity and "refresh_token_hash" in identity and "KRAVIA_FIRST_PARTY" in identity, "KRAVIA-owned password and session authority")
 check("identity:founder-bootstrap", "Founder registration is permanently closed" in identity and "X-Kravia-Bootstrap-Key" in identity and "FOUNDER_SLOT" in identity, "one-time protected Founder bootstrap")
-check("identity:mfa", "pyotp.TOTP" in identity and 'session.aal = "aal2"' in identity and "_encrypt_mfa_secret" in identity, "first-party encrypted TOTP MFA promotion")
+check(
+    "identity:mfa",
+    "pyotp.TOTP" in identity
+    and "_encrypt_mfa_secret" in identity
+    and "_claim_mfa_counter" in identity
+    and 'OfficeAuthSession.aal == "aal1"' in identity
+    and 'aal="aal2"' in identity,
+    "first-party encrypted TOTP MFA promotion",
+)
 check("identity:role-claim", "office_roles" in identity, "Office role claim")
 check("identity:cookie-bridge", "kravia_office_access" in security_controls and "_inject_bearer" in security_controls, "HttpOnly cookie to verified Bearer bridge")
 check("identity:aal2-gate", "OFFICE_REQUIRED_AAL" in security_controls and "MFA verification required" in security_controls, "AAL2 production gate")
@@ -97,7 +105,15 @@ check("identity:device-events", '@router.post("/device-event")' in identity and 
 check("identity:password-change", '@router.post("/password")' in identity and "PASSWORD_CHANGED" in identity, "AAL2 password rotation")
 check("identity:private-recovery", '@router.post("/recovery/password")' in identity and '@router.post("/users/{user_id}/recovery-link")' in identity and "PASSWORD_RECOVERY_COMPLETED" in identity, "provider-free single-use recovery")
 check("identity:founder-break-glass", '@router.post("/founder/recovery-link")' in identity and "OFFICE_AUTH_BREAK_GLASS_SECRET" in identity and "FOUNDER_BREAK_GLASS_RECOVERY_ISSUED" in identity, "separate Founder emergency recovery")
-check("identity:mfa-replay-protection", "mfa_last_accepted_counter" in identity and "MFA_REPLAY_BLOCKED" in identity and "_matching_totp_counter" in identity, "TOTP counters are accepted once per user")
+check(
+    "identity:mfa-replay-protection",
+    "mfa_last_accepted_counter" in identity
+    and "MFA_REPLAY_BLOCKED" in identity
+    and "_matching_totp_counter" in identity
+    and "_claim_mfa_counter" in identity
+    and "update(OfficeAuthUser)" in identity,
+    "TOTP counters are atomically accepted once per user",
+)
 check("identity:mfa-attempt-cap", "MFA_MAX_FAILED_ATTEMPTS" in identity and "MFA_SESSION_REVOKED" in identity and "mfa_failed_attempts" in identity, "AAL1 session revoked after repeated invalid OTPs")
 check(
     "identity:kravia-authenticator",
