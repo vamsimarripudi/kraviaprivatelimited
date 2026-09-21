@@ -130,6 +130,7 @@ file_security = (ROOT / "backend" / "file_security.py").read_text(errors="ignore
 check("storage:broker-versioned", broker.exists() and "x-kravia-signature" in broker_source and "office-quarantine" in broker_source, str(broker.relative_to(REPO_ROOT)) if broker.exists() else "storage broker source missing")
 check("storage:signed-client", "KRAVIA_STORAGE_BROKER_PRIVATE_KEY" in storage_client and "signed_upload" in storage_client and "signed_download" in storage_client, "signed storage-broker client")
 check("storage:quarantine-scan", "office-quarantine" in file_security and "scan_bytes" in file_security and "CLAMAV_HOST" in file_security, "private quarantine + ClamAV scan pipeline")
+check("storage:signed-document-quarantine", "DOCUMENT_SIGNATURE" in file_security and "_finalize_clean_context" in file_security and "office_document_record_signature" in file_security, "signed documents finalize only from clean quarantine workflow")
 
 summary = {
     "generated_at": datetime.now(timezone.utc).isoformat(),
