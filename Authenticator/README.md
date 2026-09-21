@@ -91,11 +91,16 @@ The CI debug APK is for controlled internal/pilot installation only. A long-term
 
 Android/iOS release signing credentials are not committed to Git.
 
-For EAS-based distribution:
+For EAS-based distribution, generate the deterministic native icon before invoking the build client:
 
 ```bash
+npm run prepare:assets
 npx eas build --platform android --profile preview
+
+npm run prepare:assets
 npx eas build --platform android --profile production
+
+npm run prepare:assets
 npx eas build --platform ios --profile production
 ```
 
