@@ -135,6 +135,21 @@
         "title": "AssetCreate",
         "type": "object"
       },
+      "AuthenticatorActivationClaimPayload": {
+        "properties": {
+          "claim_token": {
+            "maxLength": 256,
+            "minLength": 32,
+            "title": "Claim Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "claim_token"
+        ],
+        "title": "AuthenticatorActivationClaimPayload",
+        "type": "object"
+      },
       "AuthorityCreate": {
         "properties": {
           "authority_no": {
@@ -5146,6 +5161,197 @@
         "summary": "Verify Audit Chain"
       }
     },
+    "/api/v1/auth/authenticator/activation-requests": {
+      "get": {
+        "operationId": "list_authenticator_activation_requests_api_v1_auth_authenticator_activation_requests_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Authenticator Activation Requests",
+        "tags": [
+          "identity"
+        ]
+      },
+      "post": {
+        "description": "Create a short-lived phone claim after password verification.\n\nThis intentionally returns no TOTP secret. A separate AAL2 owner/admin\napproval (or the controlled first-Founder bootstrap) is required before\nthe phone can claim its local, one-time seed.",
+        "operationId": "request_authenticator_activation_api_v1_auth_authenticator_activation_requests_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Authenticator Activation",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/authenticator/activation-requests/{activation_id}/approve": {
+      "post": {
+        "operationId": "approve_authenticator_activation_api_v1_auth_authenticator_activation_requests__activation_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "activation_id",
+            "required": true,
+            "schema": {
+              "title": "Activation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve Authenticator Activation",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/authenticator/activation-requests/{activation_id}/claim": {
+      "post": {
+        "operationId": "claim_authenticator_activation_api_v1_auth_authenticator_activation_requests__activation_id__claim_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "activation_id",
+            "required": true,
+            "schema": {
+              "title": "Activation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticatorActivationClaimPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Claim Authenticator Activation",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
     "/api/v1/auth/bootstrap-status": {
       "get": {
         "operationId": "bootstrap_status_api_v1_auth_bootstrap_status_get",
@@ -5466,53 +5672,6 @@
           }
         },
         "summary": "Revoke Invitation",
-        "tags": [
-          "identity"
-        ]
-      }
-    },
-    "/api/v1/auth/mfa/enroll": {
-      "post": {
-        "operationId": "enroll_mfa_api_v1_auth_mfa_enroll_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Enroll Mfa",
         "tags": [
           "identity"
         ]

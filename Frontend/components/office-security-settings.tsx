@@ -34,6 +34,13 @@ type AuthSession = {
   provider: "KRAVIA_FIRST_PARTY";
 };
 
+type AuthenticatorActivation = {
+  id: string;
+  email: string;
+  created_at?: string | null;
+  expires_at: string;
+};
+
 async function json<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, { ...options, cache: "no-store", credentials: "same-origin" });
   const body = await response.json().catch(() => ({}));
@@ -51,6 +58,7 @@ function dateTime(value?: string | null) {
 export function OfficeSecuritySettings({ identity }: { identity: OfficeIdentity }) {
   const [devices, setDevices] = useState<Device[]>();
   const [sessions, setSessions] = useState<AuthSession[]>();
+  const [activations, setActivations] = useState<AuthenticatorActivation[]>();
   const [busyId, setBusyId] = useState<string>();
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
@@ -60,12 +68,14 @@ export function OfficeSecuritySettings({ identity }: { identity: OfficeIdentity 
   const [passwordBusy, setPasswordBusy] = useState(false);
 
   async function reload() {
-    const [deviceData, sessionData] = await Promise.all([
+    const [deviceData, sessionData, activationData] = await Promise.all([
       json<{ devices: Device[] }>("/api/office-auth/device"),
       json<{ sessions: AuthSession[] }>("/api/office-auth/sessions"),
+      json<{ activation_requests: AuthenticatorActivation[] }>("/api/office-auth/authenticator-activations"),
     ]);
     setDevices(deviceData.devices);
     setSessions(sessionData.sessions);
+    setActivations(activationData.activation_requests);
   }
 
   useEffect(() => {
@@ -73,10 +83,12 @@ export function OfficeSecuritySettings({ identity }: { identity: OfficeIdentity 
     void Promise.all([
       json<{ devices: Device[] }>("/api/office-auth/device"),
       json<{ sessions: AuthSession[] }>("/api/office-auth/sessions"),
-    ]).then(([deviceData, sessionData]) => {
+      json<{ activation_requests: AuthenticatorActivation[] }>("/api/office-auth/authenticator-activations"),
+    ]).then(([deviceData, sessionData, activationData]) => {
       if (!alive) return;
       setDevices(deviceData.devices);
       setSessions(sessionData.sessions);
+      setActivations(activationData.activation_requests);
     }).catch((caught: unknown) => {
       if (alive) setError(caught instanceof Error ? caught.message : "Unable to load Office security state");
     });
@@ -131,6 +143,25 @@ export function OfficeSecuritySettings({ identity }: { identity: OfficeIdentity 
       setNotice("The selected Office session has been revoked.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to revoke Office session");
+    } finally {
+      setBusyId(undefined);
+    }
+  }
+
+  async function approveAuthenticator(activationId: string) {
+    setBusyId(`activation:${activationId}`);
+    setError(undefined);
+    setNotice(undefined);
+    try {
+      await json("/api/office-auth/authenticator-activations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ activation_id: activationId }),
+      });
+      await reload();
+      setNotice("Authenticator phone approved. The phone will receive its local code vault once it claims this one-time approval.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to approve the Authenticator phone");
     } finally {
       setBusyId(undefined);
     }
@@ -198,6 +229,15 @@ export function OfficeSecuritySettings({ identity }: { identity: OfficeIdentity 
           <small>Started {dateTime(session.started_at)} · Last seen {dateTime(session.last_seen_at)} · Expires {dateTime(session.expires_at)}</small>
           <small>{session.ip_address ? `Network ${session.ip_address}` : "Network metadata unavailable"}{session.revoked_at ? ` · Revoked ${dateTime(session.revoked_at)}` : ""}</small>
           {session.user_agent_hash ? <code title={session.user_agent_hash}>Device fingerprint {session.user_agent_hash.slice(0, 16)}…</code> : null}
+        </article>)}</div>}
+      </section>
+
+      <section className={styles.panel}>
+        <header><div><p>AUTHENTICATOR ACTIVATIONS</p><h3>Approve a new phone</h3></div><ShieldCheck /></header>
+        {!activations ? <div className={styles.loading}><LoaderCircle className="spin" /> Loading activation requests…</div> : activations.length === 0 ? <div className={styles.empty}>No Authenticator phones are waiting for approval.</div> : <div className={styles.rows}>{activations.map((activation) => <article key={activation.id} className={styles.device}>
+          <div className={styles.deviceIcon}><ShieldCheck /></div>
+          <div className={styles.deviceCopy}><div><b>{activation.email}</b><em>PENDING</em></div><span>Credentials accepted · no code is exposed yet</span><small>Requested {dateTime(activation.created_at)} · Expires {dateTime(activation.expires_at)}</small></div>
+          <div className={styles.deviceAction}><button className={styles.primary} type="button" disabled={Boolean(busyId)} onClick={() => void approveAuthenticator(activation.id)}>{busyId === `activation:${activation.id}` ? <LoaderCircle className="spin" /> : null} Approve phone</button></div>
         </article>)}</div>}
       </section>
     </div>

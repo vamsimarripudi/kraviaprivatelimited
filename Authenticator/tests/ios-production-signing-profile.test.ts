@@ -24,10 +24,12 @@ describe("KRAVIA Authenticator iOS production signing contract", () => {
       "KRAVIA_IOS_DISTRIBUTION_P12_PASSWORD",
       "KRAVIA_IOS_PROVISION_PROFILE_B64",
       "KRAVIA_IOS_TEAM_ID",
+      "KRAVIA_AUTHENTICATOR_API_ORIGIN",
     ]) {
       expect(workflow).toContain(`secrets.${secret}`);
     }
     expect(workflow).toContain("Apple Distribution");
+    expect(workflow).toContain("EXPO_PUBLIC_OFFICE_API_ORIGIN");
   });
 
   it("pins the KRAVIA bundle identity and verifies the exported IPA", () => {

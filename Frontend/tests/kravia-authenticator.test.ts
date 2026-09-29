@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const app = readFileSync(new URL("../../Authenticator/App.tsx", import.meta.url), "utf8");
-const provisioning = readFileSync(new URL("../../Authenticator/src/provisioning.ts", import.meta.url), "utf8");
+const activation = readFileSync(new URL("../../Authenticator/src/activation.ts", import.meta.url), "utf8");
 const storage = readFileSync(new URL("../../Authenticator/src/storage.ts", import.meta.url), "utf8");
 const security = readFileSync(new URL("../../Authenticator/src/security.ts", import.meta.url), "utf8");
 const totp = readFileSync(new URL("../../Authenticator/src/totp.ts", import.meta.url), "utf8");
@@ -13,21 +13,31 @@ const backend = readFileSync(new URL("../../Backend/backend/identity_auth.py", i
 const login = readFileSync(new URL("../components/workspace-login-form.tsx", import.meta.url), "utf8");
 const installPage = readFileSync(new URL("../app/office/authenticator/page.tsx", import.meta.url), "utf8");
 
-describe("KRAVIA Authenticator boundary", () => {
-  it("makes the dedicated authenticator mandatory for every Office role", () => {
-    expect(backend).toContain('MFA_AUTHENTICATOR_APP = "KRAVIA Authenticator"');
+describe("Authenticator activation boundary", () => {
+  it("keeps AAL2 mandatory for every Office role", () => {
+    expect(backend).toContain('MFA_AUTHENTICATOR_APP = "Authenticator"');
     expect(backend).toContain('"mfa_required_for_all_roles": True');
     expect(backend).toContain('"mfa_policy": "AAL2_REQUIRED"');
     for (const role of ["OWNER", "DIRECTOR", "ADMIN", "MEMBER", "FINANCE", "CA", "CS", "LEGAL", "HR", "OPERATIONS", "AUDITOR", "PRODUCT_ADMIN"]) {
       expect(login).toContain(`"${role}"`);
     }
-    expect(login).toContain("KRAVIA Authenticator is required for every Office role");
-    expect(login).toContain("showManualKey");
-    expect(login).toContain("Can’t scan the QR? Show setup key");
     expect(login).toContain('href="/office/authenticator"');
     expect(installPage).toContain("MANDATORY FOR EVERY OFFICE ROLE");
     expect(installPage).toContain("KRAVIA_AUTHENTICATOR_ANDROID_URL");
     expect(installPage).toContain("KRAVIA_AUTHENTICATOR_IOS_URL");
+  });
+
+  it("releases a new seed only through a short-lived, approved phone claim", () => {
+    expect(backend).toContain("/authenticator/activation-requests");
+    expect(backend).toContain("AUTHENTICATOR_ACTIVATION_APPROVED");
+    expect(backend).toContain("require_aal2=True");
+    expect(backend).toContain("Only Office owners or administrators can approve");
+    expect(backend).not.toContain('@router.post("/mfa/enroll")');
+    expect(activation).toContain("requestAuthenticatorActivation");
+    expect(activation).toContain("claimAuthenticatorActivation");
+    expect(activation).toContain('protocol !== "https:"');
+    expect(storage).toContain("PENDING_ACTIVATION_STORE_KEY");
+    expect(storage).toContain("clearPendingActivation");
   });
 
   it("uses the standard KRAVIA TOTP profile rather than proprietary OTP crypto", () => {
@@ -39,50 +49,34 @@ describe("KRAVIA Authenticator boundary", () => {
     expect(totp).toContain("Math.floor(timestampMs / 1000 / period)");
     expect(backend).toContain("mfa_last_accepted_counter");
     expect(backend).toContain("MFA_REPLAY_BLOCKED");
-    expect(backend).toContain("MFA_MAX_FAILED_ATTEMPTS");
   });
 
-  it("keeps the enrollment secret on-device and blocks non-KRAVIA QR codes", () => {
+  it("keeps the vault on-device with no QR, setup key, or clipboard export", () => {
     expect(storage).toContain("expo-secure-store");
     expect(storage).toContain("WHEN_PASSCODE_SET_THIS_DEVICE_ONLY");
     expect(accountValidation).toContain("kraviaprivatelimited");
     expect(accountValidation).toContain("normalizedSecret.length < 16");
-    expect(provisioning).toContain('issuer !== KRAVIA_ISSUER');
-    expect(provisioning).toContain("This QR code was not issued by KRAVIA Office");
     expect(app).toContain("usePreventScreenCapture");
     expect(app).toContain("enableAppSwitcherProtectionAsync");
     expect(app).toContain("unlockAuthenticator");
-    expect(storage).toContain("enforceInstallationBoundary");
-    expect(storage).toContain("INSTALL_SECURE_KEY");
-    expect(security).toContain("SecurityLevel.BIOMETRIC_STRONG");
-    expect(app).toContain("setAccount(null)");
-    expect(app).toContain("secureTextEntry");
+    expect(app).toContain("Sign in to activate");
+    expect(app).not.toContain("CameraView");
+    expect(app).not.toContain("setup key");
+    expect(app).not.toContain("QR code");
     expect(app).not.toContain("Clipboard.setString");
-    expect(app).not.toContain("copyCode");
     expect(app).toContain("Clipboard export is disabled");
+    expect(security).toContain("SecurityLevel.BIOMETRIC_STRONG");
   });
 
-  it("ships a native Android/iOS Expo app instead of a web OTP widget", () => {
+  it("ships a native Android/iOS Expo app that permits only activation HTTPS", () => {
     expect(packageJson).toContain('"expo": "~57.0.24"');
-    expect(packageJson).toContain('"react-native": "0.86.3"');
-    expect(packageJson).toContain('"expo-camera"');
+    expect(packageJson).not.toContain('"expo-camera"');
     expect(packageJson).toContain('"expo-local-authentication"');
     expect(packageJson).toContain('"expo-secure-store"');
-    expect(packageJson).toContain('"expo-file-system"');
-    expect(packageJson).toContain('"expo-splash-screen": "~57.0.9"');
-    expect(packageJson).not.toContain('"expo-clipboard"');
-    expect(packageJson).toContain('"expo": "~57.0.24"');
-    expect(appJson).toContain('"enabled": false');
     expect(appJson).toContain('"android.permission.INTERNET"');
-    expect(appJson).toContain('"otpClipboard": "DISABLED"');
-    expect(appJson).toContain('"./assets/brand/icon.png"');
-    expect(appJson).toContain('"./assets/brand/splash.jpg"');
-    expect(appJson).toContain('"LOCKED_GENERATED_ARTWORK"');
-    expect(app).toContain('require("./assets/brand/loading.jpg")');
-    expect(app).toContain('title="Biometric Lock"');
-    expect(app).toContain('title="Lock on Background"');
-    expect(app).toContain('title="Clipboard Export"');
-    expect(app).toContain("CameraView");
+    expect(appJson).not.toContain('"android.permission.CAMERA"');
+    expect(appJson).toContain('"CREDENTIAL_ACTIVATION_OFFLINE_TOTP"');
+    expect(appJson).toContain('"resizeMode": "contain"');
     expect(app).toContain("generateTotp");
   });
 });

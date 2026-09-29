@@ -44,6 +44,7 @@ try:
     check("openapi:drive-readiness", "/api/v1/integrations/google-drive/evidence-readiness" in paths, "Drive evidence-readiness contract")
     check("openapi:identity-readiness", "/api/v1/auth/readiness" in paths, "identity readiness contract")
     check("openapi:mfa-verify", "/api/v1/auth/mfa/verify" in paths, "MFA verification contract")
+    check("openapi:authenticator-activation", "/api/v1/auth/authenticator/activation-requests" in paths, "approved phone activation contract")
     check("openapi:first-party-sessions", "/api/v1/auth/sessions" in paths and "/api/v1/auth/sessions/{session_id}/revoke" in paths, "first-party session inventory/revocation contract")
     check("openapi:device-event", "/api/v1/auth/device-event" in paths, "first-party trusted-device event contract")
     check("openapi:password-change", "/api/v1/auth/password" in paths, "AAL2 password-change contract")
@@ -115,14 +116,15 @@ check(
     "TOTP counters are atomically accepted once per user",
 )
 check("identity:mfa-attempt-cap", "MFA_MAX_FAILED_ATTEMPTS" in identity and "MFA_SESSION_REVOKED" in identity and "mfa_failed_attempts" in identity, "AAL1 session revoked after repeated invalid OTPs")
+check("identity:authenticator-activation", '@router.post("/authenticator/activation-requests")' in identity and "AUTHENTICATOR_ACTIVATION_APPROVED" in identity and "OfficeAuthenticatorActivation" in identity, "AAL2-governed phone activation")
 check(
     "identity:kravia-authenticator",
-    'MFA_AUTHENTICATOR_APP = "KRAVIA Authenticator"' in identity
+    'MFA_AUTHENTICATOR_APP = "Authenticator"' in identity
     and '"mfa_required_for_all_roles": True' in identity
     and 'MFA_ISSUER = "KRAVIA Office"' in identity
     and "MFA_DIGITS = 6" in identity
     and "MFA_PERIOD_SECONDS = 30" in identity,
-    "dedicated KRAVIA Authenticator is the all-role TOTP factor",
+    "dedicated Authenticator is the all-role TOTP factor",
 )
 
 check("period-control:model", "class AccountingPeriodLock" in period_controls, "AccountingPeriodLock")
@@ -144,6 +146,7 @@ v12_migrations = list(migration_dir.glob("*_v12_gst_irp_integration.py"))
 v13_migrations = list(migration_dir.glob("*_v13_gst_purchase_reconciliation.py"))
 v14_migrations = list(migration_dir.glob("*_v14_fynamics_gsp_filing.py"))
 v15_migrations = list(migration_dir.glob("*_v15_mfa_replay_protection.py"))
+v16_migrations = list(migration_dir.glob("*_v16_authenticator_device_approval.py"))
 check("finance-ownership-migration", len(finance_migrations) == 1, finance_migrations[0].name if len(finance_migrations) == 1 else f"found {len(finance_migrations)}")
 check("period-control-migration", len(period_migrations) == 1, period_migrations[0].name if len(period_migrations) == 1 else f"found {len(period_migrations)}")
 check("gst:v11-tax-profile-migration", len(v11_migrations) == 1, v11_migrations[0].name if len(v11_migrations) == 1 else f"found {len(v11_migrations)}")
@@ -151,6 +154,7 @@ check("gst:v12-irp-migration", len(v12_migrations) == 1, v12_migrations[0].name 
 check("gst:v13-purchase-reconciliation-migration", len(v13_migrations) == 1, v13_migrations[0].name if len(v13_migrations) == 1 else f"found {len(v13_migrations)}")
 check("gst:v14-gsp-filing-migration", len(v14_migrations) == 1, v14_migrations[0].name if len(v14_migrations) == 1 else f"found {len(v14_migrations)}")
 check("identity:v15-mfa-replay-migration", len(v15_migrations) == 1, v15_migrations[0].name if len(v15_migrations) == 1 else f"found {len(v15_migrations)}")
+check("identity:v16-authenticator-activation-migration", len(v16_migrations) == 1, v16_migrations[0].name if len(v16_migrations) == 1 else f"found {len(v16_migrations)}")
 
 broker = REPO_ROOT / "Database" / "supabase" / "functions" / "kravia-storage-broker" / "index.ts"
 broker_source = broker.read_text(errors="ignore") if broker.exists() else ""

@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { ArrowRight, Check, Eye, EyeOff, LoaderCircle, LockKeyhole, ShieldCheck, UserRoundPlus } from "lucide-react";
@@ -36,8 +35,6 @@ export function OfficeRegisterForm({ mode, inviteToken, email: presetEmail = "",
   const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [phase, setPhase] = useState<"register" | "mfa">("register");
-  const [qrCode, setQrCode] = useState<string>();
-  const [manualKey, setManualKey] = useState<string>();
   const [code, setCode] = useState("");
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<string>();
@@ -68,11 +65,8 @@ export function OfficeRegisterForm({ mode, inviteToken, email: presetEmail = "",
         : { mode, token: inviteToken, display_name: displayName.trim(), password });
       setPassword("");
       setConfirm("");
-      const enrollment = await json<{ qr_code: string; manual_key: string }>("/api/office-auth/mfa", { action: "enroll" });
-      setQrCode(enrollment.qr_code);
-      setManualKey(enrollment.manual_key);
       setPhase("mfa");
-      setStatus("Registration complete. Add the authenticator to finish activation.");
+      setStatus("Registration complete. Open Authenticator and sign in with the credentials you just created to request this phone.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Registration failed.");
     } finally {
@@ -104,9 +98,7 @@ export function OfficeRegisterForm({ mode, inviteToken, email: presetEmail = "",
       <div className={styles.icon}><ShieldCheck /></div>
       <p className={styles.eyebrow}>FINAL ACTIVATION</p>
       <h2>Protect your account</h2>
-      <p className={styles.intro}>Scan the QR code with your authenticator. Office access opens only after this step reaches AAL2.</p>
-      {qrCode ? <div className={styles.qr}><Image src={qrCode} width={180} height={180} unoptimized alt="KRAVIA Office authenticator QR code" /></div> : null}
-      {manualKey ? <div className={styles.manual}><span>Manual setup key</span><code>{manualKey}</code></div> : null}
+      <p className={styles.intro}>Open Authenticator and sign in with your corporate credentials. A verified Office owner or administrator approves the phone before it can show a code. Office access opens only after this step reaches AAL2.</p>
       <label className={styles.field}>Authenticator code<input inputMode="numeric" autoComplete="one-time-code" placeholder="000000" value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0,6))} /></label>
       {status ? <p className={styles.status}>{status}</p> : null}
       <button className={styles.primary} disabled={pending}>{pending ? <LoaderCircle className={styles.spin} /> : <ShieldCheck />} Verify and enter Office</button>

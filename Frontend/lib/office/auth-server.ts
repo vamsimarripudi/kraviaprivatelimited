@@ -51,6 +51,13 @@ export type OfficeAuthSessionRecord = {
   provider: "KRAVIA_FIRST_PARTY";
 };
 
+export type AuthenticatorActivationRequest = {
+  id: string;
+  email: string;
+  created_at?: string | null;
+  expires_at: string;
+};
+
 type FirstPartyAuthResponse = {
   authenticated: boolean;
   access_token: string;
@@ -297,24 +304,6 @@ export async function registerInvitedOfficeUser(input: { token: string; display_
   return context;
 }
 
-export async function enrollOfficeMfa(context: OfficeSessionContext) {
-  const response = await rawApi("/api/v1/auth/mfa/enroll", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${context.session.access_token}` },
-  });
-  return parseOrThrow<{
-    factor_id: string;
-    qr_code: string;
-    manual_key: string;
-    friendly_name: "KRAVIA Authenticator";
-    issuer: "KRAVIA Office";
-    algorithm: "SHA1";
-    digits: 6;
-    period_seconds: 30;
-    required_for_all_roles: true;
-  }>(response);
-}
-
 export async function verifyOfficeMfa(context: OfficeSessionContext, code: string) {
   const response = await rawApi("/api/v1/auth/mfa/verify", {
     method: "POST",
@@ -399,6 +388,21 @@ export async function revokeOfficeAuthSession(context: OfficeSessionContext, ses
   return parseOrThrow<{ revoked: true; session: OfficeAuthSessionRecord }>(response);
 }
 
+export async function listAuthenticatorActivationRequests(context: OfficeSessionContext) {
+  const response = await rawApi("/api/v1/auth/authenticator/activation-requests", {
+    headers: { Authorization: `Bearer ${context.session.access_token}` },
+  });
+  return parseOrThrow<{ activation_requests: AuthenticatorActivationRequest[] }>(response);
+}
+
+export async function approveAuthenticatorActivationRequest(context: OfficeSessionContext, activationId: string) {
+  const response = await rawApi(`/api/v1/auth/authenticator/activation-requests/${encodeURIComponent(activationId)}/approve`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${context.session.access_token}` },
+  });
+  return parseOrThrow<{ approved: true; request_id: string }>(response);
+}
+
 export async function signOutOffice(context?: OfficeSessionContext | null) {
   if (context) {
     try {
@@ -412,4 +416,3 @@ export async function signOutOffice(context?: OfficeSessionContext | null) {
   }
   await clearOfficeSessionCookies();
 }
-

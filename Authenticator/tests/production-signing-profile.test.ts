@@ -23,6 +23,7 @@ describe("KRAVIA Authenticator production signing contract", () => {
       "KRAVIA_ANDROID_KEYSTORE_PASSWORD",
       "KRAVIA_ANDROID_KEY_ALIAS",
       "KRAVIA_ANDROID_KEY_PASSWORD",
+      "KRAVIA_AUTHENTICATOR_API_ORIGIN",
     ]) {
       expect(workflow).toContain(`secrets.${secret}`);
     }
@@ -30,6 +31,8 @@ describe("KRAVIA Authenticator production signing contract", () => {
     expect(workflow).toContain(
       "1008958AD5191C64DAA3D403C56B687B674C26913ACB8D86E2EF2971E8647B75",
     );
+    expect(workflow).toContain("EXPO_PUBLIC_OFFICE_API_ORIGIN");
+    expect(workflow).toContain("must be an HTTPS origin");
   });
 
   it("builds both Play AAB and installable APK and verifies their signer", () => {

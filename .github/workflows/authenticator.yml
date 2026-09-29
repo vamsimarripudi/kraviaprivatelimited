@@ -78,11 +78,11 @@ jobs:
           CI: "1"
         run: npx expo prebuild --platform android --no-install --non-interactive
 
-      - name: Build offline release-smoke APK
+      - name: Build credential-activation release-smoke APK
         working-directory: Authenticator/android
         run: ./gradlew assembleRelease --no-daemon
 
-      - name: Verify final offline Android manifest boundary
+      - name: Verify final Android manifest boundary
         shell: bash
         run: |
           manifest="$(find android/app/build/intermediates -path '*release*' -path '*merged_manifests*' -name AndroidManifest.xml -print -quit)"
@@ -91,14 +91,14 @@ jobs:
             find android/app/build/intermediates -name AndroidManifest.xml -print || true
             exit 1
           fi
-          grep -q 'android.permission.CAMERA' "$manifest"
           grep -q 'android:allowBackup="false"' "$manifest"
-          if grep -q 'android.permission.INTERNET' "$manifest"; then
-            echo "KRAVIA Authenticator release manifest must not request Android INTERNET permission" >&2
+          grep -q 'android.permission.INTERNET' "$manifest"
+          if grep -q 'android.permission.CAMERA' "$manifest"; then
+            echo "Authenticator release manifest must not request camera permission" >&2
             exit 1
           fi
           if grep -q 'android.permission.RECORD_AUDIO' "$manifest"; then
-            echo "KRAVIA Authenticator release manifest must not request audio recording permission" >&2
+            echo "Authenticator release manifest must not request audio recording permission" >&2
             exit 1
           fi
 

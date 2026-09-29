@@ -62,19 +62,34 @@ def founder(client: TestClient):
     return response.json()
 
 
+def activate_founder_authenticator(client: TestClient, password: str = FOUNDER["password"]):
+    requested = client.post(
+        "/api/v1/auth/authenticator/activation-requests",
+        json={"email": FOUNDER["email"], "password": password},
+    )
+    assert requested.status_code == 200, requested.text
+    request = requested.json()
+    assert request["status"] == "APPROVED"
+    assert request["approval_required"] is False
+    assert "secret" not in request
+    claimed = client.post(
+        f"/api/v1/auth/authenticator/activation-requests/{request['request_id']}/claim",
+        json={"claim_token": request["claim_token"]},
+    )
+    assert claimed.status_code == 200, claimed.text
+    enrollment = claimed.json()
+    assert enrollment["status"] == "ENROLLED"
+    return enrollment["secret"]
+
+
 def aal2_founder(client: TestClient):
     initial = founder(client)
     access = initial["access_token"]
-    enrolled = client.post(
-        "/api/v1/auth/mfa/enroll",
-        headers={"Authorization": f"Bearer {access}"},
-    )
-    assert enrolled.status_code == 200, enrolled.text
-    manual_key = enrolled.json()["manual_key"]
+    secret = activate_founder_authenticator(client)
     verified = client.post(
         "/api/v1/auth/mfa/verify",
         headers={"Authorization": f"Bearer {access}"},
-        json={"code": pyotp.TOTP(manual_key).now()},
+        json={"code": pyotp.TOTP(secret).now()},
     )
     assert verified.status_code == 200, verified.text
     body = verified.json()
@@ -133,17 +148,12 @@ def test_password_sign_in_and_mfa_promote_to_aal2(tmp_path, monkeypatch):
         assert signed["aal"] == "aal1"
         assert signed["roles"] == ["OWNER"]
 
-        enrolled = client.post(
-            "/api/v1/auth/mfa/enroll",
-            headers={"Authorization": f"Bearer {signed['access_token']}"},
-        )
-        assert enrolled.status_code == 200, enrolled.text
-        assert enrolled.json()["qr_code"].startswith("data:image/png;base64,")
+        secret = activate_founder_authenticator(client)
 
         verified = client.post(
             "/api/v1/auth/mfa/verify",
             headers={"Authorization": f"Bearer {signed['access_token']}"},
-            json={"code": pyotp.TOTP(enrolled.json()["manual_key"]).now()},
+            json={"code": pyotp.TOTP(secret).now()},
         )
         assert verified.status_code == 200, verified.text
         aal2 = verified.json()
@@ -156,6 +166,70 @@ def test_password_sign_in_and_mfa_promote_to_aal2(tmp_path, monkeypatch):
         assert current.status_code == 200, current.text
         assert current.json()["aal"] == "aal2"
         assert current.json()["display_role"] == "FOUNDER"
+    finally:
+        engine.dispose()
+
+
+def test_authenticator_phone_requires_aal2_owner_approval_before_claim(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        owner = aal2_founder(client)
+        headers = {"Authorization": f"Bearer {owner['access_token']}"}
+        invited = client.post(
+            "/api/v1/auth/invitations",
+            headers=headers,
+            json={
+                "email": "activation-member@example.test",
+                "display_name": "Activation Member",
+                "department": "OPERATIONS",
+                "roles": ["MEMBER"],
+                "reason": "Authenticator device approval test",
+            },
+        )
+        assert invited.status_code == 201, invited.text
+        registered = client.post(
+            "/api/v1/auth/invitation/register",
+            json={
+                "token": invited.json()["registration_token"],
+                "display_name": "Activation Member",
+                "password": "Member-Activation1!",
+            },
+        )
+        assert registered.status_code == 201, registered.text
+
+        requested = client.post(
+            "/api/v1/auth/authenticator/activation-requests",
+            json={"email": "activation-member@example.test", "password": "Member-Activation1!"},
+        )
+        assert requested.status_code == 200, requested.text
+        activation = requested.json()
+        assert activation["status"] == "PENDING"
+        assert activation["approval_required"] is True
+        assert "secret" not in activation
+
+        waiting = client.post(
+            f"/api/v1/auth/authenticator/activation-requests/{activation['request_id']}/claim",
+            json={"claim_token": activation["claim_token"]},
+        )
+        assert waiting.status_code == 200
+        assert waiting.json()["status"] == "PENDING"
+        assert "secret" not in waiting.json()
+
+        queue = client.get("/api/v1/auth/authenticator/activation-requests", headers=headers)
+        assert queue.status_code == 200
+        assert activation["request_id"] in {item["id"] for item in queue.json()["activation_requests"]}
+        approved = client.post(
+            f"/api/v1/auth/authenticator/activation-requests/{activation['request_id']}/approve",
+            headers=headers,
+        )
+        assert approved.status_code == 200, approved.text
+        claimed = client.post(
+            f"/api/v1/auth/authenticator/activation-requests/{activation['request_id']}/claim",
+            json={"claim_token": activation["claim_token"]},
+        )
+        assert claimed.status_code == 200, claimed.text
+        assert claimed.json()["status"] == "ENROLLED"
+        assert len(claimed.json()["secret"]) >= 16
     finally:
         engine.dispose()
 
@@ -250,7 +324,7 @@ def test_readiness_identifies_kravia_as_identity_provider(tmp_path, monkeypatch)
         assert body["password_hash"] == "ARGON2ID"
         assert body["mfa_policy"] == "AAL2_REQUIRED"
         assert body["mfa_factor"] == "TOTP"
-        assert body["mfa_authenticator_app"] == "KRAVIA Authenticator"
+        assert body["mfa_authenticator_app"] == "Authenticator"
         assert body["mfa_required_for_all_roles"] is True
         assert body["mfa_issuer"] == "KRAVIA Office"
         assert body["mfa_algorithm"] == "SHA1"
@@ -375,14 +449,11 @@ def test_device_events_require_aal2_and_device_ownership(tmp_path, monkeypatch):
         )
         assert aal1_blocked.status_code == 403
 
-        enrolled = client.post(
-            "/api/v1/auth/mfa/enroll",
-            headers={"Authorization": f"Bearer {initial['access_token']}"},
-        )
+        secret = activate_founder_authenticator(client)
         verified = client.post(
             "/api/v1/auth/mfa/verify",
             headers={"Authorization": f"Bearer {initial['access_token']}"},
-            json={"code": pyotp.TOTP(enrolled.json()["manual_key"]).now()},
+            json={"code": pyotp.TOTP(secret).now()},
         )
         assert verified.status_code == 200
         token = verified.json()["access_token"]
@@ -425,14 +496,11 @@ def test_password_change_requires_aal2_and_revokes_other_sessions(tmp_path, monk
         )
         assert blocked.status_code == 403
 
-        enrolled = client.post(
-            "/api/v1/auth/mfa/enroll",
-            headers={"Authorization": f"Bearer {initial['access_token']}"},
-        )
+        secret = activate_founder_authenticator(client)
         verified = client.post(
             "/api/v1/auth/mfa/verify",
             headers={"Authorization": f"Bearer {initial['access_token']}"},
-            json={"code": pyotp.TOTP(enrolled.json()["manual_key"]).now()},
+            json={"code": pyotp.TOTP(secret).now()},
         )
         assert verified.status_code == 200
         aal2_token = verified.json()["access_token"]
@@ -601,11 +669,7 @@ def test_founder_break_glass_requires_secret_revokes_sessions_and_resets_mfa(tmp
         assert signed["aal"] == "aal1"
         assert signed["mfa"]["enrolled"] is False
 
-        enrolled = client.post(
-            "/api/v1/auth/mfa/enroll",
-            headers={"Authorization": f"Bearer {signed['access_token']}"},
-        )
-        assert enrolled.status_code == 200
+        assert activate_founder_authenticator(client, "Founder-Recovered3!")
     finally:
         engine.dispose()
 
@@ -614,12 +678,7 @@ def test_totp_code_cannot_be_replayed_across_office_sessions(tmp_path, monkeypat
     client, engine = make_client(tmp_path, monkeypatch)
     try:
         initial = founder(client)
-        enrolled = client.post(
-            "/api/v1/auth/mfa/enroll",
-            headers={"Authorization": f"Bearer {initial['access_token']}"},
-        )
-        assert enrolled.status_code == 200, enrolled.text
-        secret = enrolled.json()["manual_key"]
+        secret = activate_founder_authenticator(client)
         fixed_now = identity_auth._now().replace(microsecond=0)
         monkeypatch.setattr(identity_auth, "_now", lambda: fixed_now)
         code = pyotp.TOTP(secret).at(fixed_now)
@@ -662,12 +721,7 @@ def test_five_wrong_totp_codes_revoke_the_aal1_session(tmp_path, monkeypatch):
     client, engine = make_client(tmp_path, monkeypatch)
     try:
         initial = founder(client)
-        enrolled = client.post(
-            "/api/v1/auth/mfa/enroll",
-            headers={"Authorization": f"Bearer {initial['access_token']}"},
-        )
-        assert enrolled.status_code == 200
-        secret = enrolled.json()["manual_key"]
+        secret = activate_founder_authenticator(client)
         fixed_now = identity_auth._now().replace(microsecond=0)
         monkeypatch.setattr(identity_auth, "_now", lambda: fixed_now)
         valid_code = pyotp.TOTP(secret).at(fixed_now)
@@ -707,11 +761,7 @@ def test_mfa_counter_claim_is_atomic_and_single_use(tmp_path, monkeypatch):
     client, engine = make_client(tmp_path, monkeypatch)
     try:
         initial = founder(client)
-        enrolled = client.post(
-            "/api/v1/auth/mfa/enroll",
-            headers={"Authorization": f"Bearer {initial['access_token']}"},
-        )
-        assert enrolled.status_code == 200, enrolled.text
+        assert activate_founder_authenticator(client)
 
         with engine.connect() as connection:
             user_id = connection.exec_driver_sql(
@@ -745,12 +795,7 @@ def test_stale_aal1_token_cannot_mutate_mfa_after_promotion(tmp_path, monkeypatc
     try:
         initial = founder(client)
         access = initial["access_token"]
-        enrolled = client.post(
-            "/api/v1/auth/mfa/enroll",
-            headers={"Authorization": f"Bearer {access}"},
-        )
-        assert enrolled.status_code == 200, enrolled.text
-        secret = enrolled.json()["manual_key"]
+        secret = activate_founder_authenticator(client)
         valid_code = pyotp.TOTP(secret).now()
 
         verified = client.post(
@@ -779,4 +824,3 @@ def test_stale_aal1_token_cannot_mutate_mfa_after_promotion(tmp_path, monkeypatc
         assert state[2] == 0
     finally:
         engine.dispose()
-

@@ -34,9 +34,7 @@
       <h2 id="mfaTitle">Authenticator verification</h2>
       <p id="mfaText">Enter the current code from your authenticator app.</p>
       <div id="enrollBox" hidden>
-        <p class="note">No verified authenticator is enrolled. Add this KRAVIA Office account to your authenticator app first.</p>
-        <div class="qrWrap"><img id="qr" alt="Authenticator enrollment QR code" /></div>
-        <div class="secretLine"><span>Manual setup key</span><code id="secret"></code></div>
+        <p class="note">Open Authenticator on the phone you want to activate and sign in with your corporate credentials. A verified Office owner or administrator must approve the phone in Office settings before it receives a local code vault.</p>
       </div>
       <form id="mfaForm">
         <label>Authenticator code<input id="mfaCode" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,10}" minlength="6" maxlength="10" required /></label>

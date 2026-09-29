@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { ArrowRight, Eye, EyeOff, KeyRound, LoaderCircle, ShieldCheck } from "lucide-react";
@@ -26,7 +25,7 @@ type Props = {
   reason?: string;
   registrationOpen?: boolean;
 };
-type Phase = "password" | "enroll" | "verify";
+type Phase = "password" | "activate" | "verify";
 
 async function jsonRequest<T>(url: string, body?: unknown): Promise<T> {
   const response = await fetch(url, {
@@ -53,9 +52,6 @@ export function WorkspaceLoginForm({
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [phase, setPhase] = useState<Phase>("password");
-  const [qrCode, setQrCode] = useState<string>();
-  const [manualKey, setManualKey] = useState<string>();
-  const [showManualKey, setShowManualKey] = useState(false);
   const [code, setCode] = useState("");
   const [status, setStatus] = useState<string>();
   const [isPending, setIsPending] = useState(false);
@@ -81,16 +77,11 @@ export function WorkspaceLoginForm({
 
     if (auth.mfa.enrolled) {
       setPhase("verify");
-      setStatus("Open KRAVIA Authenticator and enter the current 6-digit code.");
+      setStatus("Open Authenticator and enter the current 6-digit code.");
       return;
     }
-
-    const enrolled = await jsonRequest<{ factor_id: string; qr_code: string; manual_key: string; friendly_name: "KRAVIA Authenticator"; required_for_all_roles: true }>("/api/office-auth/mfa", { action: "enroll" });
-    setQrCode(enrolled.qr_code);
-    setManualKey(enrolled.manual_key);
-    setShowManualKey(false);
-    setPhase("enroll");
-    setStatus("Open KRAVIA Authenticator, scan this QR code, then enter the current 6-digit code.");
+    setPhase("activate");
+    setStatus("Open Authenticator on your phone and sign in with your corporate credentials to request activation.");
   }
 
   async function signIn(event: FormEvent<HTMLFormElement>) {
@@ -115,7 +106,7 @@ export function WorkspaceLoginForm({
   async function verifyMfa(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!/^\d{6}$/.test(code.trim())) {
-      setStatus("Enter the current 6-digit code from KRAVIA Authenticator.");
+      setStatus("Enter the current 6-digit code from Authenticator.");
       return;
     }
     setIsPending(true);
@@ -134,38 +125,20 @@ export function WorkspaceLoginForm({
     }
   }
 
-  if (phase === "enroll" || phase === "verify") {
+  if (phase === "activate" || phase === "verify") {
     return (
       <form className={styles.form} onSubmit={verifyMfa} noValidate>
         <div className={styles.icon}><ShieldCheck /></div>
         <p className={styles.eyebrow}>MANDATORY MFA</p>
-        <h2>{phase === "enroll" ? "Secure your account" : "Verify your identity"}</h2>
+        <h2>{phase === "activate" ? "Activate your phone" : "Verify your identity"}</h2>
         <p className={styles.intro}>
-          {phase === "enroll"
-            ? "KRAVIA Authenticator is required for every Office role. Install/open the KRAVIA app and scan this enrollment code."
+          {phase === "activate"
+            ? "Authenticator is required for every Office role. Sign in in the app with your corporate credentials, then ask a verified Office owner or administrator to approve this phone."
             : "Your password is correct. Complete the second factor to continue."}
         </p>
 
-        {phase === "enroll" && qrCode ? (
-          <div className={styles.qrWrap}>
-            <Image src={qrCode} width={188} height={188} unoptimized alt="KRAVIA Office authenticator QR code" />
-          </div>
-        ) : null}
-
-        {phase === "enroll" && manualKey ? (
-          showManualKey ? (
-            <div className={styles.manualKey}>
-              <span>KRAVIA Authenticator manual setup key</span>
-              <code>{manualKey}</code>
-              <button type="button" className={styles.manualToggle} onClick={() => setShowManualKey(false)}>Hide setup key</button>
-            </div>
-          ) : (
-            <button type="button" className={styles.manualToggle} onClick={() => setShowManualKey(true)}>Can’t scan the QR? Show setup key</button>
-          )
-        ) : null}
-
         <label className={styles.field} htmlFor="workspace-mfa-code">
-          <span>KRAVIA Authenticator code</span>
+          <span>Authenticator code</span>
           <input
             id="workspace-mfa-code"
             inputMode="numeric"
@@ -185,8 +158,8 @@ export function WorkspaceLoginForm({
           {isPending ? <LoaderCircle className={styles.spin} /> : <ShieldCheck />}
           Verify and continue
         </button>
-        <div className={styles.links}><Link href="/office/authenticator">Install / setup KRAVIA Authenticator</Link></div>
-        <p className={styles.note}>KRAVIA Authenticator generates the code locally on your phone. The verification code is never stored by the KRAVIA website.</p>
+        <div className={styles.links}><Link href="/office/authenticator">Authenticator instructions</Link></div>
+        <p className={styles.note}>Authenticator generates the code locally on your approved phone. The verification code is never stored by the KRAVIA website.</p>
       </form>
     );
   }
@@ -246,7 +219,7 @@ export function WorkspaceLoginForm({
       </button>
 
       <div className={styles.links}>
-        <Link href="/office/authenticator">Get KRAVIA Authenticator</Link>
+        <Link href="/office/authenticator">Get Authenticator</Link>
         <Link href="/office/recover">Recover access</Link>
         {registrationOpen ? <Link href="/office/register">Founder registration</Link> : null}
       </div>

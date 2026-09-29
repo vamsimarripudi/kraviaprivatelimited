@@ -13,7 +13,6 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
-import io
 import json
 import os
 import re
@@ -24,7 +23,6 @@ from typing import Any
 
 import jwt
 import pyotp
-import qrcode
 from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError, VerifyMismatchError
 from cryptography.fernet import Fernet, InvalidToken
@@ -34,7 +32,7 @@ from sqlalchemy import inspect, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from .auth_models import OfficeAuthEvent, OfficeAuthInvite, OfficeAuthRole, OfficeAuthSession, OfficeAuthUser
+from .auth_models import OfficeAuthenticatorActivation, OfficeAuthEvent, OfficeAuthInvite, OfficeAuthRole, OfficeAuthSession, OfficeAuthUser
 from .database import get_db
 
 ACCESS_TTL_SECONDS = int(os.getenv("OFFICE_AUTH_ACCESS_TTL_SECONDS", "1800"))
@@ -47,11 +45,12 @@ ISSUER = os.getenv("OFFICE_AUTH_ISSUER", "kravia-office")
 AUDIENCE = os.getenv("OFFICE_AUTH_AUDIENCE", "kravia-office-api")
 FOUNDER_SLOT = "PRIMARY_FOUNDER"
 MFA_ISSUER = "KRAVIA Office"
-MFA_AUTHENTICATOR_APP = "KRAVIA Authenticator"
+MFA_AUTHENTICATOR_APP = "Authenticator"
 MFA_ALGORITHM = "SHA1"
 MFA_DIGITS = 6
 MFA_PERIOD_SECONDS = 30
 MFA_MAX_FAILED_ATTEMPTS = int(os.getenv("OFFICE_AUTH_MFA_MAX_FAILED_ATTEMPTS", "5"))
+AUTHENTICATOR_ACTIVATION_TTL_SECONDS = int(os.getenv("OFFICE_AUTHENTICATOR_ACTIVATION_TTL_SECONDS", "600"))
 
 OFFICE_ROLES = {
     "OWNER",
@@ -98,6 +97,10 @@ class RefreshPayload(BaseModel):
 
 class MfaVerifyPayload(BaseModel):
     code: str = Field(pattern=r"^[0-9]{6}$")
+
+
+class AuthenticatorActivationClaimPayload(BaseModel):
+    claim_token: str = Field(min_length=32, max_length=256)
 
 
 class DeviceEventPayload(BaseModel):
@@ -783,13 +786,6 @@ def _claim_mfa_counter(db: Session, user_id: str, counter: int) -> bool:
     return int(result.rowcount or 0) == 1
 
 
-def _qr_data_uri(uri: str) -> str:
-    image = qrcode.make(uri)
-    buffer = io.BytesIO()
-    image.save(buffer, format="PNG")
-    return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
-
-
 def _bootstrap_open(db: Session) -> bool:
     return db.execute(select(OfficeAuthUser.id).where(OfficeAuthUser.founder_slot == FOUNDER_SLOT)).first() is None
 
@@ -858,6 +854,50 @@ def _find_pending_invite(db: Session, token: str) -> OfficeAuthInvite:
 def build_identity_router() -> APIRouter:
     router = APIRouter(prefix="/api/v1/auth", tags=["identity"])
 
+    def verify_credentials(payload: SignInPayload, request: Request, db: Session, *, channel: str) -> OfficeAuthUser:
+        """Verify an active corporate identity without issuing a browser session.
+
+        Authenticator activation uses this only to request a phone approval. It
+        does not return an Office access token or an MFA seed.
+        """
+        user = db.execute(select(OfficeAuthUser).where(OfficeAuthUser.email == payload.email)).scalar_one_or_none()
+        if not user:
+            _event(db, "LOGIN_FAILED", request, metadata={"reason": "unknown_email", "channel": channel})
+            db.commit()
+            raise HTTPException(status_code=401, detail="Invalid Office sign-in")
+
+        now = _now()
+        locked_until = _aware(user.locked_until)
+        if locked_until and locked_until > now:
+            _event(db, "LOGIN_BLOCKED", request, user_id=user.id, metadata={"reason": "temporary_lock", "channel": channel})
+            db.commit()
+            raise HTTPException(status_code=429, detail="This account is temporarily locked. Try again later")
+
+        try:
+            PASSWORD_HASHER.verify(user.password_hash, payload.password)
+        except (VerifyMismatchError, VerificationError):
+            user.failed_login_count = int(user.failed_login_count or 0) + 1
+            if user.failed_login_count >= MAX_FAILED_LOGINS:
+                user.locked_until = now + timedelta(seconds=LOCKOUT_SECONDS)
+                user.failed_login_count = 0
+            _event(db, "LOGIN_FAILED", request, user_id=user.id, metadata={"reason": "invalid_password", "channel": channel})
+            db.commit()
+            raise HTTPException(status_code=401, detail="Invalid Office sign-in")
+
+        if PASSWORD_HASHER.check_needs_rehash(user.password_hash):
+            user.password_hash = PASSWORD_HASHER.hash(payload.password)
+        if user.status != "ACTIVE" or _identity_status(db, user) != "ACTIVE":
+            _event(db, "LOGIN_BLOCKED", request, user_id=user.id, metadata={"reason": "inactive_identity", "channel": channel})
+            db.commit()
+            raise HTTPException(status_code=403, detail="KRAVIA Office access is not active")
+        if not _active_roles(db, user.id):
+            raise HTTPException(status_code=403, detail="No KRAVIA Office role is assigned")
+
+        user.failed_login_count = 0
+        user.locked_until = None
+        user.last_login_at = now
+        return user
+
     @router.get("/readiness")
     def readiness(db: Session = Depends(get_db)):
         return {
@@ -905,45 +945,200 @@ def build_identity_router() -> APIRouter:
 
     @router.post("/sign-in")
     def sign_in(payload: SignInPayload, request: Request, db: Session = Depends(get_db)):
-        user = db.execute(select(OfficeAuthUser).where(OfficeAuthUser.email == payload.email)).scalar_one_or_none()
-        if not user:
-            _event(db, "LOGIN_FAILED", request, metadata={"reason": "unknown_email"})
-            db.commit()
-            raise HTTPException(status_code=401, detail="Invalid Office sign-in")
-
-        now = _now()
-        locked_until = _aware(user.locked_until)
-        if locked_until and locked_until > now:
-            _event(db, "LOGIN_BLOCKED", request, user_id=user.id, metadata={"reason": "temporary_lock"})
-            db.commit()
-            raise HTTPException(status_code=429, detail="This account is temporarily locked. Try again later")
-
-        try:
-            PASSWORD_HASHER.verify(user.password_hash, payload.password)
-        except (VerifyMismatchError, VerificationError):
-            user.failed_login_count = int(user.failed_login_count or 0) + 1
-            if user.failed_login_count >= MAX_FAILED_LOGINS:
-                user.locked_until = now + timedelta(seconds=LOCKOUT_SECONDS)
-                user.failed_login_count = 0
-            _event(db, "LOGIN_FAILED", request, user_id=user.id, metadata={"reason": "invalid_password"})
-            db.commit()
-            raise HTTPException(status_code=401, detail="Invalid Office sign-in")
-
-        if PASSWORD_HASHER.check_needs_rehash(user.password_hash):
-            user.password_hash = PASSWORD_HASHER.hash(payload.password)
-        if user.status != "ACTIVE" or _identity_status(db, user) != "ACTIVE":
-            _event(db, "LOGIN_BLOCKED", request, user_id=user.id, metadata={"reason": "inactive_identity"})
-            db.commit()
-            raise HTTPException(status_code=403, detail="KRAVIA Office access is not active")
-        if not _active_roles(db, user.id):
-            raise HTTPException(status_code=403, detail="No KRAVIA Office role is assigned")
-
-        user.failed_login_count = 0
-        user.locked_until = None
-        user.last_login_at = now
+        user = verify_credentials(payload, request, db, channel="office_web")
         result = _issue_session(db, user, request, aal="aal1")
         db.commit()
         return result
+
+    @router.post("/authenticator/activation-requests")
+    def request_authenticator_activation(
+        payload: SignInPayload,
+        request: Request,
+        db: Session = Depends(get_db),
+    ):
+        """Create a short-lived phone claim after password verification.
+
+        This intentionally returns no TOTP secret. A separate AAL2 owner/admin
+        approval (or the controlled first-Founder bootstrap) is required before
+        the phone can claim its local, one-time seed.
+        """
+        user = verify_credentials(payload, request, db, channel="authenticator")
+        if user.mfa_verified_at and user.mfa_secret_ciphertext:
+            _event(db, "AUTHENTICATOR_ACTIVATION_BLOCKED", request, user_id=user.id, metadata={"reason": "verified_factor_exists"})
+            db.commit()
+            raise HTTPException(status_code=409, detail="Authenticator is already active. Ask an authorised Office administrator to reset MFA before activating a replacement phone")
+
+        now = _now()
+        stale_requests = db.execute(
+            select(OfficeAuthenticatorActivation).where(
+                OfficeAuthenticatorActivation.user_id == user.id,
+                OfficeAuthenticatorActivation.status.in_(["PENDING", "APPROVED"]),
+            )
+        ).scalars().all()
+        for activation in stale_requests:
+            activation.status = "CANCELLED"
+            activation.cancelled_at = now
+
+        first_founder_bootstrap = (
+            user.founder_slot == FOUNDER_SLOT
+            and db.execute(
+                select(OfficeAuthUser.id).where(OfficeAuthUser.mfa_verified_at.is_not(None)).limit(1)
+            ).first() is None
+        )
+        # The raw claim token is deliberately kept out of the database and
+        # event log; it is held only by the requesting phone's secure storage.
+        raw_claim_token = secrets.token_urlsafe(48)
+        activation = OfficeAuthenticatorActivation(
+            id=str(uuid.uuid4()),
+            user_id=user.id,
+            claim_token_hash=_hash_token(raw_claim_token),
+            status="APPROVED" if first_founder_bootstrap else "PENDING",
+            expires_at=now + timedelta(seconds=AUTHENTICATOR_ACTIVATION_TTL_SECONDS),
+            approved_by=user.id if first_founder_bootstrap else None,
+            approved_at=now if first_founder_bootstrap else None,
+        )
+        db.add(activation)
+        _event(
+            db,
+            "AUTHENTICATOR_ACTIVATION_REQUESTED",
+            request,
+            user_id=user.id,
+            metadata={"bootstrap": first_founder_bootstrap, "approval_required": not first_founder_bootstrap},
+        )
+        db.commit()
+        return {
+            "request_id": activation.id,
+            "claim_token": raw_claim_token,
+            "status": activation.status,
+            "expires_at": activation.expires_at.isoformat(),
+            "approval_required": not first_founder_bootstrap,
+        }
+
+    @router.get("/authenticator/activation-requests")
+    def list_authenticator_activation_requests(
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ):
+        context = authenticate_office_access(_bearer_token(authorization), db, require_aal2=True)
+        if not ({"OWNER", "ADMIN"} & context["roles"]):
+            return {"activation_requests": []}
+        now = _now()
+        requests = db.execute(
+            select(OfficeAuthenticatorActivation)
+            .where(
+                OfficeAuthenticatorActivation.status == "PENDING",
+                OfficeAuthenticatorActivation.expires_at > now,
+            )
+            .order_by(OfficeAuthenticatorActivation.created_at.asc())
+            .limit(50)
+        ).scalars().all()
+        users_by_id = {
+            user.id: user
+            for user in db.execute(
+                select(OfficeAuthUser).where(OfficeAuthUser.id.in_([item.user_id for item in requests]))
+            ).scalars().all()
+        }
+        return {
+            "activation_requests": [
+                {
+                    "id": activation.id,
+                    "email": users_by_id.get(activation.user_id).email if activation.user_id in users_by_id else "Unknown identity",
+                    "created_at": activation.created_at.isoformat() if activation.created_at else None,
+                    "expires_at": activation.expires_at.isoformat(),
+                }
+                for activation in requests
+            ]
+        }
+
+    @router.post("/authenticator/activation-requests/{activation_id}/approve")
+    def approve_authenticator_activation(
+        activation_id: str,
+        request: Request,
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ):
+        context = authenticate_office_access(_bearer_token(authorization), db, require_aal2=True)
+        if not ({"OWNER", "ADMIN"} & context["roles"]):
+            raise HTTPException(status_code=403, detail="Only Office owners or administrators can approve an Authenticator phone")
+        try:
+            activation_uuid = str(uuid.UUID(activation_id))
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail="Authenticator activation request was not found") from exc
+        activation = db.get(OfficeAuthenticatorActivation, activation_uuid)
+        if not activation or activation.status != "PENDING":
+            raise HTTPException(status_code=404, detail="Authenticator activation request was not found")
+        if _aware(activation.expires_at) <= _now():
+            activation.status = "EXPIRED"
+            db.commit()
+            raise HTTPException(status_code=410, detail="Authenticator activation request has expired")
+        activation.status = "APPROVED"
+        activation.approved_by = context["user_id"]
+        activation.approved_at = _now()
+        _event(
+            db,
+            "AUTHENTICATOR_ACTIVATION_APPROVED",
+            request,
+            user_id=activation.user_id,
+            session_id=context["session_id"],
+            metadata={"activation_id": activation.id, "approved_by": context["user_id"]},
+        )
+        db.commit()
+        return {"approved": True, "request_id": activation.id}
+
+    @router.post("/authenticator/activation-requests/{activation_id}/claim")
+    def claim_authenticator_activation(
+        activation_id: str,
+        payload: AuthenticatorActivationClaimPayload,
+        request: Request,
+        db: Session = Depends(get_db),
+    ):
+        try:
+            activation_uuid = str(uuid.UUID(activation_id))
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail="Authenticator activation request was not found") from exc
+        activation = db.get(OfficeAuthenticatorActivation, activation_uuid)
+        if not activation or not hmac.compare_digest(activation.claim_token_hash, _hash_token(payload.claim_token)):
+            raise HTTPException(status_code=404, detail="Authenticator activation request was not found")
+        if _aware(activation.expires_at) <= _now() and activation.status in {"PENDING", "APPROVED"}:
+            activation.status = "EXPIRED"
+            db.commit()
+            raise HTTPException(status_code=410, detail="Authenticator activation request has expired")
+        if activation.status == "PENDING":
+            return {"status": "PENDING", "expires_at": activation.expires_at.isoformat()}
+        if activation.status != "APPROVED":
+            raise HTTPException(status_code=409, detail="Authenticator activation is no longer available")
+
+        user = db.get(OfficeAuthUser, activation.user_id)
+        if not user or user.mfa_verified_at or user.mfa_secret_ciphertext:
+            activation.status = "CANCELLED"
+            activation.cancelled_at = _now()
+            db.commit()
+            raise HTTPException(status_code=409, detail="Authenticator activation is no longer available")
+
+        secret = pyotp.random_base32()
+        user.mfa_secret_ciphertext = _encrypt_mfa_secret(secret)
+        user.mfa_verified_at = None
+        user.mfa_last_accepted_counter = None
+        activation.status = "CLAIMED"
+        activation.claimed_at = _now()
+        _event(
+            db,
+            "AUTHENTICATOR_ACTIVATION_CLAIMED",
+            request,
+            user_id=user.id,
+            metadata={"activation_id": activation.id},
+        )
+        db.commit()
+        return {
+            "status": "ENROLLED",
+            "account": user.email,
+            "secret": secret,
+            "issuer": MFA_ISSUER,
+            "algorithm": MFA_ALGORITHM,
+            "digits": MFA_DIGITS,
+            "period": MFA_PERIOD_SECONDS,
+            "enrolled_at": activation.claimed_at.isoformat(),
+        }
 
     @router.get("/session")
     def session_state(
@@ -1202,45 +1397,6 @@ def build_identity_router() -> APIRouter:
         db.commit()
         return {"recorded": True, "event_type": event_type, "device_id": device_id}
 
-    @router.post("/mfa/enroll")
-    def enroll_mfa(
-        request: Request,
-        authorization: str | None = Header(default=None),
-        db: Session = Depends(get_db),
-    ):
-        token = _bearer_token(authorization)
-        context = authenticate_office_access(token, db, require_aal2=False)
-        user = db.get(OfficeAuthUser, context["user_id"])
-        if not user:
-            raise HTTPException(status_code=401, detail="Office identity is unavailable")
-        if user.mfa_verified_at and user.mfa_secret_ciphertext:
-            raise HTTPException(status_code=409, detail="A verified authenticator is already enrolled")
-
-        secret = pyotp.random_base32()
-        user.mfa_secret_ciphertext = _encrypt_mfa_secret(secret)
-        user.mfa_verified_at = None
-        user.mfa_last_accepted_counter = None
-        factor = pyotp.TOTP(
-            secret,
-            digits=MFA_DIGITS,
-            interval=MFA_PERIOD_SECONDS,
-            digest=hashlib.sha1,
-        )
-        uri = factor.provisioning_uri(name=user.email, issuer_name=MFA_ISSUER)
-        _event(db, "MFA_ENROLLMENT_STARTED", request, user_id=user.id, session_id=context["session_id"])
-        db.commit()
-        return {
-            "factor_id": "totp",
-            "qr_code": _qr_data_uri(uri),
-            "manual_key": secret,
-            "friendly_name": MFA_AUTHENTICATOR_APP,
-            "issuer": MFA_ISSUER,
-            "algorithm": MFA_ALGORITHM,
-            "digits": MFA_DIGITS,
-            "period_seconds": MFA_PERIOD_SECONDS,
-            "required_for_all_roles": True,
-        }
-
     @router.post("/mfa/verify")
     def verify_mfa(
         payload: MfaVerifyPayload,
@@ -1324,7 +1480,7 @@ def build_identity_router() -> APIRouter:
             db.commit()
             raise HTTPException(
                 status_code=400,
-                detail="That authenticator code was already used. Wait for the next KRAVIA Authenticator code",
+                detail="That authenticator code was already used. Wait for the next Authenticator code",
             )
 
         verified_at = _now()

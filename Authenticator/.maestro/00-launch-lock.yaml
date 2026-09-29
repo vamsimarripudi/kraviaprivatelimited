@@ -1,7 +1,8 @@
 appId: com.kraviaprivatelimited.authenticator
-name: KRAVIA Authenticator cold launch stays locked
+name: Authenticator fresh launch requests protected activation
 ---
 - launchApp:
     clearState: true
-- assertVisible: "Unlock authenticator"
-- assertVisible: "No password · No network · No clipboard export"
+- assertVisible: "Sign in to activate"
+- assertVisible: "Corporate email"
+- assertVisible: "Office password"

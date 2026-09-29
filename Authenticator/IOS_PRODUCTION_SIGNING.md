@@ -1,10 +1,10 @@
-# KRAVIA Authenticator — iOS Production Signing
+# Authenticator — iOS Production Signing
 
 The repository does not store Apple signing certificates, private keys, provisioning profiles, or App Store Connect credentials.
 
 ## App identity
 
-- Product: KRAVIA Authenticator
+- Product: Authenticator
 - Bundle identifier: `com.kraviaprivatelimited.authenticator`
 - Version: `1.0.0`
 - Build number: `1`
@@ -35,7 +35,7 @@ The workflow validates that the provisioning profile Team ID and application ide
 
 ## Production workflow
 
-Run **KRAVIA Authenticator production iOS** manually. It never runs on push or pull request.
+Run **Authenticator production iOS** manually. It never runs on push or pull request.
 
 The workflow:
 

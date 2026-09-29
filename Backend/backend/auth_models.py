@@ -92,6 +92,33 @@ class OfficeAuthInvite(Base):
     )
 
 
+class OfficeAuthenticatorActivation(Base):
+    """A one-time, administrator-approved claim for a new authenticator phone.
+
+    The claim token is stored only as a hash. It is not an Office session and
+    cannot access any company data; it merely lets the approved phone receive
+    its new local TOTP seed exactly once.
+    """
+
+    __tablename__ = "office_authenticator_activations"
+
+    id = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey("office_auth_users.id", ondelete="CASCADE"), nullable=False)
+    claim_token_hash = Column(String(64), nullable=False, unique=True)
+    status = Column(String(24), nullable=False, default="PENDING")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    approved_by = Column(String(36), nullable=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    claimed_at = Column(DateTime(timezone=True), nullable=True)
+    cancelled_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_office_authenticator_activations_user_status", "user_id", "status"),
+        Index("ix_office_authenticator_activations_status_expires", "status", "expires_at"),
+    )
+
+
 class OfficeAuthEvent(Base):
     __tablename__ = "office_auth_events_v2"
 

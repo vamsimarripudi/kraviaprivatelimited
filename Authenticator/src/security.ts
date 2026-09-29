@@ -14,12 +14,12 @@ export async function unlockAuthenticator() {
   ) {
     return {
       ok: false as const,
-      message: "Enroll a strong fingerprint, Touch ID or Face ID and keep a device passcode enabled before using KRAVIA Authenticator.",
+      message: "Enroll a strong fingerprint, Touch ID or Face ID and keep a device passcode enabled before using Authenticator.",
     };
   }
 
   const result = await LocalAuthentication.authenticateAsync({
-    promptMessage: "Unlock KRAVIA Authenticator",
+    promptMessage: "Unlock Authenticator",
     promptSubtitle: "Protect KRAVIA Office one-time codes",
     promptDescription: "Confirm your identity to view the current login code.",
     fallbackLabel: "Use device passcode",

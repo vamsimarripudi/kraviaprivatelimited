@@ -1,141 +1,35 @@
-# KRAVIA Office — first-party identity, MFA and KRAVIA Authenticator
+# KRAVIA Office — first-party identity and Authenticator MFA
 
-Verified architecture: 21 Sep 2026
-
-## Identity provider
-
-KRAVIA Office and KRAVIA Finance use the KRAVIA-owned FastAPI/PostgreSQL identity subsystem.
-
-Supabase provides managed PostgreSQL/control-plane and private Storage services. **Supabase Auth is not the active Office password, session or MFA provider.**
-
-The browser uses same-origin Next.js BFF routes. Trusted identity operations are executed by the canonical FastAPI runtime.
-
-No Office password, JWT, refresh token, invitation token, TOTP seed or recovery credential belongs in source control or public/mobile build variables.
+KRAVIA Office and KRAVIA Finance use the KRAVIA-owned FastAPI/PostgreSQL identity subsystem. Supabase Auth is not the active password, session or MFA provider. The browser uses same-origin Next.js BFF routes; access and refresh tokens remain in HttpOnly, `SameSite=Strict` cookies.
 
 ## Mandatory assurance
 
-Protected Office/Finance access requires **AAL2** for every admitted role:
+Every admitted role requires AAL2: OWNER, DIRECTOR, ADMIN, MEMBER, FINANCE, CA, CS, LEGAL, HR, OPERATIONS, AUDITOR and PRODUCT_ADMIN. Password verification creates only an AAL1 session. A successful TOTP verification promotes that session to AAL2; workspace guards reject protected access before that point.
 
-- OWNER
-- DIRECTOR
-- ADMIN
-- MEMBER
-- FINANCE
-- CA
-- CS
-- LEGAL
-- HR
-- OPERATIONS
-- AUDITOR
-- PRODUCT_ADMIN
+Authenticator uses RFC 6238 TOTP with issuer `KRAVIA Office`, SHA-1, six digits and a 30-second period. The server encrypts the random Base32 seed at rest, tracks the last accepted counter to prevent replay, and revokes an AAL1 session after the configured consecutive invalid-code limit.
 
-There is no role-specific MFA bypass.
+## Approved phone activation
 
-Login sequence:
+There is no QR enrollment, setup key, seed export, cloud backup, or seed-sharing path.
 
-1. FastAPI verifies the corporate email and Argon2id Office password.
-2. A first-party session is issued at AAL1.
-3. If no TOTP factor exists, Office starts KRAVIA Authenticator enrollment.
-4. User scans the QR or enters the setup key in KRAVIA Authenticator.
-5. User enters the current six-digit code in Office.
-6. FastAPI validates the TOTP, replay counter and attempt policy.
-7. Only a successful verification promotes that session to AAL2.
-8. Workspace guards reject protected Office/Finance access until AAL2 is present.
+1. A user enters their corporate email and password in Authenticator.
+2. FastAPI verifies the active first-party identity without issuing an Office browser session or returning a seed.
+3. It creates a short-lived phone request with a hashed claim token. The raw claim token exists only on that phone in device-secure storage.
+4. A verified AAL2 OWNER or ADMIN sees pending requests in Office Security and explicitly approves the phone.
+5. Only the approved phone can claim one freshly generated seed. A claim is single-use and records audit events.
+6. The user enters a current local code into Office to complete MFA.
 
-## TOTP profile
+The first Founder can bootstrap the first factor only when no verified MFA factor exists in the organisation. This avoids an unresolvable initial trust loop. Later activation and replacement phones require AAL2 owner/admin approval.
 
-KRAVIA uses the interoperable RFC 6238 profile:
+## Phone boundary
 
-- authenticator app: `KRAVIA Authenticator`
-- issuer: `KRAVIA Office`
-- algorithm: HMAC-SHA1
-- digits: 6
-- period: 30 seconds
-- server verification window: current counter plus the configured narrow compatibility window
+Authenticator stores the TOTP seed with native passcode-gated device storage, requires strong biometrics to unlock the vault, blocks screen capture, protects the iOS app switcher, clears sensitive memory on backgrounding, and disables OTP clipboard export. It permits only the one explicit HTTPS activation client; generated codes remain local after activation. Passwords, Office sessions and refresh tokens are never stored in the app.
 
-HMAC-SHA1 is used only inside the standards-defined TOTP construction. Passwords, document integrity and other cryptographic controls use separate modern primitives.
-
-The OTP itself is not encrypted. It is short-lived proof. The **random TOTP seed** is the secret credential that is encrypted/protected.
-
-## Seed generation and storage
-
-### Server
-
-- seed generated with a cryptographically secure random Base32 generator;
-- encrypted before persistence;
-- plaintext returned only during initial enrollment;
-- verified enrollment cannot be silently re-enrolled;
-- reset deletes the old factor state;
-- MFA reset clears the accepted-counter replay state.
-
-### Phone
-
-KRAVIA Authenticator:
-
-- stores only one KRAVIA identity per installation;
-- stores the TOTP seed in native secure storage with device-only/passcode-gated accessibility;
-- requires strong enrolled biometric protection before vault unlock;
-- blocks screen capture while active;
-- protects the iOS app-switcher view;
-- locks on background/inactive transition;
-- removes the in-memory account/seed on lock;
-- masks manual setup-key input;
-- has no seed export;
-- has no cloud seed sync;
-- has no OTP clipboard export;
-- explicitly removes Android INTERNET and RECORD_AUDIO permissions;
-- disables Android app backup;
-- disables Expo OTA executable updates.
-
-Because iOS Keychain values can survive an uninstall, the app pairs a non-secret application-container marker with a secure marker. A fresh/mismatched install destroys any surviving TOTP account and requires fresh Office enrollment.
-
-## Replay and brute-force controls
-
-A six-digit TOTP may be valid for its time counter, but a valid code must not become a reusable login token.
-
-KRAVIA Office therefore records the last accepted TOTP counter per identity.
-
-- a counter that has already been accepted is rejected;
-- the event is recorded as `MFA_REPLAY_BLOCKED`;
-- failed MFA attempts increment on the AAL1 session;
-- after `OFFICE_AUTH_MFA_MAX_FAILED_ATTEMPTS` consecutive failures (default 5), that AAL1 session is revoked;
-- successful MFA resets the session failure counter.
-
-This replay protection is server-side and applies regardless of which standards-compatible TOTP implementation computed the digits.
-
-## Enrollment
-
-The Office login UI already implements mandatory enrollment.
-
-When password authentication succeeds:
-
-- AAL2 session → continue;
-- AAL1 + existing factor → ask for the current KRAVIA Authenticator code;
-- AAL1 + no factor → show KRAVIA Authenticator QR and an explicitly revealed manual setup-key fallback.
-
-The manual seed is not shown by default.
-
-The login screen links to `/office/authenticator` for installation and setup guidance.
-
-## Recovery
-
-Normal eligible-user MFA reset is an audited OWNER/ADMIN operation within delegated authority.
-
-After reset:
-
-- encrypted seed cleared;
-- verified timestamp cleared;
-- accepted TOTP counter cleared;
-- affected sessions handled by the governed access/recovery flow;
-- replacement phone must enroll a new random seed.
-
-Founder recovery is excluded from ordinary delegated reset. It uses the separate Founder break-glass process and forces fresh MFA enrollment.
-
-There is intentionally no seed backup, QR re-display, authenticator recovery code or seed-sharing workflow.
+An uninstall/reinstall marker prevents an iOS Keychain value from silently reappearing in a fresh app container. A lost or replacement phone requires the governed MFA reset and a fresh approved activation.
 
 ## Deployment variables
 
-FastAPI:
+FastAPI requires these server-only values in production:
 
 ```text
 APP_ENV=production
@@ -146,59 +40,11 @@ OFFICE_AUTH_BOOTSTRAP_SECRET=<server-only>
 OFFICE_AUTH_BREAK_GLASS_SECRET=<offline-protected emergency secret>
 OFFICE_AUTH_EMAIL_DOMAIN=kraviaprivatelimited.com
 OFFICE_AUTH_MFA_MAX_FAILED_ATTEMPTS=5
+OFFICE_AUTHENTICATOR_ACTIVATION_TTL_SECONDS=600
 ```
 
-Next.js trusted server:
+The managed native release injects `EXPO_PUBLIC_OFFICE_API_ORIGIN` from the HTTPS `KRAVIA_AUTHENTICATOR_API_ORIGIN` build secret. Do not expose any server-only identity secret in the mobile build.
 
-```text
-OFFICE_API_ORIGIN=https://<accepted-office-api-origin>
-OFFICE_SUPABASE_URL=https://<office-control-plane>.supabase.co
-OFFICE_SUPABASE_SECRET_KEY=<server-only control-plane key>
-```
+## Acceptance checks
 
-Approved application-distribution links are optional server-side website variables:
-
-```text
-KRAVIA_AUTHENTICATOR_ANDROID_URL=
-KRAVIA_AUTHENTICATOR_IOS_URL=
-```
-
-Leave them empty until a persistent KRAVIA-signed distribution channel is accepted.
-
-## Mobile release boundary
-
-The repository builds and tests an offline release-smoke Android APK.
-
-CI verifies:
-
-- locked dependency graph;
-- Expo dependency compatibility;
-- TypeScript;
-- RFC/provisioning/security tests;
-- Android and iOS JS export;
-- native Android release build;
-- generated release manifest has camera permission;
-- generated release manifest has backup disabled;
-- generated release manifest has no INTERNET permission;
-- generated release manifest has no RECORD_AUDIO permission;
-- APK SHA-256 is published with the short-retention artifact.
-
-The release-smoke artifact is for controlled testing. Long-term employee distribution requires persistent KRAVIA-controlled Android/Apple signing identities and approved Play/TestFlight/App Store/MDM distribution.
-
-## Production acceptance
-
-Before every-role rollout:
-
-1. physical Android strong-biometric/SecureStore test;
-2. physical iPhone Face ID/Touch ID/SecureStore test;
-3. screen-capture/app-switcher test;
-4. background-lock test;
-5. uninstall/reinstall → fresh enrollment test;
-6. first-time password → enroll → TOTP → AAL2 test;
-7. existing-factor password → TOTP → AAL2 test;
-8. replay same accepted TOTP → rejected;
-9. repeated invalid MFA → AAL1 session revoked;
-10. governed MFA reset → old factor invalid → new phone enrolls;
-11. final persistent app signing/distribution accepted.
-
-If future policy requires cryptographic proof that a login came specifically from the official signed app, add device/app attestation and a per-login signed challenge or passkey layer. Do not invent proprietary OTP mathematics.
+Before rollout, test: fresh credential activation; AAL2 owner/admin approval; pending claim produces no seed; approved claim works once; password → local TOTP → AAL2; replay rejection; repeated-invalid-code revocation; governed reset and replacement activation; biometric lock; screen-capture/app-switcher protection; safe-area layout on current iPhone and Android devices; and signed release distribution.

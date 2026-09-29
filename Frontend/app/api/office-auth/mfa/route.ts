@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { enrollOfficeMfa, getOfficeSessionContext, officeIdentityIsProvisioned, verifyOfficeMfa } from "@/lib/office/auth-server";
+import { getOfficeSessionContext, officeIdentityIsProvisioned, verifyOfficeMfa } from "@/lib/office/auth-server";
 import { officeMutationIsSameOrigin } from "@/lib/office/request-security";
 
-const requestSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("enroll") }),
-  z.object({ action: z.literal("verify"), code: z.string().regex(/^\d{6}$/) }),
-]);
+const requestSchema = z.object({ action: z.literal("verify"), code: z.string().regex(/^\d{6}$/) });
 
 export async function POST(request: Request) {
   if (!officeMutationIsSameOrigin(request)) {
@@ -20,9 +17,6 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ detail: "Invalid MFA request" }, { status: 400 });
 
   try {
-    if (parsed.data.action === "enroll") {
-      return NextResponse.json(await enrollOfficeMfa(context), { headers: { "Cache-Control": "no-store" } });
-    }
     const upgraded = await verifyOfficeMfa(context, parsed.data.code);
     return NextResponse.json(
       { verified: true, aal: upgraded.identity.aal },

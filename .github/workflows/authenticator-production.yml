@@ -23,6 +23,7 @@ jobs:
       KRAVIA_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.KRAVIA_ANDROID_KEYSTORE_PASSWORD }}
       KRAVIA_ANDROID_KEY_ALIAS: ${{ secrets.KRAVIA_ANDROID_KEY_ALIAS }}
       KRAVIA_ANDROID_KEY_PASSWORD: ${{ secrets.KRAVIA_ANDROID_KEY_PASSWORD }}
+      EXPO_PUBLIC_OFFICE_API_ORIGIN: ${{ secrets.KRAVIA_AUTHENTICATOR_API_ORIGIN }}
       EXPECTED_SIGNING_SHA256: "1008958AD5191C64DAA3D403C56B687B674C26913ACB8D86E2EF2971E8647B75"
 
     steps:
@@ -43,7 +44,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for name in             KRAVIA_ANDROID_KEYSTORE_B64             KRAVIA_ANDROID_KEYSTORE_PASSWORD             KRAVIA_ANDROID_KEY_ALIAS             KRAVIA_ANDROID_KEY_PASSWORD
+          for name in             KRAVIA_ANDROID_KEYSTORE_B64             KRAVIA_ANDROID_KEYSTORE_PASSWORD             KRAVIA_ANDROID_KEY_ALIAS             KRAVIA_ANDROID_KEY_PASSWORD             EXPO_PUBLIC_OFFICE_API_ORIGIN
           do
             if [ -z "${!name:-}" ]; then
               echo "::error::Required protected secret $name is not configured."
@@ -54,6 +55,10 @@ jobs:
             echo "::error::Production key alias does not match the KRAVIA-controlled signing identity."
             exit 1
           fi
+          case "$EXPO_PUBLIC_OFFICE_API_ORIGIN" in
+            https://*) ;;
+            *) echo "::error::KRAVIA_AUTHENTICATOR_API_ORIGIN must be an HTTPS origin."; exit 1 ;;
+          esac
 
       - name: Install locked dependencies
         run: npm ci --no-fund --no-audit
@@ -97,17 +102,17 @@ jobs:
         working-directory: Authenticator/android
         run: ./gradlew bundleRelease assembleRelease --no-daemon
 
-      - name: Verify offline manifest and production signatures
+      - name: Verify activation manifest and production signatures
         shell: bash
         run: |
           set -euo pipefail
           manifest="$(find android/app/build/intermediates -path '*release*' -path '*merged_manifests*' -name AndroidManifest.xml -print -quit)"
           test -n "$manifest"
           test -f "$manifest"
-          grep -q 'android.permission.CAMERA' "$manifest"
           grep -q 'android:allowBackup="false"' "$manifest"
-          if grep -q 'android.permission.INTERNET' "$manifest"; then
-            echo "::error::Production KRAVIA Authenticator must remain offline."
+          grep -q 'android.permission.INTERNET' "$manifest"
+          if grep -q 'android.permission.CAMERA' "$manifest"; then
+            echo "::error::Production Authenticator must not request camera permission."
             exit 1
           fi
           if grep -q 'android.permission.RECORD_AUDIO' "$manifest"; then

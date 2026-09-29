@@ -410,6 +410,17 @@
   .kravia-office .office-v2 { display: block !important; }
   .kravia-office .office-v2 > aside { padding: .55rem .7rem !important; }
   .kravia-office .office-v2 .office-wordmark { min-height: 2.45rem; margin: 0 !important; }
+  .kravia-office .office-v2 > aside:not([data-mobile-open="true"]) :is(.workspace-context, nav, .workspace-side-actions, .office-side-note) {
+    display: none !important;
+  }
+  .kravia-office .office-v2 > aside[data-mobile-open="true"] {
+    max-height: 100dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .kravia-office .office-v2 > aside[data-mobile-open="true"] nav {
+    display: grid !important;
+  }
   .kravia-office .office-v2 .office-topbar { position: relative; align-items: center !important; }
   .kravia-office .office-v2 .office-briefing { align-items: start; flex-direction: column; gap: .5rem; }
   .kravia-office .office-briefing-principle { text-align: left; }

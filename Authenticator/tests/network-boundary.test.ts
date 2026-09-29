@@ -10,26 +10,21 @@ function sourceFiles(directory: string): string[] {
   });
 }
 
-describe("KRAVIA Authenticator offline source boundary", () => {
-  it("does not contain application network clients or telemetry transports", () => {
+describe("Authenticator network boundary", () => {
+  it("limits network access to the dedicated activation client", () => {
     const root = resolve(import.meta.dirname, "..");
-    const files = [
-      resolve(root, "App.tsx"),
-      ...sourceFiles(resolve(root, "src")),
-    ];
-    const violations = files.flatMap((path) => {
-      const source = readFileSync(path, "utf8");
-      const markers = [
-        /\bfetch\s*\(/,
-        /\bXMLHttpRequest\b/,
-        /\bWebSocket\b/,
-        /\bEventSource\b/,
-        /from\s+["']axios["']/,
-        /from\s+["']expo-network["']/,
-        /from\s+["']@sentry\//,
-      ];
-      return markers.some((pattern) => pattern.test(source)) ? [path] : [];
-    });
-    expect(violations).toEqual([]);
+    const files = [resolve(root, "App.tsx"), ...sourceFiles(resolve(root, "src"))];
+    const fetchUsers = files.filter((path) => /\bfetch\s*\(/.test(readFileSync(path, "utf8")));
+    expect(fetchUsers).toEqual([resolve(root, "src", "activation.ts")]);
+  });
+
+  it("requires HTTPS and does not persist Office credentials or browser sessions", () => {
+    const source = readFileSync(new URL("../src/activation.ts", import.meta.url), "utf8");
+    const app = readFileSync(new URL("../App.tsx", import.meta.url), "utf8");
+    expect(source).toContain('protocol !== "https:"');
+    expect(source).toContain("claim_token");
+    expect(source).not.toContain("access_token");
+    expect(app).toContain("requestAuthenticatorActivation");
+    expect(app).not.toContain("AsyncStorage");
   });
 });

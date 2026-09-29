@@ -1,4 +1,4 @@
-# KRAVIA Authenticator — Production Android Signing
+# Authenticator — Production Android Signing
 
 This repository never stores the production signing keystore or its passwords.
 
@@ -24,7 +24,7 @@ The workflow is deliberately `workflow_dispatch` only. Normal pushes and pull re
 
 ## Production build
 
-Run **KRAVIA Authenticator production Android** manually after all normal quality gates are green. The workflow:
+Run **Authenticator production Android** manually after all normal quality gates are green. The workflow:
 
 - checks Expo SDK compatibility,
 - runs typecheck and tests,

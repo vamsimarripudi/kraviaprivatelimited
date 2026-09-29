@@ -44,4 +44,26 @@ The source visual was opened and inspected. The local application was run at `ht
 - [x] Capture and compare the secure login at desktop and mobile widths; resolve visible P1/P2 differences.
 - [ ] Capture and compare the authenticated dashboard and decision flows with a permitted local AAL2 Office session.
 
-final result: partial — automated checks and unauthenticated visual QA pass; authenticated Office visual QA requires real local identity configuration.
+## Mobile navigation follow-up — 2026-09-30
+
+### Comparison target
+
+- Source visual truth: `C:\Users\Vamsi\.codex\codex-remote-attachments\01a0ec65-a073-76e2-8cb1-0028aa0cd361\4BC4E2DA-FBE6-4609-A83B-00FBF7F84590\1-Photo-1.jpg`
+- Source state: a phone-width Office page with the mobile menu button labelled “Menu” while the complete navigation list is incorrectly visible.
+- Intended implementation state: at `max-width: 820px`, a closed `aside[data-mobile-open="false"]` exposes only the compact wordmark and Menu control. The navigation, context, session actions and footer are hidden until the control sets `data-mobile-open="true"`.
+
+### Findings and fix
+
+- [P1] Closed mobile navigation rendered the complete sidebar.
+  - Location: `app/office/office-platform.css`, mobile breakpoint.
+  - Evidence: the supplied phone capture shows the Menu control in its closed state while all navigation groups remain visible. The shared platform rule set `aside nav` to `display: grid` with higher selector specificity than the existing closed-state hide rule.
+  - Fix: added a higher-specificity closed-state selector that hides all non-header sidebar content, and added an open-state `100dvh` scroll boundary so a deliberately expanded menu remains controllable on short screens.
+
+### Verification status
+
+- `npm run typecheck`: passed.
+- `npm run lint`: passed.
+- `npm run build`: passed after clearing stale generated `.next` metadata; the source routes were verified intact.
+- Browser-rendered authenticated Office navigation: blocked. This checkout has no configured internal identity service, so `/office/dashboard` resolves to the configuration-required login surface. No authorized session was fabricated for visual capture.
+
+final result: blocked

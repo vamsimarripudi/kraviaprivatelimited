@@ -4,6 +4,7 @@ import { validateStoredAccount } from "./account-validation";
 import type { KraviaTotpAccount } from "./types";
 
 const STORE_KEY = "kravia.authenticator.account.v1";
+const PENDING_ACTIVATION_STORE_KEY = "kravia.authenticator.activation.v1";
 const INSTALL_SECURE_KEY = "kravia.authenticator.install.secure.v1";
 const INSTALL_FILE_NAME = "kravia-authenticator-install-v1.txt";
 
@@ -61,7 +62,10 @@ export async function enforceInstallationBoundary() {
 
   // iOS Keychain values can survive uninstall. A fresh/mismatched application
   // container must never silently resurrect a previous TOTP seed.
-  await SecureStore.deleteItemAsync(STORE_KEY, OPTIONS);
+  await Promise.all([
+    SecureStore.deleteItemAsync(STORE_KEY, OPTIONS),
+    SecureStore.deleteItemAsync(PENDING_ACTIVATION_STORE_KEY, OPTIONS),
+  ]);
   const marker = newInstallMarker();
   await SecureStore.setItemAsync(INSTALL_SECURE_KEY, marker, OPTIONS);
   await writeLocalInstallMarker(marker);
@@ -94,4 +98,49 @@ export async function loadAccount() {
 
 export async function clearAccount() {
   await SecureStore.deleteItemAsync(STORE_KEY, OPTIONS);
+}
+
+export type StoredAuthenticatorActivation = {
+  requestId: string;
+  claimToken: string;
+  expiresAt: string;
+};
+
+function validPendingActivation(value: unknown): StoredAuthenticatorActivation | null {
+  if (!value || typeof value !== "object") return null;
+  const item = value as Partial<StoredAuthenticatorActivation>;
+  if (
+    typeof item.requestId !== "string" || item.requestId.length !== 36
+    || typeof item.claimToken !== "string" || item.claimToken.length < 32
+    || typeof item.expiresAt !== "string" || !Number.isFinite(Date.parse(item.expiresAt))
+  ) return null;
+  return { requestId: item.requestId, claimToken: item.claimToken, expiresAt: item.expiresAt };
+}
+
+export async function savePendingActivation(activation: StoredAuthenticatorActivation) {
+  await requireSecureStore();
+  const valid = validPendingActivation(activation);
+  if (!valid) throw new Error("Authenticator activation is invalid");
+  await SecureStore.setItemAsync(PENDING_ACTIVATION_STORE_KEY, JSON.stringify(valid), OPTIONS);
+}
+
+export async function loadPendingActivation() {
+  await requireSecureStore();
+  const value = await SecureStore.getItemAsync(PENDING_ACTIVATION_STORE_KEY, OPTIONS);
+  if (!value) return null;
+  try {
+    const activation = validPendingActivation(JSON.parse(value));
+    if (!activation || Date.parse(activation.expiresAt) <= Date.now()) {
+      await SecureStore.deleteItemAsync(PENDING_ACTIVATION_STORE_KEY, OPTIONS);
+      return null;
+    }
+    return activation;
+  } catch {
+    await SecureStore.deleteItemAsync(PENDING_ACTIVATION_STORE_KEY, OPTIONS);
+    return null;
+  }
+}
+
+export async function clearPendingActivation() {
+  await SecureStore.deleteItemAsync(PENDING_ACTIVATION_STORE_KEY, OPTIONS);
 }

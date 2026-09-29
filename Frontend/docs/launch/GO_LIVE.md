@@ -22,7 +22,7 @@
 4. Deploy/verify the accepted API and worker services.
 5. Activate canonical domain and HTTPS.
 6. Validate public routes, contact handling, Trust/legal pages and disclosure isolation.
-7. Validate KRAVIA Office/Finance sign-in, KRAVIA Authenticator MFA, AAL2, role boundaries and private storage.
+7. Validate KRAVIA Office/Finance sign-in, Authenticator MFA, AAL2, role boundaries and private storage.
 8. Validate worker heartbeat and one controlled quarantine scan.
 9. Enable approved external integrations one at a time; retain fail-closed state for integrations without evidence.
 10. Record deployed commit/deployment IDs and acceptance evidence.
