@@ -1,0 +1,429 @@
+/*
+ * KRAVIA Office — command-center design system
+ *
+ * This layer intentionally sits above the individual workflow modules.  Each
+ * module keeps its own controlled data and actions, while the surrounding
+ * navigation, hierarchy, controls and surface language remain consistent.
+ */
+.kravia-office {
+  --kravia-navy: #071d49;
+  --kravia-navy-2: #0d2b61;
+  --kravia-canvas: #f6f7fa;
+  --kravia-paper: #ffffff;
+  --kravia-ink: #102044;
+  --kravia-muted: #65718a;
+  --kravia-line: #dce2eb;
+  --kravia-blue: #2563eb;
+  --kravia-amber: #a85e00;
+  --kravia-amber-bg: #fff8ea;
+  --kravia-positive: #15705a;
+}
+
+/* Shared authenticated Office shell */
+.kravia-office .office-v2 {
+  grid-template-columns: 14.5rem minmax(0, 1fr) !important;
+  min-height: 100svh;
+  background: var(--kravia-canvas) !important;
+  color: var(--kravia-ink) !important;
+}
+
+.kravia-office .office-v2 > aside {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 1rem .7rem .75rem !important;
+  background: var(--kravia-navy) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.kravia-office .office-v2 .office-wordmark {
+  display: flex;
+  min-height: 3.35rem;
+  align-items: center;
+  gap: .6rem;
+  margin: 0 .25rem 1.2rem !important;
+  padding: .35rem .45rem !important;
+  border-radius: .5rem !important;
+  color: #fff !important;
+}
+
+.kravia-office .office-wordmark .brand-logo { gap: 0; }
+.kravia-office .office-wordmark .brand-logo img {
+  width: 1.7rem !important;
+  height: 1.75rem !important;
+  filter: brightness(0) invert(1);
+}
+.kravia-office .office-wordmark .brand-logo-copy { display: none; }
+.kravia-office .office-wordmark-unit {
+  font-family: var(--font-sans), sans-serif;
+  font-size: .9rem;
+  font-weight: 720;
+  letter-spacing: -.02em;
+}
+
+.kravia-office .office-v2 .workspace-context {
+  margin: 0 .25rem .85rem !important;
+  padding: .65rem .75rem !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  border-radius: .55rem !important;
+  background: rgba(255,255,255,.055) !important;
+}
+.kravia-office .office-v2 .workspace-context span,
+.kravia-office .office-v2 .workspace-nav-group > p {
+  color: rgba(255,255,255,.52) !important;
+  font-family: var(--font-sans), sans-serif !important;
+  font-size: .58rem !important;
+  font-weight: 750;
+  letter-spacing: .105em !important;
+}
+.kravia-office .office-v2 .workspace-context b {
+  color: #fff !important;
+  font-size: .72rem !important;
+  font-weight: 650;
+}
+.kravia-office .office-v2 .workspace-nav-group { margin: 0 0 .72rem !important; }
+.kravia-office .office-v2 .workspace-nav-group > p { margin: 0 .65rem .35rem !important; }
+.kravia-office .office-v2 > aside nav { display: grid; gap: .1rem; }
+.kravia-office .office-v2 > aside nav a {
+  min-height: 2.32rem !important;
+  margin: 0 !important;
+  padding: .5rem .65rem !important;
+  border-radius: .48rem !important;
+  color: rgba(255,255,255,.72) !important;
+  font-size: .72rem !important;
+  font-weight: 590;
+}
+.kravia-office .office-v2 > aside nav a svg {
+  width: .95rem !important;
+  height: .95rem !important;
+  color: rgba(255,255,255,.8);
+}
+.kravia-office .office-v2 > aside nav a:hover {
+  transform: none !important;
+  background: rgba(255,255,255,.08) !important;
+  color: #fff !important;
+}
+.kravia-office .office-v2 > aside nav a[aria-current="page"] {
+  background: rgba(92,143,226,.28) !important;
+  box-shadow: inset 2px 0 0 #fff !important;
+  color: #fff !important;
+}
+.kravia-office .office-v2 > aside nav a[aria-current="page"]:after { display: none !important; }
+.kravia-office .office-v2 .workspace-side-actions {
+  margin: auto .25rem 0 !important;
+  padding: .75rem 0 0 !important;
+  border-top: 1px solid rgba(255,255,255,.12) !important;
+}
+.kravia-office .office-v2 .workspace-switch,
+.kravia-office .office-v2 .workspace-side-actions button {
+  min-height: 2.3rem !important;
+  padding: .5rem .6rem !important;
+  border: 1px solid rgba(255,255,255,.16) !important;
+  border-radius: .5rem !important;
+  background: transparent !important;
+  color: rgba(255,255,255,.78) !important;
+  font-size: .65rem !important;
+}
+.kravia-office .office-v2 .office-side-note {
+  margin: .6rem .4rem 0 !important;
+  color: rgba(255,255,255,.42) !important;
+  font-family: var(--font-sans), sans-serif !important;
+  font-size: .55rem !important;
+}
+
+.kravia-office .office-v2 .office-main { padding: 0 !important; }
+.kravia-office .office-v2 .office-topbar {
+  position: sticky;
+  top: 0;
+  min-height: 4.4rem !important;
+  margin: 0 !important;
+  padding: .75rem clamp(1rem, 2.7vw, 2.75rem) !important;
+  border-bottom: 1px solid var(--kravia-line) !important;
+  background: rgba(255,255,255,.96) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(12px);
+}
+.kravia-office .office-v2 .office-topbar .eyebrow {
+  color: var(--kravia-muted) !important;
+  font-family: var(--font-sans), sans-serif !important;
+  font-size: .56rem !important;
+  letter-spacing: .1em !important;
+}
+.kravia-office .office-v2 .office-topbar h1 {
+  margin: .2rem 0 0 !important;
+  color: var(--kravia-ink) !important;
+  font-family: var(--font-sans), sans-serif !important;
+  font-size: 1.25rem !important;
+  font-weight: 760 !important;
+  letter-spacing: -.035em !important;
+}
+.kravia-office .office-v2 .office-topbar-actions { gap: .55rem !important; }
+.kravia-office .office-v2 .office-command-trigger,
+.kravia-office .office-v2 .office-icon-action,
+.kravia-office .office-v2 .office-identity {
+  min-height: 2.35rem !important;
+  border-color: var(--kravia-line) !important;
+  border-radius: .48rem !important;
+  background: var(--kravia-paper) !important;
+  box-shadow: none !important;
+}
+.kravia-office .office-v2 .office-command-trigger {
+  min-width: min(20rem, 30vw) !important;
+  color: var(--kravia-muted) !important;
+}
+.kravia-office .office-v2 .office-command-trigger kbd {
+  border-color: var(--kravia-line) !important;
+  background: #f4f6f9 !important;
+  color: var(--kravia-muted) !important;
+}
+.kravia-office .office-v2 .office-identity span { color: var(--kravia-navy) !important; }
+.kravia-office .office-v2 .office-identity small { color: var(--kravia-muted) !important; }
+
+.kravia-office .office-v2 .office-main > .office-notice,
+.kravia-office .office-v2 .office-main > section:not(.office-topbar) {
+  margin-left: clamp(1rem, 2.7vw, 2.75rem) !important;
+  margin-right: clamp(1rem, 2.7vw, 2.75rem) !important;
+}
+.kravia-office .office-v2 .office-main > .office-notice {
+  margin-top: .75rem !important;
+  margin-bottom: 0 !important;
+  padding: .55rem 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--kravia-muted) !important;
+}
+.kravia-office .office-v2 .office-main > .office-notice svg { display: none; }
+.kravia-office .office-v2 .office-main > .office-notice p {
+  font-size: .7rem !important;
+  line-height: 1.45 !important;
+}
+
+/* Home: orient first, then let live work data take over. */
+.kravia-office .office-briefing {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-top: 1.25rem !important;
+  margin-bottom: 1rem !important;
+  padding: 1rem 0 .2rem !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+.kravia-office .office-briefing .eyebrow {
+  color: var(--kravia-muted) !important;
+  font-family: var(--font-sans), sans-serif !important;
+  font-size: .61rem !important;
+  font-weight: 750;
+  letter-spacing: .09em !important;
+}
+.kravia-office .office-briefing h2 {
+  margin: .42rem 0 .48rem !important;
+  color: var(--kravia-ink) !important;
+  font-family: var(--font-sans), sans-serif !important;
+  font-size: clamp(2rem, 3.5vw, 3.1rem) !important;
+  font-weight: 780 !important;
+  letter-spacing: -.065em !important;
+  line-height: .96 !important;
+}
+.kravia-office .office-briefing > div > p:last-child {
+  max-width: 46rem;
+  margin: 0;
+  color: var(--kravia-muted);
+  font-size: .85rem;
+  line-height: 1.55;
+}
+.kravia-office .office-briefing-principle {
+  margin: 0 0 .35rem;
+  color: #53627f;
+  font-size: .78rem;
+  font-style: italic;
+  line-height: 1.45;
+  text-align: right;
+}
+
+/* A shared, low-noise language for the specialized Office modules. */
+.kravia-office .office-v2 .office-main :where(input, select, textarea) {
+  border-color: var(--kravia-line) !important;
+  border-radius: .45rem !important;
+  background: #fff !important;
+  color: var(--kravia-ink) !important;
+  box-shadow: none !important;
+}
+.kravia-office .office-v2 .office-main :where(input, select, textarea):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--kravia-blue) 62%, transparent) !important;
+  outline-offset: 1px;
+}
+.kravia-office .office-v2 .office-main :where(button, a):focus-visible {
+  outline: 2px solid var(--kravia-blue) !important;
+  outline-offset: 2px;
+}
+.kravia-office .office-v2 .office-main :where(button) { border-radius: .45rem !important; }
+.kravia-office .office-v2 .office-main :where([class*="hero"]) {
+  border-color: rgba(7,29,73,.13) !important;
+  border-radius: .7rem !important;
+  background: var(--kravia-navy) !important;
+  box-shadow: none !important;
+}
+.kravia-office .office-v2 .office-main :where([class*="hero"]) :is(h1,h2,h3,p,span,b,small) { color: inherit; }
+.kravia-office .office-v2 .office-main :where([class*="panel"], [class*="card"], [class*="tableWrap"], [class*="list"], [class*="state"]) {
+  border-color: var(--kravia-line) !important;
+  border-radius: .62rem !important;
+  box-shadow: none !important;
+}
+.kravia-office .office-v2 .office-main :where([class*="panel"], [class*="card"], [class*="tableWrap"], [class*="list"]) {
+  background: var(--kravia-paper) !important;
+}
+.kravia-office .office-v2 .office-main :where([class*="metrics"] article) {
+  border-color: var(--kravia-line) !important;
+  border-radius: .55rem !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+.kravia-office .office-v2 .office-main :where([class*="primary"], [class*="submit"], [class*="approve"], [class*="complete"]) {
+  border-color: var(--kravia-navy) !important;
+  background: var(--kravia-navy) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+.kravia-office .office-v2 .office-main :where([class*="primary"], [class*="submit"], [class*="approve"], [class*="complete"]):hover:not(:disabled) {
+  background: var(--kravia-navy-2) !important;
+}
+.kravia-office .office-v2 .office-main :where([class*="status"], [class*="badge"]) {
+  border-radius: .3rem !important;
+}
+.kravia-office .office-v2 .office-main :where(table) th {
+  background: #f4f6f9 !important;
+  color: #50607a !important;
+}
+.kravia-office .office-v2 .office-main :where(table) td { border-color: var(--kravia-line) !important; }
+
+/* Secure sign-in and recovery: clear identity verification, not marketing copy. */
+.kravia-office .kravia-office-auth {
+  grid-template-columns: minmax(25rem, 1.05fr) minmax(25rem, .95fr) !important;
+  background: var(--kravia-canvas) !important;
+  color: var(--kravia-ink) !important;
+}
+.kravia-office .kravia-office-auth > section:first-child {
+  padding: clamp(2rem, 4.5vw, 5.5rem) !important;
+  background: var(--kravia-navy) !important;
+  color: #fff !important;
+}
+.kravia-office .kravia-office-auth > section:first-child::after,
+.kravia-office .kravia-office-auth :where([class*="glow"]) { display: none !important; }
+.kravia-office .kravia-office-auth :where([class*="brandTop"]) {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255,255,255,.16);
+}
+.kravia-office .kravia-office-auth :where([class*="brandTop"]) .brand-logo img {
+  filter: brightness(0) invert(1);
+}
+.kravia-office .kravia-office-auth :where([class*="brandTop"]) .brand-logo-copy,
+.kravia-office .kravia-office-auth :where([class*="mobileBrand"]) .brand-logo-copy { color: inherit; }
+.kravia-office .kravia-office-auth :where([class*="identityLabel"]) {
+  color: rgba(255,255,255,.62) !important;
+  font-size: .62rem !important;
+}
+.kravia-office .kravia-office-auth :where([class*="kicker"]) {
+  color: #b9ccf7 !important;
+  font-family: var(--font-sans), sans-serif !important;
+  font-size: .63rem !important;
+}
+.kravia-office .kravia-office-auth :where([class*="brandCopy"]) h1 {
+  max-width: 13ch;
+  font-family: var(--font-sans), sans-serif !important;
+  font-size: clamp(2.65rem, 4.8vw, 4.6rem) !important;
+  font-weight: 770 !important;
+  letter-spacing: -.065em !important;
+  line-height: .94 !important;
+}
+.kravia-office .kravia-office-auth :where([class*="description"]) {
+  color: rgba(255,255,255,.72) !important;
+  font-size: .95rem !important;
+}
+.kravia-office .kravia-office-auth :where([class*="identityNotice"]) {
+  border-left-color: #8db1ff !important;
+  background: rgba(255,255,255,.06) !important;
+  color: rgba(255,255,255,.78) !important;
+}
+.kravia-office .kravia-office-auth :where([class*="trustGrid"]) { gap: 0 !important; }
+.kravia-office .kravia-office-auth :where([class*="trustGrid"]) > div {
+  border: 0 !important;
+  border-top: 1px solid rgba(255,255,255,.14) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+}
+.kravia-office .kravia-office-auth :where([class*="trustGrid"]) > div:last-child { border-bottom: 1px solid rgba(255,255,255,.14) !important; }
+.kravia-office .kravia-office-auth :where([class*="trustGrid"]) svg { color: #aecaFF !important; }
+.kravia-office .kravia-office-auth > section:last-child {
+  background: #fff !important;
+}
+.kravia-office .kravia-office-auth :where([class*="card"]) {
+  max-width: 27.5rem;
+  padding: 0 !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+}
+.kravia-office .kravia-office-auth :where([class*="icon"]) {
+  width: 2.6rem !important;
+  height: 2.6rem !important;
+  border-radius: .5rem !important;
+  background: #edf3ff !important;
+  border-color: #d4e1fb !important;
+  color: var(--kravia-navy) !important;
+}
+.kravia-office .kravia-office-auth :where([class*="form"]) h2 {
+  color: var(--kravia-ink) !important;
+  font-size: 1.9rem !important;
+  font-weight: 760 !important;
+  letter-spacing: -.055em !important;
+}
+.kravia-office .kravia-office-auth :where([class*="form"]) :is(input, textarea, select) {
+  border-color: var(--kravia-line) !important;
+  border-radius: .45rem !important;
+  box-shadow: none !important;
+}
+.kravia-office .kravia-office-auth :where([class*="form"]) :is(input, textarea, select):focus {
+  border-color: var(--kravia-blue) !important;
+  box-shadow: 0 0 0 3px rgba(37,99,235,.12) !important;
+}
+.kravia-office .kravia-office-auth :where([class*="primary"]) {
+  border-radius: .45rem !important;
+  background: var(--kravia-navy) !important;
+  box-shadow: none !important;
+}
+.kravia-office .kravia-office-auth :where([class*="links"]) a { color: #1d4db7 !important; }
+
+@media (max-width: 980px) {
+  .kravia-office .office-v2 { grid-template-columns: 12.4rem minmax(0,1fr) !important; }
+  .kravia-office .office-v2 .office-command-trigger { min-width: 2.35rem !important; }
+  .kravia-office .office-v2 .office-command-trigger span,
+  .kravia-office .office-v2 .office-command-trigger kbd { display: none; }
+  .kravia-office .kravia-office-auth { grid-template-columns: .9fr 1.1fr !important; }
+  .kravia-office .kravia-office-auth > section:first-child { padding: 2rem !important; }
+}
+
+@media (max-width: 820px) {
+  .kravia-office .office-v2 { display: block !important; }
+  .kravia-office .office-v2 > aside { padding: .55rem .7rem !important; }
+  .kravia-office .office-v2 .office-wordmark { min-height: 2.45rem; margin: 0 !important; }
+  .kravia-office .office-v2 .office-topbar { position: relative; align-items: center !important; }
+  .kravia-office .office-v2 .office-briefing { align-items: start; flex-direction: column; gap: .5rem; }
+  .kravia-office .office-briefing-principle { text-align: left; }
+  .kravia-office .kravia-office-auth { display: block !important; }
+  .kravia-office .kravia-office-auth > section:first-child { display: none !important; }
+}
+
+@media (max-width: 620px) {
+  .kravia-office .office-v2 .office-topbar { align-items: start !important; }
+  .kravia-office .office-v2 .office-topbar-actions { flex-wrap: wrap; justify-content: flex-end; }
+  .kravia-office .office-v2 .office-identity { display: none !important; }
+  .kravia-office .office-briefing h2 { font-size: 2rem !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kravia-office *, .kravia-office *::before, .kravia-office *::after { transition: none !important; }
+}

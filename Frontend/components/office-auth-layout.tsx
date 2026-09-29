@@ -22,7 +22,7 @@ export function OfficeAuthLayout({
   footerLabel = "Return to corporate website",
 }: Props) {
   return (
-    <main className={styles.shell}>
+    <main className={`${styles.shell} kravia-office-auth`}>
       <section className={styles.brand} aria-label="KRAVIA Office identity">
         <div className={styles.glowOne} />
         <div className={styles.glowTwo} />

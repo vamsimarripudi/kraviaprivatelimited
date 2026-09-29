@@ -17,6 +17,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 import { OfficeNavLink } from "@/components/office-nav-link";
 import { OfficePrefetchRoutes } from "@/components/office-prefetch-routes";
 import { OfficePresenceControl } from "@/components/office-presence-control";
@@ -69,6 +70,13 @@ function sectionFromPath(pathname: string, workspace: WorkspaceKind) {
   const prefix = workspace === "finance" ? "/finance/" : "/office/";
   if (!pathname.startsWith(prefix)) return "dashboard";
   return pathname.slice(prefix.length).split("/")[0] || "dashboard";
+}
+
+function navigationGroup(workspace: WorkspaceKind, group: string) {
+  if (workspace !== "office") return group;
+  if (group === "My Work") return "My work";
+  if (["Lead", "Operate", "Office"].includes(group)) return "Company";
+  return "Control";
 }
 
 function IdentityCard({ identity }: { identity: OfficeIdentity }) {
@@ -126,8 +134,8 @@ export function OfficeWorkspaceShell({
     [identity.roles, permissions, workspace],
   );
   const groups = useMemo(
-    () => Array.from(new Set(entries.map(([, value]) => value.group))),
-    [entries],
+    () => Array.from(new Set(entries.map(([, value]) => navigationGroup(workspace, value.group)))),
+    [entries, workspace],
   );
 
   const switchWorkspace: WorkspaceKind = workspace === "office" ? "finance" : "office";
@@ -160,11 +168,11 @@ export function OfficeWorkspaceShell({
         <aside data-mobile-open={mobileNavOpen ? "true" : "false"}>
           <OfficeNavLink
             href={`${definition.basePath}/dashboard`}
-            className="wordmark"
+            className="wordmark office-wordmark"
             aria-label={`${definition.label} home`}
           >
-            <span>KRAVIA</span>
-            <span>{workspace === "finance" ? "FINANCE" : "OFFICE"}</span>
+            <BrandLogo priority />
+            <span className="office-wordmark-unit">{workspace === "finance" ? "Finance" : "Office"}</span>
           </OfficeNavLink>
 
           <button
@@ -189,7 +197,7 @@ export function OfficeWorkspaceShell({
               <div className="workspace-nav-group" key={group}>
                 <p>{group}</p>
                 {entries
-                  .filter(([, value]) => value.group === group)
+                  .filter(([, value]) => navigationGroup(workspace, value.group) === group)
                   .map(([slug, value]) => (
                     <OfficeNavLink key={slug} href={`${definition.basePath}/${slug}`}>
                       <NavIcon group={value.group} />

@@ -226,9 +226,23 @@ function WorkspaceDashboard({ workspace, section, identity, permissions }: { wor
   const runtime = runtimeModuleSpec(workspace, section);
   const onlyShellRoles = identity.roles.every((role) => role === "ADMIN" || role === "MEMBER");
   const executive = identity.roles.some((role) => role === "OWNER" || role === "DIRECTOR");
+  const identityName = identity.displayName?.trim() || identity.email?.split("@")[0]?.split(/[._-]/)[0] || "there";
+  const firstName = identityName.split(/\s+/)[0].replace(/^./, (letter) => letter.toUpperCase());
+  const greeting = new Intl.DateTimeFormat("en-IN", { hour: "numeric", hourCycle: "h23", timeZone: "Asia/Kolkata" }).format(new Date());
+  const greetingLabel = Number.parseInt(greeting, 10) < 12 ? "Good morning" : Number.parseInt(greeting, 10) < 18 ? "Good afternoon" : "Good evening";
 
   return <>
-    {workspace === "office" ? <>{executive ? <OfficeIntelligenceBrief compact /> : null}<OfficeWorkHub identity={identity} mode="dashboard" /><OfficeCompanyInbox compact /><OfficeActivityTimeline /></> : <section className="workspace-hero-panel"><div><p className="eyebrow">VERIFIED AAL2 SESSION</p><h2>Finance work without mixing ownership, tax and treasury.</h2></div><ShieldCheck aria-hidden="true" /></section>}
+    {workspace === "office" ? <>
+      <section className="office-briefing" aria-labelledby="office-briefing-title">
+        <div>
+          <p className="eyebrow">{new Intl.DateTimeFormat("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" }).format(new Date())}</p>
+          <h2 id="office-briefing-title">{greetingLabel}, {firstName}.</h2>
+          <p>Start with the work that needs your authority. Every decision keeps its context, evidence and accountable next step together.</p>
+        </div>
+        <p className="office-briefing-principle">Disciplined decisions,<br />a stronger tomorrow.</p>
+      </section>
+      {executive ? <OfficeIntelligenceBrief compact /> : null}<OfficeWorkHub identity={identity} mode="dashboard" /><OfficeCompanyInbox compact /><OfficeActivityTimeline />
+    </> : <section className="workspace-hero-panel"><div><p className="eyebrow">VERIFIED AAL2 SESSION</p><h2>Finance work without mixing ownership, tax and treasury.</h2></div><ShieldCheck aria-hidden="true" /></section>}
     {runtime && !onlyShellRoles ? <WorkspaceRuntimePanel title={workspace === "finance" ? "Finance overview" : "Office overview"} spec={runtime} /> : null}
     <div className="office-dashboard-grid workspace-module-grid">{sections.map(([slug, sectionItem]) => <OfficeNavLink href={`${basePath}/${slug}`} key={slug} className="workspace-module-card"><div className="workspace-module-card-head"><NavIcon group={sectionItem.group} /><p className="eyebrow">{sectionItem.group}</p></div><h2>{sectionItem.title}</h2><span>{sectionItem.description}</span><b>Open <ArrowRight aria-hidden="true" /></b></OfficeNavLink>)}</div>
   </>;
