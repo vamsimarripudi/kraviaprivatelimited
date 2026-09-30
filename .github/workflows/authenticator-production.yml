@@ -180,7 +180,23 @@ jobs:
             exit 1
           fi
 
+          set +e
           jarsigner -verify -strict "$aab" > kravia-authenticator-production-aab.signature.txt
+          jarsigner_strict_status=$?
+          set -e
+          if [ "$jarsigner_strict_status" -eq 4 ]; then
+            if ! grep -q 'self-signed' kravia-authenticator-production-aab.signature.txt; then
+              echo "::error::AAB strict signature verification failed for an unexpected reason."
+              exit 1
+            fi
+            if ! jarsigner -verify "$aab" >> kravia-authenticator-production-aab.signature.txt; then
+              echo "::error::AAB signature verification failed."
+              exit 1
+            fi
+          elif [ "$jarsigner_strict_status" -ne 0 ]; then
+            echo "::error::AAB strict signature verification failed."
+            exit 1
+          fi
           keytool -printcert -jarfile "$aab" > kravia-authenticator-production-aab.certificate.txt
           aab_fp="$(
             sed -n 's/^[[:space:]]*SHA256: //p' kravia-authenticator-production-aab.certificate.txt             | head -n 1             | tr -d ':[:space:]'
