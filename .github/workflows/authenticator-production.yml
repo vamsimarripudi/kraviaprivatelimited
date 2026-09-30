@@ -59,6 +59,10 @@ jobs:
             https://*) ;;
             *) echo "::error::KRAVIA_AUTHENTICATOR_API_ORIGIN must be an HTTPS origin."; exit 1 ;;
           esac
+          if [ "$EXPO_PUBLIC_OFFICE_API_ORIGIN" != "https://kravia-office-api-production.up.railway.app" ]; then
+            echo "::error::KRAVIA_AUTHENTICATOR_API_ORIGIN must use the managed production Office API origin."
+            exit 1
+          fi
 
       - name: Install locked dependencies
         run: npm ci --no-fund --no-audit
@@ -102,7 +106,7 @@ jobs:
         working-directory: Authenticator/android
         run: ./gradlew bundleRelease assembleRelease --no-daemon
 
-      - name: Verify activation manifest and production signatures
+      - name: Verify production APK, manifest, API origin and signatures
         shell: bash
         run: |
           set -euo pipefail
@@ -126,11 +130,51 @@ jobs:
           test -s "$aab"
 
           build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d -print | sort -V | tail -n 1)"
+          apk_badging="$("$build_tools/aapt" dump badging "$apk")"
+          apk_package="$(printf '%s\n' "$apk_badging" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n 1)"
+          apk_version_code="$(printf '%s\n' "$apk_badging" | sed -n "s/^package:.* versionCode='\([^']*\)'.*/\1/p" | head -n 1)"
+          apk_version_name="$(printf '%s\n' "$apk_badging" | sed -n "s/^package:.* versionName='\([^']*\)'.*/\1/p" | head -n 1)"
+          if [ "$apk_package" != "com.kraviaprivatelimited.authenticator" ]; then
+            echo "::error::Production APK package identifier does not match KRAVIA Authenticator."
+            exit 1
+          fi
+          if [ "$apk_version_code" != "1" ] || [ "$apk_version_name" != "1.0.0" ]; then
+            echo "::error::Production APK version must be 1.0.0 (versionCode 1)."
+            exit 1
+          fi
+
+          bundle_entry="$(unzip -Z1 "$apk" | grep -E '(^|/)index\.android\.bundle$' | head -n 1 || true)"
+          if [ -z "$bundle_entry" ]; then
+            echo "::error::Production APK does not contain the Authenticator Android JavaScript bundle."
+            exit 1
+          fi
+          if ! unzip -p "$apk" "$bundle_entry" | grep -aFq "$EXPO_PUBLIC_OFFICE_API_ORIGIN"; then
+            echo "::error::Production APK bundle does not contain the configured Office API origin."
+            exit 1
+          fi
+          if unzip -p "$apk" "$bundle_entry" | grep -aEq 'https?://(localhost|127\.0\.0\.1|10\.0\.2\.2)([:/]|$)'; then
+            echo "::error::Production Authenticator bundle contains a development API origin."
+            exit 1
+          fi
+
           "$build_tools/apksigner" verify --verbose --print-certs "$apk"             | tee kravia-authenticator-production-apk.signature.txt
 
-          apk_fp="$(
-            sed -n 's/^Signer #1 certificate SHA-256 digest: //p' kravia-authenticator-production-apk.signature.txt             | head -n 1             | tr '[:lower:]' '[:upper:]'             | tr -d ':[:space:]'
-          )"
+          mapfile -t apk_fingerprints < <(
+            grep -E 'certificate SHA-256 digest:' kravia-authenticator-production-apk.signature.txt \
+              | sed -E 's/^.*certificate SHA-256 digest:[[:space:]]*//' \
+              | tr '[:lower:]' '[:upper:]' \
+              | tr -d ':[:space:]' \
+              | sort -u
+          )
+          if [ "${#apk_fingerprints[@]}" -eq 0 ]; then
+            echo "::error::Unable to extract APK signing certificate SHA-256."
+            exit 1
+          fi
+          if [ "${#apk_fingerprints[@]}" -ne 1 ]; then
+            echo "::error::Production APK must expose exactly one signer certificate."
+            exit 1
+          fi
+          apk_fp="${apk_fingerprints[0]}"
           if [ "$apk_fp" != "$EXPECTED_SIGNING_SHA256" ]; then
             echo "::error::APK signer does not match the KRAVIA production certificate."
             exit 1
@@ -141,6 +185,10 @@ jobs:
           aab_fp="$(
             sed -n 's/^[[:space:]]*SHA256: //p' kravia-authenticator-production-aab.certificate.txt             | head -n 1             | tr -d ':[:space:]'
           )"
+          if [ -z "$aab_fp" ]; then
+            echo "::error::Unable to extract AAB signing certificate SHA-256."
+            exit 1
+          fi
           if [ "$aab_fp" != "$EXPECTED_SIGNING_SHA256" ]; then
             echo "::error::AAB signer does not match the KRAVIA production certificate."
             exit 1
@@ -151,15 +199,15 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p production-artifacts
-          cp android/app/build/outputs/apk/release/app-release.apk             production-artifacts/KRAVIA-Authenticator-1.0.0-production.apk
-          cp android/app/build/outputs/bundle/release/app-release.aab             production-artifacts/KRAVIA-Authenticator-1.0.0-production.aab
+          cp android/app/build/outputs/apk/release/app-release.apk             production-artifacts/KRAVIA-Authenticator-Production-v1.0.0.apk
+          cp android/app/build/outputs/bundle/release/app-release.aab             production-artifacts/KRAVIA-Authenticator-Production-v1.0.0.aab
           cp kravia-authenticator-production-apk.signature.txt production-artifacts/
           cp kravia-authenticator-production-aab.signature.txt production-artifacts/
           cp kravia-authenticator-production-aab.certificate.txt production-artifacts/
 
           (
             cd production-artifacts
-            sha256sum               KRAVIA-Authenticator-1.0.0-production.apk               KRAVIA-Authenticator-1.0.0-production.aab               > SHA256SUMS.txt
+            sha256sum               KRAVIA-Authenticator-Production-v1.0.0.apk               KRAVIA-Authenticator-Production-v1.0.0.aab               > SHA256SUMS.txt
           )
 
           {
