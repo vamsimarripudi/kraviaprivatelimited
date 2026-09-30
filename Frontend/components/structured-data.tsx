@@ -1,4 +1,4 @@
-import { siteUrl } from "@/lib/site";
+import { publicWebsiteStructuredData, siteUrl } from "@/lib/site";
 import { getPublicCompanyProfile } from "@/lib/corporate/public-facts";
 import { publicProducts } from "@/lib/corporate-content";
 
@@ -23,7 +23,7 @@ export async function OrganizationJsonLd() {
     ...(companyProfile.registeredOffice ? { address: companyProfile.registeredOffice } : {}),
     ...(companyProfile.corporateEmail ? { email: companyProfile.corporateEmail } : {}),
   };
-  const website = { "@context": "https://schema.org", "@type": "WebSite", name: companyProfile.legalName, url: siteUrl };
+  const website = publicWebsiteStructuredData();
   return <><JsonLd data={organization} /><JsonLd data={website} /></>;
 }
 

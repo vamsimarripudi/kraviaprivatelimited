@@ -2,6 +2,26 @@ import { publicCompanyInformation } from "./corporate-content";
 import { canonicalProductionSiteUrl, resolvePublicSiteUrl } from "./env/public";
 
 export const siteUrl = resolvePublicSiteUrl();
+// Keep the public search identity separate from the legal-name record. Search
+// engines and browser metadata should use the company name people recognise,
+// while statutory surfaces can continue to use the legal uppercase form.
+export const publicSiteIdentity = {
+  name: "Kravia Private Limited",
+  alternateName: "Kravia",
+} as const;
+
+/** Domain-level structured data that declares Kravia's preferred search name. */
+export function publicWebsiteStructuredData() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": `${siteUrl}#website`,
+    name: publicSiteIdentity.name,
+    alternateName: publicSiteIdentity.alternateName,
+    url: siteUrl,
+    publisher: { "@id": `${siteUrl}#organization` },
+  };
+}
 // `VERCEL_ENV` is authoritative when present, so preview deployments cannot
 // become indexable merely because they inherit a production site URL.
 export const isProductionSite = process.env.VERCEL_ENV

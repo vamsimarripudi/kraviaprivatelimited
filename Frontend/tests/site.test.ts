@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { crawlerPolicy, isPublicSitemapPath, privatePathPrefixes, publicPageRobots } from "../lib/crawler-policy";
-import { companyProfile, publicPages } from "../lib/site";
+import { companyProfile, publicPages, publicSiteIdentity, publicWebsiteStructuredData } from "../lib/site";
 
 describe("public company data", () => {
   it("does not manufacture statutory identifiers", () => {
@@ -10,6 +10,16 @@ describe("public company data", () => {
 
   it("keeps required public route content available", () => {
     expect(Object.keys(publicPages)).toEqual(expect.arrayContaining(["company", "products", "governance", "disclosures", "trust/data-protection"]));
+  });
+
+  it("declares the approved human-readable site name for search", () => {
+    expect(publicSiteIdentity).toEqual({ name: "Kravia Private Limited", alternateName: "Kravia" });
+    expect(publicWebsiteStructuredData()).toMatchObject({
+      "@type": "WebSite",
+      name: "Kravia Private Limited",
+      alternateName: "Kravia",
+      url: expect.stringMatching(/^https?:\/\//),
+    });
   });
 });
 
