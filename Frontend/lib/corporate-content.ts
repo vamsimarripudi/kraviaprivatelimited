@@ -46,14 +46,14 @@ export const publicCompanyInformation = {
   displayName: { value: "Kravia", visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED" },
   entityType: { value: "Private Limited Company", visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED" },
   country: { value: "India", visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED" },
-  incorporationDate: { value: null, visibility: "PUBLIC", verificationStatus: "UNVERIFIED" },
-  cin: { value: null, visibility: "PUBLIC", verificationStatus: "UNVERIFIED" },
-  registeredOffice: { value: null, visibility: "PUBLIC", verificationStatus: "UNVERIFIED" },
+  incorporationDate: { value: "2026-07-01", visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED", lastReviewedAt: "2026-10-04" },
+  cin: { value: "U62011AP2026PTC126691", visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED", lastReviewedAt: "2026-10-04" },
+  registeredOffice: { value: "4-340, Salipeta, Opp HDFC Bank, Malikipuram, Konaseema, Andhra Pradesh 533253, India", visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED", lastReviewedAt: "2026-10-04" },
   telephone: { value: null, visibility: "PUBLIC", verificationStatus: "UNVERIFIED" },
-  email: { value: null, visibility: "PUBLIC", verificationStatus: "UNVERIFIED" },
+  email: { value: "hello@kraviaprivatelimited.com", visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED", lastReviewedAt: "2026-10-04" },
   grievanceContact: { value: null, visibility: "PUBLIC", verificationStatus: "UNVERIFIED" },
-  gstRegistered: { value: null, visibility: "PUBLIC", verificationStatus: "UNVERIFIED" },
-  gstin: { value: null, visibility: "PUBLIC", verificationStatus: "UNVERIFIED" },
+  gstRegistered: { value: true, visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED", lastReviewedAt: "2026-10-04" },
+  gstin: { value: "37AANCK0043M1ZA", visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED", lastReviewedAt: "2026-10-04" },
 } as const satisfies Record<string, GovernedField<string | boolean>>;
 
 export const publicProducts: readonly KraviaProduct[] = [
