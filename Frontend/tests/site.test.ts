@@ -3,9 +3,11 @@ import { crawlerPolicy, isPublicSitemapPath, privatePathPrefixes, publicPageRobo
 import { companyProfile, publicPages, publicSiteIdentity, publicWebsiteStructuredData } from "../lib/site";
 
 describe("public company data", () => {
-  it("does not manufacture statutory identifiers", () => {
-    expect(companyProfile.cin).toBeNull();
-    expect(companyProfile.gst.gstin).toBeNull();
+  it("publishes the verified statutory identity used for company discovery", () => {
+    expect(companyProfile.cin).toBe("U62011AP2026PTC126691");
+    expect(companyProfile.gst.gstin).toBe("37AANCK0043M1ZA");
+    expect(companyProfile.corporateEmail).toBe("hello@kraviaprivatelimited.com");
+    expect(companyProfile.website).toBeNull();
   });
 
   it("keeps required public route content available", () => {
@@ -38,7 +40,11 @@ describe("canonical URL resolution", () => {
 describe("public crawler boundaries", () => {
   it("allows public crawling while explicitly disallowing private route families", () => {
     const policy = crawlerPolicy(true, "https://kraviaprivatelimited.com");
-    expect(policy.rules).toEqual([{ userAgent: "*", allow: "/", disallow: [...privatePathPrefixes] }]);
+    expect(policy.rules).toEqual([
+      { userAgent: "OAI-SearchBot", allow: "/", disallow: [...privatePathPrefixes] },
+      { userAgent: "ChatGPT-User", allow: "/", disallow: [...privatePathPrefixes] },
+      { userAgent: "*", allow: "/", disallow: [...privatePathPrefixes] },
+    ]);
     expect(policy.sitemap).toBe("https://kraviaprivatelimited.com/sitemap.xml");
   });
 
