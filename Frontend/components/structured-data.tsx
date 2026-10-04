@@ -10,18 +10,34 @@ function JsonLd({ data }: { data: Record<string, unknown> }) {
 
 export async function OrganizationJsonLd() {
   const companyProfile = await getPublicCompanyProfile();
+  const identifiers = [
+    companyProfile.cin ? { "@type": "PropertyValue", propertyID: "CIN", value: companyProfile.cin } : null,
+    companyProfile.gst.gstin ? { "@type": "PropertyValue", propertyID: "GSTIN", value: companyProfile.gst.gstin } : null,
+  ].filter(Boolean);
   const organization = {
     "@context": "https://schema.org",
     "@type": "Corporation",
     "@id": `${siteUrl}#organization`,
-    name: companyProfile.displayName,
+    name: companyProfile.legalName ?? "KRAVIA PRIVATE LIMITED",
+    alternateName: companyProfile.displayName ?? "Kravia",
     legalName: companyProfile.legalName,
+    description: "KRAVIA PRIVATE LIMITED is an Indian technology company building software products, intelligent systems and digital infrastructure.",
     url: siteUrl,
     logo: `${siteUrl}/brand/kravia-logo.png`,
     areaServed: companyProfile.country,
     ...(companyProfile.incorporationDate ? { foundingDate: companyProfile.incorporationDate } : {}),
     ...(companyProfile.registeredOffice ? { address: companyProfile.registeredOffice } : {}),
-    ...(companyProfile.corporateEmail ? { email: companyProfile.corporateEmail } : {}),
+    ...(companyProfile.corporateEmail ? {
+      email: companyProfile.corporateEmail,
+      contactPoint: {
+        "@type": "ContactPoint",
+        email: companyProfile.corporateEmail,
+        contactType: "corporate enquiries",
+        availableLanguage: ["en"],
+      },
+    } : {}),
+    ...(companyProfile.gst.gstin ? { taxID: companyProfile.gst.gstin } : {}),
+    ...(identifiers.length ? { identifier: identifiers } : {}),
   };
   const website = publicWebsiteStructuredData();
   return <><JsonLd data={organization} /><JsonLd data={website} /></>;
