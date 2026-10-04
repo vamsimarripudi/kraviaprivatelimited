@@ -7,6 +7,7 @@ import { HeroMotion, Reveal } from "@/components/motion";
 import { CapabilityExplorer, MagneticLink } from "@/components/premium-interactions";
 import { ProductAnalytics, ProductTrackedLink } from "@/components/product-interactions";
 import { companyNarrative } from "@/lib/corporate-content";
+import { siteUrl } from "@/lib/site";
 import { getPublicCompanyProfile, type PublicCompanyProfile } from "@/lib/corporate/public-facts";
 import { HomepageUpdates } from "@/components/newsroom-content";
 import { getPublishedNewsroomContent } from "@/lib/content/repository";
@@ -38,6 +39,7 @@ function publicFactRows(profile: PublicCompanyProfile) {
     ["Country", profile.country],
     ["CIN", profile.cin],
     ["Registered office", profile.registeredOffice],
+    ["Official website", siteUrl],
     ["Email", profile.corporateEmail],
     ["Telephone", profile.telephone],
   ].filter(([, value]) => Boolean(value)) as [string, string][];
@@ -54,7 +56,7 @@ export default async function Home() {
           <div className="hero-meta"><span>INDIA</span><span>SOFTWARE</span><span>AI</span><span>INFRASTRUCTURE</span></div>
           <HeroMotion />
           <div className="hero-foot">
-            <p>Kravia builds software products, intelligent systems and digital infrastructure designed to make complex work simpler, safer and more connected.</p>
+            <p>KRAVIA PRIVATE LIMITED is an Indian technology company building software products, intelligent systems and digital infrastructure. Official website: kraviaprivatelimited.com.</p>
             <div><MagneticLink className="button button-light premium-cta" href="/products">Explore our products <ArrowUpRight /></MagneticLink><Link className="text-link" href="/company/about">About Kravia</Link></div>
           </div>
           <KLine className="hero-line" />

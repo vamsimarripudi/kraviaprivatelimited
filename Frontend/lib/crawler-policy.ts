@@ -6,8 +6,13 @@ export const privatePathPrefixes = ["/admin", "/api", "/auth", "/corporate", "/o
 export function crawlerPolicy(production: boolean, canonicalUrl: string): MetadataRoute.Robots {
   if (!production) return { rules: [{ userAgent: "*", disallow: "/" }] };
 
+  const publicCrawlerRule = { allow: "/", disallow: [...privatePathPrefixes] };
   return {
-    rules: [{ userAgent: "*", allow: "/", disallow: [...privatePathPrefixes] }],
+    rules: [
+      { userAgent: "OAI-SearchBot", ...publicCrawlerRule },
+      { userAgent: "ChatGPT-User", ...publicCrawlerRule },
+      { userAgent: "*", ...publicCrawlerRule },
+    ],
     sitemap: `${canonicalUrl}/sitemap.xml`,
   };
 }

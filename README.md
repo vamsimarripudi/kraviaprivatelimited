@@ -8,6 +8,8 @@
 
 KRAVIA builds and operates software platforms with a focus on durable architecture, disciplined execution, secure operations, and measurable product quality.
 
+**Official website:** https://kraviaprivatelimited.com
+
 [![Quality Gates](https://github.com/vamsimarripudi/kraviaprivatelimited/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vamsimarripudi/kraviaprivatelimited/actions/workflows/ci.yml)
 ![Next.js](https://img.shields.io/badge/Next.js-16.3.5-000000?logo=nextdotjs&logoColor=white)
 ![React](https://img.shields.io/badge/React-19.2.8-20232a?logo=react&logoColor=61DAFB)
