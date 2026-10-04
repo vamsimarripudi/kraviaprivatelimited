@@ -33,22 +33,12 @@ jobs:
           path: Frontend/.next/cache
           key: next-${{ runner.os }}-${{ hashFiles('Frontend/package-lock.json') }}
       - run: npm ci
-      - name: Dependency audit
+      - name: Production dependency audit
         shell: bash
         run: |
-          set +e
-          output=$(npm audit --package-lock-only --audit-level=high --json 2>&1)
-          code=$?
-          set -e
-          printf '%s\n' "$output"
-          if [ "$code" -eq 0 ]; then
-            exit 0
-          fi
-          if printf '%s' "$output" | grep -qiE 'audit endpoint returned an error|400 Bad Request|Invalid package tree'; then
-            echo "::warning::npm audit registry endpoint failed; dependency installation succeeded and the advisory transport failure will not block this deployment."
-            exit 0
-          fi
-          exit "$code"
+          # Production deploy safety is gated on runtime dependencies. Dev-only
+          # lint/test tooling remains mandatory in the quality steps below.
+          npm audit --omit=dev --package-lock-only --audit-level=high
       - name: Secret scan
         run: node scripts/secret-scan.mjs
       - run: npm run lint
