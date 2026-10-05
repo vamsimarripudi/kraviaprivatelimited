@@ -2,9 +2,6 @@ import { test, expect } from "@playwright/test";
 
 const account = "qa@kraviaprivatelimited.com";
 const password = "Strong-Test1!";
-const manualKey = "JBSWY3DPEHPK3PXP";
-const qr = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nNwAAAAASUVORK5CYII=";
-
 function authPayload(overrides = {}) {
   return {
     authenticated: true,
@@ -66,39 +63,22 @@ test("keeps an invalid password at the first factor", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Sign in to KRAVIA Office" })).toBeVisible();
 });
 
-test("first enrollment hides the setup key until explicitly requested and does not persist it in web storage", async ({ page }) => {
+test("first activation directs the user to an approved phone without exposing QR or setup-key enrollment", async ({ page }) => {
   await mockSignIn(page, authPayload({ mfa: { enrolled: false, factor_ids: [] } }));
-  await mockMfa(page, async (body) => {
-    expect(body).toEqual({ action: "enroll" });
-    return {
-      body: {
-        factor_id: "totp",
-        qr_code: qr,
-        manual_key: manualKey,
-        friendly_name: "KRAVIA Authenticator",
-        required_for_all_roles: true,
-      },
-    };
-  });
 
   await page.goto("/office/login");
   await page.getByLabel("Corporate email").fill(account);
   await passwordInput(page).fill(password);
   await page.getByRole("button", { name: "Sign in to KRAVIA Office" }).click();
 
-  await expect(page.getByRole("heading", { name: "Secure your account" })).toBeVisible();
-  await expect(page.getByAltText("KRAVIA Office authenticator QR code")).toBeVisible();
-  await expect(page.getByText(manualKey)).toHaveCount(0);
-  await page.getByRole("button", { name: "Can’t scan the QR? Show setup key" }).click();
-  await expect(page.getByText(manualKey)).toBeVisible();
-  expect(page.url()).not.toContain(manualKey);
+  await expect(page.getByRole("heading", { name: "Activate your phone" })).toBeVisible();
+  await expect(page.getByText(/never shows a QR code or setup key in the browser/i)).toBeVisible();
+  await expect(page.getByRole("img", { name: /QR code/i })).toHaveCount(0);
+  await expect(page.getByLabel("Authenticator code")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Open Authenticator instructions" })).toHaveAttribute("href", "/office/authenticator");
 
-  const persisted = await page.evaluate(() => ({
-    local: JSON.stringify(localStorage),
-    session: JSON.stringify(sessionStorage),
-  }));
-  expect(persisted.local).not.toContain(manualKey);
-  expect(persisted.session).not.toContain(manualKey);
+  await page.getByRole("button", { name: "Return to sign in" }).click();
+  await expect(page.getByRole("heading", { name: "Sign in to KRAVIA Office" })).toBeVisible();
 });
 
 test("existing enrollment accepts six digits only and surfaces a rejected code", async ({ page }) => {
@@ -114,7 +94,7 @@ test("existing enrollment accepts six digits only and surfaces a rejected code",
   await page.getByRole("button", { name: "Sign in to KRAVIA Office" }).click();
 
   await expect(page.getByRole("heading", { name: "Verify your identity" })).toBeVisible();
-  const code = page.getByLabel("KRAVIA Authenticator code");
+  const code = page.getByLabel("Authenticator code");
   await code.fill("12ab345678");
   await expect(code).toHaveValue("123456");
   await page.getByRole("button", { name: "Verify and continue" }).click();
@@ -132,7 +112,7 @@ test("successful MFA continues to the requested Office destination", async ({ pa
   await page.getByLabel("Corporate email").fill(account);
   await passwordInput(page).fill(password);
   await page.getByRole("button", { name: "Sign in to KRAVIA Office" }).click();
-  await page.getByLabel("KRAVIA Authenticator code").fill("123456");
+  await page.getByLabel("Authenticator code").fill("123456");
 
   await page.route((url) => url.pathname === "/office/e2e-complete", (route) =>
     route.fulfill({ status: 200, contentType: "text/html", body: "<main><h1>AAL2 destination reached</h1></main>" }),

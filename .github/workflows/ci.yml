@@ -73,6 +73,7 @@ jobs:
     env:
       APP_ENV: development
       AUTH_MODE: bootstrap
+      OFFICE_BOOTSTRAP_KEY: test-office-bootstrap-key-for-fastapi-suite-0001
       FINANCE_EXECUTION_MODE: sandbox
       DATABASE_URL: sqlite:///./kravia-office-ci.db
     steps:

@@ -125,17 +125,42 @@ export function WorkspaceLoginForm({
     }
   }
 
-  if (phase === "activate" || phase === "verify") {
+  if (phase === "activate") {
+    return (
+      <section className={styles.form} aria-labelledby="phone-activation-title">
+        <div className={styles.icon}><ShieldCheck /></div>
+        <p className={styles.eyebrow}>MANDATORY MFA</p>
+        <h2 id="phone-activation-title">Activate your phone</h2>
+        <p className={styles.intro}>
+          Authenticator is required for every Office role. Sign in in the app with your corporate credentials, then ask a verified Office owner or administrator to approve this phone.
+        </p>
+        <p className={styles.identityNotice}>Phone activation happens only in Authenticator. KRAVIA Office never shows a QR code or setup key in the browser.</p>
+        {status ? <p className={styles.status} role="status">{status}</p> : null}
+        <Link className={styles.primary} href="/office/authenticator">
+          Open Authenticator instructions
+        </Link>
+        <button
+          className={styles.secondary}
+          type="button"
+          onClick={() => {
+            setPhase("password");
+            setStatus(undefined);
+          }}
+        >
+          Return to sign in
+        </button>
+        <p className={styles.note}>After your phone is approved, sign in again and enter the local six-digit code from Authenticator.</p>
+      </section>
+    );
+  }
+
+  if (phase === "verify") {
     return (
       <form className={styles.form} onSubmit={verifyMfa} noValidate>
         <div className={styles.icon}><ShieldCheck /></div>
         <p className={styles.eyebrow}>MANDATORY MFA</p>
-        <h2>{phase === "activate" ? "Activate your phone" : "Verify your identity"}</h2>
-        <p className={styles.intro}>
-          {phase === "activate"
-            ? "Authenticator is required for every Office role. Sign in in the app with your corporate credentials, then ask a verified Office owner or administrator to approve this phone."
-            : "Your password is correct. Complete the second factor to continue."}
-        </p>
+        <h2>Verify your identity</h2>
+        <p className={styles.intro}>Your password is correct. Complete the second factor to continue.</p>
 
         <label className={styles.field} htmlFor="workspace-mfa-code">
           <span>Authenticator code</span>
