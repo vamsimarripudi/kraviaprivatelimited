@@ -107,6 +107,7 @@ jobs:
           cid=$(docker run -d -p 18000:8000 \
             -e APP_ENV=development \
             -e AUTH_MODE=bootstrap \
+            -e OFFICE_BOOTSTRAP_KEY=test-office-bootstrap-key-for-fastapi-suite-0001 \
             -e FINANCE_EXECUTION_MODE=sandbox \
             -e DATABASE_URL=sqlite:////tmp/kravia-office-ci.db \
             kravia-office-api:ci)
