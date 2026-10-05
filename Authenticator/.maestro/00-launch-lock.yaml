@@ -1,8 +1,10 @@
 appId: com.kraviaprivatelimited.authenticator
-name: Authenticator fresh launch requests protected activation
+name: KRAVIA email verification fresh launch
 ---
 - launchApp:
     clearState: true
-- assertVisible: "Sign in to activate"
+- assertVisible: "Welcome to"
+- tapOn: "Get started"
+- assertVisible: "Sign in"
 - assertVisible: "Corporate email"
-- assertVisible: "Office password"
+- assertVisible: "Password"

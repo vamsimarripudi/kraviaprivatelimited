@@ -4,6 +4,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createSupportReference, createTrackingCode, hashTrackingCode, type SupportCaseQueue } from "@/lib/corporate/support";
+import { publicQuotaIdentity } from "./public-quota";
+import { requestPublicFormReceipt, type PublicFormKind } from "./public-form-email";
 
 export const supportIntakeFields = z.object({
   name: z.string().trim().min(2).max(120),
@@ -23,6 +25,10 @@ export type SupportIntakeDetails = {
   rateLimit: number;
 };
 
+function receiptKind(details: SupportIntakeDetails): PublicFormKind {
+  return details.queue === "GENERAL" ? "SUPPORT" : "TRUST_REQUEST";
+}
+
 function isSameOrigin(request: Request) {
   const origin = request.headers.get("origin");
   if (!origin) return true;
@@ -30,22 +36,20 @@ function isSameOrigin(request: Request) {
   catch { return false; }
 }
 
-function requestFingerprint(request: Request) {
-  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
-}
-
 export async function submitSupportIntake(request: Request, input: unknown, details: SupportIntakeDetails) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
   const result = supportIntakeFields.safeParse(input);
   if (!result.success) return NextResponse.json({ error: "Please review the required request details." }, { status: 400 });
   if (result.data.website) return NextResponse.json({ reference: "received" }, { status: 201 });
+  const quotaIdentity = publicQuotaIdentity(request);
+  if (!quotaIdentity) return NextResponse.json({ error: "This request channel is temporarily unavailable. Please try again later." }, { status: 503 });
 
   const supabase = createAdminClient();
   if (!supabase) return NextResponse.json({ error: "This request channel is being configured. Please try again later." }, { status: 503 });
 
   const quota = await supabase.rpc("consume_support_request_quota", {
     p_scope: "CREATE",
-    p_fingerprint_hash: await hashTrackingCode(`create:${details.queue}:${requestFingerprint(request)}`),
+    p_fingerprint_hash: await hashTrackingCode(`create:${details.queue}:${quotaIdentity}`),
     p_limit: details.rateLimit,
   });
   if (quota.error) return NextResponse.json({ error: "This request channel is temporarily unavailable." }, { status: 503 });
@@ -67,5 +71,12 @@ export async function submitSupportIntake(request: Request, input: unknown, deta
     p_source: details.source,
   });
   if (error) return NextResponse.json({ error: "We could not record your request. Please try again later." }, { status: 503 });
+  await requestPublicFormReceipt({
+    eventId: `public-${receiptKind(details).toLowerCase()}:${reference}`,
+    formKind: receiptKind(details),
+    reference,
+    recipientEmail: result.data.email,
+    recipientName: result.data.name,
+  });
   return NextResponse.json({ reference, trackingCode }, { status: 201, headers: { "Cache-Control": "no-store" } });
 }

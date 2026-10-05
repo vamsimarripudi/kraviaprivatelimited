@@ -119,6 +119,65 @@ class OfficeAuthenticatorActivation(Base):
     )
 
 
+class OfficeEmailOtpChallenge(Base):
+    """A hashed, single-use email challenge for a KRAVIA mobile sign-in.
+
+    Neither the six-digit code nor the high-entropy challenge token is retained
+    in cleartext. Delivery states preserve the distinction between a confirmed
+    provider rejection and an external outcome that could not be determined.
+    """
+
+    __tablename__ = "office_email_otp_challenges"
+
+    id = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey("office_auth_users.id", ondelete="CASCADE"), nullable=False)
+    challenge_token_hash = Column(String(64), nullable=False, unique=True)
+    code_hash = Column(String(64), nullable=False)
+    status = Column(String(24), nullable=False, default="PENDING")
+    channel = Column(String(48), nullable=False)
+    attempt_count = Column(Integer, nullable=False, default=0)
+    delivery_attempt_count = Column(Integer, nullable=False, default=0)
+    provider_message_id = Column(String(320), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    resend_available_at = Column(DateTime(timezone=True), nullable=False)
+    delivered_at = Column(DateTime(timezone=True), nullable=True)
+    verified_at = Column(DateTime(timezone=True), nullable=True)
+    cancelled_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_office_email_otp_challenges_user_status", "user_id", "status"),
+        Index("ix_office_email_otp_challenges_status_expires", "status", "expires_at"),
+    )
+
+
+class OfficePublicEmailDelivery(Base):
+    """Idempotent public-form receipt delivery metadata.
+
+    The sender never retains the requester's email address here. A keyed
+    fingerprint is enough to detect an accidental event-id reuse while the
+    public-form database remains the authoritative source for the request.
+    """
+
+    __tablename__ = "office_public_email_deliveries"
+
+    event_id = Column(String(160), primary_key=True)
+    reference = Column(String(64), nullable=False)
+    form_kind = Column(String(32), nullable=False)
+    delivery_kind = Column(String(32), nullable=False, default="ACKNOWLEDGEMENT")
+    content_fingerprint = Column(String(64), nullable=True)
+    recipient_fingerprint = Column(String(64), nullable=False)
+    status = Column(String(24), nullable=False, default="PENDING")
+    provider_message_id = Column(String(320), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    delivered_at = Column(DateTime(timezone=True), nullable=True)
+    failed_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_office_public_email_deliveries_status_created", "status", "created_at"),
+    )
+
+
 class OfficeAuthEvent(Base):
     __tablename__ = "office_auth_events_v2"
 

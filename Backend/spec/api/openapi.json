@@ -885,6 +885,70 @@
         "title": "DocumentRenderRequest",
         "type": "object"
       },
+      "EmailOtpChallengePayload": {
+        "properties": {
+          "channel": {
+            "const": "authenticator_mobile",
+            "title": "Channel",
+            "type": "string"
+          },
+          "email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "channel"
+        ],
+        "title": "EmailOtpChallengePayload",
+        "type": "object"
+      },
+      "EmailOtpChallengeTokenPayload": {
+        "properties": {
+          "challenge_token": {
+            "maxLength": 256,
+            "minLength": 32,
+            "title": "Challenge Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "challenge_token"
+        ],
+        "title": "EmailOtpChallengeTokenPayload",
+        "type": "object"
+      },
+      "EmailOtpVerifyPayload": {
+        "properties": {
+          "challenge_token": {
+            "maxLength": 256,
+            "minLength": 32,
+            "title": "Challenge Token",
+            "type": "string"
+          },
+          "code": {
+            "pattern": "^[0-9]{6}$",
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "challenge_token",
+          "code"
+        ],
+        "title": "EmailOtpVerifyPayload",
+        "type": "object"
+      },
       "EmployeeCreate": {
         "properties": {
           "department": {
@@ -5423,6 +5487,146 @@
           }
         },
         "summary": "Record Device Event",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/email-otp/challenges": {
+      "post": {
+        "description": "Verify credentials then deliver one short-lived mobile email code.\n\nA provider request is persisted before sending so a timeout can be\nrecorded as an unknown external outcome rather than retried blindly.",
+        "operationId": "request_email_otp_challenge_api_v1_auth_email_otp_challenges_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailOtpChallengePayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Email Otp Challenge",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/email-otp/challenges/{challenge_id}/resend": {
+      "post": {
+        "operationId": "resend_email_otp_challenge_api_v1_auth_email_otp_challenges__challenge_id__resend_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "challenge_id",
+            "required": true,
+            "schema": {
+              "title": "Challenge Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailOtpChallengeTokenPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resend Email Otp Challenge",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/email-otp/challenges/{challenge_id}/verify": {
+      "post": {
+        "operationId": "verify_email_otp_challenge_api_v1_auth_email_otp_challenges__challenge_id__verify_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "challenge_id",
+            "required": true,
+            "schema": {
+              "title": "Challenge Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailOtpVerifyPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify Email Otp Challenge",
         "tags": [
           "identity"
         ]
@@ -16296,6 +16500,45 @@
           }
         },
         "summary": "Create Product"
+      }
+    },
+    "/api/v1/public-intake/email-acknowledgements": {
+      "post": {
+        "operationId": "send_public_form_receipt_api_v1_public_intake_email_acknowledgements_post",
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Send Public Form Receipt",
+        "tags": [
+          "public-intake"
+        ]
+      }
+    },
+    "/api/v1/public-intake/email-follow-ups": {
+      "post": {
+        "description": "Deliver one persisted, Office-authored public-request follow-up.\n\nThe browser never calls this route. The Next.js Office BFF signs a\nshort-lived request only after it records the note in the canonical\npublic-intake database. Unknown outcomes stay terminal to prevent\nduplicate customer mail.",
+        "operationId": "send_public_form_follow_up_api_v1_public_intake_email_follow_ups_post",
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Send Public Form Follow Up",
+        "tags": [
+          "public-intake"
+        ]
       }
     },
     "/api/v1/receipts/{receipt_id}/pdf": {

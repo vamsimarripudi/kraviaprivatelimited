@@ -1,6 +1,9 @@
 from hashlib import sha256
+from io import BytesIO
 
+from openpyxl import load_workbook
 import pytest
+from pydantic import ValidationError
 
 from backend.document_engine import DocumentRenderRequest, compose_blocks, render_document
 
@@ -63,3 +66,66 @@ def test_html_escapes_snapshot_values_instead_of_emitting_raw_script():
     html = rendered.content.decode("utf-8")
     assert "<script>alert(1)</script>" not in html
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
+
+
+def test_xlsx_literals_neutralize_formula_like_content_and_snapshot_values():
+    request = DocumentRenderRequest(
+        document_code="KR-XLSX-LITERAL",
+        title="Spreadsheet literal test",
+        output_format="XLSX",
+        content_schema=[
+            {"type": "heading", "text": "=heading"},
+            {"type": "paragraph", "text": "{{ employee.full_name }}"},
+            {"type": "key_value", "items": [{"label": "+label", "value": "-value"}]},
+            {"type": "table", "rows": [["@cell", "=table"]]},
+            {"type": "signature", "name": "=signature"},
+        ],
+        input_snapshot={"employee": {"full_name": "=snapshot"}},
+    )
+    sheet = load_workbook(BytesIO(render_document(request).content), data_only=False).active
+    values = [cell.value for row in sheet.iter_rows() for cell in row if cell.value]
+    assert "'=heading" in values
+    assert "'=snapshot" in values
+    assert "'+label" in values
+    assert "'-value" in values
+    assert "'@cell" in values
+    assert "'=table" in values
+    assert "'=signature" in values
+    assert all(cell.data_type != "f" for row in sheet.iter_rows() for cell in row)
+
+
+def test_document_request_rejects_unbounded_structure_before_rendering():
+    deeply_nested: dict[str, object] = {}
+    cursor = deeply_nested
+    for _ in range(13):
+        child: dict[str, object] = {}
+        cursor["child"] = child
+        cursor = child
+    with pytest.raises(ValidationError, match="nesting-depth"):
+        DocumentRenderRequest(
+            document_code="KR-DEPTH-LIMIT",
+            title="Limit",
+            output_format="HTML",
+            input_snapshot=deeply_nested,
+        )
+
+    with pytest.raises(ValidationError, match="text-size"):
+        DocumentRenderRequest(
+            document_code="KR-TEXT-LIMIT",
+            title="Limit",
+            output_format="HTML",
+            input_snapshot={"note": "x" * 200_001},
+        )
+
+    with pytest.raises(ValidationError, match="cell limit"):
+        DocumentRenderRequest(
+            document_code="KR-CELL-LIMIT",
+            title="Limit",
+            output_format="XLSX",
+            content_schema=[{"type": "table", "rows": [["x"] * 101 for _ in range(100)]}],
+        )
+
+
+def test_document_templates_reject_executable_jinja_expressions():
+    with pytest.raises(ValueError, match="dotted variable references only"):
+        render_document(request_for("HTML", text="{{ employee.full_name * 1000000 }}"))

@@ -8,7 +8,6 @@ const lock = JSON.parse(readFileSync(new URL("../package-lock.json", import.meta
 const brand = JSON.parse(readFileSync(new URL("../assets-source/brand-assets.json", import.meta.url), "utf8"));
 const appSource = readFileSync(new URL("../App.tsx", import.meta.url), "utf8");
 const storageSource = readFileSync(new URL("../src/storage.ts", import.meta.url), "utf8");
-const securitySource = readFileSync(new URL("../src/security.ts", import.meta.url), "utf8");
 
 function hashAsset(name: string) {
   const value = brand[name];
@@ -16,7 +15,7 @@ function hashAsset(name: string) {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-describe("KRAVIA Authenticator native security profile", () => {
+describe("KRAVIA email verification native security profile", () => {
   it("ships only for native iOS and Android with KRAVIA-controlled identifiers", () => {
     expect(app.expo.platforms).toEqual(["ios", "android"]);
     expect(app.expo.android.package).toBe("com.kraviaprivatelimited.authenticator");
@@ -37,22 +36,21 @@ describe("KRAVIA Authenticator native security profile", () => {
   });
 
   it("uses the Expo SDK 57 splash package and camera-safe generated artwork", () => {
-    expect(pkg.dependencies["expo"]).toBe("~57.0.24");
+    expect(pkg.dependencies["expo"]).toBe("~57.0.26");
     expect(pkg.dependencies["expo-splash-screen"]).toBe("~57.0.9");
     expect(lock.packages[""].dependencies["expo-splash-screen"]).toBe("~57.0.9");
     expect(lock.packages["node_modules/expo-splash-screen"].version).toBe("57.0.9");
     const splashPlugin = app.expo.plugins.find((plugin: unknown) => Array.isArray(plugin) && plugin[0] === "expo-splash-screen");
     expect(splashPlugin?.[1]?.image).toBe("./assets/brand/splash.jpg");
     expect(splashPlugin?.[1]?.resizeMode).toBe("contain");
-    expect(splashPlugin?.[1]?.enableFullScreenImage_legacy).toBe(false);
   });
 
-  it("permits only the activation network boundary and disables OTA executable updates", () => {
+  it("permits only the email-verification boundary and disables OTA executable updates", () => {
     expect(app.expo.updates.enabled).toBe(false);
     expect(app.expo.android.blockedPermissions).toContain("android.permission.RECORD_AUDIO");
     expect(app.expo.android.permissions).toContain("android.permission.INTERNET");
     expect(app.expo.android.permissions).not.toContain("android.permission.CAMERA");
-    expect(app.expo.extra.networkModel).toBe("CREDENTIAL_ACTIVATION_OFFLINE_TOTP");
+    expect(app.expo.extra.networkModel).toBe("CREDENTIAL_EMAIL_OTP_SESSION");
     expect(app.expo.extra.otpClipboard).toBe("DISABLED");
   });
 
@@ -61,39 +59,34 @@ describe("KRAVIA Authenticator native security profile", () => {
     expect(lock.packages[""].dependencies).toEqual(pkg.dependencies);
     expect(lock.packages[""].devDependencies).toEqual(pkg.devDependencies);
     expect(pkg.dependencies["expo-clipboard"]).toBeUndefined();
-    expect(pkg.dependencies["expo-file-system"]).toBe("~57.0.7");
-    expect(lock.packages["node_modules/expo-clipboard"]).toBeUndefined();
     expect(pkg.dependencies["expo-camera"]).toBeUndefined();
+    expect(pkg.dependencies["expo-local-authentication"]).toBeUndefined();
+    expect(pkg.dependencies["expo-file-system"]).toBeUndefined();
+    expect(pkg.dependencies["@noble/hashes"]).toBeUndefined();
     expect(lock.packages["node_modules/expo-camera"]).toBeUndefined();
   });
 
-  it("requires strong local biometrics and clears sensitive state on lock", () => {
-    expect(securitySource).toContain("SecurityLevel.BIOMETRIC_STRONG");
-    expect(securitySource).toContain('biometricsSecurityLevel: "strong"');
-    expect(appSource).toContain('state !== "active" && account');
-    expect(appSource).toContain("setAccount(null)");
-    expect(appSource).toContain("clearPendingActivation");
+  it("clears credentials from memory and protects verification surfaces", () => {
+    expect(appSource).toContain('usePreventScreenCapture("email-otp")');
+    expect(appSource).toContain("enableAppSwitcherProtectionAsync");
+    expect(appSource).toContain('state !== "active"');
+    expect(appSource).toContain('setPassword("")');
+    expect(appSource).toContain('setOtp("")');
     expect(appSource).toContain("secureTextEntry");
   });
 
-  it("keeps security settings fail-closed and does not export OTPs to clipboard", () => {
+  it("does not export email codes to the clipboard", () => {
     expect(appSource).not.toContain("Clipboard.setString");
     expect(appSource).not.toContain("Clipboard.getString");
-    expect(appSource).not.toContain("copyCode");
-    expect(appSource).toContain("Clipboard export is disabled");
-    expect(appSource).toContain('title="Biometric Lock"');
-    expect(appSource).toContain('title="Lock on Background"');
-    expect(appSource).toContain('title="Clipboard Export"');
-    expect(appSource).toContain('value={false}');
+    expect(appSource).toContain("KRAVIA will never ask you to share this code");
   });
 
-  it("invalidates a surviving keychain seed after app reinstall", () => {
-    expect(storageSource).toContain('from "expo-file-system/legacy"');
-    expect(storageSource).toContain("INSTALL_SECURE_KEY");
-    expect(storageSource).toContain("INSTALL_FILE_NAME");
-    expect(storageSource).toContain("localMarker === secureMarker");
-    expect(storageSource).toContain("SecureStore.deleteItemAsync(STORE_KEY");
-    expect(storageSource).toContain("PENDING_ACTIVATION_STORE_KEY");
+  it("retires the previous local TOTP vault and stores only valid sessions", () => {
+    expect(storageSource).toContain("LEGACY_ACCOUNT_STORE_KEY");
+    expect(storageSource).toContain("LEGACY_ACTIVATION_STORE_KEY");
+    expect(storageSource).toContain("retireLegacyTotpVault");
+    expect(storageSource).toContain('keychainService: "kravia-authenticator-v1"');
+    expect(storageSource).toContain("SESSION_STORE_KEY");
     expect(storageSource).toContain("WHEN_PASSCODE_SET_THIS_DEVICE_ONLY");
   });
 });

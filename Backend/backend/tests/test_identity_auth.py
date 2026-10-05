@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from starlette.requests import Request
 
 from backend import identity_auth
 from backend.database import Base
@@ -95,6 +96,101 @@ def aal2_founder(client: TestClient):
     body = verified.json()
     assert body["aal"] == "aal2"
     return body
+
+
+def invite_and_register(
+    client: TestClient,
+    owner_access_token: str,
+    *,
+    email: str,
+    display_name: str,
+    roles: list[str],
+    password: str,
+):
+    invited = client.post(
+        "/api/v1/auth/invitations",
+        headers={"Authorization": f"Bearer {owner_access_token}"},
+        json={
+            "email": email,
+            "display_name": display_name,
+            "department": "OPERATIONS",
+            "roles": roles,
+            "reason": "Identity delegation regression test",
+        },
+    )
+    assert invited.status_code == 201, invited.text
+    registered = client.post(
+        "/api/v1/auth/invitation/register",
+        json={
+            "token": invited.json()["registration_token"],
+            "display_name": display_name,
+            "password": password,
+        },
+    )
+    assert registered.status_code == 201, registered.text
+    return invited.json(), registered.json()
+
+
+def aal2_invited_user(
+    client: TestClient,
+    owner_access_token: str,
+    *,
+    email: str,
+    display_name: str,
+    roles: list[str],
+    password: str,
+):
+    _, registered = invite_and_register(
+        client,
+        owner_access_token,
+        email=email,
+        display_name=display_name,
+        roles=roles,
+        password=password,
+    )
+    requested = client.post(
+        "/api/v1/auth/authenticator/activation-requests",
+        json={"email": email, "password": password},
+    )
+    assert requested.status_code == 200, requested.text
+    approved = client.post(
+        f"/api/v1/auth/authenticator/activation-requests/{requested.json()['request_id']}/approve",
+        headers={"Authorization": f"Bearer {owner_access_token}"},
+    )
+    assert approved.status_code == 200, approved.text
+    claimed = client.post(
+        f"/api/v1/auth/authenticator/activation-requests/{requested.json()['request_id']}/claim",
+        json={"claim_token": requested.json()["claim_token"]},
+    )
+    assert claimed.status_code == 200, claimed.text
+    verified = client.post(
+        "/api/v1/auth/mfa/verify",
+        headers={"Authorization": f"Bearer {registered['access_token']}"},
+        json={"code": pyotp.TOTP(claimed.json()["secret"]).now()},
+    )
+    assert verified.status_code == 200, verified.text
+    return verified.json()
+
+
+def test_request_metadata_ignores_untrusted_forwarding_headers():
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "headers": [
+                (b"x-forwarded-for", b"203.0.113.9"),
+                (b"x-real-ip", b"203.0.113.10"),
+                (b"user-agent", b"security-regression-test"),
+            ],
+            "client": ("198.51.100.24", 4242),
+        }
+    )
+
+    ip, user_agent_hash = identity_auth._request_metadata(request)
+
+    assert ip == "198.51.100.24"
+    assert user_agent_hash == identity_auth.hashlib.sha256(b"security-regression-test").hexdigest()
 
 
 def test_founder_bootstrap_closes_after_first_success(tmp_path, monkeypatch):
@@ -294,6 +390,145 @@ def test_private_invitation_is_single_use_and_cannot_assign_owner(tmp_path, monk
             },
         )
         assert reused.status_code == 404
+    finally:
+        engine.dispose()
+
+
+def test_direct_identity_api_enforces_delegated_admin_limits(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        owner = aal2_founder(client)
+        owner_headers = {"Authorization": f"Bearer {owner['access_token']}"}
+        admin = aal2_invited_user(
+            client,
+            owner["access_token"],
+            email="delegated-admin@example.test",
+            display_name="Delegated Admin",
+            roles=["ADMIN"],
+            password="Delegated-Admin1!",
+        )
+        admin_headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+        director_attempt = client.post(
+            "/api/v1/auth/invitations",
+            headers=admin_headers,
+            json={
+                "email": "forbidden-director@example.test",
+                "display_name": "Forbidden Director",
+                "department": "EXECUTIVE",
+                "roles": ["DIRECTOR"],
+                "reason": "Direct API privilege-escalation probe",
+            },
+        )
+        assert director_attempt.status_code == 403
+
+        conflict_attempt = client.post(
+            "/api/v1/auth/invitations",
+            headers=admin_headers,
+            json={
+                "email": "forbidden-conflict@example.test",
+                "display_name": "Forbidden Conflict",
+                "department": "AUDIT",
+                "roles": ["AUDITOR", "FINANCE"],
+                "reason": "Direct API separation-of-duties probe",
+            },
+        )
+        assert conflict_attempt.status_code == 422
+
+        member_attempt = client.post(
+            "/api/v1/auth/invitations",
+            headers=admin_headers,
+            json={
+                "email": "allowed-member@example.test",
+                "display_name": "Allowed Member",
+                "department": "OPERATIONS",
+                "roles": ["MEMBER"],
+                "reason": "Delegated administration control",
+            },
+        )
+        assert member_attempt.status_code == 201, member_attempt.text
+
+        privileged_invite = client.post(
+            "/api/v1/auth/invitations",
+            headers=owner_headers,
+            json={
+                "email": "owner-issued-admin@example.test",
+                "display_name": "Owner Issued Admin",
+                "department": "ADMINISTRATION",
+                "roles": ["ADMIN"],
+                "reason": "Owner-only delegation control",
+            },
+        )
+        assert privileged_invite.status_code == 201, privileged_invite.text
+        blocked_revoke = client.post(
+            f"/api/v1/auth/invitations/{privileged_invite.json()['invitation_id']}/revoke",
+            headers=admin_headers,
+        )
+        assert blocked_revoke.status_code == 403
+
+        member_invite = client.post(
+            "/api/v1/auth/invitations",
+            headers=owner_headers,
+            json={
+                "email": "owner-issued-member@example.test",
+                "display_name": "Owner Issued Member",
+                "department": "OPERATIONS",
+                "roles": ["MEMBER"],
+                "reason": "Delegated revocation control",
+            },
+        )
+        assert member_invite.status_code == 201, member_invite.text
+        allowed_revoke = client.post(
+            f"/api/v1/auth/invitations/{member_invite.json()['invitation_id']}/revoke",
+            headers=admin_headers,
+        )
+        assert allowed_revoke.status_code == 200, allowed_revoke.text
+
+        _, peer_admin = invite_and_register(
+            client,
+            owner["access_token"],
+            email="peer-admin@example.test",
+            display_name="Peer Admin",
+            roles=["ADMIN"],
+            password="Peer-Admin1!",
+        )
+        blocked_reset = client.post(
+            f"/api/v1/auth/users/{peer_admin['user_id']}/mfa-reset",
+            headers=admin_headers,
+        )
+        assert blocked_reset.status_code == 403
+
+        peer_activation = client.post(
+            "/api/v1/auth/authenticator/activation-requests",
+            json={"email": "peer-admin@example.test", "password": "Peer-Admin1!"},
+        )
+        assert peer_activation.status_code == 200, peer_activation.text
+        peer_activation_id = peer_activation.json()["request_id"]
+        listed_activations = client.get(
+            "/api/v1/auth/authenticator/activation-requests",
+            headers=admin_headers,
+        )
+        assert listed_activations.status_code == 200, listed_activations.text
+        assert peer_activation_id not in {item["id"] for item in listed_activations.json()["activation_requests"]}
+        blocked_approval = client.post(
+            f"/api/v1/auth/authenticator/activation-requests/{peer_activation_id}/approve",
+            headers=admin_headers,
+        )
+        assert blocked_approval.status_code == 403
+
+        _, member = invite_and_register(
+            client,
+            owner["access_token"],
+            email="managed-member@example.test",
+            display_name="Managed Member",
+            roles=["MEMBER"],
+            password="Managed-Member1!",
+        )
+        allowed_reset = client.post(
+            f"/api/v1/auth/users/{member['user_id']}/mfa-reset",
+            headers=admin_headers,
+        )
+        assert allowed_reset.status_code == 200, allowed_reset.text
     finally:
         engine.dispose()
 

@@ -1,4 +1,4 @@
-import os, json, hashlib, shutil
+import os, json, hashlib, shutil, hmac
 from pathlib import Path
 import jwt
 from jwt import PyJWKClient
@@ -18,9 +18,9 @@ from .documents import invoice_pdf, receipt_pdf, ctc_pdf
 from .identity_auth import authenticate_office_access, validate_first_party_auth_configuration
 from .tax import gst_master_payload, gstin_structure_status, CANONICAL_PRODUCT_SEEDS, PRODUCT_TAX_DEFAULTS, PRODUCT_TAX_SOURCE_REF
 
-APP_ENV = os.getenv("APP_ENV", "development")
-AUTH_MODE = os.getenv("AUTH_MODE", "bootstrap" if APP_ENV != "production" else "first_party").lower()
-BOOTSTRAP_KEY = os.getenv("OFFICE_BOOTSTRAP_KEY", "")
+APP_ENV = os.getenv("APP_ENV", "production").strip().lower()
+AUTH_MODE = os.getenv("AUTH_MODE", "first_party").strip().lower()
+BOOTSTRAP_KEY = os.getenv("OFFICE_BOOTSTRAP_KEY", "").strip()
 OIDC_ISSUER = os.getenv("OIDC_ISSUER", "")
 OIDC_AUDIENCE = os.getenv("OIDC_AUDIENCE", "")
 OIDC_JWKS_URL = os.getenv("OIDC_JWKS_URL", "")
@@ -36,12 +36,18 @@ DOCUMENT_STORAGE_DIR = Path(os.getenv("DOCUMENT_STORAGE_DIR", "./runtime/private
 DOCUMENT_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(25*1024*1024)))
 
-if APP_ENV == "production" and AUTH_MODE not in {"first_party", "oidc"}:
-    raise RuntimeError("Production startup blocked: AUTH_MODE must be first_party")
-if APP_ENV == "production" and AUTH_MODE == "first_party":
+if AUTH_MODE not in {"bootstrap", "first_party", "oidc"}:
+    raise RuntimeError("Startup blocked: AUTH_MODE must be bootstrap, first_party or oidc")
+if AUTH_MODE == "bootstrap":
+    if APP_ENV != "development":
+        raise RuntimeError("Bootstrap authentication is permitted only when APP_ENV=development")
+    if len(BOOTSTRAP_KEY) < 32:
+        raise RuntimeError("Development bootstrap authentication requires OFFICE_BOOTSTRAP_KEY of at least 32 characters")
+
+if APP_ENV in {"staging", "production"} and AUTH_MODE == "first_party":
     validate_first_party_auth_configuration()
-if APP_ENV == "production" and AUTH_MODE == "oidc" and not (OIDC_ISSUER and OIDC_AUDIENCE and OIDC_JWKS_URL):
-    raise RuntimeError("Production startup blocked: OIDC issuer, audience and JWKS URL are required")
+if APP_ENV in {"staging", "production"} and AUTH_MODE == "oidc" and not (OIDC_ISSUER and OIDC_AUDIENCE and OIDC_JWKS_URL):
+    raise RuntimeError("Deployment startup blocked: OIDC issuer, audience and JWKS URL are required")
 
 if APP_ENV == "production" and not (KRAVIA_LEGAL_NAME and KRAVIA_CIN and KRAVIA_REGISTERED_OFFICE):
     raise RuntimeError("Production startup blocked: controlled company master configuration is required")
@@ -146,7 +152,7 @@ def actor_context(
         if not roles: raise HTTPException(status_code=403, detail="No KRAVIA Office role assigned")
         actor=claims.get(OIDC_ACTOR_CLAIM) or claims.get("sub")
         return {"actor":str(actor),"role":sorted(roles)[0],"roles":roles,"subject":claims.get("sub"),"auth_mode":"oidc"}
-    if BOOTSTRAP_KEY and x_kravia_office_key != BOOTSTRAP_KEY:
+    if not hmac.compare_digest(x_kravia_office_key or "", BOOTSTRAP_KEY):
         raise HTTPException(status_code=401, detail="Invalid Office credential")
     role=(x_office_role or "OWNER").upper()
     if role not in KNOWN_ROLES: raise HTTPException(status_code=403, detail="Unknown Office role")
@@ -704,9 +710,10 @@ def create_asset(payload: AssetCreate, db: Session=Depends(get_db), ctx=Depends(
     return {"id":row.id,"asset_no":row.asset_no,"name":row.name,"category":row.category,"serial_no":row.serial_no,"assigned_employee_id":row.assigned_employee_id,"location":row.location,"status":row.status}
 
 ALLOWED_UPLOAD_TYPES={"application/pdf","application/vnd.openxmlformats-officedocument.wordprocessingml.document","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","text/plain","text/csv","image/png","image/jpeg","application/zip"}
+DOCUMENT_READ_ROLES=("OWNER","DIRECTOR","ADMIN","FINANCE","CA","CS","LEGAL","HR","OPERATIONS","PRODUCT_ADMIN","AUDITOR")
 
 @app.get("/api/v1/documents")
-def documents(db: Session=Depends(get_db), ctx=Depends(actor_context), limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000)):
+def documents(db: Session=Depends(get_db), ctx=Depends(require_roles(*DOCUMENT_READ_ROLES)), limit: int=Query(default=100,ge=1,le=500), offset: int=Query(default=0,ge=0,le=100000)):
     rows=db.execute(select(Document).order_by(Document.created_at.desc()).limit(limit).offset(offset)).scalars()
     result=[]
     for x in rows:
@@ -760,7 +767,7 @@ def lock_document(document_id: str, db: Session=Depends(get_db), ctx=Depends(req
     return {"id":doc.id,"status":doc.status,"locked":doc.locked,"version":doc.current_version,"sha256":ver.sha256}
 
 @app.get("/api/v1/documents/{document_id}/download")
-def download_document(document_id: str, db: Session=Depends(get_db), ctx=Depends(actor_context)):
+def download_document(document_id: str, db: Session=Depends(get_db), ctx=Depends(require_roles(*DOCUMENT_READ_ROLES))):
     doc=db.get(Document,document_id)
     if not doc: raise HTTPException(404,"Document not found")
     ver=db.execute(select(DocumentVersion).where(DocumentVersion.document_id==doc.id,DocumentVersion.version_no==doc.current_version)).scalar_one()

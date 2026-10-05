@@ -43,7 +43,7 @@ const requirements: Record<string, readonly string[]> = {
   "office:resilience": ["resilience.read", "resilience.plan.manage", "resilience.plan.review", "resilience.test.manage", "resilience.test.review", "resilience.incident.report", "resilience.incident.read", "resilience.incident.manage", "insurance.read", "insurance.manage", "insurance.review"],
   "office:quality": ["quality.read", "quality.process.manage", "quality.process.publish", "quality.nonconformance.report", "quality.nonconformance.manage", "quality.capa.manage", "quality.capa.review"],
   "office:trust": ["vendor.assurance.read", "vendor.assurance.manage", "vendor.assurance.review", "customer.trust.read", "customer.trust.manage", "customer.trust.review"],
-  "office:security": ["security.overview.read", "security.change.review"],
+  "office:security": ["security.overview.read", "security.change.review", "security.public_intake.read", "security.public_intake.manage"],
   "office:ai": ["ai.tool.read", "ai.tool.manage", "ai.tool.review", "ai.use.request", "ai.use.read", "ai.use.review", "ai.usage.audit"],
   "office:integrations": ["integration.embed.view", "integration.embed.manage"],
   "office:domains": ["infra.domain.read", "infra.domain.manage", "infra.dns.propose", "infra.dns.review", "infra.dns.verify"],

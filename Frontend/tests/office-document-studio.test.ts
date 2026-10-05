@@ -44,14 +44,18 @@ describe("KRAVIA Document Studio", () => {
     expect(server).toContain("Stored document integrity check failed");
   });
 
-  it("uses an open-source sandboxed Python renderer instead of Word as the source of truth", () => {
-    expect(backend).toContain("SandboxedEnvironment");
-    expect(backend).toContain("StrictUndefined");
+  it("uses a bounded declarative Python renderer instead of Word or executable templates", () => {
+    expect(backend).toContain("_TEMPLATE_VARIABLE");
+    expect(backend).toContain("_MAX_STRUCTURE_DEPTH");
+    expect(backend).toContain("dotted variable references only");
+    expect(backend).not.toContain("SandboxedEnvironment");
+    expect(backend).not.toContain("jinja2");
     expect(backend).toContain('"PDF": _pdf');
     expect(backend).toContain('"DOCX": _docx');
     expect(backend).toContain('"HTML": _html');
     expect(backend).toContain('"XLSX": _xlsx');
     expect(backend).toContain("escape(str(block.get");
+    expect(backend).toContain("_xlsx_literal");
   });
 
   it("records signed PDF bytes and delivery evidence without fabricating provider execution", () => {

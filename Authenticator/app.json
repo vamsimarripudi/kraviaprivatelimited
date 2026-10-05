@@ -22,8 +22,7 @@
         "android.permission.RECORD_AUDIO"
       ],
       "permissions": [
-        "android.permission.INTERNET",
-        "android.permission.USE_BIOMETRIC"
+        "android.permission.INTERNET"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/brand/icon.png",
@@ -44,20 +43,12 @@
       [
         "expo-secure-store",
         {
-          "configureAndroidBackup": true,
-          "faceIDPermission": "Use Face ID to unlock Authenticator."
-        }
-      ],
-      [
-        "expo-local-authentication",
-        {
-          "faceIDPermission": "Use Face ID to unlock Authenticator."
+          "configureAndroidBackup": true
         }
       ]
     ],
     "extra": {
-      "mfaIssuer": "KRAVIA Office",
-      "networkModel": "CREDENTIAL_ACTIVATION_OFFLINE_TOTP",
+      "networkModel": "CREDENTIAL_EMAIL_OTP_SESSION",
       "otpClipboard": "DISABLED",
       "brandAssets": "LOCKED_GENERATED_ARTWORK"
     },

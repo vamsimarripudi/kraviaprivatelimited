@@ -20,6 +20,7 @@ from .finance_ownership import build_finance_ownership_router
 from .file_security import build_file_security_router
 from .drive_integration import build_google_drive_router
 from .identity_auth import build_identity_router
+from .public_intake_email import build_public_intake_email_router
 from .gst_integration import build_gst_integration_router
 from .gst_compliance import build_gst_compliance_router
 from .gst_gsp_fynamics import build_fynamics_gsp_router
@@ -50,6 +51,7 @@ app.router.lifespan_context = canonical_lifespan
 app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
 
 app.include_router(build_identity_router())
+app.include_router(build_public_intake_email_router(get_db))
 app.include_router(build_gst_integration_router(get_db, office_main.actor_context, require_roles))
 app.include_router(build_gst_compliance_router(get_db, office_main.actor_context, require_roles))
 app.include_router(build_fynamics_gsp_router(get_db, office_main.actor_context, require_roles))

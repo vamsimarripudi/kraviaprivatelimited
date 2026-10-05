@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { CircleAlert, Headphones, LoaderCircle, Plus, RotateCcw, Search, ShieldCheck, X } from "lucide-react";
+import { OfficePublicIntakeInbox } from "@/components/office-public-intake-inbox";
 import styles from "./office-support-operations.module.css";
 
 type Person = { user_id: string; display_name?: string | null; job_title?: string | null };
@@ -81,6 +82,7 @@ export function OfficeSupportOperations() {
   const urgent = data.cases.filter((item) => item.priority === "URGENT" && item.status !== "CLOSED").length;
   return <section className={styles.shell}>
     <header className={styles.hero}><div><p>SUPPORT OPERATIONS</p><h2>Customer cases with controlled remedies.</h2><span>{data.disclaimer}</span></div><div className={styles.metrics}><article><b>{openCount}</b><span>open cases</span></article><article><b>{urgent}</b><span>urgent</span></article>{data.can_manage ? <button type="button" onClick={openCreate}><Plus /> New case</button> : null}</div></header>
+    <OfficePublicIntakeInbox queue="GENERAL" />
     <div className={styles.toolbar}><label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search case, status or priority" /></label><span>{data.scope.type || "OWNER"}{data.scope.key ? ` · ${data.scope.key}` : ""} scope</span></div>
     {notice ? <div className={styles.notice}><ShieldCheck />{notice}<button type="button" onClick={() => setNotice(undefined)} aria-label="Dismiss"><X /></button></div> : null}
     {error ? <div className={styles.error}><CircleAlert />{error}</div> : null}

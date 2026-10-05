@@ -36,10 +36,10 @@ The canonical application adds:
 From the repository root:
 
 ```bash
-cd office
+cd Backend
 python -m pip install -r backend/requirements.txt
 alembic upgrade head
-python -m uvicorn backend.app:app --reload --port 8000
+python -m uvicorn backend.app:app --env-file backend/.env --reload --port 8000
 ```
 
 Development API docs: `http://127.0.0.1:8000/api/docs`.
@@ -47,7 +47,7 @@ Development API docs: `http://127.0.0.1:8000/api/docs`.
 ## Verify
 
 ```bash
-cd office
+cd Backend
 python -m pytest backend/tests -q
 python scripts/export_openapi.py --check
 python scripts/quality_gate.py

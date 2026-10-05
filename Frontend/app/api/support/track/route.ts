@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { publicQuotaIdentity } from "@/lib/corporate/public-quota";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hashTrackingCode } from "@/lib/corporate/support";
 
@@ -8,10 +9,11 @@ export async function POST(request: Request) {
   const raw = await request.json().catch(() => null);
   const input = tracker.safeParse({ reference: typeof raw?.reference === "string" ? raw.reference.trim().toUpperCase() : raw?.reference, trackingCode: typeof raw?.trackingCode === "string" ? raw.trackingCode.trim().toUpperCase() : raw?.trackingCode });
   if (!input.success) return NextResponse.json({ error: "Enter the case reference and 12-character tracking code." }, { status: 400 });
+  const quotaIdentity = publicQuotaIdentity(request);
+  if (!quotaIdentity) return NextResponse.json({ error: "Case tracking is being configured. Please try again later." }, { status: 503 });
   const supabase = createAdminClient();
   if (!supabase) return NextResponse.json({ error: "Case tracking is being configured. Please try again later." }, { status: 503 });
-  const fingerprint = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
-  const quota = await supabase.rpc("consume_support_request_quota", { p_scope: "TRACK", p_fingerprint_hash: await hashTrackingCode(`track:${fingerprint}`), p_limit: 12 });
+  const quota = await supabase.rpc("consume_support_request_quota", { p_scope: "TRACK", p_fingerprint_hash: await hashTrackingCode(`track:${quotaIdentity}`), p_limit: 12 });
   if (quota.error) return NextResponse.json({ error: "Case tracking is temporarily unavailable." }, { status: 503 });
   if (!quota.data) return NextResponse.json({ error: "Too many tracking attempts. Please wait before trying again." }, { status: 429 });
   const trackingSecretHash = await hashTrackingCode(input.data.trackingCode);

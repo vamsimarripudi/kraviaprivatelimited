@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { CircleAlert, DatabaseZap, FileClock, LoaderCircle, LockKeyhole, Plus, Search, ShieldCheck, X } from "lucide-react";
+import { OfficePublicIntakeInbox } from "@/components/office-public-intake-inbox";
 import styles from "./office-privacy-governance.module.css";
 
 type Owner = { user_id: string; display_name?: string | null; job_title?: string | null };
@@ -62,6 +63,7 @@ export function OfficePrivacyGovernance() {
 
   return <section className={styles.shell}>
     <header className={styles.hero}><div><p>PRIVACY GOVERNANCE</p><h2>Cases, retention evidence and legal holds.</h2><span>{data.disclaimer}</span></div><div className={styles.metrics}><article><b>{active}</b><span>active cases</span></article><article><b>{due}</b><span>past recorded deadline</span></article>{data.can_manage ? <button type="button" onClick={openCreate}><Plus /> New case</button> : null}</div></header>
+    {view === "cases" ? <OfficePublicIntakeInbox queue="TRUST_DPDPA" /> : null}
     <div className={styles.tabs}>{(["cases","retention","holds"] as const).map((key) => <button type="button" key={key} data-active={view === key} disabled={key !== "cases" && !data.can_read_retention} onClick={() => setView(key)}>{label(key)}</button>)}</div>
     {view === "cases" ? <div className={styles.toolbar}><label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search privacy cases" /></label><span>{data.scope.type || "OWNER"}{data.scope.key ? ` · ${data.scope.key}` : ""} scope</span></div> : null}
     {notice ? <div className={styles.notice}><ShieldCheck />{notice}<button type="button" onClick={() => setNotice(undefined)} aria-label="Dismiss"><X /></button></div> : null}

@@ -12,17 +12,16 @@ from dataclasses import dataclass
 from hashlib import sha256
 from html import escape
 from io import BytesIO
+import re
 from typing import Any, Callable, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from jinja2 import StrictUndefined
-from jinja2.sandbox import SandboxedEnvironment
 from openpyxl import Workbook
 from docx import Document as DocxDocument
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Inches, Pt
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import A4, LETTER
@@ -40,6 +39,14 @@ _MIME = {
     "XLSX": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
 _EXT = {"PDF": "pdf", "DOCX": "docx", "HTML": "html", "XLSX": "xlsx"}
+_MAX_STRUCTURE_DEPTH = 12
+_MAX_STRUCTURE_NODES = 12_000
+_MAX_STRUCTURE_TEXT_BYTES = 200_000
+_MAX_TABLE_ROWS = 1_000
+_MAX_TABLE_CELLS = 10_000
+_MAX_RENDERED_BYTES = 10 * 1024 * 1024
+_TEMPLATE_VARIABLE = re.compile(r"{{\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*}}")
+_FORMULA_PREFIXES = {"=", "+", "-", "@"}
 
 
 class DocumentRenderRequest(BaseModel):
@@ -61,6 +68,26 @@ class DocumentRenderRequest(BaseModel):
                 raise ValueError(f"Unsupported document block at index {index}")
         return value
 
+    @model_validator(mode="after")
+    def validate_render_complexity(self):
+        _validate_structure_complexity(
+            self.design_schema,
+            self.content_schema,
+            self.input_snapshot,
+            self.clause_snapshot,
+            self.clause_rules,
+        )
+        for index, block in enumerate(self.content_schema):
+            if str(block.get("type", "")).strip().lower() != "table":
+                continue
+            rows = block.get("rows", [])
+            if not isinstance(rows, list) or len(rows) > _MAX_TABLE_ROWS:
+                raise ValueError(f"Document table at index {index} exceeds the row limit")
+            cell_count = sum(len(row) for row in rows if isinstance(row, list))
+            if cell_count > _MAX_TABLE_CELLS:
+                raise ValueError(f"Document table at index {index} exceeds the cell limit")
+        return self
+
 
 @dataclass(frozen=True)
 class RenderedDocument:
@@ -70,9 +97,28 @@ class RenderedDocument:
     sha256: str
 
 
-_ENV = SandboxedEnvironment(undefined=StrictUndefined, autoescape=False)
-_ENV.filters.clear()
-_ENV.globals.clear()
+def _validate_structure_complexity(*values: Any) -> None:
+    """Bound untrusted structured input before copying, recursion, or rendering."""
+    nodes = 0
+    text_bytes = 0
+    stack = [(value, 1) for value in values]
+    while stack:
+        value, depth = stack.pop()
+        if depth > _MAX_STRUCTURE_DEPTH:
+            raise ValueError("Document input exceeds the nesting-depth limit")
+        nodes += 1
+        if nodes > _MAX_STRUCTURE_NODES:
+            raise ValueError("Document input exceeds the structured-node limit")
+        if isinstance(value, str):
+            text_bytes += len(value.encode("utf-8"))
+        elif isinstance(value, dict):
+            for key, nested in value.items():
+                text_bytes += len(str(key).encode("utf-8"))
+                stack.append((nested, depth + 1))
+        elif isinstance(value, list):
+            stack.extend((nested, depth + 1) for nested in value)
+        if text_bytes > _MAX_STRUCTURE_TEXT_BYTES:
+            raise ValueError("Document input exceeds the text-size limit")
 
 
 def _lookup(data: dict[str, Any], path: str) -> Any:
@@ -119,12 +165,21 @@ def _render_text(value: Any, snapshot: dict[str, Any]) -> str:
     if value is None:
         return ""
     text = str(value)
-    if "{{" not in text and "{%" not in text:
+    if "{{" not in text and "{%" not in text and "{#" not in text:
         return text
-    try:
-        return _ENV.from_string(text).render(snapshot)
-    except Exception as exc:
-        raise ValueError(f"Document variable resolution failed: {exc}") from exc
+    if "{%" in text or "{#" in text:
+        raise ValueError("Document templates support dotted variable references only")
+
+    def replace(match: re.Match[str]) -> str:
+        resolved = _lookup(snapshot, match.group(1))
+        if resolved is None:
+            raise ValueError(f"Document variable resolution failed: {match.group(1)} is unavailable")
+        return str(resolved)
+
+    rendered = _TEMPLATE_VARIABLE.sub(replace, text)
+    if "{{" in rendered or "}}" in rendered:
+        raise ValueError("Document templates support dotted variable references only")
+    return rendered
 
 
 def _render_nested(value: Any, snapshot: dict[str, Any]) -> Any:
@@ -301,33 +356,42 @@ def _xlsx(request: DocumentRenderRequest, blocks: list[dict[str, Any]]) -> bytes
     for block in blocks:
         kind = str(block.get("type", "")).lower()
         if kind == "heading":
-            cell = sheet.cell(row_no, 1, str(block.get("text", ""))); font = copy(cell.font); font.bold = True; font.sz = 14 if int(block.get("level", 1)) == 1 else 12; cell.font = font; row_no += 2
-        elif kind == "paragraph": sheet.cell(row_no, 1, str(block.get("text", ""))); row_no += 2
+            cell = sheet.cell(row_no, 1, _xlsx_literal(block.get("text", ""))); font = copy(cell.font); font.bold = True; font.sz = 14 if int(block.get("level", 1)) == 1 else 12; cell.font = font; row_no += 2
+        elif kind == "paragraph": sheet.cell(row_no, 1, _xlsx_literal(block.get("text", ""))); row_no += 2
         elif kind == "key_value":
             for item in block.get("items", []):
                 if isinstance(item, dict):
-                    cell = sheet.cell(row_no, 1, str(item.get("label", ""))); font = copy(cell.font); font.bold = True; cell.font = font; sheet.cell(row_no, 2, str(item.get("value", ""))); row_no += 1
+                    cell = sheet.cell(row_no, 1, _xlsx_literal(item.get("label", ""))); font = copy(cell.font); font.bold = True; cell.font = font; sheet.cell(row_no, 2, _xlsx_literal(item.get("value", ""))); row_no += 1
             row_no += 1
         elif kind == "table":
             for row in block.get("rows", []):
                 if isinstance(row, list):
-                    for col, cell in enumerate(row, 1): sheet.cell(row_no, col, str(cell))
+                    for col, cell in enumerate(row, 1): sheet.cell(row_no, col, _xlsx_literal(cell))
                     row_no += 1
             row_no += 1
         elif kind == "bullet_list":
-            for item in block.get("items", []): sheet.cell(row_no, 1, f"• {item}"); row_no += 1
+            for item in block.get("items", []): sheet.cell(row_no, 1, _xlsx_literal(f"• {item}")); row_no += 1
             row_no += 1
         elif kind == "spacer": row_no += 1
         elif kind == "page_break": row_no += 2
-        elif kind == "signature": sheet.cell(row_no, 1, str(block.get("name") or block.get("label") or "Authorised Signatory")); row_no += 2
+        elif kind == "signature": sheet.cell(row_no, 1, _xlsx_literal(block.get("name") or block.get("label") or "Authorised Signatory")); row_no += 2
     sheet.column_dimensions["A"].width = 34; sheet.column_dimensions["B"].width = 70
     buffer = BytesIO(); workbook.save(buffer); return buffer.getvalue()
+
+
+def _xlsx_literal(value: Any) -> str:
+    text = str(value)
+    if text.lstrip(" \t\r\n\x00")[:1] in _FORMULA_PREFIXES:
+        return "'" + text
+    return text
 
 
 def render_document(request: DocumentRenderRequest) -> RenderedDocument:
     blocks = compose_blocks(request)
     renderers: dict[str, Callable[[DocumentRenderRequest, list[dict[str, Any]]], bytes]] = {"PDF": _pdf, "DOCX": _docx, "HTML": _html, "XLSX": _xlsx}
     content = renderers[request.output_format](request, blocks)
+    if len(content) > _MAX_RENDERED_BYTES:
+        raise ValueError("Rendered document exceeds the output-size limit")
     digest = sha256(content).hexdigest()
     return RenderedDocument(content=content, mime_type=_MIME[request.output_format], extension=_EXT[request.output_format], sha256=digest)
 

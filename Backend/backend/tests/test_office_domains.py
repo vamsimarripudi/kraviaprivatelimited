@@ -2,7 +2,7 @@ import os,tempfile
 fd,path=tempfile.mkstemp(suffix='.db');os.close(fd);os.unlink(path)
 os.environ['DATABASE_URL']=f'sqlite:///{path}';os.environ['APP_ENV']='development';os.environ['DOCUMENT_STORAGE_DIR']=tempfile.mkdtemp(prefix='kravia-vault-')
 from fastapi.testclient import TestClient
-from backend.main import app
+from backend.app import app
 H={'X-Office-Actor':'Office Test','X-Office-Role':'OWNER'}
 
 def test_vendor_contract_people_asset_document_vault():
@@ -23,3 +23,6 @@ def test_vendor_contract_people_asset_document_vault():
         assert replacement.status_code==409
         downloaded=c.get(f"/api/v1/documents/{doc['id']}/download",headers=H)
         assert downloaded.status_code==200 and downloaded.content==content
+        member_headers={'X-Office-Actor':'Member Test','X-Office-Role':'MEMBER'}
+        assert c.get('/api/v1/documents',headers=member_headers).status_code==403
+        assert c.get(f"/api/v1/documents/{doc['id']}/download",headers=member_headers).status_code==403

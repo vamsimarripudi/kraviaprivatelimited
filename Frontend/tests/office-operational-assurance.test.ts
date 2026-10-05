@@ -16,6 +16,9 @@ const privacyRoute = readFileSync(new URL("../app/api/office-privacy/route.ts", 
 const dataRoute = readFileSync(new URL("../app/api/office-data-movement/route.ts", import.meta.url), "utf8");
 const securityRoute = readFileSync(new URL("../app/api/office-security-overview/route.ts", import.meta.url), "utf8");
 const readinessRoute = readFileSync(new URL("../app/api/office-readiness/route.ts", import.meta.url), "utf8");
+const publicIntakeRoute = readFileSync(new URL("../app/api/office-public-intake/route.ts", import.meta.url), "utf8");
+const publicIntake = readFileSync(new URL("../lib/office/public-intake-server.ts", import.meta.url), "utf8");
+const publicIntakeMigration = readFileSync(new URL("../../Database/supabase/migrations/202610050001_public_intake_office_followup.sql", import.meta.url), "utf8");
 
 describe("Office operational assurance", () => {
   it("separates support case handling from refund execution", () => {
@@ -44,10 +47,19 @@ describe("Office operational assurance", () => {
   });
 
   it("keeps security overview read-only and excludes employee spyware", () => {
-    expect(capabilities).toContain('"office:security": ["security.overview.read", "security.change.review"]');
+    expect(capabilities).toContain('"office:security": ["security.overview.read", "security.change.review", "security.public_intake.read", "security.public_intake.manage"]');
     expect(security).toContain("does not capture keystrokes, screenshots or continuous employee surveillance");
     expect(securityRoute).toContain("export async function GET");
     expect(securityRoute).not.toContain("export async function POST");
+  });
+
+  it("keeps public intake canonical, queue-scoped and email-audited in Office", () => {
+    expect(publicIntakeMigration).toContain("contact_enquiry_updates");
+    expect(publicIntakeMigration).toContain("security.public_intake.manage");
+    expect(publicIntake).toContain("Public requests remain in their original intake records");
+    expect(publicIntake).toContain("requestPublicFormFollowUp");
+    expect(publicIntake).toContain("email_delivery_status: \"PENDING\"");
+    expect(publicIntakeRoute).toContain("officeMutationIsSameOrigin");
   });
 
   it("reports readiness as evidence gates rather than a compliance score", () => {

@@ -60,12 +60,41 @@ From the repository root:
 cd Backend
 python -m pip install -r backend/requirements.txt
 alembic upgrade head
-python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000
+python -m uvicorn backend.app:app --env-file backend/.env --host 127.0.0.1 --port 8000
 ```
 
 The backend root exposes only operational status. Non-production API documentation is available at `http://127.0.0.1:8000/api/docs`; the browser workspaces run from the root Next.js application.
 
 Use a local ignored environment file or exported variables based on `backend/.env.example`. Bootstrap authentication is development-only.
+
+### KRAVIA email verification
+
+The React Email components in `../EmailTemplates/` are the canonical
+transactional layout source. Their checked-in generated manifest is bundled
+with the API, then validated and populated with escaped runtime values by the
+server before the Brevo adapter sends it. This preserves deterministic,
+email-client-compatible design without adding a Node runtime or a second
+sender to production. Run `npm ci && npm run build` in `EmailTemplates/` after
+an approved layout change and commit the regenerated manifest with it.
+
+The Authenticator's credential-first email verification message is rendered by
+the API and sent only through the server-side Brevo adapter. Use the protected
+`BREVO_API_KEY` with the verified sender `hello@kraviaprivatelimited.com`; never
+place it in Expo, browser configuration, source control, or a screenshot. For
+local startup, pass the ignored `backend/.env` file with `--env-file` as shown
+above. The hosted service must receive the same key as a protected environment
+variable. A missing or rejected configuration fails closed; it never claims a
+code was sent.
+
+The public Contact, Support, and Privacy/Trust forms use the same server-side
+Brevo adapter for acknowledgement emails and reviewed Office follow-ups. The
+Office BFF signs every message only after its source request update is stored;
+the delivery ledger keeps a recipient fingerprint and content fingerprint,
+not the raw recipient address or message. Set a separate, 32-character-or-
+longer `KRAVIA_PUBLIC_INTAKE_WEBHOOK_SECRET` in both the Office API and the
+trusted frontend server environment. It authenticates the server-to-server
+handoff; it must not reuse an authentication secret or be exposed to browser
+code. Public receipts contain only a reference, not the submitted message.
 
 ## Verification
 
@@ -76,6 +105,7 @@ cd Backend
 python -m pytest backend/tests -q
 python scripts/export_openapi.py --check
 python scripts/quality_gate.py
+cd ../EmailTemplates && npm ci && npm run typecheck && npm run check
 ```
 
 Repository CI additionally runs:

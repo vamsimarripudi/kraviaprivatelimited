@@ -1,11 +1,36 @@
 #!/usr/bin/env python3
-import json, subprocess, sys
+import json, os, subprocess, sys
 from datetime import datetime, timezone
 from pathlib import Path
+from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = ROOT.parent
 checks = []
+
+
+def _quality_child_environment() -> dict[str, str]:
+    """Keep static-contract and test checks hermetic and provider-free.
+
+    Quality checks must not depend on an operator's production database,
+    Brevo key, or authentication mode.  The API contract can be constructed
+    with the explicit development-only bootstrap configuration below, while
+    the test suite supplies its own synthetic records and credentials.
+    """
+    environment = os.environ.copy()
+    for key in list(environment):
+        if key in {"DATABASE_URL", "BREVO_API_KEY", "BREVO_SENDER_EMAIL", "BREVO_SENDER_NAME", "BREVO_API_TIMEOUT_SECONDS", "DOCUMENT_STORAGE_DIR", "KRAVIA_PUBLIC_INTAKE_WEBHOOK_SECRET"}:
+            environment.pop(key, None)
+        elif key.startswith("OFFICE_AUTH_") or key.startswith("OFFICE_EMAIL_OTP_"):
+            environment.pop(key, None)
+    environment.update(
+        {
+            "APP_ENV": "development",
+            "AUTH_MODE": "bootstrap",
+            "OFFICE_BOOTSTRAP_KEY": "test-office-bootstrap-key-for-fastapi-suite-0001",
+        }
+    )
+    return environment
 
 
 def check(name, ok, detail):
@@ -17,7 +42,7 @@ required = [
     "web/index.html", "web/app.css", "web/app.js",
     "web/finance.html", "web/finance.css", "web/finance.js",
     "web/auth.html", "web/auth.css", "web/auth.js",
-    "backend/main.py", "backend/app.py", "backend/models.py",
+    "backend/main.py", "backend/app.py", "backend/models.py", "backend/email_delivery.py", "backend/email_templates.py", "backend/generated_email_templates.json", "backend/public_intake_email.py",
     "backend/finance_models.py", "backend/finance_ownership.py",
     "backend/identity_auth.py", "backend/period_controls.py", "backend/security_controls.py", "backend/drive_integration.py",
     "scripts/export_openapi.py", "spec/api/openapi.json",
@@ -34,7 +59,18 @@ for f in ["data.js", "engine.js", "app.js", "web/app.js", "web/finance.js", "web
 r = subprocess.run([sys.executable, "-m", "compileall", "-q", str(ROOT / "backend")], capture_output=True, text=True)
 check("python-compile", r.returncode == 0, (r.stderr or "compile ok").strip())
 
-r = subprocess.run([sys.executable, "scripts/export_openapi.py", "--check"], cwd=ROOT, capture_output=True, text=True)
+pytest_runtime_root = ROOT / "runtime" / "quality-pytest"
+pytest_runtime_root.mkdir(parents=True, exist_ok=True)
+# The Windows sandbox can leave the account-wide pytest temp root unreadable.
+# Give pytest a unique, gitignored base path which it creates itself instead.
+pytest_base = pytest_runtime_root / f"run-{uuid4().hex}"
+r = subprocess.run(
+    [sys.executable, "scripts/export_openapi.py", "--check"],
+    cwd=ROOT,
+    capture_output=True,
+    text=True,
+    env=_quality_child_environment(),
+)
 check("openapi-drift", r.returncode == 0, (r.stdout + r.stderr).strip()[-1200:] or "OpenAPI check completed")
 
 try:
@@ -45,6 +81,9 @@ try:
     check("openapi:identity-readiness", "/api/v1/auth/readiness" in paths, "identity readiness contract")
     check("openapi:mfa-verify", "/api/v1/auth/mfa/verify" in paths, "MFA verification contract")
     check("openapi:authenticator-activation", "/api/v1/auth/authenticator/activation-requests" in paths, "approved phone activation contract")
+    check("openapi:email-otp", "/api/v1/auth/email-otp/challenges" in paths and "/api/v1/auth/email-otp/challenges/{challenge_id}/verify" in paths, "credential-first mobile email verification contract")
+    check("openapi:public-form-email", "/api/v1/public-intake/email-acknowledgements" in paths, "signed public-form acknowledgement contract")
+    check("openapi:public-follow-up-email", "/api/v1/public-intake/email-follow-ups" in paths, "signed Office follow-up contract")
     check("openapi:first-party-sessions", "/api/v1/auth/sessions" in paths and "/api/v1/auth/sessions/{session_id}/revoke" in paths, "first-party session inventory/revocation contract")
     check("openapi:device-event", "/api/v1/auth/device-event" in paths, "first-party trusted-device event contract")
     check("openapi:password-change", "/api/v1/auth/password" in paths, "AAL2 password-change contract")
@@ -53,7 +92,23 @@ try:
 except (OSError, ValueError) as exc:
     check("openapi:parse", False, str(exc))
 
-r = subprocess.run([sys.executable, "-m", "pytest", "backend/tests", "-q"], cwd=ROOT, capture_output=True, text=True)
+r = subprocess.run(
+    [
+        sys.executable,
+        "-m",
+        "pytest",
+        "-p",
+        "no:cacheprovider",
+        "--basetemp",
+        str(pytest_base),
+        "backend/tests",
+        "-q",
+    ],
+    cwd=ROOT,
+    capture_output=True,
+    text=True,
+    env=_quality_child_environment(),
+)
 check("api-tests", r.returncode == 0, (r.stdout + r.stderr).strip()[-2200:])
 
 kos = (ROOT / "README.md").read_text(errors="ignore") + (ROOT / "SOURCE_EVIDENCE.md").read_text(errors="ignore")
@@ -101,6 +156,19 @@ check("identity:role-claim", "office_roles" in identity, "Office role claim")
 check("identity:cookie-bridge", "kravia_office_access" in security_controls and "_inject_bearer" in security_controls, "HttpOnly cookie to verified Bearer bridge")
 check("identity:aal2-gate", "OFFICE_REQUIRED_AAL" in security_controls and "MFA verification required" in security_controls, "AAL2 production gate")
 check("identity:attached", "build_identity_router" in app, "identity router attached to canonical app")
+check("public-intake:attached", "build_public_intake_email_router" in app, "signed public-form acknowledgement router attached")
+check("public-intake:follow-up", '"/email-follow-ups"' in (ROOT / "backend" / "public_intake_email.py").read_text(errors="ignore"), "persisted Office follow-up delivery route")
+email_manifest = (ROOT / "backend" / "generated_email_templates.json").read_text(errors="ignore")
+check(
+    "email:react-template-manifest",
+    '"format": 1' in email_manifest
+    and '"office_sign_in_code"' in email_manifest
+    and '"public_request_received"' in email_manifest
+    and '"public_request_update"' in email_manifest
+    and '"public_welcome"' in email_manifest
+    and "@@KRAVIA_CODE@@" in email_manifest,
+    "React Email generated server manifest",
+)
 check("identity:session-management", '@router.get("/sessions")' in identity and '@router.post("/sessions/{session_id}/revoke")' in identity, "first-party session inventory and revocation")
 check("identity:device-events", '@router.post("/device-event")' in identity and "DEVICE_UNLINKED" in identity, "first-party trusted-device event audit")
 check("identity:password-change", '@router.post("/password")' in identity and "PASSWORD_CHANGED" in identity, "AAL2 password rotation")
@@ -117,6 +185,15 @@ check(
 )
 check("identity:mfa-attempt-cap", "MFA_MAX_FAILED_ATTEMPTS" in identity and "MFA_SESSION_REVOKED" in identity and "mfa_failed_attempts" in identity, "AAL1 session revoked after repeated invalid OTPs")
 check("identity:authenticator-activation", '@router.post("/authenticator/activation-requests")' in identity and "AUTHENTICATOR_ACTIVATION_APPROVED" in identity and "OfficeAuthenticatorActivation" in identity, "AAL2-governed phone activation")
+check(
+    "identity:email-otp",
+    '@router.post("/email-otp/challenges", status_code=201)' in identity
+    and '@router.post("/email-otp/challenges/{challenge_id}/verify")' in identity
+    and "OfficeEmailOtpChallenge" in identity
+    and "send_office_email_verification_code" in identity
+    and "EMAIL_OTP_MOBILE_REFRESH_TTL_SECONDS" in identity,
+    "credential-first email OTP with a fixed mobile session lifetime",
+)
 check(
     "identity:kravia-authenticator",
     'MFA_AUTHENTICATOR_APP = "Authenticator"' in identity
@@ -147,6 +224,9 @@ v13_migrations = list(migration_dir.glob("*_v13_gst_purchase_reconciliation.py")
 v14_migrations = list(migration_dir.glob("*_v14_fynamics_gsp_filing.py"))
 v15_migrations = list(migration_dir.glob("*_v15_mfa_replay_protection.py"))
 v16_migrations = list(migration_dir.glob("*_v16_authenticator_device_approval.py"))
+v17_migrations = list(migration_dir.glob("*_v17_email_otp_challenges.py"))
+v18_migrations = list(migration_dir.glob("*_v18_public_form_email_deliveries.py"))
+v19_migrations = list(migration_dir.glob("*_v19_public_intake_follow_up_deliveries.py"))
 check("finance-ownership-migration", len(finance_migrations) == 1, finance_migrations[0].name if len(finance_migrations) == 1 else f"found {len(finance_migrations)}")
 check("period-control-migration", len(period_migrations) == 1, period_migrations[0].name if len(period_migrations) == 1 else f"found {len(period_migrations)}")
 check("gst:v11-tax-profile-migration", len(v11_migrations) == 1, v11_migrations[0].name if len(v11_migrations) == 1 else f"found {len(v11_migrations)}")
@@ -155,6 +235,9 @@ check("gst:v13-purchase-reconciliation-migration", len(v13_migrations) == 1, v13
 check("gst:v14-gsp-filing-migration", len(v14_migrations) == 1, v14_migrations[0].name if len(v14_migrations) == 1 else f"found {len(v14_migrations)}")
 check("identity:v15-mfa-replay-migration", len(v15_migrations) == 1, v15_migrations[0].name if len(v15_migrations) == 1 else f"found {len(v15_migrations)}")
 check("identity:v16-authenticator-activation-migration", len(v16_migrations) == 1, v16_migrations[0].name if len(v16_migrations) == 1 else f"found {len(v16_migrations)}")
+check("identity:v17-email-otp-migration", len(v17_migrations) == 1, v17_migrations[0].name if len(v17_migrations) == 1 else f"found {len(v17_migrations)}")
+check("public-intake:v18-email-delivery-migration", len(v18_migrations) == 1, v18_migrations[0].name if len(v18_migrations) == 1 else f"found {len(v18_migrations)}")
+check("public-intake:v19-follow-up-delivery-migration", len(v19_migrations) == 1, v19_migrations[0].name if len(v19_migrations) == 1 else f"found {len(v19_migrations)}")
 
 broker = REPO_ROOT / "Database" / "supabase" / "functions" / "kravia-storage-broker" / "index.ts"
 broker_source = broker.read_text(errors="ignore") if broker.exists() else ""

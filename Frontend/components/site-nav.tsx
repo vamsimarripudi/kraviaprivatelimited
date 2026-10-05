@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowUpRight, Menu } from "lucide-react";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { navItems } from "@/lib/site";
-import { BrandLogo } from "@/components/brand-logo";
 import { SiteScrollProgress } from "@/components/premium-interactions";
 import { Drawer } from "@/components/ui";
 
@@ -26,7 +26,9 @@ export function SiteNav() {
   return <header className={`nav-wrap ${scrolled ? "nav-scrolled" : ""}`}>
     <a className="skip-link" href="#main-content">Skip to content</a>
     <nav className="nav shell" aria-label="Main navigation">
-      <Link href="/" className="wordmark" aria-label="Kravia home"><BrandLogo priority animated /></Link>
+      <Link href="/" className="wordmark" aria-label="Kravia Private Limited home">
+        <Image className="site-header-logo" src="/brand/kravia-header-lockup-v2.png" alt="Kravia Private Limited" width={1086} height={362} priority sizes="(max-width: 760px) 154px, 202px" />
+      </Link>
       <div className="nav-links">
         {navItems.map(([label, href]) => <Link key={href} href={href} aria-current={isCurrent(href) ? "page" : undefined}>{label}</Link>)}
         <Link href="/contact" className="nav-cta">Talk to Kravia <ArrowUpRight size={14} /></Link>

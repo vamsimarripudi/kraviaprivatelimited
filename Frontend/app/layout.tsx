@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#183d32" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#071e45" };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth"><body className="kravia-fonts"><OrganizationJsonLd /><BrandSplash />{children}<Analytics /></body></html>;

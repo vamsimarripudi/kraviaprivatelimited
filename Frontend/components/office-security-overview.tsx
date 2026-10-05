@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { CircleAlert, Fingerprint, KeyRound, Laptop, LoaderCircle, Search, ShieldAlert, ShieldCheck, Users } from "lucide-react";
+import { OfficePublicIntakeInbox } from "@/components/office-public-intake-inbox";
 import styles from "./office-security-overview.module.css";
 
 type Person = { user_id: string; display_name?: string | null; job_title?: string | null; primary_department?: string | null; status: string };
@@ -39,6 +40,7 @@ export function OfficeSecurityOverview() {
 
   return <section className={styles.shell}>
     <header className={styles.hero}><div><p>SECURITY OBSERVABILITY</p><h2>Identity, device and incident evidence without employee spyware.</h2><span>{data.disclaimer}</span></div><span className={styles.scope}><ShieldCheck /> {data.scope.type || "OWNER"}{data.scope.key ? ` · ${data.scope.key}` : ""}</span></header>
+    <OfficePublicIntakeInbox queue="SECURITY_REPORTING" />
     <div className={styles.metrics}><article><Fingerprint /><b>{data.summary.active_sessions}</b><span>active sessions</span></article><article data-risk={data.summary.active_without_aal2 > 0}><KeyRound /><b>{data.summary.active_without_aal2}</b><span>without AAL2</span></article><article><Fingerprint /><b>{data.summary.closed_or_expired_sessions}</b><span>closed / expired</span></article><article data-risk={data.summary.pending_devices > 0}><Laptop /><b>{data.summary.pending_devices}</b><span>pending devices</span></article><article><ShieldCheck /><b>{data.summary.trusted_managed_devices}</b><span>trusted managed</span></article><article data-risk={data.summary.open_incidents > 0}><CircleAlert /><b>{data.summary.open_incidents}</b><span>open incidents</span></article></div>
     <div className={styles.toolbar}><div className={styles.tabs}>{(["sessions","devices","incidents","events"] as const).map((key) => <button type="button" key={key} data-active={view === key} onClick={() => setView(key)}>{label(key)}</button>)}</div><label><Search /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filter visible security records" /></label></div>
 
