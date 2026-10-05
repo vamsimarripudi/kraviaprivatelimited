@@ -11,6 +11,7 @@
     "lint": "npm --prefix Frontend run lint",
     "typecheck": "npm --prefix Frontend run typecheck",
     "test": "npm --prefix Frontend run test",
-    "quality:frontend": "npm run lint && npm run typecheck && npm run test && npm run build"
+    "quality:frontend": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "quality:email-templates": "npm --prefix EmailTemplates run typecheck && npm --prefix EmailTemplates run check"
   }
 }

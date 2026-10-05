@@ -32,6 +32,7 @@ This repository is the primary engineering workspace for the KRAVIA corporate pl
 | **`Frontend/`** | Corporate web experience, product surfaces, internal workspaces, browser-facing route adapters and UI systems | Next.js 16 · React 19 · TypeScript |
 | **`Backend/`** | KRAVIA Office services, finance and ownership controls, operational APIs, identity, automation, audit and deployment assets | Python 3.13 · FastAPI · SQLAlchemy |
 | **`Database/`** | Versioned database project configuration and migrations | PostgreSQL · Supabase project assets |
+| **`EmailTemplates/`** | Canonical transactional-email layouts and deterministic server-manifest generation | React Email · TypeScript |
 
 Repository-control files remain at the root only where Git, GitHub Actions, automation agents or repository tooling require them.
 

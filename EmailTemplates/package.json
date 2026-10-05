@@ -1,0 +1,26 @@
+{
+  "name": "kravia-email-templates",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "build": "tsx scripts/build-manifest.ts",
+    "check": "tsx scripts/build-manifest.ts --check",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@react-email/render": "2.1.0",
+    "react": "19.2.8",
+    "react-email": "6.11.0",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.13",
+    "@types/react": "19.2.14",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  }
+}

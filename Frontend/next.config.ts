@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const isDevelopment = process.env.NODE_ENV === "development";
+const requestedDistDir = process.env.KRAVIA_NEXT_DIST_DIR?.trim();
+if (requestedDistDir && !/^\.next-[A-Za-z0-9_-]+$/.test(requestedDistDir)) {
+  throw new Error("KRAVIA_NEXT_DIST_DIR must use an isolated .next-* directory name");
+}
 const contentSecurityPolicy = [
   "default-src 'self'",
   "img-src 'self' data: https:",
@@ -15,6 +19,7 @@ const contentSecurityPolicy = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  ...(requestedDistDir ? { distDir: requestedDistDir } : {}),
 
   async headers() {
     return [
