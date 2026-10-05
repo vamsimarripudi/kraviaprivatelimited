@@ -112,6 +112,17 @@ def test_public_form_receipt_rejects_bad_or_stale_signatures(tmp_path, monkeypat
         engine.dispose()
 
 
+def test_public_form_receipt_rejects_brevo_key_reused_as_webhook_secret(tmp_path, monkeypatch):
+    client, engine = public_client(tmp_path, monkeypatch)
+    monkeypatch.setenv("BREVO_API_KEY", PUBLIC_SECRET)
+    try:
+        response = post_receipt(client, monkeypatch)
+        assert response.status_code == 503
+        assert response.json()["detail"] == "Public email acknowledgement requires a dedicated signing secret"
+    finally:
+        engine.dispose()
+
+
 def test_public_form_receipt_does_not_retry_unknown_provider_outcome(tmp_path, monkeypatch):
     client, engine = public_client(tmp_path, monkeypatch)
     monkeypatch.setattr(public_intake_email, "deliver_public_form_receipt", lambda **_kwargs: (_ for _ in ()).throw(EmailDeliveryUnknown("test timeout")))

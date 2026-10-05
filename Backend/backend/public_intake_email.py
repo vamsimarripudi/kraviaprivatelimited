@@ -103,6 +103,9 @@ def _notification_secret() -> str:
     secret = os.getenv("KRAVIA_PUBLIC_INTAKE_WEBHOOK_SECRET", "").strip()
     if len(secret) < 32:
         raise HTTPException(status_code=503, detail="Public email acknowledgement is not configured")
+    provider_key = os.getenv("BREVO_API_KEY", "").strip()
+    if provider_key and hmac.compare_digest(secret, provider_key):
+        raise HTTPException(status_code=503, detail="Public email acknowledgement requires a dedicated signing secret")
     return secret
 
 

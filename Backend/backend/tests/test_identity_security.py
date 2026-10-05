@@ -6,7 +6,7 @@ from backend.security_controls import ACCESS_COOKIE, _oidc_mfa_guard
 TEST_JWT_KEY = "test-only-secret-at-least-32-bytes-long!!"
 
 
-def request_for(path, token=None):
+def request_for(path, token=None, method="GET"):
     headers = []
     if token:
         headers.append((b"cookie", f"{ACCESS_COOKIE}={token}".encode()))
@@ -14,7 +14,7 @@ def request_for(path, token=None):
         "type": "http",
         "asgi": {"version": "3.0"},
         "http_version": "1.1",
-        "method": "GET",
+        "method": method,
         "scheme": "https",
         "path": path,
         "raw_path": path.encode(),
@@ -64,6 +64,15 @@ def test_auth_endpoints_remain_available_before_mfa(monkeypatch):
     monkeypatch.setenv("AUTH_MODE", "oidc")
     monkeypatch.setenv("OIDC_REQUIRED_AAL", "aal2")
     assert _oidc_mfa_guard(request_for("/api/v1/auth/session", bearer("aal1")), "production") is None
+
+
+def test_only_signed_public_intake_delivery_posts_bypass_office_session_gate(monkeypatch):
+    monkeypatch.setenv("AUTH_MODE", "oidc")
+    assert _oidc_mfa_guard(request_for("/api/v1/public-intake/email-acknowledgements", method="POST"), "production") is None
+    assert _oidc_mfa_guard(request_for("/api/v1/public-intake/email-follow-ups", method="POST"), "production") is None
+
+    assert _oidc_mfa_guard(request_for("/api/v1/public-intake/email-acknowledgements"), "production").status_code == 401
+    assert _oidc_mfa_guard(request_for("/api/v1/public-intake/unrelated", method="POST"), "production").status_code == 401
 
 
 def test_unauthenticated_legacy_browser_entry_redirects_to_auth(monkeypatch):

@@ -25,6 +25,15 @@ SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 ACCESS_COOKIE = "kravia_office_access"
 AUTH_API_PREFIX = "/api/v1/auth/"
 PROVIDER_WEBHOOK_PREFIX = "/api/v1/finance/webhooks/"
+# These two routes are server-to-server delivery callbacks, not browser or
+# Office-session APIs.  Their handlers require a short-lived HMAC signature
+# before they parse a payload or invoke the email provider.  Keep this list
+# exact and method-bound so no other public-intake path accidentally bypasses
+# the Office MFA boundary.
+PUBLIC_INTAKE_DELIVERY_PATHS = frozenset({
+    "/api/v1/public-intake/email-acknowledgements",
+    "/api/v1/public-intake/email-follow-ups",
+})
 # The backend root is intentionally a public, metadata-only status page. Legacy
 # browser application entry points still require an authenticated Office session.
 BROWSER_ENTRY_PATHS = {"/index.html", "/finance.html"}
@@ -204,7 +213,8 @@ def _oidc_mfa_guard(request: Request, app_env: str):
     path = request.url.path
     provider_webhook = path.startswith(PROVIDER_WEBHOOK_PREFIX)
     auth_endpoint = path.startswith(AUTH_API_PREFIX)
-    protected_api = path.startswith("/api/v1/") and not auth_endpoint and not provider_webhook
+    public_intake_delivery = request.method.upper() == "POST" and path in PUBLIC_INTAKE_DELIVERY_PATHS
+    protected_api = path.startswith("/api/v1/") and not auth_endpoint and not provider_webhook and not public_intake_delivery
 
     if app_env == "production" and request.method.upper() == "GET" and path in BROWSER_ENTRY_PATHS and not cookie_token:
         return RedirectResponse(url="/auth.html", status_code=307)
