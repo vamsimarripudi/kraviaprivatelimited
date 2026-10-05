@@ -50,6 +50,7 @@ def test_public_form_receipt_has_kravia_header_footer_and_no_request_body():
 
     assert template.subject == "We received your KRAVIA privacy or Trust request"
     assert "KRAVIA PRIVATE LIMITED" in template.html_content
+    assert "/brand/kravia-header-lockup-v2.png" in template.html_content
     assert "#193B5B" in template.html_content
     assert "Legal notices and terms" in template.html_content
     assert "/trust/privacy" in template.html_content
@@ -61,7 +62,9 @@ def test_kravia_welcome_template_has_branded_header_footer_and_safe_copy():
     template = kravia_welcome_template(recipient_name="Synthetic Recipient")
 
     assert template.subject == "Welcome to KRAVIA"
-    assert "Welcome to KRAVIA." in template.html_content
+    assert "Welcome to KRAVIA" in template.html_content
+    assert "/brand/kravia-header-lockup-v2.png" in template.html_content
+    assert "Georgia" in template.html_content
     assert "Arial" in template.html_content
     assert "#193B5B" in template.html_content
     assert "Legal notices and terms" in template.html_content

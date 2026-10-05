@@ -4,6 +4,7 @@ import {
   Head,
   Heading,
   Html,
+  Img,
   Link,
   Preview,
   Section,
@@ -34,6 +35,7 @@ export type RenderedTemplate = {
 };
 
 const siteUrl = "https://www.kraviaprivatelimited.com";
+const headerLockupUrl = `${siteUrl}/brand/kravia-header-lockup-v2.png`;
 
 const palette = {
   ink: "#172331",
@@ -42,6 +44,8 @@ const palette = {
   pale: "#EFF3F7",
   white: "#FFFFFF",
   border: "#D7E1E9",
+  mist: "#F8FAFC",
+  navyMist: "#E7EEF4",
 } as const;
 
 function KraviaShell({
@@ -62,14 +66,23 @@ function KraviaShell({
       <Body style={styles.body}>
         <Container style={styles.container}>
           <Section style={styles.card}>
-            <Section style={styles.header}>
-              <Text style={styles.monogram}>K</Text>
-              <Text style={styles.brand}>KRAVIA PRIVATE LIMITED</Text>
+            <Section style={styles.topRule} />
+            <Section style={styles.masthead}>
+              <Img
+                alt="KRAVIA Private Limited"
+                height="52"
+                src={headerLockupUrl}
+                style={styles.lockup}
+                width="156"
+              />
               <Text style={styles.label}>{label}</Text>
+            </Section>
+            <Section style={styles.titleBlock}>
               <Heading as="h1" style={styles.heading}>{title}</Heading>
             </Section>
             <Section style={styles.content}>{children}</Section>
             <Section style={styles.footer}>
+              <Text style={styles.footerEyebrow}>ACCOUNT SAFETY</Text>
               <Text style={styles.footerCopy}>
                 For your safety, KRAVIA will never ask for your password,
                 one-time code, private key, or card PIN by email.
@@ -112,7 +125,7 @@ function PublicRequestReceivedEmail() {
     <KraviaShell
       preview="KRAVIA has received your request"
       label="KRAVIA REQUESTS"
-      title="Your request is with us."
+      title="Your request is with our team."
     >
       <Text style={styles.paragraph}>Hello {PLACEHOLDERS.name},</Text>
       <Text style={styles.paragraph}>
@@ -147,8 +160,8 @@ function WelcomeEmail() {
   return (
     <KraviaShell
       preview="Welcome to KRAVIA"
-      label="KRAVIA PRIVATE LIMITED"
-      title="Welcome to KRAVIA."
+      label="KRAVIA CONNECTIONS"
+      title="Welcome to KRAVIA"
     >
       <Text style={styles.paragraph}>Hello {PLACEHOLDERS.name},</Text>
       <Text style={styles.paragraph}>
@@ -180,24 +193,26 @@ export async function renderTemplateManifest(): Promise<Record<KraviaEmailTempla
 
 const styles = {
   body: { margin: "0", backgroundColor: palette.pale, color: palette.ink, fontFamily: "Arial, 'Segoe UI', sans-serif" },
-  container: { width: "100%", maxWidth: "620px", margin: "0 auto", padding: "32px 18px" },
+  container: { width: "100%", maxWidth: "640px", margin: "0 auto", padding: "40px 18px" },
   card: { backgroundColor: palette.white, border: `1px solid ${palette.border}` },
-  header: { backgroundColor: palette.sapphire, color: palette.white, padding: "28px" },
-  monogram: { margin: "0 0 10px", color: palette.white, fontSize: "32px", fontWeight: "700", letterSpacing: "-2px", lineHeight: "32px" },
-  brand: { margin: "0", color: palette.white, fontSize: "12px", fontWeight: "700", letterSpacing: "1.4px", lineHeight: "18px" },
-  label: { margin: "18px 0 0", color: "#D6E4EE", fontSize: "11px", fontWeight: "700", letterSpacing: "1.4px", lineHeight: "16px" },
-  heading: { margin: "8px 0 0", color: palette.white, fontSize: "26px", fontWeight: "600", letterSpacing: "-0.3px", lineHeight: "34px" },
-  content: { padding: "30px 28px 8px" },
-  paragraph: { margin: "0 0 20px", color: palette.ink, fontSize: "16px", lineHeight: "25px" },
-  code: { margin: "0 0 24px", padding: "18px", backgroundColor: palette.pale, border: `1px solid ${palette.border}`, color: palette.sapphire, fontSize: "30px", fontWeight: "700", letterSpacing: "8px", lineHeight: "36px", textAlign: "center" as const },
-  muted: { margin: "0 0 20px", color: palette.steel, fontSize: "13px", lineHeight: "20px" },
-  referenceBox: { margin: "0 0 24px", padding: "16px", backgroundColor: palette.pale, borderLeft: `3px solid ${palette.steel}` },
-  referenceLabel: { margin: "0 0 4px", color: palette.steel, fontSize: "11px", fontWeight: "700", letterSpacing: "1.2px", lineHeight: "16px" },
-  referenceValue: { margin: "0", color: palette.sapphire, fontSize: "16px", fontWeight: "700", letterSpacing: "0.4px", lineHeight: "24px" },
-  message: { margin: "0 0 24px", color: palette.ink, fontSize: "16px", lineHeight: "25px", whiteSpace: "pre-line" as const },
-  footer: { borderTop: `1px solid ${palette.border}`, padding: "20px 28px 24px" },
-  footerCopy: { margin: "0 0 12px", color: palette.steel, fontSize: "12px", lineHeight: "18px" },
-  footerLinks: { margin: "0 0 12px", color: palette.steel, fontSize: "12px", lineHeight: "18px" },
+  topRule: { margin: "0", height: "5px", backgroundColor: palette.sapphire, fontSize: "5px", lineHeight: "5px" },
+  masthead: { padding: "26px 32px 22px", backgroundColor: palette.white },
+  lockup: { display: "block", height: "52px", width: "156px", maxWidth: "100%" },
+  label: { margin: "22px 0 0", color: palette.steel, fontSize: "10px", fontWeight: "700", letterSpacing: "1.7px", lineHeight: "15px" },
+  titleBlock: { padding: "22px 32px 24px", backgroundColor: palette.mist, borderTop: `1px solid ${palette.border}`, borderBottom: `1px solid ${palette.border}` },
+  heading: { margin: "0", color: palette.sapphire, fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "30px", fontWeight: "400", letterSpacing: "-0.45px", lineHeight: "38px" },
+  content: { padding: "30px 32px 8px" },
+  paragraph: { margin: "0 0 20px", color: palette.ink, fontSize: "16px", lineHeight: "26px" },
+  code: { margin: "4px 0 26px", padding: "20px", backgroundColor: palette.mist, border: `1px solid ${palette.border}`, borderTop: `3px solid ${palette.sapphire}`, color: palette.sapphire, fontSize: "31px", fontWeight: "700", letterSpacing: "9px", lineHeight: "38px", textAlign: "center" as const },
+  muted: { margin: "0 0 24px", color: palette.steel, fontSize: "13px", lineHeight: "21px" },
+  referenceBox: { margin: "4px 0 26px", padding: "18px 20px", backgroundColor: palette.mist, border: `1px solid ${palette.border}`, borderLeft: `4px solid ${palette.sapphire}` },
+  referenceLabel: { margin: "0 0 6px", color: palette.steel, fontSize: "10px", fontWeight: "700", letterSpacing: "1.6px", lineHeight: "15px" },
+  referenceValue: { margin: "0", color: palette.sapphire, fontSize: "16px", fontWeight: "700", letterSpacing: "0.55px", lineHeight: "25px" },
+  message: { margin: "0 0 26px", color: palette.ink, fontSize: "16px", lineHeight: "26px", whiteSpace: "pre-line" as const },
+  footer: { padding: "24px 32px 28px", backgroundColor: palette.navyMist, borderTop: `1px solid ${palette.border}` },
+  footerEyebrow: { margin: "0 0 8px", color: palette.sapphire, fontSize: "10px", fontWeight: "700", letterSpacing: "1.5px", lineHeight: "15px" },
+  footerCopy: { margin: "0 0 16px", color: palette.ink, fontSize: "12px", lineHeight: "19px" },
+  footerLinks: { margin: "0 0 14px", color: palette.steel, fontSize: "12px", lineHeight: "19px" },
   link: { color: palette.sapphire, textDecoration: "underline" },
   copyright: { margin: "0", color: palette.steel, fontSize: "11px", lineHeight: "16px" },
 };
