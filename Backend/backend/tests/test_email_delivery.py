@@ -69,6 +69,8 @@ def test_kravia_welcome_template_has_branded_header_footer_and_safe_copy():
     assert "#193B5B" in template.html_content
     assert "Legal notices and terms" in template.html_content
     assert "Synthetic Recipient" in template.text_content
+    assert "You belong here" in template.text_content
+    assert "With warm wishes" in template.text_content
     assert "password" in template.text_content
 
 
@@ -97,6 +99,7 @@ def test_public_follow_up_template_escapes_reviewer_text_and_keeps_reference():
     )
     assert "Update on your KRAVIA contact request" in template.subject
     assert "KRV-ABCDEF0123456789ABCDEF01" in template.html_content
+    assert "Synthetic Recipient" in template.text_content
     assert "&lt;request&gt;" in template.html_content
     assert "<request>" not in template.html_content
     assert "Legal notices and terms" in template.html_content

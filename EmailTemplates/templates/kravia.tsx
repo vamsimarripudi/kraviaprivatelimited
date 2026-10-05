@@ -193,14 +193,22 @@ function PublicIntakeInternalNotificationEmail() {
 function WelcomeEmail() {
   return (
     <KraviaShell
-      preview="Welcome to KRAVIA"
+      preview="A warm welcome from KRAVIA"
       label="KRAVIA CONNECTIONS"
       title="Welcome to KRAVIA"
     >
+      <Text style={styles.welcomeQuote}>“You belong here — wherever you are building what matters.”</Text>
       <Text style={styles.paragraph}>Hello {PLACEHOLDERS.name},</Text>
       <Text style={styles.paragraph}>
-        We are glad to be connected. When you are ready, our team is here to help you explore KRAVIA.
+        This is more than a message in your inbox. It is a warm welcome and the beginning of a connection built on curiosity, trust, and meaningful progress.
       </Text>
+      <Text style={styles.paragraph}>
+        At KRAVIA, we make room for people who care about what they are building. When you are ready, our team is here to listen, guide, and help you find the next right step.
+      </Text>
+      <Text style={styles.paragraph}>
+        We wish you clarity in every decision, confidence in every new beginning, and opportunities that feel worth pursuing. We are genuinely glad you are here.
+      </Text>
+      <Text style={styles.welcomeClosing}>With warm wishes,<br />KRAVIA</Text>
     </KraviaShell>
   );
 }
@@ -238,6 +246,8 @@ const styles = {
   heading: { margin: "0", color: palette.sapphire, fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "30px", fontWeight: "400", letterSpacing: "-0.45px", lineHeight: "38px" },
   content: { padding: "30px 32px 8px" },
   paragraph: { margin: "0 0 20px", color: palette.ink, fontSize: "16px", lineHeight: "26px" },
+  welcomeQuote: { margin: "0 0 24px", color: palette.sapphire, fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "20px", fontStyle: "italic", lineHeight: "30px" },
+  welcomeClosing: { margin: "4px 0 20px", color: palette.sapphire, fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "17px", lineHeight: "26px" },
   code: { margin: "4px 0 26px", padding: "20px", backgroundColor: palette.mist, border: `1px solid ${palette.border}`, borderTop: `3px solid ${palette.sapphire}`, color: palette.sapphire, fontSize: "31px", fontWeight: "700", letterSpacing: "9px", lineHeight: "38px", textAlign: "center" as const },
   muted: { margin: "0 0 24px", color: palette.steel, fontSize: "13px", lineHeight: "21px" },
   referenceBox: { margin: "4px 0 26px", padding: "18px 20px", backgroundColor: palette.mist, border: `1px solid ${palette.border}`, borderLeft: `4px solid ${palette.sapphire}` },
