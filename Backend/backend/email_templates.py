@@ -30,6 +30,7 @@ PUBLIC_FORM_COPY = {
 }
 PUBLIC_REFERENCE_PATTERN = re.compile(r"^KRV(?:-[A-F0-9]{24}|-SUP-[A-Z0-9]{8})$")
 VERIFICATION_CODE_PATTERN = re.compile(r"^\d{6}$")
+EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 PLACEHOLDER_PATTERN = re.compile(r"@@KRAVIA_[A-Z_]+@@")
 KRAVIA_SITE_URL = "https://www.kraviaprivatelimited.com"
 _MANIFEST_PATH = Path(__file__).with_name("generated_email_templates.json")
@@ -37,6 +38,7 @@ _TEMPLATE_NAMES = {
     "office_sign_in_code",
     "public_request_received",
     "public_request_update",
+    "public_intake_internal_notification",
     "public_welcome",
 }
 
@@ -164,6 +166,50 @@ def public_form_follow_up_template(*, form_kind: str, recipient_name: str, refer
             "@@KRAVIA_MESSAGE@@": normalized_message,
         },
         multiline_html_tokens=frozenset({"@@KRAVIA_MESSAGE@@"}),
+    )
+
+
+def public_intake_internal_notification_template(
+    *,
+    form_kind: str,
+    sender_name: str,
+    sender_email: str,
+    reference: str,
+    request_subject: str,
+    organisation: str | None,
+) -> TransactionalEmail:
+    """Render the metadata-only internal notification for a public request.
+
+    The original request remains in the access-controlled Office intake queue.
+    This operational email deliberately contains only the reply identity and
+    routing metadata so Trust and security submissions are not duplicated into
+    a general mailbox.
+    """
+    if form_kind not in PUBLIC_FORM_COPY:
+        raise ValueError("Unsupported public form kind")
+    name = _normalized_name(sender_name)
+    email = sender_email.strip().lower()
+    if not EMAIL_PATTERN.fullmatch(email):
+        raise ValueError("Invalid sender email")
+    safe_reference = _valid_reference(reference)
+    subject = request_subject.strip()
+    if not 1 <= len(subject) <= 180:
+        raise ValueError("Invalid public request subject")
+    organization = (organisation or "").strip() or "Not provided"
+    if len(organization) > 160:
+        raise ValueError("Invalid public request organisation")
+    label, _ = PUBLIC_FORM_COPY[form_kind]
+    return _render(
+        template_name="public_intake_internal_notification",
+        subject=f"New KRAVIA {label} · {safe_reference}",
+        values={
+            "@@KRAVIA_NAME@@": name,
+            "@@KRAVIA_SENDER_EMAIL@@": email,
+            "@@KRAVIA_REFERENCE@@": safe_reference,
+            "@@KRAVIA_REQUEST_KIND@@": label,
+            "@@KRAVIA_REQUEST_SUBJECT@@": subject,
+            "@@KRAVIA_ORGANISATION@@": organization,
+        },
     )
 
 

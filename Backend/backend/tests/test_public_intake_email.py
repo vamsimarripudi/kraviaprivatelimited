@@ -16,6 +16,8 @@ PAYLOAD = {
     "reference": "KRV-ABCDEF0123456789ABCDEF01",
     "recipient_email": "recipient@example.test",
     "recipient_name": "Synthetic Recipient",
+    "request_subject": "Synthetic public request",
+    "organisation": "Synthetic Organisation",
 }
 FOLLOW_UP_PAYLOAD = {
     **PAYLOAD,
@@ -73,30 +75,46 @@ def post_follow_up(client, monkeypatch, payload=FOLLOW_UP_PAYLOAD, *, signature=
 
 def test_signed_public_form_receipt_sends_once_and_persists_no_email(tmp_path, monkeypatch):
     client, engine = public_client(tmp_path, monkeypatch)
-    delivered = []
-    monkeypatch.setattr(public_intake_email, "deliver_public_form_receipt", lambda **kwargs: delivered.append(kwargs) or "brevo-public-1")
+    receipts = []
+    notifications = []
+    monkeypatch.setattr(public_intake_email, "deliver_public_form_receipt", lambda **kwargs: receipts.append(kwargs) or "brevo-public-1")
+    monkeypatch.setattr(public_intake_email, "deliver_public_intake_internal_notification", lambda **kwargs: notifications.append(kwargs) or "brevo-internal-1")
     try:
         response = post_receipt(client, monkeypatch)
         assert response.status_code == 201, response.text
-        assert response.json() == {"delivery": "sent"}
-        assert delivered == [{
+        assert response.json() == {"delivery": "sent", "internal_notification": "sent"}
+        assert receipts == [{
             "recipient_email": "recipient@example.test",
             "recipient_name": "Synthetic Recipient",
             "form_kind": "CONTACT",
             "reference": "KRV-ABCDEF0123456789ABCDEF01",
             "delivery_id": "public-contact:KRV-ABCDEF0123456789ABCDEF01",
         }]
+        assert notifications == [{
+            "form_kind": "CONTACT",
+            "sender_name": "Synthetic Recipient",
+            "sender_email": "recipient@example.test",
+            "reference": "KRV-ABCDEF0123456789ABCDEF01",
+            "request_subject": "Synthetic public request",
+            "organisation": "Synthetic Organisation",
+            "delivery_id": "public-internal:contact:KRV-ABCDEF0123456789ABCDEF01",
+        }]
 
         duplicate = post_receipt(client, monkeypatch)
         assert duplicate.status_code == 201
-        assert duplicate.json() == {"delivery": "already_sent"}
-        assert len(delivered) == 1
+        assert duplicate.json() == {"delivery": "already_sent", "internal_notification": "already_sent"}
+        assert len(receipts) == 1
+        assert len(notifications) == 1
 
         with engine.connect() as connection:
-            row = connection.execute(text("select recipient_fingerprint, status, provider_message_id from office_public_email_deliveries")).mappings().one()
-        assert row["status"] == "SENT"
-        assert row["recipient_fingerprint"] != PAYLOAD["recipient_email"]
-        assert row["provider_message_id"] == "brevo-public-1"
+            rows = connection.execute(text("select delivery_kind, recipient_fingerprint, content_fingerprint, status, provider_message_id from office_public_email_deliveries")).mappings().all()
+        by_kind = {row["delivery_kind"]: row for row in rows}
+        assert by_kind["ACKNOWLEDGEMENT"]["status"] == "SENT"
+        assert by_kind["ACKNOWLEDGEMENT"]["recipient_fingerprint"] != PAYLOAD["recipient_email"]
+        assert by_kind["ACKNOWLEDGEMENT"]["provider_message_id"] == "brevo-public-1"
+        assert by_kind["INTERNAL_NOTIFICATION"]["status"] == "SENT"
+        assert by_kind["INTERNAL_NOTIFICATION"]["content_fingerprint"] not in {None, PAYLOAD["recipient_email"], PAYLOAD["request_subject"]}
+        assert by_kind["INTERNAL_NOTIFICATION"]["provider_message_id"] == "brevo-internal-1"
     finally:
         engine.dispose()
 
@@ -108,6 +126,37 @@ def test_public_form_receipt_rejects_bad_or_stale_signatures(tmp_path, monkeypat
         body, headers = signed_request()
         monkeypatch.setattr(public_intake_email.time, "time", lambda: 1_700_000_301)
         assert client.post("/api/v1/public-intake/email-acknowledgements", content=body, headers=headers).status_code == 401
+    finally:
+        engine.dispose()
+
+
+def test_receipt_transition_keeps_legacy_signed_events_replyable(tmp_path, monkeypatch):
+    client, engine = public_client(tmp_path, monkeypatch)
+    legacy = {key: value for key, value in PAYLOAD.items() if key not in {"request_subject", "organisation"}}
+    notifications = []
+    monkeypatch.setattr(public_intake_email, "deliver_public_intake_internal_notification", lambda **kwargs: notifications.append(kwargs) or "brevo-internal-legacy")
+    monkeypatch.setattr(public_intake_email, "deliver_public_form_receipt", lambda **_kwargs: "brevo-public-legacy")
+    try:
+        response = post_receipt(client, monkeypatch, legacy)
+        assert response.status_code == 201, response.text
+        assert notifications[0]["request_subject"] == "KRAVIA Contact enquiry"
+    finally:
+        engine.dispose()
+
+
+def test_internal_notification_unknown_outcome_does_not_block_the_customer_receipt(tmp_path, monkeypatch):
+    client, engine = public_client(tmp_path, monkeypatch)
+    receipts = []
+    monkeypatch.setattr(public_intake_email, "deliver_public_intake_internal_notification", lambda **_kwargs: (_ for _ in ()).throw(EmailDeliveryUnknown("test timeout")))
+    monkeypatch.setattr(public_intake_email, "deliver_public_form_receipt", lambda **kwargs: receipts.append(kwargs) or "brevo-public-1")
+    try:
+        response = post_receipt(client, monkeypatch)
+        assert response.status_code == 201, response.text
+        assert response.json() == {"delivery": "sent", "internal_notification": "unknown"}
+        assert len(receipts) == 1
+        with engine.connect() as connection:
+            state = connection.execute(text("select status from office_public_email_deliveries where delivery_kind = 'INTERNAL_NOTIFICATION'")).scalar_one()
+        assert state == "DELIVERY_UNKNOWN"
     finally:
         engine.dispose()
 
@@ -132,7 +181,7 @@ def test_public_form_receipt_does_not_retry_unknown_provider_outcome(tmp_path, m
         replay = post_receipt(client, monkeypatch)
         assert replay.status_code == 503
         with engine.connect() as connection:
-            state = connection.execute(text("select status from office_public_email_deliveries")).scalar_one()
+            state = connection.execute(text("select status from office_public_email_deliveries where event_id = :event_id"), {"event_id": PAYLOAD["event_id"]}).scalar_one()
         assert state == "DELIVERY_UNKNOWN"
     finally:
         engine.dispose()

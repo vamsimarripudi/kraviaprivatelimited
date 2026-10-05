@@ -1,7 +1,7 @@
 import pytest
 
 from backend import email_delivery
-from backend.email_templates import kravia_welcome_template, office_email_verification_template, public_form_follow_up_template, public_form_receipt_template
+from backend.email_templates import kravia_welcome_template, office_email_verification_template, public_form_follow_up_template, public_form_receipt_template, public_intake_internal_notification_template
 
 
 class FakeResponse:
@@ -70,6 +70,22 @@ def test_kravia_welcome_template_has_branded_header_footer_and_safe_copy():
     assert "Legal notices and terms" in template.html_content
     assert "Synthetic Recipient" in template.text_content
     assert "password" in template.text_content
+
+
+def test_internal_intake_notification_identifies_the_requester_without_copying_request_content():
+    template = public_intake_internal_notification_template(
+        form_kind="CONTACT",
+        sender_name="Synthetic Recipient",
+        sender_email="recipient@example.test",
+        reference="KRV-ABCDEF0123456789ABCDEF01",
+        request_subject="Synthetic public request",
+        organisation="Synthetic Organisation",
+    )
+
+    assert template.subject == "New KRAVIA contact request · KRV-ABCDEF0123456789ABCDEF01"
+    assert "recipient@example.test" in template.html_content
+    assert "Synthetic public request" in template.text_content
+    assert "full request remains" in template.text_content
 
 
 def test_public_follow_up_template_escapes_reviewer_text_and_keeps_reference():
@@ -150,6 +166,30 @@ def test_brevo_rejection_is_not_misreported_as_sent(monkeypatch):
             expiry_minutes=10,
             delivery_id="email-otp:challenge-1:1",
         )
+
+
+def test_internal_intake_notification_goes_to_hello_and_replies_to_the_requester(monkeypatch):
+    FakeClient.calls = []
+    FakeClient.response = FakeResponse(201, {"messageId": "provider-message-456"})
+    monkeypatch.setenv("BREVO_API_KEY", "test-key-not-a-production-secret")
+    monkeypatch.setattr(email_delivery.httpx, "Client", FakeClient)
+
+    receipt = email_delivery.send_public_intake_internal_notification(
+        form_kind="CONTACT",
+        sender_name="Synthetic Recipient",
+        sender_email="recipient@example.test",
+        reference="KRV-ABCDEF0123456789ABCDEF01",
+        request_subject="Synthetic public request",
+        organisation="Synthetic Organisation",
+        delivery_id="public-internal:contact:KRV-ABCDEF0123456789ABCDEF01",
+    )
+
+    assert receipt == "provider-message-456"
+    call = FakeClient.calls[0]
+    assert call["json"]["sender"] == {"name": "KRAVIA", "email": "hello@kraviaprivatelimited.com"}
+    assert call["json"]["to"] == [{"email": "hello@kraviaprivatelimited.com"}]
+    assert call["json"]["replyTo"] == {"name": "Synthetic Recipient", "email": "recipient@example.test"}
+    assert call["json"]["tags"] == ["kravia-public-intake", "internal-notification", "contact"]
 
 
 def test_sender_must_remain_the_verified_kravia_address(monkeypatch):

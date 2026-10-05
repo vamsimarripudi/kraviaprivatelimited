@@ -12,6 +12,7 @@ const requiredTokens = {
   office_sign_in_code: [PLACEHOLDERS.code, PLACEHOLDERS.expiryMinutes],
   public_request_received: [PLACEHOLDERS.name, PLACEHOLDERS.reference, PLACEHOLDERS.requestKind, PLACEHOLDERS.nextStep],
   public_request_update: [PLACEHOLDERS.name, PLACEHOLDERS.reference, PLACEHOLDERS.message],
+  public_intake_internal_notification: [PLACEHOLDERS.name, PLACEHOLDERS.senderEmail, PLACEHOLDERS.reference, PLACEHOLDERS.requestKind, PLACEHOLDERS.requestSubject, PLACEHOLDERS.organisation],
   public_welcome: [PLACEHOLDERS.name],
 } as const;
 const manifest = {

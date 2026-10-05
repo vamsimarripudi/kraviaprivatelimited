@@ -29,6 +29,8 @@ export async function POST(request: Request) {
     reference: savedReference,
     recipientEmail: result.data.email,
     recipientName: result.data.name,
+    requestSubject: `Contact enquiry · ${result.data.category}`,
+    organisation: result.data.organisation || null,
   });
   return NextResponse.json({ reference: savedReference }, { status: responseStatus });
 }

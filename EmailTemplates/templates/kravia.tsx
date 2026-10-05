@@ -17,16 +17,20 @@ export const PLACEHOLDERS = {
   code: "@@KRAVIA_CODE@@",
   expiryMinutes: "@@KRAVIA_EXPIRY_MINUTES@@",
   name: "@@KRAVIA_NAME@@",
+  senderEmail: "@@KRAVIA_SENDER_EMAIL@@",
   reference: "@@KRAVIA_REFERENCE@@",
   requestKind: "@@KRAVIA_REQUEST_KIND@@",
   nextStep: "@@KRAVIA_NEXT_STEP@@",
   message: "@@KRAVIA_MESSAGE@@",
+  requestSubject: "@@KRAVIA_REQUEST_SUBJECT@@",
+  organisation: "@@KRAVIA_ORGANISATION@@",
 } as const;
 
 export type KraviaEmailTemplateName =
   | "office_sign_in_code"
   | "public_request_received"
   | "public_request_update"
+  | "public_intake_internal_notification"
   | "public_welcome";
 
 export type RenderedTemplate = {
@@ -156,6 +160,36 @@ function PublicRequestUpdateEmail() {
   );
 }
 
+function PublicIntakeInternalNotificationEmail() {
+  return (
+    <KraviaShell
+      preview="A new KRAVIA public request needs review"
+      label="KRAVIA INTAKE"
+      title="A new public request needs review."
+    >
+      <Text style={styles.paragraph}>
+        A requester has submitted a {PLACEHOLDERS.requestKind} through the KRAVIA website.
+      </Text>
+      <Section style={styles.referenceBox}>
+        <Text style={styles.referenceLabel}>REFERENCE</Text>
+        <Text style={styles.referenceValue}>{PLACEHOLDERS.reference}</Text>
+      </Section>
+      <Section style={styles.intakeDetails}>
+        <Text style={styles.intakeLabel}>FROM</Text>
+        <Text style={styles.intakeValue}>{PLACEHOLDERS.name}</Text>
+        <Text style={styles.intakeEmail}>{PLACEHOLDERS.senderEmail}</Text>
+        <Text style={styles.intakeLabel}>SUBJECT</Text>
+        <Text style={styles.intakeValue}>{PLACEHOLDERS.requestSubject}</Text>
+        <Text style={styles.intakeLabel}>ORGANISATION</Text>
+        <Text style={styles.intakeValue}>{PLACEHOLDERS.organisation}</Text>
+      </Section>
+      <Text style={styles.muted}>
+        Reply to this email to contact the requester directly. The full request remains in the appropriate KRAVIA Office intake queue.
+      </Text>
+    </KraviaShell>
+  );
+}
+
 function WelcomeEmail() {
   return (
     <KraviaShell
@@ -175,6 +209,7 @@ const templates: Record<KraviaEmailTemplateName, () => ReactNode> = {
   office_sign_in_code: SignInCodeEmail,
   public_request_received: PublicRequestReceivedEmail,
   public_request_update: PublicRequestUpdateEmail,
+  public_intake_internal_notification: PublicIntakeInternalNotificationEmail,
   public_welcome: WelcomeEmail,
 };
 
@@ -208,6 +243,10 @@ const styles = {
   referenceBox: { margin: "4px 0 26px", padding: "18px 20px", backgroundColor: palette.mist, border: `1px solid ${palette.border}`, borderLeft: `4px solid ${palette.sapphire}` },
   referenceLabel: { margin: "0 0 6px", color: palette.steel, fontSize: "10px", fontWeight: "700", letterSpacing: "1.6px", lineHeight: "15px" },
   referenceValue: { margin: "0", color: palette.sapphire, fontSize: "16px", fontWeight: "700", letterSpacing: "0.55px", lineHeight: "25px" },
+  intakeDetails: { margin: "4px 0 26px", padding: "20px", backgroundColor: palette.white, border: `1px solid ${palette.border}` },
+  intakeLabel: { margin: "0 0 4px", color: palette.steel, fontSize: "10px", fontWeight: "700", letterSpacing: "1.5px", lineHeight: "15px" },
+  intakeValue: { margin: "0 0 12px", color: palette.ink, fontSize: "15px", lineHeight: "23px" },
+  intakeEmail: { margin: "0 0 18px", color: palette.sapphire, fontSize: "15px", fontWeight: "700", lineHeight: "23px" },
   message: { margin: "0 0 26px", color: palette.ink, fontSize: "16px", lineHeight: "26px", whiteSpace: "pre-line" as const },
   footer: { padding: "24px 32px 28px", backgroundColor: palette.navyMist, borderTop: `1px solid ${palette.border}` },
   footerEyebrow: { margin: "0 0 8px", color: palette.sapphire, fontSize: "10px", fontWeight: "700", letterSpacing: "1.5px", lineHeight: "15px" },

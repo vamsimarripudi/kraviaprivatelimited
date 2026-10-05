@@ -77,6 +77,8 @@ export async function submitSupportIntake(request: Request, input: unknown, deta
     reference,
     recipientEmail: result.data.email,
     recipientName: result.data.name,
+    requestSubject: result.data.subject,
+    organisation: result.data.organisation || null,
   });
   return NextResponse.json({ reference, trackingCode }, { status: 201, headers: { "Cache-Control": "no-store" } });
 }

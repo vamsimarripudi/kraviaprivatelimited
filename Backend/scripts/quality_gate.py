@@ -158,6 +158,12 @@ check("identity:aal2-gate", "OFFICE_REQUIRED_AAL" in security_controls and "MFA 
 check("identity:attached", "build_identity_router" in app, "identity router attached to canonical app")
 check("public-intake:attached", "build_public_intake_email_router" in app, "signed public-form acknowledgement router attached")
 check("public-intake:follow-up", '"/email-follow-ups"' in (ROOT / "backend" / "public_intake_email.py").read_text(errors="ignore"), "persisted Office follow-up delivery route")
+check(
+    "public-intake:internal-notification",
+    "INTERNAL_NOTIFICATION" in (ROOT / "backend" / "public_intake_email.py").read_text(errors="ignore")
+    and "send_public_intake_internal_notification" in (ROOT / "backend" / "email_delivery.py").read_text(errors="ignore"),
+    "idempotent hello@ operational notification with requester Reply-To",
+)
 email_manifest = (ROOT / "backend" / "generated_email_templates.json").read_text(errors="ignore")
 check(
     "email:react-template-manifest",
@@ -165,6 +171,7 @@ check(
     and '"office_sign_in_code"' in email_manifest
     and '"public_request_received"' in email_manifest
     and '"public_request_update"' in email_manifest
+    and '"public_intake_internal_notification"' in email_manifest
     and '"public_welcome"' in email_manifest
     and "@@KRAVIA_CODE@@" in email_manifest,
     "React Email generated server manifest",

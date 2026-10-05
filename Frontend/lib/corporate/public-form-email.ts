@@ -7,7 +7,7 @@ import { getOfficeRuntimeOrigin } from "@/lib/env/office";
 
 export type PublicFormKind = "CONTACT" | "SUPPORT" | "TRUST_REQUEST";
 
-type PublicFormReceipt = {
+type PublicFormDelivery = {
   eventId: string;
   formKind: PublicFormKind;
   reference: string;
@@ -15,7 +15,12 @@ type PublicFormReceipt = {
   recipientName: string;
 };
 
-type PublicFormFollowUp = PublicFormReceipt & {
+type PublicFormReceipt = PublicFormDelivery & {
+  requestSubject: string;
+  organisation?: string | null;
+};
+
+type PublicFormFollowUp = PublicFormDelivery & {
   message: string;
 };
 
@@ -44,6 +49,8 @@ export async function requestPublicFormReceipt(receipt: PublicFormReceipt): Prom
     reference: receipt.reference,
     recipient_email: receipt.recipientEmail,
     recipient_name: receipt.recipientName,
+    request_subject: receipt.requestSubject,
+    organisation: receipt.organisation || null,
   });
   const timestamp = String(Math.floor(Date.now() / 1000));
   const signature = createHmac("sha256", configuration.secret).update(`${timestamp}.${body}`, "utf8").digest("hex");

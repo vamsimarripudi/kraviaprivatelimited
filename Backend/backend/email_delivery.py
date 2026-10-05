@@ -12,7 +12,14 @@ import re
 
 import httpx
 
-from .email_templates import TransactionalEmail, kravia_welcome_template, office_email_verification_template, public_form_follow_up_template, public_form_receipt_template
+from .email_templates import (
+    TransactionalEmail,
+    kravia_welcome_template,
+    office_email_verification_template,
+    public_form_follow_up_template,
+    public_form_receipt_template,
+    public_intake_internal_notification_template,
+)
 
 
 BREVO_EMAIL_ENDPOINT = "https://api.brevo.com/v3/smtp/email"
@@ -67,6 +74,8 @@ def _send_transactional_email(
     template: TransactionalEmail,
     delivery_id: str,
     tags: list[str],
+    reply_to_email: str | None = None,
+    reply_to_name: str | None = None,
 ) -> str | None:
     """Submit one server-rendered transactional email to Brevo.
 
@@ -77,10 +86,19 @@ def _send_transactional_email(
     settings = _settings()
     if not EMAIL_PATTERN.fullmatch(recipient_email):
         raise EmailDeliveryRejected("The recipient email address is invalid")
+    reply_to = {"email": settings.sender_email, "name": settings.sender_name}
+    if reply_to_email is not None:
+        normalized_reply_to = reply_to_email.strip().lower()
+        if not EMAIL_PATTERN.fullmatch(normalized_reply_to):
+            raise EmailDeliveryRejected("The reply-to email address is invalid")
+        normalized_reply_name = (reply_to_name or "").strip()
+        if not 1 <= len(normalized_reply_name) <= 120:
+            raise EmailDeliveryRejected("The reply-to name is invalid")
+        reply_to = {"email": normalized_reply_to, "name": normalized_reply_name}
     payload = {
         "sender": {"name": settings.sender_name, "email": settings.sender_email},
         "to": [{"email": recipient_email}],
-        "replyTo": {"email": settings.sender_email, "name": settings.sender_name},
+        "replyTo": reply_to,
         "subject": template.subject,
         "htmlContent": template.html_content,
         "textContent": template.text_content,
@@ -172,6 +190,38 @@ def send_public_form_follow_up(
         ),
         delivery_id=delivery_id,
         tags=["kravia-public-follow-up", form_kind.lower()],
+    )
+
+
+def send_public_intake_internal_notification(
+    *,
+    form_kind: str,
+    sender_name: str,
+    sender_email: str,
+    reference: str,
+    request_subject: str,
+    organisation: str | None,
+    delivery_id: str,
+) -> str | None:
+    """Place a minimal, replyable public-intake notification in hello@.
+
+    The Office record remains the only location containing the full request.
+    This keeps sensitive Trust or security descriptions out of a shared inbox.
+    """
+    return _send_transactional_email(
+        recipient_email=KRAVIA_SENDER_EMAIL,
+        reply_to_email=sender_email,
+        reply_to_name=sender_name,
+        template=public_intake_internal_notification_template(
+            form_kind=form_kind,
+            sender_name=sender_name,
+            sender_email=sender_email,
+            reference=reference,
+            request_subject=request_subject,
+            organisation=organisation,
+        ),
+        delivery_id=delivery_id,
+        tags=["kravia-public-intake", "internal-notification", form_kind.lower()],
     )
 
 

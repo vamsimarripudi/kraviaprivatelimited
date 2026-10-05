@@ -24,6 +24,7 @@ from .email_delivery import (
     EmailDeliveryRejected,
     EmailDeliveryUnavailable,
     EmailDeliveryUnknown,
+    send_public_intake_internal_notification as deliver_public_intake_internal_notification,
     send_public_form_follow_up as deliver_public_form_follow_up,
     send_public_form_receipt as deliver_public_form_receipt,
 )
@@ -44,6 +45,8 @@ class PublicFormReceiptPayload(BaseModel):
     reference: str = Field(min_length=12, max_length=64)
     recipient_email: str = Field(min_length=3, max_length=254)
     recipient_name: str = Field(min_length=2, max_length=120)
+    request_subject: str | None = Field(default=None, max_length=180)
+    organisation: str | None = Field(default=None, max_length=160)
 
     @field_validator("event_id")
     @classmethod
@@ -81,6 +84,22 @@ class PublicFormReceiptPayload(BaseModel):
         if not normalized:
             raise ValueError("Invalid recipient")
         return normalized
+
+    @field_validator("request_subject")
+    @classmethod
+    def valid_request_subject(cls, value: str | None) -> str | None:
+        normalized = (value or "").strip()
+        if not normalized and value is None:
+            return None
+        if not normalized:
+            raise ValueError("Invalid public request subject")
+        return normalized
+
+    @field_validator("organisation")
+    @classmethod
+    def valid_organisation(cls, value: str | None) -> str | None:
+        normalized = (value or "").strip()
+        return normalized or None
 
 
 class PublicFormFollowUpPayload(PublicFormReceiptPayload):
@@ -121,6 +140,28 @@ def _content_fingerprint(secret: str, message: str) -> str:
     return hmac.new(secret.encode("utf-8"), f"content:{message}".encode("utf-8"), hashlib.sha256).hexdigest()
 
 
+def _internal_notification_event_id(payload: PublicFormReceiptPayload) -> str:
+    return f"public-internal:{payload.form_kind.lower()}:{payload.reference}"
+
+
+def _internal_notification_subject(payload: PublicFormReceiptPayload) -> str:
+    if payload.request_subject:
+        return payload.request_subject
+    label = {
+        "CONTACT": "Contact enquiry",
+        "SUPPORT": "Support case",
+        "TRUST_REQUEST": "Privacy or Trust request",
+    }[payload.form_kind]
+    return f"KRAVIA {label}"
+
+
+def _internal_notification_fingerprint(secret: str, payload: PublicFormReceiptPayload) -> str:
+    return _content_fingerprint(
+        secret,
+        "\x1f".join((payload.recipient_name, payload.recipient_email, _internal_notification_subject(payload), payload.organisation or "")),
+    )
+
+
 def _verify_signature(request: Request, body: bytes, secret: str) -> None:
     if len(body) > MAX_SIGNED_BODY_BYTES:
         raise HTTPException(status_code=413, detail="Public email delivery request is too large")
@@ -157,6 +198,74 @@ def _existing_delivery_response(
     raise HTTPException(status_code=503, detail="Public email delivery could not be confirmed", headers={"x-kravia-delivery-status": existing.status})
 
 
+def _dispatch_delivery(
+    db: Session,
+    *,
+    payload: PublicFormReceiptPayload,
+    event_id: str,
+    delivery_kind: str,
+    recipient_fingerprint: str,
+    content_fingerprint: str | None,
+    deliver,
+    unavailable_detail: str,
+    unknown_detail: str,
+) -> str:
+    """Persist a public-email send before the provider call and never retry unknown outcomes."""
+    existing = db.get(OfficePublicEmailDelivery, event_id)
+    if existing:
+        return _existing_delivery_response(
+            existing,
+            payload,
+            recipient_fingerprint,
+            delivery_kind=delivery_kind,
+            content_fingerprint=content_fingerprint,
+        )["delivery"]
+
+    delivery = OfficePublicEmailDelivery(
+        event_id=event_id,
+        reference=payload.reference,
+        form_kind=payload.form_kind,
+        delivery_kind=delivery_kind,
+        content_fingerprint=content_fingerprint,
+        recipient_fingerprint=recipient_fingerprint,
+        status="PENDING",
+    )
+    db.add(delivery)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        existing = db.get(OfficePublicEmailDelivery, event_id)
+        if existing:
+            return _existing_delivery_response(
+                existing,
+                payload,
+                recipient_fingerprint,
+                delivery_kind=delivery_kind,
+                content_fingerprint=content_fingerprint,
+            )["delivery"]
+        raise HTTPException(status_code=503, detail=unavailable_detail)
+
+    try:
+        message_id = deliver()
+    except (EmailDeliveryUnavailable, EmailDeliveryRejected):
+        delivery.status = "DELIVERY_FAILED"
+        delivery.failed_at = _now()
+        db.commit()
+        raise HTTPException(status_code=503, detail=unavailable_detail, headers={"x-kravia-delivery-status": "FAILED"})
+    except EmailDeliveryUnknown:
+        delivery.status = "DELIVERY_UNKNOWN"
+        delivery.failed_at = _now()
+        db.commit()
+        raise HTTPException(status_code=503, detail=unknown_detail, headers={"x-kravia-delivery-status": "UNKNOWN"})
+
+    delivery.status = "SENT"
+    delivery.provider_message_id = message_id
+    delivery.delivered_at = _now()
+    db.commit()
+    return "sent"
+
+
 def build_public_intake_email_router(get_db) -> APIRouter:
     router = APIRouter(prefix="/api/v1/public-intake", tags=["public-intake"])
 
@@ -170,53 +279,53 @@ def build_public_intake_email_router(get_db) -> APIRouter:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail="Invalid public email acknowledgement") from exc
 
-        fingerprint = _recipient_fingerprint(secret, payload.recipient_email)
-        existing = db.get(OfficePublicEmailDelivery, payload.event_id)
-        if existing:
-            return _existing_delivery_response(existing, payload, fingerprint, delivery_kind="ACKNOWLEDGEMENT")
+        internal_notification = "sent"
+        try:
+            internal_notification = _dispatch_delivery(
+                db,
+                payload=payload,
+                event_id=_internal_notification_event_id(payload),
+                delivery_kind="INTERNAL_NOTIFICATION",
+                recipient_fingerprint=_recipient_fingerprint(secret, "hello@kraviaprivatelimited.com"),
+                content_fingerprint=_internal_notification_fingerprint(secret, payload),
+                deliver=lambda: deliver_public_intake_internal_notification(
+                    form_kind=payload.form_kind,
+                    sender_name=payload.recipient_name,
+                    sender_email=payload.recipient_email,
+                    reference=payload.reference,
+                    request_subject=_internal_notification_subject(payload),
+                    organisation=payload.organisation,
+                    delivery_id=_internal_notification_event_id(payload),
+                ),
+                unavailable_detail="Public intake notification is temporarily unavailable",
+                unknown_detail="Public intake notification could not be confirmed",
+            )
+        except HTTPException as exc:
+            # The public request is already stored in its access-controlled Office
+            # queue. Do not deny the customer receipt merely because a shared
+            # mailbox alert had a terminal provider outcome.
+            if exc.status_code != 503:
+                raise
+            internal_notification = "unknown" if (exc.headers or {}).get("x-kravia-delivery-status") == "UNKNOWN" else "failed"
 
-        delivery = OfficePublicEmailDelivery(
+        receipt = _dispatch_delivery(
+            db,
+            payload=payload,
             event_id=payload.event_id,
-            reference=payload.reference,
-            form_kind=payload.form_kind,
             delivery_kind="ACKNOWLEDGEMENT",
-            recipient_fingerprint=fingerprint,
-            status="PENDING",
-        )
-        db.add(delivery)
-        try:
-            db.commit()
-        except IntegrityError:
-            db.rollback()
-            existing = db.get(OfficePublicEmailDelivery, payload.event_id)
-            if existing:
-                return _existing_delivery_response(existing, payload, fingerprint, delivery_kind="ACKNOWLEDGEMENT")
-            raise HTTPException(status_code=503, detail="Public email acknowledgement is temporarily unavailable")
-
-        try:
-            message_id = deliver_public_form_receipt(
+            recipient_fingerprint=_recipient_fingerprint(secret, payload.recipient_email),
+            content_fingerprint=None,
+            deliver=lambda: deliver_public_form_receipt(
                 recipient_email=payload.recipient_email,
                 recipient_name=payload.recipient_name,
                 form_kind=payload.form_kind,
                 reference=payload.reference,
                 delivery_id=payload.event_id,
-            )
-        except (EmailDeliveryUnavailable, EmailDeliveryRejected):
-            delivery.status = "DELIVERY_FAILED"
-            delivery.failed_at = _now()
-            db.commit()
-            raise HTTPException(status_code=503, detail="Public email acknowledgement is temporarily unavailable", headers={"x-kravia-delivery-status": "FAILED"})
-        except EmailDeliveryUnknown:
-            delivery.status = "DELIVERY_UNKNOWN"
-            delivery.failed_at = _now()
-            db.commit()
-            raise HTTPException(status_code=503, detail="Public email acknowledgement could not be confirmed", headers={"x-kravia-delivery-status": "UNKNOWN"})
-
-        delivery.status = "SENT"
-        delivery.provider_message_id = message_id
-        delivery.delivered_at = _now()
-        db.commit()
-        return {"delivery": "sent"}
+            ),
+            unavailable_detail="Public email acknowledgement is temporarily unavailable",
+            unknown_detail="Public email acknowledgement could not be confirmed",
+        )
+        return {"delivery": receipt, "internal_notification": internal_notification}
 
     @router.post("/email-follow-ups", status_code=201)
     async def send_public_form_follow_up(request: Request, db: Session = Depends(get_db)):

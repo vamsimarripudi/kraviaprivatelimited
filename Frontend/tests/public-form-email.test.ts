@@ -21,6 +21,8 @@ describe("public-form acknowledgement handoff", () => {
       reference: "KRV-ABCDEF0123456789ABCDEF01",
       recipientEmail: "recipient@example.test",
       recipientName: "Synthetic Recipient",
+      requestSubject: "Synthetic public request",
+      organisation: "Synthetic Organisation",
     })).resolves.toBe("sent");
 
     const [url, options] = fetcher.mock.calls[0] as [URL, RequestInit];
@@ -30,6 +32,8 @@ describe("public-form acknowledgement handoff", () => {
       "x-kravia-intake-timestamp": expect.stringMatching(/^\d+$/),
     });
     expect(JSON.stringify(options.headers)).not.toContain("test-public-intake-webhook-secret");
+    expect(String(options.body)).toContain('"request_subject":"Synthetic public request"');
+    expect(String(options.body)).toContain('"organisation":"Synthetic Organisation"');
   });
 
   it("does not pretend email delivery is configured when the shared secret is absent", async () => {
@@ -42,6 +46,7 @@ describe("public-form acknowledgement handoff", () => {
       reference: "KRV-ABCDEF0123456789ABCDEF01",
       recipientEmail: "recipient@example.test",
       recipientName: "Synthetic Recipient",
+      requestSubject: "Synthetic public request",
     })).resolves.toBe("unavailable");
     expect(fetcher).not.toHaveBeenCalled();
   });
