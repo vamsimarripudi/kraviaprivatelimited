@@ -1,11 +1,13 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { isWebsiteConsentDatabaseUrl } from "../lib/env/neon";
 import { parsePrivacyChoices, privacyCookieFromDocument, privacyPreferenceVersion, serialisePrivacyChoices } from "../lib/privacy/choices";
 
 const layout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
 const optionalAnalytics = readFileSync(new URL("../components/optional-analytics.tsx", import.meta.url), "utf8");
 const consentRoute = readFileSync(new URL("../app/api/privacy/consent/route.ts", import.meta.url), "utf8");
-const migration = readFileSync(new URL("../../Database/supabase/migrations/202610060003_web_privacy_preferences.sql", import.meta.url), "utf8");
+const preferenceStore = readFileSync(new URL("../lib/corporate/privacy-preference-store.ts", import.meta.url), "utf8");
+const migration = readFileSync(new URL("../../Database/neon/migrations/202610060001_website_privacy_preferences.sql", import.meta.url), "utf8");
 
 describe("website privacy preference controls", () => {
   it("uses a non-identifying browser preference value and rejects unknown versions", () => {
@@ -31,18 +33,32 @@ describe("website privacy preference controls", () => {
   it("persists preferences only through a same-origin, keyed server-side route", () => {
     expect(consentRoute).toContain("sameOrigin(request)");
     expect(consentRoute).toContain("KRAVIA_PUBLIC_CONSENT_HMAC_KEY");
-    expect(consentRoute).toContain("record_web_privacy_preference");
+    expect(consentRoute).toContain("recordWebsitePrivacyPreference");
+    expect(consentRoute).not.toContain("createAdminClient");
     expect(consentRoute).toContain("Optional technologies remain off");
     expect(consentRoute).toContain("secure: process.env.NODE_ENV === \"production\"");
   });
 
-  it("keeps preference records private and writes an immutable decision history", () => {
-    expect(migration).toContain("create table public.web_privacy_preferences");
-    expect(migration).toContain("create table public.web_privacy_preference_events");
+  it("accepts only a pooled, TLS-protected Neon URL as a server configuration", () => {
+    expect(isWebsiteConsentDatabaseUrl("postgresql://role:password@ep-example-123-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require")).toBe(true);
+    expect(isWebsiteConsentDatabaseUrl("postgresql://role:password@ep-example-123.ap-southeast-1.aws.neon.tech/neondb?sslmode=require")).toBe(false);
+    expect(isWebsiteConsentDatabaseUrl("postgresql://role:password@ep-example-123-pooler.ap-southeast-1.aws.neon.tech/neondb")).toBe(false);
+    expect(isWebsiteConsentDatabaseUrl("https://example.com")).toBe(false);
+  });
+
+  it("keeps preference records private, atomically rate limited, and event audited", () => {
+    expect(preferenceStore).toContain('import "server-only"');
+    expect(preferenceStore).toContain("website_privacy.record_preference");
+    expect(preferenceStore).toContain("return \"UNAVAILABLE\"");
+    expect(migration).toContain("create schema if not exists website_privacy");
+    expect(migration).toContain("create table website_privacy.preferences");
+    expect(migration).toContain("create table website_privacy.preference_events");
+    expect(migration).toContain("create table website_privacy.rate_windows");
     expect(migration).toContain("OPTIONAL_ACCEPTED");
     expect(migration).toContain("PREFERENCE_WITHDRAWN");
-    expect(migration).toContain("enable row level security");
-    expect(migration).toContain("grant execute on function public.record_web_privacy_preference");
-    expect(migration).not.toMatch(/create policy[^;]+web_privacy[^;]+using \(true\)/i);
+    expect(migration).toContain("on conflict (scope, fingerprint_hash) do update");
+    expect(migration).toContain("revoke all on schema website_privacy from public");
+    expect(migration).toContain("revoke all on all tables in schema website_privacy from public");
+    expect(migration).toContain("revoke all on function website_privacy.record_preference");
   });
 });

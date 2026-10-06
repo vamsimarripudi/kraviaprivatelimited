@@ -46,6 +46,7 @@ Verify names and presence without storing secret values in Git:
 - `OFFICE_SUPABASE_PUBLISHABLE_KEY`
 - `OFFICE_SUPABASE_SECRET_KEY`
 - `KRAVIA_PUBLIC_CONSENT_HMAC_KEY` when website privacy-choice persistence is activated; use a separate 32+ character server-only value
+- `KRAVIA_WEBSITE_CONSENT_DATABASE_URL` when website privacy-choice persistence is activated; this must be the server-only, pooled Neon URL for the isolated website privacy project, with TLS required
 - database/runtime variables required by the backend
 - storage-broker signing variables
 - ClamAV configuration
@@ -71,3 +72,13 @@ Legal-pack review previews must remain disabled in production. Do not set
 production environment.
 
 Do not mark production deployment READY from repository CI alone.
+
+## Website privacy-preference persistence
+
+The public website consent route uses the separate, server-only Neon database
+defined in `Database/neon/`. It does not use the KRAVIA Office control plane,
+Supabase Auth, or a browser-accessible Data API. Apply the reviewed migration
+with a direct Neon connection before setting the pooled runtime URL. Verify a
+preference save and withdrawal on the canonical domain while optional
+technologies remain off for every unavailable, invalid, rate-limited, or GPC
+protected state.

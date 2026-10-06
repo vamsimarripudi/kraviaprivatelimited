@@ -31,3 +31,4 @@ Database/supabase/.temp/
 
 # Browser verification artifacts and isolated profiles
 /artifacts/
+.neon

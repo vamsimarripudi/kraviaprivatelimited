@@ -2,9 +2,9 @@ import { createHmac } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { publicQuotaIdentity } from "@/lib/corporate/public-quota";
+import { recordWebsitePrivacyPreference } from "@/lib/corporate/privacy-preference-store";
 import { hashTrackingCode } from "@/lib/corporate/support";
 import { privacyPreferenceCookieName, privacyPreferenceVersion, serialisePrivacyChoices } from "@/lib/privacy/choices";
-import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,26 +40,21 @@ export async function POST(request: Request) {
 
   const identity = publicQuotaIdentity(request);
   const fingerprint = identity ? preferenceFingerprint(identity) : null;
-  const admin = createAdminClient();
-  if (!identity || !fingerprint || !admin) {
+  if (!identity || !fingerprint) {
     return NextResponse.json({ error: "Privacy preferences are temporarily unavailable. Optional technologies remain off." }, { status: 503 });
   }
 
-  const quota = await admin.rpc("consume_support_request_quota", {
-    p_scope: "CREATE",
-    p_fingerprint_hash: await hashTrackingCode(`privacy-preference:${identity}`),
-    p_limit: 12,
+  const persisted = await recordWebsitePrivacyPreference({
+    preferenceFingerprint: fingerprint,
+    preferenceVersion: privacyPreferenceVersion,
+    optionalAnalytics: input.data.optionalAnalytics,
+    globalPrivacyControl: input.data.globalPrivacyControl,
+    quotaFingerprint: await hashTrackingCode(`privacy-preference:${identity}`),
   });
-  if (quota.error) return NextResponse.json({ error: "Privacy preferences are temporarily unavailable. Optional technologies remain off." }, { status: 503 });
-  if (!quota.data) return NextResponse.json({ error: "Please wait before updating your privacy choices again." }, { status: 429 });
-
-  const persisted = await admin.rpc("record_web_privacy_preference", {
-    p_fingerprint_hash: fingerprint,
-    p_preference_version: privacyPreferenceVersion,
-    p_optional_analytics: input.data.optionalAnalytics,
-    p_global_privacy_control: input.data.globalPrivacyControl,
-  });
-  if (persisted.error || !persisted.data) {
+  if (persisted === "RATE_LIMITED") {
+    return NextResponse.json({ error: "Please wait before updating your privacy choices again." }, { status: 429 });
+  }
+  if (persisted !== "STORED") {
     return NextResponse.json({ error: "Privacy preferences could not be recorded. Optional technologies remain off." }, { status: 503 });
   }
 

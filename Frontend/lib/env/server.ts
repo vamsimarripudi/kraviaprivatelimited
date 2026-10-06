@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { isWebsiteConsentDatabaseUrl } from "@/lib/env/neon";
 import { getPublicSupabaseEnvironment } from "@/lib/env/public";
 
 const serverEnvironmentSchema = z.object({ SUPABASE_SECRET_KEY: z.string().min(1) });
@@ -15,4 +16,10 @@ export function getSupabaseAdminEnvironment() {
   const serverEnvironment = getServerEnvironment();
   if (!publicEnvironment || !serverEnvironment) return null;
   return { ...publicEnvironment, ...serverEnvironment };
+}
+
+/** Returns only a verified pooled Neon URL for the isolated website store. */
+export function getWebsiteConsentDatabaseUrl(): string | null {
+  const value = process.env.KRAVIA_WEBSITE_CONSENT_DATABASE_URL?.trim();
+  return isWebsiteConsentDatabaseUrl(value) ? value : null;
 }
