@@ -4,6 +4,8 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
 import { Footer } from "@/components/footer";
 import { GovernedContentCollection } from "@/components/governed-content-collection";
+import { LegalDocument } from "@/components/legal-document";
+import { LegalTrustCenter } from "@/components/legal-trust-center";
 import { PublicContentArticle, NewsroomLanding, MediaKitContent } from "@/components/newsroom-content";
 import { PageHero, Reveal } from "@/components/motion";
 import { SiteNav } from "@/components/site-nav";
@@ -34,10 +36,15 @@ export default async function PublicPage({ params }: { params: Promise<{ segment
   if (content) {
     const allContent = await listPublishedContent();
     const schema = articleJsonLd(content);
-    return <><SiteNav /><BreadcrumbJsonLd items={breadcrumbsFor(segments)} />{schema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />}<main id="main-content"><PublicContentArticle article={content} allArticles={allContent} /></main><Footer /></>;
+    const reader = content.type === "POLICY" ? <LegalDocument article={content} /> : <PublicContentArticle article={content} allArticles={allContent} />;
+    return <><SiteNav /><BreadcrumbJsonLd items={breadcrumbsFor(segments)} />{schema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />}<main id="main-content">{reader}</main><Footer /></>;
   }
   if (!page) { const redirect = await resolvePublishedRedirect(`/${key}`); if (redirect) permanentRedirect(redirect); notFound(); }
   const breadcrumbs = breadcrumbsFor(segments);
+  if (key === "legal" || key === "trust") {
+    const published = await listPublishedContent();
+    return <><SiteNav /><BreadcrumbJsonLd items={breadcrumbs} /><main id="main-content"><LegalTrustCenter scope={key} records={published} /></main><Footer /></>;
+  }
   const [newsroom, published] = await Promise.all([
     key === "newsroom" ? getPublishedNewsroomContent() : Promise.resolve([]),
     publicHubContentTypes[key] ? listPublishedContent() : Promise.resolve([]),

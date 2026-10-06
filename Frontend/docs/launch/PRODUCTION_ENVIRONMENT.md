@@ -45,6 +45,7 @@ Verify names and presence without storing secret values in Git:
 - `OFFICE_SUPABASE_URL`
 - `OFFICE_SUPABASE_PUBLISHABLE_KEY`
 - `OFFICE_SUPABASE_SECRET_KEY`
+- `KRAVIA_PUBLIC_CONSENT_HMAC_KEY` when website privacy-choice persistence is activated; use a separate 32+ character server-only value
 - database/runtime variables required by the backend
 - storage-broker signing variables
 - ClamAV configuration
@@ -64,5 +65,9 @@ Supabase/PostgreSQL is the data/control plane; **Supabase Auth is not the active
 8. Execute Founder/role/AAL2 smoke tests.
 9. Verify API and worker health.
 10. Record the deployed commit SHA and provider deployment IDs as release evidence.
+
+Legal-pack review previews must remain disabled in production. Do not set
+`KRAVIA_ENABLE_LEGAL_LOCAL_PREVIEW` or `KRAVIA_LEGAL_DRAFT_SOURCE_DIR` in a
+production environment.
 
 Do not mark production deployment READY from repository CI alone.
