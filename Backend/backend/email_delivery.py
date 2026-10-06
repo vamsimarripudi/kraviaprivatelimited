@@ -15,6 +15,7 @@ import httpx
 from .email_templates import (
     TransactionalEmail,
     kravia_welcome_template,
+    office_device_approval_template,
     office_email_verification_template,
     public_form_follow_up_template,
     public_form_receipt_template,
@@ -146,6 +147,29 @@ def send_office_email_verification_code(
         template=office_email_verification_template(code=code, expiry_minutes=expiry_minutes),
         delivery_id=delivery_id,
         tags=["kravia-office-auth", "email-otp"],
+    )
+
+
+def send_office_device_approval(
+    *,
+    recipient_email: str,
+    device_label: str,
+    source_address: str | None,
+    approve_url: str,
+    decline_url: str,
+    delivery_id: str,
+) -> str | None:
+    """Ask only the affected account holder to decide a new browser request."""
+    return _send_transactional_email(
+        recipient_email=recipient_email,
+        template=office_device_approval_template(
+            device_label=device_label,
+            source_address=source_address,
+            approve_url=approve_url,
+            decline_url=decline_url,
+        ),
+        delivery_id=delivery_id,
+        tags=["kravia-office-auth", "device-approval"],
     )
 
 

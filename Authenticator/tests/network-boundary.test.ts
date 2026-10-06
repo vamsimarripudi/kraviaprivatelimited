@@ -10,22 +10,25 @@ function sourceFiles(directory: string): string[] {
   });
 }
 
-describe("KRAVIA email verification network boundary", () => {
-  it("limits network access to the dedicated identity client", () => {
+describe("KRAVIA Authenticator network boundary", () => {
+  it("limits network access to the dedicated activation client", () => {
     const root = resolve(import.meta.dirname, "..");
     const files = [resolve(root, "App.tsx"), ...sourceFiles(resolve(root, "src"))];
     const fetchUsers = files.filter((path) => /\bfetch\s*\(/.test(readFileSync(path, "utf8")));
     expect(fetchUsers).toEqual([resolve(root, "src", "activation.ts")]);
   });
 
-  it("requires HTTPS and keeps credentials out of device state", () => {
+  it("requires HTTPS, email verification, an approved claim, and a scoped activation session", () => {
     const source = readFileSync(new URL("../src/activation.ts", import.meta.url), "utf8");
     const app = readFileSync(new URL("../App.tsx", import.meta.url), "utf8");
     expect(source).toContain('protocol !== "https:"');
     expect(source).toContain("/api/v1/auth/email-otp/challenges");
-    expect(source).toContain("challenge_token");
-    expect(app).toContain("requestEmailOtp");
-    expect(app).not.toContain("generateTotp");
+    expect(source).toContain("/api/v1/auth/authenticator/activation-requests");
+    expect(source).toContain("AUTHENTICATOR_ACTIVATION");
+    expect(source).toContain("Authorization: `Bearer");
+    expect(source).toContain("claim_token");
+    expect(app).toContain("requestPhoneActivation");
+    expect(app).toContain("claimAuthenticatorActivation");
     expect(app).not.toContain("AsyncStorage");
   });
 });

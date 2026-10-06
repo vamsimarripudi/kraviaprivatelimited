@@ -1,5 +1,5 @@
 appId: com.kraviaprivatelimited.authenticator
-name: KRAVIA email verification fresh launch
+name: KRAVIA Authenticator verified phone activation fresh launch
 ---
 - launchApp:
     clearState: true

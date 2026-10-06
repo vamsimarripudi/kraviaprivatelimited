@@ -14,6 +14,7 @@ import json
 from pathlib import Path
 import re
 from typing import Mapping
+from urllib.parse import urlsplit
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,7 @@ KRAVIA_SITE_URL = "https://www.kraviaprivatelimited.com"
 _MANIFEST_PATH = Path(__file__).with_name("generated_email_templates.json")
 _TEMPLATE_NAMES = {
     "office_sign_in_code",
+    "office_device_approval",
     "public_request_received",
     "public_request_update",
     "public_intake_internal_notification",
@@ -124,6 +126,36 @@ def office_email_verification_template(*, code: str, expiry_minutes: int) -> Tra
         values={
             "@@KRAVIA_CODE@@": code,
             "@@KRAVIA_EXPIRY_MINUTES@@": str(expiry_minutes),
+        },
+    )
+
+
+def office_device_approval_template(
+    *,
+    device_label: str,
+    source_address: str | None,
+    approve_url: str,
+    decline_url: str,
+) -> TransactionalEmail:
+    """Render an account-owner device decision without exposing a session."""
+    label = device_label.strip()
+    if not 2 <= len(label) <= 160:
+        raise ValueError("Invalid device label")
+    address = (source_address or "Unavailable").strip()
+    if not 1 <= len(address) <= 64:
+        raise ValueError("Invalid source address")
+    for value in (approve_url, decline_url):
+        parsed = urlsplit(value)
+        if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
+            raise ValueError("Invalid device approval URL")
+    return _render(
+        template_name="office_device_approval",
+        subject="Review a new KRAVIA Office device sign-in",
+        values={
+            "@@KRAVIA_DEVICE_LABEL@@": label,
+            "@@KRAVIA_SOURCE_ADDRESS@@": address,
+            "@@KRAVIA_APPROVE_URL@@": approve_url,
+            "@@KRAVIA_DECLINE_URL@@": decline_url,
         },
     )
 

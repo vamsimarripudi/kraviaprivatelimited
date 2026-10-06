@@ -1,35 +1,38 @@
 # Authenticator
 
-Private native email-verification application for KRAVIA Office.
+Private native second-factor application for KRAVIA Office.
 
-## Sign-in model
+## Phone activation
 
-The app provides one direct sign-in journey:
+Authenticator uses RFC 6238 TOTP (SHA-1, six digits, 30 seconds) only after a protected phone approval:
 
-1. Read the welcome note and enter the registered corporate email address and password.
-2. KRAVIA sends a single-use six-digit verification code to that registered email address.
-3. Enter the code before its animated expiry timer reaches zero.
-4. On success, the managed app stores the issued session only in native secure storage and requires a new sign-in after 30 days.
+1. Read the welcome note, then enter registered corporate credentials.
+2. Enter the single-use six-digit code sent to the registered email address.
+3. The app stores a scoped mobile verification session in native secure storage. It cannot access KRAVIA Office APIs or replace an Office browser session.
+4. On a new phone, request activation. A verified AAL2 Office owner or administrator approves the phone in **Office → Security**.
+5. The approved phone claims a fresh seed exactly once and stores it only in native secure storage.
+6. Unlock the app with strong biometrics to view the local rotating code. Enter that code in Office to complete mandatory MFA.
 
-Password plus a registered-email code is the required two-step sign-in. The retired phone-approval/TOTP flow is not shown by this app.
+The mobile verification session expires after 30 days. Re-verification is then required before the local vault can be unlocked again. The TOTP seed is never sent to, copied from, or backed up through a cloud service.
 
-The app never stores the Office password or email code. It holds only a validated server-issued session in native secure storage.
+The controlled first-Founder bootstrap is the only approval exception: when no company MFA factor exists, the Founder can activate the first phone. Every later activation requires a verified Office owner or administrator.
 
-There is intentionally no QR scanner, setup key, local TOTP seed, code export, cloud backup, recovery code, or seed-sharing feature.
+There is intentionally no QR scanning, setup-key entry, manual account creation, camera permission, code clipboard export, seed export, cloud backup, or recovery-code feature.
 
 ## Security boundary
 
-- one explicit HTTPS email-verification client, configured only in a KRAVIA-managed build;
-- short-lived, single-use email-code challenge and no local credential persistence;
-- native secure storage with `WHEN_PASSCODE_SET_THIS_DEVICE_ONLY` for the validated session;
-- screen-capture protection and iOS app-switcher protection;
-- no OTP clipboard export;
-- application updates retire the previous local TOTP vault;
-- Expo OTA executable updates disabled and Android backup disabled.
+- One HTTPS-only client for email verification and device activation.
+- A 30-day mobile session with the server-enforced `AUTHENTICATOR_ACTIVATION` purpose, not general Office access.
+- Owner/admin approval before a seed is issued.
+- Short-lived, hashed phone claim token; no raw claim token is stored server-side.
+- Native secure storage with `WHEN_PASSCODE_SET_THIS_DEVICE_ONLY`.
+- Strong biometric unlock, background lock, screenshot protection, and iOS app-switcher protection.
+- Reinstall detection clears a Keychain item that could survive an iOS uninstall.
+- Android backup disabled and Expo OTA executable updates disabled.
 
-## Expired session or replacement phone
+## Lost or replacement phone
 
-Open the app and sign in again with the registered email and password. KRAVIA sends a new email verification code. No phone seed, QR code, or administrator approval is used.
+An authorised Office administrator resets MFA for the identity. That revokes the prior factor and applicable sessions. The replacement phone then follows the approval flow and receives a fresh seed. The old seed is never exported or reissued.
 
 ## Local development
 
@@ -42,10 +45,10 @@ npm test
 npx expo start
 ```
 
-Set `EXPO_PUBLIC_OFFICE_API_ORIGIN` to the HTTPS origin of the first-party Office identity service for a managed development build. The server-side email delivery provider must also be configured before end-to-end verification can send a code. Do not point the app at an insecure origin or persist credentials in a local configuration file.
+Set `EXPO_PUBLIC_OFFICE_API_ORIGIN` to the HTTPS origin of the first-party Office identity service. A configured email provider is required for the credential-email verification step. Never put Office credentials, email codes, claim tokens, or seeds in source-controlled configuration.
 
-Use a physical device to validate SecureStore, screen-capture protection, safe-area layout, the email delivery path, expiry timer, and the 30-day session expiry.
+Use a physical device to validate SecureStore, biometric unlock, screen-capture protection, safe-area layout, email verification, the approval journey, and the 30-day re-verification boundary.
 
 ## Release checks
 
-The Authenticator workflows run type checks, security/profile tests, Expo compatibility checks, native prebuild/export checks, and signed release verification. Production signing workflows require the `KRAVIA_AUTHENTICATOR_API_ORIGIN` repository secret to inject the managed HTTPS identity-service origin during the build.
+The Authenticator workflows run type checks, security/profile tests, Expo compatibility checks, native prebuild/export checks, and signed release verification. Production signing requires `KRAVIA_AUTHENTICATOR_API_ORIGIN` to inject the managed HTTPS Office identity-service origin.

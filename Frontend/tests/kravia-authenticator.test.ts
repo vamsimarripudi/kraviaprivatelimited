@@ -11,7 +11,7 @@ const backend = readFileSync(new URL("../../Backend/backend/identity_auth.py", i
 const login = readFileSync(new URL("../components/workspace-login-form.tsx", import.meta.url), "utf8");
 const installPage = readFileSync(new URL("../app/office/authenticator/page.tsx", import.meta.url), "utf8");
 
-describe("KRAVIA Authenticator email-verification boundary", () => {
+describe("KRAVIA Authenticator verified-device boundary", () => {
   it("keeps the Office AAL2 policy mandatory for every role", () => {
     expect(backend).toContain('MFA_AUTHENTICATOR_APP = "Authenticator"');
     expect(backend).toContain('"mfa_required_for_all_roles": True');
@@ -25,7 +25,7 @@ describe("KRAVIA Authenticator email-verification boundary", () => {
     expect(installPage).toContain("KRAVIA_AUTHENTICATOR_IOS_URL");
   });
 
-  it("uses a short-lived credential-first email verification flow on the phone", () => {
+  it("uses credential-email verification before an approved local-code activation", () => {
     expect(backend).toContain('/email-otp/challenges');
     expect(backend).toContain('"authenticator_mobile"');
     expect(backend).toContain("EMAIL_OTP_TTL_SECONDS");
@@ -33,34 +33,54 @@ describe("KRAVIA Authenticator email-verification boundary", () => {
     expect(activation).toContain("requestEmailOtp");
     expect(activation).toContain("resendEmailOtp");
     expect(activation).toContain("verifyEmailOtp");
+    expect(activation).toContain("requestAuthenticatorActivation");
+    expect(activation).toContain("claimAuthenticatorActivation");
     expect(activation).toContain('protocol !== "https:"');
     expect(storage).toContain("SESSION_STORE_KEY");
     expect(storage).toContain("refreshToken");
-    expect(storage).toContain("retireLegacyTotpVault");
+    expect(storage).toContain("ACCOUNT_STORE_KEY");
+    expect(storage).toContain("ACTIVATION_STORE_KEY");
+    expect(app).toContain("generateTotp");
+    expect(login).toContain("officeTotpWindow");
+    expect(login).toContain('phase === "success"');
+    expect(login).toContain("Authenticator code accepted");
+    expect(login).toContain("codeExpired");
   });
 
-  it("has no QR, setup-key, camera, clipboard, or local-TOTP enrollment surface", () => {
-    expect(app).toContain("Sign in with your registered corporate email");
+  it("keeps a new Office browser pending until its own account holder decides it", () => {
+    expect(backend).toContain("PENDING_DEVICE_APPROVAL");
+    expect(backend).toContain("DEVICE_APPROVAL_REQUIRED");
+    expect(backend).toContain("DEVICE_APPROVAL_COMPLETED");
+    expect(backend).toContain("owner_action_token_hash");
+    expect(backend).toContain("device_token_hash");
+    expect(login).toContain('phase === "device-approval"');
+    expect(login).toContain("original browser");
+    expect(login).toContain("device-approval/status");
+  });
+
+  it("has no QR, setup-key, camera, clipboard, or manual-TOTP enrollment surface", () => {
+    expect(app).toContain("Verify your registered corporate email");
     expect(app).toContain("Enter your code");
     expect(app).toContain("usePreventScreenCapture");
     expect(app).toContain("enableAppSwitcherProtectionAsync");
     expect(app).not.toContain("CameraView");
     expect(app).not.toContain("setup key");
     expect(app).not.toContain("QR code");
-    expect(app).not.toContain("generateTotp");
+    expect(app).toContain("Request phone activation");
+    expect(app).not.toContain("manual account");
     expect(app).not.toContain("Clipboard.setString");
     expect(packageJson).not.toContain('"expo-camera"');
     expect(packageJson).not.toContain('"expo-clipboard"');
   });
 
   it("ships a native Android/iOS Expo app with only the required network permission", () => {
-    expect(packageJson).toContain('"expo": "~57.0.26"');
+    expect(packageJson).toContain('"expo": "~57.0.27"');
     expect(packageJson).toContain('"expo-secure-store"');
     expect(appJson).toContain('"android.permission.INTERNET"');
     expect(appConfig.expo.android.permissions).not.toContain("android.permission.CAMERA");
     expect(appConfig.expo.android.permissions).not.toContain("android.permission.RECORD_AUDIO");
     expect(appConfig.expo.android.blockedPermissions).toContain("android.permission.RECORD_AUDIO");
-    expect(appJson).toContain('"CREDENTIAL_EMAIL_OTP_SESSION"');
+    expect(appJson).toContain('"EMAIL_VERIFIED_APPROVAL_TOTP"');
     expect(appJson).toContain('"allowBackup": false');
     expect(app).toContain("TimerCircle");
   });

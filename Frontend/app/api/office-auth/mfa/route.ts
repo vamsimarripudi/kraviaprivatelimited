@@ -18,8 +18,19 @@ export async function POST(request: Request) {
 
   try {
     const upgraded = await verifyOfficeMfa(context, parsed.data.code);
+    if (upgraded.kind === "pending") {
+      return NextResponse.json(
+        {
+          verified: false,
+          device_approval_pending: true,
+          expires_at: upgraded.approval.expiresAt,
+          device_label: upgraded.approval.deviceLabel,
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
     return NextResponse.json(
-      { verified: true, aal: upgraded.identity.aal },
+      { verified: true, aal: upgraded.context.identity.aal },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

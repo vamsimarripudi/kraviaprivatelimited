@@ -10,6 +10,7 @@ const check = process.argv.includes("--check");
 
 const requiredTokens = {
   office_sign_in_code: [PLACEHOLDERS.code, PLACEHOLDERS.expiryMinutes],
+  office_device_approval: [PLACEHOLDERS.deviceLabel, PLACEHOLDERS.sourceAddress, PLACEHOLDERS.approveUrl, PLACEHOLDERS.declineUrl],
   public_request_received: [PLACEHOLDERS.name, PLACEHOLDERS.reference, PLACEHOLDERS.requestKind, PLACEHOLDERS.nextStep],
   public_request_update: [PLACEHOLDERS.name, PLACEHOLDERS.reference, PLACEHOLDERS.message],
   public_intake_internal_notification: [PLACEHOLDERS.name, PLACEHOLDERS.senderEmail, PLACEHOLDERS.reference, PLACEHOLDERS.requestKind, PLACEHOLDERS.requestSubject, PLACEHOLDERS.organisation],

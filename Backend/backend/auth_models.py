@@ -54,6 +54,9 @@ class OfficeAuthSession(Base):
     refresh_token_hash = Column(String(64), nullable=False, unique=True)
     status = Column(String(24), nullable=False, default="ACTIVE")
     aal = Column(String(8), nullable=False, default="aal1")
+    # A mobile email-verification session can authorize only Authenticator
+    # activation. It must never be accepted as a general Office web session.
+    purpose = Column(String(48), nullable=False, default="OFFICE")
     mfa_failed_attempts = Column(Integer, nullable=False, default=0)
     ip_address = Column(String(64), nullable=True)
     user_agent_hash = Column(String(64), nullable=True)
@@ -65,6 +68,40 @@ class OfficeAuthSession(Base):
     __table_args__ = (
         Index("ix_office_auth_sessions_v2_user_status", "user_id", "status"),
         Index("ix_office_auth_sessions_v2_expires", "expires_at"),
+    )
+
+
+class OfficeLoginDeviceApproval(Base):
+    """A browser-device request held between TOTP and active Office access.
+
+    The account-owner email token and original-browser proof are both stored
+    only as hashes.  An approval link therefore changes request state, while
+    the original browser must separately prove that it initiated the request
+    before it can receive an active Office session.
+    """
+
+    __tablename__ = "office_login_device_approvals"
+
+    id = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey("office_auth_users.id", ondelete="CASCADE"), nullable=False)
+    session_id = Column(String(36), ForeignKey("office_auth_sessions_v2.id", ondelete="CASCADE"), nullable=False, unique=True)
+    device_token_hash = Column(String(64), nullable=False, unique=True)
+    owner_action_token_hash = Column(String(64), nullable=False, unique=True)
+    status = Column(String(32), nullable=False, default="PENDING")
+    source_ip_address = Column(String(64), nullable=True)
+    user_agent_hash = Column(String(64), nullable=True)
+    device_label = Column(String(160), nullable=False)
+    provider_message_id = Column(String(320), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    trusted_until = Column(DateTime(timezone=True), nullable=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    declined_at = Column(DateTime(timezone=True), nullable=True)
+    consumed_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_office_login_device_approvals_user_status", "user_id", "status"),
+        Index("ix_office_login_device_approvals_status_expires", "status", "expires_at"),
     )
 
 

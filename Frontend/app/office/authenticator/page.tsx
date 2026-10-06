@@ -54,7 +54,7 @@ export default function KraviaAuthenticatorPage() {
         <div style={{ display: "grid", gap: 10 }}>
           {[
             [Smartphone, "1 · Prepare the phone", "Use a company-approved phone with a device passcode and strong fingerprint, Touch ID or Face ID enabled."],
-            [KeyRound, "2 · Sign in to activate", "Enter your corporate email and password in Authenticator. This creates a short-lived phone request, not an Office browser session."],
+            [KeyRound, "2 · Sign in to activate", "Enter your corporate email and password, then the six-digit code sent to that email. This creates a short-lived phone request, not an Office browser session."],
             [ShieldCheck, "3 · Approve the phone", "A verified Office owner or administrator reviews the request in Security settings. No setup material is exposed."],
             [ShieldCheck, "4 · Verify six digits", "Return to Office and enter the current code. Successful TOTP verification promotes the session to AAL2."],
           ].map(([Icon, title, copy]) => {

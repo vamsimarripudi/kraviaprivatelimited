@@ -1,7 +1,7 @@
 import pytest
 
 from backend import email_delivery
-from backend.email_templates import kravia_welcome_template, office_email_verification_template, public_form_follow_up_template, public_form_receipt_template, public_intake_internal_notification_template
+from backend.email_templates import kravia_welcome_template, office_device_approval_template, office_email_verification_template, public_form_follow_up_template, public_form_receipt_template, public_intake_internal_notification_template
 
 
 class FakeResponse:
@@ -37,8 +37,27 @@ def test_kravia_verification_template_has_safe_single_use_copy():
     assert template.subject == "482915 is your KRAVIA verification code"
     assert "482915" in template.html_content
     assert "Do not share" in template.html_content
+    assert "ONE-TIME SIGN-IN CODE" in template.html_content
+    assert 'name="color-scheme"' in template.html_content
+    assert "background-color:#193B5B" in template.html_content
+    assert "color:#FFFFFF" in template.html_content
     assert "hello@kraviaprivatelimited.com" not in template.html_content
     assert "482915" in template.text_content
+
+
+def test_device_approval_template_names_the_device_without_creating_a_session():
+    template = office_device_approval_template(
+        device_label="Chrome on Windows device",
+        source_address="203.0.113.10",
+        approve_url="https://www.kraviaprivatelimited.com/office/device-approval/confirm?id=11111111-1111-4111-8111-111111111111&token=synthetic-token-value-which-is-long-enough-123456&decision=approve",
+        decline_url="https://www.kraviaprivatelimited.com/office/device-approval/confirm?id=11111111-1111-4111-8111-111111111111&token=synthetic-token-value-which-is-long-enough-123456&decision=decline",
+    )
+
+    assert template.subject == "Review a new KRAVIA Office device sign-in"
+    assert "Chrome on Windows device" in template.html_content
+    assert "203.0.113.10" in template.text_content
+    assert "original browser" in template.text_content
+    assert "access_token" not in template.html_content
 
 
 def test_public_form_receipt_has_kravia_header_footer_and_no_request_body():
@@ -120,6 +139,12 @@ def test_react_email_manifest_has_no_unresolved_tokens_or_executable_markup():
             message="Synthetic reply.",
         ),
         kravia_welcome_template(recipient_name="Synthetic Recipient"),
+        office_device_approval_template(
+            device_label="Synthetic browser",
+            source_address="203.0.113.10",
+            approve_url="https://www.kraviaprivatelimited.com/office/device-approval/confirm?id=11111111-1111-4111-8111-111111111111&token=synthetic-token-value-which-is-long-enough-123456&decision=approve",
+            decline_url="https://www.kraviaprivatelimited.com/office/device-approval/confirm?id=11111111-1111-4111-8111-111111111111&token=synthetic-token-value-which-is-long-enough-123456&decision=decline",
+        ),
     ]
     for template in templates:
         assert "@@KRAVIA_" not in template.html_content
@@ -155,6 +180,26 @@ def test_brevo_delivery_uses_backend_key_sender_and_idempotency(monkeypatch):
     assert call["json"]["to"] == [{"email": "member@example.test"}]
     assert call["json"]["headers"]["Idempotency-Key"] == "email-otp:challenge-1:1"
     assert call["json"]["tags"] == ["kravia-office-auth", "email-otp"]
+
+
+def test_device_approval_delivery_uses_the_verified_sender(monkeypatch):
+    FakeClient.calls = []
+    FakeClient.response = FakeResponse(201, {"messageId": "device-approval-message"})
+    monkeypatch.setenv("BREVO_API_KEY", "test-key-not-a-production-secret")
+    monkeypatch.setattr(email_delivery.httpx, "Client", FakeClient)
+
+    receipt = email_delivery.send_office_device_approval(
+        recipient_email="member@example.test",
+        device_label="Synthetic browser",
+        source_address="203.0.113.10",
+        approve_url="https://www.kraviaprivatelimited.com/office/device-approval/confirm?id=11111111-1111-4111-8111-111111111111&token=synthetic-token-value-which-is-long-enough-123456&decision=approve",
+        decline_url="https://www.kraviaprivatelimited.com/office/device-approval/confirm?id=11111111-1111-4111-8111-111111111111&token=synthetic-token-value-which-is-long-enough-123456&decision=decline",
+        delivery_id="device-approval:11111111-1111-4111-8111-111111111111",
+    )
+    assert receipt == "device-approval-message"
+    call = FakeClient.calls[0]
+    assert call["json"]["sender"]["email"] == "hello@kraviaprivatelimited.com"
+    assert call["json"]["tags"] == ["kravia-office-auth", "device-approval"]
 
 
 def test_brevo_rejection_is_not_misreported_as_sent(monkeypatch):

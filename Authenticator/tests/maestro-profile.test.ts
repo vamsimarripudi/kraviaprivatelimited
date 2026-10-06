@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const flow = (name: string) => readFileSync(new URL(`../.maestro/${name}`, import.meta.url), "utf8");
 
-describe("KRAVIA email verification Maestro acceptance profile", () => {
+describe("KRAVIA Authenticator Maestro acceptance profile", () => {
   it("starts with a welcome note, then asks for registered credentials", () => {
     const source = flow("00-launch-lock.yaml");
     expect(source).toContain("clearState: true");

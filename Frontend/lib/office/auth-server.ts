@@ -7,9 +7,13 @@ import { isOfficeRole, type OfficeRole } from "@/lib/office/workspaces";
 
 export const OFFICE_ACCESS_COOKIE = "kravia_office_access";
 export const OFFICE_REFRESH_COOKIE = "kravia_office_refresh";
+export const OFFICE_LOGIN_DEVICE_COOKIE = "kravia_office_login_device";
+export const OFFICE_DEVICE_ACTION_COOKIE = "kravia_office_device_action";
 
 const ACCESS_COOKIE_MAX_AGE_SECONDS = 60 * 60;
 const REFRESH_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
+const DEVICE_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+const PENDING_DEVICE_COOKIE_MAX_AGE_SECONDS = 60 * 60;
 
 export type OfficeIdentity = {
   userId: string;
@@ -58,6 +62,15 @@ export type AuthenticatorActivationRequest = {
   expires_at: string;
 };
 
+export type PendingOfficeDeviceApproval = {
+  approvalId: string;
+  status: "PENDING" | "APPROVED" | "DECLINED" | "EXPIRED" | "DELIVERY_FAILED" | "DELIVERY_UNKNOWN" | "TRUSTED";
+  expiresAt: string;
+  deviceLabel: string;
+};
+
+type OfficeLoginDeviceProof = { approvalId: string; proof: string };
+
 type FirstPartyAuthResponse = {
   authenticated: boolean;
   access_token: string;
@@ -74,6 +87,11 @@ type FirstPartyAuthResponse = {
   founder?: boolean;
   display_role?: string;
   mfa?: { enrolled?: boolean };
+  device_approval_pending?: boolean;
+  device_approval_id?: string;
+  device_proof?: string;
+  expires_at?: string;
+  device_label?: string;
 };
 
 type FastApiValidationItem = { msg?: unknown; loc?: unknown[] };
@@ -185,6 +203,43 @@ export async function clearOfficeSessionCookies() {
   };
   store.set(OFFICE_ACCESS_COOKIE, "", options);
   store.set(OFFICE_REFRESH_COOKIE, "", options);
+}
+
+function parseLoginDeviceCookie(value: string | undefined): OfficeLoginDeviceProof | null {
+  if (!value) return null;
+  const separator = value.indexOf(".");
+  if (separator <= 0) return null;
+  const approvalId = value.slice(0, separator);
+  const proof = value.slice(separator + 1);
+  if (!/^[0-9a-f-]{36}$/i.test(approvalId) || !/^[A-Za-z0-9_-]{32,}$/.test(proof)) return null;
+  return { approvalId, proof };
+}
+
+async function writeOfficeLoginDeviceCookie(device: OfficeLoginDeviceProof, pending: boolean) {
+  const store = await cookies();
+  store.set(OFFICE_LOGIN_DEVICE_COOKIE, `${device.approvalId}.${device.proof}`, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    path: "/",
+    maxAge: pending ? PENDING_DEVICE_COOKIE_MAX_AGE_SECONDS : DEVICE_COOKIE_MAX_AGE_SECONDS,
+  });
+}
+
+export async function clearOfficeLoginDeviceCookie() {
+  const store = await cookies();
+  store.set(OFFICE_LOGIN_DEVICE_COOKIE, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    path: "/",
+    maxAge: 0,
+  });
+}
+
+async function currentOfficeLoginDeviceProof() {
+  const store = await cookies();
+  return parseLoginDeviceCookie(store.get(OFFICE_LOGIN_DEVICE_COOKIE)?.value);
 }
 
 async function contextFromPayload(payload: FirstPartyAuthResponse): Promise<OfficeSessionContext> {
@@ -305,12 +360,33 @@ export async function registerInvitedOfficeUser(input: { token: string; display_
 }
 
 export async function verifyOfficeMfa(context: OfficeSessionContext, code: string) {
+  const device = await currentOfficeLoginDeviceProof();
   const response = await rawApi("/api/v1/auth/mfa/verify", {
     method: "POST",
     headers: { Authorization: `Bearer ${context.session.access_token}` },
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({
+      code,
+      ...(device ? { device_approval_id: device.approvalId, device_proof: device.proof } : {}),
+    }),
   });
-  const payload = await parseOrThrow<FirstPartyAuthResponse & { verified: true }>(response);
+  const payload = await parseOrThrow<FirstPartyAuthResponse & { verified: boolean }>(response);
+  if (payload.device_approval_pending === true) {
+    if (!payload.device_approval_id || !payload.device_proof || !payload.expires_at || !payload.device_label) {
+      throw new Error("KRAVIA Office returned an incomplete device approval request");
+    }
+    await clearOfficeSessionCookies();
+    await writeOfficeLoginDeviceCookie({ approvalId: payload.device_approval_id, proof: payload.device_proof }, true);
+    return {
+      kind: "pending" as const,
+      approval: {
+        approvalId: payload.device_approval_id,
+        status: "PENDING" as const,
+        expiresAt: payload.expires_at,
+        deviceLabel: payload.device_label,
+      },
+    };
+  }
+  if (payload.verified !== true || !payload.access_token) throw new Error("KRAVIA Office did not complete MFA");
   const next: OfficeSessionContext = {
     session: {
       access_token: payload.access_token,
@@ -321,7 +397,55 @@ export async function verifyOfficeMfa(context: OfficeSessionContext, code: strin
     mfa: { enrolled: true },
   };
   await writeOfficeSessionCookies(next.session);
-  return next;
+  return { kind: "active" as const, context: next };
+}
+
+function toPendingApproval(payload: { approval_id?: unknown; status?: unknown; expires_at?: unknown; device_label?: unknown }): PendingOfficeDeviceApproval {
+  const status = typeof payload.status === "string" ? payload.status : "";
+  const accepted = new Set(["PENDING", "APPROVED", "DECLINED", "EXPIRED", "DELIVERY_FAILED", "DELIVERY_UNKNOWN", "TRUSTED"]);
+  if (
+    typeof payload.approval_id !== "string" || !/^[0-9a-f-]{36}$/i.test(payload.approval_id) ||
+    !accepted.has(status) || typeof payload.expires_at !== "string" || typeof payload.device_label !== "string"
+  ) throw new Error("KRAVIA Office returned an invalid device approval request");
+  return {
+    approvalId: payload.approval_id,
+    status: status as PendingOfficeDeviceApproval["status"],
+    expiresAt: payload.expires_at,
+    deviceLabel: payload.device_label,
+  };
+}
+
+export async function getPendingOfficeDeviceApproval() {
+  const device = await currentOfficeLoginDeviceProof();
+  if (!device) throw new OfficeApiError(401, "Device approval request is not available in this browser");
+  const response = await rawApi("/api/v1/auth/device-approvals/status", {
+    method: "POST",
+    body: JSON.stringify({ device_id: device.approvalId, device_proof: device.proof }),
+  });
+  return toPendingApproval(await parseOrThrow<{ approval_id?: unknown; status?: unknown; expires_at?: unknown; device_label?: unknown }>(response));
+}
+
+export async function completePendingOfficeDeviceApproval() {
+  const device = await currentOfficeLoginDeviceProof();
+  if (!device) throw new OfficeApiError(401, "Device approval request is not available in this browser");
+  const response = await rawApi("/api/v1/auth/device-approvals/complete", {
+    method: "POST",
+    body: JSON.stringify({ device_id: device.approvalId, device_proof: device.proof }),
+  });
+  const payload = await parseOrThrow<FirstPartyAuthResponse>(response);
+  if (!payload.access_token || !payload.refresh_token) throw new Error("KRAVIA Office did not activate this approved device");
+  const context = await contextFromPayload(payload);
+  await writeOfficeSessionCookies(context.session);
+  await writeOfficeLoginDeviceCookie(device, false);
+  return context;
+}
+
+export async function decideOfficeDeviceApprovalFromEmail(action: { approvalId: string; actionToken: string; decision: "APPROVE" | "DECLINE" }) {
+  const response = await rawApi(`/api/v1/auth/device-approvals/${encodeURIComponent(action.approvalId)}/action`, {
+    method: "POST",
+    body: JSON.stringify({ action_token: action.actionToken, decision: action.decision }),
+  });
+  return parseOrThrow<{ decided: true; status: "APPROVED" | "DECLINED" }>(response);
 }
 
 export async function refreshOfficeIdentity(context: OfficeSessionContext): Promise<OfficeSessionContext> {

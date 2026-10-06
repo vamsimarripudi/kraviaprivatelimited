@@ -798,6 +798,52 @@
         "title": "DecisionNote",
         "type": "object"
       },
+      "DeviceApprovalActionPayload": {
+        "properties": {
+          "action_token": {
+            "maxLength": 256,
+            "minLength": 32,
+            "title": "Action Token",
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "APPROVE",
+              "DECLINE"
+            ],
+            "title": "Decision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action_token",
+          "decision"
+        ],
+        "title": "DeviceApprovalActionPayload",
+        "type": "object"
+      },
+      "DeviceApprovalProofPayload": {
+        "properties": {
+          "device_id": {
+            "maxLength": 36,
+            "minLength": 36,
+            "title": "Device Id",
+            "type": "string"
+          },
+          "device_proof": {
+            "maxLength": 256,
+            "minLength": 32,
+            "title": "Device Proof",
+            "type": "string"
+          }
+        },
+        "required": [
+          "device_id",
+          "device_proof"
+        ],
+        "title": "DeviceApprovalProofPayload",
+        "type": "object"
+      },
       "DeviceEventPayload": {
         "properties": {
           "action": {
@@ -1893,6 +1939,32 @@
             "pattern": "^[0-9]{6}$",
             "title": "Code",
             "type": "string"
+          },
+          "device_approval_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Approval Id"
+          },
+          "device_proof": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Proof"
           }
         },
         "required": [
@@ -5272,18 +5344,26 @@
         ]
       },
       "post": {
-        "description": "Create a short-lived phone claim after password verification.\n\nThis intentionally returns no TOTP secret. A separate AAL2 owner/admin\napproval (or the controlled first-Founder bootstrap) is required before\nthe phone can claim its local, one-time seed.",
+        "description": "Create a short-lived phone claim after email-verified mobile sign-in.\n\nThis intentionally returns no TOTP secret. A separate AAL2 owner/admin\napproval (or the controlled first-Founder bootstrap) is required before\nthe phone can claim its local, one-time seed.",
         "operationId": "request_authenticator_activation_api_v1_auth_authenticator_activation_requests_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SignInPayload"
-              }
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
-          },
-          "required": true
-        },
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -5430,6 +5510,137 @@
           }
         },
         "summary": "Bootstrap Status",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/device-approvals/complete": {
+      "post": {
+        "description": "Redeem an approved request only in the browser that started it.",
+        "operationId": "complete_device_approval_api_v1_auth_device_approvals_complete_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceApprovalProofPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Complete Device Approval",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/device-approvals/status": {
+      "post": {
+        "description": "Return only the pending browser's own approval state.",
+        "operationId": "device_approval_status_api_v1_auth_device_approvals_status_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceApprovalProofPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Device Approval Status",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/device-approvals/{approval_id}/action": {
+      "post": {
+        "description": "Record an account-owner email decision; this endpoint never issues a session.",
+        "operationId": "decide_device_approval_api_v1_auth_device_approvals__approval_id__action_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "approval_id",
+            "required": true,
+            "schema": {
+              "title": "Approval Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceApprovalActionPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decide Device Approval",
         "tags": [
           "identity"
         ]

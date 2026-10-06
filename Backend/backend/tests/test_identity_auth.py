@@ -1,4 +1,5 @@
 import os
+from urllib.parse import parse_qs, urlsplit
 
 import pyotp
 from fastapi import FastAPI
@@ -17,6 +18,14 @@ def make_client(tmp_path, monkeypatch):
     monkeypatch.setenv("OFFICE_AUTH_BOOTSTRAP_SECRET", "test-bootstrap-secret-at-least-32-characters")
     monkeypatch.setenv("OFFICE_AUTH_BREAK_GLASS_SECRET", "test-break-glass-secret-at-least-48-characters-long-123456")
     monkeypatch.setenv("OFFICE_AUTH_EMAIL_DOMAIN", "example.test")
+    # Email OTP is part of the phone-activation ceremony. Keep the test delivery
+    # entirely local and deterministic; no provider or real mailbox is used.
+    monkeypatch.setattr(identity_auth, "send_office_email_verification_code", lambda **_kwargs: "test-email-otp-message")
+    # Focused device-approval tests enable this explicit production-default
+    # gate themselves. Existing first-party MFA tests validate the underlying
+    # factor/session behavior without an external delivery dependency.
+    monkeypatch.setattr(identity_auth, "DEVICE_APPROVAL_REQUIRED", False)
+    monkeypatch.setattr(identity_auth.secrets, "randbelow", lambda _limit: 482915)
     engine = create_engine(
         f"sqlite:///{tmp_path / 'first-party-auth.db'}",
         connect_args={"check_same_thread": False},
@@ -63,12 +72,34 @@ def founder(client: TestClient):
     return response.json()
 
 
-def activate_founder_authenticator(client: TestClient, password: str = FOUNDER["password"]):
-    requested = client.post(
-        "/api/v1/auth/authenticator/activation-requests",
-        json={"email": FOUNDER["email"], "password": password},
+def authenticator_activation_session(client: TestClient, email: str, password: str):
+    challenge = client.post(
+        "/api/v1/auth/email-otp/challenges",
+        json={"email": email, "password": password, "channel": "authenticator_mobile"},
     )
-    assert requested.status_code == 200, requested.text
+    assert challenge.status_code == 201, challenge.text
+    verified = client.post(
+        f"/api/v1/auth/email-otp/challenges/{challenge.json()['challenge_id']}/verify",
+        json={"challenge_token": challenge.json()["challenge_token"], "code": "482915"},
+    )
+    assert verified.status_code == 200, verified.text
+    session = verified.json()
+    assert session["session_purpose"] == identity_auth.AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE
+    return session["access_token"]
+
+
+def request_authenticator_activation(client: TestClient, email: str, password: str):
+    activation_access_token = authenticator_activation_session(client, email, password)
+    response = client.post(
+        "/api/v1/auth/authenticator/activation-requests",
+        headers={"Authorization": f"Bearer {activation_access_token}"},
+    )
+    assert response.status_code == 200, response.text
+    return response
+
+
+def activate_founder_authenticator(client: TestClient, password: str = FOUNDER["password"]):
+    requested = request_authenticator_activation(client, FOUNDER["email"], password)
     request = requested.json()
     assert request["status"] == "APPROVED"
     assert request["approval_required"] is False
@@ -148,11 +179,7 @@ def aal2_invited_user(
         roles=roles,
         password=password,
     )
-    requested = client.post(
-        "/api/v1/auth/authenticator/activation-requests",
-        json={"email": email, "password": password},
-    )
-    assert requested.status_code == 200, requested.text
+    requested = request_authenticator_activation(client, email, password)
     approved = client.post(
         f"/api/v1/auth/authenticator/activation-requests/{requested.json()['request_id']}/approve",
         headers={"Authorization": f"Bearer {owner_access_token}"},
@@ -235,6 +262,10 @@ def test_password_sign_in_and_mfa_promote_to_aal2(tmp_path, monkeypatch):
     client, engine = make_client(tmp_path, monkeypatch)
     try:
         founder(client)
+        # A claimed, approved phone has a real factor even before it is used
+        # for the first browser sign-in. The next password attempt must offer
+        # TOTP verification, never repeat device activation.
+        secret = activate_founder_authenticator(client)
         signed_in = client.post(
             "/api/v1/auth/sign-in",
             json={"email": FOUNDER["email"], "password": FOUNDER["password"]},
@@ -243,8 +274,15 @@ def test_password_sign_in_and_mfa_promote_to_aal2(tmp_path, monkeypatch):
         signed = signed_in.json()
         assert signed["aal"] == "aal1"
         assert signed["roles"] == ["OWNER"]
+        assert signed["mfa"] == {"enrolled": True, "verified": False}
 
-        secret = activate_founder_authenticator(client)
+        second_mobile_session = authenticator_activation_session(client, FOUNDER["email"], FOUNDER["password"])
+        duplicate_activation = client.post(
+            "/api/v1/auth/authenticator/activation-requests",
+            headers={"Authorization": f"Bearer {second_mobile_session}"},
+        )
+        assert duplicate_activation.status_code == 409
+        assert "already active" in duplicate_activation.json()["detail"].lower()
 
         verified = client.post(
             "/api/v1/auth/mfa/verify",
@@ -254,6 +292,7 @@ def test_password_sign_in_and_mfa_promote_to_aal2(tmp_path, monkeypatch):
         assert verified.status_code == 200, verified.text
         aal2 = verified.json()
         assert aal2["aal"] == "aal2"
+        assert aal2["mfa"] == {"enrolled": True, "verified": True}
 
         current = client.get(
             "/api/v1/auth/session",
@@ -293,11 +332,11 @@ def test_authenticator_phone_requires_aal2_owner_approval_before_claim(tmp_path,
         )
         assert registered.status_code == 201, registered.text
 
-        requested = client.post(
-            "/api/v1/auth/authenticator/activation-requests",
-            json={"email": "activation-member@example.test", "password": "Member-Activation1!"},
+        requested = request_authenticator_activation(
+            client,
+            "activation-member@example.test",
+            "Member-Activation1!",
         )
-        assert requested.status_code == 200, requested.text
         activation = requested.json()
         assert activation["status"] == "PENDING"
         assert activation["approval_required"] is True
@@ -498,11 +537,11 @@ def test_direct_identity_api_enforces_delegated_admin_limits(tmp_path, monkeypat
         )
         assert blocked_reset.status_code == 403
 
-        peer_activation = client.post(
-            "/api/v1/auth/authenticator/activation-requests",
-            json={"email": "peer-admin@example.test", "password": "Peer-Admin1!"},
+        peer_activation = request_authenticator_activation(
+            client,
+            "peer-admin@example.test",
+            "Peer-Admin1!",
         )
-        assert peer_activation.status_code == 200, peer_activation.text
         peer_activation_id = peer_activation.json()["request_id"]
         listed_activations = client.get(
             "/api/v1/auth/authenticator/activation-requests",
@@ -716,6 +755,134 @@ def test_device_events_require_aal2_and_device_ownership(tmp_path, monkeypatch):
         assert event[0] == "DEVICE_LINKED"
         assert event[1] == user_id
         assert event[2]
+    finally:
+        engine.dispose()
+
+
+def test_new_browser_stays_blocked_until_only_its_account_owner_approves_it(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    delivered: dict[str, str] = {}
+    try:
+        monkeypatch.setattr(identity_auth, "DEVICE_APPROVAL_REQUIRED", True)
+        monkeypatch.setattr(
+            identity_auth,
+            "send_office_device_approval",
+            lambda **kwargs: delivered.update({key: str(value) for key, value in kwargs.items()}) or "device-approval-message",
+        )
+        initial = founder(client)
+        secret = activate_founder_authenticator(client)
+
+        pending = client.post(
+            "/api/v1/auth/mfa/verify",
+            headers={"Authorization": f"Bearer {initial['access_token']}"},
+            json={"code": pyotp.TOTP(secret).now()},
+        )
+        assert pending.status_code == 200, pending.text
+        body = pending.json()
+        assert body["verified"] is False
+        assert body["device_approval_pending"] is True
+        assert body["device_proof"]
+        assert delivered["recipient_email"] == FOUNDER["email"]
+        assert delivered["source_address"] == "testclient"
+        assert delivered["device_label"]
+
+        # The old AAL1 access token cannot access Office after MFA creates a
+        # pending device request, even though password and TOTP were correct.
+        blocked = client.get("/api/v1/auth/session", headers={"Authorization": f"Bearer {initial['access_token']}"})
+        assert blocked.status_code == 401
+
+        approval_id = body["device_approval_id"]
+        action_token = parse_qs(urlsplit(delivered["approve_url"]).query)["token"][0]
+        owner_access = client.post(
+            "/api/v1/auth/sign-in",
+            json={"email": FOUNDER["email"], "password": FOUNDER["password"]},
+        )
+        assert owner_access.status_code == 200
+        # An Office role/token does not grant a cross-request approval API;
+        # only the owner-email token for this exact request can decide it.
+        wrong_token = client.post(
+            f"/api/v1/auth/device-approvals/{approval_id}/action",
+            headers={"Authorization": f"Bearer {owner_access.json()['access_token']}"},
+            json={"action_token": "not-the-owner-email-token-which-is-long-enough-123456", "decision": "APPROVE"},
+        )
+        assert wrong_token.status_code == 404
+
+        approved = client.post(
+            f"/api/v1/auth/device-approvals/{approval_id}/action",
+            json={"action_token": action_token, "decision": "APPROVE"},
+        )
+        assert approved.status_code == 200, approved.text
+        assert approved.json()["status"] == "APPROVED"
+
+        completed = client.post(
+            "/api/v1/auth/device-approvals/complete",
+            json={"device_id": approval_id, "device_proof": body["device_proof"]},
+        )
+        assert completed.status_code == 200, completed.text
+        assert completed.json()["aal"] == "aal2"
+        assert completed.json()["refresh_token"]
+
+        replay = client.post(
+            "/api/v1/auth/device-approvals/complete",
+            json={"device_id": approval_id, "device_proof": body["device_proof"]},
+        )
+        assert replay.status_code == 409
+
+        with engine.connect() as connection:
+            approval = connection.exec_driver_sql(
+                "select status,consumed_at,trusted_until from office_login_device_approvals where id=?",
+                (approval_id,),
+            ).first()
+        assert approval is not None
+        assert approval[0] == "TRUSTED"
+        assert approval[1] is not None
+        assert approval[2] is not None
+    finally:
+        engine.dispose()
+
+
+def test_declined_new_browser_can_never_complete_or_refresh(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    delivered: dict[str, str] = {}
+    try:
+        monkeypatch.setattr(identity_auth, "DEVICE_APPROVAL_REQUIRED", True)
+        monkeypatch.setattr(
+            identity_auth,
+            "send_office_device_approval",
+            lambda **kwargs: delivered.update({key: str(value) for key, value in kwargs.items()}) or "device-approval-message",
+        )
+        initial = founder(client)
+        secret = activate_founder_authenticator(client)
+        pending = client.post(
+            "/api/v1/auth/mfa/verify",
+            headers={"Authorization": f"Bearer {initial['access_token']}"},
+            json={"code": pyotp.TOTP(secret).now()},
+        )
+        assert pending.status_code == 200, pending.text
+        body = pending.json()
+        approval_id = body["device_approval_id"]
+        decline_token = parse_qs(urlsplit(delivered["decline_url"]).query)["token"][0]
+
+        declined = client.post(
+            f"/api/v1/auth/device-approvals/{approval_id}/action",
+            json={"action_token": decline_token, "decision": "DECLINE"},
+        )
+        assert declined.status_code == 200, declined.text
+        assert declined.json()["status"] == "DECLINED"
+
+        status = client.post(
+            "/api/v1/auth/device-approvals/status",
+            json={"device_id": approval_id, "device_proof": body["device_proof"]},
+        )
+        assert status.status_code == 200
+        assert status.json()["status"] == "DECLINED"
+        completed = client.post(
+            "/api/v1/auth/device-approvals/complete",
+            json={"device_id": approval_id, "device_proof": body["device_proof"]},
+        )
+        assert completed.status_code == 409
+        refreshed = client.post("/api/v1/auth/refresh", json={"refresh_token": initial["refresh_token"]})
+        assert refreshed.status_code == 401
     finally:
         engine.dispose()
 

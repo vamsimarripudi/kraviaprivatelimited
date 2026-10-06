@@ -24,6 +24,10 @@ export const PLACEHOLDERS = {
   message: "@@KRAVIA_MESSAGE@@",
   requestSubject: "@@KRAVIA_REQUEST_SUBJECT@@",
   organisation: "@@KRAVIA_ORGANISATION@@",
+  deviceLabel: "@@KRAVIA_DEVICE_LABEL@@",
+  sourceAddress: "@@KRAVIA_SOURCE_ADDRESS@@",
+  approveUrl: "@@KRAVIA_APPROVE_URL@@",
+  declineUrl: "@@KRAVIA_DECLINE_URL@@",
 } as const;
 
 export type KraviaEmailTemplateName =
@@ -31,7 +35,8 @@ export type KraviaEmailTemplateName =
   | "public_request_received"
   | "public_request_update"
   | "public_intake_internal_notification"
-  | "public_welcome";
+  | "public_welcome"
+  | "office_device_approval";
 
 export type RenderedTemplate = {
   html: string;
@@ -49,8 +54,25 @@ const palette = {
   white: "#FFFFFF",
   border: "#D7E1E9",
   mist: "#F8FAFC",
-  navyMist: "#E7EEF4",
 } as const;
+
+/*
+ * Gmail may recolour ordinary light-email surfaces in dark mode, but it does
+ * not consistently recolour transparent image assets. Present the approved
+ * lockup as white on a solid sapphire masthead, and keep the code and safety
+ * copy in high-contrast HTML rather than relying on a dark transparent asset.
+ */
+const darkModeCss = `
+  :root { color-scheme: light dark; supported-color-schemes: light dark; }
+  @media (prefers-color-scheme: dark) {
+    .kravia-email-body { background-color: #101923 !important; }
+    .kravia-email-card { background-color: #172331 !important; border-color: #526b82 !important; }
+    .kravia-email-title, .kravia-email-content { background-color: #172331 !important; }
+    .kravia-email-heading, .kravia-email-paragraph { color: #FFFFFF !important; }
+    .kravia-email-muted { color: #C9D9E8 !important; }
+    .kravia-email-footer { background-color: #102A43 !important; border-color: #526B82 !important; }
+  }
+`;
 
 function KraviaShell({
   preview,
@@ -65,11 +87,15 @@ function KraviaShell({
 }) {
   return (
     <Html lang="en">
-      <Head />
+      <Head>
+        <meta content="light dark" name="color-scheme" />
+        <meta content="light dark" name="supported-color-schemes" />
+        <style>{darkModeCss}</style>
+      </Head>
       <Preview>{preview}</Preview>
-      <Body style={styles.body}>
+      <Body className="kravia-email-body" style={styles.body}>
         <Container style={styles.container}>
-          <Section style={styles.card}>
+          <Section className="kravia-email-card" style={styles.card}>
             <Section style={styles.topRule} />
             <Section style={styles.masthead}>
               <Img
@@ -81,11 +107,11 @@ function KraviaShell({
               />
               <Text style={styles.label}>{label}</Text>
             </Section>
-            <Section style={styles.titleBlock}>
-              <Heading as="h1" style={styles.heading}>{title}</Heading>
+            <Section className="kravia-email-title" style={styles.titleBlock}>
+              <Heading as="h1" className="kravia-email-heading" style={styles.heading}>{title}</Heading>
             </Section>
-            <Section style={styles.content}>{children}</Section>
-            <Section style={styles.footer}>
+            <Section className="kravia-email-content" style={styles.content}>{children}</Section>
+            <Section className="kravia-email-footer" style={styles.footer}>
               <Text style={styles.footerEyebrow}>ACCOUNT SAFETY</Text>
               <Text style={styles.footerCopy}>
                 For your safety, KRAVIA will never ask for your password,
@@ -114,12 +140,47 @@ function SignInCodeEmail() {
       label="KRAVIA OFFICE"
       title="Confirm your sign-in"
     >
-      <Text style={styles.paragraph}>Use this one-time code to finish signing in to KRAVIA Office.</Text>
-      <Text aria-label="Your verification code" style={styles.code}>{PLACEHOLDERS.code}</Text>
-      <Text style={styles.paragraph}>
+      <Text className="kravia-email-paragraph" style={styles.paragraph}>Use this one-time code to finish signing in to KRAVIA Office.</Text>
+      <Section style={styles.codePanel}>
+        <Text style={styles.codeLabel}>ONE-TIME SIGN-IN CODE</Text>
+        <Text aria-label="Your verification code" style={styles.code}>{PLACEHOLDERS.code}</Text>
+      </Section>
+      <Text className="kravia-email-paragraph" style={styles.paragraph}>
         This code expires in {PLACEHOLDERS.expiryMinutes} minutes and works only once. Do not share it with anyone, including KRAVIA staff.
       </Text>
-      <Text style={styles.muted}>Didn’t try to sign in? You can safely ignore this email.</Text>
+      <Text className="kravia-email-muted" style={styles.muted}>Didn’t try to sign in? You can safely ignore this email.</Text>
+    </KraviaShell>
+  );
+}
+
+function DeviceApprovalEmail() {
+  return (
+    <KraviaShell
+      preview="Review a new KRAVIA Office device sign-in"
+      label="KRAVIA OFFICE SECURITY"
+      title="Approve this new device?"
+    >
+      <Text className="kravia-email-paragraph" style={styles.paragraph}>
+        A new browser completed your password and Authenticator checks, but KRAVIA Office is waiting for your decision before it grants access.
+      </Text>
+      <Section style={styles.referenceBox}>
+        <Text style={styles.referenceLabel}>DEVICE</Text>
+        <Text style={styles.referenceValue}>{PLACEHOLDERS.deviceLabel}</Text>
+        <Text style={styles.referenceLabel}>ADDRESS OBSERVED BY KRAVIA</Text>
+        <Text style={styles.referenceValue}>{PLACEHOLDERS.sourceAddress}</Text>
+      </Section>
+      <Text className="kravia-email-paragraph" style={styles.paragraph}>
+        Approve only if this was you. Your choice authorises the original browser that made this request; this email link never signs in the browser that opens it.
+      </Text>
+      <Section style={styles.buttonRow}>
+        <Link href={PLACEHOLDERS.approveUrl} style={styles.primaryButton}>Review and approve</Link>
+      </Section>
+      <Section style={styles.buttonRow}>
+        <Link href={PLACEHOLDERS.declineUrl} style={styles.secondaryButton}>Decline this device</Link>
+      </Section>
+      <Text className="kravia-email-muted" style={styles.muted}>
+        If you did not start this sign-in, choose decline. The request will then be blocked and the browser will not enter KRAVIA Office.
+      </Text>
     </KraviaShell>
   );
 }
@@ -215,6 +276,7 @@ function WelcomeEmail() {
 
 const templates: Record<KraviaEmailTemplateName, () => ReactNode> = {
   office_sign_in_code: SignInCodeEmail,
+  office_device_approval: DeviceApprovalEmail,
   public_request_received: PublicRequestReceivedEmail,
   public_request_update: PublicRequestUpdateEmail,
   public_intake_internal_notification: PublicIntakeInternalNotificationEmail,
@@ -239,16 +301,21 @@ const styles = {
   container: { width: "100%", maxWidth: "640px", margin: "0 auto", padding: "40px 18px" },
   card: { backgroundColor: palette.white, border: `1px solid ${palette.border}` },
   topRule: { margin: "0", height: "5px", backgroundColor: palette.sapphire, fontSize: "5px", lineHeight: "5px" },
-  masthead: { padding: "26px 32px 22px", backgroundColor: palette.white },
-  lockup: { display: "block", height: "52px", width: "156px", maxWidth: "100%" },
-  label: { margin: "22px 0 0", color: palette.steel, fontSize: "10px", fontWeight: "700", letterSpacing: "1.7px", lineHeight: "15px" },
-  titleBlock: { padding: "22px 32px 24px", backgroundColor: palette.mist, borderTop: `1px solid ${palette.border}`, borderBottom: `1px solid ${palette.border}` },
-  heading: { margin: "0", color: palette.sapphire, fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "30px", fontWeight: "400", letterSpacing: "-0.45px", lineHeight: "38px" },
+  masthead: { padding: "24px 32px 22px", backgroundColor: palette.sapphire },
+  lockup: { display: "block", height: "52px", width: "156px", maxWidth: "100%", filter: "brightness(0) invert(1)", WebkitFilter: "brightness(0) invert(1)" },
+  label: { margin: "22px 0 0", color: "#D9E8F7", fontSize: "10px", fontWeight: "700", letterSpacing: "1.7px", lineHeight: "15px" },
+  titleBlock: { padding: "24px 32px 25px", backgroundColor: palette.white, borderTop: `1px solid ${palette.border}`, borderBottom: `1px solid ${palette.border}` },
+  heading: { margin: "0", color: palette.ink, fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "30px", fontWeight: "400", letterSpacing: "-0.45px", lineHeight: "38px" },
   content: { padding: "30px 32px 8px" },
   paragraph: { margin: "0 0 20px", color: palette.ink, fontSize: "16px", lineHeight: "26px" },
   welcomeQuote: { margin: "0 0 24px", color: palette.sapphire, fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "20px", fontStyle: "italic", lineHeight: "30px" },
   welcomeClosing: { margin: "4px 0 20px", color: palette.sapphire, fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "17px", lineHeight: "26px" },
-  code: { margin: "4px 0 26px", padding: "20px", backgroundColor: palette.mist, border: `1px solid ${palette.border}`, borderTop: `3px solid ${palette.sapphire}`, color: palette.sapphire, fontSize: "31px", fontWeight: "700", letterSpacing: "9px", lineHeight: "38px", textAlign: "center" as const },
+  codePanel: { margin: "4px 0 26px", padding: "19px 20px 21px", backgroundColor: palette.sapphire, border: "1px solid #102A43", textAlign: "center" as const },
+  codeLabel: { margin: "0 0 9px", color: "#D9E8F7", fontSize: "10px", fontWeight: "700", letterSpacing: "1.8px", lineHeight: "15px" },
+  code: { margin: "0", color: palette.white, fontSize: "32px", fontWeight: "700", letterSpacing: "9px", lineHeight: "40px", textAlign: "center" as const },
+  buttonRow: { margin: "0 0 14px", textAlign: "center" as const },
+  primaryButton: { display: "block", padding: "15px 18px", backgroundColor: palette.sapphire, color: palette.white, fontSize: "15px", fontWeight: "700", lineHeight: "20px", textAlign: "center" as const, textDecoration: "none" },
+  secondaryButton: { display: "block", padding: "14px 18px", backgroundColor: palette.white, border: `1px solid ${palette.sapphire}`, color: palette.sapphire, fontSize: "15px", fontWeight: "700", lineHeight: "20px", textAlign: "center" as const, textDecoration: "none" },
   muted: { margin: "0 0 24px", color: palette.steel, fontSize: "13px", lineHeight: "21px" },
   referenceBox: { margin: "4px 0 26px", padding: "18px 20px", backgroundColor: palette.mist, border: `1px solid ${palette.border}`, borderLeft: `4px solid ${palette.sapphire}` },
   referenceLabel: { margin: "0 0 6px", color: palette.steel, fontSize: "10px", fontWeight: "700", letterSpacing: "1.6px", lineHeight: "15px" },
@@ -258,10 +325,10 @@ const styles = {
   intakeValue: { margin: "0 0 12px", color: palette.ink, fontSize: "15px", lineHeight: "23px" },
   intakeEmail: { margin: "0 0 18px", color: palette.sapphire, fontSize: "15px", fontWeight: "700", lineHeight: "23px" },
   message: { margin: "0 0 26px", color: palette.ink, fontSize: "16px", lineHeight: "26px", whiteSpace: "pre-line" as const },
-  footer: { padding: "24px 32px 28px", backgroundColor: palette.navyMist, borderTop: `1px solid ${palette.border}` },
-  footerEyebrow: { margin: "0 0 8px", color: palette.sapphire, fontSize: "10px", fontWeight: "700", letterSpacing: "1.5px", lineHeight: "15px" },
-  footerCopy: { margin: "0 0 16px", color: palette.ink, fontSize: "12px", lineHeight: "19px" },
-  footerLinks: { margin: "0 0 14px", color: palette.steel, fontSize: "12px", lineHeight: "19px" },
-  link: { color: palette.sapphire, textDecoration: "underline" },
-  copyright: { margin: "0", color: palette.steel, fontSize: "11px", lineHeight: "16px" },
+  footer: { padding: "24px 32px 28px", backgroundColor: palette.sapphire, borderTop: "1px solid #102A43" },
+  footerEyebrow: { margin: "0 0 8px", color: "#D9E8F7", fontSize: "10px", fontWeight: "700", letterSpacing: "1.5px", lineHeight: "15px" },
+  footerCopy: { margin: "0 0 16px", color: palette.white, fontSize: "12px", lineHeight: "19px" },
+  footerLinks: { margin: "0 0 14px", color: "#D9E8F7", fontSize: "12px", lineHeight: "19px" },
+  link: { color: palette.white, textDecoration: "underline" },
+  copyright: { margin: "0", color: "#D9E8F7", fontSize: "11px", lineHeight: "16px" },
 };

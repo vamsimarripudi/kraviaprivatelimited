@@ -20,6 +20,7 @@ import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
+from urllib.parse import urlencode, urlsplit
 
 import jwt
 import pyotp
@@ -32,9 +33,24 @@ from sqlalchemy import inspect, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from .auth_models import OfficeAuthenticatorActivation, OfficeAuthEvent, OfficeAuthInvite, OfficeAuthRole, OfficeAuthSession, OfficeAuthUser, OfficeEmailOtpChallenge
+from .auth_models import (
+    OfficeAuthenticatorActivation,
+    OfficeAuthEvent,
+    OfficeAuthInvite,
+    OfficeAuthRole,
+    OfficeAuthSession,
+    OfficeAuthUser,
+    OfficeEmailOtpChallenge,
+    OfficeLoginDeviceApproval,
+)
 from .database import get_db
-from .email_delivery import EmailDeliveryRejected, EmailDeliveryUnavailable, EmailDeliveryUnknown, send_office_email_verification_code
+from .email_delivery import (
+    EmailDeliveryRejected,
+    EmailDeliveryUnavailable,
+    EmailDeliveryUnknown,
+    send_office_device_approval,
+    send_office_email_verification_code,
+)
 
 ACCESS_TTL_SECONDS = int(os.getenv("OFFICE_AUTH_ACCESS_TTL_SECONDS", "1800"))
 REFRESH_TTL_SECONDS = int(os.getenv("OFFICE_AUTH_REFRESH_TTL_SECONDS", str(7 * 24 * 60 * 60)))
@@ -56,6 +72,11 @@ EMAIL_OTP_TTL_SECONDS = int(os.getenv("OFFICE_EMAIL_OTP_TTL_SECONDS", "600"))
 EMAIL_OTP_RESEND_INTERVAL_SECONDS = int(os.getenv("OFFICE_EMAIL_OTP_RESEND_INTERVAL_SECONDS", "60"))
 EMAIL_OTP_MAX_ATTEMPTS = int(os.getenv("OFFICE_EMAIL_OTP_MAX_ATTEMPTS", "5"))
 EMAIL_OTP_MOBILE_REFRESH_TTL_SECONDS = int(os.getenv("OFFICE_EMAIL_OTP_MOBILE_REFRESH_TTL_SECONDS", str(30 * 24 * 60 * 60)))
+DEVICE_APPROVAL_REQUIRED = os.getenv("OFFICE_DEVICE_APPROVAL_REQUIRED", "true").strip().lower() == "true"
+DEVICE_APPROVAL_TTL_SECONDS = int(os.getenv("OFFICE_DEVICE_APPROVAL_TTL_SECONDS", "900"))
+DEVICE_TRUST_TTL_SECONDS = int(os.getenv("OFFICE_DEVICE_TRUST_TTL_SECONDS", str(30 * 24 * 60 * 60)))
+OFFICE_SESSION_PURPOSE = "OFFICE"
+AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE = "AUTHENTICATOR_ACTIVATION"
 
 OFFICE_ROLES = {
     "OWNER",
@@ -104,6 +125,18 @@ class RefreshPayload(BaseModel):
 
 class MfaVerifyPayload(BaseModel):
     code: str = Field(pattern=r"^[0-9]{6}$")
+    device_approval_id: str | None = Field(default=None, min_length=36, max_length=36)
+    device_proof: str | None = Field(default=None, min_length=32, max_length=256)
+
+
+class DeviceApprovalActionPayload(BaseModel):
+    action_token: str = Field(min_length=32, max_length=256)
+    decision: Literal["APPROVE", "DECLINE"]
+
+
+class DeviceApprovalProofPayload(BaseModel):
+    device_id: str = Field(min_length=36, max_length=36)
+    device_proof: str = Field(min_length=32, max_length=256)
 
 
 class AuthenticatorActivationClaimPayload(BaseModel):
@@ -324,6 +357,181 @@ def _request_metadata(request: Request) -> tuple[str | None, str | None]:
     user_agent = request.headers.get("user-agent", "").strip()
     user_agent_hash = hashlib.sha256(user_agent.encode()).hexdigest() if user_agent else None
     return ip[:64] if ip else None, user_agent_hash
+
+
+def _device_approval_ttl_seconds() -> int:
+    """Return the bounded lifetime for a first-use browser approval request."""
+    if not 300 <= DEVICE_APPROVAL_TTL_SECONDS <= 3600:
+        raise RuntimeError("OFFICE_DEVICE_APPROVAL_TTL_SECONDS must be between 300 and 3600 seconds")
+    return DEVICE_APPROVAL_TTL_SECONDS
+
+
+def _device_trust_ttl_seconds() -> int:
+    if not 86400 <= DEVICE_TRUST_TTL_SECONDS <= 90 * 24 * 60 * 60:
+        raise RuntimeError("OFFICE_DEVICE_TRUST_TTL_SECONDS must be between 1 and 90 days")
+    return DEVICE_TRUST_TTL_SECONDS
+
+
+def _device_label(request: Request) -> str:
+    """Create a bounded descriptive label without retaining the raw user agent."""
+    agent = request.headers.get("user-agent", "").lower()
+    platform = "web device"
+    if "iphone" in agent:
+        platform = "iPhone"
+    elif "ipad" in agent:
+        platform = "iPad"
+    elif "android" in agent:
+        platform = "Android device"
+    elif "windows" in agent:
+        platform = "Windows device"
+    elif "mac os" in agent or "macintosh" in agent:
+        platform = "Mac"
+    elif "linux" in agent:
+        platform = "Linux device"
+
+    browser = "Browser"
+    if "edg/" in agent:
+        browser = "Microsoft Edge"
+    elif "firefox/" in agent:
+        browser = "Firefox"
+    elif "chrome/" in agent or "crios/" in agent:
+        browser = "Chrome"
+    elif "safari/" in agent:
+        browser = "Safari"
+    return f"{browser} on {platform}"[:160]
+
+
+def _public_web_origin() -> str:
+    """Use only a canonical HTTPS public origin in owner-action email links."""
+    candidate = os.getenv("PUBLIC_BASE_URL", "https://www.kraviaprivatelimited.com").strip()
+    parsed = urlsplit(candidate)
+    if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
+        return "https://www.kraviaprivatelimited.com"
+    return f"https://{parsed.netloc}"
+
+
+def _device_approval_action_url(approval_id: str, action_token: str, decision: Literal["approve", "decline"]) -> str:
+    query = urlencode({"id": approval_id, "token": action_token, "decision": decision})
+    return f"{_public_web_origin()}/office/device-approval/confirm?{query}"
+
+
+def _expire_device_approval(approval: OfficeLoginDeviceApproval, now: datetime) -> bool:
+    if approval.status in {"PENDING", "APPROVED"} and _aware(approval.expires_at) <= now:
+        approval.status = "EXPIRED"
+        return True
+    return False
+
+
+def _approval_status_json(approval: OfficeLoginDeviceApproval) -> dict[str, Any]:
+    return {
+        "approval_id": approval.id,
+        "status": approval.status,
+        "expires_at": _aware(approval.expires_at).isoformat(),
+        "device_label": approval.device_label,
+    }
+
+
+def _known_browser_device(
+    db: Session,
+    user_id: str,
+    approval_id: str | None,
+    device_proof: str | None,
+) -> bool:
+    if not approval_id or not device_proof:
+        return False
+    try:
+        normalized_id = str(uuid.UUID(approval_id))
+    except ValueError:
+        return False
+    approval = db.get(OfficeLoginDeviceApproval, normalized_id)
+    if not approval or approval.user_id != user_id or approval.status != "TRUSTED":
+        return False
+    if not approval.trusted_until or _aware(approval.trusted_until) <= _now():
+        approval.status = "EXPIRED"
+        return False
+    return hmac.compare_digest(approval.device_token_hash, _hash_token(device_proof))
+
+
+def _create_device_approval(
+    db: Session,
+    *,
+    user: OfficeAuthUser,
+    session: OfficeAuthSession,
+    request: Request,
+) -> dict[str, str]:
+    """Persist a pending browser request before the external email side effect."""
+    now = _now()
+    device_token = secrets.token_urlsafe(48)
+    action_token = secrets.token_urlsafe(48)
+    source_ip, user_agent_hash = _request_metadata(request)
+    approval = OfficeLoginDeviceApproval(
+        id=str(uuid.uuid4()),
+        user_id=user.id,
+        session_id=session.id,
+        device_token_hash=_hash_token(device_token),
+        owner_action_token_hash=_hash_token(action_token),
+        status="PENDING",
+        source_ip_address=source_ip,
+        user_agent_hash=user_agent_hash,
+        device_label=_device_label(request),
+        expires_at=now + timedelta(seconds=_device_approval_ttl_seconds()),
+    )
+    session.status = "PENDING_DEVICE_APPROVAL"
+    session.aal = "aal2"
+    session.last_seen_at = now
+    db.add(approval)
+    db.flush()
+    _event(
+        db,
+        "DEVICE_APPROVAL_REQUESTED",
+        request,
+        user_id=user.id,
+        session_id=session.id,
+        metadata={"approval_id": approval.id, "device_label": approval.device_label},
+    )
+    return {"approval_id": approval.id, "device_token": device_token, "action_token": action_token}
+
+
+def _send_device_approval_notice(
+    db: Session,
+    *,
+    user: OfficeAuthUser,
+    approval: OfficeLoginDeviceApproval,
+    action_token: str,
+    request: Request,
+) -> None:
+    """Deliver once, and fail closed when Brevo has no confirmed outcome."""
+    try:
+        provider_message_id = send_office_device_approval(
+            recipient_email=user.email,
+            device_label=approval.device_label,
+            source_address=approval.source_ip_address,
+            approve_url=_device_approval_action_url(approval.id, action_token, "approve"),
+            decline_url=_device_approval_action_url(approval.id, action_token, "decline"),
+            delivery_id=f"device-approval:{approval.id}",
+        )
+    except EmailDeliveryRejected as exc:
+        approval.status = "DELIVERY_FAILED"
+        session = db.get(OfficeAuthSession, approval.session_id)
+        if session:
+            session.status = "REVOKED"
+            session.revoked_at = _now()
+        _event(db, "DEVICE_APPROVAL_DELIVERY_FAILED", request, user_id=user.id, session_id=approval.session_id)
+        db.commit()
+        raise HTTPException(status_code=503, detail="New-device approval email could not be delivered. Sign in again later.") from exc
+    except (EmailDeliveryUnavailable, EmailDeliveryUnknown) as exc:
+        approval.status = "DELIVERY_UNKNOWN"
+        session = db.get(OfficeAuthSession, approval.session_id)
+        if session:
+            session.status = "REVOKED"
+            session.revoked_at = _now()
+        _event(db, "DEVICE_APPROVAL_DELIVERY_UNKNOWN", request, user_id=user.id, session_id=approval.session_id)
+        db.commit()
+        raise HTTPException(status_code=503, detail="New-device approval could not be confirmed. Sign in again later.") from exc
+
+    approval.provider_message_id = provider_message_id
+    _event(db, "DEVICE_APPROVAL_SENT", request, user_id=user.id, session_id=approval.session_id)
+    db.commit()
 
 
 def _event(
@@ -581,7 +789,15 @@ def _safe_identity(db: Session, user: OfficeAuthUser, aal: str) -> dict[str, Any
         "aal": aal,
         "founder": user.founder_slot == FOUNDER_SLOT,
         "display_role": "FOUNDER" if user.founder_slot == FOUNDER_SLOT else (roles[0] if roles else "MEMBER"),
-        "mfa": {"enrolled": bool(user.mfa_verified_at and user.mfa_secret_ciphertext)},
+        # Claiming an approved device installs an encrypted factor before its
+        # first browser verification.  That factor must send the next password
+        # sign-in to the TOTP challenge, rather than incorrectly offering a
+        # second phone-activation ceremony.  ``verified`` remains distinct so
+        # audit/UI clients can tell first use from an established factor.
+        "mfa": {
+            "enrolled": bool(user.mfa_secret_ciphertext),
+            "verified": bool(user.mfa_verified_at and user.mfa_secret_ciphertext),
+        },
     }
 
 
@@ -600,6 +816,7 @@ def _encode_access(db: Session, user: OfficeAuthUser, session: OfficeAuthSession
             "office_department": identity["department"],
             "office_authz_version": identity["authorization_version"],
             "aal": session.aal,
+            "purpose": session.purpose,
             "sid": session.id,
             "iat": int(now.timestamp()),
             "exp": int((now + timedelta(seconds=ACCESS_TTL_SECONDS)).timestamp()),
@@ -618,6 +835,7 @@ def _issue_session(
     aal: str = "aal1",
     refresh_ttl_seconds: int | None = None,
     channel: str = "office_web",
+    purpose: Literal["OFFICE", "AUTHENTICATOR_ACTIVATION"] = OFFICE_SESSION_PURPOSE,
 ) -> dict[str, Any]:
     refresh_token = secrets.token_urlsafe(48)
     now = _now()
@@ -629,6 +847,7 @@ def _issue_session(
         refresh_token_hash=_hash_token(refresh_token),
         status="ACTIVE",
         aal=aal,
+        purpose=purpose,
         ip_address=ip,
         user_agent_hash=user_agent_hash,
         expires_at=now + timedelta(seconds=refresh_ttl),
@@ -636,7 +855,7 @@ def _issue_session(
     db.add(session)
     db.flush()
     access_token = _encode_access(db, user, session)
-    _event(db, "LOGIN_SUCCESS", request, user_id=user.id, session_id=session.id, metadata={"aal": aal, "channel": channel})
+    _event(db, "LOGIN_SUCCESS", request, user_id=user.id, session_id=session.id, metadata={"aal": aal, "channel": channel, "purpose": purpose})
     return {
         "authenticated": True,
         "access_token": access_token,
@@ -644,6 +863,7 @@ def _issue_session(
         "refresh_expires_at": _aware(session.expires_at).isoformat(),
         "token_type": "bearer",
         "expires_in": ACCESS_TTL_SECONDS,
+        "session_purpose": purpose,
         **_safe_identity(db, user, aal),
     }
 
@@ -715,6 +935,7 @@ def authenticate_office_access(
     db: Session,
     *,
     require_aal2: bool = False,
+    required_purpose: Literal["OFFICE", "AUTHENTICATOR_ACTIVATION"] = OFFICE_SESSION_PURPOSE,
 ) -> dict[str, Any]:
     claims = _decode_access(token)
     user_id = str(claims.get("sub") or "")
@@ -735,6 +956,8 @@ def authenticate_office_access(
 
     if session.status != "ACTIVE" or session.revoked_at or _aware(session.expires_at) <= now:
         raise HTTPException(status_code=401, detail="Office session is expired or revoked")
+    if session.purpose != required_purpose or claims.get("purpose") != required_purpose:
+        raise HTTPException(status_code=403, detail="This session cannot access the requested service")
     if require_aal2 and session.aal != "aal2":
         raise HTTPException(status_code=403, detail="MFA verification required")
 
@@ -788,6 +1011,7 @@ def authenticate_office_access(
         "aal": session.aal,
         "founder": user.founder_slot == FOUNDER_SLOT,
         "session_id": session.id,
+        "session_purpose": session.purpose,
         "auth_mode": "first_party",
     }
 
@@ -807,6 +1031,7 @@ def _session_response(db: Session, user: OfficeAuthUser, session: OfficeAuthSess
         "access_token": _encode_access(db, user, session),
         "expires_in": ACCESS_TTL_SECONDS,
         "refresh_expires_at": _aware(session.expires_at).isoformat(),
+        "session_purpose": session.purpose,
         **_safe_identity(db, user, session.aal),
     }
 
@@ -819,6 +1044,7 @@ def _session_listing_json(session: OfficeAuthSession, current_session_id: str) -
         "id": session.id,
         "status": status,
         "aal": session.aal,
+        "purpose": session.purpose,
         "mfa_verified": session.aal == "aal2",
         "ip_address": session.ip_address,
         "user_agent_hash": session.user_agent_hash,
@@ -1230,25 +1456,37 @@ def build_identity_router() -> APIRouter:
             aal="aal2",
             refresh_ttl_seconds=mobile_refresh_ttl,
             channel=challenge.channel,
+            # This session is an activation capability for the native app, not
+            # a substitute for an Office browser session or an enrolled TOTP.
+            purpose=AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE,
         )
         db.commit()
         return result
 
     @router.post("/authenticator/activation-requests")
     def request_authenticator_activation(
-        payload: SignInPayload,
         request: Request,
+        authorization: str | None = Header(default=None),
         db: Session = Depends(get_db),
     ):
-        """Create a short-lived phone claim after password verification.
+        """Create a short-lived phone claim after email-verified mobile sign-in.
 
         This intentionally returns no TOTP secret. A separate AAL2 owner/admin
         approval (or the controlled first-Founder bootstrap) is required before
         the phone can claim its local, one-time seed.
         """
-        user = verify_credentials(payload, request, db, channel="authenticator")
-        if user.mfa_verified_at and user.mfa_secret_ciphertext:
-            _event(db, "AUTHENTICATOR_ACTIVATION_BLOCKED", request, user_id=user.id, metadata={"reason": "verified_factor_exists"})
+        token = _bearer_token(authorization)
+        context = authenticate_office_access(
+            token,
+            db,
+            require_aal2=True,
+            required_purpose=AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE,
+        )
+        user = db.get(OfficeAuthUser, context["user_id"])
+        if not user:
+            raise HTTPException(status_code=401, detail="Office identity is unavailable")
+        if user.mfa_secret_ciphertext:
+            _event(db, "AUTHENTICATOR_ACTIVATION_BLOCKED", request, user_id=user.id, metadata={"reason": "factor_exists"})
             db.commit()
             raise HTTPException(status_code=409, detail="Authenticator is already active. Ask an authorised Office administrator to reset MFA before activating a replacement phone")
 
@@ -1455,7 +1693,10 @@ def build_identity_router() -> APIRouter:
         sessions = list(
             db.execute(
                 select(OfficeAuthSession)
-                .where(OfficeAuthSession.user_id == context["user_id"])
+                .where(
+                    OfficeAuthSession.user_id == context["user_id"],
+                    OfficeAuthSession.purpose == OFFICE_SESSION_PURPOSE,
+                )
                 .order_by(OfficeAuthSession.created_at.desc())
                 .limit(50)
             ).scalars()
@@ -1487,6 +1728,7 @@ def build_identity_router() -> APIRouter:
             select(OfficeAuthSession).where(
                 OfficeAuthSession.id == normalized_session_id,
                 OfficeAuthSession.user_id == context["user_id"],
+                OfficeAuthSession.purpose == OFFICE_SESSION_PURPOSE,
             )
         ).scalar_one_or_none()
         if not target:
@@ -1804,6 +2046,44 @@ def build_identity_router() -> APIRouter:
             session_id=session.id,
             metadata={"counter": matched_counter},
         )
+
+        # A known browser can proceed after MFA. A new browser is deliberately
+        # held in a non-active session until the *same account holder* decides
+        # the request from the registered corporate mailbox. A role never
+        # grants authority to approve another user's device.
+        known_device = not DEVICE_APPROVAL_REQUIRED or _known_browser_device(
+            db,
+            user.id,
+            payload.device_approval_id,
+            payload.device_proof,
+        )
+        if not known_device:
+            try:
+                pending = _create_device_approval(db, user=user, session=session, request=request)
+            except RuntimeError as exc:
+                db.rollback()
+                raise HTTPException(status_code=503, detail="Device approval is not configured") from exc
+            db.commit()
+            approval = db.get(OfficeLoginDeviceApproval, pending["approval_id"])
+            if not approval:
+                raise HTTPException(status_code=503, detail="Device approval could not be created")
+            _send_device_approval_notice(
+                db,
+                user=user,
+                approval=approval,
+                action_token=pending["action_token"],
+                request=request,
+            )
+            return {
+                "verified": False,
+                "aal": "aal2",
+                "device_approval_pending": True,
+                "device_approval_id": pending["approval_id"],
+                "device_proof": pending["device_token"],
+                "expires_at": _aware(approval.expires_at).isoformat(),
+                "device_label": approval.device_label,
+            }
+
         access_token = _encode_access(db, user, session)
         db.commit()
         return {
@@ -1812,6 +2092,147 @@ def build_identity_router() -> APIRouter:
             "access_token": access_token,
             **_safe_identity(db, user, "aal2"),
         }
+
+    @router.post("/device-approvals/{approval_id}/action")
+    def decide_device_approval(
+        approval_id: str,
+        payload: DeviceApprovalActionPayload,
+        request: Request,
+        db: Session = Depends(get_db),
+    ):
+        """Record an account-owner email decision; this endpoint never issues a session."""
+        try:
+            normalized_id = str(uuid.UUID(approval_id))
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail="Device approval request was not found") from exc
+        approval = db.execute(
+            select(OfficeLoginDeviceApproval)
+            .where(OfficeLoginDeviceApproval.id == normalized_id)
+            .with_for_update()
+        ).scalar_one_or_none()
+        if not approval or not hmac.compare_digest(approval.owner_action_token_hash, _hash_token(payload.action_token)):
+            raise HTTPException(status_code=404, detail="Device approval request was not found")
+
+        now = _now()
+        if _expire_device_approval(approval, now):
+            session = db.get(OfficeAuthSession, approval.session_id)
+            if session and session.status == "PENDING_DEVICE_APPROVAL":
+                session.status = "REVOKED"
+                session.revoked_at = now
+            _event(db, "DEVICE_APPROVAL_EXPIRED", request, user_id=approval.user_id, session_id=approval.session_id)
+            db.commit()
+            raise HTTPException(status_code=410, detail="Device approval request has expired")
+        if approval.status != "PENDING":
+            raise HTTPException(status_code=409, detail="This device approval request has already been decided")
+
+        if payload.decision == "APPROVE":
+            approval.status = "APPROVED"
+            approval.approved_at = now
+            event_type = "DEVICE_APPROVAL_APPROVED"
+        else:
+            approval.status = "DECLINED"
+            approval.declined_at = now
+            session = db.get(OfficeAuthSession, approval.session_id)
+            if session and session.status == "PENDING_DEVICE_APPROVAL":
+                session.status = "REVOKED"
+                session.revoked_at = now
+            event_type = "DEVICE_APPROVAL_DECLINED"
+
+        _event(
+            db,
+            event_type,
+            request,
+            user_id=approval.user_id,
+            session_id=approval.session_id,
+            metadata={"approval_id": approval.id, "decision": payload.decision},
+        )
+        db.commit()
+        return {"decided": True, "status": approval.status}
+
+    def _device_approval_from_proof(payload: DeviceApprovalProofPayload, db: Session) -> OfficeLoginDeviceApproval:
+        try:
+            normalized_id = str(uuid.UUID(payload.device_id))
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail="Device approval request was not found") from exc
+        approval = db.execute(
+            select(OfficeLoginDeviceApproval)
+            .where(OfficeLoginDeviceApproval.id == normalized_id)
+            .with_for_update()
+        ).scalar_one_or_none()
+        if not approval or not hmac.compare_digest(approval.device_token_hash, _hash_token(payload.device_proof)):
+            raise HTTPException(status_code=404, detail="Device approval request was not found")
+        return approval
+
+    @router.post("/device-approvals/status")
+    def device_approval_status(
+        payload: DeviceApprovalProofPayload,
+        request: Request,
+        db: Session = Depends(get_db),
+    ):
+        """Return only the pending browser's own approval state."""
+        approval = _device_approval_from_proof(payload, db)
+        now = _now()
+        if _expire_device_approval(approval, now):
+            session = db.get(OfficeAuthSession, approval.session_id)
+            if session and session.status == "PENDING_DEVICE_APPROVAL":
+                session.status = "REVOKED"
+                session.revoked_at = now
+            _event(db, "DEVICE_APPROVAL_EXPIRED", request, user_id=approval.user_id, session_id=approval.session_id)
+            db.commit()
+        return _approval_status_json(approval)
+
+    @router.post("/device-approvals/complete")
+    def complete_device_approval(
+        payload: DeviceApprovalProofPayload,
+        request: Request,
+        db: Session = Depends(get_db),
+    ):
+        """Redeem an approved request only in the browser that started it."""
+        approval = _device_approval_from_proof(payload, db)
+        now = _now()
+        if _expire_device_approval(approval, now):
+            session = db.get(OfficeAuthSession, approval.session_id)
+            if session and session.status == "PENDING_DEVICE_APPROVAL":
+                session.status = "REVOKED"
+                session.revoked_at = now
+            _event(db, "DEVICE_APPROVAL_EXPIRED", request, user_id=approval.user_id, session_id=approval.session_id)
+            db.commit()
+            raise HTTPException(status_code=410, detail="Device approval request has expired")
+        if approval.status != "APPROVED":
+            raise HTTPException(status_code=409, detail="This device has not been approved")
+        session = db.get(OfficeAuthSession, approval.session_id)
+        user = db.get(OfficeAuthUser, approval.user_id)
+        if not session or not user or session.status != "PENDING_DEVICE_APPROVAL" or session.aal != "aal2":
+            raise HTTPException(status_code=409, detail="Device approval can no longer be completed")
+        if user.status != "ACTIVE" or _identity_status(db, user) != "ACTIVE" or not _active_roles(db, user.id):
+            session.status = "REVOKED"
+            session.revoked_at = now
+            db.commit()
+            raise HTTPException(status_code=403, detail="KRAVIA Office access is not active")
+
+        refresh_token = secrets.token_urlsafe(48)
+        try:
+            trusted_until = now + timedelta(seconds=_device_trust_ttl_seconds())
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail="Device trust lifetime is not configured") from exc
+        session.status = "ACTIVE"
+        session.refresh_token_hash = _hash_token(refresh_token)
+        session.last_seen_at = now
+        approval.status = "TRUSTED"
+        approval.trusted_until = trusted_until
+        approval.consumed_at = now
+        _event(
+            db,
+            "DEVICE_APPROVAL_COMPLETED",
+            request,
+            user_id=user.id,
+            session_id=session.id,
+            metadata={"approval_id": approval.id, "device_label": approval.device_label},
+        )
+        response = _session_response(db, user, session)
+        response["refresh_token"] = refresh_token
+        db.commit()
+        return response
 
     @router.get("/invitation")
     def invitation_status(token: str, db: Session = Depends(get_db)):

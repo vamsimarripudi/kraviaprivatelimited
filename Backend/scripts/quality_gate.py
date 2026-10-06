@@ -80,6 +80,13 @@ try:
     check("openapi:drive-readiness", "/api/v1/integrations/google-drive/evidence-readiness" in paths, "Drive evidence-readiness contract")
     check("openapi:identity-readiness", "/api/v1/auth/readiness" in paths, "identity readiness contract")
     check("openapi:mfa-verify", "/api/v1/auth/mfa/verify" in paths, "MFA verification contract")
+    check(
+        "openapi:owner-device-approval",
+        "/api/v1/auth/device-approvals/status" in paths
+        and "/api/v1/auth/device-approvals/complete" in paths
+        and "/api/v1/auth/device-approvals/{approval_id}/action" in paths,
+        "owner-scoped browser-device approval contract",
+    )
     check("openapi:authenticator-activation", "/api/v1/auth/authenticator/activation-requests" in paths, "approved phone activation contract")
     check("openapi:email-otp", "/api/v1/auth/email-otp/challenges" in paths and "/api/v1/auth/email-otp/challenges/{challenge_id}/verify" in paths, "credential-first mobile email verification contract")
     check("openapi:public-form-email", "/api/v1/public-intake/email-acknowledgements" in paths, "signed public-form acknowledgement contract")
@@ -191,6 +198,14 @@ check(
     "TOTP counters are atomically accepted once per user",
 )
 check("identity:mfa-attempt-cap", "MFA_MAX_FAILED_ATTEMPTS" in identity and "MFA_SESSION_REVOKED" in identity and "mfa_failed_attempts" in identity, "AAL1 session revoked after repeated invalid OTPs")
+check(
+    "identity:owner-device-approval",
+    "PENDING_DEVICE_APPROVAL" in identity
+    and "owner_action_token_hash" in identity
+    and "DEVICE_APPROVAL_COMPLETED" in identity
+    and '@router.post("/device-approvals/{approval_id}/action")' in identity,
+    "new browser access is owner-scoped, pending, and separately completed",
+)
 check("identity:authenticator-activation", '@router.post("/authenticator/activation-requests")' in identity and "AUTHENTICATOR_ACTIVATION_APPROVED" in identity and "OfficeAuthenticatorActivation" in identity, "AAL2-governed phone activation")
 check(
     "identity:email-otp",
@@ -200,6 +215,13 @@ check(
     and "send_office_email_verification_code" in identity
     and "EMAIL_OTP_MOBILE_REFRESH_TTL_SECONDS" in identity,
     "credential-first email OTP with a fixed mobile session lifetime",
+)
+check(
+    "identity:activation-session-scope",
+    "AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE" in identity
+    and "required_purpose" in identity
+    and 'purpose=AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE' in identity,
+    "email-verified mobile sessions cannot become Office sessions",
 )
 check(
     "identity:kravia-authenticator",
@@ -234,6 +256,9 @@ v16_migrations = list(migration_dir.glob("*_v16_authenticator_device_approval.py
 v17_migrations = list(migration_dir.glob("*_v17_email_otp_challenges.py"))
 v18_migrations = list(migration_dir.glob("*_v18_public_form_email_deliveries.py"))
 v19_migrations = list(migration_dir.glob("*_v19_public_intake_follow_up_deliveries.py"))
+v20_migrations = list(migration_dir.glob("*_v20_authenticator_activation_session_purpose.py"))
+v21_merge_migrations = list(migration_dir.glob("*_v21_merge_authenticator_and_public_email_heads.py"))
+v22_migrations = list(migration_dir.glob("*_v22_owner_scoped_login_device_approval.py"))
 check("finance-ownership-migration", len(finance_migrations) == 1, finance_migrations[0].name if len(finance_migrations) == 1 else f"found {len(finance_migrations)}")
 check("period-control-migration", len(period_migrations) == 1, period_migrations[0].name if len(period_migrations) == 1 else f"found {len(period_migrations)}")
 check("gst:v11-tax-profile-migration", len(v11_migrations) == 1, v11_migrations[0].name if len(v11_migrations) == 1 else f"found {len(v11_migrations)}")
@@ -245,6 +270,9 @@ check("identity:v16-authenticator-activation-migration", len(v16_migrations) == 
 check("identity:v17-email-otp-migration", len(v17_migrations) == 1, v17_migrations[0].name if len(v17_migrations) == 1 else f"found {len(v17_migrations)}")
 check("public-intake:v18-email-delivery-migration", len(v18_migrations) == 1, v18_migrations[0].name if len(v18_migrations) == 1 else f"found {len(v18_migrations)}")
 check("public-intake:v19-follow-up-delivery-migration", len(v19_migrations) == 1, v19_migrations[0].name if len(v19_migrations) == 1 else f"found {len(v19_migrations)}")
+check("identity:v20-activation-session-purpose-migration", len(v20_migrations) == 1, v20_migrations[0].name if len(v20_migrations) == 1 else f"found {len(v20_migrations)}")
+check("database:v21-merged-migration-head", len(v21_merge_migrations) == 1, v21_merge_migrations[0].name if len(v21_merge_migrations) == 1 else f"found {len(v21_merge_migrations)}")
+check("identity:v22-owner-device-approval-migration", len(v22_migrations) == 1, v22_migrations[0].name if len(v22_migrations) == 1 else f"found {len(v22_migrations)}")
 
 broker = REPO_ROOT / "Database" / "supabase" / "functions" / "kravia-storage-broker" / "index.ts"
 broker_source = broker.read_text(errors="ignore") if broker.exists() else ""
