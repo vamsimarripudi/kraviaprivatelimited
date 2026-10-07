@@ -30,7 +30,7 @@ function fallbackBody(article: PublicContentRecord): LegalDocumentBody {
 export function LegalDocument({ article }: { article: PublicContentRecord }) {
   const document = parseLegalDocumentBody(article.body) ?? fallbackBody(article);
   const updated = dateLabel(article.updatedAt);
-  const effective = dateLabel(article.publishedAt);
+  const effective = dateLabel(document.effectiveDate ?? article.publishedAt);
   return <article className={styles.document} aria-labelledby="legal-document-title">
     <header className={styles.header}>
       <p className="eyebrow">LEGAL &amp; TRUST</p>
@@ -58,7 +58,7 @@ export function LegalDocument({ article }: { article: PublicContentRecord }) {
     <div className={styles.reading}>
       {document.sections.map((section, index) => <section key={legalSectionAnchor(section, index)} id={legalSectionAnchor(section, index)} className={styles.section}>
         <p className={styles.number}>{section.number}</p>
-        <div><h2>{section.title}</h2>{section.paragraphs.map((paragraph, paragraphIndex) => <p key={paragraphIndex}>{paragraph}</p>)}</div>
+        <div><h2>{section.title}</h2>{section.paragraphs.map((paragraph, paragraphIndex) => <p key={paragraphIndex}>{paragraph}</p>)}{section.tables?.map((table, tableIndex) => <div className={styles.tableWrap} key={tableIndex}><table><thead><tr>{table.headers.map((header) => <th scope="col" key={header}>{header}</th>)}</tr></thead><tbody>{table.rows.map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}</tr>)}</tbody></table></div>)}</div>
       </section>)}
     </div>
 

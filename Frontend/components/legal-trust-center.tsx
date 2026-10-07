@@ -3,6 +3,8 @@ import { ArrowUpRight, FileText, ShieldCheck } from "lucide-react";
 import { publicContentPath } from "@/lib/content/seo";
 import type { PublicContentRecord } from "@/lib/content/types";
 import { legalDocumentGroupLabels } from "@/lib/legal/groups";
+import { legalDocumentGroup } from "@/lib/legal/published-policy-pack";
+import { parseLegalDocumentBody } from "@/lib/legal/document-body";
 import type { LegalDocumentGroup } from "@/lib/legal/types";
 import styles from "./legal-trust-center.module.css";
 
@@ -17,8 +19,14 @@ function formatDate(value?: string | null) {
   return `Published ${new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeZone: "Asia/Kolkata" }).format(new Date(value))}`;
 }
 
+function effectiveDate(record: PublicContentRecord) {
+  const document = parseLegalDocumentBody(record.body);
+  if (document?.effectiveDate) return `Effective ${new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeZone: "Asia/Kolkata" }).format(new Date(document.effectiveDate))}`;
+  return formatDate(record.publishedAt);
+}
+
 function groupFor(record: PublicContentRecord) {
-  return knownGroups[record.slug] ?? (record.type === "TRUST_DOCUMENT" ? "COMPANY_AND_TRUST" : "COMPANY_AND_TRUST");
+  return legalDocumentGroup(record) ?? knownGroups[record.slug] ?? (record.type === "TRUST_DOCUMENT" ? "COMPANY_AND_TRUST" : "COMPANY_AND_TRUST");
 }
 
 export function LegalTrustCenter({ scope, records }: { scope: "legal" | "trust"; records: readonly PublicContentRecord[] }) {
@@ -40,7 +48,7 @@ export function LegalTrustCenter({ scope, records }: { scope: "legal" | "trust";
     <div className={styles.groups}>{groupOrder.map((group) => {
       const items = documents.filter((record) => groupFor(record) === group);
       const label = legalDocumentGroupLabels[group];
-      return <section key={group} className={styles.group} aria-labelledby={`group-${group}`}><header><p className="eyebrow">{label.title}</p><h2 id={`group-${group}`}>{label.description}</h2></header>{items.length ? <ul>{items.map((record) => <li key={record.id}><Link href={publicContentPath(record)}><span><FileText aria-hidden="true" />{record.title}</span><ArrowUpRight aria-hidden="true" /></Link><small>{formatDate(record.publishedAt)}</small></li>)}</ul> : <p className={styles.empty}>No additional approved public documents are available in this group.</p>}</section>;
+      return <section key={group} className={styles.group} aria-labelledby={`group-${group}`}><header><p className="eyebrow">{label.title}</p><h2 id={`group-${group}`}>{label.description}</h2></header>{items.length ? <ul>{items.map((record) => <li key={record.id}><Link href={publicContentPath(record)}><span><FileText aria-hidden="true" />{record.title}</span><ArrowUpRight aria-hidden="true" /></Link><small>{effectiveDate(record)}</small></li>)}</ul> : <p className={styles.empty}>No additional approved public documents are available in this group.</p>}</section>;
     })}</div>
 
     <section className={styles.help} aria-labelledby="help-title"><p className="eyebrow">WORKING ROUTES</p><h2 id="help-title">Need to make a request?</h2><div><Link href="/privacy-request"><strong>Privacy, accessibility or grievance request</strong><span>Submit a private request and receive a safe reference.</span><ArrowUpRight aria-hidden="true" /></Link><Link href="/trust/security-reporting"><strong>Security concern</strong><span>Use the restricted reporting route—never send passwords or secrets.</span><ArrowUpRight aria-hidden="true" /></Link><Link href="/support"><strong>Support &amp; case tracking</strong><span>Open or check a general support case with its private tracking code.</span><ArrowUpRight aria-hidden="true" /></Link></div></section>

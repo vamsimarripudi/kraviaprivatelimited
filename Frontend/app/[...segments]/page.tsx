@@ -15,6 +15,7 @@ import { BreadcrumbJsonLd } from "@/components/structured-data";
 import { articleJsonLd, contentMetadata } from "@/lib/content/seo";
 import { publicContentForHub, publicHubContentTypes } from "@/lib/content/hubs";
 import { getPublishedNewsroomContent, getPublishedContentByPublicPath, listPublishedContent, resolvePublishedRedirect } from "@/lib/content/repository";
+import { staticLegalRedirect } from "@/lib/legal/published-policy-pack";
 import type { PublicContentRecord, PublicContentType } from "@/lib/content/types";
 
 function titleFor(page: { eyebrow: string; title: string }) { return page.eyebrow.includes("/") ? page.eyebrow.replace(" / ", " · ") : page.eyebrow; }
@@ -32,6 +33,8 @@ export async function generateMetadata({ params }: { params: Promise<{ segments:
 
 export default async function PublicPage({ params }: { params: Promise<{ segments: string[] }> }) {
   const { segments } = await params; const key = segments.join("/"); const page = publicPages[key];
+  const legalRedirect = staticLegalRedirect(`/${key}`);
+  if (legalRedirect) permanentRedirect(legalRedirect);
   const content = await getPublishedContentByPublicPath(`/${key}`);
   if (content) {
     const allContent = await listPublishedContent();

@@ -1,4 +1,4 @@
-import type { LegalDocumentBody, LegalDocumentSection } from "./types";
+import type { LegalDocumentBody, LegalDocumentSection, LegalDocumentTable } from "./types";
 
 function asText(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -11,8 +11,24 @@ function asSections(value: unknown): LegalDocumentSection[] {
     const record = item as Record<string, unknown>;
     const title = asText(record.title);
     const paragraphs = Array.isArray(record.paragraphs) ? record.paragraphs.map(asText).filter((paragraph): paragraph is string => Boolean(paragraph)) : [];
-    if (!title || !paragraphs.length) return [];
-    return [{ number: asText(record.number) ?? String(index + 1), title, paragraphs }];
+    const tables = asTables(record.tables);
+    if (!title || (!paragraphs.length && !tables.length)) return [];
+    return [{ number: asText(record.number) ?? String(index + 1), title, paragraphs, tables }];
+  });
+}
+
+function asTables(value: unknown): LegalDocumentTable[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const record = item as Record<string, unknown>;
+    const headers = Array.isArray(record.headers) ? record.headers.map(asText).filter((header): header is string => Boolean(header)) : [];
+    const rows = Array.isArray(record.rows) ? record.rows.flatMap((row) => {
+      if (!Array.isArray(row)) return [];
+      const cells = row.map(asText).filter((cell): cell is string => Boolean(cell));
+      return cells.length === headers.length ? [cells] : [];
+    }) : [];
+    return headers.length && rows.length ? [{ headers, rows }] : [];
   });
 }
 
@@ -27,7 +43,8 @@ export function parseLegalDocumentBody(body: unknown): LegalDocumentBody | null 
   const keyPoints = Array.isArray(record.keyPoints) ? record.keyPoints.map(asText).filter((point): point is string => Boolean(point)) : [];
   const relatedPaths = Array.isArray(record.relatedPaths) ? record.relatedPaths.filter((path): path is string => typeof path === "string" && path.startsWith("/")) : undefined;
   const approvedPdfPath = typeof record.approvedPdfPath === "string" && record.approvedPdfPath.startsWith("/") ? record.approvedPdfPath : null;
-  return { format: "KRAVIA_LEGAL_DOCUMENT_V1", overview, keyPoints, sections, relatedPaths, approvedPdfPath };
+  const effectiveDate = asText(record.effectiveDate);
+  return { format: "KRAVIA_LEGAL_DOCUMENT_V1", overview, keyPoints, sections, relatedPaths, approvedPdfPath, effectiveDate };
 }
 
 export function legalSectionAnchor(section: LegalDocumentSection, index: number) {

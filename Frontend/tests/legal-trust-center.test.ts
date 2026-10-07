@@ -12,7 +12,7 @@ const previewLoader = readFileSync(new URL("../lib/legal/draft-loader.ts", impor
 const legalStyles = readFileSync(new URL("../components/legal-document.module.css", import.meta.url), "utf8");
 
 describe("Legal & Trust Center publication guard", () => {
-  it("keeps every supplied P-series candidate a non-public review draft", () => {
+  it("keeps source-pack candidate metadata as an unpublishable provenance record", () => {
     expect(legalCandidateDocuments).toHaveLength(26);
     for (const document of legalCandidateDocuments) {
       expect(document.status).toBe("REVIEW_DRAFT");

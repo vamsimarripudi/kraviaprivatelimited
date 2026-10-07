@@ -39,6 +39,12 @@ export type LegalDocumentSection = {
   number: string;
   title: string;
   paragraphs: readonly string[];
+  tables?: readonly LegalDocumentTable[];
+};
+
+export type LegalDocumentTable = {
+  headers: readonly string[];
+  rows: readonly (readonly string[])[];
 };
 
 /**
@@ -52,6 +58,7 @@ export type LegalDocumentBody = {
   sections: readonly LegalDocumentSection[];
   relatedPaths?: readonly string[];
   approvedPdfPath?: string | null;
+  effectiveDate?: string | null;
 };
 
 export function isSha256(value: string | null | undefined): value is string {
