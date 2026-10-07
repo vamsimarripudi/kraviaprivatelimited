@@ -1,38 +1,38 @@
 # Authenticator
 
-Private native second-factor application for KRAVIA Office.
+Private native device-security application for KRAVIA Office.
 
 ## Phone activation
 
-Authenticator uses RFC 6238 TOTP (SHA-1, six digits, 30 seconds) only after a protected phone approval:
+Authenticator binds each KRAVIA identity to one explicitly trusted device. Every sign-in starts with corporate credentials and a registered-email verification code:
 
 1. Read the welcome note, then enter registered corporate credentials.
 2. Enter the single-use six-digit code sent to the registered email address.
-3. The app stores a scoped mobile verification session in native secure storage. It cannot access KRAVIA Office APIs or replace an Office browser session.
-4. On a new phone, request activation. A verified AAL2 Office owner or administrator approves the phone in **Office → Security**.
-5. The approved phone claims a fresh seed exactly once and stores it only in native secure storage.
-6. Unlock the app with strong biometrics to view the local rotating code. Enter that code in Office to complete mandatory MFA.
+3. A new device is held pending. The registered mailbox receives a device, address, Trust, and Ignore notice, plus the installation and sign-in steps.
+4. Select **Trust this device** only for the device that started the request. The server records that device as trusted and revokes every earlier trusted device and its active session.
+5. Select **Ignore and sign out** for an unrecognised request. The pending device session is revoked immediately.
+6. The trusted device stores its scoped verification session and device proof in native secure storage. It cannot access general KRAVIA Office APIs or replace an Office browser session.
+7. Unlock the app with strong biometrics to view the protected device-security home.
 
-The mobile verification session expires after 30 days. Re-verification is then required before the local vault can be unlocked again. The TOTP seed is never sent to, copied from, or backed up through a cloud service.
+The mobile verification session expires after 30 days. Re-verification is then required before the device-security home can be unlocked. No owner, administrator, founder, or another employee can approve a device on someone else’s behalf; only the registered mailbox can trust or ignore its exact sign-in request.
 
-The controlled first-Founder bootstrap is the only approval exception: when no company MFA factor exists, the Founder can activate the first phone. Every later activation requires a verified Office owner or administrator.
-
-There is intentionally no QR scanning, setup-key entry, manual account creation, camera permission, code clipboard export, seed export, cloud backup, or recovery-code feature.
+There is intentionally no QR scanning, manual secret entry, manual account creation, camera permission, code clipboard export, seed export, cloud backup, or recovery-code feature.
 
 ## Security boundary
 
-- One HTTPS-only client for email verification and device activation.
+- One HTTPS-only client for credential verification, email codes, and device decisions.
 - A 30-day mobile session with the server-enforced `AUTHENTICATOR_ACTIVATION` purpose, not general Office access.
-- Owner/admin approval before a seed is issued.
-- Short-lived, hashed phone claim token; no raw claim token is stored server-side.
+- A pending device receives no usable refresh or access token until the registered mailbox trusts it.
+- One trusted device per identity, enforced both by the completion transaction and a partial unique database index.
+- High-entropy device proofs are hashed server-side and stored only in native protected storage on the trusted device.
 - Native secure storage with `WHEN_PASSCODE_SET_THIS_DEVICE_ONLY`.
 - Strong biometric unlock, background lock, screenshot protection, and iOS app-switcher protection.
 - Reinstall detection clears a Keychain item that could survive an iOS uninstall.
 - Android backup disabled and Expo OTA executable updates disabled.
 
-## Lost or replacement phone
+## Lost or replacement device
 
-An authorised Office administrator resets MFA for the identity. That revokes the prior factor and applicable sessions. The replacement phone then follows the approval flow and receives a fresh seed. The old seed is never exported or reissued.
+Sign in on the replacement device with corporate credentials and the registered-email code, then trust that exact request from the mailbox. Trusting it revokes the previous device and its active session. Ignoring an unexpected request revokes only that pending session.
 
 ## Local development
 
@@ -45,9 +45,9 @@ npm test
 npx expo start
 ```
 
-Set `EXPO_PUBLIC_OFFICE_API_ORIGIN` to the HTTPS origin of the first-party Office identity service. A configured email provider is required for the credential-email verification step. Never put Office credentials, email codes, claim tokens, or seeds in source-controlled configuration.
+Set `EXPO_PUBLIC_OFFICE_API_ORIGIN` to the HTTPS origin of the first-party Office identity service. A configured email provider is required for the credential-email verification and Trust/Ignore steps. Never put Office credentials, email codes, device proofs, or session tokens in source-controlled configuration.
 
-Use a physical device to validate SecureStore, biometric unlock, screen-capture protection, safe-area layout, email verification, the approval journey, and the 30-day re-verification boundary.
+Use a physical device to validate SecureStore, biometric unlock, screen-capture protection, safe-area layout, email verification, the Trust/Ignore journey, one-device revocation, and the 30-day re-verification boundary.
 
 ## Release checks
 

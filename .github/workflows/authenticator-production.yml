@@ -13,35 +13,34 @@ concurrency:
 jobs:
   production-android:
     name: Production Android AAB and APK
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
       run:
         working-directory: Authenticator
-    env:
-      KRAVIA_ANDROID_KEYSTORE_B64: ${{ secrets.KRAVIA_ANDROID_KEYSTORE_B64 }}
-      KRAVIA_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.KRAVIA_ANDROID_KEYSTORE_PASSWORD }}
-      KRAVIA_ANDROID_KEY_ALIAS: ${{ secrets.KRAVIA_ANDROID_KEY_ALIAS }}
-      KRAVIA_ANDROID_KEY_PASSWORD: ${{ secrets.KRAVIA_ANDROID_KEY_PASSWORD }}
-      EXPO_PUBLIC_OFFICE_API_ORIGIN: ${{ secrets.KRAVIA_AUTHENTICATOR_API_ORIGIN }}
-      EXPECTED_SIGNING_SHA256: "1008958AD5191C64DAA3D403C56B687B674C26913ACB8D86E2EF2971E8647B75"
-
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: Authenticator/package-lock.json
 
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: "17"
 
       - name: Validate protected signing inputs
         shell: bash
+        env:
+          KRAVIA_ANDROID_KEYSTORE_B64: ${{ secrets.KRAVIA_ANDROID_KEYSTORE_B64 }}
+          KRAVIA_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.KRAVIA_ANDROID_KEYSTORE_PASSWORD }}
+          KRAVIA_ANDROID_KEY_ALIAS: ${{ secrets.KRAVIA_ANDROID_KEY_ALIAS }}
+          KRAVIA_ANDROID_KEY_PASSWORD: ${{ secrets.KRAVIA_ANDROID_KEY_PASSWORD }}
+          EXPO_PUBLIC_OFFICE_API_ORIGIN: ${{ secrets.KRAVIA_AUTHENTICATOR_API_ORIGIN }}
         run: |
           set -euo pipefail
           for name in             KRAVIA_ANDROID_KEYSTORE_B64             KRAVIA_ANDROID_KEYSTORE_PASSWORD             KRAVIA_ANDROID_KEY_ALIAS             KRAVIA_ANDROID_KEY_PASSWORD             EXPO_PUBLIC_OFFICE_API_ORIGIN
@@ -78,6 +77,11 @@ jobs:
 
       - name: Materialize protected production keystore
         shell: bash
+        env:
+          KRAVIA_ANDROID_KEYSTORE_B64: ${{ secrets.KRAVIA_ANDROID_KEYSTORE_B64 }}
+          KRAVIA_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.KRAVIA_ANDROID_KEYSTORE_PASSWORD }}
+          KRAVIA_ANDROID_KEY_ALIAS: ${{ secrets.KRAVIA_ANDROID_KEY_ALIAS }}
+          EXPECTED_SIGNING_SHA256: "1008958AD5191C64DAA3D403C56B687B674C26913ACB8D86E2EF2971E8647B75"
         run: |
           set -euo pipefail
           keystore="$RUNNER_TEMP/kravia-authenticator-production.jks"
@@ -97,17 +101,30 @@ jobs:
       - name: Generate Android native project
         env:
           CI: "1"
+          EXPO_PUBLIC_OFFICE_API_ORIGIN: ${{ secrets.KRAVIA_AUTHENTICATOR_API_ORIGIN }}
         run: npx expo prebuild --platform android --no-install --non-interactive
 
       - name: Bind release build to protected KRAVIA signer
+        env:
+          KRAVIA_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.KRAVIA_ANDROID_KEYSTORE_PASSWORD }}
+          KRAVIA_ANDROID_KEY_ALIAS: ${{ secrets.KRAVIA_ANDROID_KEY_ALIAS }}
+          KRAVIA_ANDROID_KEY_PASSWORD: ${{ secrets.KRAVIA_ANDROID_KEY_PASSWORD }}
         run: node scripts/configure-production-android-signing.mjs
 
       - name: Build production AAB and APK
         working-directory: Authenticator/android
+        env:
+          KRAVIA_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.KRAVIA_ANDROID_KEYSTORE_PASSWORD }}
+          KRAVIA_ANDROID_KEY_ALIAS: ${{ secrets.KRAVIA_ANDROID_KEY_ALIAS }}
+          KRAVIA_ANDROID_KEY_PASSWORD: ${{ secrets.KRAVIA_ANDROID_KEY_PASSWORD }}
+          EXPO_PUBLIC_OFFICE_API_ORIGIN: ${{ secrets.KRAVIA_AUTHENTICATOR_API_ORIGIN }}
         run: ./gradlew bundleRelease assembleRelease --no-daemon
 
       - name: Verify production APK, manifest, API origin and signatures
         shell: bash
+        env:
+          EXPO_PUBLIC_OFFICE_API_ORIGIN: ${{ secrets.KRAVIA_AUTHENTICATOR_API_ORIGIN }}
+          EXPECTED_SIGNING_SHA256: "1008958AD5191C64DAA3D403C56B687B674C26913ACB8D86E2EF2971E8647B75"
         run: |
           set -euo pipefail
           manifest="$(find android/app/build/intermediates -path '*release*' -path '*merged_manifests*' -name AndroidManifest.xml -print -quit)"
@@ -212,6 +229,8 @@ jobs:
 
       - name: Record production build evidence
         shell: bash
+        env:
+          EXPECTED_SIGNING_SHA256: "1008958AD5191C64DAA3D403C56B687B674C26913ACB8D86E2EF2971E8647B75"
         run: |
           set -euo pipefail
           mkdir -p production-artifacts
@@ -246,7 +265,7 @@ jobs:
           fi
 
       - name: Upload production Android artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: kravia-authenticator-production-android
           path: Authenticator/production-artifacts/

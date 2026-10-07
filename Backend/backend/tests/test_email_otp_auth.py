@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from urllib.parse import parse_qs, urlparse
 
 from sqlalchemy import text
 
@@ -28,11 +29,43 @@ def request_code(client, monkeypatch, code="482915"):
     return response.json(), delivered
 
 
-def test_email_otp_is_sent_only_after_credentials_and_issues_a_scoped_30_day_activation_session(tmp_path, monkeypatch):
+def _capture_device_email(monkeypatch):
+    delivered = []
+
+    def send(**kwargs):
+        delivered.append(kwargs)
+        return "brevo-device-approval-test-message-id"
+
+    monkeypatch.setattr(identity_auth, "send_office_device_approval", send)
+    return delivered
+
+
+def _decide_device(client, notice, decision):
+    approval_id = parse_qs(urlparse(notice["approve_url"]).query)["id"][0]
+    action_token = parse_qs(urlparse(notice["approve_url"]).query)["token"][0]
+    response = client.post(
+        f"/api/v1/auth/device-approvals/{approval_id}/action",
+        json={"action_token": action_token, "decision": decision},
+    )
+    assert response.status_code == 200, response.text
+    return approval_id, response.json()
+
+
+def _complete_device(client, pending):
+    response = client.post(
+        "/api/v1/auth/device-approvals/complete",
+        json={"device_id": pending["device_approval_id"], "device_proof": pending["device_proof"]},
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_email_otp_requires_registered_mailbox_to_trust_a_new_device_before_issuing_a_scoped_session(tmp_path, monkeypatch):
     client, engine = make_client(tmp_path, monkeypatch)
     try:
         founder(client)
         challenge, delivered = request_code(client, monkeypatch)
+        device_notices = _capture_device_email(monkeypatch)
 
         assert delivered == [{
             "recipient_email": FOUNDER["email"],
@@ -49,7 +82,20 @@ def test_email_otp_is_sent_only_after_credentials_and_issues_a_scoped_30_day_act
             json={"challenge_token": challenge["challenge_token"], "code": "482915"},
         )
         assert verified.status_code == 200, verified.text
-        session = verified.json()
+        pending = verified.json()
+        assert pending["authenticated"] is False
+        assert pending["device_approval_pending"] is True
+        assert pending["email"] == FOUNDER["email"]
+        assert "refresh_token" not in pending
+        assert len(device_notices) == 1
+        assert device_notices[0]["recipient_email"] == FOUNDER["email"]
+        assert "decision=approve" in device_notices[0]["approve_url"]
+        assert "decision=decline" in device_notices[0]["decline_url"]
+
+        approval_id, decision = _decide_device(client, device_notices[0], "APPROVE")
+        assert approval_id == pending["device_approval_id"]
+        assert decision == {"decided": True, "status": "APPROVED"}
+        session = _complete_device(client, pending)
         assert session["authenticated"] is True
         assert session["aal"] == "aal2"
         assert session["session_purpose"] == identity_auth.AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE
@@ -87,13 +133,19 @@ def test_email_otp_is_sent_only_after_credentials_and_issues_a_scoped_30_day_act
             headers={"Authorization": f"Bearer {refreshed_session['access_token']}"},
         ).status_code == 403
 
-        activation = client.post(
-            "/api/v1/auth/authenticator/activation-requests",
-            headers={"Authorization": f"Bearer {refreshed_session['access_token']}"},
+        same_device_challenge, _ = request_code(client, monkeypatch, code="593741")
+        same_device = client.post(
+            f"/api/v1/auth/email-otp/challenges/{same_device_challenge['challenge_id']}/verify",
+            json={
+                "challenge_token": same_device_challenge["challenge_token"],
+                "code": "593741",
+                "device_approval_id": pending["device_approval_id"],
+                "device_proof": pending["device_proof"],
+            },
         )
-        assert activation.status_code == 200, activation.text
-        assert activation.json()["status"] == "APPROVED"
-        assert "secret" not in activation.json()
+        assert same_device.status_code == 200, same_device.text
+        assert same_device.json()["authenticated"] is True
+        assert len(device_notices) == 1
 
         replay = client.post(
             f"/api/v1/auth/email-otp/challenges/{challenge['challenge_id']}/verify",
@@ -103,11 +155,78 @@ def test_email_otp_is_sent_only_after_credentials_and_issues_a_scoped_30_day_act
 
         with engine.connect() as connection:
             row = connection.execute(
-                text("select code_hash, challenge_token_hash, status from office_email_otp_challenges")
+                text(
+                    "select code_hash, challenge_token_hash, status from office_email_otp_challenges "
+                    "where id = :id"
+                ),
+                {"id": challenge["challenge_id"]},
             ).mappings().one()
         assert row["status"] == "VERIFIED"
         assert row["code_hash"] != "482915"
         assert row["challenge_token_hash"] != challenge["challenge_token"]
+    finally:
+        engine.dispose()
+
+
+def test_device_trust_replaces_the_previous_device_and_ignore_revokes_the_pending_session(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        founder(client)
+        device_notices = _capture_device_email(monkeypatch)
+
+        first_challenge, _ = request_code(client, monkeypatch, code="482915")
+        first_pending = client.post(
+            f"/api/v1/auth/email-otp/challenges/{first_challenge['challenge_id']}/verify",
+            json={"challenge_token": first_challenge["challenge_token"], "code": "482915"},
+        ).json()
+        _decide_device(client, device_notices[-1], "APPROVE")
+        first_session = _complete_device(client, first_pending)
+
+        second_challenge, _ = request_code(client, monkeypatch, code="593741")
+        second_pending_response = client.post(
+            f"/api/v1/auth/email-otp/challenges/{second_challenge['challenge_id']}/verify",
+            json={"challenge_token": second_challenge["challenge_token"], "code": "593741"},
+        )
+        assert second_pending_response.status_code == 200, second_pending_response.text
+        second_pending = second_pending_response.json()
+        _decide_device(client, device_notices[-1], "APPROVE")
+        _complete_device(client, second_pending)
+
+        old_refresh = client.post("/api/v1/auth/refresh", json={"refresh_token": first_session["refresh_token"]})
+        assert old_refresh.status_code == 401
+        old_status = client.post(
+            "/api/v1/auth/device-approvals/status",
+            json={"device_id": first_pending["device_approval_id"], "device_proof": first_pending["device_proof"]},
+        )
+        assert old_status.status_code == 200
+        assert old_status.json()["status"] == "REVOKED"
+
+        ignored_challenge, _ = request_code(client, monkeypatch, code="763924")
+        ignored_pending = client.post(
+            f"/api/v1/auth/email-otp/challenges/{ignored_challenge['challenge_id']}/verify",
+            json={"challenge_token": ignored_challenge["challenge_token"], "code": "763924"},
+        ).json()
+        _, ignored = _decide_device(client, device_notices[-1], "DECLINE")
+        assert ignored == {"decided": True, "status": "DECLINED"}
+        completion = client.post(
+            "/api/v1/auth/device-approvals/complete",
+            json={"device_id": ignored_pending["device_approval_id"], "device_proof": ignored_pending["device_proof"]},
+        )
+        assert completion.status_code == 409
+
+        with engine.connect() as connection:
+            trusted_count = connection.execute(
+                text("select count(*) from office_login_device_approvals where status = 'TRUSTED'")
+            ).scalar_one()
+            ignored_session = connection.execute(
+                text(
+                    "select status from office_auth_sessions_v2 where id = "
+                    "(select session_id from office_login_device_approvals where id = :id)"
+                ),
+                {"id": ignored_pending["device_approval_id"]},
+            ).scalar_one()
+        assert trusted_count == 1
+        assert ignored_session == "REVOKED"
     finally:
         engine.dispose()
 
@@ -146,6 +265,7 @@ def test_email_otp_resend_works_after_the_server_cooldown_and_replaces_the_old_c
 
         monkeypatch.setattr(identity_auth, "send_office_email_verification_code", send)
         monkeypatch.setattr(identity_auth.secrets, "randbelow", lambda _limit: next(codes))
+        device_notices = _capture_device_email(monkeypatch)
         initial = client.post(
             "/api/v1/auth/email-otp/challenges",
             json={
@@ -181,6 +301,8 @@ def test_email_otp_resend_works_after_the_server_cooldown_and_replaces_the_old_c
             json={"challenge_token": challenge["challenge_token"], "code": "593741"},
         )
         assert new_code.status_code == 200, new_code.text
+        assert new_code.json()["device_approval_pending"] is True
+        assert len(device_notices) == 1
     finally:
         engine.dispose()
 

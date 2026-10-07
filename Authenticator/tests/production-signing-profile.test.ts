@@ -1,5 +1,11 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import {
+  getActionReferences,
+  getSecretStepNames,
+  getStep,
+  parseReleaseWorkflow,
+} from "./helpers/release-workflow";
 
 const workflow = readFileSync(
   new URL("../../.github/workflows/authenticator-production.yml", import.meta.url),
@@ -10,9 +16,20 @@ const script = readFileSync(
   "utf8",
 );
 
+const { document, job } = parseReleaseWorkflow(workflow, "production-android");
+
+function expectImmutableActionPins() {
+  const actionReferences = getActionReferences(job);
+  expect(actionReferences).not.toHaveLength(0);
+  for (const reference of actionReferences) {
+    expect(reference).toMatch(/^[^@]+@[0-9a-f]{40}$/i);
+  }
+}
+
 describe("KRAVIA Authenticator production signing contract", () => {
   it("is manual-only and never signs on normal repository pushes", () => {
     expect(workflow).toContain("workflow_dispatch:");
+    expect(job.if).toBe("github.ref == 'refs/heads/main'");
     expect(workflow).not.toContain("push:");
     expect(workflow).not.toContain("pull_request:");
   });
@@ -33,6 +50,42 @@ describe("KRAVIA Authenticator production signing contract", () => {
     );
     expect(workflow).toContain("EXPO_PUBLIC_OFFICE_API_ORIGIN");
     expect(workflow).toContain("must be an HTTPS origin");
+  });
+
+  it("limits signing secrets to shell steps and pins all third-party actions", () => {
+    expect(document.env).toBeUndefined();
+    expect(job.env).toBeUndefined();
+    expectImmutableActionPins();
+    expect(getStep(job, "Validate protected signing inputs").env).toBeDefined();
+    expect(getStep(job, "Materialize protected production keystore").env).toBeDefined();
+    expect(getStep(job, "Remove production keystore").if).toBe("always()");
+    expect(getSecretStepNames(job, "KRAVIA_ANDROID_KEYSTORE_B64")).toEqual([
+      "Validate protected signing inputs",
+      "Materialize protected production keystore",
+    ]);
+    expect(getSecretStepNames(job, "KRAVIA_ANDROID_KEYSTORE_PASSWORD")).toEqual([
+      "Validate protected signing inputs",
+      "Materialize protected production keystore",
+      "Bind release build to protected KRAVIA signer",
+      "Build production AAB and APK",
+    ]);
+    expect(getSecretStepNames(job, "KRAVIA_ANDROID_KEY_ALIAS")).toEqual([
+      "Validate protected signing inputs",
+      "Materialize protected production keystore",
+      "Bind release build to protected KRAVIA signer",
+      "Build production AAB and APK",
+    ]);
+    expect(getSecretStepNames(job, "KRAVIA_ANDROID_KEY_PASSWORD")).toEqual([
+      "Validate protected signing inputs",
+      "Bind release build to protected KRAVIA signer",
+      "Build production AAB and APK",
+    ]);
+    expect(getSecretStepNames(job, "KRAVIA_AUTHENTICATOR_API_ORIGIN")).toEqual([
+      "Validate protected signing inputs",
+      "Generate Android native project",
+      "Build production AAB and APK",
+      "Verify production APK, manifest, API origin and signatures",
+    ]);
   });
 
   it("builds both Play AAB and installable APK and verifies their signer", () => {

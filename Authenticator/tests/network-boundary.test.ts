@@ -18,17 +18,17 @@ describe("KRAVIA Authenticator network boundary", () => {
     expect(fetchUsers).toEqual([resolve(root, "src", "activation.ts")]);
   });
 
-  it("requires HTTPS, email verification, an approved claim, and a scoped activation session", () => {
+  it("requires HTTPS, email verification, an email decision, and a scoped device session", () => {
     const source = readFileSync(new URL("../src/activation.ts", import.meta.url), "utf8");
     const app = readFileSync(new URL("../App.tsx", import.meta.url), "utf8");
     expect(source).toContain('protocol !== "https:"');
     expect(source).toContain("/api/v1/auth/email-otp/challenges");
-    expect(source).toContain("/api/v1/auth/authenticator/activation-requests");
+    expect(source).toContain("/api/v1/auth/device-approvals/status");
+    expect(source).toContain("/api/v1/auth/device-approvals/complete");
     expect(source).toContain("AUTHENTICATOR_ACTIVATION");
-    expect(source).toContain("Authorization: `Bearer");
-    expect(source).toContain("claim_token");
-    expect(app).toContain("requestPhoneActivation");
-    expect(app).toContain("claimAuthenticatorActivation");
+    expect(source).toContain("device_approval_pending");
+    expect(app).toContain("completeDeviceApproval");
+    expect(app).toContain("Trust or Ignore decision");
     expect(app).not.toContain("AsyncStorage");
   });
 });

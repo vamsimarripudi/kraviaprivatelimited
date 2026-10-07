@@ -56,7 +56,10 @@ def test_device_approval_template_names_the_device_without_creating_a_session():
     assert template.subject == "Review a new KRAVIA Office device sign-in"
     assert "Chrome on Windows device" in template.html_content
     assert "203.0.113.10" in template.text_content
-    assert "original browser" in template.text_content
+    assert "Trust this device" in template.text_content
+    assert "Ignore and sign out" in template.text_content
+    assert "company-provided app" in template.text_content
+    assert "original device" in template.text_content
     assert "access_token" not in template.html_content
 
 

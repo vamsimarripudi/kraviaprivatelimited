@@ -1,58 +1,12 @@
-import type { AuthenticatorActivationSession, PendingAuthenticatorActivation } from "./storage";
-import type { KraviaTotpAccount } from "./types";
+import type { AuthenticatorDeviceSession, PendingDeviceApproval } from "./storage";
 
-export type PendingEmailOtpChallenge = {
-  challengeId: string;
-  challengeToken: string;
-  email: string;
-  expiresAt: string;
-  resendAvailableAt: string;
-};
+export type PendingEmailOtpChallenge = { challengeId: string; challengeToken: string; email: string; expiresAt: string; resendAvailableAt: string };
+export class IdentityApiError extends Error { constructor(readonly status: number, message: string) { super(message); } }
 
-export class IdentityApiError extends Error {
-  constructor(readonly status: number, message: string) {
-    super(message);
-    this.name = "IdentityApiError";
-  }
-}
-
-type ChallengeResponse = {
-  challenge_id: string;
-  challenge_token: string;
-  email: string;
-  expires_at: string;
-  resend_available_at: string;
-};
-
-type SessionResponse = {
-  authenticated: true;
-  email: string;
-  access_token: string;
-  refresh_token: string;
-  refresh_expires_at: string;
-  session_purpose: "AUTHENTICATOR_ACTIVATION";
-};
-
-type ActivationRequestResponse = {
-  request_id: string;
-  claim_token: string;
-  status: "PENDING" | "APPROVED";
-  expires_at: string;
-  approval_required: boolean;
-};
-
-type ActivationClaimResponse =
-  | { status: "PENDING"; expires_at: string }
-  | {
-    status: "ENROLLED";
-    account: string;
-    secret: string;
-    issuer: "KRAVIA Office";
-    algorithm: "SHA1";
-    digits: 6;
-    period: 30;
-    enrolled_at: string;
-  };
+type ChallengeResponse = { challenge_id: string; challenge_token: string; email: string; expires_at: string; resend_available_at: string };
+type ActiveSessionResponse = { authenticated: true; email: string; access_token: string; refresh_token: string; refresh_expires_at: string; session_purpose: "AUTHENTICATOR_ACTIVATION" };
+type PendingResponse = { authenticated: false; device_approval_pending: true; device_approval_id: string; device_proof: string; expires_at: string; device_label: string; email: string; session_purpose: "AUTHENTICATOR_ACTIVATION" };
+type DeviceStatusResponse = { approval_id: string; status: "PENDING" | "APPROVED" | "DECLINED" | "EXPIRED" | "REVOKED" | "DELIVERY_FAILED" | "DELIVERY_UNKNOWN"; expires_at: string; device_label: string };
 
 function apiUrl(path: string) {
   const origin = process.env.EXPO_PUBLIC_OFFICE_API_ORIGIN?.trim();
@@ -62,94 +16,42 @@ function apiUrl(path: string) {
   if (target.protocol !== "https:") throw new Error("Authenticator requires a secure HTTPS identity service.");
   return target;
 }
-
-async function requestJson<T>(path: string, body?: unknown, accessToken?: string): Promise<T> {
-  const response = await fetch(apiUrl(path), {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-    },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  });
+async function requestJson<T>(path: string, body?: unknown): Promise<T> {
+  const response = await fetch(apiUrl(path), { method: "POST", headers: { Accept: "application/json", ...(body === undefined ? {} : { "Content-Type": "application/json" }) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
   const payload = await response.json().catch(() => ({} as { detail?: unknown }));
   if (!response.ok) {
-    if (response.status === 404) throw new IdentityApiError(response.status, "Authenticator activation has not been enabled by KRAVIA yet.");
-    const detail = typeof payload?.detail === "string" ? payload.detail : "Authenticator request could not be completed.";
-    throw new IdentityApiError(response.status, detail);
+    if (response.status === 404) throw new IdentityApiError(response.status, "This KRAVIA device request is not available.");
+    throw new IdentityApiError(response.status, typeof payload?.detail === "string" ? payload.detail : "Authenticator request could not be completed.");
   }
   return payload as T;
 }
-
+function validId(value: unknown): value is string { return typeof value === "string" && /^[0-9a-f-]{36}$/i.test(value); }
+function validSecret(value: unknown): value is string { return typeof value === "string" && /^[A-Za-z0-9_-]{32,}$/.test(value); }
+function validAccessToken(value: unknown): value is string { return typeof value === "string" && /^[A-Za-z0-9._-]{32,}$/.test(value); }
 function toChallenge(result: ChallengeResponse): PendingEmailOtpChallenge {
-  if (!result.challenge_id || !result.challenge_token || !Number.isFinite(Date.parse(result.expires_at)) || !Number.isFinite(Date.parse(result.resend_available_at))) throw new Error("The identity service returned an invalid email verification request.");
+  if (!validId(result.challenge_id) || !validSecret(result.challenge_token) || !Number.isFinite(Date.parse(result.expires_at)) || !Number.isFinite(Date.parse(result.resend_available_at))) throw new Error("The identity service returned an invalid email verification request.");
   return { challengeId: result.challenge_id, challengeToken: result.challenge_token, email: result.email, expiresAt: result.expires_at, resendAvailableAt: result.resend_available_at };
 }
-
-function toSession(result: SessionResponse): AuthenticatorActivationSession {
-  if (
-    !result.access_token || !result.refresh_token || result.session_purpose !== "AUTHENTICATOR_ACTIVATION"
-    || !Number.isFinite(Date.parse(result.refresh_expires_at))
-  ) throw new Error("The identity service returned an invalid mobile verification session.");
-  return {
-    version: 1,
-    purpose: "AUTHENTICATOR_ACTIVATION",
-    email: result.email,
-    accessToken: result.access_token,
-    refreshToken: result.refresh_token,
-    expiresAt: result.refresh_expires_at,
-  };
+function toSession(result: ActiveSessionResponse, device: Pick<AuthenticatorDeviceSession, "deviceApprovalId" | "deviceProof">): AuthenticatorDeviceSession {
+  if (!validAccessToken(result.access_token) || !validSecret(result.refresh_token) || result.session_purpose !== "AUTHENTICATOR_ACTIVATION" || !Number.isFinite(Date.parse(result.refresh_expires_at))) throw new Error("The identity service returned an invalid trusted-device session.");
+  return { version: 1, purpose: "AUTHENTICATOR_ACTIVATION", email: result.email, accessToken: result.access_token, refreshToken: result.refresh_token, expiresAt: result.refresh_expires_at, deviceApprovalId: device.deviceApprovalId, deviceProof: device.deviceProof };
+}
+function toPending(result: PendingResponse): PendingDeviceApproval {
+  if (!validId(result.device_approval_id) || !validSecret(result.device_proof) || !Number.isFinite(Date.parse(result.expires_at)) || typeof result.device_label !== "string" || !result.device_label.trim()) throw new Error("The identity service returned an invalid device approval request.");
+  return { version: 1, email: result.email, approvalId: result.device_approval_id, deviceProof: result.device_proof, expiresAt: result.expires_at, deviceLabel: result.device_label };
 }
 
-export async function requestEmailOtp(email: string, password: string) {
-  return toChallenge(await requestJson<ChallengeResponse>("/api/v1/auth/email-otp/challenges", { email, password, channel: "authenticator_mobile" }));
+export async function requestEmailOtp(email: string, password: string) { return toChallenge(await requestJson<ChallengeResponse>("/api/v1/auth/email-otp/challenges", { email, password, channel: "authenticator_mobile" })); }
+export async function resendEmailOtp(challenge: PendingEmailOtpChallenge) { return toChallenge(await requestJson<ChallengeResponse>(`/api/v1/auth/email-otp/challenges/${encodeURIComponent(challenge.challengeId)}/resend`, { challenge_token: challenge.challengeToken })); }
+export async function verifyEmailOtp(challenge: PendingEmailOtpChallenge, code: string, trustedDevice: Pick<AuthenticatorDeviceSession, "deviceApprovalId" | "deviceProof"> | null) {
+  const result = await requestJson<ActiveSessionResponse | PendingResponse>(`/api/v1/auth/email-otp/challenges/${encodeURIComponent(challenge.challengeId)}/verify`, { challenge_token: challenge.challengeToken, code, ...(trustedDevice ? { device_approval_id: trustedDevice.deviceApprovalId, device_proof: trustedDevice.deviceProof } : {}) });
+  if (result.authenticated === false && result.device_approval_pending === true) return { kind: "pending" as const, pending: toPending(result) };
+  if (result.authenticated !== true || !trustedDevice) throw new Error("The identity service did not establish a trusted-device session.");
+  return { kind: "active" as const, session: toSession(result, trustedDevice) };
 }
-
-export async function resendEmailOtp(challenge: PendingEmailOtpChallenge) {
-  return toChallenge(await requestJson<ChallengeResponse>(`/api/v1/auth/email-otp/challenges/${encodeURIComponent(challenge.challengeId)}/resend`, { challenge_token: challenge.challengeToken }));
+export async function checkDeviceApproval(pending: PendingDeviceApproval) {
+  const result = await requestJson<DeviceStatusResponse>("/api/v1/auth/device-approvals/status", { device_id: pending.approvalId, device_proof: pending.deviceProof });
+  if (!validId(result.approval_id) || result.approval_id !== pending.approvalId || !Number.isFinite(Date.parse(result.expires_at))) throw new Error("The identity service returned an invalid device approval status.");
+  return result;
 }
-
-export async function verifyEmailOtp(challenge: PendingEmailOtpChallenge, code: string) {
-  return toSession(await requestJson<SessionResponse>(`/api/v1/auth/email-otp/challenges/${encodeURIComponent(challenge.challengeId)}/verify`, { challenge_token: challenge.challengeToken, code }));
-}
-
-/**
- * Rotates the scoped, 30-day native activation session before an authenticated
- * activation request.  The returned token remains incapable of becoming an
- * Office browser session; the server preserves AUTHENTICATOR_ACTIVATION as
- * the session purpose during rotation.
- */
-export async function refreshAuthenticatorSession(session: AuthenticatorActivationSession) {
-  return toSession(await requestJson<SessionResponse>("/api/v1/auth/refresh", { refresh_token: session.refreshToken }));
-}
-
-export async function requestAuthenticatorActivation(session: AuthenticatorActivationSession): Promise<PendingAuthenticatorActivation> {
-  const result = await requestJson<ActivationRequestResponse>("/api/v1/auth/authenticator/activation-requests", undefined, session.accessToken);
-  if (!result.request_id || !result.claim_token || !Number.isFinite(Date.parse(result.expires_at))) throw new Error("The identity service returned an invalid phone activation request.");
-  return { requestId: result.request_id, claimToken: result.claim_token, expiresAt: result.expires_at };
-}
-
-export async function claimAuthenticatorActivation(pending: PendingAuthenticatorActivation): Promise<
-  | { status: "PENDING"; expiresAt: string }
-  | { status: "ENROLLED"; account: KraviaTotpAccount }
-> {
-  const result = await requestJson<ActivationClaimResponse>(
-    `/api/v1/auth/authenticator/activation-requests/${encodeURIComponent(pending.requestId)}/claim`,
-    { claim_token: pending.claimToken },
-  );
-  if (result.status === "PENDING") return { status: "PENDING", expiresAt: result.expires_at };
-  return {
-    status: "ENROLLED",
-    account: {
-      version: 1,
-      issuer: result.issuer,
-      account: result.account,
-      secret: result.secret,
-      algorithm: result.algorithm,
-      digits: result.digits,
-      period: result.period,
-      enrolledAt: result.enrolled_at,
-    },
-  };
-}
+export async function completeDeviceApproval(pending: PendingDeviceApproval) { return toSession(await requestJson<ActiveSessionResponse>("/api/v1/auth/device-approvals/complete", { device_id: pending.approvalId, device_proof: pending.deviceProof }), { deviceApprovalId: pending.approvalId, deviceProof: pending.deviceProof }); }

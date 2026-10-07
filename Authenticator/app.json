@@ -57,7 +57,7 @@
     ],
     "extra": {
       "mfaIssuer": "KRAVIA Office",
-      "networkModel": "EMAIL_VERIFIED_APPROVAL_TOTP",
+      "networkModel": "EMAIL_OTP_TRUSTED_DEVICE",
       "otpClipboard": "DISABLED",
       "brandAssets": "LOCKED_GENERATED_ARTWORK"
     },

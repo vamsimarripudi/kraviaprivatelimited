@@ -23,26 +23,16 @@ concurrency:
 jobs:
   production-ios:
     name: Production iOS IPA
+    if: github.ref == 'refs/heads/main'
     runs-on: macos-latest
     timeout-minutes: 60
     defaults:
       run:
         working-directory: Authenticator
-    env:
-      KRAVIA_IOS_DISTRIBUTION_P12_B64: ${{ secrets.KRAVIA_IOS_DISTRIBUTION_P12_B64 }}
-      KRAVIA_IOS_DISTRIBUTION_P12_PASSWORD: ${{ secrets.KRAVIA_IOS_DISTRIBUTION_P12_PASSWORD }}
-      KRAVIA_IOS_PROVISION_PROFILE_B64: ${{ secrets.KRAVIA_IOS_PROVISION_PROFILE_B64 }}
-      KRAVIA_IOS_TEAM_ID: ${{ secrets.KRAVIA_IOS_TEAM_ID }}
-      EXPO_PUBLIC_OFFICE_API_ORIGIN: ${{ secrets.KRAVIA_AUTHENTICATOR_API_ORIGIN }}
-      KRAVIA_IOS_EXPORT_METHOD: ${{ inputs.export_method }}
-      EXPECTED_BUNDLE_ID: com.kraviaprivatelimited.authenticator
-      EXPECTED_APP_VERSION: "1.0.0"
-      EXPECTED_BUILD_NUMBER: "1"
-
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 22
           cache: npm
@@ -50,6 +40,12 @@ jobs:
 
       - name: Validate protected iOS signing inputs
         shell: bash
+        env:
+          KRAVIA_IOS_DISTRIBUTION_P12_B64: ${{ secrets.KRAVIA_IOS_DISTRIBUTION_P12_B64 }}
+          KRAVIA_IOS_DISTRIBUTION_P12_PASSWORD: ${{ secrets.KRAVIA_IOS_DISTRIBUTION_P12_PASSWORD }}
+          KRAVIA_IOS_PROVISION_PROFILE_B64: ${{ secrets.KRAVIA_IOS_PROVISION_PROFILE_B64 }}
+          KRAVIA_IOS_TEAM_ID: ${{ secrets.KRAVIA_IOS_TEAM_ID }}
+          EXPO_PUBLIC_OFFICE_API_ORIGIN: ${{ secrets.KRAVIA_AUTHENTICATOR_API_ORIGIN }}
         run: |
           set -euo pipefail
           for name in KRAVIA_IOS_DISTRIBUTION_P12_B64 KRAVIA_IOS_DISTRIBUTION_P12_PASSWORD KRAVIA_IOS_PROVISION_PROFILE_B64 KRAVIA_IOS_TEAM_ID EXPO_PUBLIC_OFFICE_API_ORIGIN; do
@@ -78,6 +74,7 @@ jobs:
       - name: Generate native iOS project
         env:
           CI: "1"
+          EXPO_PUBLIC_OFFICE_API_ORIGIN: ${{ secrets.KRAVIA_AUTHENTICATOR_API_ORIGIN }}
         run: npx expo prebuild --platform ios --no-install --non-interactive
 
       - name: Install CocoaPods dependencies
@@ -86,6 +83,12 @@ jobs:
 
       - name: Import Apple distribution identity
         shell: bash
+        env:
+          KRAVIA_IOS_DISTRIBUTION_P12_B64: ${{ secrets.KRAVIA_IOS_DISTRIBUTION_P12_B64 }}
+          KRAVIA_IOS_DISTRIBUTION_P12_PASSWORD: ${{ secrets.KRAVIA_IOS_DISTRIBUTION_P12_PASSWORD }}
+          KRAVIA_IOS_PROVISION_PROFILE_B64: ${{ secrets.KRAVIA_IOS_PROVISION_PROFILE_B64 }}
+          KRAVIA_IOS_TEAM_ID: ${{ secrets.KRAVIA_IOS_TEAM_ID }}
+          EXPECTED_BUNDLE_ID: com.kraviaprivatelimited.authenticator
         run: |
           set -euo pipefail
           p12="$RUNNER_TEMP/kravia-ios-distribution.p12"
@@ -139,6 +142,12 @@ jobs:
 
       - name: Archive signed KRAVIA Authenticator
         shell: bash
+        env:
+          KRAVIA_IOS_TEAM_ID: ${{ secrets.KRAVIA_IOS_TEAM_ID }}
+          EXPO_PUBLIC_OFFICE_API_ORIGIN: ${{ secrets.KRAVIA_AUTHENTICATOR_API_ORIGIN }}
+          EXPECTED_BUNDLE_ID: com.kraviaprivatelimited.authenticator
+          EXPECTED_APP_VERSION: "1.0.0"
+          EXPECTED_BUILD_NUMBER: "1"
         run: |
           set -euo pipefail
           archive="$RUNNER_TEMP/KRAVIA-Authenticator.xcarchive"
@@ -147,6 +156,10 @@ jobs:
 
       - name: Export signed IPA
         shell: bash
+        env:
+          KRAVIA_IOS_TEAM_ID: ${{ secrets.KRAVIA_IOS_TEAM_ID }}
+          KRAVIA_IOS_EXPORT_METHOD: ${{ inputs.export_method }}
+          EXPECTED_BUNDLE_ID: com.kraviaprivatelimited.authenticator
         run: |
           set -euo pipefail
           export_plist="$RUNNER_TEMP/ExportOptions.plist"
@@ -163,6 +176,11 @@ jobs:
 
       - name: Verify signed IPA identity and provisioning
         shell: bash
+        env:
+          KRAVIA_IOS_TEAM_ID: ${{ secrets.KRAVIA_IOS_TEAM_ID }}
+          EXPECTED_BUNDLE_ID: com.kraviaprivatelimited.authenticator
+          EXPECTED_APP_VERSION: "1.0.0"
+          EXPECTED_BUILD_NUMBER: "1"
         run: |
           set -euo pipefail
           verify_dir="$RUNNER_TEMP/ipa-verify"
@@ -190,6 +208,12 @@ jobs:
 
       - name: Record iOS production build evidence
         shell: bash
+        env:
+          KRAVIA_IOS_TEAM_ID: ${{ secrets.KRAVIA_IOS_TEAM_ID }}
+          KRAVIA_IOS_EXPORT_METHOD: ${{ inputs.export_method }}
+          EXPECTED_BUNDLE_ID: com.kraviaprivatelimited.authenticator
+          EXPECTED_APP_VERSION: "1.0.0"
+          EXPECTED_BUILD_NUMBER: "1"
         run: |
           set -euo pipefail
           mkdir -p production-ios-artifacts
@@ -213,9 +237,12 @@ jobs:
           rm -f "$RUNNER_TEMP/kravia-ios-distribution.p12"
           rm -f "$RUNNER_TEMP/kravia.mobileprovision"
           rm -f "$RUNNER_TEMP/profile.plist"
+          if [ -n "${KRAVIA_IOS_PROFILE_UUID:-}" ]; then
+            rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$KRAVIA_IOS_PROFILE_UUID.mobileprovision"
+          fi
 
       - name: Upload signed iOS artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: kravia-authenticator-production-ios
           path: Authenticator/production-ios-artifacts/

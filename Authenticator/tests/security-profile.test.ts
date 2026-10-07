@@ -40,7 +40,7 @@ describe("KRAVIA Authenticator native security profile", () => {
     expect(app.expo.android.permissions).not.toContain("android.permission.CAMERA");
     expect(app.expo.android.permissions).not.toContain("android.permission.RECORD_AUDIO");
     expect(app.expo.android.blockedPermissions).toContain("android.permission.RECORD_AUDIO");
-    expect(app.expo.extra.networkModel).toBe("EMAIL_VERIFIED_APPROVAL_TOTP");
+    expect(app.expo.extra.networkModel).toBe("EMAIL_OTP_TRUSTED_DEVICE");
     expect(app.expo.extra.otpClipboard).toBe("DISABLED");
   });
 
@@ -55,34 +55,32 @@ describe("KRAVIA Authenticator native security profile", () => {
     expect(pkg.dependencies["expo-clipboard"]).toBeUndefined();
   });
 
-  it("requires strong local biometrics, preserves an in-progress code during notification shade access, and clears memory on background", () => {
+  it("requires strong local biometrics, keeps notification shade transitions from clearing a code, and locks on background", () => {
     expect(securitySource).toContain("SecurityLevel.BIOMETRIC_STRONG");
     expect(securitySource).toContain('biometricsSecurityLevel: "strong"');
     expect(securitySource).toContain('disableDeviceFallback: true');
     expect(securitySource).toContain('fallbackLabel: ""');
     expect(securitySource).not.toContain('Use device passcode');
     expect(appSource).toContain('state === "background"');
-    expect(appSource).toContain("Opening the notification shade");
-    expect(appSource).toContain("setAccount(null)");
+    expect(appSource).toContain('if (state === "background")');
+    expect(appSource).toContain('if (screen === "home") setScreen("locked")');
     expect(appSource).toContain("usePreventScreenCapture(\"authenticator\")");
     expect(appSource).toContain("enableAppSwitcherProtectionAsync");
   });
 
-  it("keeps the vault, approval claim, and activation session in secure storage", () => {
-    expect(storageSource).toContain("ACCOUNT_STORE_KEY");
-    expect(storageSource).toContain("ACTIVATION_STORE_KEY");
+  it("keeps the pending approval, trusted-device binding, and session in secure storage", () => {
+    expect(storageSource).toContain("PENDING_DEVICE_STORE_KEY");
+    expect(storageSource).toContain("TRUSTED_DEVICE_STORE_KEY");
     expect(storageSource).toContain("SESSION_STORE_KEY");
     expect(storageSource).toContain("WHEN_PASSCODE_SET_THIS_DEVICE_ONLY");
     expect(storageSource).toContain("INSTALL_SECURE_KEY");
-    expect(storageSource).toContain("SecureStore.deleteItemAsync(ACCOUNT_STORE_KEY");
-    expect(storageSource).toContain("RETIRED_EMAIL_SESSION_STORE_KEY");
-    expect(storageSource).toContain("RETIRED_ACCOUNT_STORE_KEY");
-    expect(storageSource).toContain("clearRetiredSecureState");
+    expect(storageSource).toContain("RETIRED_STORE_KEYS");
+    expect(storageSource).toContain("saveTrustedDeviceBinding");
   });
 
   it("has no QR, camera, setup-key, manual-enrollment, or clipboard-export surface", () => {
-    expect(appSource).toContain("Request phone activation");
-    expect(appSource).toContain("generateTotp");
+    expect(appSource).toContain("Trust or Ignore decision");
+    expect(appSource).not.toContain("generateTotp");
     expect(appSource).not.toContain("CameraView");
     expect(appSource).not.toContain("setup key");
     expect(appSource).not.toContain("QR code");

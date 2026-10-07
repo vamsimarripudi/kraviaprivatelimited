@@ -161,7 +161,7 @@ function DeviceApprovalEmail() {
       title="Approve this new device?"
     >
       <Text className="kravia-email-paragraph" style={styles.paragraph}>
-        A new browser completed your password and Authenticator checks, but KRAVIA Office is waiting for your decision before it grants access.
+        A new KRAVIA sign-in device completed your password and registered-email checks. It cannot access your account until you make a decision below.
       </Text>
       <Section style={styles.referenceBox}>
         <Text style={styles.referenceLabel}>DEVICE</Text>
@@ -170,16 +170,16 @@ function DeviceApprovalEmail() {
         <Text style={styles.referenceValue}>{PLACEHOLDERS.sourceAddress}</Text>
       </Section>
       <Text className="kravia-email-paragraph" style={styles.paragraph}>
-        Approve only if this was you. Your choice authorises the original browser that made this request; this email link never signs in the browser that opens it.
+        Trust only if this was you. Trusting this request locks your KRAVIA account to the original device and securely signs out any previously trusted device. This email link never signs in the browser or phone that opens it.
       </Text>
       <Section style={styles.buttonRow}>
-        <Link href={PLACEHOLDERS.approveUrl} style={styles.primaryButton}>Review and approve</Link>
+        <Link href={PLACEHOLDERS.approveUrl} style={styles.primaryButton}>Trust this device</Link>
       </Section>
       <Section style={styles.buttonRow}>
-        <Link href={PLACEHOLDERS.declineUrl} style={styles.secondaryButton}>Decline this device</Link>
+        <Link href={PLACEHOLDERS.declineUrl} style={styles.secondaryButton}>Ignore and sign out</Link>
       </Section>
       <Text className="kravia-email-muted" style={styles.muted}>
-        If you did not start this sign-in, choose decline. The request will then be blocked and the browser will not enter KRAVIA Office.
+        New to KRAVIA Authenticator? Install only the company-provided app, open it, enter your registered corporate email and password, type the one-time code sent to this mailbox, then return here to trust the exact device. If you did not start this sign-in, choose ignore. The request is immediately blocked and the device is signed out.
       </Text>
     </KraviaShell>
   );

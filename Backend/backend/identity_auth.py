@@ -153,6 +153,11 @@ class EmailOtpChallengeTokenPayload(BaseModel):
 
 class EmailOtpVerifyPayload(EmailOtpChallengeTokenPayload):
     code: str = Field(pattern=r"^[0-9]{6}$")
+    # A trusted device proves possession of this high-entropy value only after
+    # the account holder has accepted the matching email decision.  It is not
+    # a session token and is kept in the platform's protected storage.
+    device_approval_id: str | None = Field(default=None, min_length=36, max_length=36)
+    device_proof: str | None = Field(default=None, min_length=32, max_length=256)
 
 
 class DeviceEventPayload(BaseModel):
@@ -1460,8 +1465,45 @@ def build_identity_router() -> APIRouter:
             # a substitute for an Office browser session or an enrolled TOTP.
             purpose=AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE,
         )
+        # Email OTP proves the registered mailbox, not that this handset is
+        # an approved KRAVIA device.  A recognised handset may receive its
+        # scoped session immediately; every other handset is held until the
+        # same mailbox explicitly trusts or ignores this exact request.
+        if _known_browser_device(db, user.id, payload.device_approval_id, payload.device_proof):
+            db.commit()
+            return result
+
+        session = db.execute(
+            select(OfficeAuthSession).where(
+                OfficeAuthSession.refresh_token_hash == _hash_token(result["refresh_token"])
+            )
+        ).scalar_one()
+        try:
+            pending = _create_device_approval(db, user=user, session=session, request=request)
+        except RuntimeError as exc:
+            db.rollback()
+            raise HTTPException(status_code=503, detail="Device approval is not configured") from exc
         db.commit()
-        return result
+        approval = db.get(OfficeLoginDeviceApproval, pending["approval_id"])
+        if not approval:
+            raise HTTPException(status_code=503, detail="Device approval could not be created")
+        _send_device_approval_notice(
+            db,
+            user=user,
+            approval=approval,
+            action_token=pending["action_token"],
+            request=request,
+        )
+        return {
+            "authenticated": False,
+            "device_approval_pending": True,
+            "device_approval_id": pending["approval_id"],
+            "device_proof": pending["device_token"],
+            "expires_at": _aware(approval.expires_at).isoformat(),
+            "device_label": approval.device_label,
+            "email": user.email,
+            "session_purpose": AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE,
+        }
 
     @router.post("/authenticator/activation-requests")
     def request_authenticator_activation(
@@ -2201,7 +2243,12 @@ def build_identity_router() -> APIRouter:
         if approval.status != "APPROVED":
             raise HTTPException(status_code=409, detail="This device has not been approved")
         session = db.get(OfficeAuthSession, approval.session_id)
-        user = db.get(OfficeAuthUser, approval.user_id)
+        # Serialise completion per identity.  This is deliberately stronger
+        # than a client-side "one device" check: concurrent email approvals
+        # cannot leave two trusted devices active for the same account.
+        user = db.execute(
+            select(OfficeAuthUser).where(OfficeAuthUser.id == approval.user_id).with_for_update()
+        ).scalar_one_or_none()
         if not session or not user or session.status != "PENDING_DEVICE_APPROVAL" or session.aal != "aal2":
             raise HTTPException(status_code=409, detail="Device approval can no longer be completed")
         if user.status != "ACTIVE" or _identity_status(db, user) != "ACTIVE" or not _active_roles(db, user.id):
@@ -2215,6 +2262,31 @@ def build_identity_router() -> APIRouter:
             trusted_until = now + timedelta(seconds=_device_trust_ttl_seconds())
         except RuntimeError as exc:
             raise HTTPException(status_code=503, detail="Device trust lifetime is not configured") from exc
+
+        replaced = db.execute(
+            select(OfficeLoginDeviceApproval)
+            .where(
+                OfficeLoginDeviceApproval.user_id == user.id,
+                OfficeLoginDeviceApproval.status == "TRUSTED",
+                OfficeLoginDeviceApproval.id != approval.id,
+            )
+            .with_for_update()
+        ).scalars().all()
+        for prior in replaced:
+            prior.status = "REVOKED"
+            prior.trusted_until = now
+            prior_session = db.get(OfficeAuthSession, prior.session_id)
+            if prior_session and prior_session.status == "ACTIVE":
+                prior_session.status = "REVOKED"
+                prior_session.revoked_at = now
+            _event(
+                db,
+                "DEVICE_LOCK_REPLACED",
+                request,
+                user_id=user.id,
+                session_id=prior.session_id,
+                metadata={"replaced_by_approval_id": approval.id},
+            )
         session.status = "ACTIVE"
         session.refresh_token_hash = _hash_token(refresh_token)
         session.last_seen_at = now
@@ -2227,7 +2299,7 @@ def build_identity_router() -> APIRouter:
             request,
             user_id=user.id,
             session_id=session.id,
-            metadata={"approval_id": approval.id, "device_label": approval.device_label},
+            metadata={"approval_id": approval.id, "device_label": approval.device_label, "replaced_device_count": len(replaced)},
         )
         response = _session_response(db, user, session)
         response["refresh_token"] = refresh_token
