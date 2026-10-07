@@ -26,6 +26,14 @@ def make_client(tmp_path, monkeypatch):
     # factor/session behavior without an external delivery dependency.
     monkeypatch.setattr(identity_auth, "DEVICE_APPROVAL_REQUIRED", False)
     monkeypatch.setattr(identity_auth.secrets, "randbelow", lambda _limit: 482915)
+    device_approval_notices = []
+
+    def capture_device_approval(**kwargs):
+        """Keep account-owner device decisions local to this test client."""
+        device_approval_notices.append(kwargs)
+        return "test-device-approval-message"
+
+    monkeypatch.setattr(identity_auth, "send_office_device_approval", capture_device_approval)
     engine = create_engine(
         f"sqlite:///{tmp_path / 'first-party-auth.db'}",
         connect_args={"check_same_thread": False},
@@ -56,7 +64,12 @@ def make_client(tmp_path, monkeypatch):
     app = FastAPI()
     app.include_router(identity_auth.build_identity_router())
     app.dependency_overrides[identity_auth.get_db] = test_db
-    return TestClient(app), engine
+    client = TestClient(app)
+    # The legacy Office-MFA assertions still exercise the existing TOTP
+    # boundary. They complete the required same-mailbox device decision below
+    # rather than bypassing the production trusted-device ceremony.
+    client.device_approval_notices = device_approval_notices
+    return client, engine
 
 
 FOUNDER = {
@@ -84,6 +97,24 @@ def authenticator_activation_session(client: TestClient, email: str, password: s
     )
     assert verified.status_code == 200, verified.text
     session = verified.json()
+    if session.get("device_approval_pending"):
+        assert client.device_approval_notices
+        notice = client.device_approval_notices[-1]
+        decision = parse_qs(urlsplit(notice["approve_url"]).query)
+        approval_id = decision["id"][0]
+        action_token = decision["token"][0]
+        approved = client.post(
+            f"/api/v1/auth/device-approvals/{approval_id}/action",
+            json={"action_token": action_token, "decision": "APPROVE"},
+        )
+        assert approved.status_code == 200, approved.text
+        assert approved.json() == {"decided": True, "status": "APPROVED"}
+        completed = client.post(
+            "/api/v1/auth/device-approvals/complete",
+            json={"device_id": session["device_approval_id"], "device_proof": session["device_proof"]},
+        )
+        assert completed.status_code == 200, completed.text
+        session = completed.json()
     assert session["session_purpose"] == identity_auth.AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE
     return session["access_token"]
 
@@ -763,14 +794,17 @@ def test_new_browser_stays_blocked_until_only_its_account_owner_approves_it(tmp_
     client, engine = make_client(tmp_path, monkeypatch)
     delivered: dict[str, str] = {}
     try:
+        initial = founder(client)
+        # Establish the pre-existing Office MFA factor through the same
+        # mailbox-decision test harness before enabling the browser-specific
+        # device lock that this test is about.
+        secret = activate_founder_authenticator(client)
         monkeypatch.setattr(identity_auth, "DEVICE_APPROVAL_REQUIRED", True)
         monkeypatch.setattr(
             identity_auth,
             "send_office_device_approval",
             lambda **kwargs: delivered.update({key: str(value) for key, value in kwargs.items()}) or "device-approval-message",
         )
-        initial = founder(client)
-        secret = activate_founder_authenticator(client)
 
         pending = client.post(
             "/api/v1/auth/mfa/verify",
@@ -845,14 +879,14 @@ def test_declined_new_browser_can_never_complete_or_refresh(tmp_path, monkeypatc
     client, engine = make_client(tmp_path, monkeypatch)
     delivered: dict[str, str] = {}
     try:
+        initial = founder(client)
+        secret = activate_founder_authenticator(client)
         monkeypatch.setattr(identity_auth, "DEVICE_APPROVAL_REQUIRED", True)
         monkeypatch.setattr(
             identity_auth,
             "send_office_device_approval",
             lambda **kwargs: delivered.update({key: str(value) for key, value in kwargs.items()}) or "device-approval-message",
         )
-        initial = founder(client)
-        secret = activate_founder_authenticator(client)
         pending = client.post(
             "/api/v1/auth/mfa/verify",
             headers={"Authorization": f"Bearer {initial['access_token']}"},

@@ -25,7 +25,7 @@ describe("KRAVIA Authenticator verified-device boundary", () => {
     expect(installPage).toContain("KRAVIA_AUTHENTICATOR_IOS_URL");
   });
 
-  it("uses credential-email verification before an approved local-code activation", () => {
+  it("uses credential-email verification before a trusted-device session", () => {
     expect(backend).toContain('/email-otp/challenges');
     expect(backend).toContain('"authenticator_mobile"');
     expect(backend).toContain("EMAIL_OTP_TTL_SECONDS");
@@ -33,14 +33,16 @@ describe("KRAVIA Authenticator verified-device boundary", () => {
     expect(activation).toContain("requestEmailOtp");
     expect(activation).toContain("resendEmailOtp");
     expect(activation).toContain("verifyEmailOtp");
-    expect(activation).toContain("requestAuthenticatorActivation");
-    expect(activation).toContain("claimAuthenticatorActivation");
+    expect(activation).toContain("checkDeviceApproval");
+    expect(activation).toContain("completeDeviceApproval");
     expect(activation).toContain('protocol !== "https:"');
     expect(storage).toContain("SESSION_STORE_KEY");
     expect(storage).toContain("refreshToken");
-    expect(storage).toContain("ACCOUNT_STORE_KEY");
-    expect(storage).toContain("ACTIVATION_STORE_KEY");
-    expect(app).toContain("generateTotp");
+    expect(storage).toContain("PENDING_DEVICE_STORE_KEY");
+    expect(storage).toContain("TRUSTED_DEVICE_STORE_KEY");
+    expect(app).toContain("A Trust or Ignore decision was sent");
+    expect(app).toContain("This phone is now your trusted KRAVIA device.");
+    expect(app).not.toContain("generateTotp");
     expect(login).toContain("officeTotpWindow");
     expect(login).toContain('phase === "success"');
     expect(login).toContain("Authenticator code accepted");
@@ -66,7 +68,7 @@ describe("KRAVIA Authenticator verified-device boundary", () => {
     expect(app).not.toContain("CameraView");
     expect(app).not.toContain("setup key");
     expect(app).not.toContain("QR code");
-    expect(app).toContain("Request phone activation");
+    expect(app).toContain("No scan · protected registration · no copied login code");
     expect(app).not.toContain("manual account");
     expect(app).not.toContain("Clipboard.setString");
     expect(packageJson).not.toContain('"expo-camera"');
@@ -80,7 +82,7 @@ describe("KRAVIA Authenticator verified-device boundary", () => {
     expect(appConfig.expo.android.permissions).not.toContain("android.permission.CAMERA");
     expect(appConfig.expo.android.permissions).not.toContain("android.permission.RECORD_AUDIO");
     expect(appConfig.expo.android.blockedPermissions).toContain("android.permission.RECORD_AUDIO");
-    expect(appJson).toContain('"EMAIL_VERIFIED_APPROVAL_TOTP"');
+    expect(appJson).toContain('"EMAIL_OTP_TRUSTED_DEVICE"');
     expect(appJson).toContain('"allowBackup": false');
     expect(app).toContain("TimerCircle");
   });
