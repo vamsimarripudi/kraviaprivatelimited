@@ -72,6 +72,7 @@ jobs:
       - name: Verify application quality before signing
         run: |
           npm run prepare:assets
+          npm run audit:high
           npm run typecheck
           npm test
 
