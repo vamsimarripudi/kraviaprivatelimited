@@ -28,7 +28,8 @@ describe("KRAVIA Authenticator network boundary", () => {
     expect(source).toContain("AUTHENTICATOR_ACTIVATION");
     expect(source).toContain("device_approval_pending");
     expect(app).toContain("completeDeviceApproval");
-    expect(app).toContain("Trust or Ignore decision");
+    expect(app).toMatch(/continues\s+automatically/);
+    expect(app).not.toContain("Check decision");
     expect(app).not.toContain("AsyncStorage");
   });
 });

@@ -41,8 +41,8 @@ def _capture_device_email(monkeypatch):
 
 
 def _decide_device(client, notice, decision):
-    approval_id = parse_qs(urlparse(notice["approve_url"]).query)["id"][0]
-    action_token = parse_qs(urlparse(notice["approve_url"]).query)["token"][0]
+    approval_id = parse_qs(urlparse(notice["review_url"]).query)["id"][0]
+    action_token = parse_qs(urlparse(notice["review_url"]).query)["token"][0]
     response = client.post(
         f"/api/v1/auth/device-approvals/{approval_id}/action",
         json={"action_token": action_token, "decision": decision},
@@ -66,11 +66,11 @@ def test_device_approval_link_never_uses_the_api_origin(monkeypatch):
     action_token = "synthetic-token-value-which-is-long-enough-123456"
     monkeypatch.setenv("PUBLIC_BASE_URL", "https://kravia-office-api-production.up.railway.app")
 
-    url = identity_auth._device_approval_action_url(approval_id, action_token, "approve")
+    url = identity_auth._device_approval_review_url(approval_id, action_token)
 
     assert url.startswith("https://www.kraviaprivatelimited.com/office/device-approval/confirm?")
     assert f"id={approval_id}" in url
-    assert "decision=approve" in url
+    assert "decision=" not in url
 
 
 def test_email_otp_requires_registered_mailbox_to_trust_a_new_device_before_issuing_a_scoped_session(tmp_path, monkeypatch):
@@ -102,8 +102,17 @@ def test_email_otp_requires_registered_mailbox_to_trust_a_new_device_before_issu
         assert "refresh_token" not in pending
         assert len(device_notices) == 1
         assert device_notices[0]["recipient_email"] == FOUNDER["email"]
-        assert "decision=approve" in device_notices[0]["approve_url"]
-        assert "decision=decline" in device_notices[0]["decline_url"]
+        assert "decision=" not in device_notices[0]["review_url"]
+
+        review_query = parse_qs(urlparse(device_notices[0]["review_url"]).query)
+        review = client.post(
+            f"/api/v1/auth/device-approvals/{pending['device_approval_id']}/review",
+            json={"action_token": review_query["token"][0]},
+        )
+        assert review.status_code == 200, review.text
+        assert review.json()["status"] == "PENDING"
+        assert review.json()["device_label"] == pending["device_label"]
+        assert review.json()["location"] is None
 
         approval_id, decision = _decide_device(client, device_notices[0], "APPROVE")
         assert approval_id == pending["device_approval_id"]

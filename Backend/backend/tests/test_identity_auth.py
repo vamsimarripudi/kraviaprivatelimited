@@ -100,7 +100,7 @@ def authenticator_activation_session(client: TestClient, email: str, password: s
     if session.get("device_approval_pending"):
         assert client.device_approval_notices
         notice = client.device_approval_notices[-1]
-        decision = parse_qs(urlsplit(notice["approve_url"]).query)
+        decision = parse_qs(urlsplit(notice["review_url"]).query)
         approval_id = decision["id"][0]
         action_token = decision["token"][0]
         approved = client.post(
@@ -826,7 +826,7 @@ def test_new_browser_stays_blocked_until_only_its_account_owner_approves_it(tmp_
         assert blocked.status_code == 401
 
         approval_id = body["device_approval_id"]
-        action_token = parse_qs(urlsplit(delivered["approve_url"]).query)["token"][0]
+        action_token = parse_qs(urlsplit(delivered["review_url"]).query)["token"][0]
         owner_access = client.post(
             "/api/v1/auth/sign-in",
             json={"email": FOUNDER["email"], "password": FOUNDER["password"]},
@@ -895,7 +895,7 @@ def test_declined_new_browser_can_never_complete_or_refresh(tmp_path, monkeypatc
         assert pending.status_code == 200, pending.text
         body = pending.json()
         approval_id = body["device_approval_id"]
-        decline_token = parse_qs(urlsplit(delivered["decline_url"]).query)["token"][0]
+        decline_token = parse_qs(urlsplit(delivered["review_url"]).query)["token"][0]
 
         declined = client.post(
             f"/api/v1/auth/device-approvals/{approval_id}/action",

@@ -79,7 +79,9 @@ describe("KRAVIA Authenticator native security profile", () => {
   });
 
   it("has no QR, camera, setup-key, manual-enrollment, or clipboard-export surface", () => {
-    expect(appSource).toContain("Trust or Ignore decision");
+    expect(appSource).toContain("security review");
+    expect(appSource).not.toContain("Check decision");
+    expect(appSource).not.toContain("Cancel this sign-in");
     expect(appSource).not.toContain("generateTotp");
     expect(appSource).not.toContain("CameraView");
     expect(appSource).not.toContain("setup key");

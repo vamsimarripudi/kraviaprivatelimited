@@ -5,10 +5,15 @@ import { officeMutationIsSameOrigin } from "@/lib/office/request-security";
 
 function readActionCookie(value: string | undefined) {
   if (!value) return null;
-  const [approvalId, actionToken, decision] = value.split(".");
+  const [approvalId, actionToken] = value.split(".");
   if (!/^[0-9a-f-]{36}$/i.test(approvalId ?? "") || !/^[A-Za-z0-9_-]{32,}$/.test(actionToken ?? "")) return null;
-  if (decision !== "approve" && decision !== "decline") return null;
-  return { approvalId, actionToken, decision: decision === "approve" ? "APPROVE" as const : "DECLINE" as const };
+  return { approvalId, actionToken };
+}
+
+function readDecision(value: unknown): "APPROVE" | "DECLINE" | null {
+  if (!value || typeof value !== "object") return null;
+  const decision = (value as { decision?: unknown }).decision;
+  return decision === "APPROVE" || decision === "DECLINE" ? decision : null;
 }
 
 export async function POST(request: Request) {
@@ -28,8 +33,12 @@ export async function POST(request: Request) {
     clear();
     return NextResponse.json({ detail: "This device approval link is invalid or expired" }, { status: 400 });
   }
+  const decision = readDecision(await request.json().catch(() => null));
+  if (!decision) {
+    return NextResponse.json({ detail: "Choose whether to trust or block this device" }, { status: 400 });
+  }
   try {
-    const result = await decideOfficeDeviceApprovalFromEmail(action);
+    const result = await decideOfficeDeviceApprovalFromEmail({ ...action, decision });
     clear();
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

@@ -49,15 +49,13 @@ def test_device_approval_template_names_the_device_without_creating_a_session():
     template = office_device_approval_template(
         device_label="Chrome on Windows device",
         source_address="203.0.113.10",
-        approve_url="https://www.kraviaprivatelimited.com/office/device-approval/confirm?id=11111111-1111-4111-8111-111111111111&token=synthetic-token-value-which-is-long-enough-123456&decision=approve",
-        decline_url="https://www.kraviaprivatelimited.com/office/device-approval/confirm?id=11111111-1111-4111-8111-111111111111&token=synthetic-token-value-which-is-long-enough-123456&decision=decline",
+        review_url="https://www.kraviaprivatelimited.com/office/device-approval/confirm?id=11111111-1111-4111-8111-111111111111&token=synthetic-token-value-which-is-long-enough-123456",
     )
 
     assert template.subject == "Review a new KRAVIA Office device sign-in"
     assert "Chrome on Windows device" in template.html_content
     assert "203.0.113.10" in template.text_content
-    assert "Trust this device" in template.text_content
-    assert "Ignore and sign out" in template.text_content
+    assert "Review this sign-in" in template.text_content
     assert "company-provided app" in template.text_content
     assert "original device" in template.text_content
     assert "access_token" not in template.html_content
@@ -145,8 +143,7 @@ def test_react_email_manifest_has_no_unresolved_tokens_or_executable_markup():
         office_device_approval_template(
             device_label="Synthetic browser",
             source_address="203.0.113.10",
-            approve_url="https://www.kraviaprivatelimited.com/office/device-approval/confirm?id=11111111-1111-4111-8111-111111111111&token=synthetic-token-value-which-is-long-enough-123456&decision=approve",
-            decline_url="https://www.kraviaprivatelimited.com/office/device-approval/confirm?id=11111111-1111-4111-8111-111111111111&token=synthetic-token-value-which-is-long-enough-123456&decision=decline",
+            review_url="https://www.kraviaprivatelimited.com/office/device-approval/confirm?id=11111111-1111-4111-8111-111111111111&token=synthetic-token-value-which-is-long-enough-123456",
         ),
     ]
     for template in templates:
@@ -195,8 +192,7 @@ def test_device_approval_delivery_uses_the_verified_sender(monkeypatch):
         recipient_email="member@example.test",
         device_label="Synthetic browser",
         source_address="203.0.113.10",
-        approve_url="https://www.kraviaprivatelimited.com/office/device-approval/confirm?id=11111111-1111-4111-8111-111111111111&token=synthetic-token-value-which-is-long-enough-123456&decision=approve",
-        decline_url="https://www.kraviaprivatelimited.com/office/device-approval/confirm?id=11111111-1111-4111-8111-111111111111&token=synthetic-token-value-which-is-long-enough-123456&decision=decline",
+        review_url="https://www.kraviaprivatelimited.com/office/device-approval/confirm?id=11111111-1111-4111-8111-111111111111&token=synthetic-token-value-which-is-long-enough-123456",
         delivery_id="device-approval:11111111-1111-4111-8111-111111111111",
     )
     assert receipt == "device-approval-message"

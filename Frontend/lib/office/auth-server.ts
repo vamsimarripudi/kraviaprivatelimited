@@ -448,6 +448,49 @@ export async function decideOfficeDeviceApprovalFromEmail(action: { approvalId: 
   return parseOrThrow<{ decided: true; status: "APPROVED" | "DECLINED" }>(response);
 }
 
+export type OfficeDeviceApprovalReview = {
+  approvalId: string;
+  status: "PENDING" | "APPROVED" | "DECLINED" | "EXPIRED";
+  deviceLabel: string;
+  sourceAddress: string;
+  requestedAt: string;
+  expiresAt: string;
+  location: null;
+};
+
+export async function reviewOfficeDeviceApprovalFromEmail(action: { approvalId: string; actionToken: string }) {
+  const response = await rawApi(`/api/v1/auth/device-approvals/${encodeURIComponent(action.approvalId)}/review`, {
+    method: "POST",
+    body: JSON.stringify({ action_token: action.actionToken }),
+  });
+  const payload = await parseOrThrow<{
+    approval_id?: unknown;
+    status?: unknown;
+    device_label?: unknown;
+    source_address?: unknown;
+    requested_at?: unknown;
+    expires_at?: unknown;
+    location?: unknown;
+  }>(response);
+  const accepted = new Set(["PENDING", "APPROVED", "DECLINED", "EXPIRED"]);
+  if (
+    typeof payload.approval_id !== "string" || !/^[0-9a-f-]{36}$/i.test(payload.approval_id) ||
+    typeof payload.status !== "string" || !accepted.has(payload.status) ||
+    typeof payload.device_label !== "string" || typeof payload.source_address !== "string" ||
+    typeof payload.requested_at !== "string" || typeof payload.expires_at !== "string" ||
+    payload.location !== null
+  ) throw new Error("KRAVIA Office returned an invalid device review request");
+  return {
+    approvalId: payload.approval_id,
+    status: payload.status as OfficeDeviceApprovalReview["status"],
+    deviceLabel: payload.device_label,
+    sourceAddress: payload.source_address,
+    requestedAt: payload.requested_at,
+    expiresAt: payload.expires_at,
+    location: null,
+  } satisfies OfficeDeviceApprovalReview;
+}
+
 export async function refreshOfficeIdentity(context: OfficeSessionContext): Promise<OfficeSessionContext> {
   const response = await rawApi("/api/v1/auth/session", {
     headers: { Authorization: `Bearer ${context.session.access_token}` },

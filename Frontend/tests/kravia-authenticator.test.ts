@@ -40,7 +40,9 @@ describe("KRAVIA Authenticator verified-device boundary", () => {
     expect(storage).toContain("refreshToken");
     expect(storage).toContain("PENDING_DEVICE_STORE_KEY");
     expect(storage).toContain("TRUSTED_DEVICE_STORE_KEY");
-    expect(app).toContain("A Trust or Ignore decision was sent");
+    expect(app).toContain("security review");
+    expect(app).toMatch(/continues\s+automatically/);
+    expect(app).not.toContain("Check decision");
     expect(app).toContain("This phone is now your trusted KRAVIA device.");
     expect(app).not.toContain("generateTotp");
     expect(login).toContain("officeTotpWindow");

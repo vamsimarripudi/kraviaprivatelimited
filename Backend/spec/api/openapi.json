@@ -844,6 +844,22 @@
         "title": "DeviceApprovalProofPayload",
         "type": "object"
       },
+      "DeviceApprovalReviewPayload": {
+        "description": "Proof from the registered-mailbox review link, never a session token.",
+        "properties": {
+          "action_token": {
+            "maxLength": 256,
+            "minLength": 32,
+            "title": "Action Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action_token"
+        ],
+        "title": "DeviceApprovalReviewPayload",
+        "type": "object"
+      },
       "DeviceEventPayload": {
         "properties": {
           "action": {
@@ -5667,6 +5683,57 @@
           }
         },
         "summary": "Decide Device Approval",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/device-approvals/{approval_id}/review": {
+      "post": {
+        "description": "Show the account owner the exact request before an explicit choice.\n\nPossession of the single-use mailbox token is required.  This endpoint\nneither changes the request nor creates an authenticated Office session.",
+        "operationId": "review_device_approval_api_v1_auth_device_approvals__approval_id__review_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "approval_id",
+            "required": true,
+            "schema": {
+              "title": "Approval Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceApprovalReviewPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Device Approval",
         "tags": [
           "identity"
         ]

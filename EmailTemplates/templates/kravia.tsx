@@ -26,8 +26,7 @@ export const PLACEHOLDERS = {
   organisation: "@@KRAVIA_ORGANISATION@@",
   deviceLabel: "@@KRAVIA_DEVICE_LABEL@@",
   sourceAddress: "@@KRAVIA_SOURCE_ADDRESS@@",
-  approveUrl: "@@KRAVIA_APPROVE_URL@@",
-  declineUrl: "@@KRAVIA_DECLINE_URL@@",
+  reviewUrl: "@@KRAVIA_REVIEW_URL@@",
 } as const;
 
 export type KraviaEmailTemplateName =
@@ -158,10 +157,10 @@ function DeviceApprovalEmail() {
     <KraviaShell
       preview="Review a new KRAVIA Office device sign-in"
       label="KRAVIA OFFICE SECURITY"
-      title="Approve this new device?"
+      title="Review a new device"
     >
       <Text className="kravia-email-paragraph" style={styles.paragraph}>
-        A new KRAVIA sign-in device completed your password and registered-email checks. It cannot access your account until you make a decision below.
+        A new KRAVIA sign-in device completed your password and registered-email checks. It cannot access your account until you review the request and explicitly choose whether to trust it.
       </Text>
       <Section style={styles.referenceBox}>
         <Text style={styles.referenceLabel}>DEVICE</Text>
@@ -170,13 +169,10 @@ function DeviceApprovalEmail() {
         <Text style={styles.referenceValue}>{PLACEHOLDERS.sourceAddress}</Text>
       </Section>
       <Text className="kravia-email-paragraph" style={styles.paragraph}>
-        Trust only if this was you. Trusting this request locks your KRAVIA account to the original device and securely signs out any previously trusted device. This email link never signs in the browser or phone that opens it.
+        Open the secure review page to see the request and choose Trust or Cancel and block sign-in. Trust only if this was you. Trusting this request locks your KRAVIA account to the original device and securely signs out any previously trusted device. Opening this link never signs in the browser or phone that opens it.
       </Text>
       <Section style={styles.buttonRow}>
-        <Link href={PLACEHOLDERS.approveUrl} style={styles.primaryButton}>Trust this device</Link>
-      </Section>
-      <Section style={styles.buttonRow}>
-        <Link href={PLACEHOLDERS.declineUrl} style={styles.secondaryButton}>Ignore and sign out</Link>
+        <Link href={PLACEHOLDERS.reviewUrl} style={styles.primaryButton}>Review this sign-in</Link>
       </Section>
       <Text className="kravia-email-muted" style={styles.muted}>
         New to KRAVIA Authenticator? Install only the company-provided app, open it, enter your registered corporate email and password, type the one-time code sent to this mailbox, then return here to trust the exact device. If you did not start this sign-in, choose ignore. The request is immediately blocked and the device is signed out.

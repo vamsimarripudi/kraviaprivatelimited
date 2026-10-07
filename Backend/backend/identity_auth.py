@@ -134,6 +134,12 @@ class DeviceApprovalActionPayload(BaseModel):
     decision: Literal["APPROVE", "DECLINE"]
 
 
+class DeviceApprovalReviewPayload(BaseModel):
+    """Proof from the registered-mailbox review link, never a session token."""
+
+    action_token: str = Field(min_length=32, max_length=256)
+
+
 class DeviceApprovalProofPayload(BaseModel):
     device_id: str = Field(min_length=36, max_length=36)
     device_proof: str = Field(min_length=32, max_length=256)
@@ -426,8 +432,15 @@ def _public_web_origin() -> str:
     return f"https://{parsed.netloc}"
 
 
-def _device_approval_action_url(approval_id: str, action_token: str, decision: Literal["approve", "decline"]) -> str:
-    query = urlencode({"id": approval_id, "token": action_token, "decision": decision})
+def _device_approval_review_url(approval_id: str, action_token: str) -> str:
+    """Link to a page that requires an explicit owner decision.
+
+    A GET from an email client, proxy, or link scanner must never approve or
+    decline a device.  The Next.js confirmation page keeps this token in an
+    HttpOnly cookie and makes a separate same-origin POST after the owner sees
+    the exact device details and chooses an action.
+    """
+    query = urlencode({"id": approval_id, "token": action_token})
     return f"{_public_web_origin()}/office/device-approval/confirm?{query}"
 
 
@@ -444,6 +457,24 @@ def _approval_status_json(approval: OfficeLoginDeviceApproval) -> dict[str, Any]
         "status": approval.status,
         "expires_at": _aware(approval.expires_at).isoformat(),
         "device_label": approval.device_label,
+    }
+
+
+def _approval_review_json(approval: OfficeLoginDeviceApproval) -> dict[str, Any]:
+    """Return only the request facts the mailbox owner needs to review it.
+
+    The service never derives a geographic location from an untrusted forwarding
+    header or a third-party lookup.  The UI explicitly marks location as not
+    available instead of displaying an invented or misleading location.
+    """
+    return {
+        "approval_id": approval.id,
+        "status": approval.status,
+        "device_label": approval.device_label,
+        "source_address": approval.source_ip_address or "Unavailable",
+        "requested_at": _aware(approval.created_at).isoformat(),
+        "expires_at": _aware(approval.expires_at).isoformat(),
+        "location": None,
     }
 
 
@@ -522,8 +553,7 @@ def _send_device_approval_notice(
             recipient_email=user.email,
             device_label=approval.device_label,
             source_address=approval.source_ip_address,
-            approve_url=_device_approval_action_url(approval.id, action_token, "approve"),
-            decline_url=_device_approval_action_url(approval.id, action_token, "decline"),
+            review_url=_device_approval_review_url(approval.id, action_token),
             delivery_id=f"device-approval:{approval.id}",
         )
     except EmailDeliveryRejected as exc:
@@ -2145,6 +2175,41 @@ def build_identity_router() -> APIRouter:
             "access_token": access_token,
             **_safe_identity(db, user, "aal2"),
         }
+
+    @router.post("/device-approvals/{approval_id}/review")
+    def review_device_approval(
+        approval_id: str,
+        payload: DeviceApprovalReviewPayload,
+        request: Request,
+        db: Session = Depends(get_db),
+    ):
+        """Show the account owner the exact request before an explicit choice.
+
+        Possession of the single-use mailbox token is required.  This endpoint
+        neither changes the request nor creates an authenticated Office session.
+        """
+        try:
+            normalized_id = str(uuid.UUID(approval_id))
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail="Device approval request was not found") from exc
+        approval = db.execute(
+            select(OfficeLoginDeviceApproval)
+            .where(OfficeLoginDeviceApproval.id == normalized_id)
+            .with_for_update()
+        ).scalar_one_or_none()
+        if not approval or not hmac.compare_digest(approval.owner_action_token_hash, _hash_token(payload.action_token)):
+            raise HTTPException(status_code=404, detail="Device approval request was not found")
+
+        now = _now()
+        if _expire_device_approval(approval, now):
+            session = db.get(OfficeAuthSession, approval.session_id)
+            if session and session.status == "PENDING_DEVICE_APPROVAL":
+                session.status = "REVOKED"
+                session.revoked_at = now
+            _event(db, "DEVICE_APPROVAL_EXPIRED", request, user_id=approval.user_id, session_id=approval.session_id)
+            db.commit()
+            raise HTTPException(status_code=410, detail="Device approval request has expired")
+        return _approval_review_json(approval)
 
     @router.post("/device-approvals/{approval_id}/action")
     def decide_device_approval(
