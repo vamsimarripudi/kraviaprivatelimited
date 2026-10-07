@@ -16,6 +16,18 @@ function labelDate(value?: string | null) {
   return Number.isNaN(date.getTime()) ? null : new Intl.DateTimeFormat("en-IN", { dateStyle: "long", timeZone: "Asia/Kolkata" }).format(date);
 }
 
+function PrintLetterhead() {
+  return <>
+    <img className={styles.printLetterhead} src="/legal/kravia-letterhead-a4.png" alt="" />
+    <span className={styles.printReferenceValue} data-legal-print-reference>—</span>
+    <span className={styles.printDateValue} data-legal-print-date>—</span>
+    {/* The supplied raster letterhead contains the retired address. The
+        print-only overlays preserve its approved image bytes and geometry. */}
+    <span className={styles.printHeaderEmail}><b>EMAIL</b> corporate@kraviaprivatelimited.com</span>
+    <span className={styles.printFooterEmail}>corporate@kraviaprivatelimited.com</span>
+  </>;
+}
+
 /** Print-only A4 rendering over the supplied KRAVIA corporate letterhead. */
 export function LegalPrintDocument({ article, document, effective, updated }: LegalPrintDocumentProps) {
   const pages = paginateLegalDocumentForPrint(document);
@@ -25,7 +37,7 @@ export function LegalPrintDocument({ article, document, effective, updated }: Le
 
   return <div className={styles.printDocument} aria-hidden="true" data-legal-print-document>
     <section className={styles.printPage}>
-      <img className={styles.printLetterhead} src="/legal/kravia-letterhead-a4.png" alt="" />
+      <PrintLetterhead />
       <div className={styles.printContent}>
         <p className={styles.printKicker}>APPROVED PUBLIC POLICY</p>
         <h1>{article.title}</h1>
@@ -42,7 +54,7 @@ export function LegalPrintDocument({ article, document, effective, updated }: Le
     </section>
 
     {pages.map((page, pageIndex) => <section className={styles.printPage} key={`print-page-${pageIndex + 2}`}>
-      <img className={styles.printLetterhead} src="/legal/kravia-letterhead-a4.png" alt="" />
+      <PrintLetterhead />
       <div className={styles.printContent}>
         {page.fragments.map((fragment, fragmentIndex) => <section className={styles.printSection} key={`${fragment.number}-${fragmentIndex}`}>
           <div className={styles.printSectionHeading}><p>{fragment.number}</p><h2>{fragment.title}{fragment.continued ? " (continued)" : ""}</h2></div>

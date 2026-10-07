@@ -32,7 +32,10 @@ type MutablePage = {
 
 // Conservative units keep content inside the usable A4 letterhead area. Each
 // rendered page is explicit, so the page total is deterministic across print UIs.
-const PRINT_PAGE_CAPACITY = 1_260;
+// The A4 body reaches below the letterhead's second rule and above its footer.
+// This matches the actual 54mm top / 34mm bottom print area rather than
+// artificially creating a sparse final page.
+const PRINT_PAGE_CAPACITY = 1_650;
 const SECTION_HEADING_COST = 130;
 const TABLE_HEADER_COST = 100;
 

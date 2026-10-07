@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseLegalDocumentBody } from "../lib/legal/document-body";
 import { paginateLegalDocumentForPrint } from "../lib/legal/print-layout";
+import { formatLegalPrintDate } from "../lib/legal/print-reference";
 import { parseLegalPolicyMarkdown } from "../lib/legal/policy-markdown";
 import { legalCandidateDocuments } from "../lib/legal/registry";
 import { isApprovedForPublicRelease } from "../lib/legal/types";
@@ -14,6 +15,10 @@ const previewLoader = readFileSync(new URL("../lib/legal/draft-loader.ts", impor
 const legalStyles = readFileSync(new URL("../components/legal-document.module.css", import.meta.url), "utf8");
 const legalCenterStyles = readFileSync(new URL("../components/legal-trust-center.module.css", import.meta.url), "utf8");
 const printReader = readFileSync(new URL("../components/legal-print-document.tsx", import.meta.url), "utf8");
+const printActions = readFileSync(new URL("../components/legal-document-actions.tsx", import.meta.url), "utf8");
+const printRoute = readFileSync(new URL("../app/api/legal/print-jobs/route.ts", import.meta.url), "utf8");
+const printConfirmationRoute = readFileSync(new URL("../app/api/legal/print-jobs/[jobId]/route.ts", import.meta.url), "utf8");
+const printMigration = readFileSync(new URL("../../Database/supabase/migrations/20261007170439_legal_print_audit.sql", import.meta.url), "utf8");
 const publicPolicyRelease = JSON.parse(readFileSync(new URL("../data/legal/public-policy-release-v1.json", import.meta.url), "utf8")) as { documents: { slug: string; body: string }[] };
 
 describe("Legal & Trust Center publication guard", () => {
@@ -91,6 +96,30 @@ describe("Legal & Trust Center publication guard", () => {
     expect(legalStyles).toContain("@page{size:A4 portrait;margin:0}");
     expect(legalStyles).toContain(".printLetterhead");
     expect(legalStyles).toContain(".printPageNumber");
+  });
+
+  it("uses server-issued date and reference fields while preserving the approved letterhead asset", () => {
+    expect(printReader).toContain('data-legal-print-reference');
+    expect(printReader).toContain('data-legal-print-date');
+    expect(printReader).toContain('corporate@kraviaprivatelimited.com');
+    expect(printReader).toContain('/legal/kravia-letterhead-a4.png');
+    expect(legalStyles).toContain('.printContent{padding-bottom:34mm}');
+    expect(formatLegalPrintDate("2026-10-07")).toMatch(/October/);
+  });
+
+  it("reserves and confirms legal print jobs without trusting browser results as proof of a completed print", () => {
+    expect(printActions).toContain('fetch("/api/legal/print-jobs"');
+    expect(printActions).toContain('window.addEventListener("afterprint"');
+    expect(printActions).toContain('Mark as printed');
+    expect(printActions).toContain('Print again with this reference');
+    expect(printRoute).toContain('getPublishedContentByPublicPath');
+    expect(printRoute).toContain('reservationCookie');
+    expect(printConfirmationRoute).toContain('request.cookies.get(reservationCookie)');
+    expect(printMigration).toContain('legal_print_jobs');
+    expect(printMigration).toContain("status in ('RESERVED', 'PRINTED')");
+    expect(printMigration).toContain("'RESERVATION_REUSED'");
+    expect(printMigration).toContain('prevent_legal_print_attempt_mutation');
+    expect(printMigration).toContain('grant execute on function public.reserve_legal_print_job');
   });
 
   it("keeps all canonical paragraphs and table rows when a policy spans print pages", () => {
