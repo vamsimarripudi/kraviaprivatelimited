@@ -8,11 +8,12 @@ Authenticator binds each KRAVIA identity to one explicitly trusted device. Every
 
 1. Read the welcome note, then enter registered corporate credentials.
 2. Enter the single-use six-digit code sent to the registered email address.
-3. A new device is held pending. The registered mailbox receives a device, address, Trust, and Ignore notice, plus the installation and sign-in steps.
-4. Select **Trust this device** only for the device that started the request. The server records that device as trusted and revokes every earlier trusted device and its active session.
-5. Select **Ignore and sign out** for an unrecognised request. The pending device session is revoked immediately.
-6. The trusted device stores its scoped verification session and device proof in native secure storage. It cannot access general KRAVIA Office APIs or replace an Office browser session.
-7. Unlock the app with strong biometrics to view the protected device-security home.
+3. A new device is held pending. The registered mailbox receives one secure review link with the device, observed source address, and installation/sign-in steps.
+4. On that KRAVIA review page, select **Trust this device** only for the device that started the request. The server records that device as trusted and revokes every earlier trusted device and its active session.
+5. Select **Cancel and block sign-in** for an unrecognised request. The pending device session is revoked immediately.
+6. The app checks the first-party decision endpoint in the background and continues automatically after a mailbox decision; it never receives an approval link or makes a trust decision itself.
+7. The trusted device stores its scoped verification session and device proof in native secure storage. It cannot access general KRAVIA Office APIs or replace an Office browser session.
+8. Unlock the app with strong biometrics to view the protected device-security home.
 
 The mobile verification session expires after 30 days. Re-verification is then required before the device-security home can be unlocked. No owner, administrator, founder, or another employee can approve a device on someone else’s behalf; only the registered mailbox can trust or ignore its exact sign-in request.
 
@@ -40,6 +41,7 @@ Sign in on the replacement device with corporate credentials and the registered-
 cd Authenticator
 npm ci
 npx expo install --check
+npm run audit:high
 npm run typecheck
 npm test
 npx expo start
@@ -51,4 +53,4 @@ Use a physical device to validate SecureStore, biometric unlock, screen-capture 
 
 ## Release checks
 
-The Authenticator workflows run type checks, security/profile tests, Expo compatibility checks, native prebuild/export checks, and signed release verification. Production signing requires `KRAVIA_AUTHENTICATOR_API_ORIGIN` to inject the managed HTTPS Office identity-service origin.
+The Authenticator workflows run type checks, security/profile tests, Expo compatibility checks, a fail-closed high-severity audit policy, native prebuild/export checks, and signed release verification. The audit policy permits only explicitly documented upstream build-tool advisories and expires on its review date; a new or changed high-severity leaf finding fails the workflow. Production signing requires `KRAVIA_AUTHENTICATOR_API_ORIGIN` to inject the managed HTTPS Office identity-service origin.

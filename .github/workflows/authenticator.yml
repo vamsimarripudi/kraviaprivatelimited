@@ -40,7 +40,7 @@ jobs:
         run: npx expo install --check
 
       - name: Dependency audit
-        run: npm audit --package-lock-only --audit-level=high
+        run: npm run audit:high
 
       - name: Reconstruct and verify locked generated artwork
         run: npm run prepare:assets
