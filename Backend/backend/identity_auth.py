@@ -407,10 +407,21 @@ def _device_label(request: Request) -> str:
 
 
 def _public_web_origin() -> str:
-    """Use only a canonical HTTPS public origin in owner-action email links."""
+    """Use only KRAVIA's canonical website in owner-action email links.
+
+    ``PUBLIC_BASE_URL`` is also used by API-side document code.  It must never
+    turn a device-approval email into a Railway API URL: that host cannot
+    render the browser confirmation route and produces a misleading 404.
+    """
     candidate = os.getenv("PUBLIC_BASE_URL", "https://www.kraviaprivatelimited.com").strip()
     parsed = urlsplit(candidate)
-    if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
+    if (
+        parsed.scheme != "https"
+        or not parsed.netloc
+        or parsed.username
+        or parsed.password
+        or (parsed.hostname or "").lower() not in {"kraviaprivatelimited.com", "www.kraviaprivatelimited.com"}
+    ):
         return "https://www.kraviaprivatelimited.com"
     return f"https://{parsed.netloc}"
 

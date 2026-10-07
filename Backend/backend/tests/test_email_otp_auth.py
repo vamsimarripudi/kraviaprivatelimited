@@ -60,6 +60,19 @@ def _complete_device(client, pending):
     return response.json()
 
 
+def test_device_approval_link_never_uses_the_api_origin(monkeypatch):
+    """A public email must open the website confirmation route, not Railway."""
+    approval_id = "11111111-1111-4111-8111-111111111111"
+    action_token = "synthetic-token-value-which-is-long-enough-123456"
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://kravia-office-api-production.up.railway.app")
+
+    url = identity_auth._device_approval_action_url(approval_id, action_token, "approve")
+
+    assert url.startswith("https://www.kraviaprivatelimited.com/office/device-approval/confirm?")
+    assert f"id={approval_id}" in url
+    assert "decision=approve" in url
+
+
 def test_email_otp_requires_registered_mailbox_to_trust_a_new_device_before_issuing_a_scoped_session(tmp_path, monkeypatch):
     client, engine = make_client(tmp_path, monkeypatch)
     try:
