@@ -5,6 +5,7 @@ import { parsePrivacyChoices, privacyCookieFromDocument, privacyPreferenceVersio
 
 const layout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
 const optionalAnalytics = readFileSync(new URL("../components/optional-analytics.tsx", import.meta.url), "utf8");
+const cookiePreferences = readFileSync(new URL("../components/cookie-preferences.tsx", import.meta.url), "utf8");
 const consentRoute = readFileSync(new URL("../app/api/privacy/consent/route.ts", import.meta.url), "utf8");
 const preferenceStore = readFileSync(new URL("../lib/corporate/privacy-preference-store.ts", import.meta.url), "utf8");
 const migration = readFileSync(new URL("../../Database/neon/migrations/202610060001_website_privacy_preferences.sql", import.meta.url), "utf8");
@@ -28,6 +29,15 @@ describe("website privacy preference controls", () => {
     expect(optionalAnalytics).toContain('if (!enabled)');
     expect(optionalAnalytics).toContain('void import("@vercel/analytics/next")');
     expect(optionalAnalytics).not.toContain('import dynamic');
+  });
+
+  it("offers equal first-layer choices, a granular manager, and no persistent floating reopen control", () => {
+    expect(cookiePreferences).toContain("Accept optional analytics");
+    expect(cookiePreferences).toContain("Reject optional analytics");
+    expect(cookiePreferences).toContain("Manage cookies");
+    expect(cookiePreferences).toContain("Optional analytics");
+    expect(cookiePreferences).toContain('window.addEventListener("kravia:open-privacy-choices"');
+    expect(cookiePreferences).not.toContain("styles.reopen");
   });
 
   it("persists preferences only through a same-origin, keyed server-side route", () => {

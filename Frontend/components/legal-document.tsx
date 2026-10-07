@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight, FileText } from "lucide-react";
 import { LegalDocumentActions } from "@/components/legal-document-actions";
+import { LegalPrintDocument } from "@/components/legal-print-document";
 import type { PublicContentRecord } from "@/lib/content/types";
 import { legalSectionAnchor, parseLegalDocumentBody } from "@/lib/legal/document-body";
 import type { LegalDocumentBody } from "@/lib/legal/types";
@@ -31,7 +32,7 @@ export function LegalDocument({ article }: { article: PublicContentRecord }) {
   const document = parseLegalDocumentBody(article.body) ?? fallbackBody(article);
   const updated = dateLabel(article.updatedAt);
   const effective = dateLabel(document.effectiveDate ?? article.publishedAt);
-  return <article className={styles.document} aria-labelledby="legal-document-title">
+  return <><article className={styles.document} aria-labelledby="legal-document-title">
     <header className={styles.header}>
       <p className="eyebrow">LEGAL &amp; TRUST</p>
       <h1 id="legal-document-title">{article.title}</h1>
@@ -41,7 +42,7 @@ export function LegalDocument({ article }: { article: PublicContentRecord }) {
         <span>Version {article.version}</span>
       </div>
       <p className={styles.overview}>{document.overview}</p>
-      <LegalDocumentActions pdfHref={document.approvedPdfPath} />
+      <LegalDocumentActions pdfHref={document.approvedPdfPath} canManageCookies={article.slug === "cookies"} />
     </header>
 
     {document.keyPoints.length ? <section className={styles.keyPoints} aria-labelledby="key-points-title">
@@ -63,7 +64,7 @@ export function LegalDocument({ article }: { article: PublicContentRecord }) {
     </div>
 
     {document.relatedPaths?.length ? <aside className={styles.related} aria-label="Related documents"><p className="eyebrow">RELATED DOCUMENTS</p>{document.relatedPaths.map((path) => <Link key={path} href={path}>Read related document <ArrowUpRight aria-hidden="true" /></Link>)}</aside> : null}
-  </article>;
+  </article><LegalPrintDocument article={article} document={document} effective={document.effectiveDate ?? article.publishedAt} updated={article.updatedAt} /></>;
 }
 
 export function LegalDocumentUnavailable() {
