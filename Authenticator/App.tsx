@@ -946,7 +946,7 @@ export default function App() {
               <AccountStatus label="Managed protection" />
             </View>
             <Text style={styles.welcomeFootnote}>
-              No scan. No shared code. Your verification code stays on this phone.
+              No scan · protected registration · no copied login code.
             </Text>
             {message ? <Text style={styles.info}>{message}</Text> : null}
           </View>
@@ -1074,7 +1074,7 @@ export default function App() {
               <Text style={styles.kicker}>EMAIL VERIFICATION</Text>
               <Text style={styles.title}>Confirm it’s you</Text>
               <Text style={styles.body}>
-                Enter the six-digit code sent to {emailMask(challenge.email)}.
+                Enter your code — the six-digit code sent to {emailMask(challenge.email)}.
               </Text>
             </View>
             <View style={styles.otpSurface}>
