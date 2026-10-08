@@ -30,6 +30,17 @@ class FakeClient:
         self.calls.append({"url": url, **kwargs})
         return self.response
 
+    def close(self):
+        return None
+
+
+@pytest.fixture(autouse=True)
+def reset_email_delivery_client():
+    """Keep the process-level HTTP pool isolated between delivery tests."""
+    email_delivery.close_email_delivery_client()
+    yield
+    email_delivery.close_email_delivery_client()
+
 
 def test_kravia_verification_template_has_safe_single_use_copy():
     template = office_email_verification_template(code="482915", expiry_minutes=10)
@@ -180,6 +191,36 @@ def test_brevo_delivery_uses_backend_key_sender_and_idempotency(monkeypatch):
     assert call["json"]["to"] == [{"email": "member@example.test"}]
     assert call["json"]["headers"]["Idempotency-Key"] == "email-otp:challenge-1:1"
     assert call["json"]["tags"] == ["kravia-office-auth", "email-otp"]
+
+
+def test_brevo_delivery_reuses_the_process_client_for_consecutive_otps(monkeypatch):
+    class PooledFakeClient(FakeClient):
+        created = 0
+
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            type(self).created += 1
+
+    PooledFakeClient.calls = []
+    PooledFakeClient.response = FakeResponse(201, {"messageId": "provider-message-pooled"})
+    monkeypatch.setenv("BREVO_API_KEY", "test-key-not-a-production-secret")
+    monkeypatch.setattr(email_delivery.httpx, "Client", PooledFakeClient)
+
+    email_delivery.send_office_email_verification_code(
+        recipient_email="first@example.test",
+        code="482915",
+        expiry_minutes=10,
+        delivery_id="email-otp:challenge-1:1",
+    )
+    email_delivery.send_office_email_verification_code(
+        recipient_email="second@example.test",
+        code="593741",
+        expiry_minutes=10,
+        delivery_id="email-otp:challenge-2:1",
+    )
+
+    assert PooledFakeClient.created == 1
+    assert len(PooledFakeClient.calls) == 2
 
 
 def test_device_approval_delivery_uses_the_verified_sender(monkeypatch):

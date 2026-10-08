@@ -7,8 +7,11 @@ an opaque background send that could leave a user waiting for a code.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 import os
 import re
+from threading import Lock
+from time import perf_counter
 
 import httpx
 
@@ -26,6 +29,15 @@ from .email_templates import (
 BREVO_EMAIL_ENDPOINT = "https://api.brevo.com/v3/smtp/email"
 KRAVIA_SENDER_EMAIL = "hello@kraviaprivatelimited.com"
 EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+logger = logging.getLogger(__name__)
+
+# A long-lived client reuses the TLS connection to Brevo.  Creating a client
+# inside every OTP request forced an additional TCP/TLS handshake for every
+# sign-in.  The client carries no credentials; the API key is still supplied
+# per request and never persists in a client object or log record.
+_delivery_client: httpx.Client | None = None
+_delivery_client_timeout: float | None = None
+_delivery_client_lock = Lock()
 
 
 class EmailDeliveryUnavailable(RuntimeError):
@@ -69,6 +81,50 @@ def _settings() -> BrevoSettings:
     )
 
 
+def _delivery_http_client(timeout_seconds: float) -> httpx.Client:
+    """Return the bounded, process-local client for Brevo submissions.
+
+    HTTPX clients are safe to share between request threads and retain a small
+    keep-alive pool.  Runtime setting changes deliberately take effect only
+    after a process restart so an in-flight delivery can never have its client
+    closed underneath it.
+    """
+    global _delivery_client, _delivery_client_timeout
+    with _delivery_client_lock:
+        if _delivery_client is None:
+            _delivery_client = httpx.Client(
+                timeout=httpx.Timeout(timeout_seconds),
+                follow_redirects=False,
+                trust_env=False,
+                limits=httpx.Limits(
+                    max_connections=20,
+                    max_keepalive_connections=10,
+                    keepalive_expiry=30.0,
+                ),
+            )
+            _delivery_client_timeout = timeout_seconds
+        elif _delivery_client_timeout != timeout_seconds:
+            logger.warning(
+                "event=brevo_delivery_timeout_change_requires_restart active_timeout_seconds=%s requested_timeout_seconds=%s",
+                _delivery_client_timeout,
+                timeout_seconds,
+            )
+        return _delivery_client
+
+
+def close_email_delivery_client() -> None:
+    """Release outbound sockets during a graceful API shutdown or test reset."""
+    global _delivery_client, _delivery_client_timeout
+    with _delivery_client_lock:
+        client = _delivery_client
+        _delivery_client = None
+        _delivery_client_timeout = None
+    if client is not None:
+        close = getattr(client, "close", None)
+        if callable(close):
+            close()
+
+
 def _send_transactional_email(
     *,
     recipient_email: str,
@@ -106,25 +162,28 @@ def _send_transactional_email(
         "tags": tags,
         "headers": {"Idempotency-Key": delivery_id},
     }
+    client = _delivery_http_client(settings.timeout_seconds)
+    started_at = perf_counter()
     try:
-        with httpx.Client(
-            timeout=httpx.Timeout(settings.timeout_seconds),
-            follow_redirects=False,
-            trust_env=False,
-        ) as client:
-            response = client.post(
-                BREVO_EMAIL_ENDPOINT,
-                headers={
-                    "accept": "application/json",
-                    "api-key": settings.api_key,
-                    "content-type": "application/json",
-                },
-                json=payload,
-            )
+        response = client.post(
+            BREVO_EMAIL_ENDPOINT,
+            headers={
+                "accept": "application/json",
+                "api-key": settings.api_key,
+                "content-type": "application/json",
+            },
+            json=payload,
+        )
     except (httpx.TimeoutException, httpx.NetworkError, httpx.ProtocolError) as exc:
         raise EmailDeliveryUnknown("The delivery provider did not confirm this email") from exc
 
     if response.status_code == 201:
+        elapsed_ms = round((perf_counter() - started_at) * 1000)
+        logger.info(
+            "event=brevo_delivery_accepted delivery_kind=%s latency_ms=%d",
+            tags[-1] if tags else "transactional",
+            elapsed_ms,
+        )
         try:
             message_id = response.json().get("messageId")
         except ValueError:

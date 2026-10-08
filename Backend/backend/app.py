@@ -19,6 +19,7 @@ from .document_engine import build_document_engine_router
 from .finance_ownership import build_finance_ownership_router
 from .file_security import build_file_security_router
 from .drive_integration import build_google_drive_router
+from .email_delivery import close_email_delivery_client
 from .identity_auth import build_identity_router
 from .public_intake_email import build_public_intake_email_router
 from .gst_integration import build_gst_integration_router
@@ -44,7 +45,10 @@ async def canonical_lifespan(_app):
     app_env = os.getenv("APP_ENV", "development").strip().lower()
     if app_env not in {"staging", "production"}:
         office_main.initialize_database()
-    yield
+    try:
+        yield
+    finally:
+        close_email_delivery_client()
 
 
 app.router.lifespan_context = canonical_lifespan
