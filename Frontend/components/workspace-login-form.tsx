@@ -242,7 +242,7 @@ export function WorkspaceLoginForm({
         <p className={styles.eyebrow}>MANDATORY MFA</p>
         <h2 id="phone-activation-title">Activate your phone</h2>
         <p className={styles.intro}>
-          Authenticator is required for every Office role. Sign in in the app with your corporate credentials, then ask a verified Office owner or administrator to approve this phone.
+          Authenticator is required for every Office role. Sign in in the app with your corporate credentials, then use the security review sent to your registered email to trust this exact phone.
         </p>
         <p className={styles.identityNotice}>Phone activation happens only in Authenticator. KRAVIA Office never shows a QR code or setup key in the browser.</p>
         {status ? <p className={styles.status} data-tone={statusTone} role="status">{status}</p> : null}
@@ -259,7 +259,7 @@ export function WorkspaceLoginForm({
         >
           Return to sign in
         </button>
-        <p className={styles.note}>After your phone is approved, sign in again and enter the local six-digit code from Authenticator.</p>
+        <p className={styles.note}>After you trust the phone from your registered email, enter the current local six-digit code from Authenticator.</p>
       </section>
     );
   }
@@ -342,7 +342,7 @@ export function WorkspaceLoginForm({
           <div className={styles.timerRing} style={{ "--timer-progress": "270deg" } as CSSProperties}>
             <span>WAIT</span>
           </div>
-          <p>{deviceApprovalLabel ? `${deviceApprovalLabel} is waiting for approval.` : "Waiting for account-owner approval."}</p>
+          <p>{deviceApprovalLabel ? `${deviceApprovalLabel} is waiting for approval.` : "Waiting for the registered-email Trust decision."}</p>
           {minutesRemaining !== null ? <p>Request expires in about {minutesRemaining} minute{minutesRemaining === 1 ? "" : "s"}.</p> : null}
         </div>
         {status ? <p className={styles.status} data-tone={statusTone} role="status">{status}</p> : null}

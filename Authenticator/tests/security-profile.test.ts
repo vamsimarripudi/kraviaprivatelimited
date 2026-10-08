@@ -72,10 +72,14 @@ describe("KRAVIA Authenticator native security profile", () => {
     expect(storageSource).toContain("PENDING_DEVICE_STORE_KEY");
     expect(storageSource).toContain("TRUSTED_DEVICE_STORE_KEY");
     expect(storageSource).toContain("SESSION_STORE_KEY");
+    expect(storageSource).toContain("FACTOR_STORE_KEY");
     expect(storageSource).toContain("WHEN_PASSCODE_SET_THIS_DEVICE_ONLY");
     expect(storageSource).toContain("INSTALL_SECURE_KEY");
     expect(storageSource).toContain("RETIRED_STORE_KEYS");
     expect(storageSource).toContain("saveTrustedDeviceBinding");
+    expect(storageSource).toContain("saveAuthenticatorFactor");
+    expect(appSource).toContain("currentTotp(");
+    expect(appSource).toContain("One trusted phone");
   });
 
   it("has no QR, camera, setup-key, manual-enrollment, or clipboard-export surface", () => {

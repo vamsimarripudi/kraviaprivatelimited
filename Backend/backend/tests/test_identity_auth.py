@@ -21,9 +21,8 @@ def make_client(tmp_path, monkeypatch):
     # Email OTP is part of the phone-activation ceremony. Keep the test delivery
     # entirely local and deterministic; no provider or real mailbox is used.
     monkeypatch.setattr(identity_auth, "send_office_email_verification_code", lambda **_kwargs: "test-email-otp-message")
-    # Focused device-approval tests enable this explicit production-default
-    # gate themselves. Existing first-party MFA tests validate the underlying
-    # factor/session behavior without an external delivery dependency.
+    # Tests can exercise the factor workflow with deterministic mailbox
+    # verification; production enables the same-mailbox device-review gate.
     monkeypatch.setattr(identity_auth, "DEVICE_APPROVAL_REQUIRED", False)
     monkeypatch.setattr(identity_auth.secrets, "randbelow", lambda _limit: 482915)
     device_approval_notices = []
@@ -211,14 +210,14 @@ def aal2_invited_user(
         password=password,
     )
     requested = request_authenticator_activation(client, email, password)
-    approved = client.post(
-        f"/api/v1/auth/authenticator/activation-requests/{requested.json()['request_id']}/approve",
-        headers={"Authorization": f"Bearer {owner_access_token}"},
-    )
-    assert approved.status_code == 200, approved.text
+    request = requested.json()
+    assert request["status"] == "APPROVED"
+    assert request["approval_required"] is False
+    # The invite issuer cannot approve another person's phone. The invited
+    # account's same-mailbox trust ceremony is the sole device authority.
     claimed = client.post(
-        f"/api/v1/auth/authenticator/activation-requests/{requested.json()['request_id']}/claim",
-        json={"claim_token": requested.json()["claim_token"]},
+        f"/api/v1/auth/authenticator/activation-requests/{request['request_id']}/claim",
+        json={"claim_token": request["claim_token"]},
     )
     assert claimed.status_code == 200, claimed.text
     verified = client.post(
@@ -307,14 +306,6 @@ def test_password_sign_in_and_mfa_promote_to_aal2(tmp_path, monkeypatch):
         assert signed["roles"] == ["OWNER"]
         assert signed["mfa"] == {"enrolled": True, "verified": False}
 
-        second_mobile_session = authenticator_activation_session(client, FOUNDER["email"], FOUNDER["password"])
-        duplicate_activation = client.post(
-            "/api/v1/auth/authenticator/activation-requests",
-            headers={"Authorization": f"Bearer {second_mobile_session}"},
-        )
-        assert duplicate_activation.status_code == 409
-        assert "already active" in duplicate_activation.json()["detail"].lower()
-
         verified = client.post(
             "/api/v1/auth/mfa/verify",
             headers={"Authorization": f"Bearer {signed['access_token']}"},
@@ -336,7 +327,7 @@ def test_password_sign_in_and_mfa_promote_to_aal2(tmp_path, monkeypatch):
         engine.dispose()
 
 
-def test_authenticator_phone_requires_aal2_owner_approval_before_claim(tmp_path, monkeypatch):
+def test_authenticator_phone_uses_same_mailbox_trust_and_rotates_factor(tmp_path, monkeypatch):
     client, engine = make_client(tmp_path, monkeypatch)
     try:
         owner = aal2_founder(client)
@@ -349,7 +340,7 @@ def test_authenticator_phone_requires_aal2_owner_approval_before_claim(tmp_path,
                 "display_name": "Activation Member",
                 "department": "OPERATIONS",
                 "roles": ["MEMBER"],
-                "reason": "Authenticator device approval test",
+                "reason": "Authenticator device trust test",
             },
         )
         assert invited.status_code == 201, invited.text
@@ -369,33 +360,58 @@ def test_authenticator_phone_requires_aal2_owner_approval_before_claim(tmp_path,
             "Member-Activation1!",
         )
         activation = requested.json()
-        assert activation["status"] == "PENDING"
-        assert activation["approval_required"] is True
+        assert activation["status"] == "APPROVED"
+        assert activation["approval_required"] is False
         assert "secret" not in activation
 
-        waiting = client.post(
-            f"/api/v1/auth/authenticator/activation-requests/{activation['request_id']}/claim",
-            json={"claim_token": activation["claim_token"]},
-        )
-        assert waiting.status_code == 200
-        assert waiting.json()["status"] == "PENDING"
-        assert "secret" not in waiting.json()
-
-        queue = client.get("/api/v1/auth/authenticator/activation-requests", headers=headers)
-        assert queue.status_code == 200
-        assert activation["request_id"] in {item["id"] for item in queue.json()["activation_requests"]}
-        approved = client.post(
+        # The former owner/admin approval endpoint cannot approve a user's
+        # phone, even when called by the owner.
+        retired = client.post(
             f"/api/v1/auth/authenticator/activation-requests/{activation['request_id']}/approve",
             headers=headers,
         )
-        assert approved.status_code == 200, approved.text
+        assert retired.status_code == 410
+
         claimed = client.post(
             f"/api/v1/auth/authenticator/activation-requests/{activation['request_id']}/claim",
             json={"claim_token": activation["claim_token"]},
         )
         assert claimed.status_code == 200, claimed.text
-        assert claimed.json()["status"] == "ENROLLED"
-        assert len(claimed.json()["secret"]) >= 16
+        first = claimed.json()
+        assert first["status"] == "ENROLLED"
+        assert len(first["secret"]) >= 16
+
+        replacement_request = request_authenticator_activation(
+            client,
+            "activation-member@example.test",
+            "Member-Activation1!",
+        ).json()
+        replacement_claim = client.post(
+            f"/api/v1/auth/authenticator/activation-requests/{replacement_request['request_id']}/claim",
+            json={"claim_token": replacement_request["claim_token"]},
+        )
+        assert replacement_claim.status_code == 200, replacement_claim.text
+        second = replacement_claim.json()
+        assert second["status"] == "ENROLLED"
+        assert second["secret"] != first["secret"]
+
+        signed_in = client.post(
+            "/api/v1/auth/sign-in",
+            json={"email": "activation-member@example.test", "password": "Member-Activation1!"},
+        )
+        assert signed_in.status_code == 200, signed_in.text
+        old_code = client.post(
+            "/api/v1/auth/mfa/verify",
+            headers={"Authorization": f"Bearer {signed_in.json()['access_token']}"},
+            json={"code": pyotp.TOTP(first["secret"]).now()},
+        )
+        assert old_code.status_code == 400
+        new_code = client.post(
+            "/api/v1/auth/mfa/verify",
+            headers={"Authorization": f"Bearer {signed_in.json()['access_token']}"},
+            json={"code": pyotp.TOTP(second["secret"]).now()},
+        )
+        assert new_code.status_code == 200, new_code.text
     finally:
         engine.dispose()
 
@@ -584,7 +600,7 @@ def test_direct_identity_api_enforces_delegated_admin_limits(tmp_path, monkeypat
             f"/api/v1/auth/authenticator/activation-requests/{peer_activation_id}/approve",
             headers=admin_headers,
         )
-        assert blocked_approval.status_code == 403
+        assert blocked_approval.status_code == 410
 
         _, member = invite_and_register(
             client,

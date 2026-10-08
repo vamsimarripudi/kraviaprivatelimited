@@ -12,8 +12,8 @@ Authenticator binds each KRAVIA identity to one explicitly trusted device. Every
 4. On that KRAVIA review page, select **Trust this device** only for the device that started the request. The server records that device as trusted and revokes every earlier trusted device and its active session.
 5. Select **Cancel and block sign-in** for an unrecognised request. The pending device session is revoked immediately.
 6. The app checks the first-party decision endpoint in the background and continues automatically after a mailbox decision; it never receives an approval link or makes a trust decision itself.
-7. The trusted device stores its scoped verification session and device proof in native secure storage. It cannot access general KRAVIA Office APIs or replace an Office browser session.
-8. Unlock the app with strong biometrics to view the protected device-security home.
+7. The trusted device claims a fresh TOTP seed once, stores it only in native secure storage, and shows a local six-digit code with a 30-second change timer. A replacement phone rotates that seed, so the prior phone's code stops working.
+8. Unlock the app with strong biometrics to view the protected rotating-code home. The app cannot access general KRAVIA Office APIs or replace an Office browser session.
 
 The mobile verification session expires after 30 days. Re-verification is then required before the device-security home can be unlocked. No owner, administrator, founder, or another employee can approve a device on someone else’s behalf; only the registered mailbox can trust or ignore its exact sign-in request.
 
@@ -25,6 +25,7 @@ There is intentionally no QR scanning, manual secret entry, manual account creat
 - A 30-day mobile session with the server-enforced `AUTHENTICATOR_ACTIVATION` purpose, not general Office access.
 - A pending device receives no usable refresh or access token until the registered mailbox trusts it.
 - One trusted device per identity, enforced both by the completion transaction and a partial unique database index.
+- A fresh, one-time claim rotates the local TOTP factor after a registered-mailbox Trust decision; the old phone's local code becomes invalid.
 - High-entropy device proofs are hashed server-side and stored only in native protected storage on the trusted device.
 - Native secure storage with `WHEN_PASSCODE_SET_THIS_DEVICE_ONLY`.
 - Strong biometric unlock, background lock, screenshot protection, and iOS app-switcher protection.

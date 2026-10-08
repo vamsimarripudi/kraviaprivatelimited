@@ -22,30 +22,37 @@ import * as ScreenCapture from "expo-screen-capture";
 import { usePreventScreenCapture } from "expo-screen-capture";
 import {
   checkDeviceApproval,
+  claimAuthenticatorActivation,
   completeDeviceApproval,
   IdentityApiError,
+  requestAuthenticatorActivation,
   requestEmailOtp,
   resendEmailOtp,
   verifyEmailOtp,
   type PendingEmailOtpChallenge,
 } from "./src/activation";
 import {
+  clearAuthenticatorFactor,
   clearAuthenticatorSession,
   clearPendingDeviceApproval,
   clearTrustedDeviceBinding,
   enforceInstallationBoundary,
+  loadAuthenticatorFactor,
   loadAuthenticatorSession,
   loadPendingDeviceApproval,
   loadTrustedDeviceBinding,
+  saveAuthenticatorFactor,
   saveAuthenticatorSession,
   savePendingDeviceApproval,
   saveTrustedDeviceBinding,
   type AuthenticatorDeviceSession,
+  type AuthenticatorFactor,
   type PendingDeviceApproval,
   type TrustedDeviceBinding,
 } from "./src/storage";
 import { unlockAuthenticator } from "./src/security";
 import { colors } from "./src/theme";
+import { currentTotp } from "./src/totp";
 
 type LaunchPhase = "splash" | "loading" | "ready";
 type Screen =
@@ -338,6 +345,7 @@ export default function App() {
   const [session, setSession] = useState<AuthenticatorDeviceSession | null>(
     null,
   );
+  const [factor, setFactor] = useState<AuthenticatorFactor | null>(null);
   const [trustedDevice, setTrustedDevice] =
     useState<TrustedDeviceBinding | null>(null);
   const [pendingDevice, setPendingDevice] =
@@ -366,15 +374,20 @@ export default function App() {
     void (async () => {
       try {
         const boundary = await enforceInstallationBoundary();
-        const [storedSession, storedPending, storedBinding] = await Promise.all(
-          [
+        const [storedSession, storedFactor, storedPending, storedBinding] =
+          await Promise.all([
             loadAuthenticatorSession(),
+            loadAuthenticatorFactor(),
             loadPendingDeviceApproval(),
             loadTrustedDeviceBinding(),
-          ],
-        );
+          ]);
         if (!active) return;
         setSession(storedSession);
+        setFactor(
+          storedFactor && storedFactor.account === storedSession?.email
+            ? storedFactor
+            : null,
+        );
         setPendingDevice(storedPending);
         setTrustedDevice(storedBinding);
         setEmail(storedSession?.email ?? storedPending?.email ?? "");
@@ -400,11 +413,11 @@ export default function App() {
     };
   }, [launchPhase]);
   useEffect(() => {
-    if (!challenge && !session) return;
+    if (!challenge && !session && !factor) return;
     setNow(Date.now());
     const interval = setInterval(
       () => setNow(Date.now()),
-      challenge ? 1_000 : 60_000,
+      challenge || factor ? 1_000 : 60_000,
     );
     return () => clearInterval(interval);
   }, [challenge, session]);
@@ -432,9 +445,15 @@ export default function App() {
         setPassword("");
         setOtp("");
         setFocusedField(null);
+        setFactor(null);
         if (screen === "home") setScreen("locked");
       }
-      if (state === "active") setApprovalRefresh((value) => value + 1);
+      if (state === "active") {
+        setApprovalRefresh((value) => value + 1);
+        void loadAuthenticatorFactor()
+          .then((storedFactor) => setFactor(storedFactor))
+          .catch(() => setFactor(null));
+      }
     });
     return () => subscription.remove();
   }, [screen]);
@@ -461,8 +480,11 @@ export default function App() {
           setSession(next);
           setTrustedDevice(binding);
           setPendingDevice(null);
+          const enrolledFactor = await enrollAuthenticatorFactor(next);
+          if (disposed) return;
+          setFactor(enrolledFactor);
           setScreen("home");
-          setMessage("This phone is now your trusted KRAVIA device.");
+          setMessage("This phone is trusted and its local sign-in code is ready.");
           await Haptics.notificationAsync(
             Haptics.NotificationFeedbackType.Success,
           );
@@ -487,8 +509,8 @@ export default function App() {
           }
         }
       } catch (error) {
+        if (disposed) return;
         if (
-          !disposed &&
           error instanceof IdentityApiError &&
           [404, 409, 410].includes(error.status)
         ) {
@@ -498,7 +520,14 @@ export default function App() {
           setMessage(
             "This device request is no longer available. Sign in again if this was you.",
           );
+          return;
         }
+        setScreen("locked");
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : "This phone is trusted, but local code setup could not finish. Unlock it and try again.",
+        );
       }
     };
     void poll();
@@ -512,6 +541,29 @@ export default function App() {
     () => (challenge ? secondsUntil(challenge.resendAvailableAt, now) : 0),
     [challenge, now],
   );
+  const totp = useMemo(
+    () =>
+      factor
+        ? currentTotp(factor.secret, now, {
+            digits: factor.digits,
+            period: factor.period,
+          })
+        : null,
+    [factor, now],
+  );
+  async function enrollAuthenticatorFactor(
+    sessionForActivation: AuthenticatorDeviceSession,
+  ) {
+    const activation = await requestAuthenticatorActivation(
+      sessionForActivation.accessToken,
+    );
+    const nextFactor = await claimAuthenticatorActivation(activation);
+    if (nextFactor.account !== sessionForActivation.email) {
+      throw new Error("The Authenticator factor does not match this trusted account.");
+    }
+    await saveAuthenticatorFactor(nextFactor);
+    return nextFactor;
+  }
   function resetToCredentials() {
     setChallenge(null);
     setOtp("");
@@ -593,8 +645,19 @@ export default function App() {
       if (result.kind === "active") {
         await saveAuthenticatorSession(result.session);
         setSession(result.session);
-        setScreen("home");
-        setMessage("Email verified. Your trusted Authenticator is ready.");
+        try {
+          const enrolledFactor = await enrollAuthenticatorFactor(result.session);
+          setFactor(enrolledFactor);
+          setScreen("home");
+          setMessage("Email verified. Your trusted Authenticator is ready.");
+        } catch (activationError) {
+          setScreen("locked");
+          setMessage(
+            activationError instanceof Error
+              ? activationError.message
+              : "This phone is trusted, but local code setup could not finish. Unlock it and try again.",
+          );
+        }
       } else {
         await savePendingDeviceApproval(result.pending);
         setPendingDevice(result.pending);
@@ -662,10 +725,12 @@ export default function App() {
             void (async () => {
               await Promise.all([
                 clearAuthenticatorSession(),
+                clearAuthenticatorFactor(),
                 clearTrustedDeviceBinding(),
                 clearPendingDeviceApproval(),
               ]);
               setSession(null);
+              setFactor(null);
               setTrustedDevice(null);
               setPendingDevice(null);
               setScreen("welcome");
@@ -1029,50 +1094,107 @@ export default function App() {
   if (screen === "home" && session)
     return (
       <SafeAreaView style={styles.root}>
-        <ScrollView
-          contentContainerStyle={styles.homeContent}
-          contentInsetAdjustmentBehavior="automatic"
-        >
+        <View style={[styles.homeScreen, compactHeight && styles.compactScreen]}>
           <AuthHeader step="TRUSTED" />
           <View style={styles.topRow}>
-            <Text style={styles.homeHeading}>Device security</Text>
+            <Text style={styles.homeHeading}>Authenticator</Text>
             <Pressable
               accessibilityRole="button"
+              accessibilityLabel="Lock Authenticator"
               onPress={() => setScreen("locked")}
             >
               <Text style={styles.lockLink}>Lock</Text>
             </Pressable>
           </View>
           <View style={styles.codeCard}>
-            <Text style={styles.codeIssuer}>TRUSTED KRAVIA DEVICE</Text>
+            <Text style={styles.codeIssuer}>KRAVIA OFFICE</Text>
             <Text style={styles.codeAccount}>{session.email}</Text>
-            <Text style={styles.trustedMark}>DEVICE ACTIVE</Text>
-            <Text style={styles.codeHint}>
-              Email verified · one device lock active
-            </Text>
+            {totp ? (
+              <>
+                <Text
+                  accessibilityLabel={"Current six digit Authenticator code " + totp.code}
+                  style={styles.totpCode}
+                >
+                  {totp.code}
+                </Text>
+                <View
+                  accessible
+                  accessibilityLiveRegion="polite"
+                  accessibilityLabel={"Authenticator code changes in " + totp.remaining + " seconds"}
+                  style={styles.totpTimerRow}
+                >
+                  <View style={styles.totpTimerRing}>
+                    <View
+                      style={[
+                        styles.totpTimerMarker,
+                        {
+                          transform: [
+                            { rotate: String(Math.round(totp.progress * 360)) + "deg" },
+                            { translateY: -27 },
+                          ],
+                        },
+                      ]}
+                    />
+                    <Text style={styles.totpTimerValue}>
+                      {totp.remaining.toString().padStart(2, "0")}
+                    </Text>
+                  </View>
+                  <Text style={styles.totpTimerLabel}>
+                    Changes in {totp.remaining} second{totp.remaining === 1 ? "" : "s"}
+                  </Text>
+                </View>
+                <Text style={styles.codeHint}>
+                  Enter this code only on KRAVIA Office. It is generated locally and never copied.
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.trustedMark}>CODE SETUP NEEDED</Text>
+                <Text style={styles.codeHint}>
+                  Securely sign in again to finish local code setup for this trusted phone.
+                </Text>
+              </>
+            )}
           </View>
           {message ? <Text style={styles.info}>{message}</Text> : null}
-          <View style={styles.panel}>
-            <Text style={styles.panelTitle}>How sign-in works</Text>
-            <Text style={styles.panelCopy}>
-              Enter your corporate credentials, then type the six-digit code
-              sent to your registered email. New mobile or laptop sign-ins
-              remain blocked until you choose Trust in the security email.
+          <View style={styles.homeSecurityNote}>
+            <Text style={styles.homeSecurityTitle}>One trusted phone</Text>
+            <Text style={styles.homeSecurityCopy}>
+              A new trusted phone replaces this one. Background lock and screenshot protection remain on.
             </Text>
           </View>
-          <View style={styles.panel}>
-            <Text style={styles.panelTitle}>Your device boundary</Text>
-            <Text style={styles.panelCopy}>
-              Trusting a new device securely signs out the old one. Blocking
-              the request immediately ends the new sign-in.
-            </Text>
-          </View>
+          {!factor ? (
+            <Button
+              label="Finish secure setup"
+              onPress={() => {
+                void (async () => {
+                  setBusy(true);
+                  setMessage(undefined);
+                  try {
+                    const enrolledFactor = await enrollAuthenticatorFactor(session);
+                    setFactor(enrolledFactor);
+                    setMessage("Your local sign-in code is ready.");
+                  } catch (error) {
+                    setMessage(
+                      error instanceof Error
+                        ? error.message
+                        : "Authenticator code setup could not be completed.",
+                    );
+                  } finally {
+                    setBusy(false);
+                  }
+                })();
+              }}
+              disabled={busy}
+            />
+          ) : null}
           <Button
             label="Security settings"
             variant="secondary"
             onPress={() => setScreen("settings")}
+            disabled={busy}
           />
-        </ScrollView>
+        </View>
       </SafeAreaView>
     );
   return (
@@ -1298,15 +1420,15 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     gap: 12,
   },
-  homeContent: {
-    flexGrow: 1,
+  homeScreen: {
+    flex: 1,
     maxWidth: 520,
     alignSelf: "center",
     width: "100%",
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 24,
-    gap: 12,
+    paddingTop: 14,
+    paddingBottom: 16,
+    gap: 10,
   },
   lockContent: {
     flex: 1,
@@ -1602,7 +1724,72 @@ const styles = StyleSheet.create({
     fontFamily: TEXT_FONT,
     fontSize: 11,
     lineHeight: 17,
-    marginTop: 5,
+    marginTop: 3,
+  },
+  totpCode: {
+    color: colors.onPrimary,
+    fontFamily: DISPLAY_FONT,
+    fontSize: 44,
+    fontWeight: "700",
+    letterSpacing: 8,
+    lineHeight: 52,
+    marginTop: 6,
+    fontVariant: ["tabular-nums"],
+  },
+  totpTimerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 3,
+  },
+  totpTimerRing: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    borderWidth: 2,
+    borderColor: colors.onPrimaryMuted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  totpTimerMarker: {
+    position: "absolute",
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.onPrimary,
+  },
+  totpTimerValue: {
+    color: colors.onPrimary,
+    fontFamily: DISPLAY_FONT,
+    fontSize: 18,
+    fontWeight: "700",
+    fontVariant: ["tabular-nums"],
+  },
+  totpTimerLabel: {
+    color: colors.onPrimaryMuted,
+    fontFamily: TEXT_FONT,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  homeSecurityNote: {
+    backgroundColor: colors.surface,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accent,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 3,
+  },
+  homeSecurityTitle: {
+    color: colors.primary,
+    fontFamily: DISPLAY_FONT,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  homeSecurityCopy: {
+    color: colors.mutedText,
+    fontFamily: TEXT_FONT,
+    fontSize: 11,
+    lineHeight: 16,
   },
   accountPanel: {
     backgroundColor: colors.primary,

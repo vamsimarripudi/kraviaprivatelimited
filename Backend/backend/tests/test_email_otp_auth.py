@@ -155,6 +155,46 @@ def test_email_otp_requires_registered_mailbox_to_trust_a_new_device_before_issu
             headers={"Authorization": f"Bearer {refreshed_session['access_token']}"},
         ).status_code == 403
 
+        first_activation = client.post(
+            "/api/v1/auth/authenticator/activation-requests",
+            headers={"Authorization": f"Bearer {refreshed_session['access_token']}"},
+        )
+        assert first_activation.status_code == 200, first_activation.text
+        assert first_activation.json()["status"] == "APPROVED"
+        assert first_activation.json()["approval_required"] is False
+
+        # A role-holder cannot approve another person's phone.  The only
+        # authority is the registered-mailbox Trust decision above.
+        retired_approval = client.post(
+            f"/api/v1/auth/authenticator/activation-requests/{first_activation.json()['request_id']}/approve",
+        )
+        assert retired_approval.status_code == 410
+
+        first_claim = client.post(
+            f"/api/v1/auth/authenticator/activation-requests/{first_activation.json()['request_id']}/claim",
+            json={"claim_token": first_activation.json()["claim_token"]},
+        )
+        assert first_claim.status_code == 200, first_claim.text
+        assert first_claim.json()["status"] == "ENROLLED"
+        assert first_claim.json()["account"] == FOUNDER["email"]
+        assert first_claim.json()["digits"] == 6
+        assert first_claim.json()["period"] == 30
+
+        # A replacement phone receives a new local factor.  It replaces, not
+        # adds to, the former factor, so a code held by the prior phone stops
+        # validating after this claim succeeds.
+        replacement_activation = client.post(
+            "/api/v1/auth/authenticator/activation-requests",
+            headers={"Authorization": f"Bearer {refreshed_session['access_token']}"},
+        )
+        assert replacement_activation.status_code == 200, replacement_activation.text
+        replacement_claim = client.post(
+            f"/api/v1/auth/authenticator/activation-requests/{replacement_activation.json()['request_id']}/claim",
+            json={"claim_token": replacement_activation.json()["claim_token"]},
+        )
+        assert replacement_claim.status_code == 200, replacement_claim.text
+        assert replacement_claim.json()["secret"] != first_claim.json()["secret"]
+
         same_device_challenge, _ = request_code(client, monkeypatch, code="593741")
         same_device = client.post(
             f"/api/v1/auth/email-otp/challenges/{same_device_challenge['challenge_id']}/verify",

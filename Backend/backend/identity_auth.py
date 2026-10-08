@@ -1552,11 +1552,13 @@ def build_identity_router() -> APIRouter:
         authorization: str | None = Header(default=None),
         db: Session = Depends(get_db),
     ):
-        """Create a short-lived phone claim after email-verified mobile sign-in.
+        """Create a replacement-phone claim after the mailbox trusts this device.
 
-        This intentionally returns no TOTP secret. A separate AAL2 owner/admin
-        approval (or the controlled first-Founder bootstrap) is required before
-        the phone can claim its local, one-time seed.
+        The registered mailbox is the only authority for the device trust
+        decision.  An Owner, founder, or administrator cannot approve another
+        person's phone.  The high-entropy claim capability stays on the
+        trusted phone in protected storage and is exchanged once for a fresh
+        local TOTP seed.
         """
         token = _bearer_token(authorization)
         context = authenticate_office_access(
@@ -1568,10 +1570,6 @@ def build_identity_router() -> APIRouter:
         user = db.get(OfficeAuthUser, context["user_id"])
         if not user:
             raise HTTPException(status_code=401, detail="Office identity is unavailable")
-        if user.mfa_secret_ciphertext:
-            _event(db, "AUTHENTICATOR_ACTIVATION_BLOCKED", request, user_id=user.id, metadata={"reason": "factor_exists"})
-            db.commit()
-            raise HTTPException(status_code=409, detail="Authenticator is already active. Ask an authorised Office administrator to reset MFA before activating a replacement phone")
 
         now = _now()
         stale_requests = db.execute(
@@ -1584,12 +1582,6 @@ def build_identity_router() -> APIRouter:
             activation.status = "CANCELLED"
             activation.cancelled_at = now
 
-        first_founder_bootstrap = (
-            user.founder_slot == FOUNDER_SLOT
-            and db.execute(
-                select(OfficeAuthUser.id).where(OfficeAuthUser.mfa_verified_at.is_not(None)).limit(1)
-            ).first() is None
-        )
         # The raw claim token is deliberately kept out of the database and
         # event log; it is held only by the requesting phone's secure storage.
         raw_claim_token = secrets.token_urlsafe(48)
@@ -1597,10 +1589,10 @@ def build_identity_router() -> APIRouter:
             id=str(uuid.uuid4()),
             user_id=user.id,
             claim_token_hash=_hash_token(raw_claim_token),
-            status="APPROVED" if first_founder_bootstrap else "PENDING",
+            status="APPROVED",
             expires_at=now + timedelta(seconds=AUTHENTICATOR_ACTIVATION_TTL_SECONDS),
-            approved_by=user.id if first_founder_bootstrap else None,
-            approved_at=now if first_founder_bootstrap else None,
+            approved_by=user.id,
+            approved_at=now,
         )
         db.add(activation)
         _event(
@@ -1608,7 +1600,12 @@ def build_identity_router() -> APIRouter:
             "AUTHENTICATOR_ACTIVATION_REQUESTED",
             request,
             user_id=user.id,
-            metadata={"bootstrap": first_founder_bootstrap, "approval_required": not first_founder_bootstrap},
+            session_id=context["session_id"],
+            metadata={
+                "approval_required": False,
+                "authority": "registered_mailbox_trusted_device",
+                "replaces_existing_factor": bool(user.mfa_secret_ciphertext),
+            },
         )
         db.commit()
         return {
@@ -1616,7 +1613,7 @@ def build_identity_router() -> APIRouter:
             "claim_token": raw_claim_token,
             "status": activation.status,
             "expires_at": activation.expires_at.isoformat(),
-            "approval_required": not first_founder_bootstrap,
+            "approval_required": False,
         }
 
     @router.get("/authenticator/activation-requests")
@@ -1624,42 +1621,10 @@ def build_identity_router() -> APIRouter:
         authorization: str | None = Header(default=None),
         db: Session = Depends(get_db),
     ):
-        context = authenticate_office_access(_bearer_token(authorization), db, require_aal2=True)
-        if not ({"OWNER", "ADMIN"} & context["roles"]):
-            return {"activation_requests": []}
-        now = _now()
-        requests = db.execute(
-            select(OfficeAuthenticatorActivation)
-            .where(
-                OfficeAuthenticatorActivation.status == "PENDING",
-                OfficeAuthenticatorActivation.expires_at > now,
-            )
-            .order_by(OfficeAuthenticatorActivation.created_at.asc())
-            .limit(50)
-        ).scalars().all()
-        if "OWNER" not in context["roles"]:
-            requests = [
-                activation
-                for activation in requests
-                if set(_active_roles(db, activation.user_id)).issubset(ADMIN_ASSIGNABLE_ROLES)
-            ]
-        users_by_id = {
-            user.id: user
-            for user in db.execute(
-                select(OfficeAuthUser).where(OfficeAuthUser.id.in_([item.user_id for item in requests]))
-            ).scalars().all()
-        }
-        return {
-            "activation_requests": [
-                {
-                    "id": activation.id,
-                    "email": users_by_id.get(activation.user_id).email if activation.user_id in users_by_id else "Unknown identity",
-                    "created_at": activation.created_at.isoformat() if activation.created_at else None,
-                    "expires_at": activation.expires_at.isoformat(),
-                }
-                for activation in requests
-            ]
-        }
+        # Retained as an empty compatibility response for older Office clients.
+        # Cross-account phone approvals are deliberately unavailable.
+        authenticate_office_access(_bearer_token(authorization), db, require_aal2=True)
+        return {"activation_requests": []}
 
     @router.post("/authenticator/activation-requests/{activation_id}/approve")
     def approve_authenticator_activation(
@@ -1668,34 +1633,12 @@ def build_identity_router() -> APIRouter:
         authorization: str | None = Header(default=None),
         db: Session = Depends(get_db),
     ):
-        context = authenticate_office_access(_bearer_token(authorization), db, require_aal2=True)
-        if not ({"OWNER", "ADMIN"} & context["roles"]):
-            raise HTTPException(status_code=403, detail="Only Office owners or administrators can approve an Authenticator phone")
-        try:
-            activation_uuid = str(uuid.UUID(activation_id))
-        except ValueError as exc:
-            raise HTTPException(status_code=404, detail="Authenticator activation request was not found") from exc
-        activation = db.get(OfficeAuthenticatorActivation, activation_uuid)
-        if not activation or activation.status != "PENDING":
-            raise HTTPException(status_code=404, detail="Authenticator activation request was not found")
-        if _aware(activation.expires_at) <= _now():
-            activation.status = "EXPIRED"
-            db.commit()
-            raise HTTPException(status_code=410, detail="Authenticator activation request has expired")
-        _require_delegated_identity_authority(context, set(_active_roles(db, activation.user_id)))
-        activation.status = "APPROVED"
-        activation.approved_by = context["user_id"]
-        activation.approved_at = _now()
-        _event(
-            db,
-            "AUTHENTICATOR_ACTIVATION_APPROVED",
-            request,
-            user_id=activation.user_id,
-            session_id=context["session_id"],
-            metadata={"activation_id": activation.id, "approved_by": context["user_id"]},
+        # Do not silently retain the former owner/admin approval path.  A
+        # replacement device must be trusted by its own registered mailbox.
+        raise HTTPException(
+            status_code=410,
+            detail="Cross-account Authenticator approvals have been retired. Trust the exact device from its registered-email security review.",
         )
-        db.commit()
-        return {"approved": True, "request_id": activation.id}
 
     @router.post("/authenticator/activation-requests/{activation_id}/claim")
     def claim_authenticator_activation(
@@ -1711,17 +1654,20 @@ def build_identity_router() -> APIRouter:
         activation = db.get(OfficeAuthenticatorActivation, activation_uuid)
         if not activation or not hmac.compare_digest(activation.claim_token_hash, _hash_token(payload.claim_token)):
             raise HTTPException(status_code=404, detail="Authenticator activation request was not found")
-        if _aware(activation.expires_at) <= _now() and activation.status in {"PENDING", "APPROVED"}:
+        if _aware(activation.expires_at) <= _now() and activation.status == "APPROVED":
             activation.status = "EXPIRED"
             db.commit()
             raise HTTPException(status_code=410, detail="Authenticator activation request has expired")
-        if activation.status == "PENDING":
-            return {"status": "PENDING", "expires_at": activation.expires_at.isoformat()}
         if activation.status != "APPROVED":
             raise HTTPException(status_code=409, detail="Authenticator activation is no longer available")
 
-        user = db.get(OfficeAuthUser, activation.user_id)
-        if not user or user.mfa_verified_at or user.mfa_secret_ciphertext:
+        # Claim is deliberately a factor rotation, not an additional factor:
+        # replacing a trusted phone makes every locally held previous code
+        # invalid as soon as this fresh seed is issued.
+        user = db.execute(
+            select(OfficeAuthUser).where(OfficeAuthUser.id == activation.user_id).with_for_update()
+        ).scalar_one_or_none()
+        if not user or user.status != "ACTIVE" or _identity_status(db, user) != "ACTIVE" or not _active_roles(db, user.id):
             activation.status = "CANCELLED"
             activation.cancelled_at = _now()
             db.commit()
@@ -1738,7 +1684,7 @@ def build_identity_router() -> APIRouter:
             "AUTHENTICATOR_ACTIVATION_CLAIMED",
             request,
             user_id=user.id,
-            metadata={"activation_id": activation.id},
+            metadata={"activation_id": activation.id, "factor_rotated": True},
         )
         db.commit()
         return {
