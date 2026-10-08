@@ -206,7 +206,16 @@ check(
     and '@router.post("/device-approvals/{approval_id}/action")' in identity,
     "new browser access is owner-scoped, pending, and separately completed",
 )
-check("identity:authenticator-activation", '@router.post("/authenticator/activation-requests")' in identity and "AUTHENTICATOR_ACTIVATION_APPROVED" in identity and "OfficeAuthenticatorActivation" in identity, "AAL2-governed phone activation")
+check(
+    "identity:authenticator-activation",
+    '@router.post("/authenticator/activation-requests")' in identity
+    and "AUTHENTICATOR_ACTIVATION_REQUESTED" in identity
+    and "AUTHENTICATOR_ACTIVATION_CLAIMED" in identity
+    and "registered_mailbox_trusted_device" in identity
+    and "OfficeAuthenticatorActivation" in identity
+    and "with_for_update()" in identity,
+    "registered-mailbox trusted phone activation with factor rotation",
+)
 check(
     "identity:email-otp",
     '@router.post("/email-otp/challenges", status_code=201)' in identity
