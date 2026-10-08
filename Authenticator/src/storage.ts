@@ -79,7 +79,7 @@ function validSecret(value: unknown) {
 function validAccessToken(value: unknown) {
   return typeof value === "string" && /^[A-Za-z0-9._-]{32,}$/.test(value);
 }
-function validEmail(value: unknown) {
+function validEmail(value: unknown): value is string {
   return (
     typeof value === "string" &&
     value.trim().length > 3 &&
