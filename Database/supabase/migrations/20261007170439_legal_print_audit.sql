@@ -181,5 +181,7 @@ $$;
 revoke all on table public.legal_print_jobs, public.legal_print_attempts, public.legal_print_request_attempts from anon, authenticated;
 revoke all on function public.reserve_legal_print_job(text,text,integer,text,text,text) from public;
 revoke all on function public.confirm_legal_print_job(uuid,text,boolean) from public;
+revoke all on function public.reserve_legal_print_job(text,text,integer,text,text,text) from anon, authenticated;
+revoke all on function public.confirm_legal_print_job(uuid,text,boolean) from anon, authenticated;
 grant execute on function public.reserve_legal_print_job(text,text,integer,text,text,text) to service_role;
 grant execute on function public.confirm_legal_print_job(uuid,text,boolean) to service_role;
