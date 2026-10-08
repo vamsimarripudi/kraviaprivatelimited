@@ -57,15 +57,33 @@ describe("KRAVIA Authenticator native security profile", () => {
 
   it("requires strong local biometrics, keeps notification shade transitions from clearing a code, and locks on background", () => {
     expect(securitySource).toContain("SecurityLevel.BIOMETRIC_STRONG");
+    expect(securitySource).toContain("supportedAuthenticationTypesAsync");
+    expect(securitySource).toContain("AuthenticationType.FACIAL_RECOGNITION");
+    expect(securitySource).toContain("AuthenticationType.FINGERPRINT");
+    expect(securitySource).toContain('Platform.OS === "android"');
+    expect(securitySource).toContain('platform === "ios"');
     expect(securitySource).toContain('biometricsSecurityLevel: "strong"');
     expect(securitySource).toContain('disableDeviceFallback: true');
     expect(securitySource).toContain('fallbackLabel: ""');
+    expect(securitySource).toContain("Expo Go cannot perform Face ID");
+    expect(securitySource).toContain("authentication_failed");
+    expect(securitySource).not.toContain("Device authentication was not completed.");
     expect(securitySource).not.toContain('Use device passcode');
     expect(appSource).toContain('state === "background"');
     expect(appSource).toContain('if (state === "background")');
     expect(appSource).toContain('if (screen === "home") setScreen("locked")');
     expect(appSource).toContain("usePreventScreenCapture(\"authenticator\")");
     expect(appSource).toContain("enableAppSwitcherProtectionAsync");
+    expect(appSource).toContain("Security centre");
+    expect(appSource).toContain("BIOMETRIC UNLOCK");
+    expect(appSource).toContain("AppTopBar");
+    expect(appSource).toContain("BiometricControl");
+    expect(appSource).toContain("Operated by KRAVIA PRIVATE LIMITED");
+    expect(appSource).toContain("Authenticator v{APP_VERSION}");
+    expect(appSource).toContain("SecureLoadingScreen");
+    expect(appSource).toContain("UnavailableScreen");
+    expect(appSource).not.toContain('label="Return to welcome"');
+    expect(appSource).toContain("setInterval(() => setNow(Date.now()), 1_000)");
   });
 
   it("keeps the pending approval, trusted-device binding, and session in secure storage", () => {
