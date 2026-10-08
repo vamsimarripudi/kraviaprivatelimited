@@ -43,7 +43,9 @@ describe("KRAVIA Authenticator verified-device boundary", () => {
     expect(app).toContain("security review");
     expect(app).toMatch(/continues\s+automatically/);
     expect(app).not.toContain("Check decision");
-    expect(app).toContain("This phone is now your trusted KRAVIA device.");
+    expect(app).toContain("This phone is trusted and its local sign-in code is ready.");
+    expect(app).toContain("currentTotp(");
+    expect(storage).toContain("FACTOR_STORE_KEY");
     expect(app).not.toContain("generateTotp");
     expect(login).toContain("officeTotpWindow");
     expect(login).toContain('phase === "success"');

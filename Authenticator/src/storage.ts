@@ -90,9 +90,10 @@ function validEmail(value: unknown) {
 function validFactor(value: unknown): AuthenticatorFactor | null {
   if (!value || typeof value !== "object") return null;
   const factor = value as Partial<AuthenticatorFactor>;
+  const account = factor.account;
   if (
     factor.version !== 1 ||
-    !validEmail(factor.account) ||
+    !validEmail(account) ||
     typeof factor.secret !== "string" ||
     !/^[A-Z2-7]{16,128}$/.test(factor.secret) ||
     factor.issuer !== KRAVIA_ISSUER ||
@@ -106,7 +107,7 @@ function validFactor(value: unknown): AuthenticatorFactor | null {
   }
   return {
     version: 1,
-    account: factor.account.trim().toLowerCase(),
+    account: account.trim().toLowerCase(),
     secret: factor.secret,
     issuer: KRAVIA_ISSUER,
     algorithm: "SHA1",
@@ -118,10 +119,11 @@ function validFactor(value: unknown): AuthenticatorFactor | null {
 function validSession(value: unknown): AuthenticatorDeviceSession | null {
   if (!value || typeof value !== "object") return null;
   const session = value as Partial<AuthenticatorDeviceSession>;
+  const email = session.email;
   if (
     session.version !== 1 ||
     session.purpose !== "AUTHENTICATOR_ACTIVATION" ||
-    !validEmail(session.email) ||
+    !validEmail(email) ||
     !validAccessToken(session.accessToken) ||
     !validSecret(session.refreshToken) ||
     !validIdentifier(session.deviceApprovalId) ||
@@ -133,16 +135,17 @@ function validSession(value: unknown): AuthenticatorDeviceSession | null {
   }
   return {
     ...session,
-    email: session.email.trim().toLowerCase(),
+    email: email.trim().toLowerCase(),
     expiresAt: new Date(session.expiresAt).toISOString(),
   } as AuthenticatorDeviceSession;
 }
 function validPending(value: unknown): PendingDeviceApproval | null {
   if (!value || typeof value !== "object") return null;
   const pending = value as Partial<PendingDeviceApproval>;
+  const email = pending.email;
   if (
     pending.version !== 1 ||
-    !validEmail(pending.email) ||
+    !validEmail(email) ||
     !validIdentifier(pending.approvalId) ||
     !validSecret(pending.deviceProof) ||
     typeof pending.expiresAt !== "string" ||
@@ -154,7 +157,7 @@ function validPending(value: unknown): PendingDeviceApproval | null {
   }
   return {
     ...pending,
-    email: pending.email.trim().toLowerCase(),
+    email: email.trim().toLowerCase(),
     expiresAt: new Date(pending.expiresAt).toISOString(),
     deviceLabel: pending.deviceLabel.trim(),
   } as PendingDeviceApproval;

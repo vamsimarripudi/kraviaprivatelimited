@@ -61,9 +61,9 @@ type DeviceStatusResponse = {
 type ActivationRequestResponse = {
   request_id: string;
   claim_token: string;
-  status: "APPROVED";
+  status: "APPROVED" | "PENDING";
   expires_at: string;
-  approval_required: false;
+  approval_required: boolean;
 };
 type EnrollmentResponse = {
   status: "ENROLLED";

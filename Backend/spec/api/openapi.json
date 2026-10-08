@@ -5386,7 +5386,7 @@
         ]
       },
       "post": {
-        "description": "Create a short-lived phone claim after email-verified mobile sign-in.\n\nThis intentionally returns no TOTP secret. A separate AAL2 owner/admin\napproval (or the controlled first-Founder bootstrap) is required before\nthe phone can claim its local, one-time seed.",
+        "description": "Create a replacement-phone claim after the mailbox trusts this device.\n\nThe registered mailbox is the only authority for the device trust\ndecision.  An Owner, founder, or administrator cannot approve another\nperson's phone.  The high-entropy claim capability stays on the\ntrusted phone in protected storage and is exchanged once for a fresh\nlocal TOTP seed.",
         "operationId": "request_authenticator_activation_api_v1_auth_authenticator_activation_requests_post",
         "parameters": [
           {
