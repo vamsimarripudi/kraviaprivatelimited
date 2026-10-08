@@ -16,9 +16,9 @@ function labelDate(value?: string | null) {
   return Number.isNaN(date.getTime()) ? null : new Intl.DateTimeFormat("en-IN", { dateStyle: "long", timeZone: "Asia/Kolkata" }).format(date);
 }
 
-function PrintLetterhead() {
+function PrintLetterhead({ page }: { page: number }) {
   return <>
-    <img className={styles.printLetterhead} src="/legal/kravia-letterhead-a4.png" alt="" />
+    <img className={styles.printLetterhead} src={`/legal/kravia-letterhead-a4.png?print-page=${page}`} alt="" />
     <span className={styles.printReferenceValue} data-legal-print-reference>—</span>
     <span className={styles.printDateValue} data-legal-print-date>—</span>
     {/* The supplied raster letterhead contains the retired address. The
@@ -37,7 +37,7 @@ export function LegalPrintDocument({ article, document, effective, updated }: Le
 
   return <div className={styles.printDocument} aria-hidden="true" data-legal-print-document>
     <section className={styles.printPage}>
-      <PrintLetterhead />
+      <PrintLetterhead page={1} />
       <div className={styles.printContent}>
         <p className={styles.printKicker}>APPROVED PUBLIC POLICY</p>
         <h1>{article.title}</h1>
@@ -54,7 +54,7 @@ export function LegalPrintDocument({ article, document, effective, updated }: Le
     </section>
 
     {pages.map((page, pageIndex) => <section className={styles.printPage} key={`print-page-${pageIndex + 2}`}>
-      <PrintLetterhead />
+      <PrintLetterhead page={pageIndex + 2} />
       <div className={styles.printContent}>
         {page.fragments.map((fragment, fragmentIndex) => <section className={styles.printSection} key={`${fragment.number}-${fragmentIndex}`}>
           <div className={styles.printSectionHeading}><p>{fragment.number}</p><h2>{fragment.title}{fragment.continued ? " (continued)" : ""}</h2></div>

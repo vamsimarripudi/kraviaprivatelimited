@@ -35,7 +35,9 @@ type MutablePage = {
 // The A4 body reaches below the letterhead's second rule and above its footer.
 // This matches the actual 54mm top / 34mm bottom print area rather than
 // artificially creating a sparse final page.
-const PRINT_PAGE_CAPACITY = 1_650;
+// Calibrated against the approved A4 letterhead and the rendered browser PDF.
+// The prior value forced sparse pages despite there being usable body space.
+const PRINT_PAGE_CAPACITY = 2_120;
 const SECTION_HEADING_COST = 130;
 const TABLE_HEADER_COST = 100;
 

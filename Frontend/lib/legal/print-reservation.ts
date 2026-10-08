@@ -1,8 +1,8 @@
-import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
-const RESERVATION_VERSION = 1;
+const RESERVATION_VERSION = 2;
 const RESERVATION_TTL_SECONDS = 15 * 60;
-const PRINTED_TTL_SECONDS = 30 * 24 * 60 * 60;
+const SUBMITTED_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 export type LegalPrintReservation = {
   version: number;
@@ -13,9 +13,15 @@ export type LegalPrintReservation = {
   reference: string;
   issuedOn: string;
   expiresAt: number;
-  state: "RESERVED" | "PRINTED";
+  state: "RESERVED" | "SUBMITTED";
   attempts: number;
+  proof: string;
 };
+
+export type LegalPrintReservationInput = Pick<
+  LegalPrintReservation,
+  "id" | "documentPath" | "documentVersion" | "documentHash" | "reference" | "issuedOn" | "attempts"
+>;
 
 export const legalPrintReservationCookieName = "kravia_legal_print_reservation";
 
@@ -32,20 +38,12 @@ export function getLegalPrintSigningKey(): string | null {
   return createHmac("sha256", root).update("KRAVIA/legal-print-reservation/v1").digest("base64url");
 }
 
-function isoDateInIndia(now: Date): string {
-  const values = Object.fromEntries(
-    new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Kolkata",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).formatToParts(now).map((part) => [part.type, part.value]),
-  ) as Record<string, string>;
-  return `${values.year}-${values.month}-${values.day}`;
+export function createLegalPrintProof() {
+  return randomBytes(32).toString("base64url");
 }
 
-function referenceFor(now: Date): string {
-  return `KRV-LGL-${isoDateInIndia(now).replaceAll("-", "")}-${randomBytes(6).toString("hex").toUpperCase()}`;
+export function legalPrintProofHash(proof: string) {
+  return createHash("sha256").update(proof, "utf8").digest("hex");
 }
 
 function serialise(reservation: LegalPrintReservation): string {
@@ -69,16 +67,18 @@ function isReservation(value: unknown): value is LegalPrintReservation {
     && typeof candidate.documentHash === "string"
     && /^[a-f0-9]{64}$/i.test(candidate.documentHash)
     && typeof candidate.reference === "string"
-    && /^KRV-LGL-\d{8}-[A-F0-9]{12}$/.test(candidate.reference)
+    && /^KRV-LGL-\d{8}-(?:[A-F0-9]{12}|\d{6})$/.test(candidate.reference)
     && typeof candidate.issuedOn === "string"
     && /^\d{4}-\d{2}-\d{2}$/.test(candidate.issuedOn)
     && typeof candidate.expiresAt === "number"
     && Number.isSafeInteger(candidate.expiresAt)
-    && (candidate.state === "RESERVED" || candidate.state === "PRINTED")
+    && (candidate.state === "RESERVED" || candidate.state === "SUBMITTED")
     && typeof candidate.attempts === "number"
     && Number.isSafeInteger(candidate.attempts)
     && candidate.attempts >= 1
     && candidate.attempts <= 25
+    && typeof candidate.proof === "string"
+    && /^[A-Za-z0-9_-]{32,}$/.test(candidate.proof)
   );
 }
 
@@ -115,38 +115,25 @@ function canonicalJson(value: unknown): string {
   return `{${Object.keys(object).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(object[key])}`).join(",")}}`;
 }
 
-export function createLegalPrintReservation(input: Pick<LegalPrintReservation, "documentPath" | "documentVersion" | "documentHash">, now = new Date()): LegalPrintReservation {
+export function createLegalPrintReservation(input: LegalPrintReservationInput, proof: string, now = new Date()): LegalPrintReservation {
   return {
     version: RESERVATION_VERSION,
-    id: randomUUID(),
-    documentPath: input.documentPath,
-    documentVersion: input.documentVersion,
-    documentHash: input.documentHash,
-    reference: referenceFor(now),
-    issuedOn: isoDateInIndia(now),
-    expiresAt: now.getTime() + RESERVATION_TTL_SECONDS * 1000,
-    state: "RESERVED",
-    attempts: 1,
-  };
-}
-
-export function retryLegalPrintReservation(reservation: LegalPrintReservation, now = new Date()): LegalPrintReservation {
-  return {
-    ...reservation,
-    attempts: Math.min(reservation.attempts + 1, 25),
+    ...input,
+    proof,
     expiresAt: now.getTime() + RESERVATION_TTL_SECONDS * 1000,
     state: "RESERVED",
   };
 }
 
-export function completeLegalPrintReservation(reservation: LegalPrintReservation, now = new Date()): LegalPrintReservation {
+/** A submitted browser print request is not evidence of physical printer completion. */
+export function submitLegalPrintReservation(reservation: LegalPrintReservation, now = new Date()): LegalPrintReservation {
   return {
     ...reservation,
-    state: "PRINTED",
-    expiresAt: now.getTime() + PRINTED_TTL_SECONDS * 1000,
+    state: "SUBMITTED",
+    expiresAt: now.getTime() + SUBMITTED_TTL_SECONDS * 1000,
   };
 }
 
 export function legalPrintCookieMaxAge(reservation: LegalPrintReservation): number {
-  return reservation.state === "PRINTED" ? PRINTED_TTL_SECONDS : RESERVATION_TTL_SECONDS;
+  return reservation.state === "SUBMITTED" ? SUBMITTED_TTL_SECONDS : RESERVATION_TTL_SECONDS;
 }

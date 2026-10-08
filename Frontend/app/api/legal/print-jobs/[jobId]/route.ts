@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import {
-  completeLegalPrintReservation,
   getLegalPrintSigningKey,
   legalPrintCookieMaxAge,
   legalPrintReservationCookieName,
-  retryLegalPrintReservation,
   signLegalPrintReservation,
+  submitLegalPrintReservation,
   verifyLegalPrintReservation,
 } from "@/lib/legal/print-reservation";
+import { recordLegalPrintEvent } from "@/lib/legal/print-service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const input = z.object({ status: z.enum(["PRINTED", "RETRY"]) });
+const input = z.object({ event: z.enum(["DIALOG_OPENED", "DIALOG_CLOSED"]) });
 type Props = { params: Promise<{ jobId: string }> };
 
 function hasSameOrigin(request: NextRequest) {
@@ -44,17 +44,23 @@ export async function PATCH(request: NextRequest, { params }: Props) {
   const parsedId = z.string().uuid().safeParse(jobId);
   const parsedBody = input.safeParse(await request.json().catch(() => null));
   const key = getLegalPrintSigningKey();
-  if (!parsedId.success || !parsedBody.success || !key) return noStore({ error: "Invalid print confirmation." }, 400);
+  if (!parsedId.success || !parsedBody.success || !key) return noStore({ error: "Invalid print request." }, 400);
 
   const reservation = verifyLegalPrintReservation(request.cookies.get(legalPrintReservationCookieName)?.value, key);
   if (!reservation || reservation.id !== parsedId.data) {
-    return noStore({ error: "This print confirmation has expired. Prepare the document again." }, 403);
+    return noStore({ error: "This print request has expired. Prepare the document again." }, 403);
   }
 
-  const updated = parsedBody.data.status === "PRINTED"
-    ? completeLegalPrintReservation(reservation)
-    : retryLegalPrintReservation(reservation);
-  const response = noStore({ status: parsedBody.data.status, referenceNo: updated.reference });
+  const result = await recordLegalPrintEvent(reservation, parsedBody.data.event);
+  if ("failure" in result) {
+    if (result.failure === "NOT_FOUND") return noStore({ error: "This print request is no longer available. Prepare the document again." }, 404);
+    return noStore({ error: "Printing is temporarily unavailable. Please try again shortly." }, 503);
+  }
+
+  const updated = parsedBody.data.event === "DIALOG_CLOSED"
+    ? submitLegalPrintReservation(reservation)
+    : reservation;
+  const response = noStore({ status: updated.state });
   setReservationCookie(response, signLegalPrintReservation(updated, key), legalPrintCookieMaxAge(updated));
   return response;
 }

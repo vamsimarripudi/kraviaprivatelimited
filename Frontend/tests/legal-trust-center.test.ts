@@ -18,6 +18,8 @@ const printReader = readFileSync(new URL("../components/legal-print-document.tsx
 const printActions = readFileSync(new URL("../components/legal-document-actions.tsx", import.meta.url), "utf8");
 const printRoute = readFileSync(new URL("../app/api/legal/print-jobs/route.ts", import.meta.url), "utf8");
 const printConfirmationRoute = readFileSync(new URL("../app/api/legal/print-jobs/[jobId]/route.ts", import.meta.url), "utf8");
+const printService = readFileSync(new URL("../lib/legal/print-service.ts", import.meta.url), "utf8");
+const printLifecycleMigration = readFileSync(new URL("../../Database/supabase/migrations/20261008103000_legal_print_submission_lifecycle.sql", import.meta.url), "utf8");
 const publicPolicyRelease = JSON.parse(readFileSync(new URL("../data/legal/public-policy-release-v1.json", import.meta.url), "utf8")) as { documents: { slug: string; body: string }[] };
 
 describe("Legal & Trust Center publication guard", () => {
@@ -94,7 +96,9 @@ describe("Legal & Trust Center publication guard", () => {
     expect(printReader).toContain("Page {pageIndex + 2} of {totalPages}");
     expect(legalStyles).toContain("@page{size:A4 portrait;margin:0}");
     expect(legalStyles).toContain(".printLetterhead");
+    expect(legalStyles).toContain("grid-template-areas:\"print-stack\"");
     expect(legalStyles).toContain(".printPageNumber");
+    expect(legalStyles).toContain("break-after:page!important");
   });
 
   it("uses server-issued date and reference fields while preserving the approved letterhead asset", () => {
@@ -106,18 +110,28 @@ describe("Legal & Trust Center publication guard", () => {
     expect(formatLegalPrintDate("2026-10-07")).toMatch(/October/);
   });
 
-  it("reserves and confirms legal print jobs without trusting browser results as proof of a completed print", () => {
+  it("records a browser print lifecycle without claiming physical-printer completion", () => {
     expect(printActions).toContain('fetch("/api/legal/print-jobs"');
     expect(printActions).toContain('window.addEventListener("afterprint"');
-    expect(printActions).toContain('Mark as printed');
-    expect(printActions).toContain('Print again with this reference');
+    expect(printActions).toContain('DIALOG_OPENED');
+    expect(printActions).toContain('DIALOG_CLOSED');
+    expect(printActions).toContain('Print request completed.');
+    expect(printActions).not.toContain('Mark as printed');
+    expect(printActions).not.toContain('Print again with this reference');
     expect(printRoute).toContain("getPublishedContentByPublicPath");
-    expect(printRoute).toContain("consumeLegalPrintRateLimit");
+    expect(printRoute).toContain("reserveLegalPrintJob");
     expect(printRoute).toContain("signLegalPrintReservation");
-    expect(printRoute).not.toContain("createAdminClient");
     expect(printConfirmationRoute).toContain("verifyLegalPrintReservation");
-    expect(printConfirmationRoute).toContain("completeLegalPrintReservation");
-    expect(printConfirmationRoute).not.toContain("createAdminClient");
+    expect(printConfirmationRoute).toContain("recordLegalPrintEvent");
+    expect(printService).toContain("createAdminClient");
+    expect(printService).toContain('rpc("reserve_legal_print_job"');
+    expect(printService).toContain('rpc("record_legal_print_event"');
+    expect(printService).toContain("createHmac");
+    expect(printService).not.toContain("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
+    expect(printLifecycleMigration).toContain("PRINT_SUBMITTED");
+    expect(printLifecycleMigration).toContain("record_legal_print_event");
+    expect(printLifecycleMigration).toContain("revoke all on function public.record_legal_print_event");
+    expect(printLifecycleMigration).toContain("revoke all on function public.confirm_legal_print_job");
   });
 
   it("keeps all canonical paragraphs and table rows when a policy spans print pages", () => {

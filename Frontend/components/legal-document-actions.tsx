@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Printer } from "lucide-react";
 import { formatLegalPrintDate, type LegalPrintReservation } from "@/lib/legal/print-reference";
 
-type PrintState = "idle" | "preparing" | "confirming" | "saving" | "saved" | "error";
+type PrintState = "idle" | "preparing" | "opening" | "submitting" | "submitted" | "error";
+type Toast = { tone: "success" | "error"; message: string };
 
 function setPrintedRecord(job: LegalPrintReservation) {
   document.querySelectorAll<HTMLElement>("[data-legal-print-reference]").forEach((element) => { element.textContent = job.referenceNo; });
@@ -17,38 +18,33 @@ function waitForPrintLayout() {
 
 export function LegalDocumentActions({ pdfHref, canManageCookies = false }: { pdfHref?: string | null; canManageCookies?: boolean }) {
   const [printState, setPrintState] = useState<PrintState>("idle");
-  const [reservation, setReservation] = useState<LegalPrintReservation | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [, setReservation] = useState<LegalPrintReservation | null>(null);
+  const [toast, setToast] = useState<Toast | null>(null);
 
-  const recordOutcome = async (job: LegalPrintReservation, status: "PRINTED" | "RETRY") => {
-    setPrintState("saving");
-    setMessage(null);
+  useEffect(() => {
+    if (!toast) return undefined;
+    const timeout = window.setTimeout(() => setToast(null), 6_000);
+    return () => window.clearTimeout(timeout);
+  }, [toast]);
+
+  const recordPrintEvent = async (job: LegalPrintReservation, event: "DIALOG_OPENED" | "DIALOG_CLOSED") => {
     try {
       const response = await fetch(`/api/legal/print-jobs/${job.jobId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ event }),
       });
       const body = await response.json().catch(() => null) as { error?: string } | null;
-      if (!response.ok) throw new Error(body?.error || "We could not update the print record.");
-      if (status === "PRINTED") {
-        setPrintState("saved");
-        setMessage(`Print reference ${job.referenceNo} has been marked as printed.`);
-      } else {
-        setPrintState("idle");
-        setMessage(`Print reference ${job.referenceNo} remains reserved and will be reused when you print again.`);
-      }
+      if (!response.ok) throw new Error(body?.error || "We could not update the print request.");
       return true;
-    } catch (error) {
-      setPrintState("error");
-      setMessage(error instanceof Error ? error.message : "We could not update the print record.");
+    } catch {
       return false;
     }
   };
 
   const printLegalDocument = async () => {
     setPrintState("preparing");
-    setMessage(null);
+    setToast(null);
     try {
       const response = await fetch("/api/legal/print-jobs", {
         method: "POST",
@@ -61,30 +57,37 @@ export function LegalDocumentActions({ pdfHref, canManageCookies = false }: { pd
       setReservation(job);
       setPrintedRecord(job);
 
-      const root = document.documentElement;
-      const clearPrintMode = () => {
-        root.removeAttribute("data-legal-print");
-        setPrintState("confirming");
-        setMessage(`Did ${job.referenceNo} print successfully? Confirm only after the document has actually printed.`);
+      setPrintState("opening");
+      if (!await recordPrintEvent(job, "DIALOG_OPENED")) {
+        throw new Error("We could not prepare the print request. Please try again.");
+      }
+
+      let settled = false;
+      const recordDialogClosed = async () => {
+        if (settled) return;
+        settled = true;
+        setPrintState("submitting");
+        if (await recordPrintEvent(job, "DIALOG_CLOSED")) {
+          setPrintState("submitted");
+          setToast({ tone: "success", message: "Print request completed." });
+        } else {
+          setPrintState("error");
+          setToast({ tone: "error", message: "We could not record this print request. Please try again." });
+        }
       };
-      root.setAttribute("data-legal-print", "true");
-      window.addEventListener("afterprint", clearPrintMode, { once: true });
+      window.addEventListener("afterprint", () => { void recordDialogClosed(); }, { once: true });
       await waitForPrintLayout();
       window.print();
     } catch (error) {
       setPrintState("error");
-      setMessage(error instanceof Error ? error.message : "We could not prepare this document for printing.");
+      setToast({ tone: "error", message: error instanceof Error ? error.message : "We could not prepare this document for printing." });
     }
   };
 
   return <div className="legal-document-actions" aria-label="Document actions">
-    <button type="button" onClick={() => void printLegalDocument()} disabled={printState === "preparing" || printState === "saving"}><Printer aria-hidden="true" /> {printState === "preparing" ? "Preparing print…" : "Print"}</button>
+    <button type="button" onClick={() => void printLegalDocument()} disabled={printState === "preparing" || printState === "opening" || printState === "submitting"}><Printer aria-hidden="true" /> {printState === "preparing" || printState === "opening" ? "Preparing print…" : printState === "submitting" ? "Saving print request…" : "Print"}</button>
     {canManageCookies ? <button type="button" onClick={() => window.dispatchEvent(new Event("kravia:open-privacy-choices"))}>Manage cookies</button> : null}
     {pdfHref ? <a href={pdfHref} download>Download approved PDF</a> : null}
-    {printState === "confirming" && reservation ? <span className="legal-document-actions__confirmation">
-      <button type="button" onClick={() => void recordOutcome(reservation, "PRINTED")}>Mark as printed</button>
-      <button type="button" onClick={() => void (async () => { if (await recordOutcome(reservation, "RETRY")) await printLegalDocument(); })()}>Print again with this reference</button>
-    </span> : null}
-    {message ? <p className="legal-document-actions__status" role={printState === "error" ? "alert" : "status"}>{message}</p> : null}
+    {toast ? <p className={`legal-document-actions__toast legal-document-actions__toast--${toast.tone}`} role={toast.tone === "error" ? "alert" : "status"}>{toast.message}</p> : null}
   </div>;
 }
