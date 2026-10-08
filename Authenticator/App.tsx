@@ -461,7 +461,7 @@ export default function App() {
           setSession(next);
           setTrustedDevice(binding);
           setPendingDevice(null);
-          setScreen("locked");
+          setScreen("home");
           setMessage("This phone is now your trusted KRAVIA device.");
           await Haptics.notificationAsync(
             Haptics.NotificationFeedbackType.Success,
@@ -593,8 +593,8 @@ export default function App() {
       if (result.kind === "active") {
         await saveAuthenticatorSession(result.session);
         setSession(result.session);
-        setScreen("locked");
-        setMessage("Email verified. This trusted device is ready to unlock.");
+        setScreen("home");
+        setMessage("Email verified. Your trusted Authenticator is ready.");
       } else {
         await savePendingDeviceApproval(result.pending);
         setPendingDevice(result.pending);
