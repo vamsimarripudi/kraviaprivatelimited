@@ -18,7 +18,6 @@ const printReader = readFileSync(new URL("../components/legal-print-document.tsx
 const printActions = readFileSync(new URL("../components/legal-document-actions.tsx", import.meta.url), "utf8");
 const printRoute = readFileSync(new URL("../app/api/legal/print-jobs/route.ts", import.meta.url), "utf8");
 const printConfirmationRoute = readFileSync(new URL("../app/api/legal/print-jobs/[jobId]/route.ts", import.meta.url), "utf8");
-const printMigration = readFileSync(new URL("../../Database/supabase/migrations/20261007170439_legal_print_audit.sql", import.meta.url), "utf8");
 const publicPolicyRelease = JSON.parse(readFileSync(new URL("../data/legal/public-policy-release-v1.json", import.meta.url), "utf8")) as { documents: { slug: string; body: string }[] };
 
 describe("Legal & Trust Center publication guard", () => {
@@ -112,14 +111,13 @@ describe("Legal & Trust Center publication guard", () => {
     expect(printActions).toContain('window.addEventListener("afterprint"');
     expect(printActions).toContain('Mark as printed');
     expect(printActions).toContain('Print again with this reference');
-    expect(printRoute).toContain('getPublishedContentByPublicPath');
-    expect(printRoute).toContain('reservationCookie');
-    expect(printConfirmationRoute).toContain('request.cookies.get(reservationCookie)');
-    expect(printMigration).toContain('legal_print_jobs');
-    expect(printMigration).toContain("status in ('RESERVED', 'PRINTED')");
-    expect(printMigration).toContain("'RESERVATION_REUSED'");
-    expect(printMigration).toContain('prevent_legal_print_attempt_mutation');
-    expect(printMigration).toContain('grant execute on function public.reserve_legal_print_job');
+    expect(printRoute).toContain("getPublishedContentByPublicPath");
+    expect(printRoute).toContain("consumeLegalPrintRateLimit");
+    expect(printRoute).toContain("signLegalPrintReservation");
+    expect(printRoute).not.toContain("createAdminClient");
+    expect(printConfirmationRoute).toContain("verifyLegalPrintReservation");
+    expect(printConfirmationRoute).toContain("completeLegalPrintReservation");
+    expect(printConfirmationRoute).not.toContain("createAdminClient");
   });
 
   it("keeps all canonical paragraphs and table rows when a policy spans print pages", () => {
