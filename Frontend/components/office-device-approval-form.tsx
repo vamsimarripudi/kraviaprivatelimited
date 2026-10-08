@@ -93,8 +93,8 @@ export function OfficeDeviceApprovalForm() {
     <section className={styles.form}>
       <div className={styles.heroIcon}><ShieldCheck size={25} aria-hidden="true" /></div>
       <p className={styles.eyebrow}>DEVICE REVIEW</p>
-      <h1>Is this your sign-in?</h1>
-      <p className={styles.intro}>Review these details before granting the original device access. Trust is limited to that exact device and replaces any previously trusted device.</p>
+      <h1>Are you sure you want to trust this device?</h1>
+      <p className={styles.intro}>Review these details before making a security decision. Trust is limited to this exact device and replaces any previously trusted device.</p>
       <dl className={styles.details}>
         <div><dt><MonitorCheck size={16} aria-hidden="true" />Device</dt><dd>{review.deviceLabel}</dd></div>
         <div><dt>Network address observed by KRAVIA</dt><dd>{review.sourceAddress}</dd></div>
@@ -104,11 +104,11 @@ export function OfficeDeviceApprovalForm() {
       </dl>
       <p className={styles.notice}>Choosing Trust permits only the original phone or browser to complete this sign-in. This email page cannot access KRAVIA Office.</p>
       <div className={styles.actions}>
-        <button type="button" className={styles.trustButton} disabled={pendingDecision !== null} onClick={() => void decide("APPROVE")}>
-          {pendingDecision === "APPROVE" ? <LoaderCircle size={18} aria-hidden="true" /> : <ShieldCheck size={18} aria-hidden="true" />} Trust this device
+        <button type="button" aria-label="Trust this device" className={styles.trustButton} disabled={pendingDecision !== null} onClick={() => void decide("APPROVE")}>
+          {pendingDecision === "APPROVE" ? <LoaderCircle size={18} aria-hidden="true" /> : <ShieldCheck size={18} aria-hidden="true" />} Trust
         </button>
-        <button type="button" className={styles.blockButton} disabled={pendingDecision !== null} onClick={() => void decide("DECLINE")}>
-          {pendingDecision === "DECLINE" ? <LoaderCircle size={18} aria-hidden="true" /> : <ShieldAlert size={18} aria-hidden="true" />} Cancel and block sign-in
+        <button type="button" aria-label="Deny this device" className={styles.blockButton} disabled={pendingDecision !== null} onClick={() => void decide("DECLINE")}>
+          {pendingDecision === "DECLINE" ? <LoaderCircle size={18} aria-hidden="true" /> : <ShieldAlert size={18} aria-hidden="true" />} Deny
         </button>
       </div>
       {error ? <p className={styles.error} role="alert">{error}</p> : null}

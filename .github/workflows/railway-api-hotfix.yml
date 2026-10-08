@@ -1,6 +1,7 @@
 name: Railway API hotfix deploy
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
@@ -49,3 +50,14 @@ jobs:
           cat /tmp/health.json
           curl --fail --silent --show-error "$API_URL/api/v1/auth/bootstrap-status" | tee /tmp/bootstrap.json
           grep -q '"registration_open":true' /tmp/bootstrap.json
+      - name: Verify device approval review route
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error --output /tmp/device-review.json --write-out '%{http_code}' \
+            --request POST \
+            --header 'Content-Type: application/json' \
+            --data '{"action_token":"synthetic-token-value-which-is-long-enough-123456"}' \
+            "$API_URL/api/v1/auth/device-approvals/11111111-1111-4111-8111-111111111111/review")"
+          test "$status" = "404"
+          grep -q 'Device approval request was not found' /tmp/device-review.json

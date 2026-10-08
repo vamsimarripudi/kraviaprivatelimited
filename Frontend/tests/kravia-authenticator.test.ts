@@ -63,7 +63,7 @@ describe("KRAVIA Authenticator verified-device boundary", () => {
   });
 
   it("has no QR, setup-key, camera, clipboard, or manual-TOTP enrollment surface", () => {
-    expect(app).toContain("Verify your registered corporate email");
+    expect(app).toContain("Enter your registered corporate email and password.");
     expect(app).toContain("Enter your code");
     expect(app).toContain("usePreventScreenCapture");
     expect(app).toContain("enableAppSwitcherProtectionAsync");

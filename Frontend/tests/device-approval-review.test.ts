@@ -21,7 +21,8 @@ describe("device approval email review", () => {
     expect(reviewRoute).toContain("reviewOfficeDeviceApprovalFromEmail");
     expect(form).toContain("Network address observed by KRAVIA");
     expect(form).toContain("no independently verified location was provided");
-    expect(form).toContain("Cancel and block sign-in");
-    expect(form).toContain("Trust this device");
+    expect(form).toContain("Are you sure you want to trust this device?");
+    expect(form).toContain('aria-label="Trust this device"');
+    expect(form).toContain('aria-label="Deny this device"');
   });
 });

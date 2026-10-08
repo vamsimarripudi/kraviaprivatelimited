@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  AccessibilityInfo,
   Alert,
   Animated,
   AppState,
@@ -11,6 +12,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
   type ImageSourcePropType,
 } from "react-native";
@@ -122,6 +124,58 @@ function Button({
     </Pressable>
   );
 }
+function AuthHeader({ step }: { step?: string }) {
+  return (
+    <View style={styles.authHeader}>
+      <View style={styles.brandLockup}>
+        <Image source={BRAND_ICON} style={styles.headerLogo} />
+        <View>
+          <Text style={styles.brandName}>KRAVIA</Text>
+          <Text style={styles.brandProduct}>AUTHENTICATOR</Text>
+        </View>
+      </View>
+      {step ? <Text style={styles.headerStep}>{step}</Text> : null}
+    </View>
+  );
+}
+function ProgressRail({ active }: { active: 1 | 2 | 3 }) {
+  const steps = ["Credentials", "Email code", "Trusted device"] as const;
+  return (
+    <View
+      accessibilityRole="progressbar"
+      accessibilityValue={{ min: 1, max: 3, now: active }}
+      accessibilityLabel={`Security setup step ${active} of 3`}
+      style={styles.progressRail}
+    >
+      {steps.map((label, index) => {
+        const step = index + 1;
+        const isActive = step === active;
+        const isComplete = step < active;
+        return (
+          <View key={label} style={styles.progressItem}>
+            <Text
+              style={[
+                styles.progressNumber,
+                (isActive || isComplete) && styles.progressNumberActive,
+              ]}
+            >
+              {step}
+            </Text>
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.progressLabel,
+                isActive && styles.progressLabelActive,
+              ]}
+            >
+              {label}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
 function TimerCircle({
   expiresAt,
   onExpire,
@@ -181,7 +235,7 @@ function TimerCircle({
           <Animated.View
             style={[
               styles.timerMarker,
-              { transform: [{ rotate: rotation }, { translateY: -36 }] },
+              { transform: [{ rotate: rotation }, { translateY: -29 }] },
             ]}
           />
         ) : null}
@@ -193,6 +247,62 @@ function TimerCircle({
             {remaining ? "code expires" : "code expired"}
           </Text>
         </View>
+      </View>
+    </View>
+  );
+}
+function ApprovalPulse({ expiresAt }: { expiresAt: string }) {
+  const pulse = useRef(new Animated.Value(0)).current;
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const remaining = Math.max(0, Math.ceil((Date.parse(expiresAt) - Date.now()) / 60_000));
+
+  useEffect(() => {
+    void AccessibilityInfo.isReduceMotionEnabled().then(setReducedMotion);
+    const subscription = AccessibilityInfo.addEventListener(
+      "reduceMotionChanged",
+      setReducedMotion,
+    );
+    return () => subscription.remove();
+  }, []);
+  useEffect(() => {
+    if (reducedMotion) {
+      pulse.setValue(0.45);
+      return;
+    }
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 1_250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0,
+          duration: 1_250,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [pulse, reducedMotion]);
+
+  const scale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.88, 1.16] });
+  const opacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.45, 0.06] });
+  return (
+    <View
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel={`Waiting for device approval. Request expires in about ${remaining} minute${remaining === 1 ? "" : "s"}.`}
+      style={styles.approvalPulse}
+    >
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.approvalPulseRing, { opacity, transform: [{ scale }] }]}
+      />
+      <View style={styles.approvalPulseCore}>
+        <Text style={styles.approvalPulseLabel}>WAITING</Text>
+        <Text style={styles.approvalPulseTime}>{remaining}m</Text>
       </View>
     </View>
   );
@@ -221,6 +331,8 @@ function clockLabel(seconds: number) {
 
 export default function App() {
   usePreventScreenCapture("authenticator");
+  const { height } = useWindowDimensions();
+  const compactHeight = height < 720;
   const [launchPhase, setLaunchPhase] = useState<LaunchPhase>("splash");
   const [screen, setScreen] = useState<Screen>("welcome");
   const [session, setSession] = useState<AuthenticatorDeviceSession | null>(
@@ -288,9 +400,14 @@ export default function App() {
     };
   }, [launchPhase]);
   useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 500);
+    if (!challenge && !session) return;
+    setNow(Date.now());
+    const interval = setInterval(
+      () => setNow(Date.now()),
+      challenge ? 1_000 : 60_000,
+    );
     return () => clearInterval(interval);
-  }, []);
+  }, [challenge, session]);
   useEffect(() => {
     if (!session || Date.parse(session.expiresAt) > now) return;
     void clearAuthenticatorSession();
@@ -571,33 +688,35 @@ export default function App() {
   if (screen === "welcome")
     return (
       <SafeAreaView style={styles.root}>
-        <View style={styles.welcomeContent}>
-          <Image source={BRAND_ICON} style={styles.welcomeLogo} />
-          <Text style={styles.kicker}>KRAVIA OFFICE</Text>
-          <Text style={styles.welcomeTitle}>Welcome to{`\n`}Authenticator</Text>
-          <Text style={styles.body}>
-            Verify your registered corporate email to use this phone as your
-            protected KRAVIA sign-in device.
-          </Text>
-          <View style={styles.panel}>
-            <Text style={styles.panelTitle}>One trusted device</Text>
-            <Text style={styles.panelCopy}>
-              Your password and email code verify you. A Trust decision from
-              your registered mailbox locks your account to this exact device;
-              ignoring the email signs it out immediately.
+        <View style={[styles.welcomeContent, compactHeight && styles.compactScreen]}>
+          <AuthHeader />
+          <View style={styles.welcomeMain}>
+            <Text style={styles.kicker}>KRAVIA OFFICE SECURITY</Text>
+            <Text style={styles.welcomeTitle}>Your secure{`\n`}Authenticator</Text>
+            <Text style={styles.body}>
+              Use your registered corporate account to protect this phone.
+            </Text>
+            <View style={styles.briefRow}>
+              <Text style={styles.briefTitle}>One trusted device</Text>
+              <Text style={styles.briefCopy}>
+                Credentials, a registered-email code and a Trust decision keep
+                your Office account bound to this exact phone.
+              </Text>
+            </View>
+            {message ? <Text style={styles.info}>{message}</Text> : null}
+          </View>
+          <View style={styles.actionFooter}>
+            <Button
+              label={trustedDevice ? "Verify and unlock" : "Get started"}
+              onPress={() => {
+                setMessage(undefined);
+                setScreen("credentials");
+              }}
+            />
+            <Text style={styles.securityNote}>
+              No scan · protected registration · no copied login code
             </Text>
           </View>
-          {message ? <Text style={styles.info}>{message}</Text> : null}
-          <Button
-            label={trustedDevice ? "Verify and unlock" : "Get started"}
-            onPress={() => {
-              setMessage(undefined);
-              setScreen("credentials");
-            }}
-          />
-          <Text style={styles.securityNote}>
-            No scan · protected registration · no copied login code
-          </Text>
         </View>
       </SafeAreaView>
     );
@@ -606,96 +725,92 @@ export default function App() {
       <SafeAreaView style={styles.root}>
         <KeyboardAvoidingView
           style={styles.flex}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <ScrollView
-            contentContainerStyle={styles.content}
-            keyboardShouldPersistTaps="handled"
-            contentInsetAdjustmentBehavior="automatic"
-          >
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
-                setMessage(undefined);
-                setScreen("welcome");
-              }}
-            >
-              <Text style={styles.backLink}>‹ Back</Text>
-            </Pressable>
-            <Image source={BRAND_ICON} style={styles.logo} />
-            <Text style={styles.kicker}>KRAVIA OFFICE</Text>
-            <Text style={styles.title}>Sign in</Text>
+          <View style={[styles.authScreen, compactHeight && styles.compactScreen]}>
+            <AuthHeader step="STEP 1 OF 3" />
+            <ProgressRail active={1} />
+            <Text style={styles.kicker}>SECURE SIGN-IN</Text>
+            <Text style={styles.title}>Sign in to continue</Text>
             <Text style={styles.body}>
-              Use the corporate credentials registered to your Office account.
+              Use the credentials registered to your KRAVIA Office account.
             </Text>
-            <Text style={styles.label}>Corporate email</Text>
-            <TextInput
-              style={[
-                styles.input,
-                focusedField === "email" && styles.inputFocused,
-                Boolean(message) && styles.inputError,
-                busy && styles.inputDisabled,
-              ]}
-              accessibilityLabel="Corporate email"
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              autoComplete="email"
-              value={email}
-              onChangeText={setEmail}
-              onFocus={() => setFocusedField("email")}
-              onBlur={() => setFocusedField(null)}
-              placeholder="name@kraviaprivatelimited.com"
-              placeholderTextColor={colors.placeholder}
-              editable={!busy}
-            />
-            <Text style={styles.label}>Password</Text>
-            <View
-              style={[
-                styles.passwordField,
-                focusedField === "password" && styles.inputFocused,
-                Boolean(message) && styles.inputError,
-                busy && styles.inputDisabled,
-              ]}
-            >
+            <View style={styles.formStack}>
+              <Text style={styles.label}>Corporate email</Text>
               <TextInput
-                style={styles.passwordInput}
-                accessibilityLabel="Password"
+                style={[
+                  styles.input,
+                  focusedField === "email" && styles.inputFocused,
+                  Boolean(message) && styles.inputError,
+                  busy && styles.inputDisabled,
+                ]}
+                accessibilityLabel="Corporate email"
                 autoCapitalize="none"
                 autoCorrect={false}
-                autoComplete="current-password"
-                secureTextEntry={!showPassword}
-                value={password}
-                onChangeText={setPassword}
-                onFocus={() => setFocusedField("password")}
+                keyboardType="email-address"
+                autoComplete="email"
+                returnKeyType="next"
+                value={email}
+                onChangeText={setEmail}
+                onFocus={() => setFocusedField("email")}
                 onBlur={() => setFocusedField(null)}
-                placeholder="Enter your password"
+                placeholder="name@kraviaprivatelimited.com"
                 placeholderTextColor={colors.placeholder}
                 editable={!busy}
               />
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={
-                  showPassword ? "Hide password" : "Show password"
-                }
-                onPress={() => setShowPassword((value) => !value)}
-                style={styles.passwordToggle}
+              <Text style={styles.label}>Password</Text>
+              <View
+                style={[
+                  styles.passwordField,
+                  focusedField === "password" && styles.inputFocused,
+                  Boolean(message) && styles.inputError,
+                  busy && styles.inputDisabled,
+                ]}
               >
-                <Text style={styles.passwordToggleText}>
-                  {showPassword ? "Hide" : "Show"}
-                </Text>
-              </Pressable>
+                <TextInput
+                  style={styles.passwordInput}
+                  accessibilityLabel="Password"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="current-password"
+                  secureTextEntry={!showPassword}
+                  returnKeyType="done"
+                  onSubmitEditing={() => void beginEmailVerification()}
+                  value={password}
+                  onChangeText={setPassword}
+                  onFocus={() => setFocusedField("password")}
+                  onBlur={() => setFocusedField(null)}
+                  placeholder="Enter your password"
+                  placeholderTextColor={colors.placeholder}
+                  editable={!busy}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    showPassword ? "Hide password" : "Show password"
+                  }
+                  onPress={() => setShowPassword((value) => !value)}
+                  style={styles.passwordToggle}
+                  disabled={busy}
+                >
+                  <Text style={styles.passwordToggleText}>
+                    {showPassword ? "Hide" : "Show"}
+                  </Text>
+                </Pressable>
+              </View>
             </View>
-            {message ? <Text style={styles.error}>{message}</Text> : null}
-            <Button
-              label={busy ? "Checking credentials…" : "Continue"}
-              onPress={() => void beginEmailVerification()}
-              disabled={busy}
-            />
-            <Text style={styles.securityNote}>
-              Your password is never stored on this phone.
-            </Text>
-          </ScrollView>
+            <View style={styles.actionFooter}>
+              {message ? <Text style={styles.error}>{message}</Text> : null}
+              <Button
+                label={busy ? "Checking credentials…" : "Continue"}
+                onPress={() => void beginEmailVerification()}
+                disabled={busy}
+              />
+              <Text style={styles.securityNote}>
+                Your password is never stored on this phone.
+              </Text>
+            </View>
+          </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
     );
@@ -704,21 +819,19 @@ export default function App() {
       <SafeAreaView style={styles.root}>
         <KeyboardAvoidingView
           style={styles.flex}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <ScrollView
-            contentContainerStyle={styles.content}
-            keyboardShouldPersistTaps="handled"
-            contentInsetAdjustmentBehavior="automatic"
-          >
+          <View style={[styles.authScreen, compactHeight && styles.compactScreen]}>
+            <AuthHeader step="STEP 2 OF 3" />
             <Pressable
               accessibilityRole="button"
               onPress={resetToCredentials}
               disabled={busy}
+              style={styles.backButton}
             >
-              <Text style={styles.backLink}>‹ Use another account</Text>
+              <Text style={styles.backLink}>Use another account</Text>
             </Pressable>
-            <Image source={BRAND_ICON} style={styles.logo} />
+            <ProgressRail active={2} />
             <Text style={styles.kicker}>EMAIL VERIFICATION</Text>
             <Text style={styles.title}>Enter your code</Text>
             <Text style={styles.body}>
@@ -754,58 +867,68 @@ export default function App() {
               placeholder="000000"
               placeholderTextColor={colors.placeholder}
               editable={!busy && !otpExpired}
+              returnKeyType="done"
+              onSubmitEditing={() => void completeEmailVerification()}
             />
-            {message ? <Text style={styles.error}>{message}</Text> : null}
-            <Button
-              label={busy ? "Verifying…" : "Verify"}
-              onPress={() => void completeEmailVerification()}
-              disabled={busy || otpExpired || otp.length !== 6}
-            />
-            <Button
-              label={
-                otpExpired
-                  ? "Sign in again"
-                  : busy
-                    ? "Please wait…"
-                    : resendRemaining
-                      ? `Resend available in ${clockLabel(resendRemaining)}`
-                      : "Resend code"
-              }
-              variant="secondary"
-              onPress={() => {
-                if (otpExpired) resetToCredentials();
-                else void resendCode();
-              }}
-              disabled={busy || (!otpExpired && resendRemaining > 0)}
-            />
-            <Text style={styles.securityNote}>
-              Codes are single-use. KRAVIA will never ask you to share one.
-            </Text>
-          </ScrollView>
+            <View style={styles.actionFooter}>
+              {message ? <Text style={styles.error}>{message}</Text> : null}
+              <Button
+                label={busy ? "Verifying…" : "Verify"}
+                onPress={() => void completeEmailVerification()}
+                disabled={busy || otpExpired || otp.length !== 6}
+              />
+              <Button
+                label={
+                  otpExpired
+                    ? "Sign in again"
+                    : busy
+                      ? "Please wait…"
+                      : resendRemaining
+                        ? `Resend in ${clockLabel(resendRemaining)}`
+                        : "Resend code"
+                }
+                variant="secondary"
+                onPress={() => {
+                  if (otpExpired) resetToCredentials();
+                  else void resendCode();
+                }}
+                disabled={busy || (!otpExpired && resendRemaining > 0)}
+              />
+              <Text style={styles.securityNote}>
+                Codes are single-use. KRAVIA will never ask you to share one.
+              </Text>
+            </View>
+          </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
     );
   if (screen === "approval" && pendingDevice)
     return (
       <SafeAreaView style={styles.root}>
-        <View style={styles.approvalContent}>
-          <Image source={BRAND_ICON} style={styles.logo} />
-          <Text style={styles.kicker}>DEVICE PROTECTION</Text>
-          <Text style={styles.title}>Confirm from your email</Text>
-          <Text style={styles.body}>
-            Your credentials and email code are verified. Open the security
-            review in your registered mailbox to trust or block this device.
-          </Text>
-          <View style={styles.panel}>
-            <Text style={styles.panelTitle}>{pendingDevice.deviceLabel}</Text>
-            <Text style={styles.panelCopy}>
-              This app checks the protected KRAVIA status and continues
-              automatically as soon as the account owner trusts this exact device.
-            </Text>
+        <View style={[styles.approvalContent, compactHeight && styles.approvalContentCompact]}>
+          <View style={styles.approvalTop}>
+            <AuthHeader step="STEP 3 OF 3" />
+            <ProgressRail active={3} />
           </View>
-          {message ? <Text style={styles.info}>{message}</Text> : null}
+          <View style={styles.approvalMain}>
+            <ApprovalPulse expiresAt={pendingDevice.expiresAt} />
+            <Text style={styles.kicker}>DEVICE APPROVAL</Text>
+            <Text style={styles.approvalTitle}>Waiting for your decision</Text>
+            <Text style={styles.approvalBody}>
+              Your credentials and email code are verified. Review the exact
+              device request in your registered email, then choose Trust or Deny.
+            </Text>
+            <View style={styles.approvalDevicePanel}>
+              <Text style={styles.approvalDeviceLabel}>REQUESTED DEVICE</Text>
+              <Text style={styles.approvalDeviceName}>{pendingDevice.deviceLabel}</Text>
+              <Text style={styles.approvalDeviceCopy}>
+                This phone continues automatically only after a Trust decision.
+              </Text>
+            </View>
+            {message ? <Text style={styles.info}>{message}</Text> : null}
+          </View>
           <Text style={styles.securityNote}>
-            The email page never signs in the browser or phone that opens it.
+            The email page only confirms the request. It cannot sign in another device.
           </Text>
         </View>
       </SafeAreaView>
@@ -813,29 +936,33 @@ export default function App() {
   if (screen === "locked" && session)
     return (
       <SafeAreaView style={styles.root}>
-        <View style={styles.lockContent}>
-          <Image source={BRAND_ICON} style={styles.logo} />
-          <Text style={styles.kicker}>KRAVIA AUTHENTICATOR</Text>
-          <Text style={styles.title}>This device is trusted</Text>
-          <Text style={styles.centerBody}>
-            Unlock with your device biometrics to view your KRAVIA security
-            status. The app locks when it leaves the foreground.
-          </Text>
-          {message ? <Text style={styles.info}>{message}</Text> : null}
-          <Button
-            label={unlocking ? "Unlocking…" : "Unlock"}
-            onPress={() => void unlock()}
-            disabled={unlocking}
-          />
-          <Button
-            label="Sign out"
-            variant="secondary"
-            onPress={() => void signOut()}
-            disabled={unlocking}
-          />
-          <Text style={styles.securityNote}>
-            Biometric lock · background lock · screenshot protection
-          </Text>
+        <View style={[styles.lockContent, compactHeight && styles.compactScreen]}>
+          <AuthHeader step="TRUSTED DEVICE" />
+          <View style={styles.lockMain}>
+            <Text style={styles.kicker}>DEVICE PROTECTION</Text>
+            <Text style={styles.title}>Ready when{`\n`}you are</Text>
+            <Text style={styles.centerBody}>
+              Unlock with strong device biometrics. Authenticator locks whenever
+              it leaves the foreground.
+            </Text>
+            {message ? <Text style={styles.info}>{message}</Text> : null}
+          </View>
+          <View style={styles.actionFooter}>
+            <Button
+              label={unlocking ? "Unlocking…" : "Unlock"}
+              onPress={() => void unlock()}
+              disabled={unlocking}
+            />
+            <Button
+              label="Sign out"
+              variant="secondary"
+              onPress={() => void signOut()}
+              disabled={unlocking}
+            />
+            <Text style={styles.securityNote}>
+              Biometric lock · background lock · screenshot protection
+            </Text>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -849,17 +976,18 @@ export default function App() {
           <Pressable
             accessibilityRole="button"
             onPress={() => setScreen("home")}
+            style={styles.backButton}
           >
-            <Text style={styles.backLink}>‹ Back</Text>
+            <Text style={styles.backLink}>Back</Text>
           </Pressable>
-          <Image source={BRAND_ICON} style={styles.logo} />
-          <Text style={styles.kicker}>AUTHENTICATOR</Text>
+          <AuthHeader step="SECURITY" />
+          <Text style={styles.kicker}>DEVICE SECURITY</Text>
           <Text style={styles.title}>Security</Text>
           <View style={styles.accountPanel}>
             <Text style={styles.accountEyebrow}>TRUSTED DEVICE</Text>
             <Text style={styles.accountName}>KRAVIA Office</Text>
             <Text style={styles.accountEmail}>{session.email}</Text>
-            <Text style={styles.accountStatus}>● Registered to this phone</Text>
+            <Text style={styles.accountStatus}>Registered to this phone</Text>
           </View>
           <View style={styles.panel}>
             <Text style={styles.panelTitle}>Mandatory protection</Text>
@@ -905,11 +1033,9 @@ export default function App() {
           contentContainerStyle={styles.homeContent}
           contentInsetAdjustmentBehavior="automatic"
         >
+          <AuthHeader step="TRUSTED" />
           <View style={styles.topRow}>
-            <View>
-              <Text style={styles.kicker}>AUTHENTICATOR</Text>
-              <Text style={styles.homeHeading}>Device security</Text>
-            </View>
+            <Text style={styles.homeHeading}>Device security</Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => setScreen("locked")}
@@ -920,7 +1046,7 @@ export default function App() {
           <View style={styles.codeCard}>
             <Text style={styles.codeIssuer}>TRUSTED KRAVIA DEVICE</Text>
             <Text style={styles.codeAccount}>{session.email}</Text>
-            <Text style={styles.trustedMark}>✓</Text>
+            <Text style={styles.trustedMark}>DEVICE ACTIVE</Text>
             <Text style={styles.codeHint}>
               Email verified · one device lock active
             </Text>
@@ -976,25 +1102,191 @@ const styles = StyleSheet.create({
   artwork: { width: "100%", height: "100%" },
   root: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
+  authScreen: {
+    flex: 1,
+    maxWidth: 480,
+    alignSelf: "center",
+    width: "100%",
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 12,
+    gap: 8,
+  },
+  compactScreen: { paddingTop: 8, paddingBottom: 8, gap: 6 },
+  authHeader: {
+    minHeight: 40,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  brandLockup: { flexDirection: "row", alignItems: "center", gap: 8 },
+  headerLogo: { width: 32, height: 32, borderRadius: 9 },
+  brandName: {
+    color: colors.primary,
+    fontFamily: DISPLAY_FONT,
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 1.4,
+  },
+  brandProduct: {
+    color: colors.mutedText,
+    fontFamily: TEXT_FONT,
+    fontSize: 8,
+    fontWeight: "800",
+    letterSpacing: 1.3,
+    marginTop: 1,
+  },
+  headerStep: {
+    color: colors.accent,
+    fontFamily: TEXT_FONT,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+  },
+  progressRail: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingBottom: 8,
+  },
+  progressItem: { alignItems: "center", flex: 1, gap: 3 },
+  progressNumber: {
+    color: colors.mutedText,
+    fontFamily: DISPLAY_FONT,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  progressNumberActive: { color: colors.primary },
+  progressLabel: {
+    color: colors.mutedText,
+    fontFamily: TEXT_FONT,
+    fontSize: 10,
+    textAlign: "center",
+  },
+  progressLabelActive: { color: colors.primary, fontWeight: "800" },
   welcomeContent: {
     flex: 1,
     maxWidth: 480,
     alignSelf: "center",
     width: "100%",
-    justifyContent: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingVertical: 20,
-    gap: 12,
+    paddingVertical: 16,
+    gap: 10,
+  },
+  welcomeMain: { gap: 10, marginTop: "auto", marginBottom: "auto" },
+  actionFooter: { gap: 8, marginTop: "auto" },
+  formStack: { gap: 6 },
+  briefRow: {
+    backgroundColor: colors.primarySoft,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 3,
   },
   approvalContent: {
     flex: 1,
-    maxWidth: 480,
-    alignSelf: "center",
     width: "100%",
+    alignSelf: "stretch",
+    paddingHorizontal: 24,
+    paddingVertical: 18,
+    gap: 14,
+  },
+  approvalContentCompact: { paddingHorizontal: 20, paddingVertical: 10, gap: 8 },
+  approvalTop: { gap: 10 },
+  approvalMain: {
+    flex: 1,
+    width: "100%",
+    alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 20,
     gap: 12,
+  },
+  approvalPulse: {
+    width: 138,
+    height: 138,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 2,
+  },
+  approvalPulseRing: {
+    position: "absolute",
+    width: 132,
+    height: 132,
+    borderRadius: 66,
+    borderWidth: 2,
+    borderColor: colors.accent,
+    backgroundColor: colors.accentSoft,
+  },
+  approvalPulseCore: {
+    width: 102,
+    height: 102,
+    borderRadius: 51,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+  },
+  approvalPulseLabel: {
+    color: colors.onPrimaryMuted,
+    fontFamily: TEXT_FONT,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.2,
+  },
+  approvalPulseTime: {
+    color: colors.onPrimary,
+    fontFamily: DISPLAY_FONT,
+    fontSize: 27,
+    fontWeight: "700",
+    fontVariant: ["tabular-nums"],
+  },
+  approvalTitle: {
+    color: colors.text,
+    fontFamily: DISPLAY_FONT,
+    fontSize: 28,
+    fontWeight: "700",
+    letterSpacing: -0.7,
+    lineHeight: 33,
+    textAlign: "center",
+  },
+  approvalBody: {
+    color: colors.mutedText,
+    fontFamily: TEXT_FONT,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+    maxWidth: 440,
+  },
+  approvalDevicePanel: {
+    width: "100%",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 4,
+  },
+  approvalDeviceLabel: {
+    color: colors.accent,
+    fontFamily: TEXT_FONT,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.25,
+  },
+  approvalDeviceName: {
+    color: colors.text,
+    fontFamily: DISPLAY_FONT,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  approvalDeviceCopy: {
+    color: colors.mutedText,
+    fontFamily: TEXT_FONT,
+    fontSize: 12,
+    lineHeight: 18,
   },
   content: {
     flexGrow: 1,
@@ -1021,12 +1313,12 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 480,
     alignSelf: "center",
-    justifyContent: "center",
     paddingHorizontal: 20,
-    gap: 12,
+    paddingVertical: 16,
+    gap: 8,
   },
-  welcomeLogo: { width: 64, height: 64, borderRadius: 18, marginBottom: 4 },
-  logo: { width: 48, height: 48, borderRadius: 14, marginTop: 2 },
+  lockMain: { gap: 10, marginTop: "auto", marginBottom: "auto" },
+  logo: { width: 40, height: 40, borderRadius: 12, marginTop: 2 },
   kicker: {
     color: colors.accent,
     fontFamily: TEXT_FONT,
@@ -1037,25 +1329,25 @@ const styles = StyleSheet.create({
   welcomeTitle: {
     color: colors.text,
     fontFamily: DISPLAY_FONT,
-    fontSize: 32,
+    fontSize: 26,
     fontWeight: "700",
-    letterSpacing: -1.2,
-    lineHeight: 37,
+    letterSpacing: -0.7,
+    lineHeight: 31,
   },
   title: {
     color: colors.text,
     fontFamily: DISPLAY_FONT,
-    fontSize: 30,
+    fontSize: 26,
     fontWeight: "700",
-    letterSpacing: -0.9,
-    lineHeight: 35,
+    letterSpacing: -0.7,
+    lineHeight: 31,
   },
   homeHeading: {
     color: colors.text,
     fontFamily: DISPLAY_FONT,
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "700",
-    letterSpacing: -0.8,
+    letterSpacing: -0.5,
   },
   body: {
     color: colors.mutedText,
@@ -1073,16 +1365,20 @@ const styles = StyleSheet.create({
   backLink: {
     color: colors.primary,
     fontFamily: DISPLAY_FONT,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
-    paddingVertical: 6,
+  },
+  backButton: {
+    alignSelf: "flex-start",
+    minHeight: 28,
+    justifyContent: "center",
   },
   panel: {
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 12,
+    padding: 12,
     gap: 4,
   },
   panelTitle: {
@@ -1094,8 +1390,20 @@ const styles = StyleSheet.create({
   panelCopy: {
     color: colors.mutedText,
     fontFamily: TEXT_FONT,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  briefTitle: {
+    color: colors.text,
+    fontFamily: DISPLAY_FONT,
     fontSize: 13,
-    lineHeight: 19,
+    fontWeight: "700",
+  },
+  briefCopy: {
+    color: colors.mutedText,
+    fontFamily: TEXT_FONT,
+    fontSize: 12,
+    lineHeight: 17,
   },
   info: {
     color: colors.primary,
@@ -1108,8 +1416,8 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   button: {
-    minHeight: 50,
-    borderRadius: 12,
+    minHeight: 48,
+    borderRadius: 10,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
@@ -1144,39 +1452,39 @@ const styles = StyleSheet.create({
     fontFamily: TEXT_FONT,
     fontSize: 12,
     fontWeight: "800",
-    marginTop: 4,
+    marginTop: 2,
   },
   input: {
-    minHeight: 50,
+    minHeight: 48,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.borderStrong,
-    borderRadius: 12,
-    paddingHorizontal: 14,
+    borderRadius: 10,
+    paddingHorizontal: 13,
     color: colors.text,
     fontFamily: TEXT_FONT,
     fontSize: 15,
   },
   passwordField: {
-    minHeight: 50,
+    minHeight: 48,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.borderStrong,
-    borderRadius: 12,
+    borderRadius: 10,
     flexDirection: "row",
     alignItems: "center",
   },
   passwordInput: {
     flex: 1,
-    minHeight: 48,
-    paddingHorizontal: 14,
+    minHeight: 46,
+    paddingHorizontal: 13,
     color: colors.text,
     fontFamily: TEXT_FONT,
     fontSize: 15,
   },
   passwordToggle: {
-    paddingHorizontal: 14,
-    minHeight: 48,
+    paddingHorizontal: 13,
+    minHeight: 46,
     justifyContent: "center",
   },
   passwordToggleText: {
@@ -1195,9 +1503,10 @@ const styles = StyleSheet.create({
     color: colors.semanticError,
     fontFamily: TEXT_FONT,
     backgroundColor: colors.semanticErrorSurface,
-    borderRadius: 12,
-    padding: 12,
-    lineHeight: 19,
+    borderRadius: 10,
+    padding: 9,
+    fontSize: 12,
+    lineHeight: 17,
   },
   securityNote: {
     color: colors.mutedText,
@@ -1207,12 +1516,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 2,
   },
-  timerWrap: { alignItems: "center", marginVertical: 2 },
+  timerWrap: { alignItems: "center", marginVertical: 0 },
   timerTrack: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 6,
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    borderWidth: 5,
     backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
@@ -1228,7 +1537,7 @@ const styles = StyleSheet.create({
   timerTime: {
     color: colors.text,
     fontFamily: DISPLAY_FONT,
-    fontSize: 22,
+    fontSize: 19,
     fontWeight: "700",
     fontVariant: ["tabular-nums"],
   },
@@ -1240,16 +1549,16 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   otpInput: {
-    minHeight: 54,
+    minHeight: 50,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.borderStrong,
-    borderRadius: 12,
+    borderRadius: 10,
     color: colors.text,
     fontFamily: DISPLAY_FONT,
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "700",
-    letterSpacing: 9,
+    letterSpacing: 7,
     textAlign: "center",
     paddingHorizontal: 20,
     fontVariant: ["tabular-nums"],
@@ -1268,9 +1577,9 @@ const styles = StyleSheet.create({
   },
   codeCard: {
     backgroundColor: colors.primary,
-    borderRadius: 22,
-    padding: 23,
-    gap: 8,
+    borderRadius: 14,
+    padding: 16,
+    gap: 6,
   },
   codeIssuer: {
     color: colors.onPrimaryMuted,
@@ -1281,11 +1590,12 @@ const styles = StyleSheet.create({
   },
   codeAccount: { color: colors.onPrimary, fontFamily: TEXT_FONT, fontSize: 15 },
   trustedMark: {
-    color: colors.onPrimary,
-    fontFamily: DISPLAY_FONT,
-    fontSize: 52,
+    color: colors.onPrimaryMuted,
+    fontFamily: TEXT_FONT,
+    fontSize: 11,
     fontWeight: "700",
-    marginTop: 5,
+    letterSpacing: 1.1,
+    marginTop: 8,
   },
   codeHint: {
     color: colors.onPrimaryMuted,
@@ -1296,8 +1606,8 @@ const styles = StyleSheet.create({
   },
   accountPanel: {
     backgroundColor: colors.primary,
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 14,
+    padding: 16,
     gap: 5,
   },
   accountEyebrow: {
