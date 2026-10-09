@@ -49,7 +49,20 @@ jobs:
           done
           cat /tmp/health.json
           curl --fail --silent --show-error "$API_URL/api/v1/auth/bootstrap-status" | tee /tmp/bootstrap.json
-          grep -q '"registration_open":true' /tmp/bootstrap.json
+          # Founder bootstrap deliberately closes after the first successful
+          # registration. Validate the endpoint contract without reopening or
+          # requiring that one-time registration state in production.
+          python - <<'PY'
+          import json
+
+          with open("/tmp/bootstrap.json", encoding="utf-8") as status_file:
+              status = json.load(status_file)
+
+          assert isinstance(status.get("registration_open"), bool)
+          assert status.get("role") == "FOUNDER"
+          assert status.get("role_locked") is True
+          assert status.get("public_registration_closes_after_success") is True
+          PY
       - name: Verify device approval review route
         shell: bash
         run: |
