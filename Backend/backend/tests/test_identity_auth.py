@@ -924,6 +924,13 @@ def test_declined_new_browser_can_never_complete_or_refresh(tmp_path, monkeypatc
         assert declined.status_code == 200, declined.text
         assert declined.json()["status"] == "DECLINED"
 
+        replayed_review = client.post(
+            f"/api/v1/auth/device-approvals/{approval_id}/review",
+            json={"action_token": decline_token},
+        )
+        assert replayed_review.status_code == 404
+        assert replayed_review.json()["detail"] == "Device approval request is no longer available"
+
         status = client.post(
             "/api/v1/auth/device-approvals/status",
             json={"device_id": approval_id, "device_proof": body["device_proof"]},

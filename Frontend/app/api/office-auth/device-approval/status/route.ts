@@ -8,7 +8,7 @@ export async function POST(request: Request) {
   }
   try {
     const approval = await getPendingOfficeDeviceApproval();
-    if (["DECLINED", "EXPIRED", "DELIVERY_FAILED", "DELIVERY_UNKNOWN"].includes(approval.status)) {
+    if (["DECLINED", "EXPIRED", "DELIVERY_FAILED", "DELIVERY_UNKNOWN", "REVOKED"].includes(approval.status)) {
       await clearOfficeLoginDeviceCookie();
     }
     return NextResponse.json(

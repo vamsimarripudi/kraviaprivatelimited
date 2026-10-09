@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { OFFICE_DEVICE_ACTION_COOKIE, OfficeApiError, reviewOfficeDeviceApprovalFromEmail } from "@/lib/office/auth-server";
+import { deviceApprovalActionCookieOptions } from "@/lib/office/device-approval-action-cookie";
 
 function readActionCookie(value: string | undefined) {
   if (!value) return null;
@@ -11,8 +12,10 @@ function readActionCookie(value: string | undefined) {
 
 export async function GET() {
   const store = await cookies();
+  const clear = () => store.set(OFFICE_DEVICE_ACTION_COOKIE, "", deviceApprovalActionCookieOptions(0));
   const action = readActionCookie(store.get(OFFICE_DEVICE_ACTION_COOKIE)?.value);
   if (!action) {
+    clear();
     return NextResponse.json({ detail: "This device approval link is invalid or expired" }, { status: 400, headers: { "Cache-Control": "no-store" } });
   }
   try {
@@ -21,6 +24,7 @@ export async function GET() {
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Unable to review this device request";
     const status = error instanceof OfficeApiError ? error.status : 503;
+    if (status === 404 || status === 410) clear();
     return NextResponse.json({ detail }, { status, headers: { "Cache-Control": "no-store" } });
   }
 }

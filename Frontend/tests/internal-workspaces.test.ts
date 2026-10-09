@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { financeSections, officeSections, roleCanAccessSection, roleCanAccessWorkspace } from "../lib/office/workspaces";
-import { officeMutationIsSameOrigin } from "../lib/office/request-security";
+import { officeDeviceApprovalActionIsSameOrigin, officeMutationIsSameOrigin } from "../lib/office/request-security";
 
 const proxySource = readFileSync(new URL("../proxy.ts", import.meta.url), "utf8");
 const authServerSource = readFileSync(new URL("../lib/office/auth-server.ts", import.meta.url), "utf8");
@@ -92,6 +92,15 @@ describe("KRAVIA path-based internal workspaces", () => {
     const crossOrigin = new Request("https://kraviaprivatelimited.com/api/office-auth/sign-in", { method: "POST", headers: { Origin: "https://evil.example", "Sec-Fetch-Site": "cross-site" } });
     expect(officeMutationIsSameOrigin(sameOrigin)).toBe(true);
     expect(officeMutationIsSameOrigin(crossOrigin)).toBe(false);
+  });
+
+  it("requires an explicit same-origin header for a browser-only device decision", () => {
+    const sameOrigin = new Request("https://www.kraviaprivatelimited.com/api/office-auth/device-approval/action", { method: "POST", headers: { Origin: "https://www.kraviaprivatelimited.com", "Sec-Fetch-Site": "same-origin" } });
+    const headerless = new Request("https://www.kraviaprivatelimited.com/api/office-auth/device-approval/action", { method: "POST" });
+    const crossOrigin = new Request("https://www.kraviaprivatelimited.com/api/office-auth/device-approval/action", { method: "POST", headers: { Origin: "https://evil.example", "Sec-Fetch-Site": "cross-site" } });
+    expect(officeDeviceApprovalActionIsSameOrigin(sameOrigin)).toBe(true);
+    expect(officeDeviceApprovalActionIsSameOrigin(headerless)).toBe(false);
+    expect(officeDeviceApprovalActionIsSameOrigin(crossOrigin)).toBe(false);
   });
 
   it("keeps the FastAPI origin server-only and blocks sensitive provider callback paths", () => {

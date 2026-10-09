@@ -66,7 +66,7 @@ export type AuthenticatorActivationRequest = {
 
 export type PendingOfficeDeviceApproval = {
   approvalId: string;
-  status: "PENDING" | "APPROVED" | "DECLINED" | "EXPIRED" | "DELIVERY_FAILED" | "DELIVERY_UNKNOWN" | "TRUSTED";
+  status: "PENDING" | "APPROVED" | "DECLINED" | "EXPIRED" | "DELIVERY_FAILED" | "DELIVERY_UNKNOWN" | "REVOKED" | "TRUSTED";
   expiresAt: string;
   deviceLabel: string;
 };
@@ -556,7 +556,7 @@ export async function cancelPendingOfficeQrSignin() {
 
 function toPendingApproval(payload: { approval_id?: unknown; status?: unknown; expires_at?: unknown; device_label?: unknown }): PendingOfficeDeviceApproval {
   const status = typeof payload.status === "string" ? payload.status : "";
-  const accepted = new Set(["PENDING", "APPROVED", "DECLINED", "EXPIRED", "DELIVERY_FAILED", "DELIVERY_UNKNOWN", "TRUSTED"]);
+  const accepted = new Set(["PENDING", "APPROVED", "DECLINED", "EXPIRED", "DELIVERY_FAILED", "DELIVERY_UNKNOWN", "REVOKED", "TRUSTED"]);
   if (
     typeof payload.approval_id !== "string" || !/^[0-9a-f-]{36}$/i.test(payload.approval_id) ||
     !accepted.has(status) || typeof payload.expires_at !== "string" || typeof payload.device_label !== "string"

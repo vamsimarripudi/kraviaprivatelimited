@@ -18,3 +18,12 @@ export function officeMutationIsSameOrigin(request: Request | NextRequest) {
   if (fetchSite && !["same-origin", "none"].includes(fetchSite)) return false;
   return true;
 }
+
+/**
+ * Device-approval decisions are browser-only. Unlike the broader Office BFF,
+ * they have no trusted server-to-server caller, so a real same-origin POST
+ * must include an exact Origin header.
+ */
+export function officeDeviceApprovalActionIsSameOrigin(request: Request | NextRequest) {
+  return officeMutationIsSameOrigin(request) && request.headers.get("origin") === new URL(request.url).origin;
+}

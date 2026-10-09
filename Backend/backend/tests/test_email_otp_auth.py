@@ -60,17 +60,23 @@ def _complete_device(client, pending):
     return response.json()
 
 
-def test_device_approval_link_never_uses_the_api_origin(monkeypatch):
-    """A public email must open the website confirmation route, not Railway."""
+def test_device_approval_link_is_pinned_to_the_canonical_web_origin(monkeypatch):
+    """A public email must not use Railway, the redirecting apex or an arbitrary host."""
     approval_id = "11111111-1111-4111-8111-111111111111"
     action_token = "synthetic-token-value-which-is-long-enough-123456"
-    monkeypatch.setenv("PUBLIC_BASE_URL", "https://kravia-office-api-production.up.railway.app")
+    for configured_base_url in (
+        "https://kravia-office-api-production.up.railway.app",
+        "https://kraviaprivatelimited.com",
+        "https://www.kraviaprivatelimited.com:8443",
+        "http://www.kraviaprivatelimited.com",
+        "https://attacker.example",
+    ):
+        monkeypatch.setenv("PUBLIC_BASE_URL", configured_base_url)
+        url = identity_auth._device_approval_review_url(approval_id, action_token)
 
-    url = identity_auth._device_approval_review_url(approval_id, action_token)
-
-    assert url.startswith("https://www.kraviaprivatelimited.com/office/device-approval/confirm?")
-    assert f"id={approval_id}" in url
-    assert "decision=" not in url
+        assert url.startswith("https://www.kraviaprivatelimited.com/office/device-approval/confirm?")
+        assert f"id={approval_id}" in url
+        assert "decision=" not in url
 
 
 def test_email_otp_requires_registered_mailbox_to_trust_a_new_device_before_issuing_a_scoped_session(tmp_path, monkeypatch):
@@ -117,6 +123,12 @@ def test_email_otp_requires_registered_mailbox_to_trust_a_new_device_before_issu
         approval_id, decision = _decide_device(client, device_notices[0], "APPROVE")
         assert approval_id == pending["device_approval_id"]
         assert decision == {"decided": True, "status": "APPROVED"}
+        approved_review = client.post(
+            f"/api/v1/auth/device-approvals/{approval_id}/review",
+            json={"action_token": review_query["token"][0]},
+        )
+        assert approved_review.status_code == 200, approved_review.text
+        assert approved_review.json()["status"] == "APPROVED"
         session = _complete_device(client, pending)
         assert session["authenticated"] is True
         assert session["aal"] == "aal2"

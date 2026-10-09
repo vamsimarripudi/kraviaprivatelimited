@@ -20,7 +20,7 @@ import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import urlencode
 
 import jwt
 import pyotp
@@ -77,6 +77,7 @@ DEVICE_APPROVAL_REQUIRED = os.getenv("OFFICE_DEVICE_APPROVAL_REQUIRED", "true").
 DEVICE_APPROVAL_TTL_SECONDS = int(os.getenv("OFFICE_DEVICE_APPROVAL_TTL_SECONDS", "900"))
 DEVICE_TRUST_TTL_SECONDS = int(os.getenv("OFFICE_DEVICE_TRUST_TTL_SECONDS", str(30 * 24 * 60 * 60)))
 QR_SIGNIN_TTL_SECONDS = int(os.getenv("OFFICE_QR_SIGNIN_TTL_SECONDS", "60"))
+CANONICAL_PUBLIC_WEB_ORIGIN = "https://www.kraviaprivatelimited.com"
 OFFICE_SESSION_PURPOSE = "OFFICE"
 AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE = "AUTHENTICATOR_ACTIVATION"
 
@@ -436,21 +437,12 @@ def _device_label(request: Request) -> str:
 def _public_web_origin() -> str:
     """Use only KRAVIA's canonical website in owner-action email links.
 
-    ``PUBLIC_BASE_URL`` is also used by API-side document code.  It must never
-    turn a device-approval email into a Railway API URL: that host cannot
-    render the browser confirmation route and produces a misleading 404.
+    Email action cookies are intentionally host-only. The public apex currently
+    redirects to ``www``; issuing an apex link would otherwise make browsers
+    drop the handoff cookie during that redirect. This route must never inherit
+    API/document configuration such as ``PUBLIC_BASE_URL``.
     """
-    candidate = os.getenv("PUBLIC_BASE_URL", "https://www.kraviaprivatelimited.com").strip()
-    parsed = urlsplit(candidate)
-    if (
-        parsed.scheme != "https"
-        or not parsed.netloc
-        or parsed.username
-        or parsed.password
-        or (parsed.hostname or "").lower() not in {"kraviaprivatelimited.com", "www.kraviaprivatelimited.com"}
-    ):
-        return "https://www.kraviaprivatelimited.com"
-    return f"https://{parsed.netloc}"
+    return CANONICAL_PUBLIC_WEB_ORIGIN
 
 
 def _device_approval_review_url(approval_id: str, action_token: str) -> str:
@@ -2468,7 +2460,8 @@ def build_identity_router() -> APIRouter:
         """Show the account owner the exact request before an explicit choice.
 
         Possession of the single-use mailbox token is required.  This endpoint
-        neither changes the request nor creates an authenticated Office session.
+        never approves, declines or creates an authenticated Office session.
+        It may atomically terminalize an already-expired pending request.
         """
         try:
             normalized_id = str(uuid.UUID(approval_id))
@@ -2491,6 +2484,11 @@ def build_identity_router() -> APIRouter:
             _event(db, "DEVICE_APPROVAL_EXPIRED", request, user_id=approval.user_id, session_id=approval.session_id)
             db.commit()
             raise HTTPException(status_code=410, detail="Device approval request has expired")
+        # A mailbox token can expose a pending request and its approved result,
+        # but a terminal or replaced request must not remain reviewable through
+        # a replayed email link.
+        if approval.status not in {"PENDING", "APPROVED"}:
+            raise HTTPException(status_code=404, detail="Device approval request is no longer available")
         return _approval_review_json(approval)
 
     @router.post("/device-approvals/{approval_id}/action")

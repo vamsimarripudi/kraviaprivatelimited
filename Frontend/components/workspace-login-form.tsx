@@ -28,7 +28,7 @@ type Props = {
   registrationOpen?: boolean;
 };
 type DeviceApprovalResponse = {
-  status: "PENDING" | "APPROVED" | "DECLINED" | "EXPIRED" | "DELIVERY_FAILED" | "DELIVERY_UNKNOWN" | "TRUSTED";
+  status: "PENDING" | "APPROVED" | "DECLINED" | "EXPIRED" | "DELIVERY_FAILED" | "DELIVERY_UNKNOWN" | "REVOKED" | "TRUSTED";
   expires_at: string;
   device_label: string;
 };
@@ -158,7 +158,7 @@ export function WorkspaceLoginForm({
             setStatus("Device approved. Opening your authorised KRAVIA workspace…");
             setPhase("success");
           }
-        } else if (["DECLINED", "EXPIRED", "DELIVERY_FAILED", "DELIVERY_UNKNOWN"].includes(approval.status)) {
+        } else if (["DECLINED", "EXPIRED", "DELIVERY_FAILED", "DELIVERY_UNKNOWN", "REVOKED"].includes(approval.status)) {
           setStatus(
             approval.status === "DECLINED"
               ? "This new device was declined and cannot enter KRAVIA Office."

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { decideOfficeDeviceApprovalFromEmail, OFFICE_DEVICE_ACTION_COOKIE, OfficeApiError } from "@/lib/office/auth-server";
-import { officeMutationIsSameOrigin } from "@/lib/office/request-security";
+import { deviceApprovalActionCookieOptions } from "@/lib/office/device-approval-action-cookie";
+import { officeDeviceApprovalActionIsSameOrigin, officeMutationIsSameOrigin } from "@/lib/office/request-security";
 
 function readActionCookie(value: string | undefined) {
   if (!value) return null;
@@ -17,18 +18,12 @@ function readDecision(value: unknown): "APPROVE" | "DECLINE" | null {
 }
 
 export async function POST(request: Request) {
-  if (!officeMutationIsSameOrigin(request)) {
+  if (!officeMutationIsSameOrigin(request) || !officeDeviceApprovalActionIsSameOrigin(request)) {
     return NextResponse.json({ detail: "Cross-origin device decision is not allowed" }, { status: 403 });
   }
   const store = await cookies();
   const action = readActionCookie(store.get(OFFICE_DEVICE_ACTION_COOKIE)?.value);
-  const clear = () => store.set(OFFICE_DEVICE_ACTION_COOKIE, "", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict" as const,
-    path: "/",
-    maxAge: 0,
-  });
+  const clear = () => store.set(OFFICE_DEVICE_ACTION_COOKIE, "", deviceApprovalActionCookieOptions(0));
   if (!action) {
     clear();
     return NextResponse.json({ detail: "This device approval link is invalid or expired" }, { status: 400 });
