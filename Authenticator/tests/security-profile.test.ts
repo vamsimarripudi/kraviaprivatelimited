@@ -88,6 +88,9 @@ describe("KRAVIA Authenticator native security profile", () => {
     expect(appSource).toContain("completedBinding");
     expect(appSource).toContain("setFactor(enrolledFactor);\n          setPendingDevice(null);\n          setScreen(\"home\");");
     expect(appSource).not.toContain("We are still securing this phone.");
+    expect(appSource).toContain("The previous phone registration is no longer active.");
+    expect(appSource).toContain("await clearTrustedDeviceBinding();");
+    expect(appSource).toContain("const existingFactor =");
     expect(appSource).not.toContain('label="Return to welcome"');
     expect(appSource).toContain("setInterval(() => setNow(Date.now()), 1_000)");
   });

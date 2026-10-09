@@ -854,25 +854,44 @@ export default function App() {
       if (result.kind === "active") {
         await saveAuthenticatorSession(result.session);
         setSession(result.session);
-        try {
-          const enrolledFactor = await enrollAuthenticatorFactor(result.session);
-          setFactor(enrolledFactor);
+        const existingFactor =
+          factor?.account === result.session.email
+            ? factor
+            : await loadAuthenticatorFactor();
+        if (existingFactor?.account === result.session.email) {
+          setFactor(existingFactor);
           setScreen("home");
           setMessage("Email verified. Your trusted Authenticator is ready.");
-        } catch (activationError) {
-          setScreen("locked");
-          setMessage(
-            activationError instanceof Error
-              ? activationError.message
-              : "This phone is trusted, but local code setup could not finish. Unlock it and try again.",
-          );
+        } else {
+          try {
+            const enrolledFactor = await enrollAuthenticatorFactor(result.session);
+            setFactor(enrolledFactor);
+            setScreen("home");
+            setMessage("Email verified. Your trusted Authenticator is ready.");
+          } catch (activationError) {
+            setScreen("locked");
+            setMessage(
+              activationError instanceof Error
+                ? activationError.message
+                : "This phone is trusted, but local code setup could not finish. Unlock it and try again.",
+            );
+          }
         }
       } else {
+        // The service did not recognise the presented proof. Do not keep a
+        // stale local binding around: the newly approved request will replace
+        // it atomically, while an unapproved request remains unable to sign in.
+        if (trustedDevice) {
+          await clearTrustedDeviceBinding();
+          setTrustedDevice(null);
+        }
         await savePendingDeviceApproval(result.pending);
         setPendingDevice(result.pending);
         setScreen("approval");
         setMessage(
-          "Open the registered-email security review. This phone will continue automatically as soon as you trust this exact device.",
+          trustedDevice
+            ? "The previous phone registration is no longer active. Approve this replacement request from the registered-email security review."
+            : "Open the registered-email security review. This phone will continue automatically as soon as you trust this exact device.",
         );
       }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
