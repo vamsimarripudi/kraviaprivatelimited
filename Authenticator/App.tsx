@@ -654,33 +654,39 @@ export default function App() {
     const poll = async () => {
       if (completing) return;
       completing = true;
+      // Keep the point at which the server trusts this phone distinct from
+      // local TOTP provisioning. A transient provisioning failure must never
+      // cause the approved request to be completed and re-enrolled forever.
+      let completedSession: AuthenticatorDeviceSession | null = null;
+      let completedBinding: TrustedDeviceBinding | null = null;
       try {
         const current = await checkDeviceApproval(pendingDevice);
         if (disposed) return;
         if (current.status === "APPROVED" || current.status === "TRUSTED") {
-          setMessage("Your device was trusted. Securing this phone…");
+          setMessage("Your device was trusted. Preparing its local sign-in code…");
           const next = await completeDeviceApproval(pendingDevice);
           const binding: TrustedDeviceBinding = {
             deviceApprovalId: pendingDevice.approvalId,
             deviceProof: pendingDevice.deviceProof,
           };
-          if (disposed) return;
           await Promise.all([
             saveAuthenticatorSession(next),
             saveTrustedDeviceBinding(binding),
             clearPendingDeviceApproval(),
           ]);
-          setSession(next);
-          setTrustedDevice(binding);
+          completedSession = next;
+          completedBinding = binding;
           const enrolledFactor = await enrollAuthenticatorFactor(next);
           if (disposed) return;
+          setSession(next);
+          setTrustedDevice(binding);
           setFactor(enrolledFactor);
           setPendingDevice(null);
           setScreen("home");
           setMessage("This phone is trusted and its local sign-in code is ready.");
-          await Haptics.notificationAsync(
+          void Haptics.notificationAsync(
             Haptics.NotificationFeedbackType.Success,
-          );
+          ).catch(() => undefined);
         } else if (
           [
             "DECLINED",
@@ -703,6 +709,17 @@ export default function App() {
         }
       } catch (error) {
         if (disposed) return;
+        if (completedSession && completedBinding) {
+          setSession(completedSession);
+          setTrustedDevice(completedBinding);
+          setFactor(null);
+          setPendingDevice(null);
+          setScreen("home");
+          setMessage(
+            "This phone is trusted, but its local sign-in code still needs setup. Select Finish secure setup to retry.",
+          );
+          return;
+        }
         if (
           error instanceof IdentityApiError &&
           [404, 409, 410].includes(error.status)
@@ -716,7 +733,7 @@ export default function App() {
           return;
         }
         setMessage(
-          "We are still securing this phone. Keep Authenticator open; it will retry automatically.",
+          "We could not check this device request just yet. Authenticator will retry automatically.",
         );
       } finally {
         completing = false;

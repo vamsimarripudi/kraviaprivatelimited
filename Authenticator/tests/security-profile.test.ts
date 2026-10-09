@@ -83,8 +83,11 @@ describe("KRAVIA Authenticator native security profile", () => {
     expect(appSource).toContain("SecureLoadingScreen");
     expect(appSource).toContain("UnavailableScreen");
     expect(appSource).toContain('current.status === "APPROVED" || current.status === "TRUSTED"');
-    expect(appSource).toContain("Keep Authenticator open; it will retry automatically.");
+    expect(appSource).toContain("This phone is trusted, but its local sign-in code still needs setup.");
+    expect(appSource).toContain("completedSession");
+    expect(appSource).toContain("completedBinding");
     expect(appSource).toContain("setFactor(enrolledFactor);\n          setPendingDevice(null);\n          setScreen(\"home\");");
+    expect(appSource).not.toContain("We are still securing this phone.");
     expect(appSource).not.toContain('label="Return to welcome"');
     expect(appSource).toContain("setInterval(() => setNow(Date.now()), 1_000)");
   });
