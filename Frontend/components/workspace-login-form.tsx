@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { type CSSProperties, FormEvent, useEffect, useState } from "react";
-import { ArrowRight, CheckCircle2, Eye, EyeOff, KeyRound, LoaderCircle, ShieldCheck } from "lucide-react";
+import QRCode from "qrcode";
+import { ArrowRight, CheckCircle2, Eye, EyeOff, KeyRound, LoaderCircle, QrCode, ShieldCheck, Smartphone } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { officeTotpWindow } from "@/lib/office/totp-window";
 import { preferredLandingPath, type OfficeRole, type WorkspaceKind } from "@/lib/office/workspaces";
@@ -31,7 +32,16 @@ type DeviceApprovalResponse = {
   expires_at: string;
   device_label: string;
 };
-type Phase = "password" | "activate" | "verify" | "device-approval" | "success";
+type QrSigninResponse = {
+  request_id?: string;
+  status: "PENDING" | "SCANNED" | "APPROVED" | "REJECTED" | "EXPIRED" | "REVOKED" | "CONSUMED";
+  expires_at?: string;
+  browser_label?: string;
+  qr_payload?: string;
+  verified?: boolean;
+  aal?: "aal2";
+};
+type Phase = "password" | "activate" | "verify" | "qr" | "device-approval" | "success";
 type StatusTone = "info" | "error" | "success";
 
 async function jsonRequest<T>(url: string, body?: unknown): Promise<T> {
@@ -45,6 +55,26 @@ async function jsonRequest<T>(url: string, body?: unknown): Promise<T> {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "Request failed");
   return payload as T;
+}
+
+function QrImage({ value }: { value: string }) {
+  const [dataUrl, setDataUrl] = useState<string>();
+  useEffect(() => {
+    let active = true;
+    void QRCode.toDataURL(value, {
+      errorCorrectionLevel: "M",
+      margin: 2,
+      width: 272,
+      color: { dark: "#10241c", light: "#ffffff" },
+    }).then((next) => {
+      if (active) setDataUrl(next);
+    }).catch(() => {
+      if (active) setDataUrl(undefined);
+    });
+    return () => { active = false; };
+  }, [value]);
+  if (!dataUrl) return <div className={styles.qrLoading} aria-label="Preparing secure sign-in QR code"><LoaderCircle className={styles.spin} /></div>;
+  return <img className={styles.qrImage} src={dataUrl} alt="Scan this one-time QR code only with KRAVIA Authenticator" />;
 }
 
 export function WorkspaceLoginForm({
@@ -69,6 +99,9 @@ export function WorkspaceLoginForm({
   const [codeExpired, setCodeExpired] = useState(false);
   const [deviceApprovalExpiresAt, setDeviceApprovalExpiresAt] = useState<string>();
   const [deviceApprovalLabel, setDeviceApprovalLabel] = useState<string>();
+  const [qrPayload, setQrPayload] = useState<string>();
+  const [qrExpiresAt, setQrExpiresAt] = useState<string>();
+  const [qrBrowserLabel, setQrBrowserLabel] = useState<string>();
   const totp = officeTotpWindow(now);
 
   async function finish(path = destination) {
@@ -77,7 +110,7 @@ export function WorkspaceLoginForm({
   }
 
   useEffect(() => {
-    if (phase !== "verify" && phase !== "device-approval") return;
+    if (phase !== "verify" && phase !== "qr" && phase !== "device-approval") return;
     setNow(Date.now());
     if (phase === "verify") {
       setActiveTotpWindow(officeTotpWindow().index);
@@ -149,6 +182,52 @@ export function WorkspaceLoginForm({
       disposed = true;
       window.clearInterval(interval);
     };
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== "qr") return;
+    let disposed = false;
+    let checking = false;
+    const check = async () => {
+      if (checking || disposed) return;
+      checking = true;
+      try {
+        const approval = await jsonRequest<QrSigninResponse>("/api/office-auth/qr-signin/status", {});
+        if (disposed) return;
+        if (approval.expires_at) setQrExpiresAt(approval.expires_at);
+        if (approval.browser_label) setQrBrowserLabel(approval.browser_label);
+        if (approval.verified === true && approval.aal === "aal2") {
+          setStatus("Authenticator approval confirmed. Opening your authorised workspace…");
+          setStatusTone("success");
+          setPhase("success");
+          return;
+        }
+        if (approval.status === "SCANNED") {
+          setStatus("Authenticator has scanned this request. Confirm the browser details on your trusted phone.");
+          setStatusTone("info");
+        }
+        if (["REJECTED", "EXPIRED", "REVOKED"].includes(approval.status)) {
+          setQrPayload(undefined);
+          setStatus(
+            approval.status === "REJECTED"
+              ? "This browser sign-in was rejected in Authenticator. It has been signed out."
+              : "This QR sign-in request has expired or is no longer available. Start again to use Authenticator approval.",
+          );
+          setStatusTone("error");
+          setPhase("password");
+        }
+      } catch (error) {
+        if (!disposed) {
+          setStatus(error instanceof Error ? error.message : "Unable to check Authenticator approval.");
+          setStatusTone("error");
+        }
+      } finally {
+        checking = false;
+      }
+    };
+    void check();
+    const interval = window.setInterval(() => void check(), 1_500);
+    return () => { disposed = true; window.clearInterval(interval); };
   }, [phase]);
 
   async function prepareMfa(auth: SignInResponse) {
@@ -235,6 +314,41 @@ export function WorkspaceLoginForm({
     }
   }
 
+  async function showAuthenticatorQr() {
+    setIsPending(true);
+    setStatus(undefined);
+    try {
+      const started = await jsonRequest<QrSigninResponse>("/api/office-auth/qr-signin", {});
+      if (!started.qr_payload || !started.expires_at || started.status !== "PENDING") {
+        throw new Error("KRAVIA Office did not create a secure Authenticator request.");
+      }
+      setQrPayload(started.qr_payload);
+      setQrExpiresAt(started.expires_at);
+      setQrBrowserLabel(started.browser_label);
+      setStatus("Open Authenticator, scan this one-time code, then confirm the browser details with your biometrics.");
+      setStatusTone("info");
+      setPhase("qr");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to start Authenticator approval.");
+      setStatusTone("error");
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  async function cancelAuthenticatorQr() {
+    setIsPending(true);
+    try {
+      await jsonRequest<{ cancelled: boolean }>("/api/office-auth/qr-signin/cancel", {});
+    } finally {
+      setQrPayload(undefined);
+      setStatus("Authenticator approval cancelled. You can use your current code instead.");
+      setStatusTone("info");
+      setPhase("verify");
+      setIsPending(false);
+    }
+  }
+
   if (phase === "activate") {
     return (
       <section className={styles.form} aria-labelledby="phone-activation-title">
@@ -244,7 +358,7 @@ export function WorkspaceLoginForm({
         <p className={styles.intro}>
           Authenticator is required for every Office role. Sign in in the app with your corporate credentials, then use the security review sent to your registered email to trust this exact phone.
         </p>
-        <p className={styles.identityNotice}>Phone activation happens only in Authenticator. KRAVIA Office never shows a QR code or setup key in the browser.</p>
+        <p className={styles.identityNotice}>Phone activation happens only in Authenticator. KRAVIA Office never shows a QR code or setup key for device enrollment.</p>
         {status ? <p className={styles.status} data-tone={statusTone} role="status">{status}</p> : null}
         <Link className={styles.primary} href="/office/authenticator">
           Open Authenticator instructions
@@ -308,6 +422,9 @@ export function WorkspaceLoginForm({
           {isPending ? <LoaderCircle className={styles.spin} /> : <ShieldCheck />}
           Verify and continue
         </button>
+        <button className={styles.secondary} type="button" onClick={() => void showAuthenticatorQr()} disabled={isPending}>
+          <QrCode /> Use Authenticator approval instead
+        </button>
         <div className={styles.links}><Link href="/office/authenticator">Authenticator instructions</Link></div>
         <p className={styles.note}>Authenticator generates the code locally on your approved phone. The verification code is never stored by the KRAVIA website.</p>
       </form>
@@ -323,6 +440,31 @@ export function WorkspaceLoginForm({
         <p className={styles.intro}>Your Authenticator code was verified. We’re opening your authorised KRAVIA workspace now.</p>
         {status ? <p className={styles.status} data-tone="success" role="status">{status}</p> : null}
         <div className={styles.successProgress} aria-hidden="true"><span /></div>
+      </section>
+    );
+  }
+
+  if (phase === "qr" && qrPayload) {
+    const expires = qrExpiresAt ? Date.parse(qrExpiresAt) : NaN;
+    const secondsRemaining = Number.isFinite(expires) ? Math.max(0, Math.ceil((expires - now) / 1_000)) : null;
+    return (
+      <section className={`${styles.form} ${styles.qrForm}`} aria-labelledby="qr-approval-title" aria-live="polite">
+        <div className={styles.icon}><Smartphone /></div>
+        <p className={styles.eyebrow}>AUTHENTICATOR APPROVAL</p>
+        <h2 id="qr-approval-title">Confirm on your trusted phone</h2>
+        <p className={styles.intro}>Scan this one-time sign-in code only in KRAVIA Authenticator. The phone will show the browser details before you choose Accept or Reject.</p>
+        <div className={styles.qrPanel}>
+          <QrImage value={qrPayload} />
+        </div>
+        <div className={styles.timer} role="timer" aria-live="polite" aria-label={secondsRemaining === null ? "QR sign-in request active" : `QR sign-in request expires in ${secondsRemaining} seconds`}>
+          <div className={styles.timerRing} style={{ "--timer-progress": `${Math.max(0, Math.min(360, (secondsRemaining ?? 0) * 6))}deg` } as CSSProperties}>
+            <span>{secondsRemaining === null ? "WAIT" : `00:${secondsRemaining.toString().padStart(2, "0")}`}</span>
+          </div>
+          <p>{qrBrowserLabel ? `${qrBrowserLabel} is waiting for your decision.` : "Waiting for your trusted phone."}</p>
+        </div>
+        {status ? <p className={styles.status} data-tone={statusTone} role="status">{status}</p> : null}
+        <button className={styles.secondary} type="button" onClick={() => void cancelAuthenticatorQr()} disabled={isPending}>Cancel Authenticator approval</button>
+        <p className={styles.note}>This QR code expires quickly and cannot sign in a different browser. Never scan it with another app.</p>
       </section>
     );
   }

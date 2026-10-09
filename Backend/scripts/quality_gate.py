@@ -88,6 +88,7 @@ try:
         "owner-scoped browser-device approval contract",
     )
     check("openapi:authenticator-activation", "/api/v1/auth/authenticator/activation-requests" in paths, "approved phone activation contract")
+    check("openapi:authenticator-qr-signin", "/api/v1/auth/qr-signins" in paths and "/api/v1/auth/qr-signins/scan" in paths and "/api/v1/auth/qr-signins/decision" in paths, "password-first QR browser sign-in contract")
     check("openapi:email-otp", "/api/v1/auth/email-otp/challenges" in paths and "/api/v1/auth/email-otp/challenges/{challenge_id}/verify" in paths, "credential-first mobile email verification contract")
     check("openapi:public-form-email", "/api/v1/public-intake/email-acknowledgements" in paths, "signed public-form acknowledgement contract")
     check("openapi:public-follow-up-email", "/api/v1/public-intake/email-follow-ups" in paths, "signed Office follow-up contract")
@@ -268,6 +269,7 @@ v19_migrations = list(migration_dir.glob("*_v19_public_intake_follow_up_deliveri
 v20_migrations = list(migration_dir.glob("*_v20_authenticator_activation_session_purpose.py"))
 v21_merge_migrations = list(migration_dir.glob("*_v21_merge_authenticator_and_public_email_heads.py"))
 v22_migrations = list(migration_dir.glob("*_v22_owner_scoped_login_device_approval.py"))
+v24_migrations = list(migration_dir.glob("*_v24_qr_browser_signin_approvals.py"))
 check("finance-ownership-migration", len(finance_migrations) == 1, finance_migrations[0].name if len(finance_migrations) == 1 else f"found {len(finance_migrations)}")
 check("period-control-migration", len(period_migrations) == 1, period_migrations[0].name if len(period_migrations) == 1 else f"found {len(period_migrations)}")
 check("gst:v11-tax-profile-migration", len(v11_migrations) == 1, v11_migrations[0].name if len(v11_migrations) == 1 else f"found {len(v11_migrations)}")
@@ -282,6 +284,7 @@ check("public-intake:v19-follow-up-delivery-migration", len(v19_migrations) == 1
 check("identity:v20-activation-session-purpose-migration", len(v20_migrations) == 1, v20_migrations[0].name if len(v20_migrations) == 1 else f"found {len(v20_migrations)}")
 check("database:v21-merged-migration-head", len(v21_merge_migrations) == 1, v21_merge_migrations[0].name if len(v21_merge_migrations) == 1 else f"found {len(v21_merge_migrations)}")
 check("identity:v22-owner-device-approval-migration", len(v22_migrations) == 1, v22_migrations[0].name if len(v22_migrations) == 1 else f"found {len(v22_migrations)}")
+check("identity:v24-qr-browser-signin-migration", len(v24_migrations) == 1, v24_migrations[0].name if len(v24_migrations) == 1 else f"found {len(v24_migrations)}")
 
 broker = REPO_ROOT / "Database" / "supabase" / "functions" / "kravia-storage-broker" / "index.ts"
 broker_source = broker.read_text(errors="ignore") if broker.exists() else ""

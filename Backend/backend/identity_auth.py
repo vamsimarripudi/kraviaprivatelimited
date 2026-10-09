@@ -42,6 +42,7 @@ from .auth_models import (
     OfficeAuthUser,
     OfficeEmailOtpChallenge,
     OfficeLoginDeviceApproval,
+    OfficeQrSigninApproval,
 )
 from .database import get_db
 from .email_delivery import (
@@ -75,6 +76,7 @@ EMAIL_OTP_MOBILE_REFRESH_TTL_SECONDS = int(os.getenv("OFFICE_EMAIL_OTP_MOBILE_RE
 DEVICE_APPROVAL_REQUIRED = os.getenv("OFFICE_DEVICE_APPROVAL_REQUIRED", "true").strip().lower() == "true"
 DEVICE_APPROVAL_TTL_SECONDS = int(os.getenv("OFFICE_DEVICE_APPROVAL_TTL_SECONDS", "900"))
 DEVICE_TRUST_TTL_SECONDS = int(os.getenv("OFFICE_DEVICE_TRUST_TTL_SECONDS", str(30 * 24 * 60 * 60)))
+QR_SIGNIN_TTL_SECONDS = int(os.getenv("OFFICE_QR_SIGNIN_TTL_SECONDS", "60"))
 OFFICE_SESSION_PURPOSE = "OFFICE"
 AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE = "AUTHENTICATOR_ACTIVATION"
 
@@ -143,6 +145,25 @@ class DeviceApprovalReviewPayload(BaseModel):
 class DeviceApprovalProofPayload(BaseModel):
     device_id: str = Field(min_length=36, max_length=36)
     device_proof: str = Field(min_length=32, max_length=256)
+
+
+class QrSigninBrowserProofPayload(BaseModel):
+    request_id: str = Field(min_length=36, max_length=36)
+    browser_proof: str = Field(min_length=32, max_length=256)
+
+
+class QrSigninScanPayload(BaseModel):
+    request_id: str = Field(min_length=36, max_length=36)
+    scan_token: str = Field(min_length=32, max_length=256)
+    device_approval_id: str = Field(min_length=36, max_length=36)
+    device_proof: str = Field(min_length=32, max_length=256)
+
+
+class QrSigninDecisionPayload(BaseModel):
+    request_id: str = Field(min_length=36, max_length=36)
+    device_approval_id: str = Field(min_length=36, max_length=36)
+    device_proof: str = Field(min_length=32, max_length=256)
+    decision: Literal["APPROVE", "REJECT"]
 
 
 class AuthenticatorActivationClaimPayload(BaseModel):
@@ -497,6 +518,71 @@ def _known_browser_device(
         approval.status = "EXPIRED"
         return False
     return hmac.compare_digest(approval.device_token_hash, _hash_token(device_proof))
+
+
+def _qr_signin_ttl_seconds() -> int:
+    if QR_SIGNIN_TTL_SECONDS < 30 or QR_SIGNIN_TTL_SECONDS > 300:
+        raise RuntimeError("QR sign-in lifetime must be between 30 seconds and 5 minutes")
+    return QR_SIGNIN_TTL_SECONDS
+
+
+def _expire_qr_signin(approval: OfficeQrSigninApproval, now: datetime) -> bool:
+    if approval.status in {"PENDING", "SCANNED"} and _aware(approval.expires_at) <= now:
+        approval.status = "EXPIRED"
+        return True
+    return False
+
+
+def _qr_signin_status_json(approval: OfficeQrSigninApproval) -> dict[str, Any]:
+    return {
+        "request_id": approval.id,
+        "status": approval.status,
+        "expires_at": _aware(approval.expires_at).isoformat(),
+        "browser_label": approval.browser_label,
+        "source_address": approval.source_ip_address or "Unavailable",
+    }
+
+
+def _qr_signin_from_browser_proof(payload: QrSigninBrowserProofPayload, db: Session) -> OfficeQrSigninApproval:
+    try:
+        request_id = str(uuid.UUID(payload.request_id))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="QR sign-in request was not found") from exc
+    approval = db.execute(
+        select(OfficeQrSigninApproval)
+        .where(OfficeQrSigninApproval.id == request_id)
+        .with_for_update()
+    ).scalar_one_or_none()
+    if not approval or not hmac.compare_digest(approval.browser_proof_hash, _hash_token(payload.browser_proof)):
+        raise HTTPException(status_code=404, detail="QR sign-in request was not found")
+    return approval
+
+
+def _qr_scanner_context(
+    payload: QrSigninScanPayload | QrSigninDecisionPayload,
+    authorization: str | None,
+    db: Session,
+) -> dict[str, Any]:
+    """Authenticate a QR decision to the one mailbox-trusted phone.
+
+    The bounded Authenticator activation session establishes the same account,
+    and the high-entropy device proof prevents an old/replaced handset from
+    acting merely because it still has a valid session token.
+    """
+    context = authenticate_office_access(
+        _bearer_token(authorization),
+        db,
+        require_aal2=True,
+        required_purpose=AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE,
+    )
+    if not _known_browser_device(
+        db,
+        context["user_id"],
+        payload.device_approval_id,
+        payload.device_proof,
+    ):
+        raise HTTPException(status_code=403, detail="This phone is no longer trusted for Authenticator approvals")
+    return context
 
 
 def _create_device_approval(
@@ -1546,6 +1632,256 @@ def build_identity_router() -> APIRouter:
             "session_purpose": AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE,
         }
 
+    @router.post("/qr-signins")
+    def create_qr_signin(
+        request: Request,
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ):
+        """Create a password-first, single-use QR approval for this browser.
+
+        The returned scan capability is deliberately insufficient to sign in:
+        it has no browser proof and can only be accepted by the same user's
+        already trusted Authenticator phone.
+        """
+        context = authenticate_office_access(_bearer_token(authorization), db, require_aal2=False)
+        session = db.get(OfficeAuthSession, context["session_id"])
+        user = db.get(OfficeAuthUser, context["user_id"])
+        if not session or not user or session.purpose != OFFICE_SESSION_PURPOSE or session.aal != "aal1":
+            raise HTTPException(status_code=409, detail="Start a new password sign-in before using Authenticator approval")
+        if not user.mfa_secret_ciphertext:
+            raise HTTPException(status_code=409, detail="Authenticator enrollment is required")
+
+        now = _now()
+        # A newly shown QR replaces any still-pending QR for this exact
+        # password session.  This bounds the number of live scan capabilities.
+        prior = db.execute(
+            select(OfficeQrSigninApproval)
+            .where(
+                OfficeQrSigninApproval.session_id == session.id,
+                OfficeQrSigninApproval.status.in_(["PENDING", "SCANNED"]),
+            )
+            .with_for_update()
+        ).scalars().all()
+        for item in prior:
+            item.status = "REVOKED"
+
+        try:
+            expires_at = now + timedelta(seconds=_qr_signin_ttl_seconds())
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail="QR sign-in lifetime is not configured") from exc
+        browser_proof = secrets.token_urlsafe(48)
+        scan_token = secrets.token_urlsafe(48)
+        source_ip, user_agent_hash = _request_metadata(request)
+        approval = OfficeQrSigninApproval(
+            id=str(uuid.uuid4()),
+            user_id=user.id,
+            session_id=session.id,
+            browser_proof_hash=_hash_token(browser_proof),
+            scan_token_hash=_hash_token(scan_token),
+            status="PENDING",
+            source_ip_address=source_ip,
+            user_agent_hash=user_agent_hash,
+            browser_label=_device_label(request),
+            expires_at=expires_at,
+        )
+        db.add(approval)
+        db.flush()
+        _event(
+            db,
+            "QR_SIGNIN_CREATED",
+            request,
+            user_id=user.id,
+            session_id=session.id,
+            metadata={"request_id": approval.id, "browser_label": approval.browser_label},
+        )
+        db.commit()
+        return {
+            "request_id": approval.id,
+            "browser_proof": browser_proof,
+            "scan_token": scan_token,
+            "expires_at": approval.expires_at.isoformat(),
+            "browser_label": approval.browser_label,
+        }
+
+    @router.post("/qr-signins/status")
+    def qr_signin_status(
+        payload: QrSigninBrowserProofPayload,
+        request: Request,
+        db: Session = Depends(get_db),
+    ):
+        """Read the state only for the browser that generated the QR code."""
+        approval = _qr_signin_from_browser_proof(payload, db)
+        now = _now()
+        if _expire_qr_signin(approval, now):
+            _event(db, "QR_SIGNIN_EXPIRED", request, user_id=approval.user_id, session_id=approval.session_id, metadata={"request_id": approval.id})
+            db.commit()
+        return _qr_signin_status_json(approval)
+
+    @router.post("/qr-signins/cancel")
+    def cancel_qr_signin(
+        payload: QrSigninBrowserProofPayload,
+        request: Request,
+        db: Session = Depends(get_db),
+    ):
+        approval = _qr_signin_from_browser_proof(payload, db)
+        if approval.status in {"PENDING", "SCANNED"}:
+            approval.status = "REVOKED"
+            _event(db, "QR_SIGNIN_CANCELLED", request, user_id=approval.user_id, session_id=approval.session_id, metadata={"request_id": approval.id})
+            db.commit()
+        return {"cancelled": True, **_qr_signin_status_json(approval)}
+
+    @router.post("/qr-signins/scan")
+    def scan_qr_signin(
+        payload: QrSigninScanPayload,
+        request: Request,
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ):
+        """Bind a scanned QR to the one trusted Authenticator phone.
+
+        This does not complete browser MFA.  The phone must still present the
+        exact browser facts to its user and receive an explicit biometric-backed
+        Accept or Reject command.
+        """
+        scanner = _qr_scanner_context(payload, authorization, db)
+        try:
+            request_id = str(uuid.UUID(payload.request_id))
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail="QR sign-in request was not found") from exc
+        approval = db.execute(
+            select(OfficeQrSigninApproval)
+            .where(OfficeQrSigninApproval.id == request_id)
+            .with_for_update()
+        ).scalar_one_or_none()
+        if not approval or not hmac.compare_digest(approval.scan_token_hash, _hash_token(payload.scan_token)):
+            raise HTTPException(status_code=404, detail="QR sign-in request was not found")
+        now = _now()
+        if _expire_qr_signin(approval, now):
+            _event(db, "QR_SIGNIN_EXPIRED", request, user_id=approval.user_id, session_id=approval.session_id, metadata={"request_id": approval.id})
+            db.commit()
+            raise HTTPException(status_code=410, detail="This QR sign-in request has expired")
+        if approval.user_id != scanner["user_id"]:
+            raise HTTPException(status_code=404, detail="QR sign-in request was not found")
+        browser_session = db.get(OfficeAuthSession, approval.session_id)
+        if not browser_session or browser_session.status != "ACTIVE" or browser_session.aal != "aal1" or browser_session.purpose != OFFICE_SESSION_PURPOSE:
+            approval.status = "REVOKED"
+            db.commit()
+            raise HTTPException(status_code=409, detail="This browser sign-in is no longer available")
+        if approval.status != "PENDING":
+            raise HTTPException(status_code=409, detail="This QR sign-in request has already been used")
+        approval.status = "SCANNED"
+        approval.scanned_by_device_id = payload.device_approval_id
+        approval.scanned_at = now
+        _event(
+            db,
+            "QR_SIGNIN_SCANNED",
+            request,
+            user_id=approval.user_id,
+            session_id=approval.session_id,
+            metadata={"request_id": approval.id, "trusted_device_id": payload.device_approval_id},
+        )
+        db.commit()
+        return _qr_signin_status_json(approval)
+
+    @router.post("/qr-signins/decision")
+    def decide_qr_signin(
+        payload: QrSigninDecisionPayload,
+        request: Request,
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ):
+        """Record the Authenticator user's explicit device-local decision."""
+        scanner = _qr_scanner_context(payload, authorization, db)
+        try:
+            request_id = str(uuid.UUID(payload.request_id))
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail="QR sign-in request was not found") from exc
+        approval = db.execute(
+            select(OfficeQrSigninApproval)
+            .where(OfficeQrSigninApproval.id == request_id)
+            .with_for_update()
+        ).scalar_one_or_none()
+        if not approval or approval.user_id != scanner["user_id"]:
+            raise HTTPException(status_code=404, detail="QR sign-in request was not found")
+        now = _now()
+        if _expire_qr_signin(approval, now):
+            _event(db, "QR_SIGNIN_EXPIRED", request, user_id=approval.user_id, session_id=approval.session_id, metadata={"request_id": approval.id})
+            db.commit()
+            raise HTTPException(status_code=410, detail="This QR sign-in request has expired")
+        if approval.status != "SCANNED" or approval.scanned_by_device_id != payload.device_approval_id:
+            raise HTTPException(status_code=409, detail="This QR sign-in request cannot be decided by this phone")
+        if payload.decision == "APPROVE":
+            approval.status = "APPROVED"
+            approval.approved_at = now
+            event_type = "QR_SIGNIN_APPROVED"
+        else:
+            approval.status = "REJECTED"
+            approval.rejected_at = now
+            browser_session = db.get(OfficeAuthSession, approval.session_id)
+            if browser_session and browser_session.status == "ACTIVE" and browser_session.aal == "aal1":
+                browser_session.status = "REVOKED"
+                browser_session.revoked_at = now
+            event_type = "QR_SIGNIN_REJECTED"
+        _event(
+            db,
+            event_type,
+            request,
+            user_id=approval.user_id,
+            session_id=approval.session_id,
+            metadata={"request_id": approval.id, "trusted_device_id": payload.device_approval_id},
+        )
+        db.commit()
+        return {"decided": True, **_qr_signin_status_json(approval)}
+
+    @router.post("/qr-signins/complete")
+    def complete_qr_signin(
+        payload: QrSigninBrowserProofPayload,
+        request: Request,
+        db: Session = Depends(get_db),
+    ):
+        """Promote exactly the original browser's password session to AAL2."""
+        approval = _qr_signin_from_browser_proof(payload, db)
+        now = _now()
+        if _expire_qr_signin(approval, now):
+            _event(db, "QR_SIGNIN_EXPIRED", request, user_id=approval.user_id, session_id=approval.session_id, metadata={"request_id": approval.id})
+            db.commit()
+            raise HTTPException(status_code=410, detail="This QR sign-in request has expired")
+        session = db.get(OfficeAuthSession, approval.session_id)
+        user = db.execute(select(OfficeAuthUser).where(OfficeAuthUser.id == approval.user_id).with_for_update()).scalar_one_or_none()
+        if approval.status == "CONSUMED":
+            if not session or not user or session.status != "ACTIVE" or session.aal != "aal2":
+                raise HTTPException(status_code=409, detail="This QR sign-in session can no longer be recovered")
+            return _session_response(db, user, session)
+        if approval.status != "APPROVED":
+            raise HTTPException(status_code=409, detail="Authenticator approval is still required")
+        if not session or not user or session.status != "ACTIVE" or session.aal != "aal1" or session.purpose != OFFICE_SESSION_PURPOSE:
+            approval.status = "REVOKED"
+            db.commit()
+            raise HTTPException(status_code=409, detail="This browser sign-in is no longer available")
+        if user.status != "ACTIVE" or _identity_status(db, user) != "ACTIVE" or not _active_roles(db, user.id):
+            session.status = "REVOKED"
+            session.revoked_at = now
+            approval.status = "REVOKED"
+            db.commit()
+            raise HTTPException(status_code=403, detail="KRAVIA Office access is not active")
+        session.aal = "aal2"
+        session.last_seen_at = now
+        approval.status = "CONSUMED"
+        approval.consumed_at = now
+        user.mfa_verified_at = user.mfa_verified_at or now
+        _event(
+            db,
+            "QR_SIGNIN_COMPLETED",
+            request,
+            user_id=user.id,
+            session_id=session.id,
+            metadata={"request_id": approval.id, "trusted_device_id": approval.scanned_by_device_id},
+        )
+        response = _session_response(db, user, session)
+        db.commit()
+        return response
+
     @router.post("/authenticator/activation-requests")
     def request_authenticator_activation(
         request: Request,
@@ -2262,15 +2598,52 @@ def build_identity_router() -> APIRouter:
             _event(db, "DEVICE_APPROVAL_EXPIRED", request, user_id=approval.user_id, session_id=approval.session_id)
             db.commit()
             raise HTTPException(status_code=410, detail="Device approval request has expired")
-        if approval.status != "APPROVED":
-            raise HTTPException(status_code=409, detail="This device has not been approved")
         session = db.get(OfficeAuthSession, approval.session_id)
-        # Serialise completion per identity.  This is deliberately stronger
-        # than a client-side "one device" check: concurrent email approvals
-        # cannot leave two trusted devices active for the same account.
         user = db.execute(
             select(OfficeAuthUser).where(OfficeAuthUser.id == approval.user_id).with_for_update()
         ).scalar_one_or_none()
+
+        # A mobile connection can be interrupted after this endpoint commits
+        # but before the response reaches the phone.  The request has then
+        # become TRUSTED server-side, while the device has no refresh token to
+        # persist locally.  The high-entropy device proof is bound to this
+        # exact device and is held in native secure storage, so it may safely
+        # recover a fresh scoped session without asking the user to repeat
+        # credentials, email OTP, or the mailbox Trust decision.
+        if approval.status == "TRUSTED":
+            if (
+                not session
+                or not user
+                or session.status != "ACTIVE"
+                or session.aal != "aal2"
+                or _aware(session.expires_at) <= now
+                or not approval.trusted_until
+                or _aware(approval.trusted_until) <= now
+            ):
+                raise HTTPException(status_code=409, detail="This trusted-device session can no longer be recovered")
+            if user.status != "ACTIVE" or _identity_status(db, user) != "ACTIVE" or not _active_roles(db, user.id):
+                raise HTTPException(status_code=403, detail="KRAVIA Office access is not active")
+            refresh_token = secrets.token_urlsafe(48)
+            session.refresh_token_hash = _hash_token(refresh_token)
+            session.last_seen_at = now
+            _event(
+                db,
+                "DEVICE_APPROVAL_COMPLETION_RECOVERED",
+                request,
+                user_id=user.id,
+                session_id=session.id,
+                metadata={"approval_id": approval.id, "device_label": approval.device_label},
+            )
+            response = _session_response(db, user, session)
+            response["refresh_token"] = refresh_token
+            db.commit()
+            return response
+
+        if approval.status != "APPROVED":
+            raise HTTPException(status_code=409, detail="This device has not been approved")
+        # Serialise completion per identity.  This is deliberately stronger
+        # than a client-side "one device" check: concurrent email approvals
+        # cannot leave two trusted devices active for the same account.
         if not session or not user or session.status != "PENDING_DEVICE_APPROVAL" or session.aal != "aal2":
             raise HTTPException(status_code=409, detail="Device approval can no longer be completed")
         if user.status != "ACTIVE" or _identity_status(db, user) != "ACTIVE" or not _active_roles(db, user.id):

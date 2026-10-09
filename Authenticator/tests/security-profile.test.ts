@@ -37,10 +37,10 @@ describe("KRAVIA Authenticator native security profile", () => {
     expect(app.expo.updates.enabled).toBe(false);
     expect(app.expo.android.permissions).toContain("android.permission.INTERNET");
     expect(app.expo.android.permissions).toContain("android.permission.USE_BIOMETRIC");
-    expect(app.expo.android.permissions).not.toContain("android.permission.CAMERA");
+    expect(app.expo.android.permissions).toContain("android.permission.CAMERA");
     expect(app.expo.android.permissions).not.toContain("android.permission.RECORD_AUDIO");
     expect(app.expo.android.blockedPermissions).toContain("android.permission.RECORD_AUDIO");
-    expect(app.expo.extra.networkModel).toBe("EMAIL_OTP_TRUSTED_DEVICE");
+    expect(app.expo.extra.networkModel).toBe("EMAIL_OTP_TRUSTED_DEVICE_QR_SIGN_IN");
     expect(app.expo.extra.otpClipboard).toBe("DISABLED");
   });
 
@@ -51,7 +51,7 @@ describe("KRAVIA Authenticator native security profile", () => {
     expect(pkg.dependencies["@noble/hashes"]).toBe("2.4.0");
     expect(pkg.dependencies["expo-file-system"]).toBe("~57.0.7");
     expect(pkg.dependencies["expo-local-authentication"]).toBe("~57.0.3");
-    expect(pkg.dependencies["expo-camera"]).toBeUndefined();
+    expect(pkg.dependencies["expo-camera"]).toBe("~57.0.6");
     expect(pkg.dependencies["expo-clipboard"]).toBeUndefined();
   });
 
@@ -71,7 +71,7 @@ describe("KRAVIA Authenticator native security profile", () => {
     expect(securitySource).not.toContain('Use device passcode');
     expect(appSource).toContain('state === "background"');
     expect(appSource).toContain('if (state === "background")');
-    expect(appSource).toContain('if (screen === "home") setScreen("locked")');
+    expect(appSource).toContain('["home", "scan", "qr-review", "settings"].includes(screen)');
     expect(appSource).toContain("usePreventScreenCapture(\"authenticator\")");
     expect(appSource).toContain("enableAppSwitcherProtectionAsync");
     expect(appSource).toContain("Security centre");
@@ -82,6 +82,9 @@ describe("KRAVIA Authenticator native security profile", () => {
     expect(appSource).toContain("Authenticator v{APP_VERSION}");
     expect(appSource).toContain("SecureLoadingScreen");
     expect(appSource).toContain("UnavailableScreen");
+    expect(appSource).toContain('current.status === "APPROVED" || current.status === "TRUSTED"');
+    expect(appSource).toContain("Keep Authenticator open; it will retry automatically.");
+    expect(appSource).toContain("setFactor(enrolledFactor);\n          setPendingDevice(null);\n          setScreen(\"home\");");
     expect(appSource).not.toContain('label="Return to welcome"');
     expect(appSource).toContain("setInterval(() => setNow(Date.now()), 1_000)");
   });
@@ -100,14 +103,17 @@ describe("KRAVIA Authenticator native security profile", () => {
     expect(appSource).toContain("One trusted phone");
   });
 
-  it("has no QR, camera, setup-key, manual-enrollment, or clipboard-export surface", () => {
+  it("limits camera use to short-lived browser sign-in approval, not factor enrollment", () => {
     expect(appSource).toContain("security review");
-    expect(appSource).not.toContain("Check decision");
-    expect(appSource).not.toContain("Cancel this sign-in");
-    expect(appSource).not.toContain("generateTotp");
-    expect(appSource).not.toContain("CameraView");
-    expect(appSource).not.toContain("setup key");
-    expect(appSource).not.toContain("QR code");
+    expect(appSource).toContain("CameraView");
+    expect(appSource).toContain('barcodeTypes: ["qr"]');
+    expect(appSource).toContain("parseQrSigninPayload");
+    expect(appSource).toContain("Accept sign-in");
+    expect(appSource).toContain("Reject sign-in");
+    expect(appSource).toContain("Approve browser sign-in");
+    expect(appSource).toContain("No QR enrollment or setup key is supported.");
+    expect(appSource).not.toContain("Enter code manually");
+    expect(appSource).not.toContain("Enter setup key");
     expect(appSource).not.toContain("Clipboard.setString");
     expect(appSource).not.toContain("Clipboard.getString");
   });

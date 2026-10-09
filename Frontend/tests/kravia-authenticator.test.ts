@@ -64,29 +64,31 @@ describe("KRAVIA Authenticator verified-device boundary", () => {
     expect(login).toContain("device-approval/status");
   });
 
-  it("has no QR, setup-key, camera, clipboard, or manual-TOTP enrollment surface", () => {
+  it("limits QR and camera use to trusted-device browser approval, never enrollment", () => {
     expect(app).toContain("Enter your registered corporate email and password.");
     expect(app).toContain("Enter your code");
     expect(app).toContain("usePreventScreenCapture");
     expect(app).toContain("enableAppSwitcherProtectionAsync");
-    expect(app).not.toContain("CameraView");
-    expect(app).not.toContain("setup key");
-    expect(app).not.toContain("QR code");
-    expect(app).toContain("No scan · protected registration · no copied login code");
+    expect(app).toContain("CameraView");
+    expect(app).toContain('barcodeTypes: ["qr"]');
+    expect(app).toContain("Accept sign-in");
+    expect(app).toContain("Reject sign-in");
+    expect(app).toContain("No QR enrollment or setup key is supported.");
+    expect(app).not.toContain("Enter setup key");
     expect(app).not.toContain("manual account");
     expect(app).not.toContain("Clipboard.setString");
-    expect(packageJson).not.toContain('"expo-camera"');
+    expect(packageJson).toContain('"expo-camera"');
     expect(packageJson).not.toContain('"expo-clipboard"');
   });
 
-  it("ships a native Android/iOS Expo app with only the required network permission", () => {
+  it("ships a native Android/iOS Expo app with scoped camera and network permissions", () => {
     expect(packageJson).toContain('"expo": "~57.0.27"');
     expect(packageJson).toContain('"expo-secure-store"');
     expect(appJson).toContain('"android.permission.INTERNET"');
-    expect(appConfig.expo.android.permissions).not.toContain("android.permission.CAMERA");
+    expect(appConfig.expo.android.permissions).toContain("android.permission.CAMERA");
     expect(appConfig.expo.android.permissions).not.toContain("android.permission.RECORD_AUDIO");
     expect(appConfig.expo.android.blockedPermissions).toContain("android.permission.RECORD_AUDIO");
-    expect(appJson).toContain('"EMAIL_OTP_TRUSTED_DEVICE"');
+    expect(appJson).toContain('"EMAIL_OTP_TRUSTED_DEVICE_QR_SIGN_IN"');
     expect(appJson).toContain('"allowBackup": false');
     expect(app).toContain("TimerCircle");
   });

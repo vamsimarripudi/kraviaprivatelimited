@@ -18,7 +18,7 @@ This is account-owner scoped. No OWNER, ADMIN, DIRECTOR, or other organisational
 
 ## Approved phone activation
 
-There is no QR enrollment, setup key, seed export, cloud backup, or seed-sharing path.
+There is no QR enrollment, setup key, seed export, cloud backup, or seed-sharing path. A separate short-lived QR may be shown only after a password-first browser sign-in so an already trusted, biometrically unlocked KRAVIA Authenticator can approve or reject that exact browser. It is never an enrollment or seed-transfer channel.
 
 1. A user enters their corporate email and password in Authenticator, then proves access to that registered mailbox with a one-time six-digit email code.
 2. FastAPI issues an AAL2 `AUTHENTICATOR_ACTIVATION` session for 30 days. It is a secure, device-held capability for this workflow only: it cannot read Office data or become an Office browser session.

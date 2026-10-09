@@ -75,6 +75,26 @@ type EnrollmentResponse = {
   period: 30;
   enrolled_at: string;
 };
+type QrSigninStatusResponse = {
+  request_id: string;
+  status: "PENDING" | "SCANNED" | "APPROVED" | "REJECTED" | "EXPIRED" | "REVOKED" | "CONSUMED";
+  expires_at: string;
+  browser_label: string;
+  source_address: string;
+};
+
+export type ParsedQrSignin = {
+  requestId: string;
+  scanToken: string;
+};
+
+export type QrSigninApproval = {
+  requestId: string;
+  status: "SCANNED" | "APPROVED" | "REJECTED";
+  expiresAt: string;
+  browserLabel: string;
+  sourceAddress: string;
+};
 
 function apiUrl(path: string) {
   const origin = process.env.EXPO_PUBLIC_OFFICE_API_ORIGIN?.trim();
@@ -190,6 +210,33 @@ function toSession(
   };
 }
 
+function toQrSigninApproval(result: QrSigninStatusResponse, expectedRequestId: string): QrSigninApproval {
+  const statuses = new Set(["SCANNED", "APPROVED", "REJECTED"]);
+  if (
+    !validId(result.request_id) || result.request_id !== expectedRequestId ||
+    !statuses.has(result.status) || !Number.isFinite(Date.parse(result.expires_at)) ||
+    typeof result.browser_label !== "string" || !result.browser_label.trim() ||
+    typeof result.source_address !== "string" || !result.source_address.trim()
+  ) {
+    throw new Error("The identity service returned an invalid QR sign-in request.");
+  }
+  return {
+    requestId: result.request_id,
+    status: result.status as QrSigninApproval["status"],
+    expiresAt: result.expires_at,
+    browserLabel: result.browser_label,
+    sourceAddress: result.source_address,
+  };
+}
+
+export function parseQrSigninPayload(value: string): ParsedQrSignin {
+  const match = /^kraviaauth:\/\/signin\?request=([0-9a-f-]{36})&token=([A-Za-z0-9_-]{32,})$/i.exec(value.trim());
+  if (!match || !validId(match[1]) || !validSecret(match[2])) {
+    throw new Error("This is not a KRAVIA Office sign-in QR code.");
+  }
+  return { requestId: match[1].toLowerCase(), scanToken: match[2] };
+}
+
 function toPending(result: PendingResponse): PendingDeviceApproval {
   if (
     !validId(result.device_approval_id) ||
@@ -301,6 +348,58 @@ export async function completeDeviceApproval(pending: PendingDeviceApproval) {
       deviceApprovalId: pending.approvalId,
       deviceProof: pending.deviceProof,
     },
+  );
+}
+
+export async function refreshAuthenticatorSession(session: AuthenticatorDeviceSession) {
+  const refreshed = toSession(
+    await requestJson<ActiveSessionResponse>("/api/v1/auth/refresh", {
+      refresh_token: session.refreshToken,
+    }),
+    session,
+  );
+  if (refreshed.email !== session.email) {
+    throw new Error("The identity service returned a session for a different account.");
+  }
+  return refreshed;
+}
+
+export async function scanQrSignin(
+  session: AuthenticatorDeviceSession,
+  request: ParsedQrSignin,
+): Promise<QrSigninApproval> {
+  return toQrSigninApproval(
+    await requestJson<QrSigninStatusResponse>(
+      "/api/v1/auth/qr-signins/scan",
+      {
+        request_id: request.requestId,
+        scan_token: request.scanToken,
+        device_approval_id: session.deviceApprovalId,
+        device_proof: session.deviceProof,
+      },
+      session.accessToken,
+    ),
+    request.requestId,
+  );
+}
+
+export async function decideQrSignin(
+  session: AuthenticatorDeviceSession,
+  approval: QrSigninApproval,
+  decision: "APPROVE" | "REJECT",
+): Promise<QrSigninApproval> {
+  return toQrSigninApproval(
+    await requestJson<QrSigninStatusResponse>(
+      "/api/v1/auth/qr-signins/decision",
+      {
+        request_id: approval.requestId,
+        device_approval_id: session.deviceApprovalId,
+        device_proof: session.deviceProof,
+        decision,
+      },
+      session.accessToken,
+    ),
+    approval.requestId,
   );
 }
 

@@ -9,11 +9,13 @@ export const OFFICE_ACCESS_COOKIE = "kravia_office_access";
 export const OFFICE_REFRESH_COOKIE = "kravia_office_refresh";
 export const OFFICE_LOGIN_DEVICE_COOKIE = "kravia_office_login_device";
 export const OFFICE_DEVICE_ACTION_COOKIE = "kravia_office_device_action";
+export const OFFICE_QR_SIGNIN_COOKIE = "kravia_office_qr_signin";
 
 const ACCESS_COOKIE_MAX_AGE_SECONDS = 60 * 60;
 const REFRESH_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 const DEVICE_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 const PENDING_DEVICE_COOKIE_MAX_AGE_SECONDS = 60 * 60;
+const PENDING_QR_SIGNIN_COOKIE_MAX_AGE_SECONDS = 5 * 60;
 
 export type OfficeIdentity = {
   userId: string;
@@ -70,6 +72,19 @@ export type PendingOfficeDeviceApproval = {
 };
 
 type OfficeLoginDeviceProof = { approvalId: string; proof: string };
+type OfficeQrSigninProof = { requestId: string; proof: string };
+
+export type PendingOfficeQrSignin = {
+  requestId: string;
+  status: "PENDING" | "SCANNED" | "APPROVED" | "REJECTED" | "EXPIRED" | "REVOKED" | "CONSUMED";
+  expiresAt: string;
+  browserLabel: string;
+  sourceAddress: string;
+};
+
+export type StartedOfficeQrSignin = PendingOfficeQrSignin & {
+  qrPayload: string;
+};
 
 type FirstPartyAuthResponse = {
   authenticated: boolean;
@@ -215,6 +230,16 @@ function parseLoginDeviceCookie(value: string | undefined): OfficeLoginDevicePro
   return { approvalId, proof };
 }
 
+function parseQrSigninCookie(value: string | undefined): OfficeQrSigninProof | null {
+  if (!value) return null;
+  const separator = value.indexOf(".");
+  if (separator <= 0) return null;
+  const requestId = value.slice(0, separator);
+  const proof = value.slice(separator + 1);
+  if (!/^[0-9a-f-]{36}$/i.test(requestId) || !/^[A-Za-z0-9_-]{32,}$/.test(proof)) return null;
+  return { requestId, proof };
+}
+
 async function writeOfficeLoginDeviceCookie(device: OfficeLoginDeviceProof, pending: boolean) {
   const store = await cookies();
   store.set(OFFICE_LOGIN_DEVICE_COOKIE, `${device.approvalId}.${device.proof}`, {
@@ -237,9 +262,36 @@ export async function clearOfficeLoginDeviceCookie() {
   });
 }
 
+async function writeOfficeQrSigninCookie(proof: OfficeQrSigninProof) {
+  const store = await cookies();
+  store.set(OFFICE_QR_SIGNIN_COOKIE, `${proof.requestId}.${proof.proof}`, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    path: "/",
+    maxAge: PENDING_QR_SIGNIN_COOKIE_MAX_AGE_SECONDS,
+  });
+}
+
+export async function clearOfficeQrSigninCookie() {
+  const store = await cookies();
+  store.set(OFFICE_QR_SIGNIN_COOKIE, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    path: "/",
+    maxAge: 0,
+  });
+}
+
 async function currentOfficeLoginDeviceProof() {
   const store = await cookies();
   return parseLoginDeviceCookie(store.get(OFFICE_LOGIN_DEVICE_COOKIE)?.value);
+}
+
+async function currentOfficeQrSigninProof() {
+  const store = await cookies();
+  return parseQrSigninCookie(store.get(OFFICE_QR_SIGNIN_COOKIE)?.value);
 }
 
 async function contextFromPayload(payload: FirstPartyAuthResponse): Promise<OfficeSessionContext> {
@@ -398,6 +450,108 @@ export async function verifyOfficeMfa(context: OfficeSessionContext, code: strin
   };
   await writeOfficeSessionCookies(next.session);
   return { kind: "active" as const, context: next };
+}
+
+function toPendingQrSignin(payload: {
+  request_id?: unknown;
+  status?: unknown;
+  expires_at?: unknown;
+  browser_label?: unknown;
+  source_address?: unknown;
+}): PendingOfficeQrSignin {
+  const statuses = new Set(["PENDING", "SCANNED", "APPROVED", "REJECTED", "EXPIRED", "REVOKED", "CONSUMED"]);
+  if (
+    typeof payload.request_id !== "string" || !/^[0-9a-f-]{36}$/i.test(payload.request_id) ||
+    typeof payload.status !== "string" || !statuses.has(payload.status) ||
+    typeof payload.expires_at !== "string" || !Number.isFinite(Date.parse(payload.expires_at)) ||
+    typeof payload.browser_label !== "string" || !payload.browser_label.trim() ||
+    typeof payload.source_address !== "string" || !payload.source_address.trim()
+  ) {
+    throw new Error("KRAVIA Office returned an invalid Authenticator approval request");
+  }
+  return {
+    requestId: payload.request_id,
+    status: payload.status as PendingOfficeQrSignin["status"],
+    expiresAt: payload.expires_at,
+    browserLabel: payload.browser_label,
+    sourceAddress: payload.source_address,
+  };
+}
+
+export async function startOfficeQrSignin(context: OfficeSessionContext): Promise<StartedOfficeQrSignin> {
+  if (context.identity.aal !== "aal1" || context.mfa.enrolled !== true) {
+    throw new OfficeApiError(409, "Authenticator approval is not available for this Office session");
+  }
+  const response = await rawApi("/api/v1/auth/qr-signins", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${context.session.access_token}` },
+  });
+  const payload = await parseOrThrow<{
+    request_id?: unknown;
+    browser_proof?: unknown;
+    scan_token?: unknown;
+    expires_at?: unknown;
+    browser_label?: unknown;
+  }>(response);
+  if (
+    typeof payload.request_id !== "string" || !/^[0-9a-f-]{36}$/i.test(payload.request_id) ||
+    typeof payload.browser_proof !== "string" || !/^[A-Za-z0-9_-]{32,}$/.test(payload.browser_proof) ||
+    typeof payload.scan_token !== "string" || !/^[A-Za-z0-9_-]{32,}$/.test(payload.scan_token) ||
+    typeof payload.expires_at !== "string" || !Number.isFinite(Date.parse(payload.expires_at)) ||
+    typeof payload.browser_label !== "string" || !payload.browser_label.trim()
+  ) {
+    throw new Error("KRAVIA Office returned an invalid Authenticator QR request");
+  }
+  await writeOfficeQrSigninCookie({ requestId: payload.request_id, proof: payload.browser_proof });
+  return {
+    requestId: payload.request_id,
+    status: "PENDING",
+    expiresAt: payload.expires_at,
+    browserLabel: payload.browser_label,
+    sourceAddress: "Unavailable",
+    qrPayload: `kraviaauth://signin?request=${encodeURIComponent(payload.request_id)}&token=${encodeURIComponent(payload.scan_token)}`,
+  };
+}
+
+export async function getPendingOfficeQrSignin() {
+  const proof = await currentOfficeQrSigninProof();
+  if (!proof) throw new OfficeApiError(401, "Authenticator QR approval is not available in this browser");
+  const response = await rawApi("/api/v1/auth/qr-signins/status", {
+    method: "POST",
+    body: JSON.stringify({ request_id: proof.requestId, browser_proof: proof.proof }),
+  });
+  return toPendingQrSignin(await parseOrThrow(response));
+}
+
+export async function completePendingOfficeQrSignin() {
+  const proof = await currentOfficeQrSigninProof();
+  if (!proof) throw new OfficeApiError(401, "Authenticator QR approval is not available in this browser");
+  const response = await rawApi("/api/v1/auth/qr-signins/complete", {
+    method: "POST",
+    body: JSON.stringify({ request_id: proof.requestId, browser_proof: proof.proof }),
+  });
+  const payload = await parseOrThrow<FirstPartyAuthResponse>(response);
+  if (!payload.access_token || payload.aal !== "aal2") throw new Error("KRAVIA Office did not complete Authenticator approval");
+  const context = await contextFromPayload(payload);
+  await writeOfficeSessionCookies({
+    access_token: context.session.access_token,
+    expires_in: context.session.expires_in,
+  });
+  await clearOfficeQrSigninCookie();
+  return context;
+}
+
+export async function cancelPendingOfficeQrSignin() {
+  const proof = await currentOfficeQrSigninProof();
+  if (!proof) return;
+  try {
+    await rawApi("/api/v1/auth/qr-signins/cancel", {
+      method: "POST",
+      body: JSON.stringify({ request_id: proof.requestId, browser_proof: proof.proof }),
+    });
+  } finally {
+    await clearOfficeQrSigninCookie();
+  }
 }
 
 function toPendingApproval(payload: { approval_id?: unknown; status?: unknown; expires_at?: unknown; device_label?: unknown }): PendingOfficeDeviceApproval {

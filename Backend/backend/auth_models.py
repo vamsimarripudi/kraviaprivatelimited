@@ -105,6 +105,42 @@ class OfficeLoginDeviceApproval(Base):
     )
 
 
+class OfficeQrSigninApproval(Base):
+    """A short-lived Authenticator approval for one existing browser session.
+
+    The QR payload is deliberately not an Office bearer credential.  It carries
+    only a single-use scan capability, while a separate browser proof remains
+    in an HttpOnly cookie on the browser that started the password sign-in.
+    A trusted mobile-device proof and a fresh on-device biometric check are
+    required before this row can move to ``APPROVED``.
+    """
+
+    __tablename__ = "office_qr_signin_approvals"
+
+    id = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey("office_auth_users.id", ondelete="CASCADE"), nullable=False)
+    session_id = Column(String(36), ForeignKey("office_auth_sessions_v2.id", ondelete="CASCADE"), nullable=False)
+    browser_proof_hash = Column(String(64), nullable=False, unique=True)
+    scan_token_hash = Column(String(64), nullable=False, unique=True)
+    status = Column(String(24), nullable=False, default="PENDING")
+    source_ip_address = Column(String(64), nullable=True)
+    user_agent_hash = Column(String(64), nullable=True)
+    browser_label = Column(String(160), nullable=False)
+    scanned_by_device_id = Column(String(36), ForeignKey("office_login_device_approvals.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    scanned_at = Column(DateTime(timezone=True), nullable=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    rejected_at = Column(DateTime(timezone=True), nullable=True)
+    consumed_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_office_qr_signin_approvals_user_status", "user_id", "status"),
+        Index("ix_office_qr_signin_approvals_session_status", "session_id", "status"),
+        Index("ix_office_qr_signin_approvals_status_expires", "status", "expires_at"),
+    )
+
+
 class OfficeAuthInvite(Base):
     __tablename__ = "office_auth_invites"
 

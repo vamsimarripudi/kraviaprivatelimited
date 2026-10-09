@@ -93,8 +93,8 @@ jobs:
           fi
           grep -q 'android:allowBackup="false"' "$manifest"
           grep -q 'android.permission.INTERNET' "$manifest"
-          if grep -q 'android.permission.CAMERA' "$manifest"; then
-            echo "Authenticator release manifest must not request camera permission" >&2
+          if ! grep -q 'android.permission.CAMERA' "$manifest"; then
+            echo "Authenticator release manifest must request camera permission for the trusted browser QR approval scanner" >&2
             exit 1
           fi
           if grep -q 'android.permission.RECORD_AUDIO' "$manifest"; then

@@ -17,7 +17,9 @@ Authenticator binds each KRAVIA identity to one explicitly trusted device. Every
 
 The mobile verification session expires after 30 days. Re-verification is then required before the device-security home can be unlocked. No owner, administrator, founder, or another employee can approve a device on someone else’s behalf; only the registered mailbox can trust or ignore its exact sign-in request.
 
-There is intentionally no QR scanning, manual secret entry, manual account creation, camera permission, code clipboard export, seed export, cloud backup, or recovery-code feature.
+There is intentionally no QR **enrollment**, manual secret entry, manual account creation, setup key, code clipboard export, seed export, cloud backup, or recovery-code feature.
+
+The only camera surface is a short-lived, password-first Office browser sign-in approval QR. It is available only after this phone has been trusted through the registered-mailbox flow and the user has passed strong local biometrics. The QR never contains a TOTP seed, Office session token, refresh token, password, or device-enrollment capability. The user sees the browser label and source address in the app, then explicitly accepts or rejects the request; accepting requires a fresh biometric check.
 
 ## Security boundary
 

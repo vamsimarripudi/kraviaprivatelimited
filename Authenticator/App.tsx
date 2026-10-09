@@ -19,6 +19,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
+import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ScreenCapture from "expo-screen-capture";
 import { usePreventScreenCapture } from "expo-screen-capture";
 import {
@@ -28,9 +29,14 @@ import {
   IdentityApiError,
   requestAuthenticatorActivation,
   requestEmailOtp,
+  refreshAuthenticatorSession,
   resendEmailOtp,
+  scanQrSignin,
+  decideQrSignin,
+  parseQrSigninPayload,
   verifyEmailOtp,
   type PendingEmailOtpChallenge,
+  type QrSigninApproval,
 } from "./src/activation";
 import {
   clearAuthenticatorFactor,
@@ -67,7 +73,9 @@ type Screen =
   | "approval"
   | "locked"
   | "home"
-  | "settings";
+  | "settings"
+  | "scan"
+  | "qr-review";
 type FocusedField = "email" | "password" | "otp" | null;
 
 const BRAND_ICON = require("./assets/brand/icon.png");
@@ -521,6 +529,10 @@ export default function App() {
   const [approvalRefresh, setApprovalRefresh] = useState(0);
   const [biometricReadiness, setBiometricReadiness] =
     useState<BiometricReadiness | null>(null);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [qrApproval, setQrApproval] = useState<QrSigninApproval | null>(null);
+  const [qrScanBusy, setQrScanBusy] = useState(false);
+  const [qrMessage, setQrMessage] = useState<string>();
   useEffect(() => {
     const timeout = setTimeout(() => setLaunchPhase("loading"), 900);
     return () => clearTimeout(timeout);
@@ -603,7 +615,7 @@ export default function App() {
         setOtp("");
         setFocusedField(null);
         setFactor(null);
-        if (screen === "home") setScreen("locked");
+        if (["home", "scan", "qr-review", "settings"].includes(screen)) setScreen("locked");
       }
       if (state === "active") {
         setApprovalRefresh((value) => value + 1);
@@ -638,11 +650,14 @@ export default function App() {
   useEffect(() => {
     if (screen !== "approval" || !pendingDevice) return;
     let disposed = false;
+    let completing = false;
     const poll = async () => {
+      if (completing) return;
+      completing = true;
       try {
         const current = await checkDeviceApproval(pendingDevice);
         if (disposed) return;
-        if (current.status === "APPROVED") {
+        if (current.status === "APPROVED" || current.status === "TRUSTED") {
           setMessage("Your device was trusted. Securing this phone…");
           const next = await completeDeviceApproval(pendingDevice);
           const binding: TrustedDeviceBinding = {
@@ -657,10 +672,10 @@ export default function App() {
           ]);
           setSession(next);
           setTrustedDevice(binding);
-          setPendingDevice(null);
           const enrolledFactor = await enrollAuthenticatorFactor(next);
           if (disposed) return;
           setFactor(enrolledFactor);
+          setPendingDevice(null);
           setScreen("home");
           setMessage("This phone is trusted and its local sign-in code is ready.");
           await Haptics.notificationAsync(
@@ -700,12 +715,11 @@ export default function App() {
           );
           return;
         }
-        setScreen("locked");
         setMessage(
-          error instanceof Error
-            ? error.message
-            : "This phone is trusted, but local code setup could not finish. Unlock it and try again.",
+          "We are still securing this phone. Keep Authenticator open; it will retry automatically.",
         );
+      } finally {
+        completing = false;
       }
     };
     void poll();
@@ -879,6 +893,107 @@ export default function App() {
       setUnlocking(false);
     }
   }
+  async function withFreshAuthenticatorSession<T>(
+    operation: (activeSession: AuthenticatorDeviceSession) => Promise<T>,
+  ) {
+    if (!session) throw new Error("Unlock Authenticator before approving a browser sign-in.");
+    try {
+      return await operation(session);
+    } catch (error) {
+      if (!(error instanceof IdentityApiError) || error.status !== 401) throw error;
+      const refreshed = await refreshAuthenticatorSession(session);
+      await saveAuthenticatorSession(refreshed);
+      setSession(refreshed);
+      return operation(refreshed);
+    }
+  }
+  async function beginQrScan() {
+    if (!session || !factor) {
+      setMessage("Finish secure setup before approving a browser sign-in.");
+      return;
+    }
+    setBusy(true);
+    setMessage(undefined);
+    try {
+      const biometric = await unlockAuthenticator({
+        promptMessage: "Open QR scanner",
+        promptDescription: "Confirm your identity before scanning a KRAVIA Office sign-in code.",
+      });
+      if (!biometric.ok) {
+        setMessage(biometric.message);
+        return;
+      }
+      const permission = cameraPermission?.granted
+        ? cameraPermission
+        : await requestCameraPermission();
+      if (!permission.granted) {
+        setMessage("Camera access is needed only to scan a KRAVIA Office sign-in code. Enable it in device Settings, then try again.");
+        return;
+      }
+      setQrApproval(null);
+      setQrMessage(undefined);
+      setQrScanBusy(false);
+      setScreen("scan");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "The secure QR scanner could not open.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function handleQrScanned(value: string) {
+    if (qrScanBusy) return;
+    setQrScanBusy(true);
+    setQrMessage(undefined);
+    try {
+      const request = parseQrSigninPayload(value);
+      const approval = await withFreshAuthenticatorSession((activeSession) =>
+        scanQrSignin(activeSession, request),
+      );
+      setQrApproval(approval);
+      setScreen("qr-review");
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      setQrMessage(error instanceof Error ? error.message : "This QR code could not be verified.");
+      setQrScanBusy(false);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+  }
+  async function decideQrApproval(decision: "APPROVE" | "REJECT") {
+    if (!qrApproval) return;
+    setBusy(true);
+    setQrMessage(undefined);
+    try {
+      if (decision === "APPROVE") {
+        const biometric = await unlockAuthenticator({
+          promptMessage: "Approve browser sign-in",
+          promptDescription: "Confirm this exact KRAVIA Office browser sign-in.",
+        });
+        if (!biometric.ok) {
+          setQrMessage(biometric.message);
+          return;
+        }
+      }
+      const decided = await withFreshAuthenticatorSession((activeSession) =>
+        decideQrSignin(activeSession, qrApproval, decision),
+      );
+      setQrApproval(decided);
+      setScreen("home");
+      setMessage(
+        decision === "APPROVE"
+          ? "Browser sign-in approved securely."
+          : "Browser sign-in rejected. That browser was signed out.",
+      );
+      await Haptics.notificationAsync(
+        decision === "APPROVE"
+          ? Haptics.NotificationFeedbackType.Success
+          : Haptics.NotificationFeedbackType.Warning,
+      );
+    } catch (error) {
+      setQrMessage(error instanceof Error ? error.message : "The browser decision could not be recorded.");
+    } finally {
+      setBusy(false);
+    }
+  }
   async function signOut() {
     await clearAuthenticatorSession();
     setSession(null);
@@ -946,7 +1061,7 @@ export default function App() {
               <AccountStatus label="Managed protection" />
             </View>
             <Text style={styles.welcomeFootnote}>
-              No scan · protected registration · no copied login code.
+              No manual enrollment · protected registration · no copied login code.
             </Text>
             {message ? <Text style={styles.info}>{message}</Text> : null}
           </View>
@@ -1174,6 +1289,68 @@ export default function App() {
         </View>
       </SafeAreaView>
     );
+  if (screen === "scan" && session)
+    return (
+      <SafeAreaView style={styles.root}>
+        <View style={styles.scanScreen}>
+          <AppTopBar title="Scan sign-in code" actionLabel="Cancel" onAction={() => setScreen("home")} />
+          <View style={styles.scanMain}>
+            <Text style={styles.kicker}>AUTHENTICATOR APPROVAL</Text>
+            <Text style={styles.scanTitle}>Scan the QR code in your browser</Text>
+            <Text style={styles.scanBody}>Only scan a code shown after your own KRAVIA Office password sign-in. The code never adds an account or changes your local sign-in code.</Text>
+            <View style={styles.cameraFrame}>
+              {cameraPermission?.granted ? (
+                <CameraView
+                  style={styles.camera}
+                  facing="back"
+                  barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+                  onBarcodeScanned={qrScanBusy ? undefined : ({ data }) => void handleQrScanned(data)}
+                  accessibilityLabel="Camera scanner for a KRAVIA Office sign-in QR code"
+                />
+              ) : (
+                <View style={styles.cameraUnavailable}>
+                  <Text style={styles.cameraUnavailableTitle}>Camera access is required</Text>
+                  <Text style={styles.cameraUnavailableBody}>Allow camera access to scan the one-time sign-in code.</Text>
+                  <Button label="Allow camera" onPress={() => void beginQrScan()} disabled={busy} />
+                </View>
+              )}
+              <View pointerEvents="none" style={styles.scanCornerTopLeft} />
+              <View pointerEvents="none" style={styles.scanCornerTopRight} />
+              <View pointerEvents="none" style={styles.scanCornerBottomLeft} />
+              <View pointerEvents="none" style={styles.scanCornerBottomRight} />
+              {qrScanBusy ? <View style={styles.scanBusy}><ActivityIndicator color={colors.surface} /><Text style={styles.scanBusyText}>Checking secure request…</Text></View> : null}
+            </View>
+            {qrMessage ? <Text style={styles.info}>{qrMessage}</Text> : null}
+          </View>
+          <Text style={styles.securityNote}>Camera access is used only while this scanner is open. No QR enrollment or setup key is supported.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  if (screen === "qr-review" && qrApproval)
+    return (
+      <SafeAreaView style={styles.root}>
+        <View style={[styles.qrReviewScreen, compactHeight && styles.compactScreen]}>
+          <AppTopBar title="Confirm sign-in" actionLabel="Cancel" onAction={() => setScreen("home")} />
+          <View style={styles.qrReviewMain}>
+            <ApprovalPulse expiresAt={qrApproval.expiresAt} />
+            <Text style={styles.kicker}>BROWSER SIGN-IN REQUEST</Text>
+            <Text style={styles.qrReviewTitle}>Is this you?</Text>
+            <Text style={styles.qrReviewBody}>Approve only if you just signed in to KRAVIA Office in this browser.</Text>
+            <View style={styles.qrRequestSurface}>
+              <Text style={styles.qrRequestLabel}>BROWSER</Text>
+              <Text style={styles.qrRequestValue}>{qrApproval.browserLabel}</Text>
+              <Text style={styles.qrRequestLabel}>NETWORK ADDRESS</Text>
+              <Text style={styles.qrRequestValue}>{qrApproval.sourceAddress}</Text>
+            </View>
+            {qrMessage ? <Text style={styles.info}>{qrMessage}</Text> : null}
+          </View>
+          <View style={styles.qrDecisionFooter}>
+            <Button label={busy ? "Securing…" : "Accept sign-in"} onPress={() => void decideQrApproval("APPROVE")} disabled={busy} />
+            <Button label="Reject sign-in" variant="danger" onPress={() => void decideQrApproval("REJECT")} disabled={busy} />
+          </View>
+        </View>
+      </SafeAreaView>
+    );
   if (screen === "locked" && session)
     return (
       <SafeAreaView style={styles.root}>
@@ -1361,6 +1538,7 @@ export default function App() {
               </>
             )}
           </View>
+          <Button label="Scan a browser QR" variant="secondary" onPress={() => void beginQrScan()} disabled={busy} />
           {message ? <Text style={styles.info}>{message}</Text> : null}
           <View style={styles.homeSecurityNote}>
             <Text style={styles.homeSecurityTitle}>Secure on this device</Text>
@@ -1673,6 +1851,69 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
   },
+  scanScreen: {
+    flex: 1,
+    width: "100%",
+    maxWidth: 620,
+    alignSelf: "center",
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  scanMain: { flex: 1, justifyContent: "center", gap: 12 },
+  scanTitle: {
+    color: colors.text,
+    fontFamily: DISPLAY_FONT,
+    fontSize: 24,
+    fontWeight: "700",
+    lineHeight: 29,
+    letterSpacing: -0.7,
+  },
+  scanBody: { color: colors.mutedText, fontFamily: TEXT_FONT, fontSize: 13, lineHeight: 19 },
+  cameraFrame: {
+    width: "100%",
+    aspectRatio: 1,
+    maxHeight: 420,
+    alignSelf: "center",
+    overflow: "hidden",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  camera: { flex: 1 },
+  cameraUnavailable: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primarySoft,
+    padding: 22,
+    gap: 10,
+  },
+  cameraUnavailableTitle: { color: colors.text, fontFamily: DISPLAY_FONT, fontSize: 16, fontWeight: "700" },
+  cameraUnavailableBody: { color: colors.mutedText, fontFamily: TEXT_FONT, fontSize: 12, lineHeight: 18, textAlign: "center" },
+  scanCornerTopLeft: { position: "absolute", left: 24, top: 24, width: 44, height: 44, borderTopWidth: 3, borderLeftWidth: 3, borderColor: colors.onPrimary },
+  scanCornerTopRight: { position: "absolute", right: 24, top: 24, width: 44, height: 44, borderTopWidth: 3, borderRightWidth: 3, borderColor: colors.onPrimary },
+  scanCornerBottomLeft: { position: "absolute", left: 24, bottom: 24, width: 44, height: 44, borderBottomWidth: 3, borderLeftWidth: 3, borderColor: colors.onPrimary },
+  scanCornerBottomRight: { position: "absolute", right: 24, bottom: 24, width: 44, height: 44, borderBottomWidth: 3, borderRightWidth: 3, borderColor: colors.onPrimary },
+  scanBusy: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "#172331B8", alignItems: "center", justifyContent: "center", gap: 10 },
+  scanBusyText: { color: colors.onPrimary, fontFamily: DISPLAY_FONT, fontSize: 13, fontWeight: "700" },
+  qrReviewScreen: {
+    flex: 1,
+    width: "100%",
+    maxWidth: 520,
+    alignSelf: "center",
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  qrReviewMain: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
+  qrReviewTitle: { color: colors.text, fontFamily: DISPLAY_FONT, fontSize: 26, fontWeight: "700", lineHeight: 31, letterSpacing: -0.8 },
+  qrReviewBody: { color: colors.mutedText, fontFamily: TEXT_FONT, fontSize: 13, lineHeight: 19, textAlign: "center", maxWidth: 400 },
+  qrRequestSurface: { width: "100%", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 15, gap: 5 },
+  qrRequestLabel: { color: colors.accent, fontFamily: TEXT_FONT, fontSize: 10, fontWeight: "800", letterSpacing: 1.2, marginTop: 3 },
+  qrRequestValue: { color: colors.text, fontFamily: DISPLAY_FONT, fontSize: 14, fontWeight: "700" },
+  qrDecisionFooter: { gap: 10 },
   content: {
     flexGrow: 1,
     maxWidth: 480,

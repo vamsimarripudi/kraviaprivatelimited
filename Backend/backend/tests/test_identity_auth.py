@@ -872,11 +872,15 @@ def test_new_browser_stays_blocked_until_only_its_account_owner_approves_it(tmp_
         assert completed.json()["aal"] == "aal2"
         assert completed.json()["refresh_token"]
 
-        replay = client.post(
+        recovered = client.post(
             "/api/v1/auth/device-approvals/complete",
             json={"device_id": approval_id, "device_proof": body["device_proof"]},
         )
-        assert replay.status_code == 409
+        assert recovered.status_code == 200, recovered.text
+        assert recovered.json()["aal"] == "aal2"
+        assert recovered.json()["session_purpose"] == completed.json()["session_purpose"]
+        assert recovered.json()["refresh_token"]
+        assert recovered.json()["refresh_token"] != completed.json()["refresh_token"]
 
         with engine.connect() as connection:
             approval = connection.exec_driver_sql(
@@ -933,6 +937,167 @@ def test_declined_new_browser_can_never_complete_or_refresh(tmp_path, monkeypatc
         assert completed.status_code == 409
         refreshed = client.post("/api/v1/auth/refresh", json={"refresh_token": initial["refresh_token"]})
         assert refreshed.status_code == 401
+    finally:
+        engine.dispose()
+
+
+def test_trusted_authenticator_qr_approval_promotes_only_the_original_browser(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    delivered: dict[str, str] = {}
+    try:
+        founder(client)
+        activate_founder_authenticator(client)
+        monkeypatch.setattr(identity_auth, "DEVICE_APPROVAL_REQUIRED", True)
+        monkeypatch.setattr(
+            identity_auth,
+            "send_office_device_approval",
+            lambda **kwargs: delivered.update({key: str(value) for key, value in kwargs.items()}) or "device-approval-message",
+        )
+
+        challenge = client.post(
+            "/api/v1/auth/email-otp/challenges",
+            json={"email": FOUNDER["email"], "password": FOUNDER["password"], "channel": "authenticator_mobile"},
+        )
+        assert challenge.status_code == 201, challenge.text
+        native_pending = client.post(
+            f"/api/v1/auth/email-otp/challenges/{challenge.json()['challenge_id']}/verify",
+            json={"challenge_token": challenge.json()["challenge_token"], "code": "482915"},
+        )
+        assert native_pending.status_code == 200, native_pending.text
+        pending_body = native_pending.json()
+        assert pending_body["device_approval_pending"] is True
+        action_token = parse_qs(urlsplit(delivered["review_url"]).query)["token"][0]
+        reviewed = client.post(
+            f"/api/v1/auth/device-approvals/{pending_body['device_approval_id']}/action",
+            json={"action_token": action_token, "decision": "APPROVE"},
+        )
+        assert reviewed.status_code == 200, reviewed.text
+        trusted_native = client.post(
+            "/api/v1/auth/device-approvals/complete",
+            json={"device_id": pending_body["device_approval_id"], "device_proof": pending_body["device_proof"]},
+        )
+        assert trusted_native.status_code == 200, trusted_native.text
+        native = trusted_native.json()
+
+        browser = client.post("/api/v1/auth/sign-in", json={"email": FOUNDER["email"], "password": FOUNDER["password"]})
+        assert browser.status_code == 200, browser.text
+        qr = client.post("/api/v1/auth/qr-signins", headers={"Authorization": f"Bearer {browser.json()['access_token']}"})
+        assert qr.status_code == 200, qr.text
+        qr_body = qr.json()
+        assert qr_body["browser_proof"]
+        assert qr_body["scan_token"]
+        assert "access_token" not in qr_body
+
+        scanned = client.post(
+            "/api/v1/auth/qr-signins/scan",
+            headers={"Authorization": f"Bearer {native['access_token']}"},
+            json={
+                "request_id": qr_body["request_id"],
+                "scan_token": qr_body["scan_token"],
+                "device_approval_id": pending_body["device_approval_id"],
+                "device_proof": pending_body["device_proof"],
+            },
+        )
+        assert scanned.status_code == 200, scanned.text
+        assert scanned.json()["status"] == "SCANNED"
+
+        replay = client.post(
+            "/api/v1/auth/qr-signins/scan",
+            headers={"Authorization": f"Bearer {native['access_token']}"},
+            json={
+                "request_id": qr_body["request_id"],
+                "scan_token": qr_body["scan_token"],
+                "device_approval_id": pending_body["device_approval_id"],
+                "device_proof": pending_body["device_proof"],
+            },
+        )
+        assert replay.status_code == 409
+
+        approved = client.post(
+            "/api/v1/auth/qr-signins/decision",
+            headers={"Authorization": f"Bearer {native['access_token']}"},
+            json={
+                "request_id": qr_body["request_id"],
+                "device_approval_id": pending_body["device_approval_id"],
+                "device_proof": pending_body["device_proof"],
+                "decision": "APPROVE",
+            },
+        )
+        assert approved.status_code == 200, approved.text
+        assert approved.json()["status"] == "APPROVED"
+
+        browser_complete = client.post(
+            "/api/v1/auth/qr-signins/complete",
+            json={"request_id": qr_body["request_id"], "browser_proof": qr_body["browser_proof"]},
+        )
+        assert browser_complete.status_code == 200, browser_complete.text
+        assert browser_complete.json()["aal"] == "aal2"
+
+        recovered = client.post(
+            "/api/v1/auth/qr-signins/complete",
+            json={"request_id": qr_body["request_id"], "browser_proof": qr_body["browser_proof"]},
+        )
+        assert recovered.status_code == 200, recovered.text
+        assert recovered.json()["aal"] == "aal2"
+
+        wrong_browser = client.post(
+            "/api/v1/auth/qr-signins/status",
+            json={"request_id": qr_body["request_id"], "browser_proof": "z" * 48},
+        )
+        assert wrong_browser.status_code == 404
+    finally:
+        engine.dispose()
+
+
+def test_rejecting_qr_signin_revokes_the_password_only_browser(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    delivered: dict[str, str] = {}
+    try:
+        founder(client)
+        activate_founder_authenticator(client)
+        monkeypatch.setattr(identity_auth, "DEVICE_APPROVAL_REQUIRED", True)
+        monkeypatch.setattr(
+            identity_auth,
+            "send_office_device_approval",
+            lambda **kwargs: delivered.update({key: str(value) for key, value in kwargs.items()}) or "device-approval-message",
+        )
+        challenge = client.post(
+            "/api/v1/auth/email-otp/challenges",
+            json={"email": FOUNDER["email"], "password": FOUNDER["password"], "channel": "authenticator_mobile"},
+        )
+        native_pending = client.post(
+            f"/api/v1/auth/email-otp/challenges/{challenge.json()['challenge_id']}/verify",
+            json={"challenge_token": challenge.json()["challenge_token"], "code": "482915"},
+        )
+        pending_body = native_pending.json()
+        action_token = parse_qs(urlsplit(delivered["review_url"]).query)["token"][0]
+        assert client.post(
+            f"/api/v1/auth/device-approvals/{pending_body['device_approval_id']}/action",
+            json={"action_token": action_token, "decision": "APPROVE"},
+        ).status_code == 200
+        native = client.post(
+            "/api/v1/auth/device-approvals/complete",
+            json={"device_id": pending_body["device_approval_id"], "device_proof": pending_body["device_proof"]},
+        ).json()
+        browser = client.post("/api/v1/auth/sign-in", json={"email": FOUNDER["email"], "password": FOUNDER["password"]}).json()
+        qr = client.post("/api/v1/auth/qr-signins", headers={"Authorization": f"Bearer {browser['access_token']}"}).json()
+        assert client.post(
+            "/api/v1/auth/qr-signins/scan",
+            headers={"Authorization": f"Bearer {native['access_token']}"},
+            json={"request_id": qr["request_id"], "scan_token": qr["scan_token"], "device_approval_id": pending_body["device_approval_id"], "device_proof": pending_body["device_proof"]},
+        ).status_code == 200
+        rejected = client.post(
+            "/api/v1/auth/qr-signins/decision",
+            headers={"Authorization": f"Bearer {native['access_token']}"},
+            json={"request_id": qr["request_id"], "device_approval_id": pending_body["device_approval_id"], "device_proof": pending_body["device_proof"], "decision": "REJECT"},
+        )
+        assert rejected.status_code == 200
+        assert rejected.json()["status"] == "REJECTED"
+        assert client.get("/api/v1/auth/session", headers={"Authorization": f"Bearer {browser['access_token']}"}).status_code == 401
+        assert client.post(
+            "/api/v1/auth/qr-signins/complete",
+            json={"request_id": qr["request_id"], "browser_proof": qr["browser_proof"]},
+        ).status_code == 409
     finally:
         engine.dispose()
 

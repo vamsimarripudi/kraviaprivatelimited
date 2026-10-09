@@ -76,13 +76,16 @@ function biometricFailureMessage(error: string, method: string) {
   }
 }
 
-export async function unlockAuthenticator() {
+export async function unlockAuthenticator(options?: {
+  promptMessage?: string;
+  promptDescription?: string;
+}) {
   const readiness = await inspectBiometricReadiness();
   if (!readiness.available) return { ok: false as const, message: readiness.detail };
   const result = await LocalAuthentication.authenticateAsync({
-    promptMessage: "Unlock Authenticator",
+    promptMessage: options?.promptMessage ?? "Unlock Authenticator",
     promptSubtitle: "Protect KRAVIA Office one-time codes",
-    promptDescription: "Confirm your identity to view the current login code.",
+    promptDescription: options?.promptDescription ?? "Confirm your identity to view the current login code.",
     // The local vault exposes a valid Office MFA code. Do not substitute the
     // device passcode for the required strong biometric check.
     fallbackLabel: "",
