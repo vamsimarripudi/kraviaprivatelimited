@@ -3,6 +3,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 
 from backend.database import Base
+# Register the canonical ORM tables before creating this isolated SQLite schema.
+# The shared limiter deliberately uses SQL rather than an ORM repository, so its
+# table is otherwise not imported as a side effect of this focused test module.
+from backend import models as _models  # noqa: F401
 from backend.security_controls import DatabaseFixedWindowRateLimiter, FixedWindowRateLimiter, configure_security
 
 
@@ -47,15 +51,15 @@ def test_security_headers_and_cross_origin_mutation_guard(monkeypatch):
 
         first = client.post(
             "/api/mutate",
-            headers={"Origin": "https://office.example.test", "X-Office-Actor": "Security Tester"},
+            headers={"Origin": "https://office.example.test", "X-Office-Actor": "attacker-one"},
         )
         second = client.post(
             "/api/mutate",
-            headers={"Origin": "https://office.example.test", "X-Office-Actor": "Security Tester"},
+            headers={"Origin": "https://office.example.test", "X-Office-Actor": "attacker-two"},
         )
         third = client.post(
             "/api/mutate",
-            headers={"Origin": "https://office.example.test", "X-Office-Actor": "Security Tester"},
+            headers={"Origin": "https://office.example.test", "X-Office-Actor": "attacker-three"},
         )
         assert first.status_code == 200
         assert second.status_code == 200

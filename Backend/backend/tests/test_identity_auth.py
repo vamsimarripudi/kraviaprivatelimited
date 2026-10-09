@@ -21,8 +21,9 @@ def make_client(tmp_path, monkeypatch):
     # Email OTP is part of the phone-activation ceremony. Keep the test delivery
     # entirely local and deterministic; no provider or real mailbox is used.
     monkeypatch.setattr(identity_auth, "send_office_email_verification_code", lambda **_kwargs: "test-email-otp-message")
-    # Tests can exercise the factor workflow with deterministic mailbox
-    # verification; production enables the same-mailbox device-review gate.
+    # Most legacy Office-browser assertions model the explicit development
+    # opt-out. Authenticator helpers below re-enable the production device
+    # trust boundary for their own activation ceremony.
     monkeypatch.setattr(identity_auth, "DEVICE_APPROVAL_REQUIRED", False)
     monkeypatch.setattr(identity_auth.secrets, "randbelow", lambda _limit: 482915)
     device_approval_notices = []
@@ -85,18 +86,21 @@ def founder(client: TestClient):
 
 
 def authenticator_activation_session(client: TestClient, email: str, password: str):
-    challenge = client.post(
-        "/api/v1/auth/email-otp/challenges",
-        json={"email": email, "password": password, "channel": "authenticator_mobile"},
-    )
-    assert challenge.status_code == 201, challenge.text
-    verified = client.post(
-        f"/api/v1/auth/email-otp/challenges/{challenge.json()['challenge_id']}/verify",
-        json={"challenge_token": challenge.json()["challenge_token"], "code": "482915"},
-    )
-    assert verified.status_code == 200, verified.text
-    session = verified.json()
-    if session.get("device_approval_pending"):
+    previous_requirement = identity_auth.DEVICE_APPROVAL_REQUIRED
+    identity_auth.DEVICE_APPROVAL_REQUIRED = True
+    try:
+        challenge = client.post(
+            "/api/v1/auth/email-otp/challenges",
+            json={"email": email, "password": password, "channel": "authenticator_mobile"},
+        )
+        assert challenge.status_code == 201, challenge.text
+        verified = client.post(
+            f"/api/v1/auth/email-otp/challenges/{challenge.json()['challenge_id']}/verify",
+            json={"challenge_token": challenge.json()["challenge_token"], "code": "482915"},
+        )
+        assert verified.status_code == 200, verified.text
+        session = verified.json()
+        assert session.get("device_approval_pending") is True
         assert client.device_approval_notices
         notice = client.device_approval_notices[-1]
         decision = parse_qs(urlsplit(notice["review_url"]).query)
@@ -114,8 +118,10 @@ def authenticator_activation_session(client: TestClient, email: str, password: s
         )
         assert completed.status_code == 200, completed.text
         session = completed.json()
-    assert session["session_purpose"] == identity_auth.AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE
-    return session["access_token"]
+        assert session["session_purpose"] == identity_auth.AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE
+        return session["access_token"]
+    finally:
+        identity_auth.DEVICE_APPROVAL_REQUIRED = previous_requirement
 
 
 def request_authenticator_activation(client: TestClient, email: str, password: str):

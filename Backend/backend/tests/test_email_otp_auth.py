@@ -82,6 +82,7 @@ def test_device_approval_link_is_pinned_to_the_canonical_web_origin(monkeypatch)
 def test_email_otp_requires_registered_mailbox_to_trust_a_new_device_before_issuing_a_scoped_session(tmp_path, monkeypatch):
     client, engine = make_client(tmp_path, monkeypatch)
     try:
+        monkeypatch.setattr(identity_auth, "DEVICE_APPROVAL_REQUIRED", True)
         founder(client)
         challenge, delivered = request_code(client, monkeypatch)
         device_notices = _capture_device_email(monkeypatch)
@@ -245,6 +246,7 @@ def test_email_otp_requires_registered_mailbox_to_trust_a_new_device_before_issu
 def test_device_trust_replaces_the_previous_device_and_ignore_revokes_the_pending_session(tmp_path, monkeypatch):
     client, engine = make_client(tmp_path, monkeypatch)
     try:
+        monkeypatch.setattr(identity_auth, "DEVICE_APPROVAL_REQUIRED", True)
         founder(client)
         device_notices = _capture_device_email(monkeypatch)
 
@@ -255,6 +257,11 @@ def test_device_trust_replaces_the_previous_device_and_ignore_revokes_the_pendin
         ).json()
         _decide_device(client, device_notices[-1], "APPROVE")
         first_session = _complete_device(client, first_pending)
+        stale_activation = client.post(
+            "/api/v1/auth/authenticator/activation-requests",
+            headers={"Authorization": f"Bearer {first_session['access_token']}"},
+        )
+        assert stale_activation.status_code == 200, stale_activation.text
 
         second_challenge, _ = request_code(client, monkeypatch, code="593741")
         second_pending_response = client.post(
@@ -274,6 +281,11 @@ def test_device_trust_replaces_the_previous_device_and_ignore_revokes_the_pendin
         )
         assert old_status.status_code == 200
         assert old_status.json()["status"] == "REVOKED"
+        stale_claim = client.post(
+            f"/api/v1/auth/authenticator/activation-requests/{stale_activation.json()['request_id']}/claim",
+            json={"claim_token": stale_activation.json()["claim_token"]},
+        )
+        assert stale_claim.status_code == 409
 
         ignored_challenge, _ = request_code(client, monkeypatch, code="763924")
         ignored_pending = client.post(
@@ -301,6 +313,77 @@ def test_device_trust_replaces_the_previous_device_and_ignore_revokes_the_pendin
             ).scalar_one()
         assert trusted_count == 1
         assert ignored_session == "REVOKED"
+    finally:
+        engine.dispose()
+
+
+def test_native_trusted_device_removal_revokes_server_session_and_activation(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        monkeypatch.setattr(identity_auth, "DEVICE_APPROVAL_REQUIRED", True)
+        founder(client)
+        device_notices = _capture_device_email(monkeypatch)
+        challenge, _ = request_code(client, monkeypatch)
+        pending = client.post(
+            f"/api/v1/auth/email-otp/challenges/{challenge['challenge_id']}/verify",
+            json={"challenge_token": challenge["challenge_token"], "code": "482915"},
+        ).json()
+        _decide_device(client, device_notices[-1], "APPROVE")
+        session = _complete_device(client, pending)
+        activation = client.post(
+            "/api/v1/auth/authenticator/activation-requests",
+            headers={"Authorization": f"Bearer {session['access_token']}"},
+        )
+        assert activation.status_code == 200, activation.text
+
+        removed = client.post(
+            "/api/v1/auth/device-approvals/revoke",
+            headers={"Authorization": f"Bearer {session['access_token']}"},
+            json={"device_id": pending["device_approval_id"], "device_proof": pending["device_proof"]},
+        )
+        assert removed.status_code == 200, removed.text
+        assert removed.json() == {"revoked": True}
+        assert client.post("/api/v1/auth/refresh", json={"refresh_token": session["refresh_token"]}).status_code == 401
+        claim = client.post(
+            f"/api/v1/auth/authenticator/activation-requests/{activation.json()['request_id']}/claim",
+            json={"claim_token": activation.json()["claim_token"]},
+        )
+        assert claim.status_code == 409
+    finally:
+        engine.dispose()
+
+
+def test_native_authenticator_session_can_sign_out_with_its_own_capability(tmp_path, monkeypatch):
+    """A mobile-only session may revoke itself but cannot gain Office access."""
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        monkeypatch.setattr(identity_auth, "DEVICE_APPROVAL_REQUIRED", True)
+        founder(client)
+        device_notices = _capture_device_email(monkeypatch)
+        challenge, _ = request_code(client, monkeypatch)
+        pending = client.post(
+            f"/api/v1/auth/email-otp/challenges/{challenge['challenge_id']}/verify",
+            json={"challenge_token": challenge["challenge_token"], "code": "482915"},
+        ).json()
+        _decide_device(client, device_notices[-1], "APPROVE")
+        session = _complete_device(client, pending)
+
+        signed_out = client.post(
+            "/api/v1/auth/sign-out",
+            headers={"Authorization": f"Bearer {session['access_token']}"},
+        )
+        assert signed_out.status_code == 200, signed_out.text
+        assert signed_out.json() == {"signed_out": True}
+        assert client.post(
+            "/api/v1/auth/refresh",
+            json={"refresh_token": session["refresh_token"]},
+        ).status_code == 401
+        with engine.connect() as connection:
+            trust_status = connection.execute(
+                text("select status from office_login_device_approvals where id = :id"),
+                {"id": pending["device_approval_id"]},
+            ).scalar_one()
+        assert trust_status == "TRUSTED"
     finally:
         engine.dispose()
 

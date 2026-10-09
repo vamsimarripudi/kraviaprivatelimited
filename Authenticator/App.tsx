@@ -31,8 +31,10 @@ import {
   requestEmailOtp,
   refreshAuthenticatorSession,
   resendEmailOtp,
+  revokeAuthenticatorTrustedDevice,
   scanQrSignin,
   decideQrSignin,
+  signOutAuthenticatorSession,
   parseQrSigninPayload,
   verifyEmailOtp,
   type PendingEmailOtpChallenge,
@@ -477,6 +479,77 @@ function ApprovalPulse({ expiresAt }: { expiresAt: string }) {
     </View>
   );
 }
+function FeedbackToast({ message }: { message: string | undefined }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(-14)).current;
+  const [visibleMessage, setVisibleMessage] = useState<string>();
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  useEffect(() => {
+    void AccessibilityInfo.isReduceMotionEnabled().then(setReducedMotion);
+    const subscription = AccessibilityInfo.addEventListener(
+      "reduceMotionChanged",
+      setReducedMotion,
+    );
+    return () => subscription.remove();
+  }, []);
+
+  useEffect(() => {
+    if (!message) {
+      setVisibleMessage(undefined);
+      return;
+    }
+    setVisibleMessage(message);
+    if (reducedMotion) {
+      opacity.setValue(1);
+      translateY.setValue(0);
+    } else {
+      opacity.setValue(0);
+      translateY.setValue(-14);
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: 180, useNativeDriver: true }),
+      ]).start();
+    }
+
+    const dismiss = setTimeout(() => {
+      if (reducedMotion) {
+        setVisibleMessage(undefined);
+        return;
+      }
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 0, duration: 160, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: -8, duration: 160, useNativeDriver: true }),
+      ]).start(({ finished }) => {
+        if (finished) setVisibleMessage(undefined);
+      });
+    }, 4_500);
+
+    return () => {
+      clearTimeout(dismiss);
+      opacity.stopAnimation();
+      translateY.stopAnimation();
+    };
+  }, [message, opacity, reducedMotion, translateY]);
+
+  if (!visibleMessage) return null;
+  return (
+    <View pointerEvents="none" style={styles.toastRegion}>
+      <Animated.View
+        accessible
+        accessibilityRole="alert"
+        accessibilityLiveRegion="polite"
+        style={[styles.toast, { opacity, transform: [{ translateY }] }]}
+      >
+        <View style={styles.toastIndicator} />
+        <View style={styles.toastCopy}>
+          <Text style={styles.toastLabel}>AUTHENTICATOR</Text>
+          <Text style={styles.toastMessage}>{visibleMessage}</Text>
+        </View>
+      </Animated.View>
+    </View>
+  );
+}
 function emailMask(email: string) {
   const [local, domain] = email.split("@");
   return !domain || !local
@@ -533,6 +606,7 @@ export default function App() {
   const [qrApproval, setQrApproval] = useState<QrSigninApproval | null>(null);
   const [qrScanBusy, setQrScanBusy] = useState(false);
   const [qrMessage, setQrMessage] = useState<string>();
+  const toast = <FeedbackToast message={message} />;
   useEffect(() => {
     const timeout = setTimeout(() => setLaunchPhase("loading"), 900);
     return () => clearTimeout(timeout);
@@ -1031,15 +1105,34 @@ export default function App() {
     }
   }
   async function signOut() {
-    await clearAuthenticatorSession();
-    setSession(null);
-    setChallenge(null);
-    setPassword("");
-    setOtp("");
-    setScreen("credentials");
-    setMessage(
-      "Signed out. This phone remains registered, but credentials and email verification are required to unlock it again.",
-    );
+    setBusy(true);
+    try {
+      const outcome = session
+        ? await signOutAuthenticatorSession(session, async (refreshed) => {
+            await saveAuthenticatorSession(refreshed);
+            setSession(refreshed);
+          })
+        : { state: "already_inactive" as const };
+      await clearAuthenticatorSession();
+      setSession(null);
+      setChallenge(null);
+      setPassword("");
+      setOtp("");
+      setScreen("credentials");
+      setMessage(
+        outcome.state === "already_inactive"
+          ? "The server session was already expired or revoked. This phone was signed out safely."
+          : "Signed out. This phone remains registered, but credentials and email verification are required to unlock it again.",
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? `Sign-out could not be confirmed. Keep this app open and retry: ${error.message}`
+          : "Sign-out could not be confirmed. Keep this app open and retry.",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
   function removeTrustedDevice() {
     Alert.alert(
@@ -1052,18 +1145,33 @@ export default function App() {
           style: "destructive",
           onPress: () => {
             void (async () => {
-              await Promise.all([
-                clearAuthenticatorSession(),
-                clearAuthenticatorFactor(),
-                clearTrustedDeviceBinding(),
-                clearPendingDeviceApproval(),
-              ]);
-              setSession(null);
-              setFactor(null);
-              setTrustedDevice(null);
-              setPendingDevice(null);
-              setScreen("credentials");
-              setMessage("This phone is no longer trusted.");
+              setBusy(true);
+              try {
+                if (!session) throw new Error("Sign in before removing this trusted device.");
+                await withFreshAuthenticatorSession((activeSession) =>
+                  revokeAuthenticatorTrustedDevice(activeSession),
+                );
+                await Promise.all([
+                  clearAuthenticatorSession(),
+                  clearAuthenticatorFactor(),
+                  clearTrustedDeviceBinding(),
+                  clearPendingDeviceApproval(),
+                ]);
+                setSession(null);
+                setFactor(null);
+                setTrustedDevice(null);
+                setPendingDevice(null);
+                setScreen("credentials");
+                setMessage("This phone is no longer trusted.");
+              } catch (error) {
+                setMessage(
+                  error instanceof Error
+                    ? `This device is still trusted because removal could not be confirmed. Retry: ${error.message}`
+                    : "This device is still trusted because removal could not be confirmed. Retry.",
+                );
+              } finally {
+                setBusy(false);
+              }
             })();
           },
         },
@@ -1076,6 +1184,7 @@ export default function App() {
   if (screen === "welcome")
     return (
       <SafeAreaView style={styles.root}>
+        {toast}
         <View style={[styles.welcomeContent, compactHeight && styles.compactScreen]}>
           <AuthHeader />
           <View style={styles.welcomeMain}>
@@ -1116,6 +1225,7 @@ export default function App() {
   if (screen === "credentials")
     return (
       <SafeAreaView style={styles.root}>
+        {toast}
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -1207,6 +1317,7 @@ export default function App() {
   if (screen === "otp" && challenge)
     return (
       <SafeAreaView style={styles.root}>
+        {toast}
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -1298,6 +1409,7 @@ export default function App() {
   if (screen === "approval" && pendingDevice)
     return (
       <SafeAreaView style={styles.root}>
+        {toast}
         <View style={[styles.approvalContent, compactHeight && styles.approvalContentCompact]}>
           <AppTopBar title="Authenticator" />
           <View style={styles.approvalMain}>
@@ -1328,6 +1440,7 @@ export default function App() {
   if (screen === "scan" && session)
     return (
       <SafeAreaView style={styles.root}>
+        {toast}
         <View style={styles.scanScreen}>
           <AppTopBar title="Scan sign-in code" actionLabel="Cancel" onAction={() => setScreen("home")} />
           <View style={styles.scanMain}>
@@ -1365,6 +1478,7 @@ export default function App() {
   if (screen === "qr-review" && qrApproval)
     return (
       <SafeAreaView style={styles.root}>
+        {toast}
         <View style={[styles.qrReviewScreen, compactHeight && styles.compactScreen]}>
           <AppTopBar title="Confirm sign-in" actionLabel="Cancel" onAction={() => setScreen("home")} />
           <View style={styles.qrReviewMain}>
@@ -1390,6 +1504,7 @@ export default function App() {
   if (screen === "locked" && session)
     return (
       <SafeAreaView style={styles.root}>
+        {toast}
         <View style={[styles.lockContent, compactHeight && styles.compactScreen]}>
           <AppTopBar title="Authenticator" />
           <View style={styles.lockMain}>
@@ -1423,6 +1538,7 @@ export default function App() {
   if (screen === "settings" && session)
     return (
       <SafeAreaView style={styles.root}>
+        {toast}
         <ScrollView
           contentContainerStyle={styles.content}
           contentInsetAdjustmentBehavior="automatic"
@@ -1505,6 +1621,7 @@ export default function App() {
   if (screen === "home" && session)
     return (
       <SafeAreaView style={styles.root}>
+        {toast}
         <View style={[styles.homeScreen, compactHeight && styles.compactScreen]}>
           <AppTopBar title="Authenticator" actionLabel="Security" onAction={() => setScreen("settings")} />
           <View style={styles.homeAccountRow}>
@@ -1621,7 +1738,51 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   artwork: { width: "100%", height: "100%" },
-  root: { flex: 1, backgroundColor: colors.background },
+  root: { flex: 1, backgroundColor: colors.background, position: "relative" },
+  toastRegion: {
+    left: 14,
+    position: "absolute",
+    right: 14,
+    top: 10,
+    zIndex: 50,
+    elevation: 12,
+  },
+  toast: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 10,
+    minHeight: 58,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    shadowColor: colors.text,
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.16,
+    shadowRadius: 15,
+  },
+  toastIndicator: {
+    alignSelf: "stretch",
+    backgroundColor: colors.primary,
+    borderRadius: 2,
+    width: 3,
+  },
+  toastCopy: { flex: 1, gap: 2 },
+  toastLabel: {
+    color: colors.primary,
+    fontFamily: TEXT_FONT,
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 1.15,
+  },
+  toastMessage: {
+    color: colors.text,
+    fontFamily: TEXT_FONT,
+    fontSize: 12,
+    lineHeight: 17,
+  },
   flex: { flex: 1 },
   loadingContent: {
     flex: 1,

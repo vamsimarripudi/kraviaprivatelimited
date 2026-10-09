@@ -464,6 +464,30 @@ def _expire_device_approval(approval: OfficeLoginDeviceApproval, now: datetime) 
     return False
 
 
+def _cancel_live_authenticator_activations(
+    db: Session,
+    *,
+    user_id: str,
+    now: datetime,
+    session_id: str | None = None,
+    device_approval_id: str | None = None,
+) -> int:
+    """Terminally cancel unused enrollment capabilities after a trust change."""
+    criteria = [
+        OfficeAuthenticatorActivation.user_id == user_id,
+        OfficeAuthenticatorActivation.status.in_(["PENDING", "APPROVED"]),
+    ]
+    if session_id is not None:
+        criteria.append(OfficeAuthenticatorActivation.session_id == session_id)
+    if device_approval_id is not None:
+        criteria.append(OfficeAuthenticatorActivation.device_approval_id == device_approval_id)
+    activations = db.execute(select(OfficeAuthenticatorActivation).where(*criteria)).scalars().all()
+    for activation in activations:
+        activation.status = "CANCELLED"
+        activation.cancelled_at = now
+    return len(activations)
+
+
 def _approval_status_json(approval: OfficeLoginDeviceApproval) -> dict[str, Any]:
     return {
         "approval_id": approval.id,
@@ -1060,6 +1084,7 @@ def authenticate_office_access(
     *,
     require_aal2: bool = False,
     required_purpose: Literal["OFFICE", "AUTHENTICATOR_ACTIVATION"] = OFFICE_SESSION_PURPOSE,
+    allowed_purposes: frozenset[str] | None = None,
 ) -> dict[str, Any]:
     claims = _decode_access(token)
     user_id = str(claims.get("sub") or "")
@@ -1080,7 +1105,12 @@ def authenticate_office_access(
 
     if session.status != "ACTIVE" or session.revoked_at or _aware(session.expires_at) <= now:
         raise HTTPException(status_code=401, detail="Office session is expired or revoked")
-    if session.purpose != required_purpose or claims.get("purpose") != required_purpose:
+    # Most routes must retain a single explicit session capability. A session
+    # can only revoke itself, however, so sign-out deliberately accepts either
+    # first-party capability while still requiring the signed JWT purpose to
+    # exactly match the authoritative session record.
+    permitted_purposes = allowed_purposes if allowed_purposes is not None else frozenset({required_purpose})
+    if session.purpose not in permitted_purposes or claims.get("purpose") != session.purpose:
         raise HTTPException(status_code=403, detail="This session cannot access the requested service")
     if require_aal2 and session.aal != "aal2":
         raise HTTPException(status_code=403, detail="MFA verification required")
@@ -1895,20 +1925,48 @@ def build_identity_router() -> APIRouter:
             require_aal2=True,
             required_purpose=AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE,
         )
-        user = db.get(OfficeAuthUser, context["user_id"])
+        user = db.execute(
+            select(OfficeAuthUser).where(OfficeAuthUser.id == context["user_id"]).with_for_update()
+        ).scalar_one_or_none()
         if not user:
             raise HTTPException(status_code=401, detail="Office identity is unavailable")
 
         now = _now()
-        stale_requests = db.execute(
-            select(OfficeAuthenticatorActivation).where(
-                OfficeAuthenticatorActivation.user_id == user.id,
-                OfficeAuthenticatorActivation.status.in_(["PENDING", "APPROVED"]),
+        source_session = db.execute(
+            select(OfficeAuthSession)
+            .where(OfficeAuthSession.id == context["session_id"])
+            .with_for_update()
+        ).scalar_one_or_none()
+        trusted_device = db.execute(
+            select(OfficeLoginDeviceApproval)
+            .where(
+                OfficeLoginDeviceApproval.user_id == user.id,
+                OfficeLoginDeviceApproval.session_id == context["session_id"],
+                OfficeLoginDeviceApproval.status == "TRUSTED",
             )
-        ).scalars().all()
-        for activation in stale_requests:
-            activation.status = "CANCELLED"
-            activation.cancelled_at = now
+            .with_for_update()
+        ).scalar_one_or_none()
+        if (
+            not source_session
+            or source_session.status != "ACTIVE"
+            or source_session.aal != "aal2"
+            or source_session.purpose != AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE
+            or not trusted_device
+            or not trusted_device.trusted_until
+            or _aware(trusted_device.trusted_until) <= now
+        ):
+            _event(
+                db,
+                "AUTHENTICATOR_ACTIVATION_BLOCKED",
+                request,
+                user_id=user.id,
+                session_id=context["session_id"],
+                metadata={"reason": "trusted_device_not_current"},
+            )
+            db.commit()
+            raise HTTPException(status_code=409, detail="This trusted device can no longer activate Authenticator")
+
+        _cancel_live_authenticator_activations(db, user_id=user.id, now=now)
 
         # The raw claim token is deliberately kept out of the database and
         # event log; it is held only by the requesting phone's secure storage.
@@ -1916,6 +1974,8 @@ def build_identity_router() -> APIRouter:
         activation = OfficeAuthenticatorActivation(
             id=str(uuid.uuid4()),
             user_id=user.id,
+            session_id=source_session.id,
+            device_approval_id=trusted_device.id,
             claim_token_hash=_hash_token(raw_claim_token),
             status="APPROVED",
             expires_at=now + timedelta(seconds=AUTHENTICATOR_ACTIVATION_TTL_SECONDS),
@@ -1979,25 +2039,64 @@ def build_identity_router() -> APIRouter:
             activation_uuid = str(uuid.UUID(activation_id))
         except ValueError as exc:
             raise HTTPException(status_code=404, detail="Authenticator activation request was not found") from exc
-        activation = db.get(OfficeAuthenticatorActivation, activation_uuid)
+        # Obtain locks in the same user-first order as device completion. The
+        # activation is re-read under lock so a replacement or recovery cannot
+        # race this capability into rotating the factor after revocation.
+        candidate = db.get(OfficeAuthenticatorActivation, activation_uuid)
+        if not candidate or not hmac.compare_digest(candidate.claim_token_hash, _hash_token(payload.claim_token)):
+            raise HTTPException(status_code=404, detail="Authenticator activation request was not found")
+        user = db.execute(
+            select(OfficeAuthUser).where(OfficeAuthUser.id == candidate.user_id).with_for_update()
+        ).scalar_one_or_none()
+        activation = db.execute(
+            select(OfficeAuthenticatorActivation)
+            .where(OfficeAuthenticatorActivation.id == activation_uuid)
+            .with_for_update()
+        ).scalar_one_or_none()
         if not activation or not hmac.compare_digest(activation.claim_token_hash, _hash_token(payload.claim_token)):
             raise HTTPException(status_code=404, detail="Authenticator activation request was not found")
-        if _aware(activation.expires_at) <= _now() and activation.status == "APPROVED":
+        now = _now()
+        if _aware(activation.expires_at) <= now and activation.status == "APPROVED":
             activation.status = "EXPIRED"
             db.commit()
             raise HTTPException(status_code=410, detail="Authenticator activation request has expired")
         if activation.status != "APPROVED":
             raise HTTPException(status_code=409, detail="Authenticator activation is no longer available")
 
+        source_session = db.get(OfficeAuthSession, activation.session_id) if activation.session_id else None
+        trusted_device = db.get(OfficeLoginDeviceApproval, activation.device_approval_id) if activation.device_approval_id else None
+        if (
+            not source_session
+            or not trusted_device
+            or source_session.user_id != activation.user_id
+            or trusted_device.user_id != activation.user_id
+            or trusted_device.session_id != source_session.id
+            or source_session.status != "ACTIVE"
+            or source_session.aal != "aal2"
+            or source_session.purpose != AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE
+            or trusted_device.status != "TRUSTED"
+            or not trusted_device.trusted_until
+            or _aware(trusted_device.trusted_until) <= now
+        ):
+            activation.status = "CANCELLED"
+            activation.cancelled_at = now
+            _event(
+                db,
+                "AUTHENTICATOR_ACTIVATION_CANCELLED",
+                request,
+                user_id=activation.user_id,
+                session_id=activation.session_id,
+                metadata={"activation_id": activation.id, "reason": "source_device_not_trusted"},
+            )
+            db.commit()
+            raise HTTPException(status_code=409, detail="Authenticator activation is no longer available")
+
         # Claim is deliberately a factor rotation, not an additional factor:
         # replacing a trusted phone makes every locally held previous code
         # invalid as soon as this fresh seed is issued.
-        user = db.execute(
-            select(OfficeAuthUser).where(OfficeAuthUser.id == activation.user_id).with_for_update()
-        ).scalar_one_or_none()
         if not user or user.status != "ACTIVE" or _identity_status(db, user) != "ACTIVE" or not _active_roles(db, user.id):
             activation.status = "CANCELLED"
-            activation.cancelled_at = _now()
+            activation.cancelled_at = now
             db.commit()
             raise HTTPException(status_code=409, detail="Authenticator activation is no longer available")
 
@@ -2006,7 +2105,7 @@ def build_identity_router() -> APIRouter:
         user.mfa_verified_at = None
         user.mfa_last_accepted_counter = None
         activation.status = "CLAIMED"
-        activation.claimed_at = _now()
+        activation.claimed_at = now
         _event(
             db,
             "AUTHENTICATOR_ACTIVATION_CLAIMED",
@@ -2146,13 +2245,18 @@ def build_identity_router() -> APIRouter:
             session.status = "REVOKED"
             session.revoked_at = _now()
             revoked += 1
+        cancelled_activations = _cancel_live_authenticator_activations(
+            db,
+            user_id=user.id,
+            now=_now(),
+        )
         _event(
             db,
             "PASSWORD_CHANGED",
             request,
             user_id=user.id,
             session_id=context["session_id"],
-            metadata={"revoked_other_sessions": revoked},
+            metadata={"revoked_other_sessions": revoked, "cancelled_activations": cancelled_activations},
         )
         db.commit()
         return {"changed": True, "revoked_other_sessions": revoked}
@@ -2184,12 +2288,17 @@ def build_identity_router() -> APIRouter:
         for session in sessions:
             session.status = "REVOKED"
             session.revoked_at = _now()
+        cancelled_activations = _cancel_live_authenticator_activations(
+            db,
+            user_id=user.id,
+            now=_now(),
+        )
         _event(
             db,
             "PASSWORD_RECOVERY_COMPLETED",
             request,
             user_id=user.id,
-            metadata={"revoked_sessions": len(sessions)},
+            metadata={"revoked_sessions": len(sessions), "cancelled_activations": cancelled_activations},
         )
         db.commit()
         return {"recovered": True, "revoked_sessions": len(sessions)}
@@ -2197,7 +2306,9 @@ def build_identity_router() -> APIRouter:
     @router.post("/refresh")
     def refresh(payload: RefreshPayload, request: Request, db: Session = Depends(get_db)):
         session = db.execute(
-            select(OfficeAuthSession).where(OfficeAuthSession.refresh_token_hash == _hash_token(payload.refresh_token))
+            select(OfficeAuthSession)
+            .where(OfficeAuthSession.refresh_token_hash == _hash_token(payload.refresh_token))
+            .with_for_update()
         ).scalar_one_or_none()
         now = _now()
         if not session or session.status != "ACTIVE" or session.revoked_at or _aware(session.expires_at) <= now:
@@ -2222,12 +2333,34 @@ def build_identity_router() -> APIRouter:
         db: Session = Depends(get_db),
     ):
         token = _bearer_token(authorization)
-        context = authenticate_office_access(token, db, require_aal2=False)
+        context = authenticate_office_access(
+            token,
+            db,
+            require_aal2=False,
+            allowed_purposes=frozenset({
+                OFFICE_SESSION_PURPOSE,
+                AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE,
+            }),
+        )
         session = db.get(OfficeAuthSession, context["session_id"])
         if session:
+            now = _now()
             session.status = "REVOKED"
-            session.revoked_at = _now()
-            _event(db, "LOGOUT", request, user_id=context["user_id"], session_id=session.id)
+            session.revoked_at = now
+            cancelled_activations = _cancel_live_authenticator_activations(
+                db,
+                user_id=context["user_id"],
+                now=now,
+                session_id=session.id,
+            )
+            _event(
+                db,
+                "LOGOUT",
+                request,
+                user_id=context["user_id"],
+                session_id=session.id,
+                metadata={"cancelled_activations": cancelled_activations},
+            )
             db.commit()
         return {"signed_out": True}
 
@@ -2579,6 +2712,52 @@ def build_identity_router() -> APIRouter:
             db.commit()
         return _approval_status_json(approval)
 
+    @router.post("/device-approvals/revoke")
+    def revoke_trusted_device(
+        payload: DeviceApprovalProofPayload,
+        request: Request,
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ):
+        """Remove this native phone's server-side trust before local erasure."""
+        context = authenticate_office_access(
+            _bearer_token(authorization),
+            db,
+            require_aal2=True,
+            required_purpose=AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE,
+        )
+        approval = _device_approval_from_proof(payload, db)
+        now = _now()
+        if (
+            approval.user_id != context["user_id"]
+            or approval.session_id != context["session_id"]
+            or approval.status != "TRUSTED"
+        ):
+            raise HTTPException(status_code=409, detail="This trusted device can no longer be removed from this session")
+        session = db.get(OfficeAuthSession, approval.session_id)
+        approval.status = "REVOKED"
+        approval.trusted_until = now
+        if session and session.status == "ACTIVE":
+            session.status = "REVOKED"
+            session.revoked_at = now
+        cancelled_activations = _cancel_live_authenticator_activations(
+            db,
+            user_id=approval.user_id,
+            now=now,
+            session_id=approval.session_id,
+            device_approval_id=approval.id,
+        )
+        _event(
+            db,
+            "DEVICE_TRUST_REVOKED",
+            request,
+            user_id=approval.user_id,
+            session_id=approval.session_id,
+            metadata={"approval_id": approval.id, "cancelled_activations": cancelled_activations},
+        )
+        db.commit()
+        return {"revoked": True}
+
     @router.post("/device-approvals/complete")
     def complete_device_approval(
         payload: DeviceApprovalProofPayload,
@@ -2672,13 +2851,23 @@ def build_identity_router() -> APIRouter:
             if prior_session and prior_session.status == "ACTIVE":
                 prior_session.status = "REVOKED"
                 prior_session.revoked_at = now
+            cancelled_activations = _cancel_live_authenticator_activations(
+                db,
+                user_id=user.id,
+                now=now,
+                session_id=prior.session_id,
+                device_approval_id=prior.id,
+            )
             _event(
                 db,
                 "DEVICE_LOCK_REPLACED",
                 request,
                 user_id=user.id,
                 session_id=prior.session_id,
-                metadata={"replaced_by_approval_id": approval.id},
+                metadata={
+                    "replaced_by_approval_id": approval.id,
+                    "cancelled_activations": cancelled_activations,
+                },
             )
         session.status = "ACTIVE"
         session.refresh_token_hash = _hash_token(refresh_token)
@@ -2823,6 +3012,11 @@ def build_identity_router() -> APIRouter:
         founder.mfa_secret_ciphertext = None
         founder.mfa_verified_at = None
         founder.mfa_last_accepted_counter = None
+        cancelled_activations = _cancel_live_authenticator_activations(
+            db,
+            user_id=founder.id,
+            now=_now(),
+        )
         recovery_token = _issue_recovery_token(founder, "BREAK_GLASS")
         _event(
             db,
@@ -2833,6 +3027,7 @@ def build_identity_router() -> APIRouter:
                 "reason": payload.reason.strip(),
                 "revoked_sessions": len(active_sessions),
                 "mfa_reset": True,
+                "cancelled_activations": cancelled_activations,
             },
         )
         db.commit()
@@ -2873,6 +3068,11 @@ def build_identity_router() -> APIRouter:
         for session in active_sessions:
             session.status = "REVOKED"
             session.revoked_at = _now()
+        cancelled_activations = _cancel_live_authenticator_activations(
+            db,
+            user_id=target.id,
+            now=_now(),
+        )
         recovery_token = _issue_recovery_token(target, actor["user_id"])
         _event(
             db,
@@ -2884,6 +3084,7 @@ def build_identity_router() -> APIRouter:
                 "issued_by": actor["user_id"],
                 "reason": payload.reason.strip(),
                 "revoked_sessions": len(active_sessions),
+                "cancelled_activations": cancelled_activations,
             },
         )
         db.commit()
@@ -3047,13 +3248,18 @@ def build_identity_router() -> APIRouter:
         for session in sessions:
             session.status = "REVOKED"
             session.revoked_at = _now()
+        cancelled_activations = _cancel_live_authenticator_activations(
+            db,
+            user_id=user_id,
+            now=_now(),
+        )
         _event(
             db,
             "MFA_RESET",
             request,
             user_id=user_id,
             session_id=actor["session_id"],
-            metadata={"reset_by": actor["user_id"]},
+            metadata={"reset_by": actor["user_id"], "cancelled_activations": cancelled_activations},
         )
         db.commit()
         return {"reset": True, "target_user_id": user_id, "revoked_sessions": len(sessions)}

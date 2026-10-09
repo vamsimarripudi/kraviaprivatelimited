@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import { OfficeAuthLayout } from "@/components/office-auth-layout";
 import { WorkspaceLoginForm } from "@/components/workspace-login-form";
 import { getOfficeRuntimeOrigin } from "@/lib/env/office";
-import { founderBootstrapStatus } from "@/lib/office/auth-server";
-import { founderBootstrapIsPermitted } from "@/lib/office/bootstrap";
 
 type Props = { searchParams: Promise<{ reason?: string; next?: string }> };
 
@@ -25,15 +23,6 @@ export default async function OfficeLogin({ searchParams }: Props) {
   const { reason, next } = await searchParams;
   const nextPath = next?.startsWith("/office") ? next : "/office/dashboard";
   const notice = recoveryNotice(reason);
-  let registrationOpen = false;
-  if (founderBootstrapIsPermitted()) {
-    try {
-      registrationOpen = (await founderBootstrapStatus()).registration_open;
-    } catch {
-      registrationOpen = false;
-    }
-  }
-
   return (
     <OfficeAuthLayout>
       {notice ? <p role="status">{notice}</p> : null}
@@ -42,7 +31,7 @@ export default async function OfficeLogin({ searchParams }: Props) {
         nextPath={nextPath}
         configurationRequired={!getOfficeRuntimeOrigin()}
         reason={reason}
-        registrationOpen={registrationOpen}
+        registrationOpen={false}
       />
     </OfficeAuthLayout>
   );

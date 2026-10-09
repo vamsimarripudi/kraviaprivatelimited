@@ -9,11 +9,11 @@ const backendAuth = readFileSync(new URL("../../Backend/backend/identity_auth.py
 const registerPage = readFileSync(new URL("../app/office/register/page.tsx", import.meta.url), "utf8");
 
 describe("KRAVIA Office invitation lifecycle", () => {
-  it("keeps public registration limited to a one-time locked Founder bootstrap", () => {
+  it("keeps public registration closed while preserving the one-time backend founder slot", () => {
     expect(backendAuth).toContain('FOUNDER_SLOT = "PRIMARY_FOUNDER"');
     expect(backendAuth).toContain("Founder registration is permanently closed");
-    expect(registerPage).toContain('mode="founder"');
-    expect(registerPage).toContain("Founder registration has already been completed");
+    expect(registerPage).not.toContain('mode="founder"');
+    expect(registerPage).toContain("Public registration is unavailable");
     expect(registerPage).toContain("private links issued inside KRAVIA Office");
   });
 

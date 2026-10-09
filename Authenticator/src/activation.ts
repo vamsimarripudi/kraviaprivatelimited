@@ -364,6 +364,66 @@ export async function refreshAuthenticatorSession(session: AuthenticatorDeviceSe
   return refreshed;
 }
 
+export type AuthenticatorSignOutResult =
+  | { state: "server_signed_out" }
+  | { state: "already_inactive" };
+
+export async function signOutAuthenticatorSession(
+  session: AuthenticatorDeviceSession,
+  persistRefreshedSession?: (session: AuthenticatorDeviceSession) => Promise<void> | void,
+): Promise<AuthenticatorSignOutResult> {
+  try {
+    await requestJson<{ signed_out: true }>(
+      "/api/v1/auth/sign-out",
+      undefined,
+      session.accessToken,
+    );
+    return { state: "server_signed_out" };
+  } catch (error) {
+    // Access tokens are intentionally short-lived. A valid 30-day device
+    // refresh session is enough to obtain one final access token and revoke
+    // the server session; do not make a user sign in again merely to sign out.
+    if (!(error instanceof IdentityApiError) || error.status !== 401) throw error;
+  }
+
+  let refreshed: AuthenticatorDeviceSession;
+  try {
+    refreshed = await refreshAuthenticatorSession(session);
+  } catch (error) {
+    // A failed refresh means the authoritative server session is already
+    // expired or revoked. Clearing the local copy is then safe. Other errors
+    // (network, 403, 404, or an invalid fresh access token) stay visible so
+    // the phone never pretends that a live session was revoked.
+    if (error instanceof IdentityApiError && error.status === 401) {
+      return { state: "already_inactive" };
+    }
+    throw error;
+  }
+
+  // Refresh-token rotation invalidates the old secure-storage value. Persist
+  // the replacement before another network call so an interrupted sign-out
+  // remains retryable instead of being misclassified as already inactive.
+  await persistRefreshedSession?.(refreshed);
+
+  // A fresh access token rejected here is not interchangeable with a failed
+  // refresh. Preserve the error rather than clearing local state, because the
+  // server may still hold a session that was not successfully revoked.
+  await requestJson<{ signed_out: true }>(
+    "/api/v1/auth/sign-out",
+    undefined,
+    refreshed.accessToken,
+  );
+  return { state: "server_signed_out" };
+}
+
+export async function revokeAuthenticatorTrustedDevice(session: AuthenticatorDeviceSession) {
+  await requestJson<{ revoked: true }>(
+    "/api/v1/auth/device-approvals/revoke",
+    { device_id: session.deviceApprovalId, device_proof: session.deviceProof },
+    session.accessToken,
+  );
+}
+
 export async function scanQrSignin(
   session: AuthenticatorDeviceSession,
   request: ParsedQrSignin,

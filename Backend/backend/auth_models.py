@@ -177,6 +177,11 @@ class OfficeAuthenticatorActivation(Base):
 
     id = Column(String(36), primary_key=True)
     user_id = Column(String(36), ForeignKey("office_auth_users.id", ondelete="CASCADE"), nullable=False)
+    # An activation capability is inseparable from the exact trusted phone
+    # session that created it. A replacement, recovery, or removal of that
+    # device must make its unused capability unusable as well.
+    session_id = Column(String(36), ForeignKey("office_auth_sessions_v2.id", ondelete="CASCADE"), nullable=True)
+    device_approval_id = Column(String(36), ForeignKey("office_login_device_approvals.id", ondelete="CASCADE"), nullable=True)
     claim_token_hash = Column(String(64), nullable=False, unique=True)
     status = Column(String(24), nullable=False, default="PENDING")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -188,6 +193,8 @@ class OfficeAuthenticatorActivation(Base):
 
     __table_args__ = (
         Index("ix_office_authenticator_activations_user_status", "user_id", "status"),
+        Index("ix_office_authenticator_activations_session_status", "session_id", "status"),
+        Index("ix_office_authenticator_activations_device_status", "device_approval_id", "status"),
         Index("ix_office_authenticator_activations_status_expires", "status", "expires_at"),
     )
 

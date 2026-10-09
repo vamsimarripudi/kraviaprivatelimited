@@ -129,14 +129,11 @@ def _allowed_origins() -> set[str]:
 
 
 def _identity_key(request: Request) -> str:
-    actor = request.headers.get("x-office-actor", "").strip()
-    auth = request.headers.get("authorization", "").strip()
-    if actor:
-        identity = f"actor:{actor.lower()}"
-    elif auth:
-        identity = "bearer:" + hashlib.sha256(auth.encode()).hexdigest()[:20]
-    else:
-        identity = "anonymous"
+    # This middleware executes before endpoint authentication. Do not let an
+    # arbitrary header (including Authorization) mint a fresh rate-limit
+    # bucket: an unauthenticated caller can rotate either value at will. The
+    # protected endpoint-specific controls use their own verified identities.
+    identity = "network"
     client = request.client.host if request.client else "unknown"
     return f"{client}|{identity}"
 

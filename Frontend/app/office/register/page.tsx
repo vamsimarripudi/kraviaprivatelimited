@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { OfficeAuthLayout } from "@/components/office-auth-layout";
 import { OfficeRegisterForm } from "@/components/office-register-form";
-import { founderBootstrapStatus, invitationStatus } from "@/lib/office/auth-server";
-import { founderBootstrapIsPermitted } from "@/lib/office/bootstrap";
+import { invitationStatus } from "@/lib/office/auth-server";
 
 type Props = { searchParams: Promise<{ invite?: string }> };
 
@@ -21,14 +20,6 @@ function Closed({ message }: { message: string }) {
 async function loadInvitation(token: string) {
   try {
     return await invitationStatus(token);
-  } catch {
-    return null;
-  }
-}
-
-async function bootstrapIsOpen() {
-  try {
-    return (await founderBootstrapStatus()).registration_open;
   } catch {
     return null;
   }
@@ -61,30 +52,7 @@ export default async function OfficeRegisterPage({ searchParams }: Props) {
     </OfficeAuthLayout>;
   }
 
-  if (!founderBootstrapIsPermitted()) {
-    return <OfficeAuthLayout>
-      <Closed message="Founder registration is unavailable on this public deployment. New people can join only through private links issued inside KRAVIA Office." />
-    </OfficeAuthLayout>;
-  }
-
-  const bootstrapOpen = await bootstrapIsOpen();
-  if (bootstrapOpen === null) {
-    return <OfficeAuthLayout>
-      <Closed message="The KRAVIA identity service is not ready. Registration remains closed until the service is available." />
-    </OfficeAuthLayout>;
-  }
-  if (!bootstrapOpen) {
-    return <OfficeAuthLayout>
-      <Closed message="Founder registration has already been completed. Public registration is permanently disabled; new people can join only through private links issued inside KRAVIA Office." />
-    </OfficeAuthLayout>;
-  }
-
-  return <OfficeAuthLayout
-    title="Founder setup"
-    description="Create the first KRAVIA Office identity. This one-time bootstrap closes public registration immediately after success."
-    footerHref="/office/login"
-    footerLabel="Already registered? Sign in"
-  >
-    <OfficeRegisterForm mode="founder" roles={["FOUNDER"]} />
+  return <OfficeAuthLayout>
+    <Closed message="Public registration is unavailable. New people can join only through private links issued inside KRAVIA Office." />
   </OfficeAuthLayout>;
 }
