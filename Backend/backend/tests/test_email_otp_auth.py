@@ -2,8 +2,10 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlparse
 
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from backend import identity_auth
+from backend.auth_models import OfficeAuthUser, OfficePlayReviewerAccess
 from backend.email_delivery import EmailDeliveryUnknown
 from backend.tests.test_identity_auth import FOUNDER, founder, make_client
 
@@ -60,6 +62,30 @@ def _complete_device(client, pending):
     return response.json()
 
 
+def _provision_play_reviewer(engine):
+    user = OfficeAuthUser(
+        id="8d777f62-5bbc-4af8-a912-fb3cc9ef6fd0",
+        email="play-review@example.test",
+        display_name="Google Play Reviewer",
+        password_hash=identity_auth.PASSWORD_HASHER.hash("Review-Only-Passphrase-2026!"),
+        status="ACTIVE",
+    )
+    reviewer = OfficePlayReviewerAccess(
+        id="3d98c5cc-f623-4cfe-839c-3de0cdca7150",
+        user_id=user.id,
+        otp_code_hash=identity_auth.PASSWORD_HASHER.hash("246810"),
+        enabled=True,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+    )
+    with Session(engine) as db:
+        db.add(user)
+        db.flush()
+        db.add(reviewer)
+        user_id, email, reviewer_id = user.id, user.email, reviewer.id
+        db.commit()
+    return user_id, email, reviewer_id
+
+
 def test_device_approval_link_is_pinned_to_the_canonical_web_origin(monkeypatch):
     """A public email must not use Railway, the redirecting apex or an arbitrary host."""
     approval_id = "11111111-1111-4111-8111-111111111111"
@@ -77,6 +103,86 @@ def test_device_approval_link_is_pinned_to_the_canonical_web_origin(monkeypatch)
         assert url.startswith("https://www.kraviaprivatelimited.com/office/device-approval/confirm?")
         assert f"id={approval_id}" in url
         assert "decision=" not in url
+
+
+def test_play_reviewer_can_activate_authenticator_without_email_but_never_access_office(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        reviewer_id, reviewer_email, reviewer_access_id = _provision_play_reviewer(engine)
+        deliveries = []
+        monkeypatch.setattr(
+            identity_auth,
+            "send_office_email_verification_code",
+            lambda **kwargs: deliveries.append(kwargs),
+        )
+
+        challenge = client.post(
+            "/api/v1/auth/email-otp/challenges",
+            json={
+                "email": reviewer_email,
+                "password": "Review-Only-Passphrase-2026!",
+                "channel": "authenticator_mobile",
+            },
+        )
+        assert challenge.status_code == 201, challenge.text
+        body = challenge.json()
+        assert body["verification_method"] == "PLAY_REVIEW"
+        assert "code" not in body
+        assert deliveries == []
+
+        wrong_code = client.post(
+            f"/api/v1/auth/email-otp/challenges/{body['challenge_id']}/verify",
+            json={"challenge_token": body["challenge_token"], "code": "000000"},
+        )
+        assert wrong_code.status_code == 400, wrong_code.text
+
+        verified = client.post(
+            f"/api/v1/auth/email-otp/challenges/{body['challenge_id']}/verify",
+            json={"challenge_token": body["challenge_token"], "code": "246810"},
+        )
+        assert verified.status_code == 200, verified.text
+        session = verified.json()
+        assert session["authenticated"] is True
+        assert session["session_purpose"] == identity_auth.AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE
+        assert session["roles"] == []
+        assert session["display_role"] == "PLAY_REVIEWER"
+        assert session["review_device"]["device_approval_id"]
+        assert session["review_device"]["device_proof"]
+
+        web_login = client.post(
+            "/api/v1/auth/sign-in",
+            json={"email": reviewer_email, "password": "Review-Only-Passphrase-2026!"},
+        )
+        assert web_login.status_code == 403
+        assert "limited to Authenticator" in web_login.json()["detail"]
+        office_session = client.get(
+            "/api/v1/auth/session",
+            headers={"Authorization": f"Bearer {session['access_token']}"},
+        )
+        assert office_session.status_code == 403
+
+        activation = client.post(
+            "/api/v1/auth/authenticator/activation-requests",
+            headers={"Authorization": f"Bearer {session['access_token']}"},
+        )
+        assert activation.status_code == 200, activation.text
+        claim = client.post(
+            f"/api/v1/auth/authenticator/activation-requests/{activation.json()['request_id']}/claim",
+            json={"claim_token": activation.json()["claim_token"]},
+        )
+        assert claim.status_code == 200, claim.text
+        assert claim.json()["account"] == reviewer_email
+
+        with Session(engine) as db:
+            stored = db.get(OfficePlayReviewerAccess, reviewer_access_id)
+            assert stored is not None
+            stored.enabled = False
+            db.commit()
+
+        refreshed = client.post("/api/v1/auth/refresh", json={"refresh_token": session["refresh_token"]})
+        assert refreshed.status_code == 403
+    finally:
+        engine.dispose()
 
 
 def test_email_otp_requires_registered_mailbox_to_trust_a_new_device_before_issuing_a_scoped_session(tmp_path, monkeypatch):

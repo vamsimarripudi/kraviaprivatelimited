@@ -951,7 +951,9 @@ function AuthenticatorApp() {
       setOtp("");
       setOtpExpired(false);
       setMessage(
-        "A new verification code was sent. The previous code is no longer valid.",
+        next.verificationMethod === "PLAY_REVIEW"
+          ? "Use the six-digit review code provided in your Google Play Console instructions."
+          : "A new verification code was sent. The previous code is no longer valid.",
       );
     } catch (error) {
       if (
@@ -974,7 +976,11 @@ function AuthenticatorApp() {
   }
   async function completeEmailVerification() {
     if (!challenge || !/^\d{6}$/.test(otp)) {
-      setMessage("Enter the six-digit code from your registered email.");
+      setMessage(
+        challenge?.verificationMethod === "PLAY_REVIEW"
+          ? "Enter the six-digit review code from the Google Play Console instructions."
+          : "Enter the six-digit code from your registered email.",
+      );
       return;
     }
     setBusy(true);
@@ -1416,10 +1422,16 @@ function AuthenticatorApp() {
               <Text style={styles.backLink}>Use another account</Text>
             </Pressable>
             <View style={styles.authIntro}>
-              <Text style={styles.kicker}>EMAIL VERIFICATION</Text>
+              <Text style={styles.kicker}>
+                {challenge.verificationMethod === "PLAY_REVIEW"
+                  ? "PLAY REVIEW ACCESS"
+                  : "EMAIL VERIFICATION"}
+              </Text>
               <Text style={styles.title}>Confirm it’s you</Text>
               <Text style={styles.body}>
-                Enter your code — the six-digit code sent to {emailMask(challenge.email)}.
+                {challenge.verificationMethod === "PLAY_REVIEW"
+                  ? "Enter the reusable six-digit review code supplied in the Google Play Console instructions."
+                  : `Enter your code — the six-digit code sent to ${emailMask(challenge.email)}.`}
               </Text>
             </View>
             <View style={styles.otpSurface}>

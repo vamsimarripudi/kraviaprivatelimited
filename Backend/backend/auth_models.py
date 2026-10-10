@@ -46,6 +46,32 @@ class OfficeAuthRole(Base):
     )
 
 
+class OfficePlayReviewerAccess(Base):
+    """A time-bounded Google Play review identity with no Office role.
+
+    The reviewer is an actual first-party identity so credential handling and
+    session revocation remain auditable.  It deliberately has no
+    ``OfficeAuthRole`` row: the only session capability it can receive is the
+    native Authenticator activation capability.
+    """
+
+    __tablename__ = "office_play_reviewer_access"
+
+    id = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey("office_auth_users.id", ondelete="CASCADE"), nullable=False, unique=True)
+    otp_code_hash = Column(String(512), nullable=False)
+    enabled = Column(Boolean, nullable=False, default=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    disabled_at = Column(DateTime(timezone=True), nullable=True)
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        Index("ix_office_play_reviewer_access_enabled_expires", "enabled", "expires_at"),
+    )
+
+
 class OfficeAuthSession(Base):
     __tablename__ = "office_auth_sessions_v2"
 

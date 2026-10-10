@@ -11,6 +11,7 @@ export type PendingEmailOtpChallenge = {
   email: string;
   expiresAt: string;
   resendAvailableAt: string;
+  verificationMethod: "EMAIL" | "PLAY_REVIEW";
 };
 
 export class IdentityApiError extends Error {
@@ -25,6 +26,11 @@ type ChallengeResponse = {
   email: string;
   expires_at: string;
   resend_available_at: string;
+  verification_method?: "EMAIL" | "PLAY_REVIEW";
+};
+type ReviewDeviceResponse = {
+  device_approval_id: string;
+  device_proof: string;
 };
 type ActiveSessionResponse = {
   authenticated: true;
@@ -33,6 +39,7 @@ type ActiveSessionResponse = {
   refresh_token: string;
   refresh_expires_at: string;
   session_purpose: "AUTHENTICATOR_ACTIVATION";
+  review_device?: ReviewDeviceResponse;
 };
 type PendingResponse = {
   authenticated: false;
@@ -177,6 +184,23 @@ function toChallenge(result: ChallengeResponse): PendingEmailOtpChallenge {
     email: result.email,
     expiresAt: result.expires_at,
     resendAvailableAt: result.resend_available_at,
+    verificationMethod:
+      result.verification_method === "PLAY_REVIEW" ? "PLAY_REVIEW" : "EMAIL",
+  };
+}
+
+function reviewDevice(result: ActiveSessionResponse): Pick<
+  AuthenticatorDeviceSession,
+  "deviceApprovalId" | "deviceProof"
+> | null {
+  const device = result.review_device;
+  if (!device) return null;
+  if (!validId(device.device_approval_id) || !validSecret(device.device_proof)) {
+    throw new Error("The identity service returned an invalid review-device session.");
+  }
+  return {
+    deviceApprovalId: device.device_approval_id,
+    deviceProof: device.device_proof,
   };
 }
 
@@ -310,14 +334,15 @@ export async function verifyEmailOtp(
   ) {
     return { kind: "pending" as const, pending: toPending(result) };
   }
-  if (result.authenticated !== true || !trustedDevice) {
+  const sessionDevice = trustedDevice ?? (result.authenticated === true ? reviewDevice(result) : null);
+  if (result.authenticated !== true || !sessionDevice) {
     throw new Error(
       "The identity service did not establish a trusted-device session.",
     );
   }
   return {
     kind: "active" as const,
-    session: toSession(result, trustedDevice),
+    session: toSession(result, sessionDevice),
   };
 }
 

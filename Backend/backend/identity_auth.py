@@ -42,6 +42,7 @@ from .auth_models import (
     OfficeAuthUser,
     OfficeEmailOtpChallenge,
     OfficeLoginDeviceApproval,
+    OfficePlayReviewerAccess,
     OfficeQrSigninApproval,
 )
 from .database import get_db
@@ -360,6 +361,46 @@ def _email_otp_settings() -> tuple[int, int, int, int]:
     return values
 
 
+def _active_play_reviewer_access(
+    db: Session,
+    user: OfficeAuthUser,
+    *,
+    now: datetime | None = None,
+) -> OfficePlayReviewerAccess | None:
+    """Return the narrowly-scoped reviewer record only while it is usable.
+
+    A reviewer record is deliberately separate from Office roles.  Expiry and
+    disablement take effect at every auth boundary, including a session refresh
+    or an activation claim that started before an operator disabled the account.
+    """
+    access = db.execute(
+        select(OfficePlayReviewerAccess).where(
+            OfficePlayReviewerAccess.user_id == user.id,
+        )
+    ).scalar_one_or_none()
+    current = now or _now()
+    if (
+        not access
+        or not access.enabled
+        or access.disabled_at is not None
+        or _aware(access.expires_at) <= current
+    ):
+        return None
+    return access
+
+
+def _has_active_login_authority(db: Session, user: OfficeAuthUser, *, now: datetime | None = None) -> bool:
+    """Allow either a real Office role or the deliberately isolated reviewer."""
+    return bool(_active_roles(db, user.id)) or _active_play_reviewer_access(db, user, now=now) is not None
+
+
+def _matches_play_reviewer_code(access: OfficePlayReviewerAccess, code: str) -> bool:
+    try:
+        return bool(PASSWORD_HASHER.verify(access.otp_code_hash, code))
+    except (VerifyMismatchError, VerificationError):
+        return False
+
+
 def _email_otp_json(
     challenge: OfficeEmailOtpChallenge,
     user: OfficeAuthUser,
@@ -372,6 +413,7 @@ def _email_otp_json(
         "email": user.email,
         "expires_at": _aware(challenge.expires_at).isoformat(),
         "resend_available_at": _aware(challenge.resend_available_at).isoformat(),
+        "verification_method": "PLAY_REVIEW" if challenge.channel == "play_reviewer_mobile" else "EMAIL",
     }
 
 
@@ -639,6 +681,70 @@ def _create_device_approval(
         metadata={"approval_id": approval.id, "device_label": approval.device_label},
     )
     return {"approval_id": approval.id, "device_token": device_token, "action_token": action_token}
+
+
+def _create_play_reviewer_device(
+    db: Session,
+    *,
+    user: OfficeAuthUser,
+    session: OfficeAuthSession,
+    request: Request,
+    trusted_until: datetime,
+) -> dict[str, str]:
+    """Bind the review-only app session without sending an email approval.
+
+    Google Play requires a reusable review credential that does not depend on
+    a real employee inbox.  This is intentionally available only to an
+    enabled, expiring reviewer record and creates a capability limited to the
+    Authenticator activation session; it is never an Office browser device.
+    """
+    now = _now()
+    for previous in db.execute(
+        select(OfficeLoginDeviceApproval).where(
+            OfficeLoginDeviceApproval.user_id == user.id,
+            OfficeLoginDeviceApproval.status == "TRUSTED",
+        )
+    ).scalars():
+        previous.status = "REVOKED"
+        previous.trusted_until = now
+        _cancel_live_authenticator_activations(
+            db,
+            user_id=user.id,
+            now=now,
+            device_approval_id=previous.id,
+        )
+
+    device_proof = secrets.token_urlsafe(48)
+    # This token satisfies the existing non-null audit schema but is never
+    # returned and can never be used to make an owner decision.
+    discarded_owner_token = secrets.token_urlsafe(48)
+    source_ip, user_agent_hash = _request_metadata(request)
+    device = OfficeLoginDeviceApproval(
+        id=str(uuid.uuid4()),
+        user_id=user.id,
+        session_id=session.id,
+        device_token_hash=_hash_token(device_proof),
+        owner_action_token_hash=_hash_token(discarded_owner_token),
+        status="TRUSTED",
+        source_ip_address=source_ip,
+        user_agent_hash=user_agent_hash,
+        device_label="Google Play review device",
+        expires_at=trusted_until,
+        trusted_until=trusted_until,
+        approved_at=now,
+        consumed_at=now,
+    )
+    db.add(device)
+    db.flush()
+    _event(
+        db,
+        "PLAY_REVIEWER_DEVICE_BOUND",
+        request,
+        user_id=user.id,
+        session_id=session.id,
+        metadata={"approval_id": device.id, "expires_at": trusted_until.isoformat()},
+    )
+    return {"device_approval_id": device.id, "device_proof": device_proof}
 
 
 def _send_device_approval_notice(
@@ -925,6 +1031,7 @@ def _identity_metadata(db: Session, user_id: str) -> dict[str, Any]:
 
 def _safe_identity(db: Session, user: OfficeAuthUser, aal: str) -> dict[str, Any]:
     roles = _active_roles(db, user.id)
+    is_play_reviewer = _active_play_reviewer_access(db, user) is not None
     metadata = _identity_metadata(db, user.id)
     return {
         "user_id": user.id,
@@ -936,7 +1043,11 @@ def _safe_identity(db: Session, user: OfficeAuthUser, aal: str) -> dict[str, Any
         "authorization_version": metadata["authorization_version"],
         "aal": aal,
         "founder": user.founder_slot == FOUNDER_SLOT,
-        "display_role": "FOUNDER" if user.founder_slot == FOUNDER_SLOT else (roles[0] if roles else "MEMBER"),
+        "display_role": (
+            "FOUNDER"
+            if user.founder_slot == FOUNDER_SLOT
+            else (roles[0] if roles else ("PLAY_REVIEWER" if is_play_reviewer else "MEMBER"))
+        ),
         # Claiming an approved device installs an encrypted factor before its
         # first browser verification.  That factor must send the next password
         # sign-in to the TOTP challenge, rather than incorrectly offering a
@@ -1115,7 +1226,11 @@ def authenticate_office_access(
     if require_aal2 and session.aal != "aal2":
         raise HTTPException(status_code=403, detail="MFA verification required")
 
-    if _control_plane_present(db):
+    review_access = _active_play_reviewer_access(db, user, now=now)
+    if review_access and session.purpose != AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE:
+        raise HTTPException(status_code=403, detail="Google Play reviewer access is limited to Authenticator")
+
+    if _control_plane_present(db) and not review_access:
         authz = db.execute(
             text(
                 """
@@ -1149,7 +1264,7 @@ def authenticate_office_access(
 
     if user.status != "ACTIVE" or status != "ACTIVE":
         raise HTTPException(status_code=403, detail="KRAVIA Office access is not active")
-    if not roles:
+    if not roles and not review_access:
         raise HTTPException(status_code=403, detail="No KRAVIA Office role is assigned")
 
     # Do not write last_seen_at on every business API request. Session activity is
@@ -1157,7 +1272,7 @@ def authenticate_office_access(
     # write here keeps read-heavy REST traffic read-only and reduces DB latency.
     return {
         "actor": user.email,
-        "role": roles[0],
+        "role": roles[0] if roles else "PLAY_REVIEWER",
         "roles": set(roles),
         "subject": user.id,
         "user_id": user.id,
@@ -1341,7 +1456,7 @@ def build_identity_router() -> APIRouter:
             _event(db, "LOGIN_BLOCKED", request, user_id=user.id, metadata={"reason": "inactive_identity", "channel": channel})
             db.commit()
             raise HTTPException(status_code=403, detail="KRAVIA Office access is not active")
-        if not _active_roles(db, user.id):
+        if not _has_active_login_authority(db, user, now=now):
             raise HTTPException(status_code=403, detail="No KRAVIA Office role is assigned")
 
         user.failed_login_count = 0
@@ -1400,6 +1515,16 @@ def build_identity_router() -> APIRouter:
     @router.post("/sign-in")
     def sign_in(payload: SignInPayload, request: Request, db: Session = Depends(get_db)):
         user = verify_credentials(payload, request, db, channel="office_web")
+        if _active_play_reviewer_access(db, user) is not None:
+            _event(
+                db,
+                "PLAY_REVIEWER_OFFICE_LOGIN_BLOCKED",
+                request,
+                user_id=user.id,
+                metadata={"channel": "office_web"},
+            )
+            db.commit()
+            raise HTTPException(status_code=403, detail="Google Play reviewer access is limited to Authenticator")
         result = _issue_session(db, user, request, aal="aal1")
         db.commit()
         return result
@@ -1440,6 +1565,7 @@ def build_identity_router() -> APIRouter:
             existing.status = "CANCELLED"
             existing.cancelled_at = now
 
+        play_review_access = _active_play_reviewer_access(db, user, now=now)
         challenge_id = str(uuid.uuid4())
         challenge_token = secrets.token_urlsafe(48)
         code = f"{secrets.randbelow(1_000_000):06d}"
@@ -1449,15 +1575,30 @@ def build_identity_router() -> APIRouter:
             challenge_token_hash=_hash_token(challenge_token),
             code_hash=_email_otp_code_hash(challenge_id, code),
             status="PENDING",
-            channel=payload.channel,
+            channel="play_reviewer_mobile" if play_review_access else payload.channel,
             attempt_count=0,
-            delivery_attempt_count=1,
+            delivery_attempt_count=0 if play_review_access else 1,
             expires_at=now + timedelta(seconds=ttl),
             resend_available_at=now + timedelta(seconds=resend_interval),
         )
         db.add(challenge)
-        _event(db, "EMAIL_OTP_REQUESTED", request, user_id=user.id, metadata={"channel": payload.channel})
+        _event(
+            db,
+            "PLAY_REVIEWER_CODE_REQUESTED" if play_review_access else "EMAIL_OTP_REQUESTED",
+            request,
+            user_id=user.id,
+            metadata={"channel": challenge.channel},
+        )
         db.commit()
+
+        # Google Play reviewers cannot depend on an employee mailbox.  The
+        # reusable review code is verified only as a password hash and is never
+        # included in this response, logs, email delivery, or source control.
+        if play_review_access:
+            challenge.status = "SENT"
+            challenge.delivered_at = now
+            db.commit()
+            return _email_otp_json(challenge, user, challenge_token=challenge_token)
 
         try:
             message_id = send_office_email_verification_code(
@@ -1516,16 +1657,39 @@ def build_identity_router() -> APIRouter:
         if _aware(challenge.resend_available_at) > now:
             raise HTTPException(status_code=429, detail="Please wait before requesting another verification code")
 
+        play_review_access = (
+            _active_play_reviewer_access(db, user, now=now)
+            if challenge.channel == "play_reviewer_mobile"
+            else None
+        )
+        if challenge.channel == "play_reviewer_mobile" and not play_review_access:
+            challenge.status = "CANCELLED"
+            challenge.cancelled_at = now
+            db.commit()
+            raise HTTPException(status_code=403, detail="Google Play reviewer access is no longer active")
+
         code = f"{secrets.randbelow(1_000_000):06d}"
-        challenge.code_hash = _email_otp_code_hash(challenge.id, code)
+        if not play_review_access:
+            challenge.code_hash = _email_otp_code_hash(challenge.id, code)
         challenge.status = "PENDING"
         challenge.attempt_count = 0
-        challenge.delivery_attempt_count = int(challenge.delivery_attempt_count or 0) + 1
+        challenge.delivery_attempt_count = int(challenge.delivery_attempt_count or 0) + (0 if play_review_access else 1)
         challenge.provider_message_id = None
         challenge.expires_at = now + timedelta(seconds=ttl)
         challenge.resend_available_at = now + timedelta(seconds=resend_interval)
-        _event(db, "EMAIL_OTP_RESEND_REQUESTED", request, user_id=user.id)
+        _event(
+            db,
+            "PLAY_REVIEWER_CODE_RECONFIRMED" if play_review_access else "EMAIL_OTP_RESEND_REQUESTED",
+            request,
+            user_id=user.id,
+        )
         db.commit()
+
+        if play_review_access:
+            challenge.status = "SENT"
+            challenge.delivered_at = now
+            db.commit()
+            return _email_otp_json(challenge, user, challenge_token=payload.challenge_token)
 
         try:
             message_id = send_office_email_verification_code(
@@ -1582,7 +1746,22 @@ def build_identity_router() -> APIRouter:
             raise HTTPException(status_code=410, detail="This verification code has expired. Request a new one.")
         if challenge.status != "SENT":
             raise HTTPException(status_code=409, detail="This verification request is no longer available")
-        if not hmac.compare_digest(challenge.code_hash, _email_otp_code_hash(challenge.id, payload.code)):
+        play_review_access = (
+            _active_play_reviewer_access(db, user, now=now)
+            if challenge.channel == "play_reviewer_mobile"
+            else None
+        )
+        if challenge.channel == "play_reviewer_mobile" and not play_review_access:
+            challenge.status = "CANCELLED"
+            challenge.cancelled_at = now
+            db.commit()
+            raise HTTPException(status_code=403, detail="Google Play reviewer access is no longer active")
+        code_matches = (
+            _matches_play_reviewer_code(play_review_access, payload.code)
+            if play_review_access
+            else hmac.compare_digest(challenge.code_hash, _email_otp_code_hash(challenge.id, payload.code))
+        )
+        if not code_matches:
             challenge.attempt_count = int(challenge.attempt_count or 0) + 1
             exhausted = challenge.attempt_count >= max_attempts
             if exhausted:
@@ -1602,7 +1781,15 @@ def build_identity_router() -> APIRouter:
 
         challenge.status = "VERIFIED"
         challenge.verified_at = now
-        _event(db, "EMAIL_OTP_VERIFIED", request, user_id=user.id, metadata={"channel": challenge.channel})
+        if play_review_access:
+            play_review_access.last_used_at = now
+        _event(
+            db,
+            "PLAY_REVIEWER_CODE_VERIFIED" if play_review_access else "EMAIL_OTP_VERIFIED",
+            request,
+            user_id=user.id,
+            metadata={"channel": challenge.channel},
+        )
         result = _issue_session(
             db,
             user,
@@ -1614,6 +1801,22 @@ def build_identity_router() -> APIRouter:
             # a substitute for an Office browser session or an enrolled TOTP.
             purpose=AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE,
         )
+        if play_review_access:
+            session = db.execute(
+                select(OfficeAuthSession).where(
+                    OfficeAuthSession.refresh_token_hash == _hash_token(result["refresh_token"])
+                )
+            ).scalar_one()
+            result["review_device"] = _create_play_reviewer_device(
+                db,
+                user=user,
+                session=session,
+                request=request,
+                trusted_until=now + timedelta(seconds=mobile_refresh_ttl),
+            )
+            db.commit()
+            return result
+
         # Email OTP proves the registered mailbox, not that this handset is
         # an approved KRAVIA device.  A recognised handset may receive its
         # scoped session immediately; every other handset is held until the
@@ -2094,7 +2297,12 @@ def build_identity_router() -> APIRouter:
         # Claim is deliberately a factor rotation, not an additional factor:
         # replacing a trusted phone makes every locally held previous code
         # invalid as soon as this fresh seed is issued.
-        if not user or user.status != "ACTIVE" or _identity_status(db, user) != "ACTIVE" or not _active_roles(db, user.id):
+        if (
+            not user
+            or user.status != "ACTIVE"
+            or _identity_status(db, user) != "ACTIVE"
+            or not _has_active_login_authority(db, user, now=now)
+        ):
             activation.status = "CANCELLED"
             activation.cancelled_at = now
             db.commit()
@@ -2314,7 +2522,12 @@ def build_identity_router() -> APIRouter:
         if not session or session.status != "ACTIVE" or session.revoked_at or _aware(session.expires_at) <= now:
             raise HTTPException(status_code=401, detail="Office refresh session is invalid or expired")
         user = db.get(OfficeAuthUser, session.user_id)
-        if not user or user.status != "ACTIVE" or _identity_status(db, user) != "ACTIVE":
+        if (
+            not user
+            or user.status != "ACTIVE"
+            or _identity_status(db, user) != "ACTIVE"
+            or not _has_active_login_authority(db, user, now=now)
+        ):
             raise HTTPException(status_code=403, detail="KRAVIA Office access is not active")
 
         replacement = secrets.token_urlsafe(48)

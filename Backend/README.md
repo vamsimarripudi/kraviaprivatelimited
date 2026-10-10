@@ -86,6 +86,11 @@ above. The hosted service must receive the same key as a protected environment
 variable. A missing or rejected configuration fails closed; it never claims a
 code was sent.
 
+Google Play reviewer access is an isolated, expiring Authenticator-only
+identity. It is never an Office role and does not use an employee mailbox.
+Follow [PLAY_REVIEWER_ACCESS.md](PLAY_REVIEWER_ACCESS.md) for the protected
+provisioning and immediate post-review revocation procedure.
+
 The public Contact, Support, and Privacy/Trust forms use the same server-side
 Brevo adapter for acknowledgement emails and reviewed Office follow-ups. The
 Office BFF signs every message only after its source request update is stored;
