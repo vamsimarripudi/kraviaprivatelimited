@@ -65,13 +65,17 @@ describe("KRAVIA Authenticator native security profile", () => {
     expect(securitySource).toContain('biometricsSecurityLevel: "strong"');
     expect(securitySource).toContain('disableDeviceFallback: true');
     expect(securitySource).toContain('fallbackLabel: ""');
-    expect(securitySource).toContain("Expo Go cannot perform Face ID");
+    expect(securitySource).toContain("Face ID cannot run in Expo Go");
     expect(securitySource).toContain("authentication_failed");
     expect(securitySource).not.toContain("Device authentication was not completed.");
     expect(securitySource).not.toContain('Use device passcode');
     expect(appSource).toContain('state === "background"');
     expect(appSource).toContain('if (state === "background")');
     expect(appSource).toContain('["home", "scan", "qr-review", "settings"].includes(screen)');
+    expect(appSource).toContain("const localStoreScreenshotPreview =");
+    expect(appSource).toContain('__DEV__ && process.env.EXPO_PUBLIC_ALLOW_SCREEN_CAPTURE === "1"');
+    expect(appSource).toContain("!localStoreScreenshotPreview && <ScreenCaptureProtection />");
+    expect(appSource).toContain("function ScreenCaptureProtection()");
     expect(appSource).toContain("usePreventScreenCapture(\"authenticator\")");
     expect(appSource).toContain("enableAppSwitcherProtectionAsync");
     expect(appSource).toContain("Security centre");
@@ -117,10 +121,33 @@ describe("KRAVIA Authenticator native security profile", () => {
     expect(appSource).toContain("Accept sign-in");
     expect(appSource).toContain("Reject sign-in");
     expect(appSource).toContain("Approve browser sign-in");
+    const scanEntry = appSource.slice(
+      appSource.indexOf("async function beginQrScan"),
+      appSource.indexOf("async function handleQrScanned"),
+    );
+    const approvalDecision = appSource.slice(
+      appSource.indexOf("async function decideQrApproval"),
+      appSource.indexOf("async function signOut"),
+    );
+    expect(scanEntry).toContain("Allow camera access?");
+    expect(scanEntry).toContain("requestCameraPermission()");
+    expect(scanEntry).not.toContain("unlockAuthenticator(");
+    expect(approvalDecision).toContain("unlockAuthenticator(");
+    expect(approvalDecision).toContain("Approve browser sign-in");
     expect(appSource).toContain("No QR enrollment or setup key is supported.");
     expect(appSource).not.toContain("Enter code manually");
     expect(appSource).not.toContain("Enter setup key");
     expect(appSource).not.toContain("Clipboard.setString");
     expect(appSource).not.toContain("Clipboard.getString");
+  });
+
+  it("uses one accessible feedback surface and keeps the approved artwork bytes intact", () => {
+    expect(appSource).toContain("FeedbackToast");
+    expect(appSource).toContain("useSafeAreaInsets");
+    expect(appSource).not.toContain("qrMessage");
+    expect(appSource).not.toContain("styles.info");
+    expect(appSource).not.toContain("Changes in {totp.remaining}");
+    expect(appSource).toContain("Animated.Image");
+    expect(appSource).toContain("artworkRevealLine");
   });
 });

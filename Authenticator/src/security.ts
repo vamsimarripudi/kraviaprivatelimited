@@ -58,7 +58,7 @@ function biometricFailureMessage(error: string, method: string) {
   switch (error) {
     case "not_available":
       return Platform.OS === "ios"
-        ? "Face ID is unavailable in this app build. Expo Go cannot perform Face ID; install a KRAVIA development or production build to use it."
+        ? "Face ID cannot run in Expo Go. Camera scanning is available, but approving a browser sign-in requires a KRAVIA development or production build with Face ID enabled."
         : "Strong biometric authentication is unavailable. Enrol a strong face or fingerprint biometric in Android Settings, then try again.";
     case "not_enrolled":
     case "passcode_not_set":

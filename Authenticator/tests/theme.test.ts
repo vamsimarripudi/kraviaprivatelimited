@@ -2,15 +2,16 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { colors } from "../src/theme";
 
-describe("KRAVIA Authenticator Midnight Sapphire theme", () => {
-  it("keeps the approved palette as the shared native UI source of truth", () => {
+describe("KRAVIA Authenticator Harbor Reserve theme", () => {
+  it("keeps the premium security palette as the shared native UI source of truth", () => {
     expect(colors).toMatchObject({
-      primary: "#193B5B",
-      accent: "#5D809D",
-      background: "#EFF3F7",
+      primary: "#102A43",
+      accent: "#2F6F9F",
+      background: "#F5F7FA",
       surface: "#FFFFFF",
-      text: "#172331",
+      text: "#16212B",
       onPrimary: "#FFFFFF",
+      timerAccent: "#B8893E",
     });
   });
 

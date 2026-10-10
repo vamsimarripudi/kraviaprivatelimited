@@ -1,29 +1,32 @@
 /**
- * Midnight Sapphire is the native Authenticator interface theme.
+ * Harbor Reserve is the native Authenticator interface theme.
  *
  * The artwork backdrop intentionally stays separate: it must match the locked
  * splash artwork and Expo splash configuration byte-for-byte.
  */
 export const colors = Object.freeze({
-  primary: "#193B5B",
-  accent: "#5D809D",
-  background: "#EFF3F7",
+  primary: "#102A43",
+  accent: "#2F6F9F",
+  background: "#F5F7FA",
   surface: "#FFFFFF",
-  text: "#172331",
+  text: "#16212B",
   onPrimary: "#FFFFFF",
 
-  primaryPressed: "#112E47",
-  primarySoft: "#E1EAF1",
-  primarySoftBorder: "#C7D5E1",
-  border: "#D7E1E9",
-  borderStrong: "#AABCCC",
-  mutedText: "#516477",
-  placeholder: "#73879A",
-  disabledSurface: "#E3EAF0",
-  disabledText: "#788A99",
-  onPrimaryMuted: "#DCE7EF",
-  onPrimaryFaint: "#FFFFFF29",
-  accentSoft: "#E3EBF2",
+  primaryPressed: "#0B1E31",
+  primarySoft: "#E1EAF2",
+  primarySoftBorder: "#B9CBDA",
+  border: "#D8E2EA",
+  borderStrong: "#8EA9BF",
+  mutedText: "#52687A",
+  placeholder: "#6F8596",
+  disabledSurface: "#E6EDF3",
+  disabledText: "#718698",
+  onPrimaryMuted: "#DCE9F2",
+  onPrimaryFaint: "#FFFFFF26",
+  accentSoft: "#E6EFF6",
+  timerAccent: "#B8893E",
+  timerSoft: "#F4E8D5",
+  overlay: "#0B1C2CD9",
 
   semanticSuccess: "#0CA65B",
   semanticError: "#8A302A",

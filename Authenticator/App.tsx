@@ -7,6 +7,7 @@ import {
   AppState,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -17,7 +18,7 @@ import {
   View,
   type ImageSourcePropType,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ScreenCapture from "expo-screen-capture";
@@ -84,6 +85,11 @@ const BRAND_ICON = require("./assets/brand/icon.png");
 const SPLASH_ART = require("./assets/brand/splash.jpg");
 const LOADING_ART = require("./assets/brand/loading.jpg");
 const APP_VERSION = "1.0.0";
+// Store listing screenshots are captured only from an Expo development session.
+// A release bundle always evaluates __DEV__ to false, so this local switch
+// cannot weaken screen-capture or app-switcher protection in an APK/AAB.
+const localStoreScreenshotPreview =
+  __DEV__ && process.env.EXPO_PUBLIC_ALLOW_SCREEN_CAPTURE === "1";
 const TEXT_FONT =
   Platform.select({
     ios: "Avenir Next",
@@ -104,9 +110,45 @@ function BrandArtwork({
   source: ImageSourcePropType;
   label: string;
 }) {
+  const reveal = useRef(new Animated.Value(0)).current;
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  useEffect(() => {
+    void AccessibilityInfo.isReduceMotionEnabled().then(setReducedMotion);
+    const subscription = AccessibilityInfo.addEventListener(
+      "reduceMotionChanged",
+      setReducedMotion,
+    );
+    return () => subscription.remove();
+  }, []);
+
+  useEffect(() => {
+    if (reducedMotion) {
+      reveal.setValue(1);
+      return;
+    }
+    const animation = Animated.timing(reveal, {
+      toValue: 1,
+      duration: 820,
+      useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [reducedMotion, reveal]);
+
+  const scale = reveal.interpolate({ inputRange: [0, 1], outputRange: [1.035, 1] });
+  const opacity = reveal.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
   return (
     <SafeAreaView style={styles.artworkRoot} accessibilityLabel={label}>
-      <Image source={source} resizeMode="contain" style={styles.artwork} />
+      <Animated.Image
+        source={source}
+        resizeMode="contain"
+        style={[styles.artwork, { opacity, transform: [{ scale }] }]}
+      />
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.artworkRevealLine, { opacity }]}
+      />
     </SafeAreaView>
   );
 }
@@ -480,6 +522,7 @@ function ApprovalPulse({ expiresAt }: { expiresAt: string }) {
   );
 }
 function FeedbackToast({ message }: { message: string | undefined }) {
+  const insets = useSafeAreaInsets();
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(-14)).current;
   const [visibleMessage, setVisibleMessage] = useState<string>();
@@ -534,7 +577,10 @@ function FeedbackToast({ message }: { message: string | undefined }) {
 
   if (!visibleMessage) return null;
   return (
-    <View pointerEvents="none" style={styles.toastRegion}>
+    <View
+      pointerEvents="none"
+      style={[styles.toastRegion, { top: Math.max(insets.top + 8, 20) }]}
+    >
       <Animated.View
         accessible
         accessibilityRole="alert"
@@ -573,7 +619,29 @@ function clockLabel(seconds: number) {
 }
 
 export default function App() {
+  return (
+    <SafeAreaProvider>
+      {!localStoreScreenshotPreview && <ScreenCaptureProtection />}
+      <AuthenticatorApp />
+    </SafeAreaProvider>
+  );
+}
+
+function ScreenCaptureProtection() {
   usePreventScreenCapture("authenticator");
+  useEffect(() => {
+    if (Platform.OS === "ios") {
+      void ScreenCapture.enableAppSwitcherProtectionAsync(0.9);
+      return () => {
+        void ScreenCapture.disableAppSwitcherProtectionAsync();
+      };
+    }
+    return undefined;
+  }, []);
+  return null;
+}
+
+function AuthenticatorApp() {
   const { height } = useWindowDimensions();
   const compactHeight = height < 720;
   const [launchPhase, setLaunchPhase] = useState<LaunchPhase>("splash");
@@ -605,7 +673,6 @@ export default function App() {
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [qrApproval, setQrApproval] = useState<QrSigninApproval | null>(null);
   const [qrScanBusy, setQrScanBusy] = useState(false);
-  const [qrMessage, setQrMessage] = useState<string>();
   const toast = <FeedbackToast message={message} />;
   useEffect(() => {
     const timeout = setTimeout(() => setLaunchPhase("loading"), 900);
@@ -673,15 +740,6 @@ export default function App() {
       "Your 30-day verification session has expired. Sign in again to unlock this trusted device.",
     );
   }, [now, session]);
-  useEffect(() => {
-    if (Platform.OS === "ios") {
-      void ScreenCapture.enableAppSwitcherProtectionAsync(0.9);
-      return () => {
-        void ScreenCapture.disableAppSwitcherProtectionAsync();
-      };
-    }
-    return undefined;
-  }, []);
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "background") {
@@ -1025,23 +1083,49 @@ export default function App() {
     setBusy(true);
     setMessage(undefined);
     try {
-      const biometric = await unlockAuthenticator({
-        promptMessage: "Open QR scanner",
-        promptDescription: "Confirm your identity before scanning a KRAVIA Office sign-in code.",
-      });
-      if (!biometric.ok) {
-        setMessage(biometric.message);
+      if (!cameraPermission?.granted && cameraPermission?.canAskAgain === false) {
+        Alert.alert(
+          "Allow camera access?",
+          "Authenticator needs the camera only while you scan a one-time KRAVIA Office browser sign-in code. You can change this in device Settings.",
+          [
+            { text: "Not now", style: "cancel" },
+            { text: "Open Settings", onPress: () => void Linking.openSettings() },
+          ],
+        );
         return;
       }
-      const permission = cameraPermission?.granted
-        ? cameraPermission
-        : await requestCameraPermission();
+
+      if (!cameraPermission?.granted) {
+        const shouldRequest = await new Promise<boolean>((resolve) => {
+          let settled = false;
+          const finish = (answer: boolean) => {
+            if (!settled) {
+              settled = true;
+              resolve(answer);
+            }
+          };
+          Alert.alert(
+            "Allow camera access?",
+            "Authenticator uses your camera only to scan a one-time KRAVIA Office browser sign-in code. It cannot add accounts or read a setup key.",
+            [
+              { text: "Not now", style: "cancel", onPress: () => finish(false) },
+              { text: "Continue", onPress: () => finish(true) },
+            ],
+            { cancelable: true, onDismiss: () => finish(false) },
+          );
+        });
+        if (!shouldRequest) {
+          setMessage("Camera access was not requested. You can scan a browser code whenever you are ready.");
+          return;
+        }
+      }
+
+      const permission = cameraPermission?.granted ? cameraPermission : await requestCameraPermission();
       if (!permission.granted) {
         setMessage("Camera access is needed only to scan a KRAVIA Office sign-in code. Enable it in device Settings, then try again.");
         return;
       }
       setQrApproval(null);
-      setQrMessage(undefined);
       setQrScanBusy(false);
       setScreen("scan");
     } catch (error) {
@@ -1053,7 +1137,7 @@ export default function App() {
   async function handleQrScanned(value: string) {
     if (qrScanBusy) return;
     setQrScanBusy(true);
-    setQrMessage(undefined);
+    setMessage(undefined);
     try {
       const request = parseQrSigninPayload(value);
       const approval = await withFreshAuthenticatorSession((activeSession) =>
@@ -1063,7 +1147,7 @@ export default function App() {
       setScreen("qr-review");
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
-      setQrMessage(error instanceof Error ? error.message : "This QR code could not be verified.");
+      setMessage(error instanceof Error ? error.message : "This QR code could not be verified.");
       setQrScanBusy(false);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
@@ -1071,7 +1155,7 @@ export default function App() {
   async function decideQrApproval(decision: "APPROVE" | "REJECT") {
     if (!qrApproval) return;
     setBusy(true);
-    setQrMessage(undefined);
+    setMessage(undefined);
     try {
       if (decision === "APPROVE") {
         const biometric = await unlockAuthenticator({
@@ -1079,7 +1163,7 @@ export default function App() {
           promptDescription: "Confirm this exact KRAVIA Office browser sign-in.",
         });
         if (!biometric.ok) {
-          setQrMessage(biometric.message);
+          setMessage(biometric.message);
           return;
         }
       }
@@ -1099,7 +1183,7 @@ export default function App() {
           : Haptics.NotificationFeedbackType.Warning,
       );
     } catch (error) {
-      setQrMessage(error instanceof Error ? error.message : "The browser decision could not be recorded.");
+      setMessage(error instanceof Error ? error.message : "The browser decision could not be recorded.");
     } finally {
       setBusy(false);
     }
@@ -1208,7 +1292,6 @@ export default function App() {
             <Text style={styles.welcomeFootnote}>
               No manual enrollment · protected registration · no copied login code.
             </Text>
-            {message ? <Text style={styles.info}>{message}</Text> : null}
           </View>
           <View style={styles.actionFooter}>
             <Button
@@ -1429,7 +1512,6 @@ export default function App() {
                 Trust approves only this phone. Deny ends this sign-in immediately.
               </Text>
             </View>
-            {message ? <Text style={styles.info}>{message}</Text> : null}
           </View>
           <Text style={styles.securityNote}>
             This screen checks securely for your decision. There is nothing else to submit here.
@@ -1469,7 +1551,6 @@ export default function App() {
               <View pointerEvents="none" style={styles.scanCornerBottomRight} />
               {qrScanBusy ? <View style={styles.scanBusy}><ActivityIndicator color={colors.surface} /><Text style={styles.scanBusyText}>Checking secure request…</Text></View> : null}
             </View>
-            {qrMessage ? <Text style={styles.info}>{qrMessage}</Text> : null}
           </View>
           <Text style={styles.securityNote}>Camera access is used only while this scanner is open. No QR enrollment or setup key is supported.</Text>
         </View>
@@ -1489,10 +1570,11 @@ export default function App() {
             <View style={styles.qrRequestSurface}>
               <Text style={styles.qrRequestLabel}>BROWSER</Text>
               <Text style={styles.qrRequestValue}>{qrApproval.browserLabel}</Text>
-              <Text style={styles.qrRequestLabel}>NETWORK ADDRESS</Text>
-              <Text style={styles.qrRequestValue}>{qrApproval.sourceAddress}</Text>
+              <Text style={styles.qrRequestLabel}>REQUEST</Text>
+              <Text style={styles.qrRequestValue}>
+                One-time sign-in request shown in your browser now.
+              </Text>
             </View>
-            {qrMessage ? <Text style={styles.info}>{qrMessage}</Text> : null}
           </View>
           <View style={styles.qrDecisionFooter}>
             <Button label={busy ? "Securing…" : "Accept sign-in"} onPress={() => void decideQrApproval("APPROVE")} disabled={busy} />
@@ -1515,7 +1597,6 @@ export default function App() {
               Unlock with your device biometrics to view the current KRAVIA Office code.
             </Text>
             <AccountStatus label={emailMask(session.email)} tone="muted" />
-            {message ? <Text style={styles.info}>{message}</Text> : null}
           </View>
           <View style={styles.actionFooter}>
             <Button
@@ -1656,26 +1737,21 @@ export default function App() {
                   accessible
                   accessibilityLiveRegion="polite"
                   accessibilityLabel={"Authenticator code changes in " + totp.remaining + " seconds"}
-                  style={styles.totpTimerRow}
+                  style={styles.totpTimerRing}
                 >
-                  <View style={styles.totpTimerRing}>
-                    <View
-                      style={[
-                        styles.totpTimerMarker,
-                        {
-                          transform: [
-                            { rotate: String(Math.round(totp.progress * 360)) + "deg" },
-                            { translateY: -27 },
-                          ],
-                        },
-                      ]}
-                    />
-                    <Text style={styles.totpTimerValue}>
-                      {totp.remaining.toString().padStart(2, "0")}
-                    </Text>
-                  </View>
-                  <Text style={styles.totpTimerLabel}>
-                    Changes in {totp.remaining} second{totp.remaining === 1 ? "" : "s"}
+                  <View
+                    style={[
+                      styles.totpTimerMarker,
+                      {
+                        transform: [
+                          { rotate: String(Math.round(totp.progress * 360)) + "deg" },
+                          { translateY: -27 },
+                        ],
+                      },
+                    ]}
+                  />
+                  <Text style={styles.totpTimerValue}>
+                    {totp.remaining.toString().padStart(2, "0")}
                   </Text>
                 </View>
                 <Text style={styles.codeHint}>
@@ -1692,7 +1768,6 @@ export default function App() {
             )}
           </View>
           <Button label="Scan a browser QR" variant="secondary" onPress={() => void beginQrScan()} disabled={busy} />
-          {message ? <Text style={styles.info}>{message}</Text> : null}
           <View style={styles.homeSecurityNote}>
             <Text style={styles.homeSecurityTitle}>Secure on this device</Text>
             <Text style={styles.homeSecurityCopy}>
@@ -1738,12 +1813,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   artwork: { width: "100%", height: "100%" },
+  artworkRevealLine: {
+    position: "absolute",
+    bottom: 38,
+    width: 52,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: colors.timerAccent,
+  },
   root: { flex: 1, backgroundColor: colors.background, position: "relative" },
   toastRegion: {
-    left: 14,
+    alignSelf: "center",
+    left: 16,
+    maxWidth: 520,
     position: "absolute",
-    right: 14,
-    top: 10,
+    right: 16,
     zIndex: 50,
     elevation: 12,
   },
@@ -1751,13 +1835,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     flexDirection: "row",
     gap: 10,
-    minHeight: 58,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    minHeight: 52,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
     shadowColor: colors.text,
     shadowOffset: { width: 0, height: 7 },
     shadowOpacity: 0.16,
@@ -2093,7 +2177,7 @@ const styles = StyleSheet.create({
   scanCornerTopRight: { position: "absolute", right: 24, top: 24, width: 44, height: 44, borderTopWidth: 3, borderRightWidth: 3, borderColor: colors.onPrimary },
   scanCornerBottomLeft: { position: "absolute", left: 24, bottom: 24, width: 44, height: 44, borderBottomWidth: 3, borderLeftWidth: 3, borderColor: colors.onPrimary },
   scanCornerBottomRight: { position: "absolute", right: 24, bottom: 24, width: 44, height: 44, borderBottomWidth: 3, borderRightWidth: 3, borderColor: colors.onPrimary },
-  scanBusy: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "#172331B8", alignItems: "center", justifyContent: "center", gap: 10 },
+  scanBusy: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.overlay, alignItems: "center", justifyContent: "center", gap: 10 },
   scanBusyText: { color: colors.onPrimary, fontFamily: DISPLAY_FONT, fontSize: 13, fontWeight: "700" },
   qrReviewScreen: {
     flex: 1,
@@ -2230,16 +2314,6 @@ const styles = StyleSheet.create({
     fontFamily: TEXT_FONT,
     fontSize: 12,
     lineHeight: 17,
-  },
-  info: {
-    color: colors.primary,
-    fontFamily: TEXT_FONT,
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.primarySoftBorder,
-    borderRadius: 12,
-    padding: 10,
-    lineHeight: 18,
   },
   button: {
     minHeight: 48,
@@ -2502,12 +2576,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontVariant: ["tabular-nums"],
   },
-  totpTimerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginTop: 3,
-  },
   totpTimerRing: {
     width: 62,
     height: 62,
@@ -2516,6 +2584,7 @@ const styles = StyleSheet.create({
     borderColor: colors.onPrimaryMuted,
     alignItems: "center",
     justifyContent: "center",
+    marginTop: 6,
   },
   totpTimerMarker: {
     position: "absolute",
@@ -2530,12 +2599,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     fontVariant: ["tabular-nums"],
-  },
-  totpTimerLabel: {
-    color: colors.onPrimaryMuted,
-    fontFamily: TEXT_FONT,
-    fontSize: 12,
-    fontWeight: "700",
   },
   homeSecurityNote: {
     backgroundColor: colors.surface,
