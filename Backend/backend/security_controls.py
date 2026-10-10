@@ -63,6 +63,17 @@ class FixedWindowRateLimiter:
             bucket.append(timestamp)
             return True, self.requests - len(bucket), 0
 
+    def clear(self) -> None:
+        """Discard only this process-local limiter's in-memory windows.
+
+        The canonical service never calls this while serving traffic.  It gives
+        isolated development/test application lifecycles a way to discard
+        stale in-process state without affecting the database-backed
+        production limiter.
+        """
+        with self._lock:
+            self._events.clear()
+
 
 class SharedRateLimitUnavailable(RuntimeError):
     pass
@@ -250,6 +261,10 @@ def configure_security(app) -> None:
         raise RuntimeError("Production shared rate limiting is required")
     local_limiter = FixedWindowRateLimiter(requests=requests, window_seconds=window)
     shared_limiter = DatabaseFixedWindowRateLimiter(requests=requests, window_seconds=window) if rate_limit_mode == "database" else None
+    # The local limiter is process-scoped by design. Keep its reference on the
+    # ASGI application so an isolated development/test app lifecycle can clear
+    # only in-memory state; no HTTP route exposes this object.
+    app.state.office_local_rate_limiter = local_limiter
 
     @app.middleware("http")
     async def office_security(request: Request, call_next):

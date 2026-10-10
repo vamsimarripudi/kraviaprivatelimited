@@ -14,7 +14,16 @@ os.environ.setdefault("OFFICE_BOOTSTRAP_KEY", TEST_BOOTSTRAP_KEY)
 
 @pytest.fixture(autouse=True)
 def canonical_api_test_client_uses_bootstrap_credential(monkeypatch):
-    """Keep tests explicit about the development-only bootstrap boundary."""
+    """Isolate bootstrap clients and their process-local mutation limiter."""
+
+    # Test modules share the canonical ASGI instance. Its development-only
+    # fixed-window limiter must retain its real behaviour within each test, but
+    # a previous test must not consume another test's request budget.
+    from backend.app import app
+
+    limiter = getattr(app.state, "office_local_rate_limiter", None)
+    if limiter is not None:
+        limiter.clear()
 
     original_init = TestClient.__init__
 
@@ -24,3 +33,6 @@ def canonical_api_test_client_uses_bootstrap_credential(monkeypatch):
         return original_init(self, app, *args, headers=headers, **kwargs)
 
     monkeypatch.setattr(TestClient, "__init__", init_with_bootstrap_credential)
+    yield
+    if limiter is not None:
+        limiter.clear()

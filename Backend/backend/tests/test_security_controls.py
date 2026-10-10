@@ -21,6 +21,14 @@ def test_fixed_window_rate_limiter_is_deterministic():
     assert limiter.allow("actor", now=161.0)[0] is True
 
 
+def test_fixed_window_rate_limiter_can_reset_an_isolated_lifecycle():
+    limiter = FixedWindowRateLimiter(requests=1, window_seconds=60)
+    assert limiter.allow("actor", now=100.0)[0] is True
+    assert limiter.allow("actor", now=101.0)[0] is False
+    limiter.clear()
+    assert limiter.allow("actor", now=102.0)[0] is True
+
+
 def test_security_headers_and_cross_origin_mutation_guard(monkeypatch):
     monkeypatch.setenv("OFFICE_ALLOWED_ORIGINS", "https://office.example.test")
     monkeypatch.setenv("OFFICE_MUTATION_RATE_LIMIT", "2")
