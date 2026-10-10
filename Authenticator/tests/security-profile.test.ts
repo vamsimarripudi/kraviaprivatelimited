@@ -35,11 +35,18 @@ describe("KRAVIA Authenticator native security profile", () => {
 
   it("has the secure native permissions and disables OTA executable updates", () => {
     expect(app.expo.updates.enabled).toBe(false);
-    expect(app.expo.android.permissions).toContain("android.permission.INTERNET");
-    expect(app.expo.android.permissions).toContain("android.permission.USE_BIOMETRIC");
-    expect(app.expo.android.permissions).toContain("android.permission.CAMERA");
-    expect(app.expo.android.permissions).not.toContain("android.permission.RECORD_AUDIO");
-    expect(app.expo.android.blockedPermissions).toContain("android.permission.RECORD_AUDIO");
+    expect(app.expo.android.versionCode).toBe(2);
+    expect(app.expo.android.permissions).toEqual([
+      "android.permission.INTERNET",
+      "android.permission.USE_BIOMETRIC",
+      "android.permission.CAMERA",
+    ]);
+    expect(app.expo.android.blockedPermissions).toEqual([
+      "android.permission.READ_MEDIA_IMAGES",
+      "android.permission.READ_EXTERNAL_STORAGE",
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+      "android.permission.RECORD_AUDIO",
+    ]);
     expect(app.expo.extra.networkModel).toBe("EMAIL_OTP_TRUSTED_DEVICE_QR_SIGN_IN");
     expect(app.expo.extra.otpClipboard).toBe("DISABLED");
   });

@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "audit:high": "node scripts/verify-npm-audit.mjs",
+    "verify:android-permissions": "node scripts/verify-android-permissions.mjs",
     "export:android": "expo export --platform android --output-dir dist/android",
     "export:ios": "expo export --platform ios --output-dir dist/ios",
     "prestart": "npm run prepare:assets",

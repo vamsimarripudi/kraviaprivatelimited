@@ -7,14 +7,14 @@
       "package": "node-forge",
       "severity": "high",
       "scope": "Expo CLI and code-signing build tooling only",
-      "reason": "The installed 1.4.0 release is the latest version published by npm. npm audit currently reports no non-breaking upstream remediation for the Expo SDK 57 dependency graph."
+      "reason": "Verified against the npm audit report on 2026-10-10. Expo SDK 57 resolves this transitive package to 1.4.0 and npm reports no compatible remediation; its offered Expo 44.0.6 change is an incompatible downgrade. This exception is intentionally narrow and must be re-reviewed before 2026-11-07."
     },
     {
       "source": 1240992,
       "package": "braces",
       "severity": "high",
       "scope": "Metro file-map build tooling only",
-      "reason": "The installed 3.0.3 release is the latest version published by npm. npm audit currently reports no non-breaking upstream remediation for the Expo SDK 57 dependency graph."
+      "reason": "Verified against the npm audit report on 2026-10-10. Expo SDK 57 resolves this transitive package through Metro and npm reports no compatible remediation; its offered Expo 44.0.6 change is an incompatible downgrade. This exception is intentionally narrow and must be re-reviewed before 2026-11-07."
     }
   ]
 }

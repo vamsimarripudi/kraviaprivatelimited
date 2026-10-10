@@ -9,7 +9,7 @@ This repository never stores the production signing keystore or its passwords.
 - Certificate algorithm: RSA 4096 / SHA256withRSA
 - Certificate SHA-256: `10:08:95:8A:D5:19:1C:64:DA:A3:D4:03:C5:6B:68:7B:67:4C:26:91:3A:CB:8D:86:E2:EF:29:71:E8:64:7B:75`
 - App version: `1.0.0`
-- Android versionCode: `1`
+- Android versionCode: `2` (permission-correction upload)
 
 ## Required GitHub Actions secrets
 

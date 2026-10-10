@@ -90,6 +90,8 @@ describe("KRAVIA Authenticator production signing contract", () => {
 
   it("builds both Play AAB and installable APK and verifies their signer", () => {
     expect(workflow).toContain("bundleRelease assembleRelease");
+    expect(workflow).toContain("npm run verify:android-permissions -- \"$manifest\"");
+    expect(workflow).toContain('apk_version_code\" != \"2\"');
     expect(workflow).toContain("apksigner");
     expect(workflow).toContain("jarsigner -verify -strict");
     expect(workflow).toContain("keytool -printcert -jarfile");
