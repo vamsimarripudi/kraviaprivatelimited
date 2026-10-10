@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type CSSProperties, FormEvent, useEffect, useState } from "react";
+import { type CSSProperties, FormEvent, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { ArrowRight, CheckCircle2, Eye, EyeOff, KeyRound, LoaderCircle, QrCode, ShieldCheck, Smartphone } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -99,6 +99,8 @@ export function WorkspaceLoginForm({
   const [codeExpired, setCodeExpired] = useState(false);
   const [deviceApprovalExpiresAt, setDeviceApprovalExpiresAt] = useState<string>();
   const [deviceApprovalLabel, setDeviceApprovalLabel] = useState<string>();
+  const [deviceApprovalRetryRequired, setDeviceApprovalRetryRequired] = useState(false);
+  const deviceApprovalCompletionInFlight = useRef(false);
   const [qrPayload, setQrPayload] = useState<string>();
   const [qrExpiresAt, setQrExpiresAt] = useState<string>();
   const [qrBrowserLabel, setQrBrowserLabel] = useState<string>();
@@ -150,13 +152,32 @@ export function WorkspaceLoginForm({
         if (disposed) return;
         setDeviceApprovalExpiresAt(approval.expires_at);
         setDeviceApprovalLabel(approval.device_label);
-        if (approval.status === "APPROVED") {
+        if (approval.status === "APPROVED" || approval.status === "TRUSTED") {
+          // An approved mailbox decision is durable, but redeeming it makes a
+          // browser session. Do not hammer that protected endpoint or cycle
+          // the person between optimistic and error messages if the runtime
+          // is temporarily unavailable. TRUSTED is also recoverable here: an
+          // earlier completion may have committed before its response reached
+          // this browser. An explicit retry is safe because completion is
+          // idempotent for this browser proof.
+          if (deviceApprovalRetryRequired || deviceApprovalCompletionInFlight.current) return;
+          deviceApprovalCompletionInFlight.current = true;
           setStatus("Your device was approved. Securing this browser…");
           setStatusTone("success");
-          const completed = await jsonRequest<{ verified: true; aal: "aal2" }>("/api/office-auth/device-approval/complete", {});
-          if (!disposed && completed.verified) {
-            setStatus("Device approved. Opening your authorised KRAVIA workspace…");
-            setPhase("success");
+          try {
+            const completed = await jsonRequest<{ verified: true; aal: "aal2" }>("/api/office-auth/device-approval/complete", {});
+            if (!disposed && completed.verified) {
+              setStatus("Device approved. Opening your authorised KRAVIA workspace…");
+              setPhase("success");
+            }
+          } catch {
+            if (!disposed) {
+              setDeviceApprovalRetryRequired(true);
+              setStatus("Your device is approved, but this browser could not finish the secure sign-in. Retry when you are ready.");
+              setStatusTone("error");
+            }
+          } finally {
+            deviceApprovalCompletionInFlight.current = false;
           }
         } else if (["DECLINED", "EXPIRED", "DELIVERY_FAILED", "DELIVERY_UNKNOWN", "REVOKED"].includes(approval.status)) {
           setStatus(
@@ -182,7 +203,7 @@ export function WorkspaceLoginForm({
       disposed = true;
       window.clearInterval(interval);
     };
-  }, [phase]);
+  }, [deviceApprovalRetryRequired, phase]);
 
   useEffect(() => {
     if (phase !== "qr") return;
@@ -295,6 +316,8 @@ export function WorkspaceLoginForm({
       });
       setCode("");
       if (verified.device_approval_pending) {
+        deviceApprovalCompletionInFlight.current = false;
+        setDeviceApprovalRetryRequired(false);
         setDeviceApprovalExpiresAt(verified.expires_at);
         setDeviceApprovalLabel(verified.device_label);
         setStatus("We sent a device approval request to your registered corporate email. This browser cannot enter Office until you approve it there.");
@@ -488,6 +511,19 @@ export function WorkspaceLoginForm({
           {minutesRemaining !== null ? <p>Request expires in about {minutesRemaining} minute{minutesRemaining === 1 ? "" : "s"}.</p> : null}
         </div>
         {status ? <p className={styles.status} data-tone={statusTone} role="status">{status}</p> : null}
+        {deviceApprovalRetryRequired ? (
+          <button
+            className={styles.primary}
+            type="button"
+            onClick={() => {
+              setDeviceApprovalRetryRequired(false);
+              setStatus("Retrying the secure browser sign-in…");
+              setStatusTone("info");
+            }}
+          >
+            Retry secure sign-in
+          </button>
+        ) : null}
         <button className={styles.secondary} type="button" onClick={() => { setPhase("password"); setStatus(undefined); }}>
           Return to sign in
         </button>

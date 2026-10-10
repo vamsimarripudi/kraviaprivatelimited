@@ -62,6 +62,10 @@ describe("KRAVIA Authenticator verified-device boundary", () => {
     expect(login).toContain('phase === "device-approval"');
     expect(login).toContain("original browser");
     expect(login).toContain("device-approval/status");
+    expect(login).toContain("deviceApprovalCompletionInFlight");
+    expect(login).toContain("deviceApprovalRetryRequired");
+    expect(login).toContain("Retry secure sign-in");
+    expect(login).toContain('approval.status === "APPROVED" || approval.status === "TRUSTED"');
   });
 
   it("limits QR and camera use to trusted-device browser approval, never enrollment", () => {

@@ -2869,6 +2869,18 @@ def build_identity_router() -> APIRouter:
                     "cancelled_activations": cancelled_activations,
                 },
             )
+
+        # PostgreSQL enforces the single-trusted-device invariant with a
+        # partial unique index.  SQLAlchemy's final unit-of-work flush does
+        # not promise an order between updates to different approval rows;
+        # it can therefore try to mark this request TRUSTED before the old
+        # device is persisted as REVOKED.  Persist every replacement first,
+        # then promote this request in a separate flush/commit phase.
+        #
+        # This is deliberately not a retry-on-IntegrityError: the transaction
+        # must preserve the invariant at every observable database state.
+        if replaced:
+            db.flush()
         session.status = "ACTIVE"
         session.refresh_token_hash = _hash_token(refresh_token)
         session.last_seen_at = now

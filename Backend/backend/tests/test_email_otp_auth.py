@@ -317,6 +317,79 @@ def test_device_trust_replaces_the_previous_device_and_ignore_revokes_the_pendin
         engine.dispose()
 
 
+def test_device_replacement_revokes_before_promoting_under_the_database_invariant(tmp_path, monkeypatch):
+    """The replacement transaction must respect PostgreSQL's partial index.
+
+    Production has a partial unique index allowing one TRUSTED approval per
+    user.  A normal ORM commit may sort dirty rows by primary key, which can
+    otherwise promote a newly approved request before it persists the old
+    trusted row as REVOKED.  Use an intentionally lower second UUID to make
+    the unsafe ordering deterministic on SQLite as well.
+    """
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        monkeypatch.setattr(identity_auth, "DEVICE_APPROVAL_REQUIRED", True)
+        founder(client)
+        device_notices = _capture_device_email(monkeypatch)
+
+        first_challenge, _ = request_code(client, monkeypatch, code="482915")
+        first_pending = client.post(
+            f"/api/v1/auth/email-otp/challenges/{first_challenge['challenge_id']}/verify",
+            json={"challenge_token": first_challenge["challenge_token"], "code": "482915"},
+        ).json()
+        _decide_device(client, device_notices[-1], "APPROVE")
+        _complete_device(client, first_pending)
+
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "create unique index uq_office_login_device_approvals_one_trusted_user "
+                    "on office_login_device_approvals (user_id) where status = 'TRUSTED'"
+                )
+            )
+
+        second_challenge, _ = request_code(client, monkeypatch, code="593741")
+        pending_response = client.post(
+            f"/api/v1/auth/email-otp/challenges/{second_challenge['challenge_id']}/verify",
+            json={"challenge_token": second_challenge["challenge_token"], "code": "593741"},
+        )
+        assert pending_response.status_code == 200, pending_response.text
+        second_pending = pending_response.json()
+        original_id = second_pending["device_approval_id"]
+        ordered_id = "00000000-0000-4000-8000-000000000001"
+        with engine.begin() as connection:
+            connection.execute(
+                text("update office_login_device_approvals set id = :new_id where id = :old_id"),
+                {"new_id": ordered_id, "old_id": original_id},
+            )
+        second_pending["device_approval_id"] = ordered_id
+        action_token = parse_qs(urlparse(device_notices[-1]["review_url"]).query)["token"][0]
+        approved = client.post(
+            f"/api/v1/auth/device-approvals/{ordered_id}/action",
+            json={"action_token": action_token, "decision": "APPROVE"},
+        )
+        assert approved.status_code == 200, approved.text
+
+        completed = client.post(
+            "/api/v1/auth/device-approvals/complete",
+            json={"device_id": ordered_id, "device_proof": second_pending["device_proof"]},
+        )
+        assert completed.status_code == 200, completed.text
+
+        with engine.connect() as connection:
+            trusted_count = connection.execute(
+                text("select count(*) from office_login_device_approvals where status = 'TRUSTED'")
+            ).scalar_one()
+            first_status = connection.execute(
+                text("select status from office_login_device_approvals where id = :id"),
+                {"id": first_pending["device_approval_id"]},
+            ).scalar_one()
+        assert trusted_count == 1
+        assert first_status == "REVOKED"
+    finally:
+        engine.dispose()
+
+
 def test_native_trusted_device_removal_revokes_server_session_and_activation(tmp_path, monkeypatch):
     client, engine = make_client(tmp_path, monkeypatch)
     try:
