@@ -1,6 +1,5 @@
 import { publicWebsiteStructuredData, siteUrl } from "@/lib/site";
-import { getPublicCompanyProfile } from "@/lib/corporate/public-facts";
-import { publicProducts } from "@/lib/corporate-content";
+import { corporateIdentity, publicProducts } from "@/lib/corporate-content";
 
 type Breadcrumb = { name: string; path: string };
 
@@ -9,34 +8,41 @@ function JsonLd({ data }: { data: Record<string, unknown> }) {
 }
 
 export async function OrganizationJsonLd() {
-  const companyProfile = await getPublicCompanyProfile();
   const identifiers = [
-    companyProfile.cin ? { "@type": "PropertyValue", propertyID: "CIN", value: companyProfile.cin } : null,
-    companyProfile.gst.gstin ? { "@type": "PropertyValue", propertyID: "GSTIN", value: companyProfile.gst.gstin } : null,
+    { "@type": "PropertyValue", propertyID: "CIN", value: corporateIdentity.cin },
+    { "@type": "PropertyValue", propertyID: "GSTIN", value: corporateIdentity.gstin },
   ].filter(Boolean);
   const organization = {
     "@context": "https://schema.org",
     "@type": "Corporation",
     "@id": `${siteUrl}#organization`,
-    name: companyProfile.legalName ?? "KRAVIA PRIVATE LIMITED",
-    alternateName: companyProfile.displayName ?? "Kravia",
-    legalName: companyProfile.legalName,
+    name: corporateIdentity.legalName,
+    alternateName: corporateIdentity.displayName,
+    legalName: corporateIdentity.legalName,
     description: "KRAVIA PRIVATE LIMITED is an Indian technology company building software products, intelligent systems and digital infrastructure.",
     url: siteUrl,
     logo: `${siteUrl}/brand/kravia-logo.png`,
-    areaServed: companyProfile.country,
-    ...(companyProfile.incorporationDate ? { foundingDate: companyProfile.incorporationDate } : {}),
-    ...(companyProfile.registeredOffice ? { address: companyProfile.registeredOffice } : {}),
-    ...(companyProfile.corporateEmail ? {
-      email: companyProfile.corporateEmail,
+    areaServed: corporateIdentity.country,
+    foundingDate: corporateIdentity.incorporationDate,
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: corporateIdentity.registeredOffice.line1,
+      addressLocality: corporateIdentity.registeredOffice.locality,
+      addressRegion: corporateIdentity.registeredOffice.state,
+      postalCode: corporateIdentity.registeredOffice.postalCode,
+      addressCountry: "IN",
+    },
+    ...(corporateIdentity.contact.email ? {
+      email: corporateIdentity.contact.email,
       contactPoint: {
         "@type": "ContactPoint",
-        email: companyProfile.corporateEmail,
+        email: corporateIdentity.contact.email,
+        telephone: corporateIdentity.contact.telephone,
         contactType: "corporate enquiries",
         availableLanguage: ["en"],
       },
     } : {}),
-    ...(companyProfile.gst.gstin ? { taxID: companyProfile.gst.gstin } : {}),
+    taxID: corporateIdentity.gstin,
     ...(identifiers.length ? { identifier: identifiers } : {}),
   };
   const website = publicWebsiteStructuredData();

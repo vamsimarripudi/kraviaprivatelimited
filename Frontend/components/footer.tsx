@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, BadgeCheck, ExternalLink, MapPin } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
+import { getPublicCompanyProfile } from "@/lib/corporate/public-facts";
+import { getPublicCorporateRegistrations } from "@/lib/corporate/public-registrations";
 
 const footerColumns = [
   {
@@ -48,9 +50,15 @@ const footerColumns = [
   },
 ] as const;
 
+const legalLinks = [
+  ["Privacy Policy", "/legal/privacy"],
+  ["Terms of Use", "/legal/terms"],
+  ["Cookie Policy", "/legal/cookies"],
+  ["Accessibility", "/trust/accessibility"],
+] as const;
 
-export function Footer() {
-
+export async function Footer() {
+  const [profile, recognitions] = await Promise.all([getPublicCompanyProfile(), getPublicCorporateRegistrations()]);
   return (
     <footer className="footer corporate-footer">
       <div className="shell footer-brand-row">
@@ -72,9 +80,30 @@ export function Footer() {
         ))}
       </div>
 
+      <div className="shell footer-corporate-directory">
+        <section className="footer-corporate-identity" aria-labelledby="footer-corporate-identity-title">
+          <div>
+            <p className="eyebrow">CORPORATE IDENTITY</p>
+            <h2 id="footer-corporate-identity-title">KRAVIA PRIVATE LIMITED</h2>
+            <p>Approved statutory details for corporate and regulatory reference. Personal information and certificate files are not published here.</p>
+          </div>
+          <dl>
+            <div><dt>CIN</dt><dd>{profile.cin}</dd></div>
+            <div><dt>GSTIN</dt><dd>{profile.gst.gstin}</dd></div>
+            <div className="footer-address"><dt><MapPin aria-hidden="true" /> Registered office</dt><dd>{profile.registeredOffice}</dd></div>
+            <div><dt>Corporate contact</dt><dd><a href={`mailto:${profile.corporateEmail}`}>{profile.corporateEmail}</a>{profile.telephone ? <><br /><a href={`tel:${profile.telephone.replace(/\s/g, "")}`}>{profile.telephone}</a></> : null}</dd></div>
+          </dl>
+        </section>
+        <section className="footer-recognitions" aria-labelledby="footer-recognitions-title">
+          <div className="footer-recognitions-intro"><BadgeCheck aria-hidden="true" /><div><p className="eyebrow">REGISTRATIONS & RECOGNITIONS</p><h2 id="footer-recognitions-title">Company credentials.</h2></div></div>
+          <div className="footer-recognition-grid">{recognitions.map((recognition) => <article key={recognition.reference}><p>{recognition.authority}</p><h3>{recognition.title}</h3><code>{recognition.reference}</code><a href={recognition.href} target="_blank" rel="noopener noreferrer">Verification portal <ExternalLink aria-hidden="true" /></a></article>)}</div>
+          <p className="footer-recognition-note">Recognition and registration identify the company only. They do not endorse KRAVIA products or services.</p>
+        </section>
+      </div>
+
       <div className="shell footer-bottom">
         <p>© {new Date().getFullYear()} KRAVIA PRIVATE LIMITED. All rights reserved.</p>
-        <div><span>India</span><Link href="/trust">Accessibility</Link><Link href="/trust/privacy">Privacy</Link></div>
+        <div><span>India</span>{legalLinks.map(([label, href]) => <Link key={href} href={href}>{label}</Link>)}</div>
       </div>
     </footer>
   );

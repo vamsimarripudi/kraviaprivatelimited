@@ -1,26 +1,37 @@
 import "server-only";
+
 import { cache } from "react";
-import { createClient } from "@/lib/supabase/server";
+import { corporateIdentity } from "@/lib/corporate-content";
 
-const registrationPresentation = {
-  startup_india_recognition: { authority: "Government of India · DPIIT", title: "Startup India recognition", href: "https://www.startupindia.gov.in/content/sih/en/startupgov/validate-startup-recognition.html" },
-  udyam_registration: { authority: "Government of India · Ministry of MSME", title: "Udyam registration", href: "https://udyamregistration.gov.in/SearchRegDetail.aspx" },
-  cin: { authority: "Government of India · Ministry of Corporate Affairs", title: "Corporate Identity Number", href: "https://www.mca.gov.in/" },
-  gstin: { authority: "Government of India · Goods and Services Tax", title: "GST Identification Number", href: "https://services.gst.gov.in/services/searchtp" },
-} as const;
+export type PublicCorporateRegistration = {
+  authority: string;
+  title: string;
+  reference: string;
+  href: string;
+  description: string;
+};
 
-type RegistrationKey = keyof typeof registrationPresentation;
-type FactRow = { fact_key: string; value: unknown };
-export type PublicCorporateRegistration = { authority: string; title: string; reference: string; href: string };
+/**
+ * Compact public presentation only. Certificate originals, source contacts and
+ * other evidence stay inside the access-controlled Corporate Office.
+ */
+const approvedPublicRegistrations: readonly PublicCorporateRegistration[] = [
+  {
+    authority: "Startup India",
+    title: corporateIdentity.dpiit.statusLabel,
+    reference: corporateIdentity.dpiit.recognitionNumber,
+    href: "https://www.startupindia.gov.in/content/sih/en/startupgov/validate-startup-recognition.html",
+    description: "Recognition by DPIIT for the company. It is not product certification, endorsement, grant or tax-exemption status.",
+  },
+  {
+    authority: "Udyam MSME",
+    title: corporateIdentity.udyam.classification,
+    reference: corporateIdentity.udyam.registrationNumber,
+    href: "https://udyamregistration.gov.in/SearchRegDetail.aspx",
+    description: "MSME registration for the company. It is not a product-quality, procurement or service-performance claim.",
+  },
+];
 
 export const getPublicCorporateRegistrations = cache(async (): Promise<readonly PublicCorporateRegistration[]> => {
-  const supabase = await createClient();
-  if (!supabase) return [];
-  const { data, error } = await supabase.rpc("public_corporate_facts");
-  if (error || !data) return [];
-  const records = new Map((data as FactRow[]).filter((row) => typeof row.value === "string").map((row) => [row.fact_key, row.value as string]));
-  return (Object.keys(registrationPresentation) as RegistrationKey[]).flatMap((key) => {
-    const reference = records.get(key);
-    return reference ? [{ ...registrationPresentation[key], reference }] : [];
-  });
+  return approvedPublicRegistrations;
 });

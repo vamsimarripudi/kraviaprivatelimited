@@ -40,31 +40,28 @@ function asString(value: unknown, fallback: string | null) {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
-function asBoolean(value: unknown, fallback: boolean | null) {
-  return typeof value === "boolean" ? value : fallback;
-}
-
 function profileFromRows(rows: readonly FactRow[]): PublicCompanyProfile {
   const values = new Map(rows.map((row) => [row.fact_key, row.value]));
   return {
-    legalName: asString(values.get("legal_name"), fallbackPublicCompanyProfile.legalName),
-    displayName: asString(values.get("display_name"), fallbackPublicCompanyProfile.displayName),
-    companyType: asString(values.get("entity_type"), fallbackPublicCompanyProfile.companyType),
-    country: asString(values.get("country"), fallbackPublicCompanyProfile.country),
-    incorporationDate: asString(values.get("incorporation_date"), fallbackPublicCompanyProfile.incorporationDate),
-    cin: asString(values.get("cin"), fallbackPublicCompanyProfile.cin),
-    registeredOffice: asString(values.get("registered_office"), fallbackPublicCompanyProfile.registeredOffice),
-    telephone: asString(values.get("telephone"), fallbackPublicCompanyProfile.telephone),
-    corporateEmail: asString(values.get("email"), fallbackPublicCompanyProfile.corporateEmail),
+    // The public identity file is the approved source for statutory facts.
+    // A database record cannot silently supersede a reviewed CIN, tax ID or
+    // registered office; only the optional grievance-contact projection remains
+    // governed dynamically.
+    legalName: fallbackPublicCompanyProfile.legalName,
+    displayName: fallbackPublicCompanyProfile.displayName,
+    companyType: fallbackPublicCompanyProfile.companyType,
+    country: fallbackPublicCompanyProfile.country,
+    incorporationDate: fallbackPublicCompanyProfile.incorporationDate,
+    cin: fallbackPublicCompanyProfile.cin,
+    registeredOffice: fallbackPublicCompanyProfile.registeredOffice,
+    telephone: fallbackPublicCompanyProfile.telephone,
+    corporateEmail: fallbackPublicCompanyProfile.corporateEmail,
     grievanceContact: asString(values.get("grievance_contact"), fallbackPublicCompanyProfile.grievanceContact),
-    gst: {
-      registered: asBoolean(values.get("gst_registered"), fallbackPublicCompanyProfile.gst.registered),
-      gstin: asString(values.get("gstin"), fallbackPublicCompanyProfile.gst.gstin),
-    },
+    gst: fallbackPublicCompanyProfile.gst,
   };
 }
 
-/** Reads only the database's explicit public projection. Failed/absent configuration keeps the non-sensitive fallback. */
+/** Returns the reviewed static identity and, when configured, a separately governed grievance contact. */
 export const getPublicCompanyProfile = cache(async (): Promise<PublicCompanyProfile> => {
   const supabase = await createClient();
   if (!supabase) return fallbackPublicCompanyProfile;

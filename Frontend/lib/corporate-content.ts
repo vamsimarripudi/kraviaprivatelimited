@@ -41,19 +41,54 @@ export type CompanyMilestone = {
   verificationStatus: VerificationStatus;
 };
 
+/**
+ * Single approved public identity source. Certificate originals remain private
+ * evidence; this record contains only values approved for the public site.
+ */
+export const corporateIdentity = {
+  legalName: "KRAVIA PRIVATE LIMITED",
+  displayName: "Kravia",
+  entityType: "Private Limited Company",
+  country: "India",
+  incorporationDate: "2026-07-01",
+  cin: "U62011AP2026PTC126691",
+  pan: "AANCK0043M",
+  gstin: "37AANCK0043M1ZA",
+  registeredOffice: {
+    line1: "4-340, Salipeta",
+    locality: "Malikipuram",
+    state: "Andhra Pradesh",
+    postalCode: "533253",
+    country: "India",
+    formatted: "4-340, Salipeta, Malikipuram, Andhra Pradesh – 533253, India",
+  },
+  contact: {
+    email: "hello@kraviaprivatelimited.com",
+    telephone: "+91 70139 81759",
+  },
+  dpiit: {
+    recognitionNumber: "DIPP281524",
+    statusLabel: "DPIIT Recognised Startup",
+  },
+  udyam: {
+    registrationNumber: "UDYAM-AP-18-0057505",
+    classification: "Registered Micro Enterprise",
+  },
+} as const;
+
 export const publicCompanyInformation = {
-  legalName: { value: "KRAVIA PRIVATE LIMITED", visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED" },
-  displayName: { value: "Kravia", visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED" },
-  entityType: { value: "Private Limited Company", visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED" },
-  country: { value: "India", visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED" },
-  incorporationDate: { value: "2026-07-01", visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED", lastReviewedAt: "2026-10-04" },
-  cin: { value: "U62011AP2026PTC126691", visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED", lastReviewedAt: "2026-10-04" },
-  registeredOffice: { value: "4-340, Salipeta, Opp HDFC Bank, Malikipuram, Konaseema, Andhra Pradesh 533253, India", visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED", lastReviewedAt: "2026-10-04" },
-  telephone: { value: null, visibility: "PUBLIC", verificationStatus: "UNVERIFIED" },
-  email: { value: "hello@kraviaprivatelimited.com", visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED", lastReviewedAt: "2026-10-04" },
+  legalName: { value: corporateIdentity.legalName, visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED" },
+  displayName: { value: corporateIdentity.displayName, visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED" },
+  entityType: { value: corporateIdentity.entityType, visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED" },
+  country: { value: corporateIdentity.country, visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED" },
+  incorporationDate: { value: corporateIdentity.incorporationDate, visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED", lastReviewedAt: "2026-10-21" },
+  cin: { value: corporateIdentity.cin, visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED", lastReviewedAt: "2026-10-21" },
+  registeredOffice: { value: corporateIdentity.registeredOffice.formatted, visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED", lastReviewedAt: "2026-10-21" },
+  telephone: { value: corporateIdentity.contact.telephone, visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED", lastReviewedAt: "2026-10-21" },
+  email: { value: corporateIdentity.contact.email, visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED", lastReviewedAt: "2026-10-21" },
   grievanceContact: { value: null, visibility: "PUBLIC", verificationStatus: "UNVERIFIED" },
   gstRegistered: { value: true, visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED", lastReviewedAt: "2026-10-04" },
-  gstin: { value: "37AANCK0043M1ZA", visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED", lastReviewedAt: "2026-10-04" },
+  gstin: { value: corporateIdentity.gstin, visibility: "PUBLIC", verificationStatus: "PUBLIC_APPROVED", lastReviewedAt: "2026-10-21" },
 } as const satisfies Record<string, GovernedField<string | boolean>>;
 
 export const publicProducts: readonly KraviaProduct[] = [
