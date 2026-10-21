@@ -1,4 +1,5 @@
 import type { PublicContentRecord } from "@/lib/content/types";
+import { kraviaLetterheadContactLine, kraviaLetterheadProfile } from "@/lib/legal/letterhead";
 import { paginateLegalDocumentForPrint } from "@/lib/legal/print-layout";
 import type { LegalDocumentBody } from "@/lib/legal/types";
 import styles from "./legal-document.module.css";
@@ -21,10 +22,14 @@ function PrintLetterhead({ page }: { page: number }) {
     <img className={styles.printLetterhead} src={`/legal/kravia-letterhead-a4.png?print-page=${page}`} alt="" />
     <span className={styles.printReferenceValue} data-legal-print-reference>—</span>
     <span className={styles.printDateValue} data-legal-print-date>—</span>
-    {/* The supplied raster letterhead contains the retired address. The
+    {/* The supplied raster letterhead contains retired contact details. The
         print-only overlays preserve its approved image bytes and geometry. */}
-    <span className={styles.printHeaderEmail}><b>EMAIL</b> corporate@kraviaprivatelimited.com</span>
-    <span className={styles.printFooterEmail}>corporate@kraviaprivatelimited.com</span>
+    <span className={styles.printHeaderEmail}><b>EMAIL</b> {kraviaLetterheadProfile.email}</span>
+    <section className={styles.printStatutoryFooter} aria-label="KRAVIA statutory letterhead details">
+      <p className={styles.printRegisteredOfficeLabel}>Registered office</p>
+      <p className={styles.printRegisteredOfficeAddress}>{kraviaLetterheadProfile.registeredOffice}</p>
+      <p className={styles.printFooterContacts}>{kraviaLetterheadContactLine}</p>
+    </section>
   </>;
 }
 

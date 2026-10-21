@@ -96,7 +96,10 @@ describe("Legal & Trust Center publication guard", () => {
     expect(printReader).toContain("Page {pageIndex + 2} of {totalPages}");
     expect(legalStyles).toContain("@page{size:A4 portrait;margin:0}");
     expect(legalStyles).toContain(".printLetterhead");
-    expect(legalStyles).toContain("grid-template-areas:\"print-stack\"");
+    expect(legalStyles).toContain("width:210mm!important");
+    expect(legalStyles).toContain("height:297mm!important");
+    expect(legalStyles).toContain("position:absolute!important;inset:0!important");
+    expect(legalStyles).not.toContain("min-width:210mm");
     expect(legalStyles).toContain(".printPageNumber");
     expect(legalStyles).toContain("break-after:page!important");
   });
@@ -104,9 +107,15 @@ describe("Legal & Trust Center publication guard", () => {
   it("uses server-issued date and reference fields while preserving the approved letterhead asset", () => {
     expect(printReader).toContain('data-legal-print-reference');
     expect(printReader).toContain('data-legal-print-date');
-    expect(printReader).toContain('corporate@kraviaprivatelimited.com');
+    expect(printReader).toContain('kraviaLetterheadProfile.email');
+    expect(printReader).toContain('kraviaLetterheadContactLine');
+    expect(printReader).not.toContain('printFooterEmail');
     expect(printReader).toContain('/legal/kravia-letterhead-a4.png');
     expect(legalStyles).toContain('.printContent{padding-bottom:34mm}');
+    expect(legalStyles).toContain('.printStatutoryFooter');
+    expect(legalStyles).toContain('.printRegisteredOfficeAddress');
+    expect(legalStyles).toContain('.printFooterContacts');
+    expect(legalStyles).not.toContain('.printFooterEmail');
     expect(formatLegalPrintDate("2026-10-07")).toMatch(/October/);
   });
 
