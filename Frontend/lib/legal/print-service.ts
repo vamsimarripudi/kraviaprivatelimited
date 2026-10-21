@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createHmac } from "node:crypto";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createOfficeAdminClient } from "@/lib/supabase/admin";
 import {
   createLegalPrintProof,
   createLegalPrintReservation,
@@ -77,7 +77,7 @@ export async function reserveLegalPrintJob(input: {
   visitorIdentity: string;
   signingKey: string;
 }): Promise<{ reservation: LegalPrintReservation } | { failure: PrintServiceFailure }> {
-  const supabase = createAdminClient();
+  const supabase = createOfficeAdminClient();
   if (!supabase) return { failure: "CONFIGURATION" };
 
   const proof = createLegalPrintProof();
@@ -110,7 +110,7 @@ export async function recordLegalPrintEvent(
   reservation: LegalPrintReservation,
   event: PrintEvent,
 ): Promise<{ ok: true } | { failure: PrintServiceFailure }> {
-  const supabase = createAdminClient();
+  const supabase = createOfficeAdminClient();
   if (!supabase) return { failure: "CONFIGURATION" };
 
   const { data, error } = await supabase.rpc("record_legal_print_event", {

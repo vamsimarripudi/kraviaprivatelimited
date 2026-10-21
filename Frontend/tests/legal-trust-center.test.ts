@@ -123,7 +123,8 @@ describe("Legal & Trust Center publication guard", () => {
     expect(printRoute).toContain("signLegalPrintReservation");
     expect(printConfirmationRoute).toContain("verifyLegalPrintReservation");
     expect(printConfirmationRoute).toContain("recordLegalPrintEvent");
-    expect(printService).toContain("createAdminClient");
+    expect(printService).toContain("createOfficeAdminClient");
+    expect(printService).not.toContain("createAdminClient");
     expect(printService).toContain('rpc("reserve_legal_print_job"');
     expect(printService).toContain('rpc("record_legal_print_event"');
     expect(printService).toContain("createHmac");
