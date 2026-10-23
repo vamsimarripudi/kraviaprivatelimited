@@ -5,23 +5,28 @@ import { vidyaLumaProduct } from "../../lib/products/vidyaluma";
 import { LeadershipMedia } from "./leadership-media";
 import styles from "./leadership.module.css";
 
-function Profile({ person, index }: { person: TeamProfile; index: string }) {
+function Profile({ person }: { person: TeamProfile }) {
+  const portrait = <LeadershipMedia asset={person.portrait} name={person.name} fallback="" />;
   return (
     <article id={person.id} className={styles.profile} aria-labelledby={`${person.id}-name`} data-team-group={person.group}>
-      <div className={styles.portraitWrap}>
-        <LeadershipMedia asset={person.portrait} name={person.name} fallback={person.initials} />
-        <span className={styles.profileIndex} aria-hidden="true">{index} / KRAVIA</span>
-      </div>
+      <header className={styles.profileHeader}>
+        {person.portfolio ? <a className={styles.portraitLink} href={person.portfolio} aria-label={`Visit ${person.name}'s portfolio`}>{portrait}</a> : portrait}
+        <div>
+          <p className={styles.kicker}>{person.group === "founder" ? "Founding leadership" : "Team"}</p>
+          <h3 id={`${person.id}-name`}>{person.portfolio ? <a className={styles.nameLink} href={person.portfolio}>{person.name}</a> : person.name}</h3>
+          <p className={styles.role}>{person.title}</p>
+          <p className={styles.roleDetail}>{person.roleDetail}</p>
+        </div>
+      </header>
       <div className={styles.profileBody}>
-        <p className={styles.kicker}>{person.group === "founder" ? "Founding leadership" : "Team"}</p>
-        <h3 id={`${person.id}-name`}>{person.name}</h3>
-        <p className={styles.role}>{person.title}</p>
-        <p className={styles.roleDetail}>{person.roleDetail}</p>
         <p className={styles.disciplines}>{person.disciplines.join(" · ")}</p>
         <div className={styles.biography}>{person.biography.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</div>
         <h4>Areas of focus</h4>
         <ul className={styles.responsibilities}>{person.responsibilities.map((item) => <li key={item}>{item}</li>)}</ul>
-        {person.linkedIn ? <a className="text-link" href={person.linkedIn} target="_blank" rel="noopener noreferrer">{person.name} on LinkedIn <ArrowUpRight aria-hidden="true" /></a> : null}
+        <div className={styles.profileLinks}>
+          {person.portfolio ? <a className="text-link" href={person.portfolio}>Portfolio <ArrowUpRight aria-hidden="true" /></a> : null}
+          {person.linkedIn ? <a className="text-link" href={person.linkedIn} target="_blank" rel="noopener noreferrer" aria-label={`${person.name} on LinkedIn`}>LinkedIn <ArrowUpRight aria-hidden="true" /></a> : null}
+        </div>
       </div>
     </article>
   );
@@ -66,12 +71,12 @@ export function LeadershipContent() {
 
       <section id="founding-team" className={`${styles.people} shell`} aria-labelledby="founding-team-title">
         <div className={styles.sectionHeading}><div><p className={styles.kicker}>03 / Founding leadership</p><h2 id="founding-team-title">Two founders.<br /><em>Shared direction.</em></h2></div><p>Technology and product execution sit alongside executive and financial oversight, with clear responsibilities across the founding team.</p></div>
-        <div className={styles.founders}>{founders.map((person, index) => <Profile key={person.id} person={person} index={String(index + 1).padStart(2, "0")} />)}</div>
+        <div className={styles.founders}>{founders.map((person) => <Profile key={person.id} person={person} />)}</div>
       </section>
 
       <section className={`${styles.team} shell`} aria-labelledby="key-team-title">
         <div className={styles.sectionHeading}><div><p className={styles.kicker}>04 / Our team</p><h2 id="key-team-title">Connecting product<br /><em>and market.</em></h2></div><p>Supporting user-facing experiences, product communication and early customer conversations.</p></div>
-        {team.map((person, index) => <Profile key={person.id} person={person} index={String(founders.length + index + 1).padStart(2, "0")} />)}
+        {team.map((person) => <Profile key={person.id} person={person} />)}
       </section>
 
       <section className={styles.working} aria-labelledby="how-we-work-title">
@@ -90,7 +95,7 @@ export function LeadershipPreview() {
   return (
     <section className={`${styles.preview} shell`} aria-labelledby="leadership-preview-title">
       <div><p className={styles.kicker}>Leadership &amp; Team</p><h2 id="leadership-preview-title">The people<br /><em>behind the products.</em></h2><p>{startupOverview.introduction} Our flagship, VidyaLuma, is in pre-revenue product development.</p><Link className="text-link" href={leadershipPath}>Meet our leadership and team <ArrowUpRight aria-hidden="true" /></Link></div>
-      <ul>{publishedTeam().map((person) => <li key={person.id}><Link href={`${leadershipPath}#${person.id}`}><span className={styles.previewInitials} aria-hidden="true">{person.initials}</span><span><strong>{person.name}</strong><small>{person.title}</small></span><ArrowUpRight aria-hidden="true" /></Link></li>)}</ul>
+      <ul>{publishedTeam().map((person) => <li key={person.id}><a href={person.portfolio ?? `${leadershipPath}#${person.id}`}><LeadershipMedia asset={person.portrait} name={person.name} fallback="" compact /><span><strong>{person.name}</strong><small>{person.title}</small></span><ArrowUpRight aria-hidden="true" /></a></li>)}</ul>
     </section>
   );
 }

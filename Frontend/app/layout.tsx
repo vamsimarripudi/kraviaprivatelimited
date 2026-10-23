@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./workspaces.css";
+import "./public-typography.css";
+import "./public-refinements.css";
 import { isProductionSite, publicSiteIdentity, siteUrl } from "@/lib/site";
 import { publicPageRobots } from "@/lib/crawler-policy";
 import { BrandSplash } from "@/components/brand-splash";

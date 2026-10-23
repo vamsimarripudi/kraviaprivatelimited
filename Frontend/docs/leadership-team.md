@@ -1,40 +1,35 @@
 # Leadership & Team
 
-Route: `/company/leadership`. This release adds a public team page, a shared preview on the Company and About routes, a footer link, sitemap discovery, metadata and person/company relationships.
+Route: `/company/leadership`. The feature includes Company/About previews, a shared footer link, sitemap discovery, metadata and person/company relationships. It is a code-only feature branch, not a production deployment.
 
-## Content ownership
+## Content and links
 
-`lib/leadership.ts` is the single source for the three owner-supplied profiles. Vamsi and Satish are the founding leadership; Jaya is the key team member. Titles and responsibilities reflect the owner's instructions. Only `publicationStatus: "approved"` records are displayed. Keep role descriptions accurate as actual responsibilities evolve.
+`lib/leadership.ts` contains the three owner-supplied profiles. Vamsi and Satish are founding leadership; Jaya is a key team member. Only approved records are displayed. Keep titles and responsibilities accurate as the team evolves. The narrative describes an early-stage, pre-revenue company with VidyaLuma as its flagship in development. Product links reuse `lib/products/vidyaluma.ts`.
 
-The company is described as early-stage and pre-revenue, with VidyaLuma as its flagship in product development. The product route and external domain are reused from `lib/products/vidyaluma.ts`. No customer numbers, revenue, qualifications or previous employers are implied.
+Vamsi's name, avatar and portfolio action navigate to `https://vamsimarripudi.me`. His and Satish's supplied LinkedIn links are separate external actions. The Company/About preview also links Vamsi to his portfolio. Jaya has no invented professional link. `lib/public-links.ts` supplies KRAVIA's LinkedIn URL to the shared footer and company structured data.
 
-## Pending assets
+## Portraits and pending logo
 
-The code is complete independently of image delivery. All three `portrait` values and `leadershipAssets.vidyalumaLogo` intentionally remain `null`. This renders initials and a textual VidyaLuma wordmark, makes no requests to nonexistent images, and does not emit nonexistent image URLs into structured data.
+The owner-supplied neutral avatar is `public/team/default-profile.webp`. Portrait frames are 128px on desktop, 104px on mobile and 48px in Company/About previews. Large initial-letter panels have been removed.
 
-After the owner supplies approved original images:
+All three actual `portrait` values and `leadershipAssets.vidyalumaLogo` remain null until approved assets arrive. A supplied portrait overrides the default avatar. A failed portrait falls back to the default, and a failed default has an accessible icon fallback. The neutral avatar is not emitted as a real portrait in Person structured data. The absent logo renders a textual VidyaLuma wordmark.
 
-1. Strip EXIF/location metadata and optimize portraits to WebP or AVIF. Use consistent crops and retain the originals outside Git.
-2. Add assets under `public/team/` and the supplied logo under `public/brand/`. Do not substitute stock portraits or generate faces.
-3. Set the appropriate asset to `{ src: "/team/approved-file.webp", width: 800, height: 1000, objectPosition: "50% 35%" }`, using the real file dimensions. The logo uses the same shape with a `/brand/` path.
-4. Check actual asset existence, crops, alt text, responsive delivery and the image-failure fallback. Test with JavaScript disabled as well.
-5. Add personal LinkedIn links only when supplied and confirmed by the respective person. Missing links remain omitted.
+For final images, strip EXIF/location metadata, optimize to WebP or AVIF and store approved assets under `public/team/` or `public/brand/`. Retain original photographs outside Git. Set each asset to `{ src: "/team/approved-file.webp", width: 800, height: 1000, objectPosition: "50% 35%" }` using its actual dimensions. Review circular crops, alternative text, loading and fallback behavior. Do not substitute stock faces or invent professional links.
 
-The media component preserves layout dimensions and handles failed image loads. No separate layout implementation is needed when assets arrive. The new CSS is scoped to the leadership components; global styling and unrelated application workflows are unchanged.
+## Public typography and spacing
 
-## Checks
+Public display headings use 75% of the original scale, with a 16px floor for small headings. Heading margins and selected section padding are reduced, and shared heading line-height is 1.12. Body text, controls, root font size, print output and internal workspace styles are preserved. Leadership retains its previously reduced scale rather than being reduced twice.
 
-From `Frontend/`, run `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` and `node scripts/secret-scan.mjs`. The focused regression suite is `tests/leadership.test.tsx`. Also inspect the built page at desktop and mobile sizes, internal links, structured data and the About preview.
+Run `node scripts/sync-public-typography.mjs` after changing underlying public styles. It regenerates `app/public-typography.css` and the marked screen-only blocks in public CSS modules without compounding reductions. Finishing rules are in `app/public-refinements.css`.
 
-Production indexability inherits the existing environment policy. Preview environments remain non-indexable. Publishing and adding the final portraits/logo are separate release steps; this change does not enable automatic deployments for feature branches.
+## Verification — 23 October 2026
 
-## Verification record — 23 October 2026
+Lint, TypeScript checks, 500 tests across 105 files, production build and secret scan passed. Production-mode Chromium checked 16 routes at 390px and 1440px: 32 route/viewport checks returned HTTP 200 without horizontal overflow or uncaught browser errors. Leadership checks covered avatar dimensions, loaded images, supplied links, server-rendered content without JavaScript, 320px layout and intercepted portfolio navigation. Automated WCAG A/AA scanning found no violations in the leadership main content; this is not a claim of complete accessibility certification.
 
-- Lint, TypeScript checks, production build and secret scan passed.
-- 104 test files / 494 tests passed, including 15 leadership regressions.
-- Production-mode Chromium checks passed at 360, 390, 768 and 1440 pixels: HTTP 200, no horizontal overflow, no broken images, no uncaught browser errors and no automated WCAG A/AA findings within the new main content.
-- Leadership, Company, About, VidyaLuma and sitemap routes returned HTTP 200. Profile content and discovery links are present in server-rendered HTML without JavaScript.
-- A pre-existing reduced-motion hydration mismatch in the shared entry splash was fixed using a stable hydration snapshot; it is not hidden with warning suppression.
-- Release blocker outside the page feature: the existing pinned Next.js 16.3.8 dependency failed the runtime dependency audit (critical). The audit reports a fix at 16.4.3. Dependency manifests were deliberately not changed in this scoped feature. Resolve and retest that dependency before production release; the successful feature checks do not constitute a clean dependency audit.
+From `Frontend/`, run `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` and `node scripts/secret-scan.mjs`. Repeat browser checks after replacing assets. The earlier shared reduced-motion splash hydration correction is retained.
 
-Portraits and the supplied VidyaLuma logo remain pending. This is a code-only feature branch, not a production deployment.
+## Release boundary
+
+Real portraits and the VidyaLuma logo remain pending. Production crawler settings inherit the existing environment policy; previews remain non-indexable. Automatic deployment from feature branches stays disabled.
+
+The existing pinned Next.js 16.3.8 dependency previously failed the runtime security audit with a critical finding; that audit reported a fix at 16.4.3. Dependency manifests were not changed in this feature. Resolve and retest the dependency before production release. Successful feature checks do not constitute a clean dependency audit. Do not merge or deploy without the required release approval.

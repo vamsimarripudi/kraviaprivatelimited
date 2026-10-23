@@ -18,6 +18,7 @@ export type TeamProfile = {
   responsibilities: readonly string[];
   portrait: LeadershipImage | null;
   linkedIn: `https://www.linkedin.com/in/${string}` | null;
+  portfolio?: `https://${string}` | null;
   publicationStatus: "approved" | "draft";
 };
 
@@ -35,6 +36,8 @@ export const startupOverview = {
     "Our three-person team brings together technology leadership, business oversight, frontend development and market development. Product building and day-to-day technical execution are led by Vamsi, with distinct responsibilities across the founding leadership and team.",
   ],
 } as const;
+
+export const defaultProfileImage: LeadershipImage = { src: "/team/default-profile.webp", width: 204, height: 192, objectPosition: "50% 50%" };
 
 export const leadershipAssets: { vidyalumaLogo: LeadershipImage | null } = {
   vidyalumaLogo: null,
@@ -55,7 +58,8 @@ export const teamProfiles: readonly TeamProfile[] = [
     ],
     responsibilities: ["Product architecture", "Full-stack engineering", "Technical strategy", "Day-to-day execution"],
     portrait: null,
-    linkedIn: null,
+    linkedIn: "https://www.linkedin.com/in/vamsimarripudi",
+    portfolio: "https://vamsimarripudi.me",
     publicationStatus: "approved",
   },
   {
@@ -72,7 +76,7 @@ export const teamProfiles: readonly TeamProfile[] = [
     ],
     responsibilities: ["Business planning", "Financial oversight", "Company operations", "Engineering review"],
     portrait: null,
-    linkedIn: null,
+    linkedIn: "https://www.linkedin.com/in/satish-manohar-9699a2253/",
     publicationStatus: "approved",
   },
   {
@@ -135,7 +139,7 @@ export function leadershipJsonLd(origin: string, profiles: readonly TeamProfile[
         description: person.biography.join(" "),
         worksFor: { "@id": `${base}#organization` },
         ...(person.portrait ? { image: `${base}${person.portrait.src}` } : {}),
-        ...(person.linkedIn ? { sameAs: [person.linkedIn] } : {}),
+        ...((person.linkedIn || person.portfolio) ? { sameAs: [person.linkedIn, person.portfolio].filter(Boolean) } : {}),
       })),
     ],
   };
