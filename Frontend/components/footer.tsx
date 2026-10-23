@@ -92,12 +92,12 @@ export async function Footer() {
             <div><dt>CIN</dt><dd>{profile.cin}</dd></div>
             <div><dt>GSTIN</dt><dd>{profile.gst.gstin}</dd></div>
             <div className="footer-address"><dt><MapPin aria-hidden="true" /> Registered office</dt><dd>{profile.registeredOffice}</dd></div>
-            <div><dt>Corporate contact</dt><dd><a href={`mailto:${profile.corporateEmail}`}>{profile.corporateEmail}</a>{profile.telephone ? <><br /><a href={`tel:${profile.telephone.replace(/\s/g, "")}`}>{profile.telephone}</a></> : null}</dd></div>
           </dl>
+          <address className="footer-corporate-contact"><span>Corporate contact</span><a href={`mailto:${profile.corporateEmail}`}>{profile.corporateEmail}</a></address>
         </section>
         <section className="footer-recognitions" aria-labelledby="footer-recognitions-title">
           <div className="footer-recognitions-intro"><BadgeCheck aria-hidden="true" /><div><p className="eyebrow">REGISTRATIONS & RECOGNITIONS</p><h2 id="footer-recognitions-title">Company credentials.</h2></div></div>
-          <div className="footer-recognition-grid">{recognitions.map((recognition) => <article key={recognition.reference}><p>{recognition.authority}</p><h3>{recognition.title}</h3><code>{recognition.reference}</code><a href={recognition.href} target="_blank" rel="noopener noreferrer">Verification portal <ExternalLink aria-hidden="true" /></a></article>)}</div>
+          <div className="footer-recognition-grid">{recognitions.map((recognition) => <article key={recognition.reference}><BadgeCheck className="footer-recognition-mark" aria-hidden="true" /><div><p>{recognition.authority}</p><h3>{recognition.title}</h3><code>{recognition.reference}</code></div><a href={recognition.href} target="_blank" rel="noopener noreferrer" aria-label={`Verify ${recognition.authority} registration`}>Verify <ExternalLink aria-hidden="true" /></a></article>)}</div>
           <p className="footer-recognition-note">Recognition and registration identify the company only. They do not endorse KRAVIA products or services.</p>
         </section>
       </div>

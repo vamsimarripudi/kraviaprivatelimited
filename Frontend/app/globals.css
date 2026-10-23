@@ -533,3 +533,32 @@ body{--sans:var(--font-sans),Arial,sans-serif;--serif:var(--font-serif),Georgia,
 @media(max-width:900px){.footer-corporate-directory{grid-template-columns:1fr;gap:2.5rem}.footer-recognitions{max-width:42rem}.corporate-information-section{grid-template-columns:4rem minmax(0,1fr)}}
 @media(max-width:640px){.footer-corporate-directory{padding-block:3rem}.footer-corporate-identity dl,.corporate-detail-list,.corporate-resource-grid{grid-template-columns:1fr}.footer-corporate-identity dl>div:nth-child(n),.corporate-detail-list>div:nth-child(n){padding:1rem 0;border-right:0}.footer-corporate-identity .footer-address{grid-column:auto}.footer-recognitions{padding:1.1rem}.footer-bottom div{column-gap:.9rem}.corporate-information-page{padding-top:1.5rem}.corporate-information-section{grid-template-columns:1fr;gap:1rem;padding-block:2.5rem}.corporate-information-marker{gap:.5rem}.corporate-detail-list>div{grid-template-columns:minmax(6.7rem,.7fr) minmax(0,1.3fr)}.corporate-resource-grid a,.corporate-resource-grid a:nth-child(even){min-height:10rem;padding:1.1rem 0;border-right:0}.corporate-resource-grid svg{right:0;bottom:1.1rem}}
 @media(prefers-reduced-motion:reduce){.footer-directory a,.footer-recognition-grid a,.copy-corporate-detail button{transition:none!important}}
+
+/* Compact credential rows keep statutory recognition visible without turning the footer into a second content area. */
+.footer-corporate-directory{gap:clamp(1.5rem,3vw,3.25rem);padding-block:clamp(2rem,4vw,3.5rem)}
+.footer-corporate-identity>div>p:last-child{margin-top:.7rem;font-size:.8rem;line-height:1.5}
+.footer-corporate-identity h2{font-size:clamp(1.55rem,2.4vw,2.25rem);line-height:1}
+.footer-corporate-identity dl{margin-top:1.25rem}
+.footer-corporate-identity dl>div{padding-block:.8rem}
+.footer-recognitions{padding:1rem 1.1rem;border-color:color-mix(in srgb,#334155 78%,transparent);background:#172338}
+.footer-recognitions-intro{gap:.55rem;align-items:center}
+.footer-recognitions-intro>svg{width:1rem;height:1rem}
+.footer-recognitions h2{font-size:1rem;letter-spacing:-.02em}
+.footer-recognition-grid{gap:0;margin-top:.85rem}
+.footer-recognition-grid article{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:.7rem;padding:.75rem 0;border:0;border-top:1px solid #334155;background:transparent}
+.footer-recognition-grid article:last-child{border-bottom:1px solid #334155}
+.footer-recognition-mark{width:1.15rem;height:1.15rem;color:#e8b86d;stroke-width:1.7}
+.footer-recognition-grid article>div{min-width:0}
+.footer-recognition-grid p{font-size:.56rem}
+.footer-recognition-grid h3{font-size:.82rem;line-height:1.2}
+.footer-recognition-grid code{display:block;margin-top:.15rem;font-size:.62rem;line-height:1.3}
+.footer-recognition-grid a{min-height:2.5rem;font-size:.68rem;white-space:nowrap}
+.footer-recognition-note{margin-top:.75rem;font-size:.64rem;line-height:1.45}
+@media(max-width:640px){.footer-corporate-directory{padding-block:2.25rem}.footer-recognition-grid article{grid-template-columns:auto minmax(0,1fr)}.footer-recognition-grid a{grid-column:2;min-height:2.25rem}.footer-recognitions{padding:1rem}}
+
+.footer-corporate-contact{display:flex;align-items:baseline;gap:1rem;margin:0;padding:.65rem 0;border-bottom:1px solid #334155;font-style:normal}
+.footer-corporate-contact span{color:#cbd5e1;font:600 .65rem/1.35 var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
+.footer-corporate-contact a{color:#f8fafc;font-size:.82rem;line-height:1.35;text-decoration:underline;text-decoration-color:color-mix(in srgb,#93c5fd 65%,transparent);text-underline-offset:.2em}
+.footer-bottom>p,.footer-bottom>div{white-space:nowrap}
+.footer-bottom div{align-items:center;flex-wrap:nowrap}
+@media(max-width:640px){.footer-corporate-contact{display:grid;gap:.35rem}.footer-bottom>p,.footer-bottom>div{white-space:normal}.footer-bottom div{flex-wrap:wrap}}
