@@ -1,21 +1,21 @@
 import Link from "next/link";
-import { ArrowDownRight, ArrowUpRight, Mail } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { leadershipAssets, leadershipPath, publishedTeam, startupOverview, type TeamProfile } from "../../lib/leadership";
 import { vidyaLumaProduct } from "../../lib/products/vidyaluma";
 import { LeadershipMedia } from "./leadership-media";
 import styles from "./leadership.module.css";
 
 function Profile({ person }: { person: TeamProfile }) {
-  const portrait = <LeadershipMedia asset={person.portrait} name={person.name} fallback="" />;
   return (
     <article id={person.id} className={styles.profile} aria-labelledby={`${person.id}-name`} data-team-group={person.group}>
       <header className={styles.profileHeader}>
-        {person.portfolio ? <a className={styles.portraitLink} href={person.portfolio} aria-label={`Visit ${person.name}'s portfolio`}>{portrait}</a> : portrait}
+        <LeadershipMedia asset={person.portrait} name={person.name} fallback="" />
         <div>
           <p className={styles.kicker}>{person.group === "founder" ? "Founding leadership" : "Team"}</p>
-          <h3 id={`${person.id}-name`}>{person.portfolio ? <a className={styles.nameLink} href={person.portfolio}>{person.name}</a> : person.name}</h3>
+          <h3 id={person.id + "-name"}>{person.name}</h3>
           <p className={styles.role}>{person.title}</p>
           <p className={styles.roleDetail}>{person.roleDetail}</p>
+          <div className={styles.currentFocus}><span>Current contribution</span><strong>{person.contribution}</strong></div>
         </div>
       </header>
       <div className={styles.profileBody}>
@@ -23,14 +23,6 @@ function Profile({ person }: { person: TeamProfile }) {
         <div className={styles.biography}>{person.biography.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</div>
         <h4>Areas of focus</h4>
         <ul className={styles.responsibilities}>{person.responsibilities.map((item) => <li key={item}>{item}</li>)}</ul>
-        <div className={styles.profileLinks}>
-          <a className={styles.emailLink} href={"mailto:" + person.email} aria-label={"Email " + person.name + " at " + person.email}>
-            <Mail aria-hidden="true" size={16} />
-            <span>{person.email}</span>
-          </a>
-          {person.portfolio ? <a className="text-link" href={person.portfolio}>Portfolio <ArrowUpRight aria-hidden="true" /></a> : null}
-          {person.linkedIn ? <a className="text-link" href={person.linkedIn} target="_blank" rel="noopener noreferrer" aria-label={`${person.name} on LinkedIn`}>LinkedIn <ArrowUpRight aria-hidden="true" /></a> : null}
-        </div>
       </div>
     </article>
   );
@@ -79,7 +71,7 @@ export function LeadershipContent() {
       </section>
 
       <section className={`${styles.team} shell`} aria-labelledby="key-team-title">
-        <div className={styles.sectionHeading}><div><p className={styles.kicker}>04 / Our team</p><h2 id="key-team-title">Connecting product<br /><em>and market.</em></h2></div><p>Supporting user-facing experiences, product communication and early customer conversations.</p></div>
+        <div className={styles.sectionHeading}><div><p className={styles.kicker}>04 / Our team</p><h2 id="key-team-title">Connecting product<br /><em>and market.</em></h2></div><p>Documenting product requirements and preparing clear specifications for engineering.</p></div>
         {team.map((person) => <Profile key={person.id} person={person} />)}
       </section>
 
@@ -99,7 +91,7 @@ export function LeadershipPreview() {
   return (
     <section className={`${styles.preview} shell`} aria-labelledby="leadership-preview-title">
       <div><p className={styles.kicker}>Leadership &amp; Team</p><h2 id="leadership-preview-title">The people<br /><em>behind the products.</em></h2><p>{startupOverview.introduction} Our flagship, VidyaLuma, is in pre-revenue product development.</p><Link className="text-link" href={leadershipPath}>Meet our leadership and team <ArrowUpRight aria-hidden="true" /></Link></div>
-      <ul>{publishedTeam().map((person) => <li key={person.id}><a href={person.portfolio ?? `${leadershipPath}#${person.id}`}><LeadershipMedia asset={person.portrait} name={person.name} fallback="" compact /><span><strong>{person.name}</strong><small>{person.title}</small></span><ArrowUpRight aria-hidden="true" /></a></li>)}</ul>
+      <ul>{publishedTeam().map((person) => <li key={person.id}><Link href={leadershipPath + "#" + person.id}><LeadershipMedia asset={person.portrait} name={person.name} fallback="" compact /><span><strong>{person.name}</strong><small>{person.title}</small></span><ArrowUpRight aria-hidden="true" /></Link></li>)}</ul>
     </section>
   );
 }

@@ -1,92 +1,115 @@
-import { readFileSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { LeadershipContent, LeadershipPreview } from "../components/leadership/leadership-content";
-import { defaultProfileImage, leadershipJsonLd, teamProfiles } from "../lib/leadership";
+import { leadershipJsonLd, leadershipPath, teamProfiles } from "../lib/leadership";
 import { publicCompanyLinks } from "../lib/public-links";
 
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
+const portraitHashes: Record<string, string> = {
+  "jaya-satyanarayana-mangam": "6e1f0145226165a9bc14812eabf1724c8e4b0fd630cec12601db59076ee24565",
+  "vamsi-marripudi": "a590b794bb76a36347ecbcb6a2ea4db66067ec29f3f9e84935e223f46bdae267",
+  "satish-manohar-pennada": "5216a89d22f37364a0ae9b0a66e9fe43c3f25a606fe52c07a1b9510d2db81de5",
+};
+const expectedContributions: Record<string, string> = {
+  "jaya-satyanarayana-mangam": "Documentation & Requirements",
+  "vamsi-marripudi": "AI Engineering & Product Architecture",
+  "satish-manohar-pennada": "Backend Engineering & VidyaLuma AI Tutor Design and Fulfilment",
+};
 
-describe("public profiles and compact site typography", () => {
-  it("routes Vamsi's portrait, name and portfolio CTA to his supplied site", () => {
-    const html = renderToStaticMarkup(<LeadershipContent />);
-    expect(html.match(/href="https:\/\/vamsimarripudi.me"/g)).toHaveLength(3);
-    expect(html).toContain('class=');
-    expect(renderToStaticMarkup(<LeadershipPreview />)).toContain('href="https://vamsimarripudi.me"');
-  });
-
-  it("uses the exact professional and company URLs supplied by the owner", () => {
-    expect(teamProfiles[0].linkedIn).toBe("https://www.linkedin.com/in/vamsimarripudi");
-    expect(teamProfiles[1].linkedIn).toBe("https://www.linkedin.com/in/satish-manohar-9699a2253/");
-    expect(teamProfiles[2].linkedIn).toBeNull();
-    expect(publicCompanyLinks.linkedIn).toBe("https://linkedin.com/company/kravia-private-limited");
-    const html = renderToStaticMarkup(<LeadershipContent />);
-    expect(html).toContain(`href="${teamProfiles[0].linkedIn}"`);
-    expect(html).toContain(`href="${teamProfiles[1].linkedIn}"`);
-    expect(source("components/footer.tsx")).toContain("href={publicCompanyLinks.linkedIn}");
-    expect(source("components/structured-data.tsx")).toContain("sameAs: [publicCompanyLinks.linkedIn]");
-  });
-
-  it("renders exactly three accessible email actions without publishing personal phones", () => {
-    const html = renderToStaticMarkup(<LeadershipContent />);
-    expect(teamProfiles.map(person => person.email)).toEqual([
-      "vamsi@kraviaprivatelimited.com",
-      "satishmanohar7@gmail.com",
-      "jayasatyanarayana7@gmail.com",
+describe("real leadership portraits and current contributions", () => {
+  it("maps the first photo to Jaya, second to Vamsi and third to Satish", () => {
+    expect(teamProfiles.map((person) => person.name)).toEqual([
+      "Vamsi Marripudi", "Satish Manohar Pennada", "Jaya Satyanarayana Mangam",
     ]);
-    expect(html.match(/href="mailto:/g)).toHaveLength(3);
+    expect(Object.keys(portraitHashes)).toEqual([
+      "jaya-satyanarayana-mangam", "vamsi-marripudi", "satish-manohar-pennada",
+    ]);
     for (const person of teamProfiles) {
-      expect(html).toContain('href="mailto:' + person.email + '"');
-      expect(html).toContain('aria-label="Email ' + person.name + ' at ' + person.email + '"');
+      expect(person.portrait).toMatchObject({
+        src: "/team/" + person.id + ".webp",
+        width: 256,
+        height: 256,
+      });
+      expect(person.contribution).toBe(expectedContributions[person.id]);
     }
-    expect(html).not.toContain('href="tel:');
-    expect(source("components/leadership/leadership-content.tsx")).toContain("<Mail aria-hidden=");
-    expect(source("components/leadership/leadership.module.css")).toContain("overflow-wrap: anywhere");
-    const entries = leadershipJsonLd("https://www.kraviaprivatelimited.com")["@graph"];
+  });
+
+  it("ships intact, optimized 256-square WebP portraits", () => {
     for (const person of teamProfiles) {
-      const entry = entries.find(item => item["@type"] === "Person" && "name" in item && item.name === person.name);
-      expect(entry).toHaveProperty("email", person.email);
+      const imagePath = resolve(process.cwd(), "public", person.portrait!.src.slice(1));
+      expect(existsSync(imagePath)).toBe(true);
+      const bytes = readFileSync(imagePath);
+      expect(bytes.toString("ascii", 0, 4)).toBe("RIFF");
+      expect(bytes.toString("ascii", 8, 12)).toBe("WEBP");
+      expect(bytes.byteLength).toBeLessThan(25_000);
+      expect(createHash("sha256").update(bytes).digest("hex")).toBe(portraitHashes[person.id]);
+    }
+  });
+
+  it("renders three real profile images and clearly labelled current contributions", () => {
+    const html = renderToStaticMarkup(<LeadershipContent />);
+    expect(html.match(/data-media-state="image"/g)).toHaveLength(3);
+    expect(html).not.toContain('data-media-state="default"');
+    expect(html).toContain("Current contribution");
+    for (const person of teamProfiles) {
+      expect(html).toContain('alt="' + person.name + '"');
+      expect(html).toContain(person.contribution.replaceAll("&", "&amp;"));
+      expect(html).toContain(person.name);
+    }
+  });
+
+  it("withholds all personal links and contact details, while retaining internal team navigation", () => {
+    const html = renderToStaticMarkup(<LeadershipContent />);
+    const preview = renderToStaticMarkup(<LeadershipPreview />);
+    for (const person of teamProfiles) {
+      expect(person.email).toBeNull();
+      expect(person.linkedIn).toBeNull();
+      expect(person.portfolio ?? null).toBeNull();
+      expect(preview).toContain('href="' + leadershipPath + "#" + person.id + '"');
+      expect(preview).toContain('alt="' + person.name + '"');
+    }
+    expect(html).not.toContain("mailto:");
+    expect(html).not.toContain("tel:");
+    expect(html).not.toContain("vamsimarripudi.me");
+    expect(html).not.toContain("linkedin.com/in/");
+    expect(preview).not.toContain("vamsimarripudi.me");
+    expect(source("components/leadership/leadership-content.tsx")).not.toContain("profileLinks");
+    expect(publicCompanyLinks.linkedIn).toBe("https://linkedin.com/company/kravia-private-limited");
+  });
+
+  it("publishes only genuine portraits in Person structured data and no unapproved profile links", () => {
+    const schema = JSON.parse(JSON.stringify(leadershipJsonLd("https://www.kraviaprivatelimited.com")));
+    const graph: Array<Record<string, unknown>> = schema["@graph"];
+    const people = graph.filter((entry) => entry["@type"] === "Person");
+    expect(people).toHaveLength(3);
+    for (const person of teamProfiles) {
+      const entry = people.find((candidate) => candidate.name === person.name);
+      expect(entry).toMatchObject({
+        image: "https://www.kraviaprivatelimited.com" + person.portrait!.src,
+        jobTitle: person.title,
+      });
+      expect(entry).not.toHaveProperty("email");
+      expect(entry).not.toHaveProperty("sameAs");
       expect(entry).not.toHaveProperty("telephone");
     }
   });
 
-  it("uses the supplied image for all missing portraits and removes initial-letter panels", () => {
-    const html = renderToStaticMarkup(<LeadershipContent />);
-    expect(html.match(/data-media-state="default"/g)).toHaveLength(3);
-    for (const initials of ["VM", "SP", "JM"]) expect(html).not.toContain(`>${initials}</span>`);
-    const path = resolve(process.cwd(), "public", defaultProfileImage.src.slice(1));
-    expect(existsSync(path)).toBe(true);
-    expect(createHash("sha256").update(readFileSync(path)).digest("hex")).toBe("ea942be18e2b75c2c8fe02c6ce42a25ff0c56db663ac35ea84fe2144592a085c");
-  });
-
-  it("does not misrepresent the neutral avatar as a real portrait in search data", () => {
-    const graph = leadershipJsonLd("https://www.kraviaprivatelimited.com")["@graph"];
-    expect(JSON.stringify(graph)).not.toContain(defaultProfileImage.src);
-    expect(graph.find((entry) => entry["@type"] === "Person" && "name" in entry && entry.name === "Vamsi Marripudi")).toHaveProperty("sameAs", [teamProfiles[0].linkedIn, teamProfiles[0].portfolio]);
-  });
-
-  it("uses medium circular portraits with a smaller mobile size and compact previews", () => {
+  it("retains small circular avatars and the public-only compact typography scale", () => {
     const css = source("components/leadership/leadership.module.css");
     expect(css).toContain("width: 128px; height: 128px;");
     expect(css).toContain("width: 104px; height: 104px;");
     expect(css).toContain("width: 48px; height: 48px;");
     expect(css).toContain("border-radius: 50%");
-    expect(css).not.toContain(".initials");
-    expect(css).not.toContain(".portraitWrap");
-  });
-
-  it("scopes shared typography to public screens without scaling the root or controls", () => {
-    const css = source("app/public-typography.css");
+    expect(css).toContain(".currentFocus");
+    expect(css).not.toContain(".portraitLink");
+    expect(css).not.toContain(".emailLink");
+    const publicCss = source("app/public-typography.css");
     expect(source("app/layout.tsx")).toContain('import "./public-typography.css"');
-    expect(css).toContain("@media screen");
-    expect(css).toContain("body:has(.nav-wrap) .hero h1");
-    expect(css).toContain("clamp(2.25rem,5.25vw,5.1rem)");
-    expect(css).not.toMatch(/font-size:\s*(?:75%|12px)/);
-    expect(css).not.toContain("zoom:");
-    for (const name of ["legal-document", "legal-trust-center", "recruitflow-product-page", "yukta-research", "vorio-market-chart"]) {
-      expect(source(`components/${name}.module.css`)).toContain("PUBLIC TYPOGRAPHY");
-    }
+    expect(publicCss).toContain("@media screen");
+    expect(publicCss).toContain("body:has(.nav-wrap) .hero h1");
+    expect(publicCss).not.toContain("zoom:");
   });
 });

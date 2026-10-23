@@ -25,7 +25,7 @@ describe("Leadership & Team", () => {
     expect(teamProfiles[0].disciplines).toContain("Product Architect");
     expect(teamProfiles[1].title).toBe("Co-Founder, CEO & CFO");
     expect(teamProfiles[2].title).toBe("Frontend Developer & Marketing and Sales Lead");
-    expect(startupOverview.paragraphs.join(" ")).toContain("day-to-day technical execution are led by Vamsi");
+    expect(startupOverview.paragraphs.join(" ")).toContain("Vamsi leads product planning and day-to-day technical execution");
   });
 
   it("excludes draft profiles from published data, people schema and company relationships", () => {

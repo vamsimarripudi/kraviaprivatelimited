@@ -16,8 +16,9 @@ export type TeamProfile = {
   disciplines: readonly string[];
   biography: readonly string[];
   responsibilities: readonly string[];
+  contribution: string;
   portrait: LeadershipImage | null;
-  email: string;
+  email: string | null;
   linkedIn: `https://www.linkedin.com/in/${string}` | null;
   portfolio?: `https://${string}` | null;
   publicationStatus: "approved" | "draft";
@@ -34,7 +35,7 @@ export const startupOverview = {
   founded: "2026",
   paragraphs: [
     "KRAVIA PRIVATE LIMITED is a product-focused technology company developing software, intelligent systems and digital infrastructure around practical organisational needs. We are currently in our pre-revenue product development stage, with VidyaLuma as our flagship product.",
-    "Our three-person team brings together technology leadership, business oversight, frontend development and market development. Product building and day-to-day technical execution are led by Vamsi, with distinct responsibilities across the founding leadership and team.",
+    "Our three-person team works across requirements and documentation, AI engineering and product architecture, and backend development. Vamsi leads product planning and day-to-day technical execution, Satish focuses on backend engineering and VidyaLuma AI Tutor development, and Jaya maintains product requirements and documentation.",
   ],
 } as const;
 
@@ -54,14 +55,15 @@ export const teamProfiles: readonly TeamProfile[] = [
     roleDetail: "Chief Technology Officer",
     disciplines: ["Product Architect", "Full-Stack Developer", "Director"],
     biography: [
-      "Vamsi Marripudi is the Founder and Chief Technology Officer of KRAVIA PRIVATE LIMITED. He leads product architecture, technology strategy and hands-on software development.",
-      "He is responsible for product planning and day-to-day technical execution, connecting user needs with system design, frontend and backend engineering, and implementation. His focus is on turning practical operational challenges into useful software products, beginning with VidyaLuma.",
+      "Vamsi Marripudi is the Founder and Chief Technology Officer of KRAVIA PRIVATE LIMITED. He leads AI engineering, product architecture and hands-on software development.",
+      "He directs technical execution across architecture, implementation and product development, turning functional requirements into reliable application and AI systems, including technical direction for VidyaLuma.",
     ],
-    responsibilities: ["Product architecture", "Full-stack engineering", "Technical strategy", "Day-to-day execution"],
-    portrait: null,
-    email: "vamsi@kraviaprivatelimited.com",
-    linkedIn: "https://www.linkedin.com/in/vamsimarripudi",
-    portfolio: "https://vamsimarripudi.me",
+    responsibilities: ["AI engineering", "Product architecture", "Full-stack development", "Day-to-day technical execution"],
+    contribution: "AI Engineering & Product Architecture",
+    portrait: { src: "/team/vamsi-marripudi.webp", width: 256, height: 256, objectPosition: "50% 50%" },
+    email: null,
+    linkedIn: null,
+    portfolio: null,
     publicationStatus: "approved",
   },
   {
@@ -73,13 +75,14 @@ export const teamProfiles: readonly TeamProfile[] = [
     roleDetail: "Chief Executive Officer & Chief Financial Officer",
     disciplines: ["Full-Stack Developer", "Director"],
     biography: [
-      "Satish Manohar Pennada is the Co-Founder, Chief Executive Officer and Chief Financial Officer of KRAVIA PRIVATE LIMITED. His remit covers business planning, financial oversight and company operations.",
-      "As a full-stack developer, he also contributes a technical perspective to engineering review and collaboration. His role connects business oversight with the company's product direction as KRAVIA prepares for market entry.",
+      "Satish Manohar Pennada is KRAVIA's Co-Founder, Chief Executive Officer and Chief Financial Officer. His current product contribution focuses on backend engineering and VidyaLuma AI Tutor.",
+      "He works on the AI Tutor's design and implementation, connecting backend services with the planned tutoring capabilities. The product remains in development.",
     ],
-    responsibilities: ["Business planning", "Financial oversight", "Company operations", "Engineering review"],
-    portrait: null,
-    email: "satishmanohar7@gmail.com",
-    linkedIn: "https://www.linkedin.com/in/satish-manohar-9699a2253/",
+    responsibilities: ["Backend development", "VidyaLuma AI Tutor design", "Implementation and fulfilment", "Technical collaboration"],
+    contribution: "Backend Engineering & VidyaLuma AI Tutor Design and Fulfilment",
+    portrait: { src: "/team/satish-manohar-pennada.webp", width: 256, height: 256, objectPosition: "50% 50%" },
+    email: null,
+    linkedIn: null,
     publicationStatus: "approved",
   },
   {
@@ -91,12 +94,13 @@ export const teamProfiles: readonly TeamProfile[] = [
     roleDetail: "Product interfaces · Marketing · Sales",
     disciplines: ["Frontend Development", "Market Development"],
     biography: [
-      "Jaya Satyanarayana Mangam is part of KRAVIA's team, with responsibilities spanning frontend development, marketing and sales.",
-      "His focus is on supporting user-facing product experiences, communicating product value and developing customer outreach with the founding team. His work connects product presentation with market development as KRAVIA builds its initial market presence.",
+      "Jaya Satyanarayana Mangam supports KRAVIA through product documentation and requirements work.",
+      "He helps turn proposed features and workflows into clear requirements and implementation-ready documentation so the engineering team can plan, build and review product work.",
     ],
-    responsibilities: ["Frontend implementation", "Product communication", "Marketing coordination", "Sales outreach"],
-    portrait: null,
-    email: "jayasatyanarayana7@gmail.com",
+    responsibilities: ["Requirements documentation", "Feature specifications", "Workflow descriptions", "Engineering hand-offs"],
+    contribution: "Documentation & Requirements",
+    portrait: { src: "/team/jaya-satyanarayana-mangam.webp", width: 256, height: 256, objectPosition: "50% 50%" },
+    email: null,
     linkedIn: null,
     publicationStatus: "approved",
   },
@@ -140,7 +144,7 @@ export function leadershipJsonLd(origin: string, profiles: readonly TeamProfile[
         name: person.name,
         url: teamPersonId(base, person.id),
         jobTitle: person.title,
-        email: person.email,
+        ...(person.email ? { email: person.email } : {}),
         description: person.biography.join(" "),
         worksFor: { "@id": `${base}#organization` },
         ...(person.portrait ? { image: `${base}${person.portrait.src}` } : {}),

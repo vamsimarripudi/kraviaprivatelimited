@@ -1,39 +1,32 @@
-# Leadership & Team
+# Leadership & Team — current implementation
 
-Route: `/company/leadership`. The feature includes Company/About previews, a shared footer link, sitemap discovery, metadata and person/company relationships. It is a code-only feature branch, not a production deployment.
+The public route is /company/leadership. Company/About previews, footer navigation, sitemap discovery and structured Person relationships remain. This is a feature branch and has not been deployed.
 
-## Content and links
+## Portraits
 
-`lib/leadership.ts` contains the three owner-supplied profiles. Vamsi and Satish are founding leadership; Jaya is a key team member. Only approved records are displayed. Keep titles and responsibilities accurate as the team evolves. The narrative describes an early-stage, pre-revenue company with VidyaLuma as its flagship in development. Product links reuse `lib/products/vidyaluma.ts`.
+Three real images supplied by the owner are assigned in their specified upload order:
 
-Vamsi's name, avatar and portfolio action navigate to `https://vamsimarripudi.me`. His and Satish's supplied LinkedIn links are separate external actions. The Company/About preview also links Vamsi to his portfolio. Jaya has no invented professional link. `lib/public-links.ts` supplies KRAVIA's LinkedIn URL to the shared footer and company structured data.
+- First photo → Jaya Satyanarayana Mangam: public/team/jaya-satyanarayana-mangam.webp.
+- Second photo → Vamsi Marripudi: public/team/vamsi-marripudi.webp.
+- Third photo → Satish Manohar Pennada: public/team/satish-manohar-pennada.webp.
 
-## Portraits and pending logo
+The images are manually selected head-and-shoulders square crops, resized to 256x256, optimized to WebP and saved without personal image metadata. They appear in 128px circular profile frames on desktop, 104px on mobile and 48px in the Company/About preview. The old neutral default asset remains only as a fallback if a supplied real photo fails to load.
 
-The owner-supplied neutral avatar is `public/team/default-profile.webp`. Portrait frames are 128px on desktop, 104px on mobile and 48px in Company/About previews. Large initial-letter panels have been removed.
+## Approved role and contribution copy
 
-All three actual `portrait` values and `leadershipAssets.vidyalumaLogo` remain null until approved assets arrive. A supplied portrait overrides the default avatar. A failed portrait falls back to the default, and a failed default has an accessible icon fallback. The neutral avatar is not emitted as a real portrait in Person structured data. The absent logo renders a textual VidyaLuma wordmark.
+The previously supplied founder/team titles remain. The current work is documented as:
+- Vamsi — AI Engineering & Product Architecture, with full-stack development and daily technical direction.
+- Satish — Backend Engineering & VidyaLuma AI Tutor Design and Fulfilment.
+- Jaya — Documentation & Requirements.
 
-For final images, strip EXIF/location metadata, optimize to WebP or AVIF and store approved assets under `public/team/` or `public/brand/`. Retain original photographs outside Git. Set each asset to `{ src: "/team/approved-file.webp", width: 800, height: 1000, objectPosition: "50% 35%" }` using its actual dimensions. Review circular crops, alternative text, loading and fallback behavior. Do not substitute stock faces or invent professional links.
+The company remains described as early-stage and pre-revenue with VidyaLuma as its flagship in development. Product sections retain their existing links. Descriptions of engineering work do not imply a completed AI Tutor launch.
 
-## Public typography and spacing
+## Temporary link policy
 
-Public display headings use 75% of the original scale, with a 16px floor for small headings. Heading margins and selected section padding are reduced, and shared heading line-height is 1.12. Body text, controls, root font size, print output and internal workspace styles are preserved. Leadership retains its previously reduced scale rather than being reduced twice.
+The individual photos and names are not externally linked. Individual email, portfolio and LinkedIn actions are withheld, and absent personal links are excluded from the Person structured data. Company/About previews retain internal profile navigation only. No personal phone numbers have been added.
 
-Run `node scripts/sync-public-typography.mjs` after changing underlying public styles. It regenerates `app/public-typography.css` and the marked screen-only blocks in public CSS modules without compounding reductions. Finishing rules are in `app/public-refinements.css`.
+The previously approved company LinkedIn footer link and existing corporate website contacts are unchanged. A VidyaLuma logo can be integrated when approved and supplied.
 
-## Verification — 23 October 2026
+## Release gates
 
-Lint, TypeScript checks, 500 tests across 105 files, production build and secret scan passed. Production-mode Chromium checked 16 routes at 390px and 1440px: 32 route/viewport checks returned HTTP 200 without horizontal overflow or uncaught browser errors. Leadership checks covered avatar dimensions, loaded images, supplied links, server-rendered content without JavaScript, 320px layout and intercepted portfolio navigation. Automated WCAG A/AA scanning found no violations in the leadership main content; this is not a claim of complete accessibility certification.
-
-From `Frontend/`, run `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` and `node scripts/secret-scan.mjs`. Repeat browser checks after replacing assets. The earlier shared reduced-motion splash hydration correction is retained.
-
-## Release boundary
-
-Real portraits and the VidyaLuma logo remain pending. Production crawler settings inherit the existing environment policy; previews remain non-indexable. Automatic deployment from feature branches stays disabled.
-
-The existing pinned Next.js 16.3.8 dependency previously failed the runtime security audit with a critical finding; that audit reported a fix at 16.4.3. Dependency manifests were not changed in this feature. Resolve and retest the dependency before production release. Successful feature checks do not constitute a clean dependency audit. Do not merge or deploy without the required release approval.
-
-## Leadership contact emails
-
-Approved visible team contact addresses are vamsi@kraviaprivatelimited.com, satishmanohar7@gmail.com and jayasatyanarayana7@gmail.com. Each person has a visible envelope icon and accessible mailto link. Corresponding email values are included in Person structured data. No personal phone numbers were added. Existing corporate contact information in other website areas remains unchanged.
+Run lint, typecheck, full tests, secret scan and production build from Frontend. Verify image bytes, the deployed-look preview, small-screen crop placement, structured data and SEO. No merge or production deployment until approved and the previously identified dependency-security issue is remediated.
