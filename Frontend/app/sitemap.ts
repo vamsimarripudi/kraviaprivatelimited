@@ -9,7 +9,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const productRoutes = publicProducts
     .filter((product) => product.public && product.href?.startsWith("/"))
     .map((product) => product.href as string);
-  const staticRoutes = ["", "support", ...Object.keys(publicPages), ...productRoutes]
+  const staticRoutes = ["", "support", "company/leadership", ...Object.keys(publicPages), ...productRoutes]
     .filter((page, index, pages) => pages.indexOf(page) === index)
     .filter(isPublicSitemapPath)
     .map((page) => ({

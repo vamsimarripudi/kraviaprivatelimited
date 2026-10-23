@@ -9,6 +9,7 @@ const footerColumns = [
     title: "Company",
     links: [
       ["About", "/company/about"],
+      ["Leadership & Team", "/company/leadership"],
       ["Principles", "/company/principles"],
       ["Corporate information", "/company/corporate-information"],
       ["Careers", "/careers"],
