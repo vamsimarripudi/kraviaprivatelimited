@@ -49,6 +49,14 @@ describe("Leadership & Team", () => {
     expect(html).toContain("In development");
   });
 
+  it("renders the configured official VidyaLuma logo in the flagship section", () => {
+    expect(leadershipAssets.vidyalumaLogo).toEqual({ src: "/brand/vidyaluma-logo.png", width: 636, height: 474 });
+    const html = renderToStaticMarkup(<LeadershipContent />);
+    expect(html).toContain('alt="VidyaLuma"');
+    expect(html).toContain('data-media-state="image"');
+    expect(html).toContain("vidyaluma-logo.png");
+  });
+
   it("links to the existing product route and official product domain", () => {
     const html = renderToStaticMarkup(<LeadershipContent />);
     expect(html).toContain(`href="${vidyaLumaProduct.href}"`);
@@ -90,6 +98,13 @@ describe("Leadership & Team", () => {
     const html = renderToStaticMarkup(<LeadershipMedia asset={{ src: "/brand/test-logo.webp", width: 1000, height: 300 }} name="VidyaLuma" fallback="VidyaLuma" variant="logo" />);
     expect(html).toContain('alt="VidyaLuma"');
     expect(html).toContain('data-media-state="image"');
+  });
+
+  it("retains the approved-image error fallback mechanism", () => {
+    const mediaSource = source("components/leadership/leadership-media.tsx");
+    expect(mediaSource).toContain("failedSources");
+    expect(mediaSource).toContain("onError={() => setFailedSources");
+    expect(mediaSource).toContain("variant === \"portrait\"");
   });
 
   it("omits absent portraits and unprovided professional links from structured data", () => {

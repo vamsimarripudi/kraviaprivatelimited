@@ -1,4 +1,4 @@
-/** Owner-supplied public profiles. Portraits and logo stay unset until approved assets arrive. */
+/** Owner-supplied public profiles and product identity assets. */
 export type LeadershipImage = {
   src: `/team/${string}` | `/brand/${string}`;
   width: number;
@@ -42,7 +42,7 @@ export const startupOverview = {
 export const defaultProfileImage: LeadershipImage = { src: "/team/default-profile.webp", width: 204, height: 192, objectPosition: "50% 50%" };
 
 export const leadershipAssets: { vidyalumaLogo: LeadershipImage | null } = {
-  vidyalumaLogo: null,
+  vidyalumaLogo: { src: "/brand/vidyaluma-logo.png", width: 636, height: 474 },
 };
 
 export const teamProfiles: readonly TeamProfile[] = [

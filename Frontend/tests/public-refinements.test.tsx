@@ -4,12 +4,12 @@ import { resolve } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { LeadershipContent, LeadershipPreview } from "../components/leadership/leadership-content";
-import { leadershipJsonLd, leadershipPath, teamProfiles } from "../lib/leadership";
+import { leadershipAssets, leadershipJsonLd, leadershipPath, teamProfiles } from "../lib/leadership";
 import { publicCompanyLinks } from "../lib/public-links";
 
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 const portraitHashes: Record<string, string> = {
-  "jaya-satyanarayana-mangam": "6e1f0145226165a9bc14812eabf1724c8e4b0fd630cec12601db59076ee24565",
+  "jaya-satyanarayana-mangam": "072a80ed1c640432481f7be7f8e7f8580b15e308bf35e24771d081e8f917b686",
   "vamsi-marripudi": "a590b794bb76a36347ecbcb6a2ea4db66067ec29f3f9e84935e223f46bdae267",
   "satish-manohar-pennada": "5216a89d22f37364a0ae9b0a66e9fe43c3f25a606fe52c07a1b9510d2db81de5",
 };
@@ -49,9 +49,21 @@ describe("real leadership portraits and current contributions", () => {
     }
   });
 
+  it("ships the approved transparent VidyaLuma logo with its intrinsic dimensions", () => {
+    const vidyalumaLogo = leadershipAssets.vidyalumaLogo;
+    if (!vidyalumaLogo) throw new Error("The approved VidyaLuma logo must be configured");
+    expect(vidyalumaLogo).toEqual({ src: "/brand/vidyaluma-logo.png", width: 636, height: 474 });
+    const logoPath = resolve(process.cwd(), "public", vidyalumaLogo.src.slice(1));
+    const bytes = readFileSync(logoPath);
+    expect(bytes.toString("ascii", 1, 4)).toBe("PNG");
+    expect(bytes.readUInt32BE(16)).toBe(636);
+    expect(bytes.readUInt32BE(20)).toBe(474);
+    expect(createHash("sha256").update(bytes).digest("hex")).toBe("b823e97f8f124ff95cb53f947e12d0a3d70f126c71027c1138d461dc07f9fb9f");
+  });
+
   it("renders three real profile images and clearly labelled current contributions", () => {
     const html = renderToStaticMarkup(<LeadershipContent />);
-    expect(html.match(/data-media-state="image"/g)).toHaveLength(3);
+    expect(html.match(/data-media-state="image"/g)).toHaveLength(4);
     expect(html).not.toContain('data-media-state="default"');
     expect(html).toContain("Current contribution");
     for (const person of teamProfiles) {
@@ -59,6 +71,8 @@ describe("real leadership portraits and current contributions", () => {
       expect(html).toContain(person.contribution.replaceAll("&", "&amp;"));
       expect(html).toContain(person.name);
     }
+    expect(html).toContain('alt="VidyaLuma"');
+    expect(html).toContain("vidyaluma-logo.png");
   });
 
   it("withholds all personal links and contact details, while retaining internal team navigation", () => {

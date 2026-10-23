@@ -24,7 +24,7 @@
 .flagshipGrid { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: clamp(2rem, 7vw, 7rem); align-items: center; }
 .flagship .kicker { color: var(--paper); }
 .logo { display: flex; align-items: center; min-height: 7rem; margin-top: 1.5rem; width: min(100%, 300px); }
-.logo img { display: block; width: 100%; height: auto; max-height: 160px; object-fit: contain; }
+.logo img { display: block; width: auto; max-width: 100%; height: auto; max-height: 160px; object-fit: contain; }
 .wordmark { font: 500 clamp(2.1rem, 3.525vw, 3.375rem)/1.05 var(--serif); letter-spacing: -.05em; }
 .attribution { margin: .75rem 0 1.4rem; color: var(--paper); font-size: .76rem; line-height: 1.6; }
 .stageLabel { display: inline-block; margin: 0; padding: .55rem .7rem; border: 1px solid color-mix(in srgb, var(--paper) 50%, transparent); font-size: .8rem; }
