@@ -3,12 +3,20 @@
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { BrandLogo } from "@/components/brand-logo";
+
+// A stable hydration snapshot keeps browser-only motion preferences from changing
+// the initial HTML structure between the server and client.
+const subscribeHydration = () => () => {};
+const clientHydrationSnapshot = () => true;
+const serverHydrationSnapshot = () => false;
 
 export function BrandSplash() {
   const pathname = usePathname();
-  const reducedMotion = useReducedMotion();
+  const motionPreference = useReducedMotion();
+  const hydrated = useSyncExternalStore(subscribeHydration, clientHydrationSnapshot, serverHydrationSnapshot);
+  const reducedMotion = hydrated && motionPreference;
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {

@@ -11,6 +11,7 @@ import { PageHero, Reveal } from "@/components/motion";
 import { SiteNav } from "@/components/site-nav";
 import { publicPages, siteUrl } from "@/lib/site";
 import { PublicPageContent } from "@/components/public-page-content";
+import { LeadershipPreview } from "@/components/leadership/leadership-content";
 import { BreadcrumbJsonLd } from "@/components/structured-data";
 import { articleJsonLd, contentMetadata } from "@/lib/content/seo";
 import { publicContentForHub, publicHubContentTypes } from "@/lib/content/hubs";
@@ -40,7 +41,7 @@ export default async function PublicPage({ params }: { params: Promise<{ segment
     const allContent = await listPublishedContent();
     const schema = articleJsonLd(content);
     const reader = content.type === "POLICY" ? <LegalDocument article={content} /> : <PublicContentArticle article={content} allArticles={allContent} />;
-    return <><SiteNav /><BreadcrumbJsonLd items={breadcrumbsFor(segments)} />{schema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />}<main id="main-content">{reader}</main><Footer /></>;
+    return <><SiteNav /><BreadcrumbJsonLd items={breadcrumbsFor(segments)} />{schema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />}<main id="main-content">{reader}{(key === "company" || key === "company/about") && <LeadershipPreview />}</main><Footer /></>;
   }
   if (!page) { const redirect = await resolvePublishedRedirect(`/${key}`); if (redirect) permanentRedirect(redirect); notFound(); }
   const breadcrumbs = breadcrumbsFor(segments);
@@ -54,5 +55,5 @@ export default async function PublicPage({ params }: { params: Promise<{ segment
   ]);
   const hubRecords = publicContentForHub(key, published);
   const enhanced = key === "newsroom" ? <NewsroomLanding articles={newsroom} /> : key === "newsroom/media-kit" ? <MediaKitContent /> : <PublicPageContent slug={key} />;
-  return <><SiteNav /><BreadcrumbJsonLd items={breadcrumbs} /><main id="main-content"><PageHero {...page} />{enhanced ?? <section className="content-grid shell">{page.sections.map((section, i) => <Reveal key={section.title} className="content-row"><span>0{i + 1}</span><div><h2>{section.title}</h2><p>{section.body}</p></div></Reveal>)}</section>}{hubRecords.length ? <GovernedContentCollection intro="Only reviewed, approved, and publicly released records appear here. Drafts, evidence, and review notes remain private." records={hubRecords} /> : null}{key === "contact" && <section className="shell"><Link className="button button-dark" href="/privacy-request">Submit a secure request <ArrowUpRight /></Link></section>}</main><Footer /></>;
+  return <><SiteNav /><BreadcrumbJsonLd items={breadcrumbs} /><main id="main-content"><PageHero {...page} />{enhanced ?? <section className="content-grid shell">{page.sections.map((section, i) => <Reveal key={section.title} className="content-row"><span>0{i + 1}</span><div><h2>{section.title}</h2><p>{section.body}</p></div></Reveal>)}</section>}{(key === "company" || key === "company/about") && <LeadershipPreview />}{hubRecords.length ? <GovernedContentCollection intro="Only reviewed, approved, and publicly released records appear here. Drafts, evidence, and review notes remain private." records={hubRecords} /> : null}{key === "contact" && <section className="shell"><Link className="button button-dark" href="/privacy-request">Submit a secure request <ArrowUpRight /></Link></section>}</main><Footer /></>;
 }

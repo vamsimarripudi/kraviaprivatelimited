@@ -1,5 +1,6 @@
 import { publicWebsiteStructuredData, siteUrl } from "@/lib/site";
 import { corporateIdentity, publicProducts } from "@/lib/corporate-content";
+import { leadershipRelationships } from "@/lib/leadership";
 
 type Breadcrumb = { name: string; path: string };
 
@@ -24,6 +25,7 @@ export async function OrganizationJsonLd() {
     logo: `${siteUrl}/brand/kravia-logo.png`,
     areaServed: corporateIdentity.country,
     foundingDate: corporateIdentity.incorporationDate,
+    ...leadershipRelationships(siteUrl),
     address: {
       "@type": "PostalAddress",
       streetAddress: corporateIdentity.registeredOffice.line1,
