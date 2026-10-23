@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Mail } from "lucide-react";
 import { leadershipAssets, leadershipPath, publishedTeam, startupOverview, type TeamProfile } from "../../lib/leadership";
 import { vidyaLumaProduct } from "../../lib/products/vidyaluma";
 import { LeadershipMedia } from "./leadership-media";
@@ -24,6 +24,10 @@ function Profile({ person }: { person: TeamProfile }) {
         <h4>Areas of focus</h4>
         <ul className={styles.responsibilities}>{person.responsibilities.map((item) => <li key={item}>{item}</li>)}</ul>
         <div className={styles.profileLinks}>
+          <a className={styles.emailLink} href={"mailto:" + person.email} aria-label={"Email " + person.name + " at " + person.email}>
+            <Mail aria-hidden="true" size={16} />
+            <span>{person.email}</span>
+          </a>
           {person.portfolio ? <a className="text-link" href={person.portfolio}>Portfolio <ArrowUpRight aria-hidden="true" /></a> : null}
           {person.linkedIn ? <a className="text-link" href={person.linkedIn} target="_blank" rel="noopener noreferrer" aria-label={`${person.name} on LinkedIn`}>LinkedIn <ArrowUpRight aria-hidden="true" /></a> : null}
         </div>

@@ -29,6 +29,29 @@ describe("public profiles and compact site typography", () => {
     expect(source("components/structured-data.tsx")).toContain("sameAs: [publicCompanyLinks.linkedIn]");
   });
 
+  it("renders exactly three accessible email actions without publishing personal phones", () => {
+    const html = renderToStaticMarkup(<LeadershipContent />);
+    expect(teamProfiles.map(person => person.email)).toEqual([
+      "vamsi@kraviaprivatelimited.com",
+      "satishmanohar7@gmail.com",
+      "jayasatyanarayana7@gmail.com",
+    ]);
+    expect(html.match(/href="mailto:/g)).toHaveLength(3);
+    for (const person of teamProfiles) {
+      expect(html).toContain('href="mailto:' + person.email + '"');
+      expect(html).toContain('aria-label="Email ' + person.name + ' at ' + person.email + '"');
+    }
+    expect(html).not.toContain('href="tel:');
+    expect(source("components/leadership/leadership-content.tsx")).toContain("<Mail aria-hidden=");
+    expect(source("components/leadership/leadership.module.css")).toContain("overflow-wrap: anywhere");
+    const entries = leadershipJsonLd("https://www.kraviaprivatelimited.com")["@graph"];
+    for (const person of teamProfiles) {
+      const entry = entries.find(item => item["@type"] === "Person" && "name" in item && item.name === person.name);
+      expect(entry).toHaveProperty("email", person.email);
+      expect(entry).not.toHaveProperty("telephone");
+    }
+  });
+
   it("uses the supplied image for all missing portraits and removes initial-letter panels", () => {
     const html = renderToStaticMarkup(<LeadershipContent />);
     expect(html.match(/data-media-state="default"/g)).toHaveLength(3);

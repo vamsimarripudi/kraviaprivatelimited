@@ -107,7 +107,11 @@
 .portraitLink:focus-visible { outline: 2px solid var(--gold); outline-offset: 8px; }
 .nameLink:hover { text-decoration: underline; text-underline-offset: .15em; }
 .nameLink:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
-.profileLinks { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-top: 1.25rem; }
+.profileLinks { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1.25rem; margin-top: 1.25rem; }
+.emailLink { display: inline-flex; align-items: center; gap: .55rem; max-width: 100%; min-height: 44px; border-bottom: 1px solid var(--ink); padding-bottom: 3px; color: var(--ink); font-size: .86rem; font-weight: 600; text-decoration: none; }
+.emailLink span { min-width: 0; overflow-wrap: anywhere; }
+.emailLink svg { flex: none; width: 1rem; height: 1rem; }
+.emailLink:hover { color: var(--green); border-color: var(--gold); }
 .profileLinks svg { width: 1rem; height: 1rem; }
 .compactPortrait { width: 48px; height: 48px; box-shadow: none; }
 .avatarFallback { width: 50%; height: 50%; color: var(--ink-2); }

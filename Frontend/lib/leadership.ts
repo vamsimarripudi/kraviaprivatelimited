@@ -17,6 +17,7 @@ export type TeamProfile = {
   biography: readonly string[];
   responsibilities: readonly string[];
   portrait: LeadershipImage | null;
+  email: string;
   linkedIn: `https://www.linkedin.com/in/${string}` | null;
   portfolio?: `https://${string}` | null;
   publicationStatus: "approved" | "draft";
@@ -58,6 +59,7 @@ export const teamProfiles: readonly TeamProfile[] = [
     ],
     responsibilities: ["Product architecture", "Full-stack engineering", "Technical strategy", "Day-to-day execution"],
     portrait: null,
+    email: "vamsi@kraviaprivatelimited.com",
     linkedIn: "https://www.linkedin.com/in/vamsimarripudi",
     portfolio: "https://vamsimarripudi.me",
     publicationStatus: "approved",
@@ -76,6 +78,7 @@ export const teamProfiles: readonly TeamProfile[] = [
     ],
     responsibilities: ["Business planning", "Financial oversight", "Company operations", "Engineering review"],
     portrait: null,
+    email: "satishmanohar7@gmail.com",
     linkedIn: "https://www.linkedin.com/in/satish-manohar-9699a2253/",
     publicationStatus: "approved",
   },
@@ -93,6 +96,7 @@ export const teamProfiles: readonly TeamProfile[] = [
     ],
     responsibilities: ["Frontend implementation", "Product communication", "Marketing coordination", "Sales outreach"],
     portrait: null,
+    email: "jayasatyanarayana7@gmail.com",
     linkedIn: null,
     publicationStatus: "approved",
   },
@@ -136,6 +140,7 @@ export function leadershipJsonLd(origin: string, profiles: readonly TeamProfile[
         name: person.name,
         url: teamPersonId(base, person.id),
         jobTitle: person.title,
+        email: person.email,
         description: person.biography.join(" "),
         worksFor: { "@id": `${base}#organization` },
         ...(person.portrait ? { image: `${base}${person.portrait.src}` } : {}),

@@ -33,3 +33,7 @@ From `Frontend/`, run `npm run lint`, `npm run typecheck`, `npm test`, `npm run 
 Real portraits and the VidyaLuma logo remain pending. Production crawler settings inherit the existing environment policy; previews remain non-indexable. Automatic deployment from feature branches stays disabled.
 
 The existing pinned Next.js 16.3.8 dependency previously failed the runtime security audit with a critical finding; that audit reported a fix at 16.4.3. Dependency manifests were not changed in this feature. Resolve and retest the dependency before production release. Successful feature checks do not constitute a clean dependency audit. Do not merge or deploy without the required release approval.
+
+## Leadership contact emails
+
+Approved visible team contact addresses are vamsi@kraviaprivatelimited.com, satishmanohar7@gmail.com and jayasatyanarayana7@gmail.com. Each person has a visible envelope icon and accessible mailto link. Corresponding email values are included in Person structured data. No personal phone numbers were added. Existing corporate contact information in other website areas remains unchanged.
