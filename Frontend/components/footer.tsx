@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { publicCompanyLinks } from "@/lib/public-links";
 import { ArrowUpRight, BadgeCheck, ExternalLink, MapPin } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { getPublicCompanyProfile } from "@/lib/corporate/public-facts";
@@ -68,7 +69,7 @@ export async function Footer() {
           <p className="eyebrow footer-eyebrow">KRAVIA PRIVATE LIMITED</p>
           <h2>Built for the work<br /><em>that comes next.</em></h2>
         </div>
-        <p className="footer-intro">A corporate home for Kravia’s products, technology, trust and public information—designed to grow without losing clarity.</p>
+        <div className="footer-social-block"><p className="footer-intro">A corporate home for Kravia’s products, technology, trust and public information—designed to grow without losing clarity.</p><a className="footer-company-link" href={publicCompanyLinks.linkedIn} target="_blank" rel="noopener noreferrer">KRAVIA on LinkedIn <ArrowUpRight aria-hidden="true" /></a></div>
       </div>
 
 

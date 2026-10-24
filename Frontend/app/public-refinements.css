@@ -1,0 +1,19 @@
+/* Shared public-site finishing rules. No root-font-size, zoom, or transform scaling. */
+@media screen {
+  body:has(.nav-wrap) main :is(h1, h2, h3) { overflow-wrap: break-word; }
+  body:has(.nav-wrap) .hero { min-height: min(42rem, calc(100svh - 76px)); }
+  body:has(.nav-wrap) .hero-title { padding-block: 2.5rem; }
+  body:has(.nav-wrap) .hero-foot { align-items: center; }
+  body:has(.nav-wrap) :is(.page-hero, .section-head, .content-row, .detail-section) p { line-height: 1.7; }
+  body:has(.nav-wrap) :is(.section-head h2, .page-hero h1) { text-wrap: balance; }
+  body:has(.nav-wrap) .footer-company-link { display: inline-flex; align-items: center; gap: .6rem; min-height: 44px; margin-top: 1rem; color: #f8fafc; font-size: .9rem; text-decoration: underline; text-underline-offset: .3em; }
+  body:has(.nav-wrap) .footer-company-link svg { width: 1rem; height: 1rem; }
+  body:has(.nav-wrap) .footer-company-link:hover { color: #e8b86d; }
+  body:has(.nav-wrap) .footer-company-link:focus-visible { outline: 2px solid #e8b86d; outline-offset: 5px; }
+}
+@media screen and (max-width: 760px) {
+  body:has(.nav-wrap) .hero { min-height: auto; padding-block: 1.5rem 3rem; }
+  body:has(.nav-wrap) .hero-title { margin: 2rem 0; padding: 0; }
+  body:has(.nav-wrap) .hero-foot { align-items: flex-start; }
+  body:has(.nav-wrap) .hero-logo-field { opacity: .18; }
+}

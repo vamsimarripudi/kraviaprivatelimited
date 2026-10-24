@@ -1,33 +1,39 @@
 "use client";
 
 import Image from "next/image";
+import { UserRound } from "lucide-react";
 import { useState } from "react";
-import type { LeadershipImage } from "../../lib/leadership";
+import { defaultProfileImage, type LeadershipImage } from "../../lib/leadership";
 import styles from "./leadership.module.css";
 
-/** No requests are made for missing assets; failed approved images fall back gracefully. */
-export function LeadershipMedia({ asset, name, fallback, variant = "portrait" }: {
+/** The supplied neutral avatar is a visual fallback, never a person's structured-data portrait. */
+export function LeadershipMedia({ asset, name, fallback, variant = "portrait", compact = false }: {
   asset: LeadershipImage | null;
   name: string;
   fallback: string;
   variant?: "portrait" | "logo";
+  compact?: boolean;
 }) {
-  const [failedSource, setFailedSource] = useState<string | null>(null);
-  const showImage = asset !== null && failedSource !== asset.src;
+  const [failedSources, setFailedSources] = useState<readonly string[]>([]);
+  const approved = asset && !failedSources.includes(asset.src) ? asset : null;
+  const image = approved ?? (variant === "portrait" && !failedSources.includes(defaultProfileImage.src) ? defaultProfileImage : null);
+  const isDefault = image === defaultProfileImage;
   return (
-    <div className={variant === "logo" ? styles.logo : styles.portrait} data-media-state={showImage ? "image" : "text"}>
-      {showImage ? (
+    <div className={variant === "logo" ? styles.logo : `${styles.portrait} ${compact ? styles.compactPortrait : ""}`} data-media-state={image ? (isDefault ? "default" : "image") : "text"}>
+      {image ? (
         <Image
-          src={asset.src}
-          alt={name}
-          width={asset.width}
-          height={asset.height}
-          sizes={variant === "logo" ? "(max-width: 640px) 220px, 300px" : "(max-width: 640px) 90vw, (max-width: 1000px) 40vw, 360px"}
-          style={{ objectPosition: asset.objectPosition ?? "50% 35%" }}
-          onError={() => setFailedSource(asset.src)}
+          src={image.src}
+          alt={isDefault ? `Default profile image for ${name}` : name}
+          width={image.width}
+          height={image.height}
+          sizes={variant === "logo" ? "(max-width: 640px) 220px, 300px" : compact ? "48px" : "(max-width: 760px) 104px, 128px"}
+          style={{ objectPosition: image.objectPosition ?? "50% 35%" }}
+          onError={() => setFailedSources((failed) => failed.includes(image.src) ? failed : [...failed, image.src])}
         />
+      ) : variant === "logo" ? (
+        <span className={styles.wordmark}>{fallback}</span>
       ) : (
-        <span className={variant === "logo" ? styles.wordmark : styles.initials} aria-hidden={variant === "portrait" ? true : undefined}>{fallback}</span>
+        <UserRound className={styles.avatarFallback} role="img" aria-label={`Profile image unavailable for ${name}`} />
       )}
     </div>
   );

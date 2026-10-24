@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { LeadershipContent, LeadershipPreview } from "../components/leadership/leadership-content";
 import { LeadershipMedia } from "../components/leadership/leadership-media";
-import { leadershipAssets, leadershipJsonLd, leadershipPath, leadershipRelationships, leadershipTitle, publishedTeam, serializeLeadershipJsonLd, startupOverview, teamPersonId, teamProfiles, type TeamProfile } from "../lib/leadership";
+import { defaultProfileImage, leadershipAssets, leadershipJsonLd, leadershipPath, leadershipRelationships, leadershipTitle, publishedTeam, serializeLeadershipJsonLd, startupOverview, teamPersonId, teamProfiles, type TeamProfile } from "../lib/leadership";
 import { vidyaLumaProduct } from "../lib/products/vidyaluma";
 
 const origin = "https://www.kraviaprivatelimited.com";
@@ -25,7 +25,7 @@ describe("Leadership & Team", () => {
     expect(teamProfiles[0].disciplines).toContain("Product Architect");
     expect(teamProfiles[1].title).toBe("Co-Founder, CEO & CFO");
     expect(teamProfiles[2].title).toBe("Frontend Developer & Marketing and Sales Lead");
-    expect(startupOverview.paragraphs.join(" ")).toContain("day-to-day technical execution are led by Vamsi");
+    expect(startupOverview.paragraphs.join(" ")).toContain("Vamsi leads product planning and day-to-day technical execution");
   });
 
   it("excludes draft profiles from published data, people schema and company relationships", () => {
@@ -49,6 +49,14 @@ describe("Leadership & Team", () => {
     expect(html).toContain("In development");
   });
 
+  it("renders the configured official VidyaLuma logo in the flagship section", () => {
+    expect(leadershipAssets.vidyalumaLogo).toEqual({ src: "/brand/vidyaluma-logo.png", width: 636, height: 474 });
+    const html = renderToStaticMarkup(<LeadershipContent />);
+    expect(html).toContain('alt="VidyaLuma"');
+    expect(html).toContain('data-media-state="image"');
+    expect(html).toContain("vidyaluma-logo.png");
+  });
+
   it("links to the existing product route and official product domain", () => {
     const html = renderToStaticMarkup(<LeadershipContent />);
     expect(html).toContain(`href="${vidyaLumaProduct.href}"`);
@@ -57,15 +65,17 @@ describe("Leadership & Team", () => {
     expect(existsSync(resolve(process.cwd(), "app/products/vidyaluma/page.tsx"))).toBe(true);
   });
 
-  it("renders neutral text without image requests when assets are absent", () => {
+  it("renders the supplied default avatar and a text-only pending product logo", () => {
     const html = renderToStaticMarkup(<><LeadershipMedia asset={null} name="Test profile" fallback="TP" /><LeadershipMedia asset={null} name="VidyaLuma" fallback="VidyaLuma" variant="logo" /></>);
-    expect(html).not.toContain("<img");
-    expect(html.match(/data-media-state="text"/g)).toHaveLength(2);
+    expect(html.match(/<img /g)).toHaveLength(1);
+    expect(html).toContain('data-media-state="default"');
+    expect(html.match(/data-media-state="text"/g)).toHaveLength(1);
+    expect(html).toContain('alt="Default profile image for Test profile"');
     expect(html).toContain("VidyaLuma</span>");
   });
 
   it("requires configured assets to exist and carry valid dimensions", () => {
-    const assets = [...teamProfiles.map((person) => person.portrait), leadershipAssets.vidyalumaLogo];
+    const assets = [defaultProfileImage, ...teamProfiles.map((person) => person.portrait), leadershipAssets.vidyalumaLogo];
     for (const asset of assets) {
       if (!asset) continue;
       expect(asset.src).toMatch(/^\/(team|brand)\/[a-zA-Z0-9/_-]+\.(webp|avif|png|jpe?g)$/);
@@ -90,8 +100,15 @@ describe("Leadership & Team", () => {
     expect(html).toContain('data-media-state="image"');
   });
 
+  it("retains the approved-image error fallback mechanism", () => {
+    const mediaSource = source("components/leadership/leadership-media.tsx");
+    expect(mediaSource).toContain("failedSources");
+    expect(mediaSource).toContain("onError={() => setFailedSources");
+    expect(mediaSource).toContain("variant === \"portrait\"");
+  });
+
   it("omits absent portraits and unprovided professional links from structured data", () => {
-    const schema = leadershipJsonLd(origin, teamProfiles.map((person) => ({ ...person, portrait: null, linkedIn: null })));
+    const schema = leadershipJsonLd(origin, teamProfiles.map((person) => ({ ...person, portrait: null, linkedIn: null, portfolio: null })));
     expect(schema["@graph"]).toHaveLength(4);
     const people = schema["@graph"].filter((entry) => entry["@type"] === "Person");
     for (const person of people) {
@@ -118,9 +135,9 @@ describe("Leadership & Team", () => {
     expect(JSON.parse(serialized)).toEqual(value);
   });
 
-  it("links each preview profile to its real public anchor", () => {
+  it("links preview names and avatars to the supplied portfolio or profile anchor", () => {
     const html = renderToStaticMarkup(<LeadershipPreview />);
-    for (const person of teamProfiles) expect(html).toContain(`href="${leadershipPath}#${person.id}"`);
+    for (const person of teamProfiles) expect(html).toContain(`href="${person.portfolio ?? `${leadershipPath}#${person.id}`}"`);
     expect(html).toContain(`href="${leadershipPath}"`);
   });
 
