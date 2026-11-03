@@ -3,7 +3,7 @@ export const publicCompanyLinks = {
   facebook: "https://www.facebook.com/profile.php?id=61595906774125",
   instagram: "https://www.instagram.com/kravia_private_limited/",
   x: "https://x.com/KraviaOfficial",
-  linkedIn: "https://www.linkedin.com/company/kravia-private-limited/",
+  linkedIn: "https://linkedin.com/company/kravia-private-limited",
 } as const;
 
 export const publicSocialProfiles = [
