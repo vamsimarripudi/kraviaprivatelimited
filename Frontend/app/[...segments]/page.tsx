@@ -9,6 +9,7 @@ import { LegalTrustCenter } from "@/components/legal-trust-center";
 import { PublicContentArticle, NewsroomLanding, MediaKitContent } from "@/components/newsroom-content";
 import { PageHero, Reveal } from "@/components/motion";
 import { SiteNav } from "@/components/site-nav";
+import { SocialConnect } from "@/components/social-links";
 import { publicPages, siteUrl } from "@/lib/site";
 import { PublicPageContent } from "@/components/public-page-content";
 import { LeadershipPreview } from "@/components/leadership/leadership-content";
@@ -17,7 +18,6 @@ import { articleJsonLd, contentMetadata } from "@/lib/content/seo";
 import { publicContentForHub, publicHubContentTypes } from "@/lib/content/hubs";
 import { getPublishedNewsroomContent, getPublishedContentByPublicPath, listPublishedContent, resolvePublishedRedirect } from "@/lib/content/repository";
 import { staticLegalRedirect } from "@/lib/legal/published-policy-pack";
-import type { PublicContentRecord, PublicContentType } from "@/lib/content/types";
 
 function titleFor(page: { eyebrow: string; title: string }) { return page.eyebrow.includes("/") ? page.eyebrow.replace(" / ", " · ") : page.eyebrow; }
 function breadcrumbsFor(segments: string[]) { return [{ name: "Home", path: "/" }, ...segments.map((segment, index) => ({ name: segment.replace(/-/g, " ").replace(/\b\w/g, (character) => character.toUpperCase()), path: `/${segments.slice(0, index + 1).join("/")}` }))]; }
@@ -34,6 +34,7 @@ export async function generateMetadata({ params }: { params: Promise<{ segments:
 
 export default async function PublicPage({ params }: { params: Promise<{ segments: string[] }> }) {
   const { segments } = await params; const key = segments.join("/"); const page = publicPages[key];
+  const socialSection = key === "company" || key === "company/about" ? <SocialConnect context="about" /> : key === "careers" ? <SocialConnect context="careers" /> : null;
   const legalRedirect = staticLegalRedirect(`/${key}`);
   if (legalRedirect) permanentRedirect(legalRedirect);
   const content = await getPublishedContentByPublicPath(`/${key}`);
@@ -41,7 +42,7 @@ export default async function PublicPage({ params }: { params: Promise<{ segment
     const allContent = await listPublishedContent();
     const schema = articleJsonLd(content);
     const reader = content.type === "POLICY" ? <LegalDocument article={content} /> : <PublicContentArticle article={content} allArticles={allContent} />;
-    return <><SiteNav /><BreadcrumbJsonLd items={breadcrumbsFor(segments)} />{schema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />}<main id="main-content">{reader}{(key === "company" || key === "company/about") && <LeadershipPreview />}</main><Footer /></>;
+    return <><SiteNav /><BreadcrumbJsonLd items={breadcrumbsFor(segments)} />{schema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />}<main id="main-content">{reader}{(key === "company" || key === "company/about") && <LeadershipPreview />}{socialSection}</main><Footer /></>;
   }
   if (!page) { const redirect = await resolvePublishedRedirect(`/${key}`); if (redirect) permanentRedirect(redirect); notFound(); }
   const breadcrumbs = breadcrumbsFor(segments);
@@ -55,5 +56,5 @@ export default async function PublicPage({ params }: { params: Promise<{ segment
   ]);
   const hubRecords = publicContentForHub(key, published);
   const enhanced = key === "newsroom" ? <NewsroomLanding articles={newsroom} /> : key === "newsroom/media-kit" ? <MediaKitContent /> : <PublicPageContent slug={key} />;
-  return <><SiteNav /><BreadcrumbJsonLd items={breadcrumbs} /><main id="main-content"><PageHero {...page} />{enhanced ?? <section className="content-grid shell">{page.sections.map((section, i) => <Reveal key={section.title} className="content-row"><span>0{i + 1}</span><div><h2>{section.title}</h2><p>{section.body}</p></div></Reveal>)}</section>}{(key === "company" || key === "company/about") && <LeadershipPreview />}{hubRecords.length ? <GovernedContentCollection intro="Only reviewed, approved, and publicly released records appear here. Drafts, evidence, and review notes remain private." records={hubRecords} /> : null}{key === "contact" && <section className="shell"><Link className="button button-dark" href="/privacy-request">Submit a secure request <ArrowUpRight /></Link></section>}</main><Footer /></>;
+  return <><SiteNav /><BreadcrumbJsonLd items={breadcrumbs} /><main id="main-content"><PageHero {...page} />{enhanced ?? <section className="content-grid shell">{page.sections.map((section, i) => <Reveal key={section.title} className="content-row"><span>0{i + 1}</span><div><h2>{section.title}</h2><p>{section.body}</p></div></Reveal>)}</section>}{(key === "company" || key === "company/about") && <LeadershipPreview />}{hubRecords.length ? <GovernedContentCollection intro="Only reviewed, approved, and publicly released records appear here. Drafts, evidence, and review notes remain private." records={hubRecords} /> : null}{socialSection}{key === "contact" && <section className="shell"><Link className="button button-dark" href="/privacy-request">Submit a secure request <ArrowUpRight /></Link></section>}</main><Footer /></>;
 }
