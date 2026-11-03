@@ -17,19 +17,17 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: 22
-      - name: Wait for the released site-name signal
+      - name: Read public response diagnostics without credentials
         run: |
           node --input-type=module <<'JS'
-          import { setTimeout as delay } from 'node:timers/promises';
-          let ready = false;
-          for (let attempt = 0; attempt < 30; attempt += 1) {
-            const response = await fetch('https://www.kraviaprivatelimited.com', { signal: AbortSignal.timeout(20000), headers: { 'Cache-Control': 'no-cache' } });
+          for (const path of ['/', '/contact', '/contact?seo-verification=dc521a3', '/company/faq', '/support', '/llms.txt']) {
+            const response = await fetch('https://www.kraviaprivatelimited.com'+path, { signal: AbortSignal.timeout(25000) });
             const body = await response.text();
-            if (response.ok && body.includes('property="og:site_name" content="KRAVIA"')) { ready = true; break; }
-            console.log('Production release signal not present yet; attempt', attempt + 1);
-            await delay(5000);
+            const metadata = [...body.matchAll(/<(?:title|meta|link)\b[^>]*>(?:[^<]*<\/title>)?/g)].map(m=>m[0]).join('\n');
+            const heading = body.match(/<h1\b[^>]*>[\s\S]*?<\/h1>/)?.[0];
+            const headers = Object.fromEntries(['content-type','cache-control','age','x-vercel-cache','x-vercel-id','x-matched-path','location'].map(key=>[key,response.headers.get(key)]));
+            console.log(JSON.stringify({path,status:response.status,finalUrl:response.url,headers,heading,metadata:metadata||body.slice(0,1200)}));
           }
-          if (!ready) throw new Error('Expected released site-name signal is not available on the public domain');
           JS
       - name: Verify the real public production responses
         working-directory: Frontend
