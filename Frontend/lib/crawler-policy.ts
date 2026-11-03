@@ -21,13 +21,17 @@ export function publicPageRobots(production: boolean): Metadata["robots"] {
   return production ? { index: true, follow: true } : { index: false, follow: false, nocache: true };
 }
 
+function hasForbiddenPathCharacters(value: string): boolean {
+  return /[\\?#\s]/.test(value) || [...value].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127);
+}
+
 /** Canonical paths are local, query-free and unambiguous; never accept an external URL. */
 export function normalizePublicPath(path: string): string | null {
   if (path !== path.trim() || /^[a-z][a-z\d+.-]*:/i.test(path) || path.startsWith("//")) return null;
-  if (/[\\?#\s\u0000-\u001f\u007f]/.test(path) || /%2f|%5c|%25/i.test(path)) return null;
+  if (hasForbiddenPathCharacters(path) || /%2f|%5c|%25/i.test(path)) return null;
   let decoded: string;
   try { decoded = decodeURIComponent(path); } catch { return null; }
-  if (/[\\?#\s\u0000-\u001f\u007f]/.test(decoded) || decoded.split("/").some((part) => part === "." || part === "..")) return null;
+  if (hasForbiddenPathCharacters(decoded) || decoded.split("/").some((part) => part === "." || part === "..")) return null;
   const normalized = `/${decoded.split("/").filter(Boolean).join("/")}`;
   return new URL(normalized, "https://path.invalid").pathname;
 }
