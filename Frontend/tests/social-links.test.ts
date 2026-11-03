@@ -12,7 +12,7 @@ const expectedProfiles = [
   "https://www.facebook.com/profile.php?id=61595906774125",
   "https://www.instagram.com/kravia_private_limited/",
   "https://x.com/KraviaOfficial",
-  "https://www.linkedin.com/company/kravia-private-limited/",
+  "https://linkedin.com/company/kravia-private-limited",
 ];
 
 describe("official corporate social links", () => {
