@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ArrowUpRight, FileText } from "lucide-react";
 import { CopyLinkButton } from "@/components/premium-interactions";
+import { ArticleShareLinks } from "@/components/social-links";
+import { siteUrl } from "@/lib/site";
 import { relatedContent } from "@/lib/content/relationships";
 import { publicContentPath } from "@/lib/content/seo";
 import type { PublicContentRecord } from "@/lib/content/types";
@@ -41,9 +43,11 @@ function publicationLabel(article: PublicContentRecord) {
  */
 export function PublicContentArticle({ article, allArticles }: { article: PublicContentRecord; allArticles: readonly PublicContentRecord[] }) {
   const related = relatedContent(article, allArticles);
+  const shareable = ["NEWS", "PRESS_RELEASE", "ENGINEERING_ARTICLE", "RESEARCH"].includes(article.type);
   return <article className="article-shell shell">
     <header className="article-header"><p className="eyebrow">{typeLabel(article.type)}</p><h1>{article.title}</h1>{article.summary && <p className="article-summary">{article.summary}</p>}<div className="article-meta"><span>{publicationLabel(article)}</span><span>{article.authorName ? `By ${article.authorName}` : "KRAVIA PRIVATE LIMITED"}</span>{article.updatedAt && article.publishedAt && article.updatedAt !== article.publishedAt && <span>Updated {dateLabel(article.updatedAt)}</span>}<CopyLinkButton label="Copy link" /></div></header>
     <div className="article-reading">{paragraphs(article.body).map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>
+    {shareable && <ArticleShareLinks url={new URL(publicContentPath(article), siteUrl).toString()} title={article.title} />}
     {related.length > 0 && <aside className="related-content"><p className="eyebrow">RELATED CONTENT</p><div>{related.map((item) => <Link key={item.id} href={publicContentPath(item)}><span>{typeLabel(item.type)}</span><strong>{item.title}</strong><ArrowUpRight /></Link>)}</div></aside>}
   </article>;
 }
