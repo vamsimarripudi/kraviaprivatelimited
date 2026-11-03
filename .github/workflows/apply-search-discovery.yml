@@ -1,0 +1,73 @@
+name: Apply bounded search discovery edits
+on:
+  push:
+    branches: [feat/search-ai-discovery-20261104]
+    paths: [.github/workflows/apply-search-discovery.yml]
+permissions:
+  contents: read
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Apply reviewed replacements to existing public sources
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          def replace(path, old, new):
+              p=Path(path); s=p.read_text()
+              assert s.count(old)==1, f'Expected one match in {path}: {old[:100]}'
+              p.write_text(s.replace(old,new,1))
+          replace('Frontend/lib/site.ts','name: "Kravia Private Limited",\n  alternateName: "Kravia",','name: "KRAVIA",\n  alternateName: "KRAVIA PRIVATE LIMITED",')
+          replace('Frontend/lib/site.ts','    alternateName: publicSiteIdentity.alternateName,','    alternateName: publicSiteIdentity.alternateName,\n    inLanguage: "en",')
+          replace('Frontend/lib/env/public.ts','export const canonicalProductionSiteUrl = "https://kraviaprivatelimited.com";','export const canonicalProductionSiteUrl = "https://www.kraviaprivatelimited.com";')
+          p=Path('Frontend/lib/env/public.ts'); s=p.read_text(); a=s.index('export function resolvePublicSiteUrl('); b=s.index('\n\nconst publicEnvironmentSchema',a)
+          s=s[:a]+'''export function resolvePublicSiteUrl(value = process.env.NEXT_PUBLIC_SITE_URL, runtime: PublicRuntimeEnvironment = { VERCEL_ENV: process.env.VERCEL_ENV, VERCEL_URL: process.env.VERCEL_URL }): string {
+            // The production domain matches the existing apex-to-www redirect.
+            if (runtime.VERCEL_ENV === "production") return canonicalProductionSiteUrl;
+            if (runtime.VERCEL_ENV === "preview") return runtime.VERCEL_URL ? `https://${runtime.VERCEL_URL}` : localSiteUrl;
+            const candidate = value?.trim();
+            if (!candidate) return localSiteUrl;
+            try {
+              const url = new URL(candidate);
+              return url.protocol === "http:" || url.protocol === "https:" ? url.origin : localSiteUrl;
+            } catch { return localSiteUrl; }
+          }'''+s[b:]; p.write_text(s)
+          replace('Frontend/app/page.tsx','const operatingAreas = [','export const metadata = { alternates: { canonical: "/" } };\n\nconst operatingAreas = [')
+          replace('Frontend/app/contact/page.tsx','import { Footer }','import { buildPublicMetadata } from "@/lib/search-metadata";\nimport { Footer }')
+          replace('Frontend/app/contact/page.tsx','export const metadata = { title: "Contact", description: "Contact Kravia for business, product, partnership, privacy or corporate enquiries." };','export const metadata = buildPublicMetadata({ title: "Contact", description: "Contact Kravia for business, product, partnership, privacy or corporate enquiries.", path: "/contact" });')
+          replace('Frontend/app/support/page.tsx','import type { Metadata } from "next";','import { buildPublicMetadata } from "@/lib/search-metadata";')
+          replace('Frontend/app/support/page.tsx','export const metadata: Metadata = { title: "Support & Case Tracking", description: "Create and securely track a Kravia support case." };','export const metadata = buildPublicMetadata({ title: "Support & Case Tracking", description: "Create and securely track a Kravia support case.", path: "/support" });')
+          replace('Frontend/components/footer.tsx','      ["Corporate information", "/company/corporate-information"],','      ["Corporate information", "/company/corporate-information"],\n      ["Company FAQ", "/company/faq"],')
+          replace('Frontend/app/[...segments]/page.tsx','import type { Metadata } from "next";','import type { Metadata } from "next";\nimport { buildPublicMetadata, serializeJsonLd } from "@/lib/search-metadata";')
+          replace('Frontend/app/[...segments]/page.tsx','import { publicPages, siteUrl } from "@/lib/site";','import { publicPages } from "@/lib/site";')
+          replace('Frontend/app/[...segments]/page.tsx','  if (page) { const url = `${siteUrl}/${key}`; return { title: titleFor(page), description: page.intro, alternates: { canonical: `/${key}` }, openGraph: { title: `${titleFor(page)} | Kravia Private Limited`, description: page.intro, url, type: "website" } }; }','  if (page) return buildPublicMetadata({ title: titleFor(page), description: page.intro, path: `/${key}` });')
+          replace('Frontend/app/[...segments]/page.tsx','__html: JSON.stringify(schema)','__html: serializeJsonLd(schema)')
+          for path in ['Frontend/app/products/vidyaluma/page.tsx','Frontend/app/products/nicerole/page.tsx','Frontend/app/products/yukta/page.tsx','Frontend/app/products/vorio/page.tsx']:
+              replace(path,'import type { Metadata } from "next";','import type { Metadata } from "next";\nimport { publicSiteIdentity } from "@/lib/site";')
+              replace(path,'openGraph: {','openGraph: { siteName: publicSiteIdentity.name,')
+          replace('Frontend/app/company/leadership/page.tsx','import { isProductionSite, siteUrl } from "@/lib/site";','import { isProductionSite, publicSiteIdentity, siteUrl } from "@/lib/site";')
+          replace('Frontend/app/company/leadership/page.tsx','openGraph: {','openGraph: { siteName: publicSiteIdentity.name,')
+          replace('Frontend/tests/site.test.ts','privatePathPrefixes, publicPageRobots','privatePathPrefixes, publicPageRobots, searchCrawlerAgents')
+          replace('Frontend/tests/site.test.ts','{ name: "Kravia Private Limited", alternateName: "Kravia" }','{ name: "KRAVIA", alternateName: "KRAVIA PRIVATE LIMITED" }')
+          replace('Frontend/tests/site.test.ts','name: "Kravia Private Limited",\n      alternateName: "Kravia",','name: "KRAVIA",\n      alternateName: "KRAVIA PRIVATE LIMITED",')
+          replace('Frontend/tests/site.test.ts','uses the apex Vercel production canonical URL when a localhost value leaks into production','uses the www production canonical URL matching the deployed redirect')
+          replace('Frontend/tests/site.test.ts','expect(resolvePublicSiteUrl("http://localhost:3000", { VERCEL_ENV: "production" })).toBe("https://kraviaprivatelimited.com");','expect(resolvePublicSiteUrl("http://localhost:3000", { VERCEL_ENV: "production" })).toBe("https://www.kraviaprivatelimited.com");')
+          replace('Frontend/tests/site.test.ts','''expect(policy.rules).toEqual([
+                { userAgent: "OAI-SearchBot", allow: "/", disallow: [...privatePathPrefixes] },
+                { userAgent: "ChatGPT-User", allow: "/", disallow: [...privatePathPrefixes] },
+                { userAgent: "*", allow: "/", disallow: [...privatePathPrefixes] },
+              ]);''','''expect(policy.rules).toEqual([...searchCrawlerAgents, "*"].map((userAgent) => ({ userAgent, allow: "/", disallow: [...privatePathPrefixes] })));''')
+          PY
+      - name: Commit only bounded public-source changes
+        run: |
+          git diff --check
+          git diff --stat
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Frontend/lib/site.ts Frontend/lib/env/public.ts Frontend/app/page.tsx Frontend/app/contact/page.tsx Frontend/app/support/page.tsx Frontend/components/footer.tsx 'Frontend/app/[...segments]/page.tsx' Frontend/app/products/*/page.tsx Frontend/app/company/leadership/page.tsx Frontend/tests/site.test.ts
+          git commit -m 'fix: align public search identity, canonicals and page metadata'
+          git push origin HEAD:refs/heads/feat/search-ai-discovery-20261104

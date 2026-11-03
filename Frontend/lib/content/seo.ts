@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { siteUrl } from "../site";
+import { buildPublicMetadata } from "../search-metadata";
 import type { PublicContentRecord } from "./types";
 
 export function contentPath(record: Pick<PublicContentRecord, "type" | "slug">) {
@@ -20,15 +21,16 @@ export function publicContentPath(record: Pick<PublicContentRecord, "type" | "sl
 }
 
 export function contentMetadata(record: PublicContentRecord): Metadata {
-  const path = publicContentPath(record);
-  const canonical = new URL(path, siteUrl).toString();
+  const metadata = buildPublicMetadata({
+    path: publicContentPath(record), title: record.seo.title || record.title,
+    description: record.seo.description || record.summary || "",
+    noindex: record.seo.noindex || record.status !== "PUBLISHED" || record.visibility !== "PUBLIC",
+  });
   const image = record.seo.ogImage ? new URL(record.seo.ogImage, siteUrl).toString() : undefined;
   return {
-    title: record.seo.title || record.title,
-    description: record.seo.description || record.summary || undefined,
-    alternates: { canonical },
-    robots: record.seo.noindex ? { index: false, follow: false } : { index: true, follow: true },
-    openGraph: { title: record.seo.title || record.title, description: record.seo.description || record.summary || undefined, url: canonical, type: record.type === "NEWS" || record.type === "PRESS_RELEASE" ? "article" : "website", images: image ? [image] : undefined },
+    ...metadata,
+    openGraph: { ...metadata.openGraph, type: ["NEWS", "PRESS_RELEASE", "ENGINEERING_ARTICLE", "RESEARCH"].includes(record.type) ? "article" : "website", ...(image ? { images: [image] } : {}) },
+    twitter: { ...metadata.twitter, card: "summary_large_image", ...(image ? { images: [image] } : {}) },
   };
 }
 
@@ -39,7 +41,7 @@ export function articleJsonLd(record: PublicContentRecord) {
     headline: record.title, description: record.summary ?? undefined, datePublished: record.publishedAt ?? undefined,
     dateModified: record.updatedAt, mainEntityOfPage: new URL(publicContentPath(record), siteUrl).toString(),
     author: { "@type": "Organization", name: record.authorName || "KRAVIA PRIVATE LIMITED" },
-    publisher: { "@type": "Organization", name: "KRAVIA PRIVATE LIMITED" },
+    publisher: { "@type": "Organization", "@id": `${siteUrl}#organization`, name: "KRAVIA PRIVATE LIMITED" },
     image: record.seo.ogImage ? [new URL(record.seo.ogImage, siteUrl).toString()] : undefined,
   };
 }
