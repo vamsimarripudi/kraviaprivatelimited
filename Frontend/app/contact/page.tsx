@@ -1,3 +1,4 @@
+import { buildPublicMetadata } from "@/lib/search-metadata";
 import { Footer } from "@/components/footer";
 import { ContactExperience } from "@/components/contact-experience";
 import { PageHero } from "@/components/motion";
@@ -6,7 +7,7 @@ import { SocialConnect } from "@/components/social-links";
 import { getPublicFormSetting } from "@/lib/admin/site-control";
 import { publicProducts } from "@/lib/corporate-content";
 
-export const metadata = { title: "Contact", description: "Contact Kravia for business, product, partnership, privacy or corporate enquiries." };
+export const metadata = buildPublicMetadata({ title: "Contact", description: "Contact Kravia for business, product, partnership, privacy or corporate enquiries.", path: "/contact" });
 
 type ContactSearchParams = Promise<{ product?: string | string[] }>;
 

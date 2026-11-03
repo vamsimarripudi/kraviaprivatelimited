@@ -1,0 +1,15 @@
+.content { padding-block: 40px 72px; }
+.answers { max-width: 860px; }
+.answer { padding-block: 28px; border-bottom: 1px solid var(--line); scroll-margin-top: 100px; }
+.answer h2, .products > h2, .channels h2 { font-size: clamp(1.35rem, 2.2vw, 2rem); line-height: 1.3; letter-spacing: -.025em; margin-bottom: 16px; }
+.answer p, .product p { max-width: 72ch; line-height: 1.7; overflow-wrap: anywhere; }
+.content a { text-decoration: underline; text-underline-offset: .2em; }
+.content a:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+.answer > a, .product > a { display: inline-flex; align-items: center; min-height: 44px; }
+.products, .channels { margin-top: 48px; }
+.product { padding-block: 24px; border-bottom: 1px solid var(--line); }
+.product h3 { font-size: 1.25rem; margin-bottom: 12px; }
+.status { color: var(--ink-2); font-size: .875rem; }
+.channels { max-width: 640px; }
+.formats { margin: 36px 0 0; line-height: 2.5; font-size: .875rem; }
+@media (max-width: 760px) { .content { padding-block: 24px 48px; } .answer { padding-block: 24px; } }
