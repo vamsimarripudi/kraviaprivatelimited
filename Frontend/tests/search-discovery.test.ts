@@ -15,6 +15,9 @@ const origin = "https://www.kraviaprivatelimited.com";
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 const record = (overrides: Partial<PublicContentRecord> = {}): PublicContentRecord => ({ id: "public-news", type: "NEWS", slug: "example", title: "Example", body: "Public text", status: "PUBLISHED", visibility: "PUBLIC", createdAt: "2026-07-01T00:00:00Z", updatedAt: "2026-07-02T00:00:00Z", version: 1, seo: { title: "Example", description: "A public update" }, ...overrides });
 
+// The real legal resolver remains server-only and is exercised by the HTTP smoke test.
+const legalRedirectFixture = (path: string) => path === "/trust/privacy" ? "/legal/privacy" : null;
+
 describe("search identity and metadata", () => {
   it("declares a human brand name, not a URL, with the legal-name alternative", () => {
     expect(publicSiteIdentity).toEqual({ name: "KRAVIA", alternateName: "KRAVIA PRIVATE LIMITED" });
@@ -64,8 +67,13 @@ describe("crawler and sitemap boundaries", () => {
     expect(buildPublicSitemap(["/", "", "products/vidyaluma", "/products/vidyaluma/"], [], origin).map((item) => item.url)).toEqual([`${origin}/`, `${origin}/products/vidyaluma`]);
   });
   it("excludes redirect sources and retains their public destinations once", () => {
-    const urls = buildPublicSitemap(["/trust/privacy", "/legal/privacy", "/products/recruitflow", "/products/nicerole"], [], origin).map((item) => item.url);
+    const urls = buildPublicSitemap(["/trust/privacy", "/legal/privacy", "/products/recruitflow", "/products/nicerole"], [], origin, legalRedirectFixture).map((item) => item.url);
     expect(urls).toEqual([`${origin}/legal/privacy`, `${origin}/products/nicerole`]);
+    expect(source("app/sitemap.ts")).toContain("siteUrl, staticLegalRedirect");
+  });
+  it("rejects private or external destinations from a redirect resolver", () => {
+    expect(buildPublicSitemap(["/company"], [], origin, () => "/office/private")).toEqual([]);
+    expect(buildPublicSitemap(["/company"], [], origin, () => "https://external.example/path")).toEqual([]);
   });
   it("gives a published noindex record precedence over a static entry", () => {
     const hidden = record({ seo: { title: "", description: "", canonicalPath: "/company/about", noindex: true } });
