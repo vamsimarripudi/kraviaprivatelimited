@@ -4,7 +4,7 @@ import { SiteNav } from "@/components/site-nav";
 import { BreadcrumbJsonLd } from "@/components/structured-data";
 import { LeadershipContent } from "@/components/leadership/leadership-content";
 import { publicPageRobots } from "@/lib/crawler-policy";
-import { isProductionSite, siteUrl } from "@/lib/site";
+import { isProductionSite, publicSiteIdentity, siteUrl } from "@/lib/site";
 import { leadershipDescription, leadershipJsonLd, leadershipPath, leadershipTitle, serializeLeadershipJsonLd } from "@/lib/leadership";
 
 export const metadata: Metadata = {
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   description: leadershipDescription,
   alternates: { canonical: leadershipPath },
   robots: publicPageRobots(isProductionSite),
-  openGraph: { title: `${leadershipTitle} | KRAVIA PRIVATE LIMITED`, description: leadershipDescription, url: `${siteUrl}${leadershipPath}`, type: "website" },
+  openGraph: { siteName: publicSiteIdentity.name, title: `${leadershipTitle} | KRAVIA PRIVATE LIMITED`, description: leadershipDescription, url: `${siteUrl}${leadershipPath}`, type: "website" },
   twitter: { card: "summary_large_image", title: `${leadershipTitle} | KRAVIA PRIVATE LIMITED`, description: leadershipDescription },
 };
 

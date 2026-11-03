@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildPublicMetadata, serializeJsonLd } from "@/lib/search-metadata";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
@@ -10,7 +11,7 @@ import { PublicContentArticle, NewsroomLanding, MediaKitContent } from "@/compon
 import { PageHero, Reveal } from "@/components/motion";
 import { SiteNav } from "@/components/site-nav";
 import { SocialConnect } from "@/components/social-links";
-import { publicPages, siteUrl } from "@/lib/site";
+import { publicPages } from "@/lib/site";
 import { PublicPageContent } from "@/components/public-page-content";
 import { LeadershipPreview } from "@/components/leadership/leadership-content";
 import { BreadcrumbJsonLd } from "@/components/structured-data";
@@ -28,7 +29,7 @@ export async function generateMetadata({ params }: { params: Promise<{ segments:
   // A published public record is the canonical source for its own path. The
   // version-controlled page is an intentional fallback until that happens.
   if (content) return contentMetadata(content);
-  if (page) { const url = `${siteUrl}/${key}`; return { title: titleFor(page), description: page.intro, alternates: { canonical: `/${key}` }, openGraph: { title: `${titleFor(page)} | Kravia Private Limited`, description: page.intro, url, type: "website" } }; }
+  if (page) return buildPublicMetadata({ title: titleFor(page), description: page.intro, path: `/${key}` });
   return {};
 }
 
@@ -42,7 +43,7 @@ export default async function PublicPage({ params }: { params: Promise<{ segment
     const allContent = await listPublishedContent();
     const schema = articleJsonLd(content);
     const reader = content.type === "POLICY" ? <LegalDocument article={content} /> : <PublicContentArticle article={content} allArticles={allContent} />;
-    return <><SiteNav /><BreadcrumbJsonLd items={breadcrumbsFor(segments)} />{schema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />}<main id="main-content">{reader}{(key === "company" || key === "company/about") && <LeadershipPreview />}{socialSection}</main><Footer /></>;
+    return <><SiteNav /><BreadcrumbJsonLd items={breadcrumbsFor(segments)} />{schema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(schema) }} />}<main id="main-content">{reader}{(key === "company" || key === "company/about") && <LeadershipPreview />}{socialSection}</main><Footer /></>;
   }
   if (!page) { const redirect = await resolvePublishedRedirect(`/${key}`); if (redirect) permanentRedirect(redirect); notFound(); }
   const breadcrumbs = breadcrumbsFor(segments);

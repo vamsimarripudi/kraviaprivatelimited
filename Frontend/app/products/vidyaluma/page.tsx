@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { publicSiteIdentity } from "@/lib/site";
 import { Footer } from "@/components/footer";
 import { SiteNav } from "@/components/site-nav";
 import { BreadcrumbJsonLd, ProductJsonLd } from "@/components/structured-data";
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
   title: vidyaLumaProduct.seo.title,
   description: vidyaLumaProduct.seo.description,
   alternates: { canonical: "/products/vidyaluma" },
-  openGraph: { title: vidyaLumaProduct.seo.title, description: vidyaLumaProduct.seo.description, url: "/products/vidyaluma", type: "website" },
+  openGraph: { siteName: publicSiteIdentity.name, title: vidyaLumaProduct.seo.title, description: vidyaLumaProduct.seo.description, url: "/products/vidyaluma", type: "website" },
   twitter: { card: "summary", title: vidyaLumaProduct.seo.title, description: vidyaLumaProduct.seo.description },
 };
 

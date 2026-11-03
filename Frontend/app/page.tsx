@@ -15,6 +15,8 @@ import { getPublicPortfolio, type PublicPortfolioItem } from "@/lib/content/port
 import { ProductPortfolio } from "@/components/product-portfolio";
 import { HomepageProductMarket } from "@/components/homepage-product-market";
 
+export const metadata = { alternates: { canonical: "/" } };
+
 const operatingAreas = [
   ["Company", "A long-lived corporate foundation for products, people and partners.", "/company/about"],
   ["Technology", "Engineering decisions that prioritise usefulness, reliability and restraint.", "/technology/engineering"],

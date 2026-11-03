@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { publicSiteIdentity } from "@/lib/site";
 import { Footer } from "@/components/footer";
 import { SiteNav } from "@/components/site-nav";
 import { BreadcrumbJsonLd, ProductJsonLd, WebPageJsonLd } from "@/components/structured-data";
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
   title: { absolute: recruitFlowProduct.seo.title },
   description: recruitFlowProduct.seo.description,
   alternates: { canonical: "/products/nicerole" },
-  openGraph: {
+  openGraph: { siteName: publicSiteIdentity.name,
     title: recruitFlowProduct.seo.title,
     description: recruitFlowProduct.seo.description,
     url: "/products/nicerole",
