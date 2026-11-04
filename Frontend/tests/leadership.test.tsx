@@ -62,7 +62,7 @@ describe("Leadership & Team", () => {
     expect(html).toContain(`href="${vidyaLumaProduct.href}"`);
     expect(html).toContain(`href="${vidyaLumaProduct.website}"`);
     expect(html).toContain('rel="noopener noreferrer"');
-    expect(existsSync(resolve(process.cwd(), "app/products/vidyaluma/page.tsx"))).toBe(true);
+    expect(existsSync(resolve(process.cwd(), "app/(public)/products/vidyaluma/page.tsx"))).toBe(true);
   });
 
   it("renders the supplied default avatar and a text-only pending product logo", () => {
@@ -142,10 +142,10 @@ describe("Leadership & Team", () => {
   });
 
   it("integrates both managed and fallback company pages, footer, sitemap and metadata", () => {
-    expect(source("app/[...segments]/page.tsx").match(/<LeadershipPreview \/>/g)).toHaveLength(2);
+    expect(source("app/(public)/[...segments]/page.tsx").match(/<LeadershipPreview \/>/g)).toHaveLength(2);
     expect(source("components/footer.tsx")).toContain('["Leadership & Team", "/company/leadership"]');
     expect(source("app/sitemap.ts")).toContain('"company/leadership"');
-    const route = source("app/company/leadership/page.tsx");
+    const route = source("app/(public)/company/leadership/page.tsx");
     expect(route).toContain("publicPageRobots(isProductionSite)");
     expect(route).toContain("alternates: { canonical: leadershipPath }");
     expect(route).toContain("serializeLeadershipJsonLd(leadershipJsonLd(siteUrl))");

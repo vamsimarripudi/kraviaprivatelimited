@@ -2,7 +2,7 @@ import { publicWebsiteStructuredData, siteUrl } from "@/lib/site";
 import { corporateIdentity, publicProducts } from "@/lib/corporate-content";
 import { leadershipRelationships } from "@/lib/leadership";
 
-import { publicCompanyLinks } from "@/lib/public-links";
+import { publicSocialProfiles } from "@/lib/public-links";
 
 type Breadcrumb = { name: string; path: string };
 
@@ -22,7 +22,7 @@ export async function OrganizationJsonLd() {
     name: corporateIdentity.legalName,
     alternateName: corporateIdentity.displayName,
     legalName: corporateIdentity.legalName,
-    sameAs: [publicCompanyLinks.linkedIn],
+    sameAs: publicSocialProfiles.map((profile) => profile.href),
     description: "KRAVIA PRIVATE LIMITED is an Indian technology company building software products, intelligent systems and digital infrastructure.",
     url: siteUrl,
     logo: `${siteUrl}/brand/kravia-logo.png`,

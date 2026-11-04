@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { LeadershipContent, LeadershipPreview } from "../components/leadership/leadership-content";
 import { leadershipAssets, leadershipJsonLd, leadershipPath, teamProfiles } from "../lib/leadership";
-import { publicCompanyLinks } from "../lib/public-links";
+import { publicCompanyLinks, publicSocialProfiles } from "../lib/public-links";
 
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 const portraitHashes: Record<string, string> = {
@@ -92,6 +92,12 @@ describe("real leadership portraits and current contributions", () => {
     expect(preview).not.toContain("vamsimarripudi.me");
     expect(source("components/leadership/leadership-content.tsx")).not.toContain("profileLinks");
     expect(publicCompanyLinks.linkedIn).toBe("https://linkedin.com/company/kravia-private-limited");
+    expect(publicSocialProfiles).toEqual([
+      { platform: "linkedin", label: "LinkedIn", href: "https://linkedin.com/company/kravia-private-limited" },
+      { platform: "x", label: "X", href: "https://x.com/KraviaOfficial" },
+      { platform: "instagram", label: "Instagram", href: "https://www.instagram.com/kravia_private_limited/" },
+      { platform: "facebook", label: "Facebook", href: "https://www.facebook.com/people/Kravia/61595906774125/" },
+    ]);
   });
 
   it("publishes only genuine portraits in Person structured data and no unapproved profile links", () => {

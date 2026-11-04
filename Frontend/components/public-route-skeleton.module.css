@@ -1,0 +1,83 @@
+.root {
+  --loading-base: rgba(183, 215, 235, .09);
+  --loading-highlight: rgba(183, 215, 235, .18);
+  min-height: 100svh;
+  background: #06101e;
+}
+
+.contentRoot { min-height: 70svh; padding: clamp(40px, 6vw, 80px) 24px; background: var(--paper); }
+.contentInner { width: min(1152px, 100%); margin-inline: auto; }
+.contentRoot :global(.ui-skeleton) { border-radius: 3px; }
+.contentTitle { display: grid; gap: 12px; width: min(660px, 95%); margin-top: 24px; }
+.contentTitle :global(.ui-skeleton) { height: clamp(32px, 5vw, 56px); }
+.contentTitle :global(.ui-skeleton):last-child { width: 72%; }
+.contentCopy { display: grid; gap: 10px; width: min(600px, 95%); margin-top: 28px; }
+.contentCopy :global(.ui-skeleton) { height: 10px; }
+.contentCopy :global(.ui-skeleton):last-child { width: 64%; }
+.contentRows { display: grid; gap: 20px; margin-top: 48px; }
+.contentRows > div { display: grid; gap: 12px; padding-block: 16px; border-top: 1px solid var(--line); }
+.contentRows > div :global(.ui-skeleton):first-child { width: 150px; height: 16px; }
+.contentRows > div :global(.ui-skeleton):last-child { width: min(800px, 80%); height: 10px; }
+
+.root :global(.ui-skeleton) {
+  border-radius: 4px;
+  background: linear-gradient(100deg, var(--loading-base) 22%, var(--loading-highlight) 44%, var(--loading-base) 66%);
+  background-size: 220% 100%;
+}
+
+.header {
+  --nav-foreground: rgba(248, 250, 252, .35);
+  --nav-border: rgba(226, 237, 255, .15);
+  position: relative;
+  z-index: 1;
+  padding-block: 12px;
+}
+
+.brand { gap: 12px; }
+.brandSymbol { width: 28px; height: 28px; }
+.wordmark { display: grid; width: 98px; gap: 6px; }
+.wordmark :global(.ui-skeleton):first-child { height: 12px; }
+.wordmark :global(.ui-skeleton):last-child { width: 64%; height: 5px; }
+.navItem { display: inline-flex; align-items: center; min-height: 44px; padding-inline: 10px; }
+.navLabel { height: 7px; }
+.menuLabel { width: 28px; height: 7px; }
+.eyebrow { width: min(76%, 285px); height: 8px; }
+
+.root .title {
+  display: grid;
+  justify-items: center;
+  gap: .28em;
+  width: min(100%, 13ch);
+  padding-block: .1em;
+}
+.title :global(.ui-skeleton) { width: 100%; height: .72em; }
+.title :global(.ui-skeleton):first-child { width: 88%; }
+.copy { display: grid; justify-items: center; width: min(100%, 490px); gap: 12px; padding-block: 8px; }
+.copy :global(.ui-skeleton) { width: 100%; height: 9px; }
+.copy :global(.ui-skeleton):last-child { width: 72%; }
+
+.root .button { box-sizing: border-box; width: 200px; max-width: 100%; background: var(--loading-base); }
+.buttonLabel { width: 120px; height: 8px; }
+.note { width: 190px; height: 7px; }
+.discover { width: 125px; height: 8px; }
+.discover + div :global(.ui-skeleton) { width: 104px; height: 7px; }
+
+@media (max-width: 1199px) {
+  .wordmark { width: 92px; }
+}
+
+@media (max-width: 700px) {
+  .header { padding-block: 10px; }
+  .brandSymbol { width: 24px; height: 24px; }
+  .wordmark { width: 88px; }
+  .root .button { width: 100%; }
+  .buttonLabel { width: 100px; }
+}
+
+@media (max-width: 600px) {
+  .wordmark { width: 80px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root :global(.ui-skeleton), .contentRoot :global(.ui-skeleton) { animation: none; }
+}

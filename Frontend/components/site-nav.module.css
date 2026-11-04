@@ -1,0 +1,97 @@
+.root.root {
+  --nav-foreground: #071e45;
+  --nav-border: rgba(7, 30, 69, .13);
+  --nav-hover: rgba(7, 30, 69, .07);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  padding-block: 12px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.root.onDark {
+  --nav-foreground: #f8fafc;
+  --nav-border: rgba(226, 237, 255, .22);
+  --nav-hover: rgba(226, 237, 255, .1);
+}
+
+.navigation {
+  width: min(1280px, calc(100% - 64px));
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 20px;
+}
+
+.island {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  border: 1px solid var(--nav-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--nav-foreground);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+
+.brand { justify-self: start; padding: 4px 16px; }
+.logo { display: block; width: 138px; height: auto; max-height: 36px; object-fit: contain; }
+.onDark .logo { filter: brightness(0) invert(1); }
+.links { justify-self: center; gap: 2px; padding: 1px 4px; }
+.links :global(.gooey-nav__list) { flex-wrap: nowrap; gap: 2px; }
+.links :global(.gooey-nav__link) { justify-content: center; min-height: 44px; }
+.contact { justify-self: end; width: 48px; padding: 0; }
+.contact svg, .menu svg { flex: none; width: 22px; height: 22px; stroke-width: 1.7; }
+.menu svg { width: 18px; height: 18px; }
+.contactDot { fill: currentColor; stroke: none; animation: contact-pulse 1.8s ease-in-out infinite; }
+.contactDot:nth-of-type(2) { animation-delay: .18s; }
+.contactDot:nth-of-type(3) { animation-delay: .36s; }
+@keyframes contact-pulse {
+  0%, 60%, 100% { opacity: .4; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-1.5px); }
+}
+.contact:hover, .contact[aria-current="page"], .menu:hover { border-color: currentColor; }
+.menu { display: none; justify-self: center; gap: 8px; padding: 4px 14px; font: 500 12px/1.2 var(--sans); cursor: pointer; }
+.root a:focus-visible, .root button:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+
+@media (max-width: 1199px) {
+  .navigation { gap: 14px; }
+  .brand { padding-inline: 14px; }
+  .logo { width: 132px; }
+}
+
+@media (max-width: 1099px) {
+  .links { display: none; }
+  .menu { display: inline-flex; }
+}
+
+@media (max-width: 700px) {
+  .root.root { padding-block: 10px; }
+  .navigation { width: calc(100% - 32px); gap: 8px; }
+  .island { min-height: 44px; }
+  .contact { width: 44px; }
+  .logo { width: 124px; max-height: 30px; }
+  .brand { padding-inline: 12px; }
+}
+
+@media (max-width: 600px) {
+  .navigation { grid-template-columns: minmax(0, 1fr) 44px 44px; }
+  .brand { justify-self: start; max-width: 100%; padding-inline: 12px; }
+  .logo { width: 116px; max-width: 100%; }
+  .menu, .contact { width: 44px; padding: 0; }
+  .menu > span { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .island { transition: none; }
+  .contactDot { animation: none; opacity: 1; transform: none; }
+}
