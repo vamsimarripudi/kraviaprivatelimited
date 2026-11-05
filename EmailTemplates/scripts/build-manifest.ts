@@ -15,6 +15,16 @@ const requiredTokens = {
   public_request_update: [PLACEHOLDERS.name, PLACEHOLDERS.reference, PLACEHOLDERS.message],
   public_intake_internal_notification: [PLACEHOLDERS.name, PLACEHOLDERS.senderEmail, PLACEHOLDERS.reference, PLACEHOLDERS.requestKind, PLACEHOLDERS.requestSubject, PLACEHOLDERS.organisation],
   public_welcome: [PLACEHOLDERS.name],
+  public_account_code: ["@@KRAVIA_CODE@@"],
+  public_account_welcome: ["@@KRAVIA_NAME@@"],
+  public_resource_receipt: ["@@KRAVIA_NAME@@","@@KRAVIA_RESOURCE_TITLE@@"],
+  public_newsletter_confirm: ["@@KRAVIA_NAME@@","@@KRAVIA_ACTION_URL@@"],
+  public_newsletter_welcome: ["@@KRAVIA_NAME@@"],
+  public_newsletter_digest: ["@@KRAVIA_NAME@@","@@KRAVIA_ISSUE_SUBJECT@@","@@KRAVIA_MESSAGE@@","@@KRAVIA_UNSUBSCRIBE_URL@@"],
+  public_newsletter_unsubscribed: ["@@KRAVIA_NAME@@"],
+  public_account_security: ["@@KRAVIA_NAME@@","@@KRAVIA_MESSAGE@@"],
+  public_preferences_changed: ["@@KRAVIA_NAME@@","@@KRAVIA_STATUS@@"],
+  public_feedback_ack: ["@@KRAVIA_NAME@@","@@KRAVIA_REFERENCE@@"],
 } as const;
 const manifest = {
   format: 1,

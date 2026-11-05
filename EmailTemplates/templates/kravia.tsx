@@ -1,330 +1,111 @@
-import {
-  Body,
-  Container,
-  Head,
-  Heading,
-  Html,
-  Img,
-  Link,
-  Preview,
-  Section,
-  Text,
-} from "react-email";
-import { render } from "@react-email/render";
-import type { ReactNode } from "react";
-
+import { publicAccessTemplates, type PublicAccessTemplateName } from "./public-access.js";
+/**
+ * KRAVIA's deterministic, email-client-safe HTML templates.
+ *
+ * All six layouts and the plain-text fallbacks are built together.
+ * Content is intentionally static except for backend-escaped placeholder tokens.
+ * Tables + inline CSS work in Gmail/Outlook; static high-density social PNGs remain sharp on Retina screens.
+ */
 export const PLACEHOLDERS = {
-  code: "@@KRAVIA_CODE@@",
-  expiryMinutes: "@@KRAVIA_EXPIRY_MINUTES@@",
-  name: "@@KRAVIA_NAME@@",
-  senderEmail: "@@KRAVIA_SENDER_EMAIL@@",
-  reference: "@@KRAVIA_REFERENCE@@",
-  requestKind: "@@KRAVIA_REQUEST_KIND@@",
-  nextStep: "@@KRAVIA_NEXT_STEP@@",
-  message: "@@KRAVIA_MESSAGE@@",
-  requestSubject: "@@KRAVIA_REQUEST_SUBJECT@@",
-  organisation: "@@KRAVIA_ORGANISATION@@",
-  deviceLabel: "@@KRAVIA_DEVICE_LABEL@@",
-  sourceAddress: "@@KRAVIA_SOURCE_ADDRESS@@",
-  reviewUrl: "@@KRAVIA_REVIEW_URL@@",
+  "code": "@@KRAVIA_CODE@@",
+  "expiryMinutes": "@@KRAVIA_EXPIRY_MINUTES@@",
+  "name": "@@KRAVIA_NAME@@",
+  "senderEmail": "@@KRAVIA_SENDER_EMAIL@@",
+  "reference": "@@KRAVIA_REFERENCE@@",
+  "requestKind": "@@KRAVIA_REQUEST_KIND@@",
+  "nextStep": "@@KRAVIA_NEXT_STEP@@",
+  "message": "@@KRAVIA_MESSAGE@@",
+  "requestSubject": "@@KRAVIA_REQUEST_SUBJECT@@",
+  "organisation": "@@KRAVIA_ORGANISATION@@",
+  "deviceLabel": "@@KRAVIA_DEVICE_LABEL@@",
+  "sourceAddress": "@@KRAVIA_SOURCE_ADDRESS@@",
+  "reviewUrl": "@@KRAVIA_REVIEW_URL@@"
 } as const;
 
-export type KraviaEmailTemplateName =
+export type KraviaCoreEmailTemplateName =
   | "office_sign_in_code"
+  | "office_device_approval"
   | "public_request_received"
   | "public_request_update"
   | "public_intake_internal_notification"
-  | "public_welcome"
-  | "office_device_approval";
+  | "public_welcome";
+export type KraviaEmailTemplateName = KraviaCoreEmailTemplateName | PublicAccessTemplateName;
+export type RenderedTemplate = {html: string; text: string};
 
-export type RenderedTemplate = {
-  html: string;
-  text: string;
-};
-
-const siteUrl = "https://www.kraviaprivatelimited.com";
-const headerLockupUrl = `${siteUrl}/brand/kravia-header-lockup-v2.png`;
-
-const palette = {
-  ink: "#172331",
-  sapphire: "#193B5B",
-  steel: "#5D809D",
-  pale: "#EFF3F7",
-  white: "#FFFFFF",
-  border: "#D7E1E9",
-  mist: "#F8FAFC",
-} as const;
-
-/*
- * Gmail may recolour ordinary light-email surfaces in dark mode, but it does
- * not consistently recolour transparent image assets. Present the approved
- * lockup as white on a solid sapphire masthead, and keep the code and safety
- * copy in high-contrast HTML rather than relying on a dark transparent asset.
- */
-const darkModeCss = `
-  :root { color-scheme: light dark; supported-color-schemes: light dark; }
-  @media (prefers-color-scheme: dark) {
-    .kravia-email-body { background-color: #101923 !important; }
-    .kravia-email-card { background-color: #172331 !important; border-color: #526b82 !important; }
-    .kravia-email-title, .kravia-email-content { background-color: #172331 !important; }
-    .kravia-email-heading, .kravia-email-paragraph { color: #FFFFFF !important; }
-    .kravia-email-muted { color: #C9D9E8 !important; }
-    .kravia-email-footer { background-color: #102A43 !important; border-color: #526B82 !important; }
-  }
-`;
-
-function KraviaShell({
-  preview,
-  label,
-  title,
-  children,
-}: {
-  preview: string;
-  label: string;
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <Html lang="en">
-      <Head>
-        <meta content="light dark" name="color-scheme" />
-        <meta content="light dark" name="supported-color-schemes" />
-        <style>{darkModeCss}</style>
-      </Head>
-      <Preview>{preview}</Preview>
-      <Body className="kravia-email-body" style={styles.body}>
-        <Container style={styles.container}>
-          <Section className="kravia-email-card" style={styles.card}>
-            <Section style={styles.topRule} />
-            <Section style={styles.masthead}>
-              <Img
-                alt="KRAVIA Private Limited"
-                height="52"
-                src={headerLockupUrl}
-                style={styles.lockup}
-                width="156"
-              />
-              <Text style={styles.label}>{label}</Text>
-            </Section>
-            <Section className="kravia-email-title" style={styles.titleBlock}>
-              <Heading as="h1" className="kravia-email-heading" style={styles.heading}>{title}</Heading>
-            </Section>
-            <Section className="kravia-email-content" style={styles.content}>{children}</Section>
-            <Section className="kravia-email-footer" style={styles.footer}>
-              <Text style={styles.footerEyebrow}>ACCOUNT SAFETY</Text>
-              <Text style={styles.footerCopy}>
-                For your safety, KRAVIA will never ask for your password,
-                one-time code, private key, or card PIN by email.
-              </Text>
-              <Text style={styles.footerLinks}>
-                <Link href={`${siteUrl}/trust/privacy`} style={styles.link}>Privacy</Link>
-                {"  ·  "}
-                <Link href={`${siteUrl}/legal`} style={styles.link}>Legal notices and terms</Link>
-                {"  ·  "}
-                <Link href={`${siteUrl}/contact`} style={styles.link}>Contact</Link>
-              </Text>
-              <Text style={styles.copyright}>© KRAVIA PRIVATE LIMITED. All rights reserved.</Text>
-            </Section>
-          </Section>
-        </Container>
-      </Body>
-    </Html>
-  );
+function makeManifest(): Record<KraviaCoreEmailTemplateName, RenderedTemplate> {
+  const P = PLACEHOLDERS;
+  const site = "https://www.kraviaprivatelimited.com";
+  const profiles = [
+    {name:"LinkedIn", href:"https://linkedin.com/company/kravia-private-limited", icon:"linkedin-v2.png"},
+    {name:"X", href:"https://x.com/KraviaOfficial", icon:"x.png"},
+    {name:"Instagram",href:"https://www.instagram.com/kravia_private_limited/",icon:"instagram-v2.png"},
+    {name:"Facebook",href:"https://www.facebook.com/profile.php?id=61595906774125",icon:"facebook.png"},
+  ];
+  const themes = {
+    office_sign_in_code: {eyebrow:"IDENTITY VERIFICATION",title:"Your sign-in code.",sub:"A private code for KRAVIA Office.",accent:"#2765C5",tint:"#EDF4FF",fg:"#173F80",mode:"security"},
+    office_device_approval: {eyebrow:"SECURITY NOTICE",title:"A new device needs review.",sub:"Check this request before allowing access.",accent:"#B34F39",tint:"#FFF1EB",fg:"#883A2A",mode:"security"},
+    public_request_received: {eyebrow:"REQUEST CONFIRMATION",title:"We’ve received your request.",sub:"Your message is now with KRAVIA.",accent:"#22846A",tint:"#ECFAF5",fg:"#176A55",mode:"service"},
+    public_request_update: {eyebrow:"REQUEST UPDATE",title:"An update from our team.",sub:"The latest information on your request.",accent:"#355E95",tint:"#EFF5FC",fg:"#264A79",mode:"service"},
+    public_intake_internal_notification: {eyebrow:"KRAVIA OFFICE · INTAKE",title:"A request needs your review.",sub:"Private operations notification.",accent:"#A06B1B",tint:"#FFF7E9",fg:"#795018",mode:"operations"},
+    public_welcome: {eyebrow:"A NOTE FROM KRAVIA",title:"Welcome to KRAVIA.",sub:"A thoughtful beginning. A lasting connection.",accent:"#477EB5",tint:"#EFF5FA",fg:"#20496D",mode:"welcome"},
+  };
+  const legalLine = `Privacy ${site}/trust/privacy · Legal notices and terms ${site}/legal · Contact ${site}/contact`;
+  const socialText = profiles.map(x=>`${x.name} ${x.href}`).join(" · ");
+  const iconRow = profiles.map(x=>
+    `<td width="25%" align="center" valign="top" style="width:25%;padding:1px 3px;text-align:center"><a href="${x.href}" target="_blank" rel="noopener noreferrer" aria-label="KRAVIA on ${x.name}" style="color:#FFFFFF;text-decoration:none;display:inline-block;padding:3px 5px"><img alt="${x.name}" src="${site}/brand/email/${x.icon}" width="36" height="36" style="display:block;margin:0 auto;width:36px;height:36px;border:0;outline:none" /><span style="display:block;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:600;line-height:18px;margin-top:5px;color:#DAE7F3;text-decoration:none">${x.name}</span></a></td>`
+  ).join("");
+  const footer = `<tr><td style="padding:25px 28px 24px;background-color:#152D45;color:#FFFFFF">
+  <p style="font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;line-height:16px;color:#BDD7EC;margin:0 0 14px">CONNECT WITH KRAVIA</p>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr>${iconRow}</tr></table>
+  <div style="border-top:1px solid #38516B;height:1px;line-height:1px;font-size:1px;margin:16px 0"></div>
+  <p style="font:700 10px/17px Arial,Helvetica,sans-serif;color:#BDD7EC;letter-spacing:1.5px;margin:0 0 7px">ACCOUNT SAFETY</p>
+  <p style="font:12px/19px Arial,Helvetica,sans-serif;color:#EAF3FA;margin:0 0 17px">For your safety, KRAVIA will never ask for your password, one-time code, private key, or card PIN by email.</p>
+  <p style="font:12px/21px Arial,Helvetica,sans-serif;color:#D5E4F2;margin:0 0 16px"><a style="color:#FFFFFF;text-decoration:underline" href="${site}/trust/privacy">Privacy</a> &nbsp;·&nbsp; <a style="color:#FFFFFF;text-decoration:underline" href="${site}/legal">Legal notices and terms</a> &nbsp;·&nbsp; <a style="color:#FFFFFF;text-decoration:underline" href="${site}/contact">Contact</a></p>
+  <p style="font:11px/18px Arial,Helvetica,sans-serif;color:#BDD7EC;margin:0">© KRAVIA PRIVATE LIMITED. All rights reserved.</p></td></tr>`;
+  const panel=(label: string,body: string,color: string,background: string)=>`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 21px;background-color:${background};border-left:4px solid ${color}"><tr><td style="padding:19px 20px"><p style="font:700 10px/16px Arial,Helvetica,sans-serif;letter-spacing:1.5px;color:${color};margin:0 0 9px">${label}</p>${body}</td></tr></table>`;
+  const ref=(reference: string)=>`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:9px 0 24px;border:1px solid #D8E3EC"><tr><td style="padding:15px 19px;background-color:#F7F9FC"><p style="font:700 10px/16px Arial,Helvetica,sans-serif;letter-spacing:1.5px;color:#59758F;margin:0 0 6px">YOUR REFERENCE</p><p style="font:700 15px/24px Consolas,Monaco,monospace;color:#173B5F;overflow-wrap:anywhere;margin:0">${reference}</p></td></tr></table>`;
+  const p=(t: string)=>`<p class="copy" style="font:15px/25px Arial,Helvetica,sans-serif;color:#25374A;margin:0 0 18px">${t}</p>`;
+  const hint=(t: string)=>`<p style="font:12px/20px Arial,Helvetica,sans-serif;color:#62778B;margin:0 0 18px">${t}</p>`;
+  const detail=(name: string,value: string,last: boolean)=>`<tr><td style="padding:12px 12px 12px 0;border-bottom:${last?"0":"1px solid #E6EDF3"};font:700 10px/16px Arial,Helvetica,sans-serif;letter-spacing:1px;color:#5B7288;text-transform:uppercase;vertical-align:top" width="30%">${name}</td><td style="padding:10px 0;border-bottom:${last?"0":"1px solid #E6EDF3"};font:600 14px/22px Arial,Helvetica,sans-serif;color:#172F46;overflow-wrap:anywhere;vertical-align:top">${value}</td></tr>`;
+  const configs = {
+    office_sign_in_code: themes.office_sign_in_code,
+    office_device_approval: themes.office_device_approval,
+    public_request_received: themes.public_request_received,
+    public_request_update: themes.public_request_update,
+    public_intake_internal_notification: themes.public_intake_internal_notification,
+    public_welcome: themes.public_welcome,
+  };
+  const wrap=(key: KraviaCoreEmailTemplateName,body: string,textBody: string)=>{
+    const cfg=configs[key];
+    const headline = cfg.mode==="welcome"
+      ? `<tr><td style="padding:32px 30px 31px;background-color:#193B5B"><p style="font:700 10px/18px Arial,Helvetica,sans-serif;color:#D1E7FA;letter-spacing:2px;margin:0 0 14px">${cfg.eyebrow}</p><h1 style="font:400 35px/43px Georgia,'Times New Roman',serif;letter-spacing:-.7px;color:#FFFFFF;margin:0 0 12px">${cfg.title}</h1><p style="font:14px/23px Arial,Helvetica,sans-serif;color:#E0EEF9;margin:0">${cfg.sub}</p></td></tr>`
+      : `<tr><td style="padding:31px 30px 27px;background-color:#FFFFFF;border-top:4px solid ${cfg.accent}"><p style="display:inline-block;font:700 10px/17px Arial,Helvetica,sans-serif;letter-spacing:1.4px;padding:6px 10px;color:${cfg.fg};background-color:${cfg.tint};margin:0 0 19px">${cfg.eyebrow}</p><h1 style="font:700 29px/36px Arial,Helvetica,sans-serif;letter-spacing:-.9px;color:#172B3F;margin:0 0 10px">${cfg.title}</h1><p style="font:14px/23px Arial,Helvetica,sans-serif;color:#667B8E;margin:0">${cfg.sub}</p></td></tr>`;
+    const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="color-scheme" content="light dark"/><meta name="supported-color-schemes" content="light dark"/><title>KRAVIA</title><style>body{margin:0;padding:0;-webkit-text-size-adjust:100%;font-synthesis:none}table{border-spacing:0}img{border:0}a{text-decoration-skip-ink:auto}@media screen and (max-width:620px){.kravia-shell{width:100%!important}.kravia-cell{padding:0!important}.kravia-content{padding:24px 23px 6px!important}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}@media(prefers-color-scheme:dark){.kravia-shell{border-color:#3E586E!important}.kravia-content{background-color:#172331!important}.copy{color:#ECF4FA!important}}</style></head><body style="margin:0;padding:0;background-color:#E8EDF3;font-family:Arial,Helvetica,sans-serif"><div style="display:none;font-size:1px;line-height:1px;color:#E8EDF3;max-height:0;max-width:0;opacity:0;overflow:hidden">${cfg.title} ${cfg.sub}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background-color:#E8EDF3"><tr><td class="kravia-cell" align="center" style="padding:36px 14px"><table role="presentation" class="kravia-shell" width="600" cellspacing="0" cellpadding="0" border="0" style="width:600px;max-width:600px;background-color:#FFFFFF;border:1px solid #D6E0E9"><tr><td style="height:4px;background-color:#193B5B;font-size:1px;line-height:4px">&nbsp;</td></tr><tr><td style="padding:22px 30px;background-color:#F7FAFC"><a href="${site}" style="display:inline-block;color:#193B5B;text-decoration:none" title="KRAVIA website"><img alt="KRAVIA PRIVATE LIMITED" width="163" height="55" src="${site}/brand/kravia-header-lockup-v2.png" style="display:block;width:163px;height:55px;max-width:100%;border:0"/></a><p style="font:700 10px/16px Arial,Helvetica,sans-serif;letter-spacing:1.7px;color:#6C8299;margin:10px 0 0">OFFICIAL COMPANY COMMUNICATION</p></td></tr>${headline}<tr><td class="kravia-content" style="padding:30px 30px 10px;background-color:#FFFFFF">${body}</td></tr>${footer}</table><p style="font:11px/18px Arial,Helvetica,sans-serif;color:#6D8093;margin:16px 0 0">Sent by KRAVIA PRIVATE LIMITED.</p></td></tr></table></body></html>`;
+    const text=`KRAVIA PRIVATE LIMITED\n\n${cfg.eyebrow}\n${cfg.title}\n${cfg.sub}\n\n${textBody}\n\nCONNECT WITH KRAVIA\n${socialText}\n\nACCOUNT SAFETY\nFor your safety, KRAVIA will never ask for your password, one-time code, private key, or card PIN by email.\n\n${legalLine}\n\n© KRAVIA PRIVATE LIMITED. All rights reserved.`;
+    return {html,text};
+  };
+  return {
+    office_sign_in_code: wrap("office_sign_in_code",
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:3px 0 22px;background-color:#EDF4FF;border:1px solid #D1E0F5"><tr><td align="center" style="padding:29px 13px 24px;text-align:center"><p style="font:700 10px/17px Arial,Helvetica,sans-serif;letter-spacing:2px;color:#315E9B;margin:0 0 13px">ONE-TIME SIGN-IN CODE</p><p style="font:700 43px/55px Consolas,Monaco,monospace;letter-spacing:7px;color:#163B66;margin:0">${P.code}</p><p style="font:13px/21px Arial,Helvetica,sans-serif;color:#50718E;margin:12px 0 0">Valid for ${P.expiryMinutes} minutes · Single use</p></td></tr></table>${p("Use this one-time code to finish signing in to KRAVIA Office. Do not share it with anyone, including KRAVIA staff.")}${panel("NOT YOU?","<p style=\"font:13px/21px Arial,Helvetica,sans-serif;color:#3D5367;margin:0\">You can safely ignore this email if you did not request the sign-in.</p>","#315E9B","#F6F9FD")}`,
+      `ONE-TIME SIGN-IN CODE\n${P.code}\n\nThis code expires in ${P.expiryMinutes} minutes and works only once. Use it to finish signing in to KRAVIA Office. Do not share it with anyone, including KRAVIA staff.\n\nDidn’t try to sign in? You can safely ignore this email.`),
+    office_device_approval: wrap("office_device_approval",
+      `${panel("UNRECOGNIZED DEVICE CHECK","<p style=\"font:600 14px/23px Arial,Helvetica,sans-serif;color:#6B392B;margin:0\">A new KRAVIA sign-in device completed password and email checks, but does not have account access yet.</p>","#B34F39","#FFF1EB")}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #D8E3EC;margin:0 0 21px"><tr><td style="padding:15px 18px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${detail("Device",P.deviceLabel,false)}${detail("Observed address",P.sourceAddress,true)}</table></td></tr></table>${p("Review the request and choose Trust or Cancel and block sign-in. Trust only if you recognize this exact device.")}<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 20px"><tr><td align="center" style="padding:14px 20px;background-color:#A44332"><a href="${P.reviewUrl}" style="display:block;font:700 15px/22px Arial,Helvetica,sans-serif;color:#FFFFFF;text-decoration:none">Review this sign-in →</a></td></tr></table>${hint("Trusting a request locks your KRAVIA account to the original device and securely signs out any previously trusted device. Opening the link never signs in the device displaying this email.")}${hint("New to KRAVIA Authenticator? Install only the company-provided app, enter your registered credentials and one-time code, then return to this email. If it was not you, choose ignore to block the request and sign out the device.")}`,
+      `A new device needs review.\nDEVICE: ${P.deviceLabel}\nADDRESS OBSERVED BY KRAVIA: ${P.sourceAddress}\n\nThe sign-in cannot access your account until you approve it. Open the secure review page and choose Trust or Cancel and block sign-in. Trust only if this was you.\nReview this sign-in: ${P.reviewUrl}\n\nTrusting the request locks your KRAVIA account to the original device and signs out any previously trusted device. Opening the link never signs in the browser or phone that opens it.\n\nNew to KRAVIA Authenticator? Install only the company-provided app, enter registered credentials and the one-time code, then return to this email. If it was not you, choose ignore.`),
+    public_request_received: wrap("public_request_received",
+      `${p(`Hello ${P.name},`)}${panel("RECEIVED · CONFIRMED",`<p style="font:600 15px/24px Arial,Helvetica,sans-serif;color:#176A55;margin:0">We received your ${P.requestKind}.</p>`,"#22846A","#ECFAF5")}${ref(P.reference)}<p style="font:700 12px/18px Arial,Helvetica,sans-serif;color:#172F46;margin:0 0 9px">What happens next</p>${p(P.nextStep)}${hint("Keep the reference above for future communication with KRAVIA.")}`,
+      `Hello ${P.name},\n\nWe received your ${P.requestKind}.\n\nYOUR REFERENCE\n${P.reference}\n\nWhat happens next\n${P.nextStep}\n\nKeep this reference for future communication.`),
+    public_request_update: wrap("public_request_update",
+      `${p(`Hello ${P.name},`)}${ref(P.reference)}${panel("LATEST MESSAGE",`<p class="copy" style="font:15px/26px Arial,Helvetica,sans-serif;color:#243D56;white-space:pre-line;margin:0">${P.message}</p>`,"#355E95","#EFF5FC")}${hint("This message concerns the reference above. Reply to this email if you need to provide a clarification.")}`,
+      `Hello ${P.name},\n\nREQUEST REFERENCE: ${P.reference}\n\nLATEST MESSAGE\n${P.message}\n\nReply to this email if you need to provide a clarification.`),
+    public_intake_internal_notification: wrap("public_intake_internal_notification",
+      `${panel("ACTION · REVIEW IN OFFICE",`<p style="font:600 14px/23px Arial,Helvetica,sans-serif;color:#795018;margin:0">A new ${P.requestKind} was submitted through the KRAVIA website.</p>`,"#A06B1B","#FFF7E9")}${ref(P.reference)}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px;border-top:1px solid #D8E3EC;border-bottom:1px solid #D8E3EC"><tr><td style="padding:8px 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${detail("From",P.name,false)}${detail("Email",P.senderEmail,false)}${detail("Subject",P.requestSubject,false)}${detail("Organisation",P.organisation,true)}</table></td></tr></table>${hint("Reply to this email to contact the requester directly. The full request remains in the appropriate KRAVIA Office intake queue. Do not forward Trust or security requests outside authorized channels.")}`,
+      `A new ${P.requestKind} needs review.\nREFERENCE: ${P.reference}\nFROM: ${P.name}\nEMAIL: ${P.senderEmail}\nSUBJECT: ${P.requestSubject}\nORGANISATION: ${P.organisation}\n\nReply to contact the requester directly. The full request remains in the appropriate KRAVIA Office intake queue.`),
+    public_welcome: wrap("public_welcome",
+      `<p style="font:italic 21px/34px Georgia,'Times New Roman',serif;color:#234F76;margin:0 0 26px">“You belong here — wherever you are building what matters.”</p>${p(`Hello ${P.name},`)}${p("Thank you for connecting with KRAVIA. We believe meaningful work begins with clear ideas, thoughtful decisions, and people who care about doing things well.")}${p("Whether you are exploring what we build or planning what comes next, we look forward to staying connected.")}<p style="font:italic 17px/28px Georgia,'Times New Roman',serif;color:#234F76;margin:20px 0 18px">With warm wishes,<br/>KRAVIA</p>`,
+      `“You belong here — wherever you are building what matters.”\n\nHello ${P.name},\n\nThank you for connecting with KRAVIA. We believe meaningful work begins with clear ideas, thoughtful decisions, and people who care about doing things well.\n\nWhether you are exploring what we build or planning what comes next, we look forward to staying connected.\n\nWith warm wishes,\nKRAVIA`),
+  };
 }
-
-function SignInCodeEmail() {
-  return (
-    <KraviaShell
-      preview="Your KRAVIA Office verification code"
-      label="KRAVIA OFFICE"
-      title="Confirm your sign-in"
-    >
-      <Text className="kravia-email-paragraph" style={styles.paragraph}>Use this one-time code to finish signing in to KRAVIA Office.</Text>
-      <Section style={styles.codePanel}>
-        <Text style={styles.codeLabel}>ONE-TIME SIGN-IN CODE</Text>
-        <Text aria-label="Your verification code" style={styles.code}>{PLACEHOLDERS.code}</Text>
-      </Section>
-      <Text className="kravia-email-paragraph" style={styles.paragraph}>
-        This code expires in {PLACEHOLDERS.expiryMinutes} minutes and works only once. Do not share it with anyone, including KRAVIA staff.
-      </Text>
-      <Text className="kravia-email-muted" style={styles.muted}>Didn’t try to sign in? You can safely ignore this email.</Text>
-    </KraviaShell>
-  );
-}
-
-function DeviceApprovalEmail() {
-  return (
-    <KraviaShell
-      preview="Review a new KRAVIA Office device sign-in"
-      label="KRAVIA OFFICE SECURITY"
-      title="Review a new device"
-    >
-      <Text className="kravia-email-paragraph" style={styles.paragraph}>
-        A new KRAVIA sign-in device completed your password and registered-email checks. It cannot access your account until you review the request and explicitly choose whether to trust it.
-      </Text>
-      <Section style={styles.referenceBox}>
-        <Text style={styles.referenceLabel}>DEVICE</Text>
-        <Text style={styles.referenceValue}>{PLACEHOLDERS.deviceLabel}</Text>
-        <Text style={styles.referenceLabel}>ADDRESS OBSERVED BY KRAVIA</Text>
-        <Text style={styles.referenceValue}>{PLACEHOLDERS.sourceAddress}</Text>
-      </Section>
-      <Text className="kravia-email-paragraph" style={styles.paragraph}>
-        Open the secure review page to see the request and choose Trust or Cancel and block sign-in. Trust only if this was you. Trusting this request locks your KRAVIA account to the original device and securely signs out any previously trusted device. Opening this link never signs in the browser or phone that opens it.
-      </Text>
-      <Section style={styles.buttonRow}>
-        <Link href={PLACEHOLDERS.reviewUrl} style={styles.primaryButton}>Review this sign-in</Link>
-      </Section>
-      <Text className="kravia-email-muted" style={styles.muted}>
-        New to KRAVIA Authenticator? Install only the company-provided app, open it, enter your registered corporate email and password, type the one-time code sent to this mailbox, then return here to trust the exact device. If you did not start this sign-in, choose ignore. The request is immediately blocked and the device is signed out.
-      </Text>
-    </KraviaShell>
-  );
-}
-
-function PublicRequestReceivedEmail() {
-  return (
-    <KraviaShell
-      preview="KRAVIA has received your request"
-      label="KRAVIA REQUESTS"
-      title="Your request is with our team."
-    >
-      <Text style={styles.paragraph}>Hello {PLACEHOLDERS.name},</Text>
-      <Text style={styles.paragraph}>
-        We received your {PLACEHOLDERS.requestKind}. {PLACEHOLDERS.nextStep}
-      </Text>
-      <Section style={styles.referenceBox}>
-        <Text style={styles.referenceLabel}>REFERENCE</Text>
-        <Text style={styles.referenceValue}>{PLACEHOLDERS.reference}</Text>
-      </Section>
-    </KraviaShell>
-  );
-}
-
-function PublicRequestUpdateEmail() {
-  return (
-    <KraviaShell
-      preview="An update from KRAVIA"
-      label="KRAVIA REQUESTS"
-      title="An update from our team."
-    >
-      <Text style={styles.paragraph}>Hello {PLACEHOLDERS.name},</Text>
-      <Section style={styles.referenceBox}>
-        <Text style={styles.referenceLabel}>REFERENCE</Text>
-        <Text style={styles.referenceValue}>{PLACEHOLDERS.reference}</Text>
-      </Section>
-      <Text style={styles.message}>{PLACEHOLDERS.message}</Text>
-    </KraviaShell>
-  );
-}
-
-function PublicIntakeInternalNotificationEmail() {
-  return (
-    <KraviaShell
-      preview="A new KRAVIA public request needs review"
-      label="KRAVIA INTAKE"
-      title="A new public request needs review."
-    >
-      <Text style={styles.paragraph}>
-        A requester has submitted a {PLACEHOLDERS.requestKind} through the KRAVIA website.
-      </Text>
-      <Section style={styles.referenceBox}>
-        <Text style={styles.referenceLabel}>REFERENCE</Text>
-        <Text style={styles.referenceValue}>{PLACEHOLDERS.reference}</Text>
-      </Section>
-      <Section style={styles.intakeDetails}>
-        <Text style={styles.intakeLabel}>FROM</Text>
-        <Text style={styles.intakeValue}>{PLACEHOLDERS.name}</Text>
-        <Text style={styles.intakeEmail}>{PLACEHOLDERS.senderEmail}</Text>
-        <Text style={styles.intakeLabel}>SUBJECT</Text>
-        <Text style={styles.intakeValue}>{PLACEHOLDERS.requestSubject}</Text>
-        <Text style={styles.intakeLabel}>ORGANISATION</Text>
-        <Text style={styles.intakeValue}>{PLACEHOLDERS.organisation}</Text>
-      </Section>
-      <Text style={styles.muted}>
-        Reply to this email to contact the requester directly. The full request remains in the appropriate KRAVIA Office intake queue.
-      </Text>
-    </KraviaShell>
-  );
-}
-
-function WelcomeEmail() {
-  return (
-    <KraviaShell
-      preview="A warm welcome from KRAVIA"
-      label="KRAVIA CONNECTIONS"
-      title="Welcome to KRAVIA"
-    >
-      <Text style={styles.welcomeQuote}>“You belong here — wherever you are building what matters.”</Text>
-      <Text style={styles.paragraph}>Hello {PLACEHOLDERS.name},</Text>
-      <Text style={styles.paragraph}>
-        This is more than a message in your inbox. It is a warm welcome and the beginning of a connection built on curiosity, trust, and meaningful progress.
-      </Text>
-      <Text style={styles.paragraph}>
-        At KRAVIA, we make room for people who care about what they are building. When you are ready, our team is here to listen, guide, and help you find the next right step.
-      </Text>
-      <Text style={styles.paragraph}>
-        We wish you clarity in every decision, confidence in every new beginning, and opportunities that feel worth pursuing. We are genuinely glad you are here.
-      </Text>
-      <Text style={styles.welcomeClosing}>With warm wishes,<br />KRAVIA</Text>
-    </KraviaShell>
-  );
-}
-
-const templates: Record<KraviaEmailTemplateName, () => ReactNode> = {
-  office_sign_in_code: SignInCodeEmail,
-  office_device_approval: DeviceApprovalEmail,
-  public_request_received: PublicRequestReceivedEmail,
-  public_request_update: PublicRequestUpdateEmail,
-  public_intake_internal_notification: PublicIntakeInternalNotificationEmail,
-  public_welcome: WelcomeEmail,
-};
 
 export async function renderTemplateManifest(): Promise<Record<KraviaEmailTemplateName, RenderedTemplate>> {
-  const rendered = await Promise.all(
-    (Object.entries(templates) as Array<[KraviaEmailTemplateName, () => ReactNode]>).map(async ([name, Template]) => [
-      name,
-      {
-        html: await render(<Template />),
-        text: await render(<Template />, { plainText: true }),
-      },
-    ] as const),
-  );
-  return Object.fromEntries(rendered) as Record<KraviaEmailTemplateName, RenderedTemplate>;
+  return { ...makeManifest(), ...publicAccessTemplates };
 }
-
-const styles = {
-  body: { margin: "0", backgroundColor: palette.pale, color: palette.ink, fontFamily: "Arial, 'Segoe UI', sans-serif" },
-  container: { width: "100%", maxWidth: "640px", margin: "0 auto", padding: "40px 18px" },
-  card: { backgroundColor: palette.white, border: `1px solid ${palette.border}` },
-  topRule: { margin: "0", height: "5px", backgroundColor: palette.sapphire, fontSize: "5px", lineHeight: "5px" },
-  masthead: { padding: "24px 32px 22px", backgroundColor: palette.sapphire },
-  lockup: { display: "block", height: "52px", width: "156px", maxWidth: "100%", filter: "brightness(0) invert(1)", WebkitFilter: "brightness(0) invert(1)" },
-  label: { margin: "22px 0 0", color: "#D9E8F7", fontSize: "10px", fontWeight: "700", letterSpacing: "1.7px", lineHeight: "15px" },
-  titleBlock: { padding: "24px 32px 25px", backgroundColor: palette.white, borderTop: `1px solid ${palette.border}`, borderBottom: `1px solid ${palette.border}` },
-  heading: { margin: "0", color: palette.ink, fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "30px", fontWeight: "400", letterSpacing: "-0.45px", lineHeight: "38px" },
-  content: { padding: "30px 32px 8px" },
-  paragraph: { margin: "0 0 20px", color: palette.ink, fontSize: "16px", lineHeight: "26px" },
-  welcomeQuote: { margin: "0 0 24px", color: palette.sapphire, fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "20px", fontStyle: "italic", lineHeight: "30px" },
-  welcomeClosing: { margin: "4px 0 20px", color: palette.sapphire, fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "17px", lineHeight: "26px" },
-  codePanel: { margin: "4px 0 26px", padding: "19px 20px 21px", backgroundColor: palette.sapphire, border: "1px solid #102A43", textAlign: "center" as const },
-  codeLabel: { margin: "0 0 9px", color: "#D9E8F7", fontSize: "10px", fontWeight: "700", letterSpacing: "1.8px", lineHeight: "15px" },
-  code: { margin: "0", color: palette.white, fontSize: "32px", fontWeight: "700", letterSpacing: "9px", lineHeight: "40px", textAlign: "center" as const },
-  buttonRow: { margin: "0 0 14px", textAlign: "center" as const },
-  primaryButton: { display: "block", padding: "15px 18px", backgroundColor: palette.sapphire, color: palette.white, fontSize: "15px", fontWeight: "700", lineHeight: "20px", textAlign: "center" as const, textDecoration: "none" },
-  secondaryButton: { display: "block", padding: "14px 18px", backgroundColor: palette.white, border: `1px solid ${palette.sapphire}`, color: palette.sapphire, fontSize: "15px", fontWeight: "700", lineHeight: "20px", textAlign: "center" as const, textDecoration: "none" },
-  muted: { margin: "0 0 24px", color: palette.steel, fontSize: "13px", lineHeight: "21px" },
-  referenceBox: { margin: "4px 0 26px", padding: "18px 20px", backgroundColor: palette.mist, border: `1px solid ${palette.border}`, borderLeft: `4px solid ${palette.sapphire}` },
-  referenceLabel: { margin: "0 0 6px", color: palette.steel, fontSize: "10px", fontWeight: "700", letterSpacing: "1.6px", lineHeight: "15px" },
-  referenceValue: { margin: "0", color: palette.sapphire, fontSize: "16px", fontWeight: "700", letterSpacing: "0.55px", lineHeight: "25px" },
-  intakeDetails: { margin: "4px 0 26px", padding: "20px", backgroundColor: palette.white, border: `1px solid ${palette.border}` },
-  intakeLabel: { margin: "0 0 4px", color: palette.steel, fontSize: "10px", fontWeight: "700", letterSpacing: "1.5px", lineHeight: "15px" },
-  intakeValue: { margin: "0 0 12px", color: palette.ink, fontSize: "15px", lineHeight: "23px" },
-  intakeEmail: { margin: "0 0 18px", color: palette.sapphire, fontSize: "15px", fontWeight: "700", lineHeight: "23px" },
-  message: { margin: "0 0 26px", color: palette.ink, fontSize: "16px", lineHeight: "26px", whiteSpace: "pre-line" as const },
-  footer: { padding: "24px 32px 28px", backgroundColor: palette.sapphire, borderTop: "1px solid #102A43" },
-  footerEyebrow: { margin: "0 0 8px", color: "#D9E8F7", fontSize: "10px", fontWeight: "700", letterSpacing: "1.5px", lineHeight: "15px" },
-  footerCopy: { margin: "0 0 16px", color: palette.white, fontSize: "12px", lineHeight: "19px" },
-  footerLinks: { margin: "0 0 14px", color: "#D9E8F7", fontSize: "12px", lineHeight: "19px" },
-  link: { color: palette.white, textDecoration: "underline" },
-  copyright: { margin: "0", color: "#D9E8F7", fontSize: "11px", lineHeight: "16px" },
-};

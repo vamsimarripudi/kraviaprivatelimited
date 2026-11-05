@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const localSiteUrl = "http://localhost:3000";
-export const canonicalProductionSiteUrl = "https://kraviaprivatelimited.com";
+export const canonicalProductionSiteUrl = "https://www.kraviaprivatelimited.com";
 
 /**
  * Produces a valid server-rendering base URL without accepting a production
@@ -10,21 +10,15 @@ export const canonicalProductionSiteUrl = "https://kraviaprivatelimited.com";
 type PublicRuntimeEnvironment = { VERCEL_ENV?: string; VERCEL_URL?: string };
 
 export function resolvePublicSiteUrl(value = process.env.NEXT_PUBLIC_SITE_URL, runtime: PublicRuntimeEnvironment = { VERCEL_ENV: process.env.VERCEL_ENV, VERCEL_URL: process.env.VERCEL_URL }): string {
-  if (runtime.VERCEL_ENV === "preview" && runtime.VERCEL_URL) return `https://${runtime.VERCEL_URL}`;
-
+  // The production domain matches the existing apex-to-www redirect.
+  if (runtime.VERCEL_ENV === "production") return canonicalProductionSiteUrl;
+  if (runtime.VERCEL_ENV === "preview") return runtime.VERCEL_URL ? `https://${runtime.VERCEL_URL}` : localSiteUrl;
   const candidate = value?.trim();
-  if (!candidate) return runtime.VERCEL_ENV === "production" ? canonicalProductionSiteUrl : localSiteUrl;
-
+  if (!candidate) return localSiteUrl;
   try {
     const url = new URL(candidate);
-    if (url.protocol !== "http:" && url.protocol !== "https:") return localSiteUrl;
-    // Vercel production must never publish a localhost canonical because a
-    // local value was accidentally promoted with the environment settings.
-    if (runtime.VERCEL_ENV === "production" && /^(localhost|127\.0\.0\.1)$/i.test(url.hostname)) return canonicalProductionSiteUrl;
-    return url.origin;
-  } catch {
-    return runtime.VERCEL_ENV === "production" ? canonicalProductionSiteUrl : localSiteUrl;
-  }
+    return url.protocol === "http:" || url.protocol === "https:" ? url.origin : localSiteUrl;
+  } catch { return localSiteUrl; }
 }
 
 const publicEnvironmentSchema = z.object({

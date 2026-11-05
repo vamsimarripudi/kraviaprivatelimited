@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 import pytest
 
 from backend import email_delivery
@@ -291,3 +294,80 @@ def test_sender_must_remain_the_verified_kravia_address(monkeypatch):
             expiry_minutes=10,
             delivery_id="email-otp:challenge-1:1",
         )
+
+
+def test_all_corporate_transactional_email_footers_have_verified_social_links():
+    manifest_path = Path(__file__).resolve().parents[1] / "generated_email_templates.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    expected_profiles = {
+        "LinkedIn": "https://linkedin.com/company/kravia-private-limited",
+        "X": "https://x.com/KraviaOfficial",
+        "Instagram": "https://www.instagram.com/kravia_private_limited/",
+        "Facebook": "https://www.facebook.com/profile.php?id=61595906774125",
+    }
+    assert len(manifest["templates"]) == 16
+    for name, template in manifest["templates"].items():
+        assert "CONNECT WITH KRAVIA" in template["html"], name
+        assert "ACCOUNT SAFETY" in template["html"], name
+        assert "Legal notices and terms" in template["html"], name
+        for label, url in expected_profiles.items():
+            assert f'href="{url}"' in template["html"], (name, label)
+            assert f"{label} {url}" in template["text"], (name, label)
+
+def test_all_six_distinct_email_layouts_link_the_official_social_icons():
+    from backend.email_templates import _manifest
+
+    templates = _manifest()
+    expected = {
+        "LinkedIn": ("linkedin-v2.png", "https://linkedin.com/company/kravia-private-limited"),
+        "X": ("x.png", "https://x.com/KraviaOfficial"),
+        "Instagram": ("instagram-v2.png", "https://www.instagram.com/kravia_private_limited/"),
+        "Facebook": ("facebook.png", "https://www.facebook.com/profile.php?id=61595906774125"),
+    }
+    assert len(templates) == 16
+    for name, template in templates.items():
+        html = template["html"]
+        plain = template["text"]
+        assert "ACCOUNT SAFETY" in html and "Legal notices and terms" in html, name
+        assert "/brand/kravia-header-lockup-v2.png" in html, name
+        assert "CONNECT WITH KRAVIA" in html and "CONNECT WITH KRAVIA" in plain, name
+        for label, (asset, url) in expected.items():
+            assert f"/brand/email/{asset}" in html, (name, label)
+            assert 'width="36" height="36"' in html, name
+            assert '.gif' not in html, name
+            assert f'href="{url}"' in html, (name, label)
+            assert f"{label} {url}" in plain, (name, label)
+
+    assert len({template["html"] for template in templates.values()}) == 16
+    assert "ONE-TIME SIGN-IN CODE" in templates["office_sign_in_code"]["html"]
+    assert "UNRECOGNIZED DEVICE CHECK" in templates["office_device_approval"]["html"]
+    assert "RECEIVED · CONFIRMED" in templates["public_request_received"]["html"]
+    assert "LATEST MESSAGE" in templates["public_request_update"]["html"]
+    assert "ACTION · REVIEW IN OFFICE" in templates["public_intake_internal_notification"]["html"]
+    assert "A NOTE FROM KRAVIA" in templates["public_welcome"]["html"]
+
+
+def test_public_access_mail_catalog_is_safe_and_separately_branded():
+    from backend.email_templates import public_access_mail_template, PUBLIC_ACCESS_MAIL_TYPES
+
+    assert len(PUBLIC_ACCESS_MAIL_TYPES) == 10
+    verification = public_access_mail_template(kind="ACCOUNT_CODE", recipient_name="Sample User", code="482915")
+    assert "482915" in verification.html_content
+    assert "KRAVIA Office" not in verification.html_content
+    assert "NEWSLETTER" not in verification.html_content
+    assert "linkedin-v2.png" in verification.html_content
+    assert "instagram-v2.png" in verification.html_content
+    with pytest.raises(ValueError):
+        public_access_mail_template(kind="ACCOUNT_CODE", recipient_name="Sample User", code="invalid")
+    with pytest.raises(ValueError):
+        public_access_mail_template(
+            kind="NEWSLETTER_CONFIRM", recipient_name="Sample User",
+            action_url="https://example.org/confirm?token=abc"
+        )
+    digest = public_access_mail_template(
+        kind="NEWSLETTER_DIGEST", recipient_name="Sample User",
+        issue_subject="Approved company update", message="<unsafe>",
+        unsubscribe_url="https://www.kraviaprivatelimited.com/newsletter/unsubscribe?token=" + "a"*43
+    )
+    assert "&lt;unsafe&gt;" in digest.html_content
+    assert "Unsubscribe" in digest.html_content

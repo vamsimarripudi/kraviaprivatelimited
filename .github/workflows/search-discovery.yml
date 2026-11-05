@@ -1,0 +1,54 @@
+name: Search discovery quality
+on:
+  push:
+    branches: [main]
+    paths: ['Frontend/**', '.github/workflows/search-discovery.yml']
+  pull_request:
+    paths: ['Frontend/**', '.github/workflows/search-discovery.yml']
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Test a local production build or the public production website'
+        type: choice
+        options: [local, production]
+        default: local
+permissions:
+  contents: read
+jobs:
+  rendered-discovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: Frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+      - if: inputs.target != 'production'
+        run: npm ci --no-fund --no-audit
+      - if: inputs.target != 'production'
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+          VERCEL_ENV: production
+      - name: Test rendered local production build
+        if: inputs.target != 'production'
+        env:
+          VERCEL_ENV: production
+          NEXT_TELEMETRY_DISABLED: 1
+        run: |
+          npm run start -- --port 3100 > /tmp/kravia-search-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          node scripts/search-smoke.mjs
+      - name: Test approved public production domain
+        if: inputs.target == 'production'
+        run: node scripts/search-smoke.mjs
+        env:
+          SEARCH_SMOKE_BASE_URL: https://www.kraviaprivatelimited.com
