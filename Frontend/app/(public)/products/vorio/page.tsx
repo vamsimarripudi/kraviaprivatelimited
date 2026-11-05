@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: { absolute: vorioProduct.seo.title },
   description: vorioProduct.seo.description,
   alternates: { canonical: "/products/vorio" },
-  openGraph: { title: vorioProduct.seo.title, description: vorioProduct.seo.description, url: "/products/vorio", type: "website" },
+  openGraph: { siteName: "KRAVIA", title: vorioProduct.seo.title, description: vorioProduct.seo.description, url: "/products/vorio", type: "website" },
   twitter: { card: "summary_large_image", title: vorioProduct.seo.title, description: vorioProduct.seo.description },
 };
 
