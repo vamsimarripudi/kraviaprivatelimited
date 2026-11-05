@@ -49,6 +49,9 @@ def _mail_secret() -> str:
     secret = os.getenv("KRAVIA_PUBLIC_INTAKE_WEBHOOK_SECRET", "").strip()
     if len(secret) < 32:
         raise HTTPException(503, "Signed public email delivery is not configured")
+    provider_key = os.getenv("BREVO_API_KEY", "").strip()
+    if provider_key and hmac.compare_digest(secret, provider_key):
+        raise HTTPException(503, "The public mail signing secret must be independent of the provider key")
     return secret
 
 
@@ -71,6 +74,10 @@ def _validate_signature(request: Request, body: bytes) -> str:
 def _fingerprint(secret: str, email: str) -> str:
     return hmac.new(secret.encode("utf8"), ("public-recipient:" + email).encode("utf8"),
         hashlib.sha256).hexdigest()
+
+
+def _content_fingerprint(secret: str, body: bytes) -> str:
+    return hmac.new(secret.encode("utf8"), b"public-access-event:" + body, hashlib.sha256).hexdigest()
 
 
 def build_public_access_email_router(get_db) -> APIRouter:
@@ -100,12 +107,15 @@ def build_public_access_email_router(get_db) -> APIRouter:
         except ValueError:
             raise HTTPException(400, "Invalid email fields") from None
         recipient_hash = _fingerprint(secret, email)
+        content_hash = _content_fingerprint(secret, body)
         current = db.execute(
-            text("select recipient_fingerprint,mail_kind,status from office_public_access_email_deliveries where event_id=:id"),
+            text("select recipient_fingerprint,content_fingerprint,mail_kind,status from office_public_access_email_deliveries where event_id=:id"),
             {"id": payload.event_id},
         ).mappings().first()
         if current is not None:
-            if current["recipient_fingerprint"] != recipient_hash or current["mail_kind"] != payload.kind:
+            if (current["recipient_fingerprint"] != recipient_hash or
+                current["mail_kind"] != payload.kind or
+                not hmac.compare_digest(current["content_fingerprint"] or "", content_hash)):
                 raise HTTPException(409, "Email event identifier already exists")
             if current["status"] == "DELIVERED":
                 return {"accepted": True, "duplicate": True}
@@ -114,9 +124,9 @@ def build_public_access_email_router(get_db) -> APIRouter:
         try:
             db.execute(text(
                 "insert into office_public_access_email_deliveries"
-                "(event_id,recipient_fingerprint,mail_kind,status)"
-                " values (:id,:fingerprint,:kind,'PENDING')"
-            ), {"id":payload.event_id, "fingerprint":recipient_hash, "kind":payload.kind})
+                "(event_id,recipient_fingerprint,content_fingerprint,mail_kind,status)"
+                " values (:id,:fingerprint,:content_hash,:kind,'PENDING')"
+            ), {"id":payload.event_id, "fingerprint":recipient_hash, "content_hash":content_hash, "kind":payload.kind})
             db.commit()
         except IntegrityError:
             db.rollback()

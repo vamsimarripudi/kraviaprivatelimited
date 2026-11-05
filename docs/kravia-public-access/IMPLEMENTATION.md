@@ -83,3 +83,29 @@ All share verified official KRAVIA header and icon assets (36px, self-hosted) an
 
 ## India privacy
 DPDP Rules, 2025 were notified with phased commencement. Design for plain-language notice, specified purpose, explicit consent and easy withdrawal. Legal review should confirm retention/age handling, grievance procedures and any cross-border policy before enabling international campaigns.
+
+
+## Implementation increment — November 5, 2026
+
+### Resource publishing and transactional email
+- `/office/resource-publishing` is restricted to authenticated Office OWNER with AAL2. Resources start in DRAFT; publishing and retiring require explicit owner actions.
+- `/api/office-public-resources/[slug]/preview` returns the **stored bytes**, not a rendered approximation, as a non-cacheable private download; it validates size and SHA-256 and requires Office OWNER/AAL2.
+- Public `/api/public-resources/[slug]/download` rechecks authenticated visitor identity, PUBLISHED status, byte count and SHA-256 before recording a download and delivering the file.
+- On first successful access to a resource, the trusted backend attempts one idempotent transactional DOWNLOAD_RECEIPT email. Repeated downloads do not create newsletter consent or additional receipts.
+- All public access mail uses verified KRAVIA branding and the self-hosted 36px social icons, with distinct layouts and plain-text alternatives. OTP, acknowledgements, newsletter confirmation and notices are separate purpose-bound templates.
+
+### Newsletter operations
+- `/office/newsletters` is the owner-only, AAL2-protected campaign console. Campaign DRAFT creation, explicit APPROVE, CANCEL, and SEND_BATCH are separate actions; the website never auto-creates or auto-sends a marketing campaign from registration or downloads.
+- Campaign recipients are snapshotted from ACTIVE subscriptions belonging to ACTIVE accounts when sending begins. The sender independently re-checks opt-in state immediately before every call to Brevo and suppresses anyone who has unsubscribed.
+- Batches contain up to ten recipients. A rolling 24-hour cap targets **no more than 80** confirmed campaign deliveries; this is an operational cap, not a substitute for sender-wide provider throttling or a transactional reservation limit.
+- A delivery transitions from PENDING to UNKNOWN before the external call, making crashes and timeouts **non-retryable without manual reconciliation**. Successful submissions become SUBMITTED; withdrawn subscribers become SUPPRESSED. Unknown does not mean delivered or definitely failed.
+- An HMAC-signed, stateless unsubscribe token tied to the account is valid across issues, so issuing another campaign does not invalidate unsubscribe links in older newsletters. GET shows a decision page; only an explicit same-origin POST withdraws consent.
+- Enabling deliveries additionally requires the server-side `KRAVIA_NEWSLETTER_SENDING_ENABLED=true` setting. This setting must remain off before transport round-trip tests, legal review, approved copy, verified domain identity and owner sign-off.
+- Signed mail handoff now binds idempotency ledger entries to an HMAC digest of the **exact payload**, not just recipient and email kind, preventing an event identifier from silently matching different content.
+
+### Environment and production acceptance
+- Neon project is `kravia-public-access`, ID `round-butterfly-88885202`, database `kravia_public_access`. Store only its **pooled** connection URL as the server-only `KRAVIA_PUBLIC_ACCESS_DATABASE_URL` on the Vercel KRAVIA project. Do not reuse the separate `KRAVIA_WEBSITE_CONSENT_DATABASE_URL`.
+- The signed Office mail relay needs the existing `KRAVIA_PUBLIC_INTAKE_WEBHOOK_SECRET` to match on Vercel and Railway, the existing private `OFFICE_API_ORIGIN`, and valid Brevo sender credentials on Railway. Never paste these into a chat or commit them.
+- Additive backend migration `8c46b2a09d17` adds the mail-event content fingerprint. The Office backend remains separate from the Neon public account database.
+- Public resources remain empty until an owner has reviewed and explicitly published real non-confidential materials. Public company policies, legal downloads, statutory records and privacy requests must not be gated.
+- Before enabling `KRAVIA_NEWSLETTER_SENDING_ENABLED`, complete actual provider-to-Gmail email verification, a synthetic account creation and download, consent confirmation and withdrawal, staff-only publishing checks, dark-mode/mobile mail inspection and live suppression verification.

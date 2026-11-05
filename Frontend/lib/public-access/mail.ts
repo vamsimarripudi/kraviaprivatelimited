@@ -3,7 +3,7 @@ import { createHmac } from "node:crypto";
 import { getOfficeRuntimeOrigin } from "@/lib/env/office";
 
 export type PublicMailKind = "ACCOUNT_CODE" | "ACCOUNT_WELCOME" | "NEWSLETTER_CONFIRM" |
-  "NEWSLETTER_WELCOME" | "NEWSLETTER_UNSUBSCRIBED" | "DOWNLOAD_RECEIPT" | "ACCOUNT_SECURITY";
+  "NEWSLETTER_WELCOME" | "NEWSLETTER_UNSUBSCRIBED" | "NEWSLETTER_DIGEST" | "DOWNLOAD_RECEIPT" | "ACCOUNT_SECURITY";
 export type PublicMailRequest = {
   kind: PublicMailKind;
   event_id: string;
@@ -12,6 +12,9 @@ export type PublicMailRequest = {
   code?: string;
   action_url?: string;
   resource_title?: string;
+  issue_subject?: string;
+  message?: string;
+  unsubscribe_url?: string;
 };
 export async function sendPublicMail(mail: PublicMailRequest): Promise<void> {
   const secret = process.env.KRAVIA_PUBLIC_INTAKE_WEBHOOK_SECRET?.trim();

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { CONSENT_VERSION, sameOrigin, tokenDigest } from "@/lib/public-access/auth";
 import { publicAccessSql } from "@/lib/public-access/db";
+import { verifyCampaignUnsubscribeToken } from "@/lib/public-access/campaign-tokens";
 import { sendPublicMail } from "@/lib/public-access/mail";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -27,10 +28,15 @@ export async function POST(request:Request) {
       recipient_email:String(a[0].email),recipient_name:String(a[0].display_name)}).catch(()=>undefined);
     return NextResponse.json({status:"ACTIVE"},{headers:{"Cache-Control":"no-store"}});
   }
-  const hash=tokenDigest("newsletter-unsubscribe",input.data.token);
-  const rows=await sql`update public_access.newsletters
-    set status='UNSUBSCRIBED',unsubscribed_at=now(),confirm_token_hash=null,confirm_expires_at=null
-    where unsubscribe_token_hash=${hash} and status<>'UNSUBSCRIBED' returning account_id`;
+  const campaignAccountId=verifyCampaignUnsubscribeToken(input.data.token);
+  const rows=campaignAccountId
+    ? await sql`update public_access.newsletters
+       set status='UNSUBSCRIBED',unsubscribed_at=now(),confirm_token_hash=null,confirm_expires_at=null
+       where account_id=${campaignAccountId}::uuid and status<>'UNSUBSCRIBED' returning account_id`
+    : await sql`update public_access.newsletters
+       set status='UNSUBSCRIBED',unsubscribed_at=now(),confirm_token_hash=null,confirm_expires_at=null
+       where unsubscribe_token_hash=${tokenDigest("newsletter-unsubscribe",input.data.token)}
+         and status<>'UNSUBSCRIBED' returning account_id`;
   if(!rows.length)return NextResponse.json({status:"UNSUBSCRIBED"},{headers:{"Cache-Control":"no-store"}});
   const id=String(rows[0].account_id);
   await sql`insert into public_access.newsletter_events(account_id,event,source,consent_version)

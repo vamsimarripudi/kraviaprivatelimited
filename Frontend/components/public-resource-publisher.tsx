@@ -71,6 +71,10 @@ export function PublicResourcePublisher({initial}:{initial:Resource[]}){
      <strong>{r.title}</strong><p>{r.summary}</p><span className={styles.tag}>{r.status} · {r.file_name} · {Math.ceil(r.byte_size/1024)} KB</span>
      <span className={styles.mini}>SHA-256 {r.checksum_sha256}</span>
      <div className={styles.actions}>
+      <a className={styles.button+" "+styles.ghost}
+        href={"/api/office-public-resources/"+encodeURIComponent(r.slug)+"/preview"}>
+        Review exact file
+      </a>
       {r.status==="DRAFT"?<button disabled={busy} type="button" className={styles.button} onClick={()=>void decide(r.slug,"PUBLISH")}>Approve and publish</button>:null}
       {r.status==="PUBLISHED"?<button disabled={busy} type="button" className={styles.button+" "+styles.ghost} onClick={()=>void decide(r.slug,"RETIRE")}>Retire resource</button>:null}
      </div>

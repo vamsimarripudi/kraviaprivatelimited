@@ -8,7 +8,7 @@ import pytest
 from fastapi import HTTPException
 from starlette.requests import Request
 
-from backend.public_access_email import _validate_signature, _fingerprint, PublicAccessMail
+from backend.public_access_email import _validate_signature, _fingerprint, _content_fingerprint, PublicAccessMail
 from backend.email_templates import public_access_mail_template
 
 
@@ -33,6 +33,7 @@ def test_valid_signed_email_uses_separate_domain(configured_secret):
     request=make_request(body,{"x-kravia-public-timestamp":timestamp,"x-kravia-public-signature":"v1="+signature})
     assert _validate_signature(request,body)==configured_secret
     assert _fingerprint(configured_secret,"sample@example.com")!=_fingerprint(configured_secret,"other@example.com")
+    assert _content_fingerprint(configured_secret,body)!=_content_fingerprint(configured_secret,body+b"changed")
     with pytest.raises(HTTPException) as error:
         _validate_signature(request,body+b"!")
     assert error.value.status_code==403

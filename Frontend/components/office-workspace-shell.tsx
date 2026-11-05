@@ -210,6 +210,7 @@ export function OfficeWorkspaceShell({
                 <div className="workspace-nav-group">
                   <p>PUBLIC SITE</p>
                   <OfficeNavLink href="/office/resource-publishing"><Files aria-hidden="true"/><span>Resource publishing</span></OfficeNavLink>
+                  <OfficeNavLink href="/office/newsletters"><Files aria-hidden="true"/><span>Newsletter approvals</span></OfficeNavLink>
                 </div>
               ) : null}
           </nav>
