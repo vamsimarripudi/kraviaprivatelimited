@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { SocialLinks } from "@/components/social-links";
-import { ArrowUpRight, BadgeCheck, ExternalLink, MapPin } from "lucide-react";
+import styles from "./footer.module.css";
+import { publicSocialProfiles } from "@/lib/public-links";
+import { BadgeCheck, ChevronDown, ExternalLink } from "lucide-react";
+import { SocialLinks } from "./social-links";
 import { BrandLogo } from "@/components/brand-logo";
 import { getPublicCompanyProfile } from "@/lib/corporate/public-facts";
 import { getPublicCorporateRegistrations } from "@/lib/corporate/public-registrations";
@@ -13,7 +15,6 @@ const footerColumns = [
       ["Leadership & Team", "/company/leadership"],
       ["Principles", "/company/principles"],
       ["Corporate information", "/company/corporate-information"],
-      ["Company FAQ", "/company/faq"],
       ["Careers", "/careers"],
       ["Contact", "/contact"],
     ],
@@ -45,8 +46,6 @@ const footerColumns = [
     title: "Resources",
     links: [
       ["Newsroom", "/newsroom"],
-      ["Resource library", "/resources"],
-      ["Visitor account", "/account"],
       ["Legal", "/legal"],
       ["Accessibility", "/trust/accessibility"],
       ["Security reporting", "/trust/security-reporting"],
@@ -65,50 +64,60 @@ const legalLinks = [
 export async function Footer() {
   const [profile, recognitions] = await Promise.all([getPublicCompanyProfile(), getPublicCorporateRegistrations()]);
   return (
-    <footer className="footer corporate-footer">
-      <div className="shell footer-brand-row">
-        <div className="footer-brand-block">
-          <BrandLogo inverse animated />
-          <p className="eyebrow footer-eyebrow">KRAVIA PRIVATE LIMITED</p>
-          <h2>Built for the work<br /><em>that comes next.</em></h2>
-        </div>
-        <div className="footer-social-block"><p className="footer-intro">A corporate home for Kravia’s products, technology, trust and public information—designed to grow without losing clarity.</p><SocialLinks inverse /></div>
-      </div>
-
-
-      <div className="shell footer-directory">
-        {footerColumns.map((column) => (
-          <nav key={column.title} aria-label={column.title}>
-            <p>{column.title}</p>
-            {column.links.map(([label, href]) => <Link key={label} href={href}>{label}<ArrowUpRight aria-hidden="true" /></Link>)}
-          </nav>
-        ))}
-      </div>
-
-      <div className="shell footer-corporate-directory">
-        <section className="footer-corporate-identity" aria-labelledby="footer-corporate-identity-title">
-          <div>
-            <p className="eyebrow">CORPORATE IDENTITY</p>
-            <h2 id="footer-corporate-identity-title">KRAVIA PRIVATE LIMITED</h2>
-            <p>Approved statutory details for corporate and regulatory reference. Personal information and certificate files are not published here.</p>
+    <footer className={styles.root} data-nav-theme="dark">
+      <div className={styles.container}>
+        <div className={styles.top}>
+          <div className={styles.brand}>
+            <BrandLogo inverse />
+            <p>Software products, intelligent systems and digital infrastructure.</p>
+            <SocialLinks profiles={publicSocialProfiles} />
           </div>
-          <dl>
+          <div className={styles.directory}>
+            {footerColumns.map((column) => (
+              <nav key={column.title} aria-label={column.title}>
+                <p className={styles.label}>{column.title}</p>
+                {column.links.map(([label, href]) => <Link key={label} href={href}>{label}</Link>)}
+              </nav>
+            ))}
+          </div>
+          <div className={styles.mobileDirectory}>
+            {footerColumns.map((column) => (
+              <details key={column.title}>
+                <summary>{column.title}<ChevronDown aria-hidden="true" /></summary>
+                <nav aria-label={column.title}>
+                  {column.links.map(([label, href]) => <Link key={label} href={href}>{label}</Link>)}
+                </nav>
+              </details>
+            ))}
+          </div>
+        </div>
+
+        <section className={styles.identity} aria-label="Corporate identity">
+          <dl className={styles.facts}>
             <div><dt>CIN</dt><dd>{profile.cin}</dd></div>
             <div><dt>GSTIN</dt><dd>{profile.gst.gstin}</dd></div>
-            <div className="footer-address"><dt><MapPin aria-hidden="true" /> Registered office</dt><dd>{profile.registeredOffice}</dd></div>
+            <div className={styles.address}><dt>Registered office</dt><dd>{profile.registeredOffice}</dd></div>
+            <div className={styles.contact}><dt>Corporate contact</dt><dd>{profile.corporateEmail ? <a href={`mailto:${profile.corporateEmail}`}>{profile.corporateEmail}</a> : <Link href="/contact">Contact KRAVIA</Link>}</dd></div>
           </dl>
-          <address className="footer-corporate-contact"><span>Corporate contact</span><a href={`mailto:${profile.corporateEmail}`}>{profile.corporateEmail}</a></address>
         </section>
-        <section className="footer-recognitions" aria-labelledby="footer-recognitions-title">
-          <div className="footer-recognitions-intro"><BadgeCheck aria-hidden="true" /><div><p className="eyebrow">REGISTRATIONS & RECOGNITIONS</p><h2 id="footer-recognitions-title">Company credentials.</h2></div></div>
-          <div className="footer-recognition-grid">{recognitions.map((recognition) => <article key={recognition.reference}><BadgeCheck className="footer-recognition-mark" aria-hidden="true" /><div><p>{recognition.authority}</p><h3>{recognition.title}</h3><code>{recognition.reference}</code></div><a href={recognition.href} target="_blank" rel="noopener noreferrer" aria-label={`Verify ${recognition.authority} registration`}>Verify <ExternalLink aria-hidden="true" /></a></article>)}</div>
-          <p className="footer-recognition-note">Recognition and registration identify the company only. They do not endorse KRAVIA products or services.</p>
-        </section>
-      </div>
 
-      <div className="shell footer-bottom">
-        <p>© {new Date().getFullYear()} KRAVIA PRIVATE LIMITED. All rights reserved.</p>
-        <div><span>India</span>{legalLinks.map(([label, href]) => <Link key={href} href={href}>{label}</Link>)}</div>
+        <section className={styles.recognitions} aria-label="Registrations and recognitions">
+          <div className={styles.credentials}>
+            {recognitions.map((recognition) => (
+              <a key={recognition.reference} href={recognition.href} target="_blank" rel="noopener noreferrer" aria-label={`Verify ${recognition.title}, ${recognition.reference} (opens in a new tab)`}>
+                <BadgeCheck className={styles.badge} aria-hidden="true" />
+                <span><strong>{recognition.authority}</strong><span>{recognition.title}</span><code>{recognition.reference}</code></span>
+                <ExternalLink className={styles.external} aria-hidden="true" />
+              </a>
+            ))}
+          </div>
+          <p className={styles.note}>Recognition and registration identify the company only. They do not endorse KRAVIA products or services.</p>
+        </section>
+
+        <div className={styles.bottom}>
+          <p>© {new Date().getFullYear()} {profile.legalName}. All rights reserved.</p>
+          <div className={styles.legal}><span>{profile.country || "India"}</span>{legalLinks.map(([label, href]) => <Link key={href} href={href}>{label}</Link>)}</div>
+        </div>
       </div>
     </footer>
   );

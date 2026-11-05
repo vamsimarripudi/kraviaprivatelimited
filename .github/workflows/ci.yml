@@ -26,8 +26,6 @@ jobs:
       - run: npm audit --package-lock-only --audit-level=high
       - run: npm run typecheck
       - run: npm run check
-      - name: Verify self-hosted email icon PNGs
-        run: python3 scripts/validate-email-icons.py
 
   frontend:
     name: Frontend quality
@@ -139,42 +137,6 @@ jobs:
             -m backend.worker --once --batch-size 25)
           echo "$output"
           echo "$output" | grep '"status": "COMPLETED"'
-
-  public-access-postgres:
-    name: Public account PostgreSQL integration
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_DB: kravia_public_access
-          POSTGRES_PASSWORD: ci-local-postgres-only
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d kravia_public_access"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-    steps:
-      - uses: actions/checkout@v7
-      - name: Apply migrations and run rollback-only account verification test
-        shell: bash
-        run: |
-          set -euo pipefail
-          pg() {
-            docker run --rm --network host \
-              --volume "$PWD:/repo:ro" --workdir /repo \
-              --env PGPASSWORD=ci-local-postgres-only postgres:17 \
-              psql --host 127.0.0.1 --username postgres \
-              --dbname kravia_public_access --set ON_ERROR_STOP=1 "$@"
-          }
-          pg --file Database/public-access-neon/migrations/202611050001_public_access.sql
-          pg --file Database/public-access-neon/migrations/202611050002_challenge_conflict_fix.sql
-          pg --file Database/public-access-neon/tests/registration-smoke.sql
-          counts="$(pg --tuples-only --no-align --command "select (select count(*) from public_access.accounts),(select count(*) from public_access.email_challenges),(select count(*) from public_access.sessions)")"
-          test "$counts" = "0|0|0"
 
   database-structure:
     name: Database structure

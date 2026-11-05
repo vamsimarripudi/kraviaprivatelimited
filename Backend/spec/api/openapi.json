@@ -17243,25 +17243,6 @@
         "summary": "Create Product"
       }
     },
-    "/api/v1/public-access/email": {
-      "post": {
-        "operationId": "deliver_public_email_api_v1_public_access_email_post",
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Deliver Public Email",
-        "tags": [
-          "public-access-email"
-        ]
-      }
-    },
     "/api/v1/public-intake/email-acknowledgements": {
       "post": {
         "operationId": "send_public_form_receipt_api_v1_public_intake_email_acknowledgements_post",

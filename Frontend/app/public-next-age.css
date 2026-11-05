@@ -1,0 +1,129 @@
+/* KRAVIA public visual system: shared public routes only. */
+:root {
+  --public-font: "Inter", "Segoe UI", Arial, sans-serif;
+  --public-ink: #08152f;
+  --public-night: #061226;
+  --public-night-raised: #0b1d3a;
+  --public-cyan: #98e9ff;
+  --public-violet: #bda7ff;
+  --public-line: color-mix(in srgb, var(--public-ink) 14%, transparent);
+  --public-glow: 0 18px 56px rgba(61, 178, 255, .14);
+}
+
+body:has(.nav-wrap) {
+  --font-sans: var(--public-font);
+  --font-serif: var(--public-font);
+  --font-mono: var(--public-font);
+  --sans: var(--public-font);
+  --serif: var(--public-font);
+  --mono: var(--public-font);
+  --paper: #f6f9ff;
+  --mist: #e9f0fb;
+  --ink: var(--public-ink);
+  --ink-2: #142b50;
+  --green: #0d4c78;
+  --gold: #8a63ff;
+  --line: var(--public-line);
+  position: relative;
+  isolation: isolate;
+  background: radial-gradient(circle at 12% 16%, rgba(157,235,255,.16), transparent 28rem), radial-gradient(circle at 86% 42%, rgba(190,168,255,.12), transparent 32rem), var(--paper);
+}
+
+body:has(.nav-wrap)::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background-image: linear-gradient(rgba(22,67,112,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(22,67,112,.04) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: linear-gradient(to bottom, black, transparent 78%);
+}
+
+body:has(.nav-wrap) a,
+body:has(.nav-wrap) button,
+body:has(.nav-wrap) input,
+body:has(.nav-wrap) textarea,
+body:has(.nav-wrap) select,
+body:has(.nav-wrap) h1,
+body:has(.nav-wrap) h2,
+body:has(.nav-wrap) h3,
+body:has(.nav-wrap) h4 { font-family: var(--public-font); }
+
+.public-radiant,
+body:has(.nav-wrap) #home-title,
+body:has(.nav-wrap) .signature-prefooter h2 {
+  color: transparent;
+  background: linear-gradient(105deg, #f3f8ff 8%, var(--public-cyan) 42%, var(--public-violet) 82%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.public-radiant-soft { color: transparent; background: linear-gradient(100deg, #0d4c78 8%, #7961d8 64%, #108b9e 100%); -webkit-background-clip: text; background-clip: text; }
+body:has(.nav-wrap) .shell { width: min(1320px, calc(100vw - 72px)); }
+
+body:has(.nav-wrap) .nav-wrap { padding-block: 14px; background: transparent; border-bottom: 1px solid color-mix(in srgb, var(--public-ink) 11%, transparent); backdrop-filter: none; -webkit-backdrop-filter: none; }
+body:has(.nav-wrap) .nav-wrap .island { min-height: 46px; border-color: color-mix(in srgb, currentColor 18%, transparent); background: color-mix(in srgb, var(--paper) 40%, transparent); box-shadow: 0 8px 28px rgba(14,44,84,.07); }
+body:has(.nav-wrap) .nav-wrap.onDark { --nav-border: rgba(198,229,255,.22); background: transparent; }
+body:has(.nav-wrap) .nav-wrap.onDark .island { background: color-mix(in srgb, var(--public-night-raised) 58%, transparent); box-shadow: 0 10px 34px rgba(0,0,0,.18); }
+body:has(.nav-wrap) .nav-wrap .island:hover, body:has(.nav-wrap) .nav-wrap .island:focus-within { border-color: color-mix(in srgb, var(--public-cyan) 58%, currentColor); box-shadow: var(--public-glow); }
+
+body:has(.nav-wrap) .hero, body:has(.nav-wrap) .technology-hero { min-height: min(820px, calc(100svh - 72px)); overflow: clip; border-bottom: 1px solid rgba(157,226,255,.14); }
+body:has(.nav-wrap) .hero::after, body:has(.nav-wrap) .technology-hero::after { opacity: .42; animation: public-orbit 18s ease-in-out infinite alternate; }
+body:has(.nav-wrap) .hero-title, body:has(.nav-wrap) .technology-hero__content { position: relative; z-index: 1; }
+body:has(.nav-wrap) .hero-title > p, body:has(.nav-wrap) .technology-hero__eyebrow { color: var(--public-cyan); letter-spacing: .18em; }
+body:has(.nav-wrap) .hero-foot, body:has(.nav-wrap) .technology-hero__actions { gap: 16px; }
+body:has(.nav-wrap) .button, body:has(.nav-wrap) .text-link { border-radius: 999px; }
+body:has(.nav-wrap) .button { min-height: 48px; padding-inline: 20px; box-shadow: 0 10px 24px rgba(20,64,112,.11); }
+body:has(.nav-wrap) .button:hover, body:has(.nav-wrap) .text-link:hover { transform: translateY(-3px); }
+
+body:has(.nav-wrap) .intro, body:has(.nav-wrap) .principles, body:has(.nav-wrap) .portfolio, body:has(.nav-wrap) .operating-band, body:has(.nav-wrap) .corporate-information, body:has(.nav-wrap) .method-section, body:has(.nav-wrap) .contact-experience, body:has(.nav-wrap) .trust-questions, body:has(.nav-wrap) .legal-trust-center, body:has(.nav-wrap) .detail-shell, body:has(.nav-wrap) .article-shell, body:has(.nav-wrap) .newsroom-shell, body:has(.nav-wrap) .support-portal { position: relative; }
+body:has(.nav-wrap) .intro::before, body:has(.nav-wrap) .principles::before, body:has(.nav-wrap) .portfolio::before, body:has(.nav-wrap) .detail-shell::before, body:has(.nav-wrap) .article-shell::before, body:has(.nav-wrap) .legal-trust-center::before { content: ""; position: absolute; top: 0; right: max(2rem, calc((100vw - 1320px) / 2)); width: 5rem; height: 1px; background: linear-gradient(90deg, transparent, rgba(121,97,216,.6)); }
+
+body:has(.nav-wrap) .content-row, body:has(.nav-wrap) .principle, body:has(.nav-wrap) .detail-section, body:has(.nav-wrap) .governance-grid > div, body:has(.nav-wrap) .trust-grid a, body:has(.nav-wrap) .group, body:has(.nav-wrap) .help a, body:has(.nav-wrap) .homepage-product-market-grid article, body:has(.nav-wrap) .ui-card { transition: transform 360ms var(--ease), border-color 360ms var(--ease), background-color 360ms var(--ease), box-shadow 360ms var(--ease); }
+body:has(.nav-wrap) .content-row:hover, body:has(.nav-wrap) .principle:hover, body:has(.nav-wrap) .detail-section:hover, body:has(.nav-wrap) .trust-grid a:hover, body:has(.nav-wrap) .homepage-product-market-grid article:hover, body:has(.nav-wrap) .ui-card:hover { transform: translateY(-4px); border-color: color-mix(in srgb, #8d6cff 38%, var(--line)); box-shadow: 0 18px 48px rgba(40,95,148,.1); }
+
+body:has(.nav-wrap) .page-hero, body:has(.nav-wrap) .article-header, body:has(.nav-wrap) .newsroom-feature, body:has(.nav-wrap) .support-portal-intro, body:has(.nav-wrap) .contact-router-heading { position: relative; isolation: isolate; }
+body:has(.nav-wrap) .page-hero::after, body:has(.nav-wrap) .article-header::after, body:has(.nav-wrap) .newsroom-feature::after, body:has(.nav-wrap) .support-portal-intro::after, body:has(.nav-wrap) .contact-router-heading::after { content: ""; position: absolute; inset: 18% 0 auto auto; z-index: -1; width: min(42vw, 30rem); height: 11rem; background: radial-gradient(ellipse, rgba(142,116,255,.16), transparent 68%); filter: blur(12px); pointer-events: none; }
+body:has(.nav-wrap) .page-hero h1, body:has(.nav-wrap) .legal-trust-center h1, body:has(.nav-wrap) .article-header h1, body:has(.nav-wrap) .newsroom-feature h2, body:has(.nav-wrap) .support-portal-intro h2, body:has(.nav-wrap) .contact-router-heading h2 { color: var(--public-ink); background: linear-gradient(105deg, var(--public-ink) 0%, #167ba5 50%, #7257d3 100%); -webkit-background-clip: text; background-clip: text; }
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  body:has(.nav-wrap) .page-hero h1, body:has(.nav-wrap) .legal-trust-center h1, body:has(.nav-wrap) .article-header h1, body:has(.nav-wrap) .newsroom-feature h2, body:has(.nav-wrap) .support-portal-intro h2, body:has(.nav-wrap) .contact-router-heading h2 { color: transparent; }
+}
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  body:has(.nav-wrap) .page-hero h1, body:has(.nav-wrap) .legal-trust-center h1, body:has(.nav-wrap) .article-header h1, body:has(.nav-wrap) .newsroom-feature h2, body:has(.nav-wrap) .support-portal-intro h2, body:has(.nav-wrap) .contact-router-heading h2 { background: none; color: var(--public-ink); }
+}
+body:has(.nav-wrap) .legal-trust-center, body:has(.nav-wrap) .detail-shell, body:has(.nav-wrap) .article-shell, body:has(.nav-wrap) .support-portal { max-width: 1320px; margin-inline: auto; padding-inline: 36px; }
+body:has(.nav-wrap) .legal-trust-center, body:has(.nav-wrap) .trust-overview-grid, body:has(.nav-wrap) .trust-questions, body:has(.nav-wrap) .groups, body:has(.nav-wrap) .help > div { border-color: var(--public-line); }
+body:has(.nav-wrap) .footer, body:has(.nav-wrap) .signature-prefooter { position: relative; overflow: clip; background: radial-gradient(circle at 80% 10%, rgba(150,232,255,.15), transparent 22rem), linear-gradient(135deg, #051329 0%, #081d3b 58%, #101033 100%); }
+body:has(.nav-wrap) .footer::before, body:has(.nav-wrap) .signature-prefooter::before { content: ""; position: absolute; inset: auto -10% 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(170,240,255,.8), transparent); }
+body:has(.nav-wrap) .footer a, body:has(.nav-wrap) .signature-prefooter a { transition: color 180ms ease, transform 180ms ease; }
+body:has(.nav-wrap) .footer a:hover, body:has(.nav-wrap) .signature-prefooter a:hover { color: var(--public-cyan); transform: translateX(2px); }
+@keyframes public-orbit { from { transform: translate3d(-1%, 0, 0) scale(1); } to { transform: translate3d(1.5%, -1%, 0) scale(1.035); } }
+
+@media (min-width: 761px) {
+  body:has(.nav-wrap) .page-hero, body:has(.nav-wrap) .article-header, body:has(.nav-wrap) .newsroom-feature, body:has(.nav-wrap) .support-portal-intro, body:has(.nav-wrap) .contact-router-heading { min-height: 17rem; display: grid; align-content: end; padding-block: 3.25rem 2.75rem; }
+  body:has(.nav-wrap) .groups { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 0 3rem; }
+  body:has(.nav-wrap) .group:nth-child(even) { padding-left: 3rem; border-left: 1px solid var(--public-line); }
+}
+
+@media (max-width: 760px) {
+  body:has(.nav-wrap) .shell, body:has(.nav-wrap) .legal-trust-center, body:has(.nav-wrap) .detail-shell, body:has(.nav-wrap) .article-shell, body:has(.nav-wrap) .support-portal { width: 100%; padding-inline: 20px; }
+  body:has(.nav-wrap) .nav-wrap { padding-block: 9px; }
+  body:has(.nav-wrap) .hero, body:has(.nav-wrap) .technology-hero { min-height: calc(100svh - 64px); padding-block: 3.2rem 2rem; }
+  body:has(.nav-wrap) .hero-title, body:has(.nav-wrap) .technology-hero__content { margin-block: 3rem auto 1rem; }
+  body:has(.nav-wrap) #home-title, body:has(.nav-wrap) .page-hero h1 { max-width: 11ch; font-size: clamp(2.8rem, 13vw, 4.8rem); line-height: .94; }
+  body:has(.nav-wrap) .hero-foot, body:has(.nav-wrap) .technology-hero__actions, body:has(.nav-wrap) .actions { align-items: stretch; flex-direction: column; }
+  body:has(.nav-wrap) .hero-foot > div, body:has(.nav-wrap) .technology-hero__actions > *, body:has(.nav-wrap) .actions > * { width: 100%; justify-content: center; }
+  body:has(.nav-wrap) .intro, body:has(.nav-wrap) .principles, body:has(.nav-wrap) .portfolio, body:has(.nav-wrap) .operating-band, body:has(.nav-wrap) .corporate-information, body:has(.nav-wrap) .method-section, body:has(.nav-wrap) .contact-experience, body:has(.nav-wrap) .detail-shell, body:has(.nav-wrap) .article-shell, body:has(.nav-wrap) .support-portal { padding-block: 3.6rem; }
+  body:has(.nav-wrap) .page-hero, body:has(.nav-wrap) .article-header, body:has(.nav-wrap) .newsroom-feature, body:has(.nav-wrap) .support-portal-intro, body:has(.nav-wrap) .contact-router-heading { min-height: 13.5rem; padding-block: 2rem 1.75rem; }
+  body:has(.nav-wrap) .content-row, body:has(.nav-wrap) .principle, body:has(.nav-wrap) .detail-section, body:has(.nav-wrap) .trust-questions { grid-template-columns: 1fr; gap: .8rem; }
+  body:has(.nav-wrap) .content-row:hover, body:has(.nav-wrap) .principle:hover, body:has(.nav-wrap) .detail-section:hover, body:has(.nav-wrap) .trust-grid a:hover, body:has(.nav-wrap) .homepage-product-market-grid article:hover, body:has(.nav-wrap) .ui-card:hover { transform: none; }
+  body:has(.nav-wrap) .group:nth-child(even) { padding-left: 0; border-left: 0; }
+  body:has(.nav-wrap) .footer-top, body:has(.nav-wrap) .footer-links, body:has(.nav-wrap) .corporate-strip { grid-template-columns: 1fr; display: grid; gap: 1.4rem; }
+  body:has(.nav-wrap) .footer-links { padding-top: 1.2rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body:has(.nav-wrap) .hero::after, body:has(.nav-wrap) .technology-hero::after, body:has(.nav-wrap) .contactDot { animation: none; }
+  body:has(.nav-wrap) .content-row, body:has(.nav-wrap) .principle, body:has(.nav-wrap) .detail-section, body:has(.nav-wrap) .trust-grid a, body:has(.nav-wrap) .homepage-product-market-grid article, body:has(.nav-wrap) .ui-card, body:has(.nav-wrap) .footer a, body:has(.nav-wrap) .signature-prefooter a { transition: none; }
+}

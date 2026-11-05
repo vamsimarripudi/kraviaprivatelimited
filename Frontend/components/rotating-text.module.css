@@ -1,0 +1,51 @@
+.root {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  white-space: pre-wrap;
+}
+
+.screenReaderOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.text {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  white-space: pre;
+}
+
+.word {
+  display: inline-flex;
+  overflow: hidden;
+  vertical-align: bottom;
+}
+
+.element {
+  display: inline-block;
+}
+
+.space {
+  white-space: pre;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .element {
+    animation: none;
+  }
+}

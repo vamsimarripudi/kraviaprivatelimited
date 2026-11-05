@@ -1,0 +1,35 @@
+/* Local decorative fallback for the user-supplied GridScan visual. */
+.grid-scan {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 50%, #10283b, #06101e 76%);
+}
+.grid-scan::before {
+  content: "";
+  position: absolute;
+  inset: 20% -30% -40%;
+  background:
+    linear-gradient(rgba(125, 211, 252, .16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(125, 211, 252, .16) 1px, transparent 1px);
+  background-size: 56px 56px;
+  transform: perspective(450px) rotateX(58deg);
+  transform-origin: center 60%;
+  opacity: .6;
+}
+.grid-scan[data-grid-scan-state="animated"]::before,
+.grid-scan[data-grid-scan-state="static"]::before,
+.grid-scan[data-grid-scan-state="suspended"]::before {
+  opacity: 0;
+}
+.grid-scan-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.grid-scan[data-grid-scan-state="fallback"] .grid-scan-canvas { visibility: hidden; }

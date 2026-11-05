@@ -1,16 +1,20 @@
-/** Owner-provided corporate profiles. Keep product-specific identities separate. */
 export const publicCompanyLinks = {
-  facebook: "https://www.facebook.com/profile.php?id=61595906774125",
-  instagram: "https://www.instagram.com/kravia_private_limited/",
-  x: "https://x.com/KraviaOfficial",
   linkedIn: "https://linkedin.com/company/kravia-private-limited",
+  x: "https://x.com/KraviaOfficial",
+  instagram: "https://www.instagram.com/kravia_private_limited/",
+  facebook: "https://www.facebook.com/people/Kravia/61595906774125/",
 } as const;
 
-export const publicSocialProfiles = [
-  { key: "facebook", label: "Facebook", href: publicCompanyLinks.facebook },
-  { key: "instagram", label: "Instagram", href: publicCompanyLinks.instagram },
-  { key: "x", label: "X", href: publicCompanyLinks.x },
-  { key: "linkedIn", label: "LinkedIn", href: publicCompanyLinks.linkedIn },
-] as const;
+export type SocialProfile = {
+  platform: "linkedin" | "instagram" | "facebook" | "x";
+  label: string;
+  href: string;
+};
 
-export type SocialPlatform = (typeof publicSocialProfiles)[number]["key"];
+// Publish only owner-approved profiles; keep URLs in the existing source of truth.
+export const publicSocialProfiles: readonly SocialProfile[] = [
+  { platform: "linkedin", label: "LinkedIn", href: publicCompanyLinks.linkedIn },
+  { platform: "x", label: "X", href: publicCompanyLinks.x },
+  { platform: "instagram", label: "Instagram", href: publicCompanyLinks.instagram },
+  { platform: "facebook", label: "Facebook", href: publicCompanyLinks.facebook },
+];

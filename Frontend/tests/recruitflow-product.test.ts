@@ -5,8 +5,8 @@ import { recruitFlowProduct } from "../lib/products/recruitflow";
 import { recruitFlowMarketEstimates, selectedRecruitFlowIndiaEstimate } from "../lib/products/recruitflow-market";
 
 const page = readFileSync(new URL("../components/recruitflow-product-page.tsx", import.meta.url), "utf8");
-const canonicalRoute = readFileSync(new URL("../app/products/nicerole/page.tsx", import.meta.url), "utf8");
-const legacyRoute = readFileSync(new URL("../app/products/recruitflow/page.tsx", import.meta.url), "utf8");
+const canonicalRoute = readFileSync(new URL("../app/(public)/products/nicerole/page.tsx", import.meta.url), "utf8");
+const legacyRoute = readFileSync(new URL("../app/(public)/products/recruitflow/page.tsx", import.meta.url), "utf8");
 const footer = readFileSync(new URL("../components/footer.tsx", import.meta.url), "utf8");
 
 describe("Nice Role public product profile", () => {

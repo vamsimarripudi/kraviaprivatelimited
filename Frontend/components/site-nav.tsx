@@ -2,40 +2,76 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowUpRight, Menu } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArrowUpRight, Menu, MessageCircle } from "lucide-react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { usePathname } from "next/navigation";
 import { navItems } from "@/lib/site";
 import { SiteScrollProgress } from "@/components/premium-interactions";
 import { Drawer } from "@/components/ui";
+import GooeyNav from "./gooey-nav";
+import { observeNavigationSurface } from "./site-nav-lifecycle";
+import styles from "./site-nav.module.css";
+
+const gooeyItems = navItems.map(([label, href]) => ({ label, href }));
+const gooeyStyle = {
+  "--gn-font": "12px",
+  "--gn-x": "10px",
+  "--gn-y": "6px",
+  "--gn-ink": "var(--nav-foreground)",
+  "--gn-muted": "var(--nav-foreground)",
+} as CSSProperties;
 
 export function SiteNav() {
-  const [open, setOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
+  const header = useRef<HTMLElement>(null);
+  const [menu, setMenu] = useState({ pathname, open: false });
+  const [overDarkSurface, setOverDarkSurface] = useState(pathname === "/");
+
+  // The shell persists between routes. Discard an open drawer on every path
+  // change, including history navigation, rather than reviving it on return.
+  if (menu.pathname !== pathname) setMenu({ pathname, open: false });
+  const open = menu.pathname === pathname && menu.open;
+  const setOpen = (value: boolean) => setMenu({ pathname, open: value });
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 12);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+    if (header.current) return observeNavigationSurface(header.current, setOverDarkSurface);
+  }, [pathname]);
 
   const isCurrent = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
-  return <header className={`nav-wrap ${scrolled ? "nav-scrolled" : ""}`}>
+  return <header ref={header} className={`nav-wrap ${styles.root} ${overDarkSurface ? styles.onDark : ""}`}>
     <a className="skip-link" href="#main-content">Skip to content</a>
-    <nav className="nav shell" aria-label="Main navigation">
-      <Link href="/" className="wordmark" aria-label="Kravia Private Limited home">
-        <Image className="site-header-logo" src="/brand/kravia-header-lockup-v2.png" alt="Kravia Private Limited" width={1086} height={362} priority sizes="(max-width: 760px) 154px, 202px" />
+    <nav className={styles.navigation} aria-label="Main navigation">
+      <Link href="/" className={`${styles.island} ${styles.brand}`} aria-label="Kravia Private Limited home">
+        <Image className={styles.logo} src="/brand/kravia-header-lockup-v2.png" alt="Kravia Private Limited" width={1086} height={362} priority sizes="(max-width: 600px) 116px, 138px" />
       </Link>
-      <div className="nav-links">
-        {navItems.map(([label, href]) => <Link key={href} href={href} aria-current={isCurrent(href) ? "page" : undefined}>{label}</Link>)}
-        <Link href="/contact" className="nav-cta">Talk to Kravia <ArrowUpRight size={14} /></Link>
+      <div className={`${styles.island} ${styles.links}`}>
+        <GooeyNav
+          items={gooeyItems}
+          activeIndex={navItems.findIndex(([, href]) => isCurrent(href))}
+          theme={overDarkSurface ? "dark" : "light"}
+          color={overDarkSurface ? "#a7d9e6" : "#071e45"}
+          activeTextColor={overDarkSurface ? "#06101e" : "#f8fafc"}
+          size="sm"
+          frame={false}
+          animationTime={500}
+          particleCount={10}
+          spread={20}
+          gooeyness={0.45}
+          wobble={0.25}
+          style={gooeyStyle}
+        />
       </div>
-      <button className="menu-btn" type="button" aria-expanded={open} aria-controls="mobile-nav" onClick={() => setOpen(true)}>
-        <Menu aria-hidden="true" /><span className="sr-only">Open menu</span>
+      <button className={`${styles.island} ${styles.menu}`} type="button" aria-label="Open menu" aria-expanded={open} aria-controls="mobile-nav" onClick={() => setOpen(true)}>
+        <Menu aria-hidden="true" /><span>Menu</span>
       </button>
+      <Link href="/contact" className={`${styles.island} ${styles.contact}`} aria-label="Contact Kravia" title="Contact Kravia" aria-current={isCurrent("/contact") ? "page" : undefined}>
+        <MessageCircle aria-hidden="true" focusable="false">
+          <circle className={styles.contactDot} cx="8" cy="11" r="1" />
+          <circle className={styles.contactDot} cx="12" cy="11" r="1" />
+          <circle className={styles.contactDot} cx="16" cy="11" r="1" />
+        </MessageCircle>
+      </Link>
     </nav>
     <Drawer open={open} onClose={() => setOpen(false)} title="Kravia navigation">
       <nav id="mobile-nav" className="mobile-nav" aria-label="Mobile navigation">
@@ -48,6 +84,6 @@ export function SiteNav() {
         <Link onClick={() => setOpen(false)} href="/contact" className="nav-cta mobile-nav-cta">Talk to Kravia <ArrowUpRight size={16} /></Link>
       </nav>
     </Drawer>
-    <SiteScrollProgress />
+    {pathname !== "/" ? <SiteScrollProgress /> : null}
   </header>;
 }

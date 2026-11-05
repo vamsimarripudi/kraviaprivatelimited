@@ -6,8 +6,8 @@ export const siteUrl = resolvePublicSiteUrl();
 // engines and browser metadata should use the company name people recognise,
 // while statutory surfaces can continue to use the legal uppercase form.
 export const publicSiteIdentity = {
-  name: "KRAVIA",
-  alternateName: "KRAVIA PRIVATE LIMITED",
+  name: "Kravia Private Limited",
+  alternateName: "Kravia",
 } as const;
 
 /** Domain-level structured data that declares Kravia's preferred search name. */
@@ -18,7 +18,6 @@ export function publicWebsiteStructuredData() {
     "@id": `${siteUrl}#website`,
     name: publicSiteIdentity.name,
     alternateName: publicSiteIdentity.alternateName,
-    inLanguage: "en",
     url: siteUrl,
     publisher: { "@id": `${siteUrl}#organization` },
   };

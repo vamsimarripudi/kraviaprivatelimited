@@ -1,0 +1,25 @@
+/* React Bits DarkVeil by David Haz; see ../third-party/react-bits-LICENSE.md. */
+.dark-veil-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 72% 32%, rgba(78, 151, 176, .16), transparent 56%),
+    radial-gradient(ellipse at 28% 80%, rgba(48, 102, 132, .1), transparent 60%),
+    #06101e;
+}
+
+.dark-veil-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.dark-veil-container[data-dark-veil-state='fallback'] .dark-veil-canvas {
+  visibility: hidden;
+}

@@ -1,0 +1,40 @@
+.reveal {
+  opacity: 1;
+  transform: none;
+}
+
+.reveal[data-revealed="false"] {
+  opacity: 0;
+  transform: translate3d(0, 20px, 0);
+}
+
+.reveal[data-reveal-ready="true"] {
+  transition:
+    opacity 720ms cubic-bezier(.22, 1, .36, 1) var(--homepage-reveal-delay, 0ms),
+    transform 720ms cubic-bezier(.22, 1, .36, 1) var(--homepage-reveal-delay, 0ms);
+}
+
+/* Keyboard focus must never land on invisible controls, even before JS handles it. */
+.reveal:focus-within,
+.reveal[data-reveal-motion="reduced"] {
+  opacity: 1;
+  transform: none;
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal[data-revealed],
+  .reveal[data-reveal-ready] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+@media print {
+  .reveal[data-revealed] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

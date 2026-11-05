@@ -8,9 +8,9 @@ import { legalCandidateDocuments } from "../lib/legal/registry";
 import { isApprovedForPublicRelease } from "../lib/legal/types";
 
 const releaseMigration = readFileSync(new URL("../../Database/supabase/migrations/202610060002_legal_trust_release_gate.sql", import.meta.url), "utf8");
-const page = readFileSync(new URL("../app/[...segments]/page.tsx", import.meta.url), "utf8");
+const page = readFileSync(new URL("../app/(public)/[...segments]/page.tsx", import.meta.url), "utf8");
 const center = readFileSync(new URL("../components/legal-trust-center.tsx", import.meta.url), "utf8");
-const preview = readFileSync(new URL("../app/legal/preview/[slug]/page.tsx", import.meta.url), "utf8");
+const preview = readFileSync(new URL("../app/(public)/legal/preview/[slug]/page.tsx", import.meta.url), "utf8");
 const previewLoader = readFileSync(new URL("../lib/legal/draft-loader.ts", import.meta.url), "utf8");
 const legalStyles = readFileSync(new URL("../components/legal-document.module.css", import.meta.url), "utf8");
 const legalCenterStyles = readFileSync(new URL("../components/legal-trust-center.module.css", import.meta.url), "utf8");

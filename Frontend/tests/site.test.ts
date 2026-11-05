@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { crawlerPolicy, isPublicSitemapPath, privatePathPrefixes, publicPageRobots, searchCrawlerAgents } from "../lib/crawler-policy";
+import { crawlerPolicy, isPublicSitemapPath, privatePathPrefixes, publicPageRobots } from "../lib/crawler-policy";
 import { companyProfile, publicPages, publicSiteIdentity, publicWebsiteStructuredData } from "../lib/site";
 
 describe("public company data", () => {
@@ -15,20 +15,20 @@ describe("public company data", () => {
   });
 
   it("declares the approved human-readable site name for search", () => {
-    expect(publicSiteIdentity).toEqual({ name: "KRAVIA", alternateName: "KRAVIA PRIVATE LIMITED" });
+    expect(publicSiteIdentity).toEqual({ name: "Kravia Private Limited", alternateName: "Kravia" });
     expect(publicWebsiteStructuredData()).toMatchObject({
       "@type": "WebSite",
-      name: "KRAVIA",
-      alternateName: "KRAVIA PRIVATE LIMITED",
+      name: "Kravia Private Limited",
+      alternateName: "Kravia",
       url: expect.stringMatching(/^https?:\/\//),
     });
   });
 });
 
 describe("canonical URL resolution", () => {
-  it("uses the www production canonical URL matching the deployed redirect", async () => {
+  it("uses the apex Vercel production canonical URL when a localhost value leaks into production", async () => {
     const { resolvePublicSiteUrl } = await import("../lib/env/public");
-    expect(resolvePublicSiteUrl("http://localhost:3000", { VERCEL_ENV: "production" })).toBe("https://www.kraviaprivatelimited.com");
+    expect(resolvePublicSiteUrl("http://localhost:3000", { VERCEL_ENV: "production" })).toBe("https://kraviaprivatelimited.com");
   });
 
   it("uses the preview host instead of a shared production canonical", async () => {
@@ -40,7 +40,11 @@ describe("canonical URL resolution", () => {
 describe("public crawler boundaries", () => {
   it("allows public crawling while explicitly disallowing private route families", () => {
     const policy = crawlerPolicy(true, "https://kraviaprivatelimited.com");
-    expect(policy.rules).toEqual([...searchCrawlerAgents, "*"].map((userAgent) => ({ userAgent, allow: "/", disallow: [...privatePathPrefixes] })));
+    expect(policy.rules).toEqual([
+      { userAgent: "OAI-SearchBot", allow: "/", disallow: [...privatePathPrefixes] },
+      { userAgent: "ChatGPT-User", allow: "/", disallow: [...privatePathPrefixes] },
+      { userAgent: "*", allow: "/", disallow: [...privatePathPrefixes] },
+    ]);
     expect(policy.sitemap).toBe("https://kraviaprivatelimited.com/sitemap.xml");
   });
 
