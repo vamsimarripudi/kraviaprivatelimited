@@ -34,9 +34,9 @@ function makeManifest(): Record<KraviaEmailTemplateName, RenderedTemplate> {
   const P = PLACEHOLDERS;
   const site = "https://www.kraviaprivatelimited.com";
   const profiles = [
-    {name:"LinkedIn", href:"https://linkedin.com/company/kravia-private-limited", icon:"linkedin.png"},
+    {name:"LinkedIn", href:"https://linkedin.com/company/kravia-private-limited", icon:"linkedin-v2.png"},
     {name:"X", href:"https://x.com/KraviaOfficial", icon:"x.png"},
-    {name:"Instagram",href:"https://www.instagram.com/kravia_private_limited/",icon:"instagram.png"},
+    {name:"Instagram",href:"https://www.instagram.com/kravia_private_limited/",icon:"instagram-v2.png"},
     {name:"Facebook",href:"https://www.facebook.com/profile.php?id=61595906774125",icon:"facebook.png"},
   ];
   const themes = {

@@ -48,3 +48,13 @@ available; newly generated email templates reference PNGs only.
 Do not include production one-time codes, device approval URLs, customer data,
 provider secrets or real intake messages in fixtures or design previews.
 Runtime values are validated and escaped by `Backend/backend/email_templates.py`.
+
+## Corrupt icon remediation (2026-11-05)
+
+Both the original LinkedIn and Instagram PNG assets were found to contain
+invalid PNG CRC/chunk data. They were regenerated from the licensed original
+Bootstrap glyphs, checked with a PNG decoder and committed at their legacy paths.
+To bypass email clients that cache the previously broken response, new templates
+reference versioned `linkedin-v2.png` and `instagram-v2.png` asset URLs. X and
+Facebook PNG assets remain unchanged. The `Email template quality` CI gate now
+verifies PNG structure, chunk CRCs and decompressed image data before release.

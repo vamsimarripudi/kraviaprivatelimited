@@ -16,3 +16,9 @@ Current assets: linkedin.png, x.png, instagram.png, facebook.png.
   new emails reference the PNGs.
 
 Do not substitute AI-generated approximations for social platform glyphs.
+
+2026-11-05: `linkedin.png` and `instagram.png` were repaired after discovering
+invalid PNG CRCs in the previous generated assets. The email templates use the
+identical verified files as `linkedin-v2.png` and `instagram-v2.png` to bypass
+stale broken-image caches. The working X and Facebook files were unchanged.
+Run `python3 scripts/validate-email-icons.py` from EmailTemplates/ during CI.

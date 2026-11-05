@@ -319,9 +319,9 @@ def test_all_six_distinct_email_layouts_link_the_official_social_icons():
 
     templates = _manifest()
     expected = {
-        "LinkedIn": ("linkedin.png", "https://linkedin.com/company/kravia-private-limited"),
+        "LinkedIn": ("linkedin-v2.png", "https://linkedin.com/company/kravia-private-limited"),
         "X": ("x.png", "https://x.com/KraviaOfficial"),
-        "Instagram": ("instagram.png", "https://www.instagram.com/kravia_private_limited/"),
+        "Instagram": ("instagram-v2.png", "https://www.instagram.com/kravia_private_limited/"),
         "Facebook": ("facebook.png", "https://www.facebook.com/profile.php?id=61595906774125"),
     }
     assert len(templates) == 6
