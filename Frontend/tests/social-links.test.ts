@@ -49,10 +49,10 @@ describe("official corporate social links", () => {
 
   it("covers the footer, Contact, About and Careers without changing the company logo", () => {
     const footer = read("components/footer.tsx");
-    const pages = read("app/[...segments]/page.tsx");
+    const pages = read("app/(public)/[...segments]/page.tsx");
     expect(footer).toContain("<SocialLinks inverse />");
     expect(footer).toContain("<BrandLogo inverse animated />");
-    expect(read("app/contact/page.tsx")).toContain('<SocialConnect context="contact" />');
+    expect(read("app/(public)/contact/page.tsx")).toContain('<SocialConnect context="contact" />');
     expect(pages).toContain('<SocialConnect context="about" />');
     expect(pages).toContain('<SocialConnect context="careers" />');
     expect(pages.match(/\{socialSection\}/g)).toHaveLength(2);
@@ -60,7 +60,7 @@ describe("official corporate social links", () => {
   });
 
   it("uses the same registry for organization identity", () => {
-    expect(read("components/structured-data.tsx")).toContain("sameAs: Object.values(publicCompanyLinks)");
+    expect(read("components/structured-data.tsx")).toContain("sameAs: publicSocialProfiles.map((profile) => profile.href)");
   });
 });
 
