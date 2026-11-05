@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   description: leadershipDescription,
   alternates: { canonical: leadershipPath },
   robots: publicPageRobots(isProductionSite),
-  openGraph: { title: `${leadershipTitle} | KRAVIA PRIVATE LIMITED`, description: leadershipDescription, url: `${siteUrl}${leadershipPath}`, type: "website", siteName: publicSiteIdentity.name },
+  openGraph: { siteName: "KRAVIA", title: `${leadershipTitle} | KRAVIA PRIVATE LIMITED`, description: leadershipDescription, url: `${siteUrl}${leadershipPath}`, type: "website", siteName: publicSiteIdentity.name },
   twitter: { card: "summary_large_image", title: `${leadershipTitle} | KRAVIA PRIVATE LIMITED`, description: leadershipDescription },
 };
 
