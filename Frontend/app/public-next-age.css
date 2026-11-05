@@ -51,8 +51,7 @@ body:has(.nav-wrap) h3,
 body:has(.nav-wrap) h4 { font-family: var(--public-font); }
 
 .public-radiant,
-body:has(.nav-wrap) .hero h1,
-body:has(.nav-wrap) .page-hero h1,
+body:has(.nav-wrap) #home-title,
 body:has(.nav-wrap) .signature-prefooter h2 {
   color: transparent;
   background: linear-gradient(105deg, #f3f8ff 8%, var(--public-cyan) 42%, var(--public-violet) 82%);
@@ -86,7 +85,13 @@ body:has(.nav-wrap) .content-row:hover, body:has(.nav-wrap) .principle:hover, bo
 
 body:has(.nav-wrap) .page-hero, body:has(.nav-wrap) .article-header, body:has(.nav-wrap) .newsroom-feature, body:has(.nav-wrap) .support-portal-intro, body:has(.nav-wrap) .contact-router-heading { position: relative; isolation: isolate; }
 body:has(.nav-wrap) .page-hero::after, body:has(.nav-wrap) .article-header::after, body:has(.nav-wrap) .newsroom-feature::after, body:has(.nav-wrap) .support-portal-intro::after, body:has(.nav-wrap) .contact-router-heading::after { content: ""; position: absolute; inset: 18% 0 auto auto; z-index: -1; width: min(42vw, 30rem); height: 11rem; background: radial-gradient(ellipse, rgba(142,116,255,.16), transparent 68%); filter: blur(12px); pointer-events: none; }
-body:has(.nav-wrap) .legal-trust-center h1, body:has(.nav-wrap) .article-header h1, body:has(.nav-wrap) .newsroom-feature h2, body:has(.nav-wrap) .support-portal-intro h2, body:has(.nav-wrap) .contact-router-heading h2 { color: transparent; background: linear-gradient(105deg, var(--public-ink) 8%, #167ba5 48%, #7257d3 88%); -webkit-background-clip: text; background-clip: text; }
+body:has(.nav-wrap) .page-hero h1, body:has(.nav-wrap) .legal-trust-center h1, body:has(.nav-wrap) .article-header h1, body:has(.nav-wrap) .newsroom-feature h2, body:has(.nav-wrap) .support-portal-intro h2, body:has(.nav-wrap) .contact-router-heading h2 { color: var(--public-ink); background: linear-gradient(105deg, var(--public-ink) 0%, #167ba5 50%, #7257d3 100%); -webkit-background-clip: text; background-clip: text; }
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  body:has(.nav-wrap) .page-hero h1, body:has(.nav-wrap) .legal-trust-center h1, body:has(.nav-wrap) .article-header h1, body:has(.nav-wrap) .newsroom-feature h2, body:has(.nav-wrap) .support-portal-intro h2, body:has(.nav-wrap) .contact-router-heading h2 { color: transparent; }
+}
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  body:has(.nav-wrap) .page-hero h1, body:has(.nav-wrap) .legal-trust-center h1, body:has(.nav-wrap) .article-header h1, body:has(.nav-wrap) .newsroom-feature h2, body:has(.nav-wrap) .support-portal-intro h2, body:has(.nav-wrap) .contact-router-heading h2 { background: none; color: var(--public-ink); }
+}
 body:has(.nav-wrap) .legal-trust-center, body:has(.nav-wrap) .detail-shell, body:has(.nav-wrap) .article-shell, body:has(.nav-wrap) .support-portal { max-width: 1320px; margin-inline: auto; padding-inline: 36px; }
 body:has(.nav-wrap) .legal-trust-center, body:has(.nav-wrap) .trust-overview-grid, body:has(.nav-wrap) .trust-questions, body:has(.nav-wrap) .groups, body:has(.nav-wrap) .help > div { border-color: var(--public-line); }
 body:has(.nav-wrap) .footer, body:has(.nav-wrap) .signature-prefooter { position: relative; overflow: clip; background: radial-gradient(circle at 80% 10%, rgba(150,232,255,.15), transparent 22rem), linear-gradient(135deg, #051329 0%, #081d3b 58%, #101033 100%); }
@@ -106,7 +111,7 @@ body:has(.nav-wrap) .footer a:hover, body:has(.nav-wrap) .signature-prefooter a:
   body:has(.nav-wrap) .nav-wrap { padding-block: 9px; }
   body:has(.nav-wrap) .hero, body:has(.nav-wrap) .technology-hero { min-height: calc(100svh - 64px); padding-block: 3.2rem 2rem; }
   body:has(.nav-wrap) .hero-title, body:has(.nav-wrap) .technology-hero__content { margin-block: 3rem auto 1rem; }
-  body:has(.nav-wrap) .hero h1, body:has(.nav-wrap) .page-hero h1 { max-width: 11ch; font-size: clamp(2.8rem, 13vw, 4.8rem); line-height: .94; }
+  body:has(.nav-wrap) #home-title, body:has(.nav-wrap) .page-hero h1 { max-width: 11ch; font-size: clamp(2.8rem, 13vw, 4.8rem); line-height: .94; }
   body:has(.nav-wrap) .hero-foot, body:has(.nav-wrap) .technology-hero__actions, body:has(.nav-wrap) .actions { align-items: stretch; flex-direction: column; }
   body:has(.nav-wrap) .hero-foot > div, body:has(.nav-wrap) .technology-hero__actions > *, body:has(.nav-wrap) .actions > * { width: 100%; justify-content: center; }
   body:has(.nav-wrap) .intro, body:has(.nav-wrap) .principles, body:has(.nav-wrap) .portfolio, body:has(.nav-wrap) .operating-band, body:has(.nav-wrap) .corporate-information, body:has(.nav-wrap) .method-section, body:has(.nav-wrap) .contact-experience, body:has(.nav-wrap) .detail-shell, body:has(.nav-wrap) .article-shell, body:has(.nav-wrap) .support-portal { padding-block: 3.6rem; }

@@ -143,5 +143,8 @@ describe("real leadership portraits and current contributions", () => {
     expect(publicNextAge).toContain("@media (prefers-reduced-motion: reduce)");
     expect(publicNextAge).toContain("@media (max-width: 760px)");
     expect(publicNextAge).toContain(".legal-trust-center h1");
+    expect(publicNextAge).toContain("body:has(.nav-wrap) .page-hero h1");
+    expect(publicNextAge).toContain("color: var(--public-ink);");
+    expect(publicNextAge).toContain("@supports not ((-webkit-background-clip: text) or (background-clip: text))");
   });
 });
