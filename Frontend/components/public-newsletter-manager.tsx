@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import styles from "./public-access.module.css";
+import { OfficeDecisionDialog } from "./office-decision-dialog";
 
 type Campaign={
  id:string;subject:string;body_text:string;
@@ -21,6 +22,7 @@ export function PublicNewsletterManager(){
  const [busy,setBusy]=useState(false);
  const [message,setMessage]=useState("");
  const [error,setError]=useState("");
+ const [decision,setDecision]=useState<{campaign:Campaign;action:"APPROVE"|"CANCEL"|"SEND_BATCH"}>();
  const load=useCallback(async()=>{
    try{
      const response=await fetch("/api/office-public-newsletters",{cache:"no-store"});
@@ -53,12 +55,12 @@ export function PublicNewsletterManager(){
    }catch(cause){setError(cause instanceof Error?cause.message:"Cannot save draft.");}
    finally{setBusy(false);}
  }
- async function decide(campaign:Campaign,action:"APPROVE"|"CANCEL"|"SEND_BATCH"){
-   const prompt=action==="APPROVE"
-     ? "Approve this exact newsletter subject and body? Approval alone does not send it."
-     :action==="CANCEL"?"Cancel this unsent newsletter?"
-     : "Send the next batch to up to 10 currently confirmed subscribers? Delivery outcomes are tracked and unknown sends are never automatically retried.";
-   if(!window.confirm(prompt))return;
+ function decide(campaign:Campaign,action:"APPROVE"|"CANCEL"|"SEND_BATCH"){
+   setDecision({campaign,action});
+ }
+ async function executeDecision(){
+   if(!decision)return;
+   const {campaign,action}=decision;
    setBusy(true);setError("");setMessage("");
    try{
      const result=await request({action,campaignId:campaign.id});
@@ -68,7 +70,7 @@ export function PublicNewsletterManager(){
        :action==="APPROVE"?"Newsletter approved. Review the recipient count before sending.":"Campaign cancelled.");
      await load();
    }catch(cause){setError(cause instanceof Error?cause.message:"Campaign action failed.");}
-   finally{setBusy(false);}
+   finally{setBusy(false);setDecision(undefined);}
  }
  return <div>
    <section className={styles.card}>
@@ -119,5 +121,20 @@ export function PublicNewsletterManager(){
        </article>)
      }
    </section>
+   {decision?<OfficeDecisionDialog
+     open
+     eyebrow={decision.action==="SEND_BATCH"?"DELIVERY DECISION":"OWNER DECISION"}
+     title={decision.action==="APPROVE"?"Approve newsletter issue":decision.action==="CANCEL"?"Cancel newsletter issue":"Send the next subscriber batch"}
+     description={decision.action==="APPROVE"
+       ?"Approve this exact newsletter subject and body. Approval alone does not send it."
+       :decision.action==="CANCEL"
+         ?"Cancel this unsent newsletter issue. It will no longer be eligible for delivery."
+         :"Send the next batch to up to 10 currently confirmed subscribers. Unknown delivery outcomes are never automatically retried."}
+     confirmLabel={decision.action==="APPROVE"?"Approve issue":decision.action==="CANCEL"?"Cancel issue":"Send next 10"}
+     tone={decision.action==="CANCEL"?"danger":decision.action==="SEND_BATCH"?"warning":"default"}
+     busy={busy}
+     onCancel={()=>setDecision(undefined)}
+     onConfirm={()=>void executeDecision()}
+   ><p><strong>{decision.campaign.subject}</strong></p><p>Current status: {decision.campaign.status} · Audience snapshot: {decision.campaign.total}</p></OfficeDecisionDialog>:null}
  </div>;
 }
