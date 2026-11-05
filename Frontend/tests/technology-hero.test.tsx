@@ -2,10 +2,9 @@ import { renderToString } from "react-dom/server";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { heroStatements, TechnologyHero } from "../components/technology-hero";
+import { TechnologyHero } from "../components/technology-hero";
 
 const heroCss = readFileSync(resolve(process.cwd(), "components/technology-hero.module.css"), "utf8");
-const rotatingTextSource = readFileSync(resolve(process.cwd(), "components/rotating-text.tsx"), "utf8");
 
 afterEach(() => { vi.unstubAllGlobals(); });
 
@@ -21,8 +20,8 @@ describe("technology hero server rendering", () => {
     expect(html).toContain("Technology for");
     expect(html).toContain("what comes next.");
     expect(html).toContain("Built for");
-    expect(html).toContain(heroStatements[0]);
-    expect(html).toContain('aria-live="polite"');
+    expect(html).toContain("connected products");
+    expect(html).not.toContain('aria-live="polite"');
     expect(html).toContain("We are KRAVIA.");
     expect(html).toContain('href="#products"');
     expect(html).toContain('href="/company/about"');
@@ -31,7 +30,6 @@ describe("technology hero server rendering", () => {
     expect(html).toContain("<canvas");
     expect(html).toContain('class="grid-scan"');
     expect(html).toContain('class="grid-scan-canvas" aria-hidden="true"');
-    expect(html).toContain('data-scroll-velocity="enabled"');
     expect(html).not.toContain("dark-veil-container");
     expect(html).not.toContain("<video");
     expect(html).not.toContain("<script");
@@ -45,26 +43,11 @@ describe("technology hero server rendering", () => {
     expect(heroCss).not.toContain("padding-bottom: var(--privacy-notice-height, 0px)");
   });
 
-  it("keeps the rotating statement centered in a fixed slot with radiant text", () => {
+  it("keeps the static statement centered with radiant text", () => {
     expect(heroCss).toContain("display: inline-flex;");
     expect(heroCss).toContain("justify-self: center;");
-    expect(heroCss).toContain("--rotator-slot: clamp(15ch, 22vw, 19ch);");
-    expect(heroCss).toContain("transform: translateX(calc((var(--rotator-slot) + .12em) / 2));");
     expect(heroCss).toContain("text-align: center;");
     expect(heroCss).toContain("background: linear-gradient(105deg");
-    expect(heroCss).toContain(".rotator { display: inline-block; width: var(--rotator-slot);");
-    expect(heroCss).toContain("text-align: center;");
-  });
-
-  it("keeps scroll momentum bounded to the decorative hero field", () => {
-    expect(heroCss).toContain(".velocityField { position: absolute; inset: -3% -1.5%;");
-    expect(heroCss).toContain("will-change: transform;");
-    expect(heroCss).toContain(".velocityField { transform: none; }");
-  });
-
-  it("waits for the current rotating word to exit before the next word enters", () => {
-    expect(rotatingTextSource).toContain("<AnimatePresence initial={false} mode=\"wait\">");
-    expect(rotatingTextSource).toContain("exit={preset.exit}");
   });
 
   it.each([false, true])("keeps server markup identical when a browser reports reduced motion as %s", (matches) => {

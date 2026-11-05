@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { ArrowDown, ArrowUpRight } from "lucide-react";
 import GridScan from "./grid-scan";
-import RotatingText from "./rotating-text";
-import { ScrollVelocitySurface } from "./scroll-velocity";
 import styles from "./technology-hero.module.css";
 
 export const heroStatements = [
@@ -19,9 +17,7 @@ export function TechnologyHero() {
   return (
     <section className={styles.hero} aria-labelledby="home-title">
       <div className={styles.backdrop} aria-hidden="true">
-        <ScrollVelocitySurface className={styles.velocityField} maxSkew={0.7} maxShift={7}>
-          <GridScan linesColor="#426276" scanColor="#8bd6ee" cells={8} depth={3} parallax={0.35} reflection={0.25} glow={0.4} scanDuration={3.2} scanDelay={1.8} intro={false} dpr={1.25} />
-        </ScrollVelocitySurface>
+        <GridScan linesColor="#426276" scanColor="#8bd6ee" cells={8} depth={3} parallax={0.35} reflection={0.25} glow={0.4} scanDuration={3.2} scanDelay={1.8} intro={false} dpr={1.25} />
         <div className={styles.shade} />
       </div>
       <div className={styles.inner}>
@@ -30,17 +26,7 @@ export function TechnologyHero() {
           <h1 id="home-title" className={styles.title}>Technology for<br /><span>what comes next.</span></h1>
           <p className={styles.rotatingStatement}>
             <span>Built for </span>
-            <span className={styles.rotator}>
-              <RotatingText
-                texts={heroStatements}
-                effect="slide"
-                direction="up"
-                staggerFrom="last"
-                staggerDuration={0.025}
-                rotationInterval={3600}
-                mainClassName={styles.rotatingWord}
-              />
-            </span>
+            <span className={styles.rotatingWord}>connected products</span>
           </p>
           <p className={styles.description}>We are KRAVIA. An Indian technology company building software products, intelligent systems and digital infrastructure for work that matters.</p>
           <div className={styles.actions}>
