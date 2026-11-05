@@ -25,3 +25,15 @@
 :where(.hash,.reference,.code,code){font-variant-numeric:tabular-nums}
 @media(max-width:620px){.actions button:hover,.toolbar button:hover{transform:none}}
 @media(prefers-reduced-motion:reduce){.actions button,.toolbar button,.tableWrap tbody tr{transition:none}}
+
+
+/* Office Experience 4.0 — assurance/control family */
+.shell{gap:18px}.hero{position:relative;overflow:hidden;border-radius:24px!important;background:radial-gradient(circle at 86% 12%,rgba(99,145,122,.13),transparent 22%),linear-gradient(135deg,#0b1712,#15362a)!important;box-shadow:0 20px 48px rgba(8,26,17,.085)!important}
+.hero:after{content:"";position:absolute;right:-112px;bottom:-152px;width:242px;aspect-ratio:1;border:1px solid rgba(255,255,255,.055);border-radius:50%;box-shadow:0 0 0 42px rgba(255,255,255,.016)}
+.panel,.card,.section,.metrics article,.metric,.tableWrap,.list,.state{border-radius:16px!important;background:rgba(255,255,255,.8)!important;border-color:rgba(17,39,29,.09)!important;box-shadow:0 10px 28px rgba(10,29,19,.04)!important;backdrop-filter:blur(14px)}
+.panel,.card,.metrics article{transition:border-color 150ms ease,box-shadow 150ms ease}.panel:hover,.card:hover,.metrics article:hover{border-color:rgba(37,95,73,.16)!important;box-shadow:0 14px 32px rgba(10,29,19,.055)!important}
+.toolbar,.filters,.controls{border-radius:14px!important;background:rgba(247,249,247,.82)!important;backdrop-filter:blur(12px)}
+.tableWrap{overflow:auto}.tableWrap th{position:sticky;top:0;z-index:2;background:rgba(246,249,246,.97)!important;backdrop-filter:blur(10px)}.tableWrap tbody tr{transition:background 140ms ease}.tableWrap tbody tr:hover{background:rgba(37,95,73,.028)}
+.notice,.guard,.warning,.error,.readiness{border-radius:13px!important}.backdrop{background:rgba(5,14,9,.5)!important;backdrop-filter:blur(14px)!important}.drawer,.dialog,.modal,.detail{border:1px solid rgba(255,255,255,.74)!important;border-radius:24px!important;background:rgba(250,252,250,.96)!important;box-shadow:0 34px 110px rgba(4,13,8,.27)!important;backdrop-filter:blur(28px)!important}
+.actions button,.toolbar button{border-radius:10px!important;transition:transform 140ms ease}.actions button:hover,.toolbar button:hover{transform:translateY(-1px)}
+@media(max-width:620px){.actions button:hover,.toolbar button:hover{transform:none}}@media(prefers-reduced-motion:reduce){.panel,.card,.metrics article,.actions button,.toolbar button,.tableWrap tbody tr{transition:none}}
