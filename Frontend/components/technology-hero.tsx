@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowDown, ArrowUpRight } from "lucide-react";
 import GridScan from "./grid-scan";
+import RotatingText from "./rotating-text";
 import styles from "./technology-hero.module.css";
 
 export const heroStatements = [
@@ -25,8 +26,16 @@ export function TechnologyHero() {
           <p className={styles.eyebrow}><span aria-hidden="true" />Independent thinking. Purposeful technology.</p>
           <h1 id="home-title" className={styles.title}>Technology for<br /><span>what comes next.</span></h1>
           <p className={styles.rotatingStatement}>
-            <span>Built for </span>
-            <span className={styles.rotatingWord}>connected products</span>
+            <span className={styles.rotator}>
+              <RotatingText
+                texts={heroStatements}
+                effect="slide"
+                direction="up"
+                rotationInterval={3600}
+                mainClassName={styles.rotatingWord}
+                textClassName={styles.rotatingWordText}
+              />
+            </span>
           </p>
           <p className={styles.description}>We are KRAVIA. An Indian technology company building software products, intelligent systems and digital infrastructure for work that matters.</p>
           <div className={styles.actions}>

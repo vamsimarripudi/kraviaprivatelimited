@@ -2,7 +2,7 @@ import { renderToString } from "react-dom/server";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { TechnologyHero } from "../components/technology-hero";
+import { heroStatements, TechnologyHero } from "../components/technology-hero";
 
 const heroCss = readFileSync(resolve(process.cwd(), "components/technology-hero.module.css"), "utf8");
 
@@ -19,9 +19,9 @@ describe("technology hero server rendering", () => {
     expect(html).toContain('id="home-title"');
     expect(html).toContain("Technology for");
     expect(html).toContain("what comes next.");
-    expect(html).toContain("Built for");
-    expect(html).toContain("connected products");
-    expect(html).not.toContain('aria-live="polite"');
+    expect(html).not.toContain("Built for");
+    expect(html).toContain(heroStatements[0]);
+    expect(html).toContain('aria-live="polite"');
     expect(html).toContain("We are KRAVIA.");
     expect(html).toContain('href="#products"');
     expect(html).toContain('href="/company/about"');
@@ -43,11 +43,13 @@ describe("technology hero server rendering", () => {
     expect(heroCss).not.toContain("padding-bottom: var(--privacy-notice-height, 0px)");
   });
 
-  it("keeps the static statement centered with radiant text", () => {
+  it("keeps the rotating statement centered in a fixed slot with radiant text", () => {
     expect(heroCss).toContain("display: inline-flex;");
     expect(heroCss).toContain("justify-self: center;");
     expect(heroCss).toContain("text-align: center;");
     expect(heroCss).toContain("background: linear-gradient(105deg");
+    expect(heroCss).toContain("flex: 0 0 20ch;");
+    expect(heroCss).toContain("overflow: hidden;");
   });
 
   it.each([false, true])("keeps server markup identical when a browser reports reduced motion as %s", (matches) => {

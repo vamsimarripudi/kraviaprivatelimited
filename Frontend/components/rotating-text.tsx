@@ -39,6 +39,7 @@ type RotatingTextProps = {
   auto?: boolean;
   pauseOnHover?: boolean;
   mainClassName?: string;
+  textClassName?: string;
   splitLevelClassName?: string;
   elementLevelClassName?: string;
   style?: CSSProperties;
@@ -94,6 +95,7 @@ const RotatingText = forwardRef<RotatingTextHandle, RotatingTextProps>(function 
     auto = true,
     pauseOnHover = false,
     mainClassName,
+    textClassName,
     style,
     onNext,
     onMouseEnter,
@@ -166,12 +168,13 @@ const RotatingText = forwardRef<RotatingTextHandle, RotatingTextProps>(function 
   ));
   const renderedText = elements.map((word) => `${word.characters.join("")}${word.needsSpace ? " " : ""}`).join("");
   const wordTransition = { ...preset.transition, delay: Math.max(0, Math.min(staggerDuration, 0.2)) };
+  const textClassNames = [styles.text, textClassName].filter(Boolean).join(" ");
 
   if (!motionReady) {
     return (
       <span className={[styles.root, mainClassName].filter(Boolean).join(" ")} style={style} role="status" aria-live="polite" aria-atomic="true">
         <span className={styles.screenReaderOnly}>{texts[activeIndex] ?? ""}</span>
-        <span className={styles.text} aria-hidden="true">{plainText}</span>
+        <span className={textClassNames} aria-hidden="true">{plainText}</span>
       </span>
     );
   }
@@ -191,7 +194,7 @@ const RotatingText = forwardRef<RotatingTextHandle, RotatingTextProps>(function 
         <AnimatePresence initial={false} mode="wait">
           <motion.span
             key={activeIndex}
-            className={styles.text}
+            className={textClassNames}
             aria-hidden="true"
             initial={preset.initial}
             animate={preset.animate}
