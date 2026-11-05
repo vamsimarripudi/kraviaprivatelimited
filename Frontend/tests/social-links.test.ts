@@ -60,7 +60,7 @@ describe("official corporate social links", () => {
   });
 
   it("uses the same registry for organization identity", () => {
-    expect(read("components/structured-data.tsx")).toContain("sameAs: publicSocialProfiles.map((profile) => profile.href)");
+    expect(read("components/structured-data.tsx")).toContain("sameAs: Object.values(publicCompanyLinks)");
   });
 });
 
