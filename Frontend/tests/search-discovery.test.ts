@@ -41,9 +41,9 @@ describe("search identity and metadata", () => {
   });
   it("does not inherit a homepage canonical on every route", () => {
     expect(source("app/layout.tsx")).not.toContain('alternates: { canonical: "/" }');
-    expect(source("app/page.tsx")).toContain('alternates: { canonical: "/" }');
-    expect(source("app/contact/page.tsx")).toContain('path: "/contact"');
-    expect(source("app/support/page.tsx")).toContain('path: "/support"');
+    expect(source("app/(public)/page.tsx")).toContain('alternates: { canonical: "/" }');
+    expect(source("app/(public)/contact/page.tsx")).toContain('path: "/contact"');
+    expect(source("app/(public)/support/page.tsx")).toContain('path: "/support"');
   });
   it("safely serializes JSON-LD without permitting a closing script tag", () => {
     const data = { title: "</script><script>alert(1)</script>" };
