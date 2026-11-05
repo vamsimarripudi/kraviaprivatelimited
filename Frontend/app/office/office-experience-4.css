@@ -197,3 +197,22 @@
   .kravia-office :where([aria-modal="true"]){animation:none!important}
   .kravia-office *,.kravia-office *::before,.kravia-office *::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}
 }
+
+
+/* Floating trust controls on secure-access screens. */
+@media(min-width:901px){
+  .kravia-office .kravia-office-auth :where([class*="trustGrid"]){position:relative!important;display:block!important;width:min(100%,650px);height:152px;margin-top:24px}
+  .kravia-office .kravia-office-auth :where([class*="trustGrid"])>div{position:absolute!important;width:min(248px,38%);min-height:72px;border:1px solid rgba(255,255,255,.1)!important;border-radius:16px!important;background:rgba(255,255,255,.055)!important;backdrop-filter:blur(18px)!important;box-shadow:0 16px 34px rgba(0,0,0,.1)!important}
+  .kravia-office .kravia-office-auth :where([class*="trustGrid"])>div:nth-child(1){left:0;top:6px;animation:ox4-trust-float 7s ease-in-out infinite}
+  .kravia-office .kravia-office-auth :where([class*="trustGrid"])>div:nth-child(2){left:31%;top:66px;animation:ox4-trust-float 8.5s ease-in-out -2.2s infinite}
+  .kravia-office .kravia-office-auth :where([class*="trustGrid"])>div:nth-child(3){right:0;top:12px;animation:ox4-trust-float 9.5s ease-in-out -4.1s infinite}
+}
+@keyframes ox4-trust-float{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(0,-7px,0)}}
+
+/* Existing drawer primitive adopts the Office 4 overlay system when used inside Office. */
+.kravia-office .ui-drawer-backdrop{position:fixed;inset:0;z-index:1200;background:rgba(5,14,9,.45);backdrop-filter:blur(12px);animation:ox4-fade-in var(--ox4-motion-fast) ease both}
+.kravia-office .ui-drawer{position:absolute;inset:12px 12px 12px auto;width:min(520px,calc(100% - 24px));overflow:auto;border:1px solid rgba(255,255,255,.76);border-radius:26px;background:rgba(250,252,250,.92);box-shadow:var(--ox4-shadow-overlay);backdrop-filter:blur(28px);animation:ox4-drawer-in var(--ox4-motion-base) var(--ox4-spring) both}
+.kravia-office .ui-drawer>header{position:sticky;top:0;z-index:3;display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--ox4-line);background:rgba(250,252,250,.88);backdrop-filter:blur(20px)}
+.kravia-office .ui-drawer .ui-icon-button{width:36px;height:36px;border:1px solid var(--ox4-line);border-radius:11px;background:#fff;display:grid;place-items:center}
+@keyframes ox4-fade-in{from{opacity:0}to{opacity:1}}@keyframes ox4-drawer-in{from{opacity:0;transform:translate3d(24px,0,0) scale(.992)}to{opacity:1;transform:none}}
+@media(max-width:620px){.kravia-office .ui-drawer{inset:auto 0 0;width:100%;max-height:88dvh;border-radius:24px 24px 0 0;animation-name:ox4-sheet-in}.kravia-office .ui-drawer::before{content:"";display:block;width:44px;height:4px;margin:9px auto 0;border-radius:999px;background:#c7d0ca}@keyframes ox4-sheet-in{from{opacity:0;transform:translate3d(0,28px,0)}to{opacity:1;transform:none}}}
