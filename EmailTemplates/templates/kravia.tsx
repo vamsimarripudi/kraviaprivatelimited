@@ -45,6 +45,14 @@ export type RenderedTemplate = {
 const siteUrl = "https://www.kraviaprivatelimited.com";
 const headerLockupUrl = `${siteUrl}/brand/kravia-header-lockup-v2.png`;
 
+/** Keep these URLs aligned with Frontend/lib/public-links.ts (verified KRAVIA profiles). */
+const corporateSocialProfiles = {
+  linkedIn: "https://linkedin.com/company/kravia-private-limited",
+  x: "https://x.com/KraviaOfficial",
+  instagram: "https://www.instagram.com/kravia_private_limited/",
+  facebook: "https://www.facebook.com/profile.php?id=61595906774125",
+} as const;
+
 const palette = {
   ink: "#172331",
   sapphire: "#193B5B",
@@ -115,6 +123,16 @@ function KraviaShell({
               <Text style={styles.footerCopy}>
                 For your safety, KRAVIA will never ask for your password,
                 one-time code, private key, or card PIN by email.
+              </Text>
+              <Text style={styles.footerEyebrow}>CONNECT WITH KRAVIA</Text>
+              <Text style={styles.footerLinks}>
+                <Link href={corporateSocialProfiles.linkedIn} style={styles.link}>LinkedIn</Link>
+                {"  ·  "}
+                <Link href={corporateSocialProfiles.x} style={styles.link}>X</Link>
+                {"  ·  "}
+                <Link href={corporateSocialProfiles.instagram} style={styles.link}>Instagram</Link>
+                {"  ·  "}
+                <Link href={corporateSocialProfiles.facebook} style={styles.link}>Facebook</Link>
               </Text>
               <Text style={styles.footerLinks}>
                 <Link href={`${siteUrl}/trust/privacy`} style={styles.link}>Privacy</Link>

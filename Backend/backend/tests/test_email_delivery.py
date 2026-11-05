@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 import pytest
 
 from backend import email_delivery
@@ -291,3 +294,22 @@ def test_sender_must_remain_the_verified_kravia_address(monkeypatch):
             expiry_minutes=10,
             delivery_id="email-otp:challenge-1:1",
         )
+
+
+def test_all_corporate_transactional_email_footers_have_verified_social_links():
+    manifest_path = Path(__file__).resolve().parents[1] / "generated_email_templates.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    expected_profiles = {
+        "LinkedIn": "https://linkedin.com/company/kravia-private-limited",
+        "X": "https://x.com/KraviaOfficial",
+        "Instagram": "https://www.instagram.com/kravia_private_limited/",
+        "Facebook": "https://www.facebook.com/profile.php?id=61595906774125",
+    }
+    assert len(manifest["templates"]) == 6
+    for name, template in manifest["templates"].items():
+        assert "CONNECT WITH KRAVIA" in template["html"], name
+        assert "ACCOUNT SAFETY" in template["html"], name
+        assert "Legal notices and terms" in template["html"], name
+        for label, url in expected_profiles.items():
+            assert f'href="{url}"' in template["html"], (name, label)
+            assert f"{label} {url}" in template["text"], (name, label)

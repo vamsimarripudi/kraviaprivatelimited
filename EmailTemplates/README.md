@@ -18,3 +18,11 @@ in production.
 The manifest contains layout and placeholder tokens only. The backend validates
 and escapes every runtime value before replacement; Office-authored messages
 remain plain text and are never treated as HTML.
+
+## Company social links
+
+All six transactional templates use the shared KRAVIA footer. Its official
+LinkedIn, X, Instagram and Facebook profile links are mirrored from
+`Frontend/lib/public-links.ts`, without tracking parameters or third-party
+scripts. Keep those URLs in sync if an official account changes; regenerate
+the manifest before deployment.
