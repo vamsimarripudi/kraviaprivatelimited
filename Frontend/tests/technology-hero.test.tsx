@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { heroStatements, TechnologyHero } from "../components/technology-hero";
 
 const heroCss = readFileSync(resolve(process.cwd(), "components/technology-hero.module.css"), "utf8");
+const rotatingTextSource = readFileSync(resolve(process.cwd(), "components/rotating-text.tsx"), "utf8");
 
 afterEach(() => { vi.unstubAllGlobals(); });
 
@@ -59,6 +60,11 @@ describe("technology hero server rendering", () => {
     expect(heroCss).toContain(".velocityField { position: absolute; inset: -3% -1.5%;");
     expect(heroCss).toContain("will-change: transform;");
     expect(heroCss).toContain(".velocityField { transform: none; }");
+  });
+
+  it("waits for the current rotating word to exit before the next word enters", () => {
+    expect(rotatingTextSource).toContain("<AnimatePresence initial={false} mode=\"wait\">");
+    expect(rotatingTextSource).toContain("exit={preset.exit}");
   });
 
   it.each([false, true])("keeps server markup identical when a browser reports reduced motion as %s", (matches) => {

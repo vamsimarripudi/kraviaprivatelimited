@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  AnimatePresence,
   MotionConfig,
   motion,
   useReducedMotion,
@@ -197,27 +198,29 @@ const RotatingText = forwardRef<RotatingTextHandle, RotatingTextProps>(function 
         onMouseLeave={handleMouseLeave}
       >
         <span className={styles.screenReaderOnly}>{texts[activeIndex] ?? ""}</span>
-        <motion.span key={activeIndex} className={styles.text} aria-hidden="true" initial={preset.initial} animate={preset.animate} transition={preset.transition}>
-          {elements.map((word, wordIndex) => {
-            const offset = elements.slice(0, wordIndex).reduce((sum, item) => sum + item.characters.length, 0);
-            return (
-              <span key={`${activeIndex}-${wordIndex}`} className={[styles.word, splitLevelClassName].filter(Boolean).join(" ")}>
-                {word.characters.map((character, characterIndex) => (
-                  <motion.span
-                    key={`${activeIndex}-${wordIndex}-${characterIndex}`}
-                    className={[styles.element, elementLevelClassName].filter(Boolean).join(" ")}
-                    initial={preset.initial}
-                    animate={preset.animate}
-                    transition={{ ...preset.transition, delay: getDelay(offset + characterIndex) }}
-                  >
-                    {character}
-                  </motion.span>
-                ))}
-                {word.needsSpace ? <span className={styles.space}> </span> : null}
-              </span>
-            );
-          })}
-        </motion.span>
+        <AnimatePresence initial={false} mode="wait">
+          <motion.span key={activeIndex} className={styles.text} aria-hidden="true" initial={preset.initial} animate={preset.animate} exit={preset.exit} transition={preset.transition}>
+            {elements.map((word, wordIndex) => {
+              const offset = elements.slice(0, wordIndex).reduce((sum, item) => sum + item.characters.length, 0);
+              return (
+                <span key={`${activeIndex}-${wordIndex}`} className={[styles.word, splitLevelClassName].filter(Boolean).join(" ")}>
+                  {word.characters.map((character, characterIndex) => (
+                    <motion.span
+                      key={`${activeIndex}-${wordIndex}-${characterIndex}`}
+                      className={[styles.element, elementLevelClassName].filter(Boolean).join(" ")}
+                      initial={preset.initial}
+                      animate={preset.animate}
+                      transition={{ ...preset.transition, delay: getDelay(offset + characterIndex) }}
+                    >
+                      {character}
+                    </motion.span>
+                  ))}
+                  {word.needsSpace ? <span className={styles.space}> </span> : null}
+                </span>
+              );
+            })}
+          </motion.span>
+        </AnimatePresence>
       </motion.span>
     </MotionConfig>
   );
