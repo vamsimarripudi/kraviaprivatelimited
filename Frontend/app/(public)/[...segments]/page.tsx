@@ -7,7 +7,8 @@ import { LegalDocument } from "@/components/legal-document";
 import { LegalTrustCenter } from "@/components/legal-trust-center";
 import { PublicContentArticle, NewsroomLanding, MediaKitContent } from "@/components/newsroom-content";
 import { PageHero, Reveal } from "@/components/motion";
-import { publicPages, siteUrl } from "@/lib/site";
+import { publicPages } from "@/lib/site";
+import { buildPublicMetadata } from "@/lib/search-metadata";
 import { PublicPageContent } from "@/components/public-page-content";
 import { LeadershipPreview } from "@/components/leadership/leadership-content";
 import { BreadcrumbJsonLd } from "@/components/structured-data";
@@ -26,7 +27,7 @@ export async function generateMetadata({ params }: { params: Promise<{ segments:
   // A published public record is the canonical source for its own path. The
   // version-controlled page is an intentional fallback until that happens.
   if (content) return contentMetadata(content);
-  if (page) { const url = `${siteUrl}/${key}`; return { title: titleFor(page), description: page.intro, alternates: { canonical: `/${key}` }, openGraph: { title: `${titleFor(page)} | Kravia Private Limited`, description: page.intro, url, type: "website" } }; }
+  if (page) return buildPublicMetadata({ title: titleFor(page), description: page.intro, path: `/${key}` });
   return {};
 }
 
