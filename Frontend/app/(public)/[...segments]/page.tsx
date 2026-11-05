@@ -7,6 +7,7 @@ import { LegalDocument } from "@/components/legal-document";
 import { LegalTrustCenter } from "@/components/legal-trust-center";
 import { PublicContentArticle, NewsroomLanding, MediaKitContent } from "@/components/newsroom-content";
 import { PageHero, Reveal } from "@/components/motion";
+import { SocialConnect } from "@/components/social-links";
 import { publicPages } from "@/lib/site";
 import { buildPublicMetadata } from "@/lib/search-metadata";
 import { PublicPageContent } from "@/components/public-page-content";
@@ -53,6 +54,7 @@ export default async function PublicPage({ params }: { params: Promise<{ segment
     publicHubContentTypes[key] ? listPublishedContent() : Promise.resolve([]),
   ]);
   const hubRecords = publicContentForHub(key, published);
+  const socialSection = key === "company/about" ? <SocialConnect context="about" /> : key === "careers" ? <SocialConnect context="careers" /> : null;
   const enhanced = key === "newsroom" ? <NewsroomLanding articles={newsroom} /> : key === "newsroom/media-kit" ? <MediaKitContent /> : <PublicPageContent slug={key} />;
-  return <><BreadcrumbJsonLd items={breadcrumbs} /><main id="main-content"><PageHero {...page} />{enhanced ?? <section className="content-grid shell">{page.sections.map((section, i) => <Reveal key={section.title} className="content-row"><span>0{i + 1}</span><div><h2>{section.title}</h2><p>{section.body}</p></div></Reveal>)}</section>}{(key === "company" || key === "company/about") && <LeadershipPreview />}{hubRecords.length ? <GovernedContentCollection intro="Only reviewed, approved, and publicly released records appear here. Drafts, evidence, and review notes remain private." records={hubRecords} /> : null}{key === "contact" && <section className="shell"><Link className="button button-dark" href="/privacy-request">Submit a secure request <ArrowUpRight /></Link></section>}</main></>;
+  return <><BreadcrumbJsonLd items={breadcrumbs} /><main id="main-content"><PageHero {...page} />{enhanced ?? <section className="content-grid shell">{page.sections.map((section, i) => <Reveal key={section.title} className="content-row"><span>0{i + 1}</span><div><h2>{section.title}</h2><p>{section.body}</p></div></Reveal>)}</section>}{(key === "company" || key === "company/about") && <LeadershipPreview />}{socialSection}{hubRecords.length ? <GovernedContentCollection intro="Only reviewed, approved, and publicly released records appear here. Drafts, evidence, and review notes remain private." records={hubRecords} /> : null}{key === "contact" && <section className="shell"><Link className="button button-dark" href="/privacy-request">Submit a secure request <ArrowUpRight /></Link></section>}</main></>;
 }
