@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: vidyaLumaProduct.seo.title,
   description: vidyaLumaProduct.seo.description,
   alternates: { canonical: "/products/vidyaluma" },
-  openGraph: { title: vidyaLumaProduct.seo.title, description: vidyaLumaProduct.seo.description, url: "/products/vidyaluma", type: "website" },
+  openGraph: { siteName: "KRAVIA", title: vidyaLumaProduct.seo.title, description: vidyaLumaProduct.seo.description, url: "/products/vidyaluma", type: "website" },
   twitter: { card: "summary", title: vidyaLumaProduct.seo.title, description: vidyaLumaProduct.seo.description },
 };
 

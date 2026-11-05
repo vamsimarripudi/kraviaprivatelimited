@@ -13,3 +13,15 @@
 .spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 .qrForm{align-items:stretch}.qrPanel{display:grid;place-items:center;padding:14px;border:1px solid #d9e6dc;border-radius:14px;background:#f8fbf8}.qrImage{display:block;width:min(272px,100%);height:auto;border-radius:8px;background:#fff}.qrLoading{display:grid;place-items:center;width:272px;max-width:100%;aspect-ratio:1;border-radius:8px;background:#fff;color:#0d5a3f}.secondary svg{width:17px;height:17px;vertical-align:middle;margin-right:7px}
 @media(max-height:720px){.form{gap:11px}.icon{width:40px;height:40px}.form h2{font-size:30px}.field input,.primary{height:42px}.intro{line-height:1.4}}
+
+
+/* Office Experience 4.0 secure journey */
+.journey{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:2px 0 4px;padding:9px;border:1px solid rgba(23,61,46,.1);border-radius:16px;background:rgba(244,248,245,.72)}
+.journey>span{position:relative;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:6px;min-width:0;color:#8b948f}
+.journey>span:not(:last-child)::after{content:"";position:absolute;left:calc(100% - 1px);top:50%;width:7px;height:1px;background:#d4ddd7}
+.journey i{display:grid;place-items:center;width:22px;height:22px;border:1px solid #d8e0db;border-radius:50%;background:#fff;font-style:normal;font-size:9px;font-weight:800;box-shadow:0 2px 8px rgba(16,35,26,.04)}
+.journey b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;font-weight:750;letter-spacing:.01em}
+.journey>span[data-state="complete"]{color:#47705e}.journey>span[data-state="complete"] i{border-color:#b8d5c5;background:#eaf5ee;color:#17683f}
+.journey>span[data-state="current"]{color:#173c2e}.journey>span[data-state="current"] i{border-color:#2a6b51;background:#173c2e;color:#fff;box-shadow:0 0 0 5px rgba(37,95,73,.08)}
+@media(max-width:430px){.journey{grid-template-columns:repeat(4,1fr);padding:8px 7px}.journey>span{display:grid;justify-items:center;gap:4px}.journey b{max-width:54px;font-size:8px;text-align:center}.journey>span:not(:last-child)::after{top:11px;left:calc(50% + 14px);width:calc(100% - 28px)}}
+@media(prefers-reduced-motion:reduce){.journey *{transition:none!important}}

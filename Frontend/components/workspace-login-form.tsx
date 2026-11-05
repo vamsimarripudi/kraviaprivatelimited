@@ -77,6 +77,21 @@ function QrImage({ value }: { value: string }) {
   return <img className={styles.qrImage} src={dataUrl} alt="Scan this one-time QR code only with KRAVIA Authenticator" />;
 }
 
+
+function SecurityJourney({ phase }: { phase: Phase }) {
+  const active = phase === "password" ? 0 : phase === "activate" || phase === "verify" || phase === "qr" ? 1 : phase === "device-approval" ? 2 : 3;
+  const steps = ["Credentials", "MFA", "Device trust", "Office"];
+  return (
+    <div className={styles.journey} aria-label={`Secure sign-in progress: step ${active + 1} of 4`}>
+      {steps.map((label, index) => (
+        <span key={label} data-state={index < active ? "complete" : index === active ? "current" : "upcoming"}>
+          <i aria-hidden="true">{index < active ? "✓" : index + 1}</i><b>{label}</b>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export function WorkspaceLoginForm({
   workspace,
   nextPath,
@@ -376,6 +391,7 @@ export function WorkspaceLoginForm({
     return (
       <section className={styles.form} aria-labelledby="phone-activation-title">
         <div className={styles.icon}><ShieldCheck /></div>
+        <SecurityJourney phase={phase} />
         <p className={styles.eyebrow}>MANDATORY MFA</p>
         <h2 id="phone-activation-title">Activate your phone</h2>
         <p className={styles.intro}>
@@ -405,6 +421,7 @@ export function WorkspaceLoginForm({
     return (
       <form className={styles.form} onSubmit={verifyMfa} noValidate>
         <div className={styles.icon}><ShieldCheck /></div>
+        <SecurityJourney phase={phase} />
         <p className={styles.eyebrow}>MANDATORY MFA</p>
         <h2>Verify your identity</h2>
         <p className={styles.intro}>Your password is correct. Complete the second factor to continue.</p>
@@ -458,6 +475,7 @@ export function WorkspaceLoginForm({
     return (
       <section className={`${styles.form} ${styles.success}`} aria-labelledby="mfa-success-title" aria-live="polite">
         <div className={styles.successIcon}><CheckCircle2 /></div>
+        <SecurityJourney phase={phase} />
         <p className={styles.eyebrow}>IDENTITY VERIFIED</p>
         <h2 id="mfa-success-title">You’re securely signed in</h2>
         <p className={styles.intro}>Your Authenticator code was verified. We’re opening your authorised KRAVIA workspace now.</p>
@@ -473,6 +491,7 @@ export function WorkspaceLoginForm({
     return (
       <section className={`${styles.form} ${styles.qrForm}`} aria-labelledby="qr-approval-title" aria-live="polite">
         <div className={styles.icon}><Smartphone /></div>
+        <SecurityJourney phase={phase} />
         <p className={styles.eyebrow}>AUTHENTICATOR APPROVAL</p>
         <h2 id="qr-approval-title">Confirm on your trusted phone</h2>
         <p className={styles.intro}>Scan this one-time sign-in code only in KRAVIA Authenticator. The phone will show the browser details before you choose Accept or Reject.</p>
@@ -535,6 +554,7 @@ export function WorkspaceLoginForm({
   return (
     <form className={styles.form} onSubmit={signIn} noValidate>
       <div className={styles.icon}><KeyRound /></div>
+      <SecurityJourney phase={phase} />
       <p className={styles.eyebrow}>{workspace === "finance" ? "KRAVIA FINANCE · OFFICIAL ACCESS" : "KRAVIA OFFICE · OFFICIAL ACCESS"}</p>
       <h2>Sign in to KRAVIA {workspace === "finance" ? "Finance" : "Office"}</h2>
       <p className={styles.intro}>This private workspace is operated by Kravia Private Limited for authorised personnel only.</p>

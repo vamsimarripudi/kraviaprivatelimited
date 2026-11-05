@@ -30,3 +30,10 @@
 @media(max-width:900px){.shell{grid-template-columns:46% 54%}.brand{padding:28px}.trustGrid{grid-template-columns:1fr}.trustGrid>div:nth-child(n+2){display:none}.brandCopy h1{font-size:54px}}
 @media(max-width:720px){.shell{display:block;height:auto;min-height:100dvh;overflow:visible}.brand{display:none}.formSide{width:100%;height:auto;min-height:100dvh;justify-content:flex-start;padding:calc(20px + env(safe-area-inset-top)) 22px calc(32px + env(safe-area-inset-bottom));overflow:visible}.mobileBrand{display:flex;align-items:center;gap:10px;position:absolute;top:calc(20px + env(safe-area-inset-top));left:22px;font-size:9px;letter-spacing:.09em;color:#4b5c53}.mobileBrand :global(.brand-logo){color:#10241c}.mobileBrand :global(.brand-logo img){width:30px;height:31px}.card{max-height:none;overflow:visible;margin-top:calc(48px + env(safe-area-inset-top))}.copyright{position:static;margin:22px 0 0;text-align:center}}
 @media(max-height:700px) and (min-width:721px){.brand{padding:24px 38px}.brandCopy h1{font-size:54px}.description{margin:18px 0 20px}.trustGrid>div{padding:10px}.formSide{padding-top:18px;padding-bottom:30px}.copyright{bottom:8px}}
+
+
+/* Office Experience 4.0 — secure frame module contract */
+.brandCopy,.brandTop,.brandFooter{position:relative;z-index:2}.formSide{position:relative;isolation:isolate}.card{position:relative;z-index:2}
+@media(min-width:721px){.brandCopy{animation:ox4-auth-copy 420ms cubic-bezier(.16,1,.3,1) both}.brandTop{animation:ox4-auth-copy 360ms cubic-bezier(.16,1,.3,1) both}.brandFooter{animation:ox4-auth-copy 480ms cubic-bezier(.16,1,.3,1) both}}
+@keyframes ox4-auth-copy{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.brandCopy,.brandTop,.brandFooter{animation:none}}

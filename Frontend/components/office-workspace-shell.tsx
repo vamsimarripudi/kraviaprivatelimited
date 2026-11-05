@@ -24,6 +24,7 @@ import { OfficePresenceControl } from "@/components/office-presence-control";
 import { OfficeCommandPalette } from "@/components/office-command-palette";
 import { WorkspaceSignOutButton } from "@/components/workspace-sign-out-button";
 import { OfficeWorkspaceProvider } from "@/components/office-workspace-context";
+import { OfficeAmbientField } from "@/components/office-experience-ambient";
 import type { OfficeIdentity } from "@/lib/office/auth-server";
 import {
   capabilityCanAccessSection,
@@ -162,7 +163,8 @@ export function OfficeWorkspaceShell({
 
   return (
     <OfficeWorkspaceProvider identity={identity} permissions={permissions}>
-      <main className={`office office-v2 workspace-shell workspace-${workspace}`}>
+      <main className={`office office-v2 office-v4 workspace-shell workspace-${workspace}`}>
+        <OfficeAmbientField variant="workspace" />
         <a className="office-skip-link" href="#office-main-content">Skip to main content</a>
         <OfficePrefetchRoutes hrefs={prefetchedRoutes} />
         <aside data-mobile-open={mobileNavOpen ? "true" : "false"}>

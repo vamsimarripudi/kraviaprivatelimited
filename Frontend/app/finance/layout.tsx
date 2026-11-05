@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "../office/office-enterprise.css";
+import "../office/office-platform.css";
+import "../office/office-experience-4.css";
 
 export const metadata: Metadata = {
   title: "KRAVIA Finance",
@@ -8,5 +10,5 @@ export const metadata: Metadata = {
 
 
 export default function FinanceLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return <div className="kravia-office">{children}</div>;
 }

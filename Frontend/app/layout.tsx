@@ -21,7 +21,6 @@ export const metadata: Metadata = {
   keywords: ["KRAVIA PRIVATE LIMITED", "Kravia", "software company India", "AI technology company India", "software products", "intelligent systems", "digital infrastructure"],
   creator: publicSiteIdentity.name,
   publisher: publicSiteIdentity.name,
-  alternates: { canonical: "/" },
   robots: publicPageRobots(isProductionSite),
   openGraph: {
     type: "website",
@@ -40,5 +39,5 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#071e45" };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth"><body className="kravia-fonts"><OrganizationJsonLd /><BrandSplash />{children}<CookiePreferences /><OptionalAnalytics /></body></html>;
+  return <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth"><head><link rel="describedby" href="/llms.txt" /></head><body className="kravia-fonts"><OrganizationJsonLd /><BrandSplash />{children}<CookiePreferences /><OptionalAnalytics /></body></html>;
 }
