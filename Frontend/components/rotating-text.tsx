@@ -89,14 +89,11 @@ const RotatingText = forwardRef<RotatingTextHandle, RotatingTextProps>(function 
     direction = "up",
     rotationInterval = 2000,
     staggerDuration = 0,
-    staggerFrom = "first",
     splitBy = "characters",
     loop = true,
     auto = true,
     pauseOnHover = false,
     mainClassName,
-    splitLevelClassName,
-    elementLevelClassName,
     style,
     onNext,
     onMouseEnter,
@@ -151,15 +148,6 @@ const RotatingText = forwardRef<RotatingTextHandle, RotatingTextProps>(function 
   }, [motionAvailable]);
 
   const preset = (EFFECTS[effect] ?? EFFECTS.slide)(direction !== "down");
-  const getDelay = (index: number) => {
-    const total = elements.reduce((sum, item) => sum + item.characters.length, 0);
-    if (staggerFrom === "last") return (total - 1 - index) * staggerDuration;
-    if (staggerFrom === "center") return Math.abs(Math.floor(total / 2) - index) * staggerDuration;
-    if (staggerFrom === "random") return ((index * 17) % Math.max(total, 1)) * staggerDuration;
-    if (typeof staggerFrom === "number") return Math.abs(staggerFrom - index) * staggerDuration;
-    return index * staggerDuration;
-  };
-
   const handleMouseEnter: MouseEventHandler<HTMLSpanElement> = (event) => {
     if (pauseOnHover) setHovered(true);
     onMouseEnter?.(event);
@@ -176,6 +164,8 @@ const RotatingText = forwardRef<RotatingTextHandle, RotatingTextProps>(function 
       {word.needsSpace ? <span className={styles.space}> </span> : null}
     </span>
   ));
+  const renderedText = elements.map((word) => `${word.characters.join("")}${word.needsSpace ? " " : ""}`).join("");
+  const wordTransition = { ...preset.transition, delay: Math.max(0, Math.min(staggerDuration, 0.2)) };
 
   if (!motionReady) {
     return (
@@ -199,26 +189,16 @@ const RotatingText = forwardRef<RotatingTextHandle, RotatingTextProps>(function 
       >
         <span className={styles.screenReaderOnly}>{texts[activeIndex] ?? ""}</span>
         <AnimatePresence initial={false} mode="wait">
-          <motion.span key={activeIndex} className={styles.text} aria-hidden="true" initial={preset.initial} animate={preset.animate} exit={preset.exit} transition={preset.transition}>
-            {elements.map((word, wordIndex) => {
-              const offset = elements.slice(0, wordIndex).reduce((sum, item) => sum + item.characters.length, 0);
-              return (
-                <span key={`${activeIndex}-${wordIndex}`} className={[styles.word, splitLevelClassName].filter(Boolean).join(" ")}>
-                  {word.characters.map((character, characterIndex) => (
-                    <motion.span
-                      key={`${activeIndex}-${wordIndex}-${characterIndex}`}
-                      className={[styles.element, elementLevelClassName].filter(Boolean).join(" ")}
-                      initial={preset.initial}
-                      animate={preset.animate}
-                      transition={{ ...preset.transition, delay: getDelay(offset + characterIndex) }}
-                    >
-                      {character}
-                    </motion.span>
-                  ))}
-                  {word.needsSpace ? <span className={styles.space}> </span> : null}
-                </span>
-              );
-            })}
+          <motion.span
+            key={activeIndex}
+            className={styles.text}
+            aria-hidden="true"
+            initial={preset.initial}
+            animate={preset.animate}
+            exit={preset.exit}
+            transition={wordTransition}
+          >
+            {renderedText}
           </motion.span>
         </AnimatePresence>
       </motion.span>
