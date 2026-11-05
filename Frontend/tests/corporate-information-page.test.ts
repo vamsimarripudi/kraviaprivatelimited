@@ -23,7 +23,7 @@ describe("corporate information surface", () => {
     expect(footer).toContain("getPublicCompanyProfile");
     expect(corporatePage).toContain("corporateIdentity.pan");
     expect(structuredData).toContain("corporateIdentity.registeredOffice");
-    expect(structuredData).toContain("publicSocialProfiles.map((profile) => profile.href)");
+    expect(structuredData).toContain("Object.values(publicCompanyLinks)");
   });
 
   it("keeps PAN off the primary footer and protects external verification links", () => {
