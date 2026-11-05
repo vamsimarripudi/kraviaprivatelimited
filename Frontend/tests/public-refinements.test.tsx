@@ -138,6 +138,7 @@ describe("real leadership portraits and current contributions", () => {
     expect(source("app/layout.tsx")).toContain('import "./public-next-age.css"');
     expect(publicNextAge).toContain("--public-font");
     expect(publicNextAge).toContain("--font-serif: var(--public-font)");
+    expect(publicNextAge).toContain("body:has(.nav-wrap) .nav-wrap { padding-block: 14px; background: transparent;");
     expect(publicNextAge).toContain("background-clip: text");
     expect(publicNextAge).toContain("@media (prefers-reduced-motion: reduce)");
     expect(publicNextAge).toContain("@media (max-width: 760px)");

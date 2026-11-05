@@ -63,9 +63,9 @@ body:has(.nav-wrap) .signature-prefooter h2 {
 .public-radiant-soft { color: transparent; background: linear-gradient(100deg, #0d4c78 8%, #7961d8 64%, #108b9e 100%); -webkit-background-clip: text; background-clip: text; }
 body:has(.nav-wrap) .shell { width: min(1320px, calc(100vw - 72px)); }
 
-body:has(.nav-wrap) .nav-wrap { padding-block: 14px; background: color-mix(in srgb, var(--paper) 78%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--public-ink) 11%, transparent); backdrop-filter: blur(22px) saturate(125%); -webkit-backdrop-filter: blur(22px) saturate(125%); }
+body:has(.nav-wrap) .nav-wrap { padding-block: 14px; background: transparent; border-bottom: 1px solid color-mix(in srgb, var(--public-ink) 11%, transparent); backdrop-filter: none; -webkit-backdrop-filter: none; }
 body:has(.nav-wrap) .nav-wrap .island { min-height: 46px; border-color: color-mix(in srgb, currentColor 18%, transparent); background: color-mix(in srgb, var(--paper) 40%, transparent); box-shadow: 0 8px 28px rgba(14,44,84,.07); }
-body:has(.nav-wrap) .nav-wrap.onDark { --nav-border: rgba(198,229,255,.22); background: color-mix(in srgb, var(--public-night) 76%, transparent); }
+body:has(.nav-wrap) .nav-wrap.onDark { --nav-border: rgba(198,229,255,.22); background: transparent; }
 body:has(.nav-wrap) .nav-wrap.onDark .island { background: color-mix(in srgb, var(--public-night-raised) 58%, transparent); box-shadow: 0 10px 34px rgba(0,0,0,.18); }
 body:has(.nav-wrap) .nav-wrap .island:hover, body:has(.nav-wrap) .nav-wrap .island:focus-within { border-color: color-mix(in srgb, var(--public-cyan) 58%, currentColor); box-shadow: var(--public-glow); }
 
