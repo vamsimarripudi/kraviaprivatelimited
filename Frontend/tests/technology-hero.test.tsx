@@ -46,9 +46,11 @@ describe("technology hero server rendering", () => {
   it("keeps the rotating statement centered in a fixed slot with radiant text", () => {
     expect(heroCss).toContain("display: inline-flex;");
     expect(heroCss).toContain("justify-self: center;");
+    expect(heroCss).toContain("--rotator-slot: clamp(15ch, 22vw, 19ch);");
+    expect(heroCss).toContain("transform: translateX(calc((var(--rotator-slot) + .12em) / 2));");
     expect(heroCss).toContain("text-align: center;");
     expect(heroCss).toContain("background: linear-gradient(105deg");
-    expect(heroCss).toContain(".rotator { display: inline-block; width: clamp(15ch, 22vw, 19ch)");
+    expect(heroCss).toContain(".rotator { display: inline-block; width: var(--rotator-slot);");
     expect(heroCss).toContain("text-align: center;");
   });
 

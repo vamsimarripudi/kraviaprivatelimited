@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { ArrowDown, ArrowUpRight } from "lucide-react";
-import { useEffect, useState } from "react";
 import GridScan from "./grid-scan";
+import RotatingText from "./rotating-text";
 import styles from "./technology-hero.module.css";
 
 export const heroStatements = [
@@ -15,19 +15,6 @@ export const heroStatements = [
 ] as const;
 
 export function TechnologyHero() {
-  const [statementIndex, setStatementIndex] = useState(0);
-
-  useEffect(() => {
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (reduceMotion.matches) return;
-
-    const timer = window.setInterval(() => {
-      setStatementIndex((current) => (current + 1) % heroStatements.length);
-    }, 3600);
-
-    return () => window.clearInterval(timer);
-  }, []);
-
   return (
     <section className={styles.hero} aria-labelledby="home-title">
       <div className={styles.backdrop} aria-hidden="true">
@@ -40,8 +27,16 @@ export function TechnologyHero() {
           <h1 id="home-title" className={styles.title}>Technology for<br /><span>what comes next.</span></h1>
           <p className={styles.rotatingStatement}>
             <span>Built for </span>
-            <span className={styles.rotator} aria-live="polite" aria-atomic="true">
-              <span key={heroStatements[statementIndex]} className={styles.rotatingWord}>{heroStatements[statementIndex]}</span>
+            <span className={styles.rotator}>
+              <RotatingText
+                texts={heroStatements}
+                effect="slide"
+                direction="up"
+                staggerFrom="last"
+                staggerDuration={0.025}
+                rotationInterval={3600}
+                mainClassName={styles.rotatingWord}
+              />
             </span>
           </p>
           <p className={styles.description}>We are KRAVIA. An Indian technology company building software products, intelligent systems and digital infrastructure for work that matters.</p>

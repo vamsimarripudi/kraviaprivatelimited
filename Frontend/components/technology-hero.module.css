@@ -30,10 +30,9 @@
 .eyebrow > span { width: 6px; height: 6px; border-radius: 50%; background: var(--hero-accent); box-shadow: 0 0 14px rgba(167, 217, 230, .45); }
 .hero .title { color: var(--hero-text); font: 500 clamp(44px, min(5.8vw, 10svh), 84px)/1.08 var(--sans); letter-spacing: -.065em; max-width: 900px; text-wrap: balance; }
 .title > span, .rotatingWord { color: transparent; background: linear-gradient(105deg, #f3f8ff 8%, #98e9ff 42%, #bda7ff 82%); -webkit-background-clip: text; background-clip: text; }
-.rotatingStatement { display: inline-flex; align-items: baseline; justify-content: center; justify-self: center; width: auto; max-width: 100%; gap: .12em; min-height: 1.5em; color: var(--hero-muted); font: 500 clamp(15px, 1.5vw, 19px)/1.5 var(--sans); letter-spacing: -.015em; text-align: center; }
-.rotator { display: inline-block; width: clamp(15ch, 22vw, 19ch); height: 1.5em; overflow: hidden; vertical-align: bottom; text-align: center; }
-.rotatingWord { display: block; animation: hero-word-in 480ms cubic-bezier(.2, .75, .25, 1) both; }
-@keyframes hero-word-in { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: translateY(0); } }
+.rotatingStatement { --rotator-slot: clamp(15ch, 22vw, 19ch); display: inline-flex; align-items: baseline; justify-content: center; justify-self: center; width: auto; max-width: 100%; gap: .12em; min-height: 1.5em; color: var(--hero-muted); font: 500 clamp(15px, 1.5vw, 19px)/1.5 var(--sans); letter-spacing: -.015em; text-align: center; transform: translateX(calc((var(--rotator-slot) + .12em) / 2)); }
+.rotator { display: inline-block; width: var(--rotator-slot); height: 1.5em; overflow: hidden; vertical-align: bottom; text-align: center; }
+.rotatingWord { display: inline-flex; align-items: baseline; justify-content: center; min-width: 100%; }
 .hero .description { max-width: 490px; font: 400 16px/1.85 var(--sans); color: var(--hero-muted); }
 .actions { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: center; }
 .primary, .secondary { display: inline-flex; align-items: center; justify-content: center; gap: 20px; min-height: 52px; border-radius: 12px; padding: 14px 20px; font: 600 12px/1.5 var(--sans); border: 1px solid var(--hero-line); }
@@ -59,7 +58,7 @@
   .hero .eyebrow { font-size: 9px; letter-spacing: .045em; gap: 8px; }
   .hero .title { font-size: clamp(36px, 10.1vw, 64px); line-height: 1.12; letter-spacing: -.06em; }
   .rotatingStatement { font-size: 15px; }
-  .rotator { width: 17ch; }
+  .rotatingStatement { --rotator-slot: 17ch; }
   .hero .description { max-width: 420px; font-size: 14px; line-height: 1.8; }
   .shade { background: radial-gradient(ellipse at 50% 42%, rgba(6, 16, 30, .7), rgba(6, 16, 30, .25) 78%), linear-gradient(180deg, rgba(6, 16, 30, .5), transparent 25%, transparent 72%, var(--hero-bg)); }
   .actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; max-width: 350px; gap: 10px; }
