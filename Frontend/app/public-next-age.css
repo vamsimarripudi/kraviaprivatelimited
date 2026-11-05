@@ -96,7 +96,7 @@ body:has(.nav-wrap) .footer a:hover, body:has(.nav-wrap) .signature-prefooter a:
 @keyframes public-orbit { from { transform: translate3d(-1%, 0, 0) scale(1); } to { transform: translate3d(1.5%, -1%, 0) scale(1.035); } }
 
 @media (min-width: 761px) {
-  body:has(.nav-wrap) .page-hero, body:has(.nav-wrap) .article-header, body:has(.nav-wrap) .newsroom-feature, body:has(.nav-wrap) .support-portal-intro, body:has(.nav-wrap) .contact-router-heading { min-height: 25rem; display: grid; align-content: end; padding-bottom: 4rem; }
+  body:has(.nav-wrap) .page-hero, body:has(.nav-wrap) .article-header, body:has(.nav-wrap) .newsroom-feature, body:has(.nav-wrap) .support-portal-intro, body:has(.nav-wrap) .contact-router-heading { min-height: 17rem; display: grid; align-content: end; padding-block: 3.25rem 2.75rem; }
   body:has(.nav-wrap) .groups { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 0 3rem; }
   body:has(.nav-wrap) .group:nth-child(even) { padding-left: 3rem; border-left: 1px solid var(--public-line); }
 }
@@ -109,8 +109,8 @@ body:has(.nav-wrap) .footer a:hover, body:has(.nav-wrap) .signature-prefooter a:
   body:has(.nav-wrap) .hero h1, body:has(.nav-wrap) .page-hero h1 { max-width: 11ch; font-size: clamp(2.8rem, 13vw, 4.8rem); line-height: .94; }
   body:has(.nav-wrap) .hero-foot, body:has(.nav-wrap) .technology-hero__actions, body:has(.nav-wrap) .actions { align-items: stretch; flex-direction: column; }
   body:has(.nav-wrap) .hero-foot > div, body:has(.nav-wrap) .technology-hero__actions > *, body:has(.nav-wrap) .actions > * { width: 100%; justify-content: center; }
-  body:has(.nav-wrap) .intro, body:has(.nav-wrap) .principles, body:has(.nav-wrap) .portfolio, body:has(.nav-wrap) .operating-band, body:has(.nav-wrap) .corporate-information, body:has(.nav-wrap) .method-section, body:has(.nav-wrap) .contact-experience, body:has(.nav-wrap) .detail-shell, body:has(.nav-wrap) .article-shell, body:has(.nav-wrap) .support-portal { padding-block: 4.6rem; }
-  body:has(.nav-wrap) .page-hero, body:has(.nav-wrap) .article-header, body:has(.nav-wrap) .newsroom-feature, body:has(.nav-wrap) .support-portal-intro, body:has(.nav-wrap) .contact-router-heading { min-height: 20rem; padding-block: 3rem 2.5rem; }
+  body:has(.nav-wrap) .intro, body:has(.nav-wrap) .principles, body:has(.nav-wrap) .portfolio, body:has(.nav-wrap) .operating-band, body:has(.nav-wrap) .corporate-information, body:has(.nav-wrap) .method-section, body:has(.nav-wrap) .contact-experience, body:has(.nav-wrap) .detail-shell, body:has(.nav-wrap) .article-shell, body:has(.nav-wrap) .support-portal { padding-block: 3.6rem; }
+  body:has(.nav-wrap) .page-hero, body:has(.nav-wrap) .article-header, body:has(.nav-wrap) .newsroom-feature, body:has(.nav-wrap) .support-portal-intro, body:has(.nav-wrap) .contact-router-heading { min-height: 13.5rem; padding-block: 2rem 1.75rem; }
   body:has(.nav-wrap) .content-row, body:has(.nav-wrap) .principle, body:has(.nav-wrap) .detail-section, body:has(.nav-wrap) .trust-questions { grid-template-columns: 1fr; gap: .8rem; }
   body:has(.nav-wrap) .content-row:hover, body:has(.nav-wrap) .principle:hover, body:has(.nav-wrap) .detail-section:hover, body:has(.nav-wrap) .trust-grid a:hover, body:has(.nav-wrap) .homepage-product-market-grid article:hover, body:has(.nav-wrap) .ui-card:hover { transform: none; }
   body:has(.nav-wrap) .group:nth-child(even) { padding-left: 0; border-left: 0; }
