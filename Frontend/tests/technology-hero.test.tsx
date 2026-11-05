@@ -30,6 +30,7 @@ describe("technology hero server rendering", () => {
     expect(html).toContain("<canvas");
     expect(html).toContain('class="grid-scan"');
     expect(html).toContain('class="grid-scan-canvas" aria-hidden="true"');
+    expect(html).toContain('data-scroll-velocity="enabled"');
     expect(html).not.toContain("dark-veil-container");
     expect(html).not.toContain("<video");
     expect(html).not.toContain("<script");
@@ -52,6 +53,12 @@ describe("technology hero server rendering", () => {
     expect(heroCss).toContain("background: linear-gradient(105deg");
     expect(heroCss).toContain(".rotator { display: inline-block; width: var(--rotator-slot);");
     expect(heroCss).toContain("text-align: center;");
+  });
+
+  it("keeps scroll momentum bounded to the decorative hero field", () => {
+    expect(heroCss).toContain(".velocityField { position: absolute; inset: -3% -1.5%;");
+    expect(heroCss).toContain("will-change: transform;");
+    expect(heroCss).toContain(".velocityField { transform: none; }");
   });
 
   it.each([false, true])("keeps server markup identical when a browser reports reduced motion as %s", (matches) => {
