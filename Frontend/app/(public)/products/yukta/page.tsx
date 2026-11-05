@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: { absolute: yuktaProduct.seo.title },
   description: yuktaProduct.seo.description,
   alternates: { canonical: "/products/yukta" },
-  openGraph: { title: yuktaProduct.seo.title, description: yuktaProduct.seo.description, url: "/products/yukta", type: "website" },
+  openGraph: { siteName: "KRAVIA", title: yuktaProduct.seo.title, description: yuktaProduct.seo.description, url: "/products/yukta", type: "website" },
   twitter: { card: "summary_large_image", title: yuktaProduct.seo.title, description: yuktaProduct.seo.description },
 };
 
