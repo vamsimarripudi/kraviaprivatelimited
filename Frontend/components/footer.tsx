@@ -1,6 +1,5 @@
 import Link from "next/link";
 import styles from "./footer.module.css";
-import { publicSocialProfiles } from "@/lib/public-links";
 import { BadgeCheck, ChevronDown, ExternalLink } from "lucide-react";
 import { SocialLinks } from "./social-links";
 import { BrandLogo } from "@/components/brand-logo";
@@ -70,7 +69,7 @@ export async function Footer() {
           <div className={styles.brand}>
             <BrandLogo inverse />
             <p>Software products, intelligent systems and digital infrastructure.</p>
-            <SocialLinks profiles={publicSocialProfiles} />
+            <SocialLinks inverse />
           </div>
           <div className={styles.directory}>
             {footerColumns.map((column) => (
