@@ -26,6 +26,18 @@ describe("KRAVIA Office Experience 4.0 foundation", () => {
     expect(login).toContain('type Phase = "password" | "activate" | "verify" | "qr" | "device-approval" | "success"');
   });
 
+  it("uses governed owner decision dialogs instead of browser-native confirms", () => {
+    const newsletter = read("components/public-newsletter-manager.tsx");
+    const resources = read("components/public-resource-publisher.tsx");
+    const dialog = read("components/office-decision-dialog.tsx");
+    expect(newsletter).toContain("OfficeDecisionDialog");
+    expect(resources).toContain("OfficeDecisionDialog");
+    expect(newsletter).not.toContain("window.confirm");
+    expect(resources).not.toContain("window.confirm");
+    expect(dialog).toContain('role="dialog"');
+    expect(dialog).toContain('aria-modal="true"');
+  });
+
   it("has responsive overlay, floating surface and reduced-motion rules", () => {
     const css = read("app/office/office-experience-4.css");
     expect(css).toContain("--ox4-shadow-floating");
