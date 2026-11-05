@@ -1,6 +1,7 @@
 "use client";
 import { useState, type FormEvent } from "react";
 import styles from "./public-access.module.css";
+import { OfficeDecisionDialog } from "./office-decision-dialog";
 type Resource={slug:string;title:string;summary:string;file_name:string;byte_size:number;status:string;checksum_sha256:string};
 export function PublicResourcePublisher({initial}:{initial:Resource[]}){
  const [resources,setResources]=useState(initial);
@@ -10,6 +11,7 @@ export function PublicResourcePublisher({initial}:{initial:Resource[]}){
  const [file,setFile]=useState<File|null>(null);
  const [busy,setBusy]=useState(false);
  const [notice,setNotice]=useState("");
+ const [decision,setDecision]=useState<{slug:string;title:string;action:"PUBLISH"|"RETIRE"}>();
  async function refresh(){
   const response=await fetch("/api/office-public-resources",{cache:"no-store"});
   if(!response.ok)throw new Error("Could not refresh approved files.");
@@ -30,10 +32,12 @@ export function PublicResourcePublisher({initial}:{initial:Resource[]}){
   }catch(err){setNotice(err instanceof Error?err.message:"Upload failed.");}
   finally{setBusy(false);}
  }
- async function decide(slug:string,action:"PUBLISH"|"RETIRE"){
-  if(!window.confirm(action==="PUBLISH"?
-    "Publish this reviewed resource to the public catalogue? Ensure its content, license, safety and privacy have been approved.":
-    "Retire this resource and disable future downloads?"))return;
+ function decide(slug:string,title:string,action:"PUBLISH"|"RETIRE"){
+  setDecision({slug,title,action});
+ }
+ async function executeDecision(){
+  if(!decision)return;
+  const {slug,action}=decision;
   setBusy(true);setNotice("");
   try{
    const response=await fetch("/api/office-public-resources",{method:"PATCH",headers:{"content-type":"application/json"},
@@ -42,7 +46,7 @@ export function PublicResourcePublisher({initial}:{initial:Resource[]}){
    if(!response.ok)throw new Error(result.error||"Could not change publication status.");
    await refresh();setNotice(action==="PUBLISH"?"Resource published.":"Resource retired.");
   }catch(err){setNotice(err instanceof Error?err.message:"Could not update resource.");}
-  finally{setBusy(false);}
+  finally{setBusy(false);setDecision(undefined);}
  }
  return <div>
   <div className={styles.card}>
@@ -75,11 +79,24 @@ export function PublicResourcePublisher({initial}:{initial:Resource[]}){
         href={"/api/office-public-resources/"+encodeURIComponent(r.slug)+"/preview"}>
         Review exact file
       </a>
-      {r.status==="DRAFT"?<button disabled={busy} type="button" className={styles.button} onClick={()=>void decide(r.slug,"PUBLISH")}>Approve and publish</button>:null}
-      {r.status==="PUBLISHED"?<button disabled={busy} type="button" className={styles.button+" "+styles.ghost} onClick={()=>void decide(r.slug,"RETIRE")}>Retire resource</button>:null}
+      {r.status==="DRAFT"?<button disabled={busy} type="button" className={styles.button} onClick={()=>decide(r.slug,r.title,"PUBLISH")}>Approve and publish</button>:null}
+      {r.status==="PUBLISHED"?<button disabled={busy} type="button" className={styles.button+" "+styles.ghost} onClick={()=>decide(r.slug,r.title,"RETIRE")}>Retire resource</button>:null}
      </div>
     </div>)}
   </div>
   {notice?<p className={styles.message} role="status">{notice}</p>:null}
+  {decision?<OfficeDecisionDialog
+    open
+    eyebrow={decision.action==="PUBLISH"?"PUBLICATION DECISION":"RETIREMENT DECISION"}
+    title={decision.action==="PUBLISH"?"Publish reviewed resource":"Retire public resource"}
+    description={decision.action==="PUBLISH"
+      ?"Publish this reviewed resource to the public catalogue. Confirm content, licence, safety and privacy review before release."
+      :"Retire this resource and disable future public downloads. Existing audit evidence remains preserved."}
+    confirmLabel={decision.action==="PUBLISH"?"Approve and publish":"Retire resource"}
+    tone={decision.action==="PUBLISH"?"warning":"danger"}
+    busy={busy}
+    onCancel={()=>setDecision(undefined)}
+    onConfirm={()=>void executeDecision()}
+  ><p><strong>{decision.title}</strong></p><p>Resource key: {decision.slug}</p></OfficeDecisionDialog>:null}
  </div>;
 }
