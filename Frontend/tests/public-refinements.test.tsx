@@ -132,4 +132,15 @@ describe("real leadership portraits and current contributions", () => {
     expect(publicCss).toContain("body:has(.nav-wrap) .hero h1");
     expect(publicCss).not.toContain("zoom:");
   });
+
+  it("loads the unified public visual system with radiant accents and reduced-motion fallbacks", () => {
+    const publicNextAge = source("app/public-next-age.css");
+    expect(source("app/layout.tsx")).toContain('import "./public-next-age.css"');
+    expect(publicNextAge).toContain("--public-font");
+    expect(publicNextAge).toContain("--font-serif: var(--public-font)");
+    expect(publicNextAge).toContain("background-clip: text");
+    expect(publicNextAge).toContain("@media (prefers-reduced-motion: reduce)");
+    expect(publicNextAge).toContain("@media (max-width: 760px)");
+    expect(publicNextAge).toContain(".legal-trust-center h1");
+  });
 });
