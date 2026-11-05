@@ -59,7 +59,7 @@ export default async function Home() {
           <HeroMotion />
           <div className="hero-foot">
             <p>KRAVIA PRIVATE LIMITED is an Indian technology company building software products, intelligent systems and digital infrastructure. Official website: kraviaprivatelimited.com.</p>
-            <div><MagneticLink className="button button-light premium-cta" href="/products">Explore our products <ArrowUpRight /></MagneticLink><Link className="text-link" href="/company/about">About Kravia</Link></div>
+            <div><MagneticLink className="button button-light premium-cta" href="/products">Explore our products <ArrowUpRight /></MagneticLink><Link className="text-link" href="/company/about">About Kravia</Link><Link className="text-link" href="/resources">Resource library <ArrowDownRight aria-hidden="true" /></Link></div>
           </div>
           <KLine className="hero-line" />
         </section>
