@@ -45,6 +45,7 @@ const footerColumns = [
     title: "Resources",
     links: [
       ["Newsroom", "/newsroom"],
+      ["Company FAQ", "/company/faq"],
       ["Legal", "/legal"],
       ["Accessibility", "/trust/accessibility"],
       ["Security reporting", "/trust/security-reporting"],
@@ -67,7 +68,7 @@ export async function Footer() {
       <div className={styles.container}>
         <div className={styles.top}>
           <div className={styles.brand}>
-            <BrandLogo inverse />
+            <BrandLogo inverse animated />
             <p>Software products, intelligent systems and digital infrastructure.</p>
             <SocialLinks inverse />
           </div>
