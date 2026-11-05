@@ -324,7 +324,7 @@ def test_all_six_distinct_email_layouts_link_the_official_social_icons():
         "Instagram": ("instagram-v2.png", "https://www.instagram.com/kravia_private_limited/"),
         "Facebook": ("facebook.png", "https://www.facebook.com/profile.php?id=61595906774125"),
     }
-    assert len(templates) == 6
+    assert len(templates) == 16
     for name, template in templates.items():
         html = template["html"]
         plain = template["text"]
@@ -338,10 +338,36 @@ def test_all_six_distinct_email_layouts_link_the_official_social_icons():
             assert f'href="{url}"' in html, (name, label)
             assert f"{label} {url}" in plain, (name, label)
 
-    assert len({template["html"] for template in templates.values()}) == 6
+    assert len({template["html"] for template in templates.values()}) == 16
     assert "ONE-TIME SIGN-IN CODE" in templates["office_sign_in_code"]["html"]
     assert "UNRECOGNIZED DEVICE CHECK" in templates["office_device_approval"]["html"]
     assert "RECEIVED · CONFIRMED" in templates["public_request_received"]["html"]
     assert "LATEST MESSAGE" in templates["public_request_update"]["html"]
     assert "ACTION · REVIEW IN OFFICE" in templates["public_intake_internal_notification"]["html"]
     assert "A NOTE FROM KRAVIA" in templates["public_welcome"]["html"]
+
+
+def test_public_access_mail_catalog_is_safe_and_separately_branded():
+    from backend.email_templates import public_access_mail_template, PUBLIC_ACCESS_MAIL_TYPES
+
+    assert len(PUBLIC_ACCESS_MAIL_TYPES) == 10
+    verification = public_access_mail_template(kind="ACCOUNT_CODE", recipient_name="Sample User", code="482915")
+    assert "482915" in verification.html_content
+    assert "KRAVIA Office" not in verification.html_content
+    assert "NEWSLETTER" not in verification.html_content
+    assert "linkedin-v2.png" in verification.html_content
+    assert "instagram-v2.png" in verification.html_content
+    with pytest.raises(ValueError):
+        public_access_mail_template(kind="ACCOUNT_CODE", recipient_name="Sample User", code="invalid")
+    with pytest.raises(ValueError):
+        public_access_mail_template(
+            kind="NEWSLETTER_CONFIRM", recipient_name="Sample User",
+            action_url="https://example.org/confirm?token=abc"
+        )
+    digest = public_access_mail_template(
+        kind="NEWSLETTER_DIGEST", recipient_name="Sample User",
+        issue_subject="Approved company update", message="<unsafe>",
+        unsubscribe_url="https://www.kraviaprivatelimited.com/newsletter/unsubscribe?token=" + "a"*43
+    )
+    assert "&lt;unsafe&gt;" in digest.html_content
+    assert "Unsubscribe" in digest.html_content

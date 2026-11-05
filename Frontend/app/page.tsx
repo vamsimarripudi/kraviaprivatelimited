@@ -128,6 +128,18 @@ export default async function Home() {
         </section>
 
         <HomepageUpdates articles={newsroom} />
+        <section className="shell" aria-labelledby="resource-access-heading" style={{paddingBlock:"clamp(36px,6vw,76px)"}}>
+          <div style={{borderTop:"1px solid #d7e1e9",paddingTop:32,display:"flex",gap:24,alignItems:"center",justifyContent:"space-between",flexWrap:"wrap"}}>
+            <div><p className="eyebrow">KRAVIA / RESOURCE LIBRARY</p>
+              <h2 id="resource-access-heading" style={{fontFamily:"Georgia,serif",fontWeight:400,fontSize:"clamp(28px,4vw,42px)",lineHeight:1.13,margin:"0 0 8px"}}>Ideas to keep. Resources to use.</h2>
+              <p style={{maxWidth:580}}>Browse approved resources freely. Verify your email only when you choose to download.</p>
+            </div>
+            <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+              <Link className="button button-dark" href="/resources">Resource library <ArrowUpRight aria-hidden="true"/></Link>
+              <Link className="text-link" href="/join?next=%2Fresources">Public account</Link>
+            </div>
+          </div>
+        </section>
         <section className="corporate-information shell" aria-labelledby="corporate-information-title">
           <div><p className="eyebrow">10 / CORPORATE INFORMATION</p><h2 id="corporate-information-title">Corporate details, <em>without the clutter.</em></h2><p>Kravia publishes public corporate information from a governed record. Details that are not yet verified are deliberately not shown.</p><Link href="/company/corporate-information" className="text-link">View corporate information <ArrowDownRight /></Link></div>
           <dl>{publicFactRows(profile).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>

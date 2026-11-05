@@ -206,6 +206,12 @@ export function OfficeWorkspaceShell({
                   ))}
               </div>
             ))}
+              {workspace === "office" && identity.roles.includes("OWNER") ? (
+                <div className="workspace-nav-group">
+                  <p>PUBLIC SITE</p>
+                  <OfficeNavLink href="/office/resource-publishing"><Files aria-hidden="true"/><span>Resource publishing</span></OfficeNavLink>
+                </div>
+              ) : null}
           </nav>
 
           <div className="workspace-side-actions">

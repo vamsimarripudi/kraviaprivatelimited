@@ -1,3 +1,4 @@
+import { publicAccessTemplates, type PublicAccessTemplateName } from "./public-access.js";
 /**
  * KRAVIA's deterministic, email-client-safe HTML templates.
  *
@@ -21,16 +22,17 @@ export const PLACEHOLDERS = {
   "reviewUrl": "@@KRAVIA_REVIEW_URL@@"
 } as const;
 
-export type KraviaEmailTemplateName =
+export type KraviaCoreEmailTemplateName =
   | "office_sign_in_code"
   | "office_device_approval"
   | "public_request_received"
   | "public_request_update"
   | "public_intake_internal_notification"
   | "public_welcome";
+export type KraviaEmailTemplateName = KraviaCoreEmailTemplateName | PublicAccessTemplateName;
 export type RenderedTemplate = {html: string; text: string};
 
-function makeManifest(): Record<KraviaEmailTemplateName, RenderedTemplate> {
+function makeManifest(): Record<KraviaCoreEmailTemplateName, RenderedTemplate> {
   const P = PLACEHOLDERS;
   const site = "https://www.kraviaprivatelimited.com";
   const profiles = [
@@ -105,5 +107,5 @@ function makeManifest(): Record<KraviaEmailTemplateName, RenderedTemplate> {
 }
 
 export async function renderTemplateManifest(): Promise<Record<KraviaEmailTemplateName, RenderedTemplate>> {
-  return makeManifest();
+  return { ...makeManifest(), ...publicAccessTemplates };
 }

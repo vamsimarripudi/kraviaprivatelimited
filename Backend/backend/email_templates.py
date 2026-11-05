@@ -42,6 +42,16 @@ _TEMPLATE_NAMES = {
     "public_request_update",
     "public_intake_internal_notification",
     "public_welcome",
+    "public_account_code",
+    "public_account_welcome",
+    "public_resource_receipt",
+    "public_newsletter_confirm",
+    "public_newsletter_welcome",
+    "public_newsletter_digest",
+    "public_newsletter_unsubscribed",
+    "public_account_security",
+    "public_preferences_changed",
+    "public_feedback_ack",
 }
 
 
@@ -249,3 +259,68 @@ def kravia_welcome_template(*, recipient_name: str) -> TransactionalEmail:
         subject="Welcome to KRAVIA",
         values={"@@KRAVIA_NAME@@": _normalized_name(recipient_name)},
     )
+
+
+
+PUBLIC_ACCESS_MAIL_TYPES = {
+    "ACCOUNT_CODE": ("public_account_code", "Your KRAVIA public access verification code"),
+    "ACCOUNT_WELCOME": ("public_account_welcome", "Your KRAVIA resource account is ready"),
+    "DOWNLOAD_RECEIPT": ("public_resource_receipt", "Your KRAVIA resource download"),
+    "NEWSLETTER_CONFIRM": ("public_newsletter_confirm", "Confirm your KRAVIA newsletter subscription"),
+    "NEWSLETTER_WELCOME": ("public_newsletter_welcome", "Your KRAVIA newsletter subscription is active"),
+    "NEWSLETTER_DIGEST": ("public_newsletter_digest", "KRAVIA company and product updates"),
+    "NEWSLETTER_UNSUBSCRIBED": ("public_newsletter_unsubscribed", "Your KRAVIA newsletter preference was saved"),
+    "ACCOUNT_SECURITY": ("public_account_security", "Security notice for your KRAVIA public account"),
+    "PREFERENCES_CHANGED": ("public_preferences_changed", "Your KRAVIA email preferences changed"),
+    "FEEDBACK_ACK": ("public_feedback_ack", "KRAVIA has received your feedback"),
+}
+
+
+def public_access_mail_template(
+    *,
+    kind: str,
+    recipient_name: str,
+    code: str | None = None,
+    action_url: str | None = None,
+    resource_title: str | None = None,
+    issue_subject: str | None = None,
+    message: str | None = None,
+    unsubscribe_url: str | None = None,
+    reference: str | None = None,
+    status: str | None = None,
+) -> TransactionalEmail:
+    """Known-purpose, escaped templates only; never accept arbitrary HTML."""
+    entry = PUBLIC_ACCESS_MAIL_TYPES.get(kind)
+    if entry is None:
+        raise ValueError("Unsupported email kind")
+    if kind == "ACCOUNT_CODE" and (code is None or not VERIFICATION_CODE_PATTERN.fullmatch(code)):
+        raise ValueError("Invalid verification code")
+    if kind in {"NEWSLETTER_CONFIRM", "NEWSLETTER_DIGEST"}:
+        target = action_url if kind == "NEWSLETTER_CONFIRM" else unsubscribe_url
+        parsed = urlsplit(target or "")
+        prefix = "/newsletter/confirm" if kind == "NEWSLETTER_CONFIRM" else "/newsletter/unsubscribe"
+        if parsed.scheme != "https" or parsed.netloc != "www.kraviaprivatelimited.com" or parsed.path != prefix or parsed.fragment:
+            raise ValueError("Invalid newsletter action URL")
+        if not re.fullmatch(r"token=[A-Za-z0-9_-]{40,100}", parsed.query):
+            raise ValueError("Invalid newsletter action token")
+    values = {
+        "@@KRAVIA_NAME@@": _normalized_name(recipient_name),
+        "@@KRAVIA_CODE@@": code or "",
+        "@@KRAVIA_ACTION_URL@@": action_url or "",
+        "@@KRAVIA_RESOURCE_TITLE@@": resource_title or "",
+        "@@KRAVIA_ISSUE_SUBJECT@@": issue_subject or "",
+        "@@KRAVIA_MESSAGE@@": message or "",
+        "@@KRAVIA_UNSUBSCRIBE_URL@@": unsubscribe_url or "",
+        "@@KRAVIA_REFERENCE@@": reference or "",
+        "@@KRAVIA_STATUS@@": status or "",
+    }
+    for name in ("@@KRAVIA_RESOURCE_TITLE@@", "@@KRAVIA_ISSUE_SUBJECT@@", "@@KRAVIA_MESSAGE@@", "@@KRAVIA_REFERENCE@@", "@@KRAVIA_STATUS@@"):
+        if len(values[name]) > 15000:
+            raise ValueError("Email field is too long")
+    template_name, subject = entry
+    if kind == "NEWSLETTER_DIGEST":
+        subject = issue_subject or subject
+    if len(subject) > 180:
+        raise ValueError("Email subject is too long")
+    return _render(template_name=template_name, subject=subject, values=values,
+                   multiline_html_tokens=frozenset({"@@KRAVIA_MESSAGE@@"}))
