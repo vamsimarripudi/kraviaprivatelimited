@@ -14,6 +14,7 @@ const footerColumns = [
       ["Leadership & Team", "/company/leadership"],
       ["Principles", "/company/principles"],
       ["Corporate information", "/company/corporate-information"],
+      ["Company FAQ", "/company/faq"],
       ["Careers", "/careers"],
       ["Contact", "/contact"],
     ],
