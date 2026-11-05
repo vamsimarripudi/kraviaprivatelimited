@@ -4,6 +4,7 @@ import { requireResourceOwner } from "@/lib/public-access/owner";
 import { inspectPublicResource } from "@/lib/public-access/inspect-resource";
 import { publicAccessSql } from "@/lib/public-access/db";
 import { sameOrigin } from "@/lib/public-access/auth";
+import { officeMutationIsSameOrigin } from "@/lib/office/request-security";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -26,7 +27,7 @@ export async function GET(){
  }catch{return unavailable();}
 }
 export async function POST(request:Request){
- if(!sameOrigin(request))return NextResponse.json({error:"Invalid request origin."},{status:403});
+ if(!officeMutationIsSameOrigin(request)||!sameOrigin(request))return NextResponse.json({error:"Invalid request origin."},{status:403});
  const owner=await ownerOnly();
  if(!owner)return NextResponse.json({error:"Owner MFA is required."},{status:403});
  const length=Number(request.headers.get("content-length")||0);
@@ -55,7 +56,7 @@ export async function POST(request:Request){
  }catch{return unavailable();}
 }
 export async function PATCH(request:Request){
- if(!sameOrigin(request))return NextResponse.json({error:"Invalid request origin."},{status:403});
+ if(!officeMutationIsSameOrigin(request)||!sameOrigin(request))return NextResponse.json({error:"Invalid request origin."},{status:403});
  const owner=await ownerOnly();
  if(!owner)return NextResponse.json({error:"Owner MFA is required."},{status:403});
  const input=updateSchema.safeParse(await request.json().catch(()=>null));

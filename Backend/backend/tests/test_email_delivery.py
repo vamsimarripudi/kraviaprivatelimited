@@ -305,7 +305,7 @@ def test_all_corporate_transactional_email_footers_have_verified_social_links():
         "Instagram": "https://www.instagram.com/kravia_private_limited/",
         "Facebook": "https://www.facebook.com/profile.php?id=61595906774125",
     }
-    assert len(manifest["templates"]) == 6
+    assert len(manifest["templates"]) == 16
     for name, template in manifest["templates"].items():
         assert "CONNECT WITH KRAVIA" in template["html"], name
         assert "ACCOUNT SAFETY" in template["html"], name

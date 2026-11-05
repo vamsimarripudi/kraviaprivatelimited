@@ -45,4 +45,4 @@ def test_mail_model_forbids_arbitrary_content():
             "recipient_email":"sample@example.com","recipient_name":"Sample Person","html":"<script>x</script>"})
     html=public_access_mail_template(kind="ACCOUNT_WELCOME",recipient_name="Sample Person").html_content
     assert "/brand/email/linkedin-v2.png" in html
-    assert "KRAVIA Office" not in html
+    assert "public account is separate from KRAVIA Office" in html

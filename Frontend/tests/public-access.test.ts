@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { safePublicReturnPath } from "@/lib/public-access/return-path";
-import { inspectPublicResource } from "@/lib/public-access/inspect-resource";
+import { safePublicReturnPath } from "../lib/public-access/return-path";
+import { inspectPublicResource } from "../lib/public-access/inspect-resource";
 
 describe("KRAVIA public resources security",()=>{
   it("blocks external, protocol-relative, Office and script redirects",()=>{
