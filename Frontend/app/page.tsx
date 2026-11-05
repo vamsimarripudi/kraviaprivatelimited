@@ -141,7 +141,7 @@ export default async function Home() {
               <h2>Ideas become systems.<br /><em>Systems become products.</em></h2>
               <p>Explore the work, or start a conversation.</p>
             </div>
-            <div className="signature-prefooter-actions"><MagneticLink className="button button-light premium-cta" href="/products">Explore our products <ArrowUpRight /></MagneticLink><Link className="text-link inverse-link" href="/contact">Talk to Kravia</Link></div>
+            <div className="signature-prefooter-actions"><MagneticLink className="button button-light premium-cta" href="/products">Explore our products <ArrowUpRight /></MagneticLink><Link className="text-link inverse-link" href="/contact">Talk to Kravia</Link><Link className="text-link inverse-link" href="/resources">Browse resources</Link></div>
           </div>
         </section>
       </main>

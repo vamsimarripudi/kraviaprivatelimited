@@ -31,7 +31,7 @@ export function SiteNav() {
       </Link>
       <div className="nav-links">
         {navItems.map(([label, href]) => <Link key={href} href={href} aria-current={isCurrent(href) ? "page" : undefined}>{label}</Link>)}
-        <Link href="/contact" className="nav-cta">Talk to Kravia <ArrowUpRight size={14} /></Link>
+        <Link href="/join?next=%2Fresources">Visitor sign in</Link><Link href="/contact" className="nav-cta">Talk to Kravia <ArrowUpRight size={14} /></Link>
       </div>
       <button className="menu-btn" type="button" aria-expanded={open} aria-controls="mobile-nav" onClick={() => setOpen(true)}>
         <Menu aria-hidden="true" /><span className="sr-only">Open menu</span>
@@ -45,7 +45,7 @@ export function SiteNav() {
             <span aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>{label}
           </Link>)}
         </div>
-        <Link onClick={() => setOpen(false)} href="/contact" className="nav-cta mobile-nav-cta">Talk to Kravia <ArrowUpRight size={16} /></Link>
+        <Link onClick={() => setOpen(false)} href="/join?next=%2Fresources" className="nav-cta mobile-nav-cta">Visitor sign in <ArrowUpRight size={16} /></Link><Link onClick={() => setOpen(false)} href="/contact" className="nav-cta mobile-nav-cta">Talk to Kravia <ArrowUpRight size={16} /></Link>
       </nav>
     </Drawer>
     <SiteScrollProgress />

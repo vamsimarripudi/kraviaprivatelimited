@@ -45,6 +45,8 @@ const footerColumns = [
     title: "Resources",
     links: [
       ["Newsroom", "/newsroom"],
+      ["Resource library", "/resources"],
+      ["Visitor account", "/account"],
       ["Legal", "/legal"],
       ["Accessibility", "/trust/accessibility"],
       ["Security reporting", "/trust/security-reporting"],
