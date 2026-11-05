@@ -251,3 +251,43 @@
 @media(max-width:900px){.kravia-office .workspace-runtime-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.kravia-office .workspace-runtime-head,.kravia-office .workspace-runtime-foot{align-items:flex-start;flex-direction:column}.kravia-office .workspace-runtime-metrics{grid-template-columns:1fr 1fr}.kravia-office .workspace-runtime-refresh:hover{transform:none}}
 @media(prefers-reduced-motion:reduce){.kravia-office .workspace-runtime-table tbody tr,.kravia-office .workspace-runtime-refresh{transition:none}}
+
+/* Office Experience 4.0 — device-size tuning */
+@media(min-width:1440px){
+  .kravia-office .office-v4 .office-main{min-width:0}
+  .kravia-office .office-v4 .office-main>section:not(.office-topbar){max-width:1600px}
+  .kravia-office .office-v4 .office-topbar{padding-inline:clamp(28px,3vw,48px)!important}
+}
+@media(max-width:1280px){
+  .kravia-office .office-v4 .office-topbar{margin-inline:12px!important}
+  .kravia-office .office-v4 .office-main>.office-notice,
+  .kravia-office .office-v4 .office-main>section:not(.office-topbar){margin-inline:clamp(16px,2.4vw,30px)!important}
+}
+@media(max-width:1024px){
+  .kravia-office .office-v4 .office-topbar{min-height:66px!important}
+  .kravia-office .office-v4 .office-topbar-actions{gap:7px!important}
+  .kravia-office .office-v4 .workspace-module-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(max-width:768px){
+  .kravia-office .office-v4 .workspace-module-grid{grid-template-columns:1fr!important}
+  .kravia-office .office-v4 .office-briefing{align-items:flex-start!important;flex-direction:column!important;gap:12px!important}
+  .kravia-office .office-v4 .office-briefing-principle{text-align:left!important}
+}
+@media(max-width:430px){
+  .kravia-office .office-v4 .office-main>.office-notice,
+  .kravia-office .office-v4 .office-main>section:not(.office-topbar){margin-inline:10px!important}
+  .kravia-office .office-v4 .office-topbar{padding-inline:10px!important}
+  .kravia-office .office-v4 .office-topbar h1{font-size:1.08rem!important}
+  .kravia-office .kravia-office-auth :where([class*="card"]){padding:18px!important;border-radius:22px!important}
+}
+@media(max-width:390px){
+  .kravia-office .office-v4 .office-topbar-actions{gap:4px!important}
+  .kravia-office .office-v4 .office-identity small{display:none}
+  .kravia-office .kravia-office-auth :where([class*="form"]) h2{font-size:1.75rem!important}
+}
+@media(max-width:360px){
+  .kravia-office .office-v4 .office-main>.office-notice,
+  .kravia-office .office-v4 .office-main>section:not(.office-topbar){margin-inline:8px!important}
+  .kravia-office .office-v4 .office-topbar{padding-inline:8px!important}
+  .kravia-office .kravia-office-auth :where([class*="card"]){padding:15px!important;border-radius:19px!important}
+}
