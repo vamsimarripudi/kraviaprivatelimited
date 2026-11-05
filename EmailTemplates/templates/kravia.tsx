@@ -75,7 +75,7 @@ function makeManifest(): Record<KraviaCoreEmailTemplateName, RenderedTemplate> {
     public_intake_internal_notification: themes.public_intake_internal_notification,
     public_welcome: themes.public_welcome,
   };
-  const wrap=(key: KraviaEmailTemplateName,body: string,textBody: string)=>{
+  const wrap=(key: KraviaCoreEmailTemplateName,body: string,textBody: string)=>{
     const cfg=configs[key];
     const headline = cfg.mode==="welcome"
       ? `<tr><td style="padding:32px 30px 31px;background-color:#193B5B"><p style="font:700 10px/18px Arial,Helvetica,sans-serif;color:#D1E7FA;letter-spacing:2px;margin:0 0 14px">${cfg.eyebrow}</p><h1 style="font:400 35px/43px Georgia,'Times New Roman',serif;letter-spacing:-.7px;color:#FFFFFF;margin:0 0 12px">${cfg.title}</h1><p style="font:14px/23px Arial,Helvetica,sans-serif;color:#E0EEF9;margin:0">${cfg.sub}</p></td></tr>`

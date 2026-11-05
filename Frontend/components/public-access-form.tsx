@@ -51,10 +51,10 @@ export function PublicAccessForm({returnPath}:{returnPath:string}){
       </label>
       <label className={styles.check}>
         <input type="checkbox" checked={marketing} onChange={e=>setMarketing(e.target.checked)}/>
-        <span>I'd like to receive KRAVIA company and product updates by email. Optional — I can unsubscribe at any time. A separate confirmation email will follow.</span>
+        <span>I&apos;d like to receive KRAVIA company and product updates by email. Optional — I can unsubscribe at any time. A separate confirmation email will follow.</span>
       </label>
       <button className={styles.button} type="submit" disabled={busy}>{busy?"Sending secure code…":"Continue with email"}</button>
-      <p className={styles.notice}>Signing in and downloading resources do not subscribe you automatically. We'll email a one-time code to verify this address. See our <Link href="/legal/privacy" className={styles.link}>Privacy Policy</Link>.</p>
+      <p className={styles.notice}>Signing in and downloading resources do not subscribe you automatically. We&apos;ll email a one-time code to verify this address. See our <Link href="/legal/privacy" className={styles.link}>Privacy Policy</Link>.</p>
     </form>:<form onSubmit={verify}>
       <p className={styles.intro}>Enter the six-digit code sent to <strong>{email}</strong>. It expires after 10 minutes and can be used only once.</p>
       <label className={styles.field}>Email verification code
