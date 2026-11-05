@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { safePublicReturnPath } from "../lib/public-access/return-path";
 import { inspectPublicResource } from "../lib/public-access/inspect-resource";
+import { canMarkCampaignSent, remainingDailyAttempts } from "../lib/public-access/campaign-state";
 
 describe("KRAVIA public resources security",()=>{
   it("blocks external, protocol-relative, Office and script redirects",()=>{
@@ -18,5 +19,22 @@ describe("KRAVIA public resources security",()=>{
     expect(inspectPublicResource(encoder.encode("PDF-MAGIC"),"application/pdf").valid).toBe(false);
     expect(inspectPublicResource(new Uint8Array(0),"text/plain").valid).toBe(false);
     expect(inspectPublicResource(encoder.encode("contents"),"text/html").valid).toBe(false);
+  });
+});
+
+describe("newsletter sender safety",()=>{
+  it("counts uncertain reservations against the per-day limit",()=>{
+    expect(remainingDailyAttempts(0)).toBe(80);
+    expect(remainingDailyAttempts(79)).toBe(1);
+    expect(remainingDailyAttempts(80)).toBe(0);
+    expect(remainingDailyAttempts(400)).toBe(0);
+    expect(remainingDailyAttempts(-1)).toBe(0);
+    expect(remainingDailyAttempts(NaN)).toBe(0);
+  });
+  it("does not claim SENT while any unknown recipient needs reconciliation",()=>{
+    expect(canMarkCampaignSent(0,0)).toBe(true);
+    expect(canMarkCampaignSent(0,1)).toBe(false);
+    expect(canMarkCampaignSent(1,0)).toBe(false);
+    expect(canMarkCampaignSent(-1,0)).toBe(false);
   });
 });

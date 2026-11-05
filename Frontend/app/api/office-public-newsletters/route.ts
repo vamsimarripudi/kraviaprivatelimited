@@ -6,6 +6,7 @@ import { requireResourceOwner } from "@/lib/public-access/owner";
 import { publicAccessSql } from "@/lib/public-access/db";
 import { sendPublicMail } from "@/lib/public-access/mail";
 import { makeCampaignUnsubscribeToken } from "@/lib/public-access/campaign-tokens";
+import { remainingDailyAttempts, canMarkCampaignSent } from "@/lib/public-access/campaign-state";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -92,10 +93,12 @@ export async function POST(request:Request){
     if(!campaign)return NextResponse.json({error:"Only approved campaigns can be delivered."},{status:409,headers});
     if(Buffer.byteLength(JSON.stringify(String(campaign.body_text)),"utf8")>4_800)
       return NextResponse.json({error:"This campaign exceeds the validated email size limit. Cancel and create a shorter issue."},{status:422,headers});
-    const daily=await sql`select count(*)::int as submitted
-      from public_access.campaign_deliveries where state='SUBMITTED'
+    // Count reserved-but-unconfirmed sends too: UNKNOWN is never free quota.
+    const daily=await sql`select count(*)::int as attempts
+      from public_access.campaign_deliveries
+      where state in ('SUBMITTED','UNKNOWN')
         and submitted_at>now()-interval '24 hours'`;
-    const remaining=Math.max(0,80-Number(daily[0]?.submitted||0));
+    const remaining=remainingDailyAttempts(Number(daily[0]?.attempts||0));
     if(remaining===0)return NextResponse.json({error:"Newsletter safety cap reached (80 per rolling 24 hours). No further sends."},{status:429,headers});
     if(campaign.status==="APPROVED"){
       // One-time audience snapshot. Future sign-ups are not appended to an already sending issue.
@@ -122,8 +125,9 @@ export async function POST(request:Request){
        where d.campaign_id=${campaignId}::uuid and d.state='PENDING'
           and n.status='ACTIVE' and a.status='ACTIVE'
        order by d.created_at,d.account_id limit ${batchSize}
+       for update of d skip locked
       )
-      update public_access.campaign_deliveries d set state='UNKNOWN'
+      update public_access.campaign_deliveries d set state='UNKNOWN',submitted_at=now()
       from chosen c where d.campaign_id=${campaignId}::uuid
         and d.account_id=c.account_id and d.state='PENDING'
       returning d.account_id`;
@@ -157,15 +161,19 @@ export async function POST(request:Request){
         unknown++;
       }
     }
-    const pending=await sql`select count(*)::int as remaining from public_access.campaign_deliveries
-      where campaign_id=${campaignId}::uuid and state='PENDING'`;
-    if(Number(pending[0]?.remaining||0)===0){
+    const stateCounts=await sql`select
+       count(*) filter (where state='PENDING')::int as remaining,
+       count(*) filter (where state='UNKNOWN')::int as unresolved
+       from public_access.campaign_deliveries where campaign_id=${campaignId}::uuid`;
+    const pending=Number(stateCounts[0]?.remaining||0);
+    const unresolved=Number(stateCounts[0]?.unresolved||0);
+    if(canMarkCampaignSent(pending,unresolved)){
       await sql`update public_access.campaigns set status='SENT'
          where id=${campaignId}::uuid and status='SENDING'`;
     }
     return NextResponse.json({campaignId,submitted,unknown,suppressed,
-      pending:Number(pending[0]?.remaining||0),
-      instruction:unknown?"Some delivery outcomes require provider reconciliation. Never automatically retry UNKNOWN sends.":undefined
+      pending,unresolved,
+      instruction:unresolved?"Some delivery outcomes require provider reconciliation. The campaign remains SENDING and UNKNOWN recipients will not be retried.":undefined
     },{headers});
   }catch{
     return unavailable();
