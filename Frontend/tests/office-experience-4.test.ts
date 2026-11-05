@@ -46,4 +46,21 @@ describe("KRAVIA Office Experience 4.0 foundation", () => {
     expect(css).toContain("@media(prefers-reduced-motion:reduce)");
     expect(css).toContain("ox4-trust-float");
   });
+  it("wraps Finance in the same Experience 4 root and style stack", () => {
+    const finance = read("app/finance/layout.tsx");
+    expect(finance).toContain('import "../office/office-platform.css"');
+    expect(finance).toContain('import "../office/office-experience-4.css"');
+    expect(finance).toContain('<div className="kravia-office">{children}</div>');
+  });
+
+  it("uses one accessible high-impact decision dialog for owner operations", () => {
+    const dialog = read("components/office-decision-dialog.tsx");
+    const resource = read("components/public-resource-publisher.tsx");
+    const newsletter = read("components/public-newsletter-manager.tsx");
+    expect(dialog).toContain('role="dialog"');
+    expect(dialog).toContain('aria-modal="true"');
+    expect(dialog).toContain('event.key === "Escape"');
+    expect(resource).toContain("<OfficeDecisionDialog");
+    expect(newsletter).toContain("<OfficeDecisionDialog");
+  });
 });
