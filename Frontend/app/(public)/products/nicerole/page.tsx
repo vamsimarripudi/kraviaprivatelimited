@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: { absolute: recruitFlowProduct.seo.title },
   description: recruitFlowProduct.seo.description,
   alternates: { canonical: "/products/nicerole" },
-  openGraph: {
+  openGraph: { siteName: "KRAVIA",
     title: recruitFlowProduct.seo.title,
     description: recruitFlowProduct.seo.description,
     url: "/products/nicerole",
