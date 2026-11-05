@@ -25,3 +25,11 @@
 .actions button:hover,.toolbar button:hover{transform:translateY(-1px)}
 @media(max-width:620px){.actions button:hover,.toolbar button:hover{transform:none}}
 @media(prefers-reduced-motion:reduce){.actions button,.toolbar button,.tableWrap tbody tr{transition:none}}
+
+
+/* Office Experience 4.0 — identity/security settings */
+.shell{gap:18px}.hero{position:relative;overflow:hidden;border-radius:24px!important;background:radial-gradient(circle at 86% 12%,rgba(99,145,122,.13),transparent 22%),linear-gradient(135deg,#0b1712,#15362a)!important;box-shadow:0 20px 48px rgba(8,26,17,.085)!important}
+.grid,.panel,.policy,.device,.session{border-radius:16px!important;background:rgba(255,255,255,.8)!important;border-color:rgba(17,39,29,.09)!important;box-shadow:0 10px 28px rgba(10,29,19,.04)!important;backdrop-filter:blur(14px)}
+.device,.session,.policy{transition:border-color 150ms ease,box-shadow 150ms ease}.device:hover,.session:hover,.policy:hover{border-color:rgba(37,95,73,.16)!important;box-shadow:0 14px 32px rgba(10,29,19,.055)!important}
+.deviceAction button,.actions button{border-radius:10px!important;transition:transform 140ms ease}.deviceAction button:hover,.actions button:hover{transform:translateY(-1px)}
+@media(max-width:620px){.deviceAction button:hover,.actions button:hover{transform:none}}@media(prefers-reduced-motion:reduce){.device,.session,.policy,.deviceAction button,.actions button{transition:none}}
