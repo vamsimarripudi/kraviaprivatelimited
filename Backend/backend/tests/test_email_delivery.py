@@ -313,3 +313,33 @@ def test_all_corporate_transactional_email_footers_have_verified_social_links():
         for label, url in expected_profiles.items():
             assert f'href="{url}"' in template["html"], (name, label)
             assert f"{label} {url}" in template["text"], (name, label)
+
+def test_all_six_distinct_email_layouts_link_the_official_social_icons():
+    from backend.email_templates import _manifest
+
+    templates = _manifest()
+    expected = {
+        "LinkedIn": ("linkedin.gif", "https://linkedin.com/company/kravia-private-limited"),
+        "X": ("x.gif", "https://x.com/KraviaOfficial"),
+        "Instagram": ("instagram.gif", "https://www.instagram.com/kravia_private_limited/"),
+        "Facebook": ("facebook.gif", "https://www.facebook.com/profile.php?id=61595906774125"),
+    }
+    assert len(templates) == 6
+    for name, template in templates.items():
+        html = template["html"]
+        plain = template["text"]
+        assert "ACCOUNT SAFETY" in html and "Legal notices and terms" in html, name
+        assert "/brand/kravia-header-lockup-v2.png" in html, name
+        assert "CONNECT WITH KRAVIA" in html and "CONNECT WITH KRAVIA" in plain, name
+        for label, (asset, url) in expected.items():
+            assert f"/brand/email/{asset}" in html, (name, label)
+            assert f'href="{url}"' in html, (name, label)
+            assert f"{label} {url}" in plain, (name, label)
+
+    assert len({template["html"] for template in templates.values()}) == 6
+    assert "ONE-TIME SIGN-IN CODE" in templates["office_sign_in_code"]["html"]
+    assert "UNRECOGNIZED DEVICE CHECK" in templates["office_device_approval"]["html"]
+    assert "RECEIVED · CONFIRMED" in templates["public_request_received"]["html"]
+    assert "LATEST MESSAGE" in templates["public_request_update"]["html"]
+    assert "ACTION · REVIEW IN OFFICE" in templates["public_intake_internal_notification"]["html"]
+    assert "A NOTE FROM KRAVIA" in templates["public_welcome"]["html"]

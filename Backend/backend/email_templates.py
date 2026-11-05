@@ -1,6 +1,6 @@
-"""Server-safe rendering for KRAVIA's React Email template manifest.
+"""Server-safe rendering for KRAVIA's deterministic email template manifest.
 
-The canonical layout lives in ``EmailTemplates/`` as React Email components.
+The canonical layouts live in ``EmailTemplates/`` as deterministic HTML templates.
 Its checked-in, deterministic manifest is bundled with FastAPI so delivery does
 not depend on a Node process in production. Runtime data is validated and
 escaped here; no caller can supply arbitrary HTML to a customer email.
@@ -46,12 +46,12 @@ _TEMPLATE_NAMES = {
 
 
 class EmailTemplateConfigurationError(RuntimeError):
-    """The generated React Email artifact is absent or unsafe to use."""
+    """The generated email artifact is absent or unsafe to use."""
 
 
 @lru_cache(maxsize=1)
 def _manifest() -> Mapping[str, Mapping[str, str]]:
-    """Load and validate the build-time React Email artifact once per process."""
+    """Load and validate the build-time email artifact once per process."""
     try:
         raw = json.loads(_MANIFEST_PATH.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -94,7 +94,7 @@ def _render(
     values: Mapping[str, str],
     multiline_html_tokens: frozenset[str] = frozenset(),
 ) -> TransactionalEmail:
-    """Replace only known React Email placeholders with safe literal values."""
+    """Replace only known email placeholders with safe literal values."""
     template = _manifest().get(template_name)
     if template is None:
         raise EmailTemplateConfigurationError("KRAVIA email template is unavailable")
@@ -115,7 +115,7 @@ def _render(
 
 
 def office_email_verification_template(*, code: str, expiry_minutes: int) -> TransactionalEmail:
-    """Build a single-use sign-in code message from the React Email source."""
+    """Build a single-use sign-in code message from the email source."""
     if not VERIFICATION_CODE_PATTERN.fullmatch(code):
         raise ValueError("Invalid verification code")
     if not 1 <= expiry_minutes <= 60:
