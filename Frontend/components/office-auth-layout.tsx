@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Building2, Fingerprint, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import { BrandLogo } from "@/components/brand-logo";
+import { OfficeAmbientField } from "@/components/office-experience-ambient";
 import styles from "./office-auth-layout.module.css";
 
 type Props = {
@@ -24,6 +25,7 @@ export function OfficeAuthLayout({
   return (
     <main className={`${styles.shell} kravia-office-auth`}>
       <section className={styles.brand} aria-label="KRAVIA Office identity">
+        <OfficeAmbientField variant="auth" />
         <div className={styles.glowOne} />
         <div className={styles.glowTwo} />
         <div className={styles.brandTop}>
