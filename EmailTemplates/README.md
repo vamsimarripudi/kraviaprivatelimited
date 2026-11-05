@@ -19,17 +19,21 @@ requiring a Node process at delivery time.
 | `public_welcome` | Sapphire editorial hero | Welcome |
 
 The masthead uses the approved unchanged KRAVIA lockup from
-`Frontend/public/brand/kravia-header-lockup-v2.png`. The footer uses
-animated GIF social icons (LinkedIn, X, Instagram, Facebook) stored under
-`Frontend/public/brand/email/`. Those GIFs use Bootstrap Icons paths
-licensed in `Frontend/public/brand/social-icons.LICENSE.txt` (Instagram
-uses an equivalent hand-drawn camera silhouette). The official URL list must
+`Frontend/public/brand/kravia-header-lockup-v2.png`. The footer uses small 36px circular 3x PNG images containing genuine, unmodified
+Bootstrap Icons glyphs (LinkedIn, X, Instagram, Facebook) from the established
+website social icon source, with recognizable platform colors. The 108px source
+images are optimized for Retina displays and have a light background for
+contrast across Gmail light and dark themes. The assets are stored under
+`Frontend/public/brand/email/` and covered by the existing MIT license in
+`Frontend/public/brand/social-icons.LICENSE.txt`. Official account URLs must
 remain aligned with `Frontend/lib/public-links.ts`.
 
-Motion is deliberately subtle. Gmail/Apple Mail can animate GIFs; other
-clients may show their first frame. Alt text and visible labels provide an
-accessible fallback, including when remote images are blocked. No JavaScript,
-client-side CSS animations, pixel tracking or third-party image hosts.
+Social images are static, avoiding blurred/pixelated GIF playback and email
+client animation differences. Icons are rendered at 36px (brand mark within
+~22px), with compact 11px labels and accessible alt text for image-blocked
+clients. No JavaScript, client-side animation, tracking pixels or third-party
+image hosts. Previously sent emails keep working because legacy GIF URLs remain
+available; newly generated email templates reference PNGs only.
 
 ## Workflow
 

@@ -3,8 +3,7 @@
  *
  * All six layouts and the plain-text fallbacks are built together.
  * Content is intentionally static except for backend-escaped placeholder tokens.
- * Tables + inline CSS work in Gmail/Outlook; optional social GIFs retain a
- * readable first frame when motion is not supported.
+ * Tables + inline CSS work in Gmail/Outlook; static high-density social PNGs remain sharp on Retina screens.
  */
 export const PLACEHOLDERS = {
   "code": "@@KRAVIA_CODE@@",
@@ -35,10 +34,10 @@ function makeManifest(): Record<KraviaEmailTemplateName, RenderedTemplate> {
   const P = PLACEHOLDERS;
   const site = "https://www.kraviaprivatelimited.com";
   const profiles = [
-    {name:"LinkedIn", href:"https://linkedin.com/company/kravia-private-limited", icon:"linkedin.gif"},
-    {name:"X", href:"https://x.com/KraviaOfficial", icon:"x.gif"},
-    {name:"Instagram",href:"https://www.instagram.com/kravia_private_limited/",icon:"instagram.gif"},
-    {name:"Facebook",href:"https://www.facebook.com/profile.php?id=61595906774125",icon:"facebook.gif"},
+    {name:"LinkedIn", href:"https://linkedin.com/company/kravia-private-limited", icon:"linkedin.png"},
+    {name:"X", href:"https://x.com/KraviaOfficial", icon:"x.png"},
+    {name:"Instagram",href:"https://www.instagram.com/kravia_private_limited/",icon:"instagram.png"},
+    {name:"Facebook",href:"https://www.facebook.com/profile.php?id=61595906774125",icon:"facebook.png"},
   ];
   const themes = {
     office_sign_in_code: {eyebrow:"IDENTITY VERIFICATION",title:"Your sign-in code.",sub:"A private code for KRAVIA Office.",accent:"#2765C5",tint:"#EDF4FF",fg:"#173F80",mode:"security"},
@@ -51,12 +50,12 @@ function makeManifest(): Record<KraviaEmailTemplateName, RenderedTemplate> {
   const legalLine = `Privacy ${site}/trust/privacy · Legal notices and terms ${site}/legal · Contact ${site}/contact`;
   const socialText = profiles.map(x=>`${x.name} ${x.href}`).join(" · ");
   const iconRow = profiles.map(x=>
-    `<td width="25%" align="center" valign="top" style="width:25%;padding:4px 2px 2px;text-align:center"><a href="${x.href}" target="_blank" rel="noopener noreferrer" aria-label="KRAVIA on ${x.name}" style="color:#FFFFFF;text-decoration:none;display:inline-block"><img alt="${x.name}" src="${site}/brand/email/${x.icon}" width="60" height="60" style="display:block;margin:0 auto;width:60px;height:60px;border:0" /><span style="display:block;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:600;line-height:20px;color:#DAE7F3;text-decoration:none">${x.name}</span></a></td>`
+    `<td width="25%" align="center" valign="top" style="width:25%;padding:1px 3px;text-align:center"><a href="${x.href}" target="_blank" rel="noopener noreferrer" aria-label="KRAVIA on ${x.name}" style="color:#FFFFFF;text-decoration:none;display:inline-block;padding:3px 5px"><img alt="${x.name}" src="${site}/brand/email/${x.icon}" width="36" height="36" style="display:block;margin:0 auto;width:36px;height:36px;border:0;outline:none" /><span style="display:block;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:600;line-height:18px;margin-top:5px;color:#DAE7F3;text-decoration:none">${x.name}</span></a></td>`
   ).join("");
-  const footer = `<tr><td style="padding:29px 28px 25px;background-color:#152D45;color:#FFFFFF">
-  <p style="font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;line-height:16px;color:#BDD7EC;margin:0 0 17px">CONNECT WITH KRAVIA</p>
+  const footer = `<tr><td style="padding:25px 28px 24px;background-color:#152D45;color:#FFFFFF">
+  <p style="font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;line-height:16px;color:#BDD7EC;margin:0 0 14px">CONNECT WITH KRAVIA</p>
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr>${iconRow}</tr></table>
-  <div style="border-top:1px solid #38516B;height:1px;line-height:1px;font-size:1px;margin:20px 0"></div>
+  <div style="border-top:1px solid #38516B;height:1px;line-height:1px;font-size:1px;margin:16px 0"></div>
   <p style="font:700 10px/17px Arial,Helvetica,sans-serif;color:#BDD7EC;letter-spacing:1.5px;margin:0 0 7px">ACCOUNT SAFETY</p>
   <p style="font:12px/19px Arial,Helvetica,sans-serif;color:#EAF3FA;margin:0 0 17px">For your safety, KRAVIA will never ask for your password, one-time code, private key, or card PIN by email.</p>
   <p style="font:12px/21px Arial,Helvetica,sans-serif;color:#D5E4F2;margin:0 0 16px"><a style="color:#FFFFFF;text-decoration:underline" href="${site}/trust/privacy">Privacy</a> &nbsp;·&nbsp; <a style="color:#FFFFFF;text-decoration:underline" href="${site}/legal">Legal notices and terms</a> &nbsp;·&nbsp; <a style="color:#FFFFFF;text-decoration:underline" href="${site}/contact">Contact</a></p>

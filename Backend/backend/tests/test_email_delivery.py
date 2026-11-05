@@ -319,10 +319,10 @@ def test_all_six_distinct_email_layouts_link_the_official_social_icons():
 
     templates = _manifest()
     expected = {
-        "LinkedIn": ("linkedin.gif", "https://linkedin.com/company/kravia-private-limited"),
-        "X": ("x.gif", "https://x.com/KraviaOfficial"),
-        "Instagram": ("instagram.gif", "https://www.instagram.com/kravia_private_limited/"),
-        "Facebook": ("facebook.gif", "https://www.facebook.com/profile.php?id=61595906774125"),
+        "LinkedIn": ("linkedin.png", "https://linkedin.com/company/kravia-private-limited"),
+        "X": ("x.png", "https://x.com/KraviaOfficial"),
+        "Instagram": ("instagram.png", "https://www.instagram.com/kravia_private_limited/"),
+        "Facebook": ("facebook.png", "https://www.facebook.com/profile.php?id=61595906774125"),
     }
     assert len(templates) == 6
     for name, template in templates.items():
@@ -333,6 +333,8 @@ def test_all_six_distinct_email_layouts_link_the_official_social_icons():
         assert "CONNECT WITH KRAVIA" in html and "CONNECT WITH KRAVIA" in plain, name
         for label, (asset, url) in expected.items():
             assert f"/brand/email/{asset}" in html, (name, label)
+            assert 'width="36" height="36"' in html, name
+            assert '.gif' not in html, name
             assert f'href="{url}"' in html, (name, label)
             assert f"{label} {url}" in plain, (name, label)
 

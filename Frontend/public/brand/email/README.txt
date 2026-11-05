@@ -1,12 +1,18 @@
-Animated email social icons, based on the existing KRAVIA brand icon sources.
+Static high-density KRAVIA email social icons.
 
-LinkedIn, X, and Facebook: original Bootstrap Icons SVG paths rendered to a
-small looping GIF with a subtle ring treatment. Licensed under MIT as described
-in ../social-icons.LICENSE.txt. Instagram uses an equivalent custom-drawn
-camera outline instead of a copied path. Brand icons remain the property of
-their respective platform owners.
+Current assets: linkedin.png, x.png, instagram.png, facebook.png.
+- 108 x 108 px PNG displayed at 36 x 36 px in email (3x raster density).
+- 36px light circular backgrounds with a subtle outline and authentic
+  LinkedIn, X, Instagram, and Facebook glyphs in recognizable platform colors.
+- PNG is chosen instead of SVG for Gmail/Outlook support and instead of
+  animated GIF for consistently crisp, professional mobile rendering.
+- All four glyph paths are taken unchanged from
+  Frontend/components/social-icon.tsx (Bootstrap Icons, MIT).
+  The license is in Frontend/public/brand/social-icons.LICENSE.txt.
+- Profile destinations are the owner-supplied official URLs from
+  Frontend/lib/public-links.ts. Images never initiate social requests:
+  only clicking an email link navigates to a social profile.
+- The former GIFs are intentionally retained for already sent email messages;
+  new emails reference the PNGs.
 
-GIFs use a self-contained first frame so clients without GIF animation still
-show the icon. They contain no scripts, tracking, or external network calls.
-For updates, regenerate from the approved icons and verify the official
-profile URLs in Frontend/lib/public-links.ts.
+Do not substitute AI-generated approximations for social platform glyphs.
