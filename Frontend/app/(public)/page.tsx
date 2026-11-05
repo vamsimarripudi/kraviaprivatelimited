@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { TechnologyHero } from "@/components/technology-hero";
@@ -6,6 +7,8 @@ import { HomepageBody } from "@/components/homepage-body";
 import { getPublicCompanyProfile } from "@/lib/corporate/public-facts";
 import { getPublishedNewsroomContent } from "@/lib/content/repository";
 import { getPublicPortfolio } from "@/lib/content/portfolio";
+
+export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 export default async function Home() {
   const [newsroom, profile, products] = await Promise.all([getPublishedNewsroomContent(), getPublicCompanyProfile(), getPublicPortfolio()]);
