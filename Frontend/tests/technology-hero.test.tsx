@@ -47,7 +47,8 @@ describe("technology hero server rendering", () => {
     expect(heroCss).toContain("width: 100%;");
     expect(heroCss).toContain("text-align: center;");
     expect(heroCss).toContain("background: linear-gradient(105deg");
-    expect(heroCss).toContain(".rotator { display: inline-block; width: clamp(15ch, 25vw, 21ch)");
+    expect(heroCss).toContain(".rotator { display: inline-block; width: clamp(15ch, 22vw, 19ch)");
+    expect(heroCss).toContain("text-align: left;");
   });
 
   it.each([false, true])("keeps server markup identical when a browser reports reduced motion as %s", (matches) => {

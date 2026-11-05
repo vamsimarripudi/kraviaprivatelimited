@@ -30,8 +30,8 @@
 .eyebrow > span { width: 6px; height: 6px; border-radius: 50%; background: var(--hero-accent); box-shadow: 0 0 14px rgba(167, 217, 230, .45); }
 .hero .title { color: var(--hero-text); font: 500 clamp(44px, min(5.8vw, 10svh), 84px)/1.08 var(--sans); letter-spacing: -.065em; max-width: 900px; text-wrap: balance; }
 .title > span, .rotatingWord { color: transparent; background: linear-gradient(105deg, #f3f8ff 8%, #98e9ff 42%, #bda7ff 82%); -webkit-background-clip: text; background-clip: text; }
-.rotatingStatement { display: flex; align-items: baseline; justify-content: center; width: 100%; gap: .22em; min-height: 1.5em; color: var(--hero-muted); font: 500 clamp(15px, 1.5vw, 19px)/1.5 var(--sans); letter-spacing: -.015em; text-align: center; }
-.rotator { display: inline-block; width: clamp(15ch, 25vw, 21ch); height: 1.5em; overflow: hidden; vertical-align: bottom; text-align: center; }
+.rotatingStatement { display: flex; align-items: baseline; justify-content: center; width: 100%; gap: .12em; min-height: 1.5em; color: var(--hero-muted); font: 500 clamp(15px, 1.5vw, 19px)/1.5 var(--sans); letter-spacing: -.015em; text-align: center; }
+.rotator { display: inline-block; width: clamp(15ch, 22vw, 19ch); height: 1.5em; overflow: hidden; vertical-align: bottom; text-align: left; }
 .rotatingWord { display: block; animation: hero-word-in 480ms cubic-bezier(.2, .75, .25, 1) both; }
 @keyframes hero-word-in { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: translateY(0); } }
 .hero .description { max-width: 490px; font: 400 16px/1.85 var(--sans); color: var(--hero-muted); }
