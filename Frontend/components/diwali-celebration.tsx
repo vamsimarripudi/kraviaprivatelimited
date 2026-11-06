@@ -158,7 +158,8 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
       width = canvas.clientWidth;
       height = canvas.clientHeight;
       // SVG ornamentation stays crisp in 4K; limit animated raster pixels.
-      const ratio = Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(2700000 / Math.max(1, width * height)));
+      const budget = width >= 2200 ? 5_400_000 : 2_700_000;
+      const ratio = Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(budget / Math.max(1, width * height)));
       canvas.width = Math.max(1, Math.round(width * ratio));
       canvas.height = Math.max(1, Math.round(height * ratio));
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
@@ -207,6 +208,11 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
     };
 
     const render = (time: number) => {
+      const minimumFrameMs = width < 700 || width >= 2600 ? 30 : 16;
+      if (lastFrame && time - lastFrame < minimumFrameMs) {
+        animationFrame = window.requestAnimationFrame(render);
+        return;
+      }
       const step = lastFrame ? Math.max(0.5, Math.min((time - lastFrame) / 16.67, 2)) : 1;
       lastFrame = time;
       if (!document.hidden) {
