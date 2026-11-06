@@ -48,7 +48,7 @@ function rememberDismissal() {
 export function DiwaliCelebration({ brand }: { brand: Brand }) {
   const config = brands[brand];
   const [active, setActive] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => typeof window === "undefined" || !sessionDismissed());
   const [reducedMotion, setReducedMotion] = useState(false);
   const [paused, setPaused] = useState(false);
   const [soundOn, setSoundOn] = useState(false);
@@ -81,14 +81,6 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
   }, []);
 
   useEffect(() => {
-    if (!active) {
-      setOpen(false);
-    } else if (!sessionDismissed()) {
-      setOpen(true);
-    }
-  }, [active]);
-
-  useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
     const update = () => setReducedMotion(media.matches);
     update();
@@ -97,7 +89,7 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
   }, []);
 
   useEffect(() => {
-    if (!open) return;
+    if (!active || !open) return;
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -127,7 +119,7 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
       document.removeEventListener("keydown", onKeyDown);
       previouslyFocused?.focus();
     };
-  }, [open]);
+  }, [active, open]);
 
   useEffect(() => () => { if (audioRef.current) void audioRef.current.close(); }, []);
 
