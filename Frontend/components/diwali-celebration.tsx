@@ -7,6 +7,8 @@ import { DIWALI_END_UTC, DIWALI_START_UTC, isDiwaliActive } from "./diwali-windo
 type Brand = "kravia" | "vidyaluma";
 type Rocket = { x: number; y: number; vx: number; vy: number; targetY: number; hue: number };
 type Ember = { x: number; y: number; vx: number; vy: number; life: number; total: number; radius: number; hue: number };
+type Fountain = { x: number; y: number; life: number };
+type Wheel = { x: number; y: number; life: number; angle: number };
 
 const SESSION_KEY = "diwali-2026-celebration-dismissed";
 const brands = {
@@ -55,6 +57,8 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const dismissRef = useRef<HTMLButtonElement>(null);
   const launchRef = useRef<((x?: number, y?: number) => void) | null>(null);
+  const fountainRef = useRef<(() => void) | null>(null);
+  const wheelRef = useRef<(() => void) | null>(null);
   const audioRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
@@ -131,6 +135,8 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
   useEffect(() => {
     if (!active || !open || paused || reducedMotion) {
       launchRef.current = null;
+      fountainRef.current = null;
+      wheelRef.current = null;
       return;
     }
     const canvas = canvasRef.current;
@@ -144,6 +150,8 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
     let nextAutomaticLaunch = 0;
     const rockets: Rocket[] = [];
     const embers: Ember[] = [];
+    const fountains: Fountain[] = [];
+    const wheels: Wheel[] = [];
     const palette = [28, 44, 176, 196, 266, 319, 346];
 
     const resize = () => {
@@ -190,6 +198,13 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
       });
     };
 
+    const lightAnaar = () => {
+      if (fountains.length < 3) fountains.push({ x: width * 0.5, y: height * 0.84, life: 80 });
+    };
+    const spinChakri = () => {
+      if (wheels.length < 3) wheels.push({ x: width * 0.5, y: height * 0.78, life: 90, angle: 0 });
+    };
+
     const render = (time: number) => {
       const step = lastFrame ? Math.max(0.5, Math.min((time - lastFrame) / 16.67, 2)) : 1;
       lastFrame = time;
@@ -214,6 +229,39 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
             rockets.splice(index, 1);
           }
         }
+        for (let index = fountains.length - 1; index >= 0; index -= 1) {
+          const fountain = fountains[index];
+          fountain.life -= step;
+          if (fountain.life <= 0) { fountains.splice(index, 1); continue; }
+          for (let spark = 0; spark < 3; spark += 1) {
+            const life = 23 + Math.random() * 16;
+            embers.push({
+              x: fountain.x, y: fountain.y,
+              vx: (Math.random() - 0.5) * 4.4, vy: -3.6 - Math.random() * 5,
+              life, total: life, radius: 1.2 + Math.random() * 0.9,
+              hue: 25 + Math.random() * 32
+            });
+          }
+        }
+        for (let index = wheels.length - 1; index >= 0; index -= 1) {
+          const wheel = wheels[index];
+          wheel.life -= step;
+          wheel.angle += 0.28 * step;
+          if (wheel.life <= 0) { wheels.splice(index, 1); continue; }
+          for (let arm = 0; arm < 3; arm += 1) {
+            const angle = wheel.angle + (arm * Math.PI * 2) / 3;
+            const radius = 14 + (90 - wheel.life) * 0.13;
+            const life = 20;
+            embers.push({
+              x: wheel.x + Math.cos(angle) * radius,
+              y: wheel.y + Math.sin(angle) * radius,
+              vx: Math.cos(angle) * 2, vy: Math.sin(angle) * 2,
+              life, total: life, radius: 1.6,
+              hue: [41, 188, 312][arm]
+            });
+          }
+        }
+        if (embers.length > 420) embers.splice(0, embers.length - 420);
         for (let index = embers.length - 1; index >= 0; index -= 1) {
           const ember = embers[index];
           ember.x += ember.vx * step;
@@ -237,12 +285,16 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
 
     resize();
     launchRef.current = launch;
+    fountainRef.current = lightAnaar;
+    wheelRef.current = spinChakri;
     window.addEventListener("resize", resize, { passive: true });
     animationFrame = window.requestAnimationFrame(render);
     return () => {
       window.cancelAnimationFrame(animationFrame);
       window.removeEventListener("resize", resize);
       launchRef.current = null;
+      fountainRef.current = null;
+      wheelRef.current = null;
     };
   }, [active, open, paused, reducedMotion]);
 
@@ -279,6 +331,15 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
       launchRef.current?.(x, y);
       playPop();
     }
+  };
+
+  const triggerAnaar = () => {
+    if (paused) setPaused(false);
+    else { fountainRef.current?.(); playPop(); }
+  };
+  const triggerChakri = () => {
+    if (paused) setPaused(false);
+    else { wheelRef.current?.(); playPop(); }
   };
 
   const share = async () => {
@@ -343,6 +404,8 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
                 <button type="button" className={styles.primary} onClick={() => triggerFirework()}>
                   <span aria-hidden="true">✦</span> Launch fireworks
                 </button>
+                <button type="button" className={styles.secondary} onClick={triggerAnaar} disabled={reducedMotion}>✦ Light Anaar</button>
+                <button type="button" className={styles.secondary} onClick={triggerChakri} disabled={reducedMotion}>✳ Spin Chakri</button>
                 <button type="button" className={styles.secondary} onClick={share}>Share greeting</button>
               </div>
               <p className={styles.shareStatus} role="status" aria-live="polite">{shareStatus}</p>
