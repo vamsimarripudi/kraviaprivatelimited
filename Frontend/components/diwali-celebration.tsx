@@ -157,7 +157,8 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
     const resize = () => {
       width = canvas.clientWidth;
       height = canvas.clientHeight;
-      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      // SVG ornamentation stays crisp in 4K; limit animated raster pixels.
+      const ratio = Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(2700000 / Math.max(1, width * height)));
       canvas.width = Math.max(1, Math.round(width * ratio));
       canvas.height = Math.max(1, Math.round(height * ratio));
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
@@ -377,11 +378,13 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
             className={styles.fireworks}
             aria-hidden="true"
             onPointerDown={(event) => {
+              if (reducedMotion || paused) return;
               const bounds = event.currentTarget.getBoundingClientRect();
               triggerFirework(event.clientX - bounds.left, event.clientY - bounds.top);
             }}
           />
           <div className={styles.ambient} aria-hidden="true" />
+          <div className={styles.ornaments} aria-hidden="true" />
           <div className={styles.frame}>
             <div className={styles.topbar}>
               <span className={styles.topLabel}>✦ &nbsp; FESTIVAL OF LIGHTS · 8 NOVEMBER 2026</span>
@@ -401,7 +404,7 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
               <p className={styles.message} id="diwali-2026-message">{config.message}</p>
               <p className={styles.signature}>{config.signature}</p>
               <div className={styles.actions}>
-                <button type="button" className={styles.primary} onClick={() => triggerFirework()}>
+                <button type="button" className={styles.primary} disabled={reducedMotion} onClick={() => triggerFirework()}>
                   <span aria-hidden="true">✦</span> Launch fireworks
                 </button>
                 <button type="button" className={styles.secondary} onClick={triggerAnaar} disabled={reducedMotion}>✦ Light Anaar</button>
@@ -411,7 +414,7 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
               <p className={styles.shareStatus} role="status" aria-live="polite">{shareStatus}</p>
             </div>
             <div className={styles.bottomBar}>
-              <span className={styles.hint}>✧ Tap the night sky to launch virtual fireworks</span>
+              <span className={styles.hint}>✧ Tap the night sky · launch an Anaar · spin a Chakri</span>
               <div className={styles.utilities}>
                 <button type="button" onClick={() => setSoundOn((value) => !value)} aria-pressed={soundOn}>
                   Sound {soundOn ? "on" : "off"}

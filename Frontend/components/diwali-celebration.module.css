@@ -140,3 +140,27 @@
 }
 @media (max-height: 690px) { .frame { gap: 10px; } .centerpiece { margin: 4px 0; } .diya { font-size: 36px; } .title { font-size: clamp(36px, 7vw, 58px); } }
 @media (prefers-reduced-motion: reduce) { .overlay *, .launcher { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+
+/* Native 3840×2160 SVG art: crisp UHD décor without large animated raster assets. */
+.ornaments {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: url("/diwali/diwali-ornaments-4k.svg") center / 100% 100% no-repeat;
+  opacity: .8;
+  animation: diwaliOrnamentsGlow 9s ease-in-out infinite alternate;
+}
+.frame { z-index: 2; }
+.centerpiece { animation: diwaliCardReveal 820ms cubic-bezier(.21,.75,.16,1) both; }
+.primary:disabled, .secondary:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+@keyframes diwaliOrnamentsGlow { from { opacity: .67; } to { opacity: .92; } }
+@keyframes diwaliCardReveal { from { opacity: 0; transform: translate3d(0,18px,0) scale(.985); } to { opacity: 1; transform: translate3d(0,0,0) scale(1); } }
+@media (min-width: 1800px) {
+  .centerpiece { width: min(820px,100%); padding: 42px 58px 26px; }
+  .title { font-size: clamp(72px,5.5vw,112px); }
+  .brandMark { width: 112px; height: 112px; }
+  .vidyaluma .brandMark { width: 280px; height: 80px; }
+}
+@media (max-width: 740px) { .ornaments { background-size: auto 100%; opacity: .49; } }
+@media (prefers-reduced-motion: reduce) { .ornaments, .centerpiece { animation: none !important; } }
