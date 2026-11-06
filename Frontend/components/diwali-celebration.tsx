@@ -1,76 +1,84 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import "./diwali-celebration.css";
+import { useEffect, useRef, useState } from "react";
+import styles from "./diwali-celebration.module.css";
+import { DIWALI_END_UTC, DIWALI_START_UTC, isDiwaliActive } from "./diwali-window";
 
 type Brand = "kravia" | "vidyaluma";
-type Rocket = { x: number; y: number; targetX: number; targetY: number; hue: number; speed: number };
-type Spark = { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; hue: number };
+type Rocket = { x: number; y: number; vx: number; vy: number; targetY: number; hue: number };
+type Ember = { x: number; y: number; vx: number; vy: number; life: number; total: number; radius: number; hue: number };
 type Fountain = { x: number; y: number; life: number };
 type Wheel = { x: number; y: number; life: number; angle: number };
 
-const START = Date.parse("2026-11-07T18:30:00.000Z");
-const END = Date.parse("2026-11-08T18:30:00.000Z");
-const ALLOWED_VIDYALUMA = new Set(["/", "/about", "/product", "/solutions", "/pricing", "/resources", "/marketing-preview"]);
-const ALLOWED_KRAVIA = new Set(["/", "/products", "/company"]);
+const SESSION_KEY = "diwali-2026-celebration-dismissed";
+const brands = {
+  kravia: {
+    name: "KRAVIA PRIVATE LIMITED",
+    logo: "/brand/kravia-enterprise-v2.svg",
+    width: 260,
+    height: 260,
+    message: "May the festival of lights illuminate new ideas, meaningful work and brighter possibilities.",
+    signature: "Warm wishes from KRAVIA PRIVATE LIMITED",
+  },
+  vidyaluma: {
+    name: "VidyaLuma",
+    logo: "/brand/v2/vidyaluma-horizontal-inverse.svg",
+    width: 800,
+    height: 190,
+    message: "May every spark of curiosity become a brighter tomorrow. Wishing students, teachers and families a joyful Diwali.",
+    signature: "Warm wishes from VidyaLuma",
+  },
+} as const;
 
-function publicPath(brand: Brand) {
-  const path = window.location.pathname.replace(/\/+$/, "") || "/";
-  return brand === "vidyaluma"
-    ? ALLOWED_VIDYALUMA.has(path)
-    : ALLOWED_KRAVIA.has(path) || path.startsWith("/products/");
-}
-
-function alreadyGreeted(brand: Brand) {
-  try { return sessionStorage.getItem("diwali-2026-" + brand) === "seen"; }
+function sessionDismissed() {
+  try { return window.sessionStorage.getItem(SESSION_KEY) === "yes"; }
   catch { return false; }
 }
 
-function rememberGreeting(brand: Brand) {
-  try { sessionStorage.setItem("diwali-2026-" + brand, "seen"); }
-  catch { /* Private browsing may disable session storage. */ }
+function rememberDismissal() {
+  try { window.sessionStorage.setItem(SESSION_KEY, "yes"); }
+  catch { /* The celebration still closes when storage is unavailable. */ }
 }
 
+/**
+ * One-day public website experience. UTC timestamps are the exact IST bounds:
+ * 08 Nov 2026 00:00:00 through 09 Nov 2026 00:00:00 (exclusive).
+ * No cron, backend call, deployment rollback, or site-wide CSS is required.
+ */
 export function DiwaliCelebration({ brand }: { brand: Brand }) {
+  const config = brands[brand];
   const [active, setActive] = useState(false);
-  const [open, setOpen] = useState(false);
-  const [interacting, setInteracting] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(false);
+  const [open, setOpen] = useState(() => typeof window === "undefined" || !sessionDismissed());
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [soundOn, setSoundOn] = useState(false);
+  const [shareStatus, setShareStatus] = useState("");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
-  const primaryButtonRef = useRef<HTMLButtonElement>(null);
-  const launchRef = useRef<(x?: number, y?: number) => void>(() => {});
-  const fountainRef = useRef<() => void>(() => {});
-  const wheelRef = useRef<() => void>(() => {});
+  const dismissRef = useRef<HTMLButtonElement>(null);
+  const launchRef = useRef<((x?: number, y?: number) => void) | null>(null);
+  const fountainRef = useRef<(() => void) | null>(null);
+  const wheelRef = useRef<(() => void) | null>(null);
   const audioRef = useRef<AudioContext | null>(null);
 
-  const dismiss = useCallback(() => {
-    rememberGreeting(brand);
-    setOpen(false);
-    setInteracting(false);
-  }, [brand]);
-
   useEffect(() => {
-    let started = false;
-    const refresh = () => {
+    let timer: number | undefined;
+    const sync = () => {
+      if (timer !== undefined) window.clearTimeout(timer);
       const now = Date.now();
-      const eligible = now >= START && now < END && publicPath(brand);
-      setActive(eligible);
-      if (!eligible) {
-        setOpen(false);
-        return;
-      }
-      if (!started) {
-        started = true;
-        const path = window.location.pathname.replace(/\/+$/, "") || "/";
-        if (path === "/" && !alreadyGreeted(brand)) setOpen(true);
-      }
+      setActive(isDiwaliActive(now));
+      const next = now < DIWALI_START_UTC ? DIWALI_START_UTC : now < DIWALI_END_UTC ? DIWALI_END_UTC : null;
+      if (next !== null) timer = window.setTimeout(sync, Math.max(1, next - now + 25));
     };
-    refresh();
-    const interval = window.setInterval(refresh, 1000);
-    return () => window.clearInterval(interval);
-  }, [brand]);
+    sync();
+    window.addEventListener("focus", sync);
+    document.addEventListener("visibilitychange", sync);
+    return () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      window.removeEventListener("focus", sync);
+      document.removeEventListener("visibilitychange", sync);
+    };
+  }, []);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -80,24 +88,23 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
     return () => media.removeEventListener("change", update);
   }, []);
 
-  useEffect(() => () => { void audioRef.current?.close(); }, []);
-
   useEffect(() => {
-    if (!open) return;
+    if (!active || !open) return;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
-    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     document.body.style.overflow = "hidden";
-    const focusTask = window.setTimeout(() => primaryButtonRef.current?.focus(), 0);
+    dismissRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        event.preventDefault();
-        dismiss();
+        rememberDismissal();
+        setOpen(false);
+        return;
       }
-      if (event.key !== "Tab") return;
-      const buttons = dialogRef.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)");
-      if (!buttons?.length) return;
-      const first = buttons[0];
-      const last = buttons[buttons.length - 1];
+      if (event.key !== "Tab" || !dialogRef.current) return;
+      const focusables = Array.from(dialogRef.current.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"));
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (!first || !last) return;
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();
@@ -106,258 +113,334 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
         first.focus();
       }
     };
-    window.addEventListener("keydown", onKeyDown);
+    document.addEventListener("keydown", onKeyDown);
     return () => {
-      window.clearTimeout(focusTask);
-      window.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
-      previousFocus?.focus();
+      document.removeEventListener("keydown", onKeyDown);
+      previouslyFocused?.focus();
     };
-  }, [open, dismiss]);
+  }, [active, open]);
 
-  // The intro collapses after 11 seconds; interacting keeps the celebration open.
-  useEffect(() => {
-    if (!open || interacting) return;
-    const timeout = window.setTimeout(dismiss, 11000);
-    return () => window.clearTimeout(timeout);
-  }, [open, interacting, dismiss]);
+  useEffect(() => () => { if (audioRef.current) void audioRef.current.close(); }, []);
 
+  // Use a bounded, device-aware canvas instead of heavy videos or autoplay media.
   useEffect(() => {
-    if (!open || reducedMotion) return;
+    if (!active || !open || paused || reducedMotion) {
+      launchRef.current = null;
+      fountainRef.current = null;
+      wheelRef.current = null;
+      return;
+    }
     const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d");
+    const context = canvas?.getContext("2d", { alpha: true });
     if (!canvas || !context) return;
-    let width = 1;
-    let height = 1;
-    let animationId = 0;
-    let tick = 0;
-    let rockets: Rocket[] = [];
-    let sparks: Spark[] = [];
-    let fountains: Fountain[] = [];
-    let wheels: Wheel[] = [];
-    const timerIds: number[] = [];
+
+    let width = 0;
+    let height = 0;
+    let animationFrame = 0;
+    let lastFrame = 0;
+    let nextAutomaticLaunch = 0;
+    const rockets: Rocket[] = [];
+    const embers: Ember[] = [];
+    const fountains: Fountain[] = [];
+    const wheels: Wheel[] = [];
+    const palette = [28, 44, 176, 196, 266, 319, 346];
 
     const resize = () => {
-      const rect = canvas.getBoundingClientRect();
-      const scale = Math.min(window.devicePixelRatio || 1, 2);
-      width = Math.max(1, rect.width);
-      height = Math.max(1, rect.height);
-      canvas.width = Math.round(width * scale);
-      canvas.height = Math.round(height * scale);
-      context.setTransform(scale, 0, 0, scale, 0, 0);
+      width = canvas.clientWidth;
+      height = canvas.clientHeight;
+      // SVG ornamentation stays crisp in 4K; limit animated raster pixels.
+      const budget = width >= 2200 ? 5_400_000 : 2_700_000;
+      const ratio = Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(budget / Math.max(1, width * height)));
+      canvas.width = Math.max(1, Math.round(width * ratio));
+      canvas.height = Math.max(1, Math.round(height * ratio));
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
     };
 
-    const burst = (rocket: Rocket) => {
-      const count = width < 600 ? 35 : 54;
-      for (let i = 0; i < count; i++) {
-        const angle = (i / count) * Math.PI * 2 + Math.random() * 0.09;
-        const velocity = 1.2 + Math.random() * 3.4;
-        sparks.push({
-          x: rocket.x, y: rocket.y,
-          vx: Math.cos(angle) * velocity, vy: Math.sin(angle) * velocity,
-          life: 42 + Math.random() * 22,
-          maxLife: 64,
-          hue: (rocket.hue + Math.random() * 42) % 360,
+    const burst = (x: number, y: number, hue: number) => {
+      const count = width < 700 ? 30 : 60;
+      const phase = Math.random() * Math.PI * 2;
+      for (let index = 0; index < count; index += 1) {
+        const angle = (index / count) * Math.PI * 2 + phase;
+        const speed = 1.1 + Math.random() * (width < 700 ? 2.6 : 3.8);
+        const life = 35 + Math.random() * 35;
+        embers.push({
+          x, y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life, total: life,
+          radius: 1.1 + Math.random() * 1.7,
+          hue: (hue + (Math.random() - 0.5) * 28 + 360) % 360,
         });
       }
-      if (sparks.length > 360) sparks = sparks.slice(-360);
+      if (embers.length > 420) embers.splice(0, embers.length - 420);
     };
 
     const launch = (x?: number, y?: number) => {
-      if (rockets.length >= 5) return;
+      if (width <= 0 || height <= 0 || rockets.length >= 7) return;
+      const destinationX = Math.max(22, Math.min(width - 22, x ?? width * (0.18 + Math.random() * 0.64)));
+      const destinationY = Math.max(36, Math.min(height * 0.62, y ?? height * (0.13 + Math.random() * 0.39)));
+      const startingX = Math.max(22, Math.min(width - 22, destinationX + (Math.random() - 0.5) * 135));
+      const steps = 42 + Math.random() * 16;
       rockets.push({
-        x: Math.random() * width,
-        y: height + 12,
-        targetX: Math.max(20, Math.min(width - 20, x ?? width * (0.15 + Math.random() * 0.7))),
-        targetY: Math.max(50, Math.min(height * 0.65, y ?? height * (0.12 + Math.random() * 0.35))),
-        hue: [34, 48, 160, 198, 286, 330][Math.floor(Math.random() * 6)],
-        speed: 9 + Math.random() * 3,
+        x: startingX,
+        y: height + 8,
+        vx: (destinationX - startingX) / steps,
+        vy: (destinationY - height - 8) / steps,
+        targetY: destinationY,
+        hue: palette[Math.floor(Math.random() * palette.length)],
       });
     };
-    launchRef.current = launch;
-    fountainRef.current = () => { fountains.push({ x: width * 0.5, y: height * 0.86, life: 105 }); };
-    wheelRef.current = () => { wheels.push({ x: width * 0.5, y: height * 0.77, life: 115, angle: 0 }); };
+
+    const lightAnaar = () => {
+      if (fountains.length < 3) fountains.push({ x: width * 0.5, y: height * 0.84, life: 80 });
+    };
+    const spinChakri = () => {
+      if (wheels.length < 3) wheels.push({ x: width * 0.5, y: height * 0.78, life: 90, angle: 0 });
+    };
+
+    const render = (time: number) => {
+      const minimumFrameMs = width < 700 || width >= 2600 ? 30 : 16;
+      if (lastFrame && time - lastFrame < minimumFrameMs) {
+        animationFrame = window.requestAnimationFrame(render);
+        return;
+      }
+      const step = lastFrame ? Math.max(0.5, Math.min((time - lastFrame) / 16.67, 2)) : 1;
+      lastFrame = time;
+      if (!document.hidden) {
+        context.clearRect(0, 0, width, height);
+        if (time >= nextAutomaticLaunch) {
+          launch();
+          nextAutomaticLaunch = time + (width < 700 ? 2300 : 1550);
+        }
+        for (let index = rockets.length - 1; index >= 0; index -= 1) {
+          const rocket = rockets[index];
+          rocket.x += rocket.vx * step;
+          rocket.y += rocket.vy * step;
+          context.beginPath();
+          context.strokeStyle = "hsla(" + rocket.hue + ",100%,75%,0.95)";
+          context.lineWidth = 2;
+          context.moveTo(rocket.x, rocket.y + 12);
+          context.lineTo(rocket.x, rocket.y);
+          context.stroke();
+          if (rocket.y <= rocket.targetY) {
+            burst(rocket.x, rocket.y, rocket.hue);
+            rockets.splice(index, 1);
+          }
+        }
+        for (let index = fountains.length - 1; index >= 0; index -= 1) {
+          const fountain = fountains[index];
+          fountain.life -= step;
+          if (fountain.life <= 0) { fountains.splice(index, 1); continue; }
+          for (let spark = 0; spark < 3; spark += 1) {
+            const life = 23 + Math.random() * 16;
+            embers.push({
+              x: fountain.x, y: fountain.y,
+              vx: (Math.random() - 0.5) * 4.4, vy: -3.6 - Math.random() * 5,
+              life, total: life, radius: 1.2 + Math.random() * 0.9,
+              hue: 25 + Math.random() * 32
+            });
+          }
+        }
+        for (let index = wheels.length - 1; index >= 0; index -= 1) {
+          const wheel = wheels[index];
+          wheel.life -= step;
+          wheel.angle += 0.28 * step;
+          if (wheel.life <= 0) { wheels.splice(index, 1); continue; }
+          for (let arm = 0; arm < 3; arm += 1) {
+            const angle = wheel.angle + (arm * Math.PI * 2) / 3;
+            const radius = 14 + (90 - wheel.life) * 0.13;
+            const life = 20;
+            embers.push({
+              x: wheel.x + Math.cos(angle) * radius,
+              y: wheel.y + Math.sin(angle) * radius,
+              vx: Math.cos(angle) * 2, vy: Math.sin(angle) * 2,
+              life, total: life, radius: 1.6,
+              hue: [41, 188, 312][arm]
+            });
+          }
+        }
+        if (embers.length > 420) embers.splice(0, embers.length - 420);
+        for (let index = embers.length - 1; index >= 0; index -= 1) {
+          const ember = embers[index];
+          ember.x += ember.vx * step;
+          ember.y += ember.vy * step;
+          ember.vx *= Math.pow(0.989, step);
+          ember.vy += 0.023 * step;
+          ember.life -= step;
+          if (ember.life <= 0) {
+            embers.splice(index, 1);
+            continue;
+          }
+          const opacity = Math.max(0, ember.life / ember.total);
+          context.fillStyle = "hsla(" + ember.hue + ",100%,75%," + opacity.toFixed(3) + ")";
+          context.beginPath();
+          context.arc(ember.x, ember.y, ember.radius * Math.max(0.35, opacity), 0, Math.PI * 2);
+          context.fill();
+        }
+      }
+      animationFrame = window.requestAnimationFrame(render);
+    };
+
     resize();
-    timerIds.push(window.setTimeout(() => launch(width * 0.25), 450));
-    timerIds.push(window.setTimeout(() => launch(width * 0.72), 1300));
-
-    const render = () => {
-      animationId = window.requestAnimationFrame(render);
-      if (document.visibilityState === "hidden") return;
-      context.clearRect(0, 0, width, height);
-      tick++;
-      if (tick % 94 === 0) launch();
-
-      rockets = rockets.filter((rocket) => {
-        const dx = rocket.targetX - rocket.x;
-        const dy = rocket.targetY - rocket.y;
-        const distance = Math.hypot(dx, dy);
-        if (distance <= rocket.speed) {
-          burst(rocket);
-          return false;
-        }
-        const oldX = rocket.x;
-        const oldY = rocket.y;
-        rocket.x += (dx / distance) * rocket.speed;
-        rocket.y += (dy / distance) * rocket.speed;
-        context.beginPath();
-        context.moveTo(oldX, oldY + 16);
-        context.lineTo(rocket.x, rocket.y);
-        context.lineWidth = 2.4;
-        context.strokeStyle = "hsla(" + rocket.hue + ", 100%, 78%, .95)";
-        context.stroke();
-        return true;
-      });
-
-      fountains = fountains.filter((fountain) => {
-        fountain.life--;
-        if (fountain.life <= 0) return false;
-        for (let i = 0; i < 3; i++) {
-          sparks.push({
-            x: fountain.x, y: fountain.y,
-            vx: (Math.random() - 0.5) * 3.8,
-            vy: -4 - Math.random() * 5.5,
-            life: 28 + Math.random() * 14, maxLife: 42,
-            hue: 30 + Math.random() * 30,
-          });
-        }
-        return true;
-      });
-      wheels = wheels.filter((wheel) => {
-        wheel.life--;
-        if (wheel.life <= 0) return false;
-        wheel.angle += 0.29;
-        for (let i = 0; i < 2; i++) {
-          const angle = wheel.angle + (i * Math.PI);
-          const radius = 12 + (115 - wheel.life) * 0.18;
-          sparks.push({
-            x: wheel.x + Math.cos(angle) * radius,
-            y: wheel.y + Math.sin(angle) * radius,
-            vx: Math.cos(angle) * 2.2,
-            vy: Math.sin(angle) * 2.2,
-            life: 24, maxLife: 24,
-            hue: [43, 190, 325][(tick + i) % 3],
-          });
-        }
-        return true;
-      });
-      if (sparks.length > 360) sparks = sparks.slice(-360);
-      sparks = sparks.filter((spark) => {
-        spark.life--;
-        if (spark.life <= 0) return false;
-        spark.x += spark.vx;
-        spark.y += spark.vy;
-        spark.vy += 0.036;
-        context.globalAlpha = Math.max(0, spark.life / spark.maxLife);
-        context.fillStyle = "hsl(" + spark.hue + ", 100%, 72%)";
-        context.beginPath();
-        context.arc(spark.x, spark.y, width < 600 ? 1.3 : 1.9, 0, Math.PI * 2);
-        context.fill();
-        return true;
-      });
-      context.globalAlpha = 1;
-    };
-    animationId = window.requestAnimationFrame(render);
-    window.addEventListener("resize", resize);
+    launchRef.current = launch;
+    fountainRef.current = lightAnaar;
+    wheelRef.current = spinChakri;
+    window.addEventListener("resize", resize, { passive: true });
+    animationFrame = window.requestAnimationFrame(render);
     return () => {
-      window.cancelAnimationFrame(animationId);
+      window.cancelAnimationFrame(animationFrame);
       window.removeEventListener("resize", resize);
-      timerIds.forEach(window.clearTimeout);
-      launchRef.current = () => {};
-      fountainRef.current = () => {};
-      wheelRef.current = () => {};
+      launchRef.current = null;
+      fountainRef.current = null;
+      wheelRef.current = null;
     };
-  }, [open, reducedMotion]);
+  }, [active, open, paused, reducedMotion]);
 
-  function softFireworkSound() {
-    if (!soundEnabled || typeof window.AudioContext === "undefined") return;
+  const dismiss = () => {
+    rememberDismissal();
+    setOpen(false);
+  };
+
+  const playPop = () => {
+    if (!soundOn) return;
     try {
-      const audio = audioRef.current ?? new window.AudioContext();
+      const audio = audioRef.current ?? new AudioContext();
       audioRef.current = audio;
       void audio.resume();
       const oscillator = audio.createOscillator();
-      const volume = audio.createGain();
+      const gain = audio.createGain();
+      const when = audio.currentTime;
       oscillator.type = "triangle";
-      oscillator.frequency.setValueAtTime(210, audio.currentTime);
-      oscillator.frequency.exponentialRampToValueAtTime(80, audio.currentTime + 0.22);
-      volume.gain.setValueAtTime(0.0001, audio.currentTime);
-      volume.gain.exponentialRampToValueAtTime(0.045, audio.currentTime + 0.035);
-      volume.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.24);
-      oscillator.connect(volume);
-      volume.connect(audio.destination);
-      oscillator.start();
-      oscillator.stop(audio.currentTime + 0.25);
-    } catch { /* Sound is optional; the visual greeting must continue. */ }
-  }
+      oscillator.frequency.setValueAtTime(190, when);
+      oscillator.frequency.exponentialRampToValueAtTime(62, when + 0.22);
+      gain.gain.setValueAtTime(0.0001, when);
+      gain.gain.exponentialRampToValueAtTime(0.055, when + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.24);
+      oscillator.connect(gain).connect(audio.destination);
+      oscillator.start(when);
+      oscillator.stop(when + 0.25);
+    } catch { /* Muted experience remains fully functional. */ }
+  };
 
-  function launchAt(x?: number, y?: number) {
-    setInteracting(true);
-    launchRef.current(x, y);
-    softFireworkSound();
-  }
+  const triggerFirework = (x?: number, y?: number) => {
+    if (paused) {
+      setPaused(false);
+    } else {
+      launchRef.current?.(x, y);
+      playPop();
+    }
+  };
+
+  const triggerAnaar = () => {
+    if (paused) setPaused(false);
+    else { fountainRef.current?.(); playPop(); }
+  };
+  const triggerChakri = () => {
+    if (paused) setPaused(false);
+    else { wheelRef.current?.(); playPop(); }
+  };
+
+  const share = async () => {
+    const greeting = "Happy Diwali 2026! దీపావళి శుభాకాంక్షలు!";
+    const url = window.location.origin + "/";
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: greeting, text: config.signature, url });
+        return;
+      } catch { /* A cancelled share is not an error. */ }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareStatus("Website link copied.");
+    } catch {
+      setShareStatus("Open this page to share the greeting.");
+    }
+  };
 
   if (!active) return null;
-  const isKravia = brand === "kravia";
-  return <>
-    {open ? <div
-      ref={dialogRef}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="diwali-2026-title"
-      aria-describedby="diwali-2026-description"
-      className={"diwali-festival diwali-festival--" + brand}
-    >
-      <canvas
-        ref={canvasRef}
-        className="diwali-festival__sky"
-        aria-label="Tap the night sky to launch digital fireworks"
-        onPointerDown={(event) => {
-          if (reducedMotion) return;
-          const bounds = event.currentTarget.getBoundingClientRect();
-          launchAt(event.clientX - bounds.left, event.clientY - bounds.top);
-        }}
-      />
-      <div className="diwali-festival__glow" aria-hidden="true" />
-      <div className="diwali-festival__decor diwali-festival__decor--left" aria-hidden="true">🪔</div>
-      <div className="diwali-festival__decor diwali-festival__decor--right" aria-hidden="true">🪔</div>
-      <div className="diwali-festival__content">
-        <div className="diwali-festival__brand">
-          <img
-            src={isKravia ? "/brand/kravia-enterprise-v2.svg" : "/brand/v2/vidyaluma-horizontal-inverse.svg"}
-            alt={isKravia ? "KRAVIA PRIVATE LIMITED" : "VidyaLuma"}
+
+  return (
+    <>
+      {open ? (
+        <div
+          ref={dialogRef}
+          className={[styles.overlay, brand === "kravia" ? styles.kravia : styles.vidyaluma].join(" ")}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="diwali-2026-title"
+          aria-describedby="diwali-2026-message"
+        >
+          <canvas
+            ref={canvasRef}
+            className={styles.fireworks}
+            aria-hidden="true"
+            onPointerDown={(event) => {
+              if (reducedMotion || paused) return;
+              const bounds = event.currentTarget.getBoundingClientRect();
+              triggerFirework(event.clientX - bounds.left, event.clientY - bounds.top);
+            }}
           />
+          <div className={styles.ambient} aria-hidden="true" />
+          <div className={styles.ornaments} aria-hidden="true" />
+          <div className={styles.frame}>
+            <div className={styles.topbar}>
+              <span className={styles.topLabel}>✦ &nbsp; FESTIVAL OF LIGHTS · 8 NOVEMBER 2026</span>
+              <button type="button" ref={dismissRef} className={styles.close} onClick={dismiss} aria-label="Close Diwali greeting">
+                Close <span aria-hidden="true">×</span>
+              </button>
+            </div>
+            <div className={styles.centerpiece}>
+              <span className={styles.eyebrow}>A SPECIAL CELEBRATION FROM</span>
+              <div className={styles.brandMark}>
+                <img src={config.logo} alt={config.name} width={config.width} height={config.height} />
+              </div>
+              <div className={styles.diya} aria-hidden="true">🪔</div>
+              <p className={styles.intro}>Wishing you and your loved ones</p>
+              <h2 className={styles.title} id="diwali-2026-title">Happy Diwali <span>2026</span></h2>
+              <p className={styles.telugu} lang="te">దీపావళి శుభాకాంక్షలు!</p>
+              <p className={styles.message} id="diwali-2026-message">{config.message}</p>
+              <p className={styles.signature}>{config.signature}</p>
+              <div className={styles.actions}>
+                <button type="button" className={styles.primary} disabled={reducedMotion} onClick={() => triggerFirework()}>
+                  <span aria-hidden="true">✦</span> Launch fireworks
+                </button>
+                <button type="button" className={styles.secondary} onClick={triggerAnaar} disabled={reducedMotion}>✦ Light Anaar</button>
+                <button type="button" className={styles.secondary} onClick={triggerChakri} disabled={reducedMotion}>✳ Spin Chakri</button>
+                <button type="button" className={styles.secondary} onClick={share}>Share greeting</button>
+              </div>
+              <p className={styles.shareStatus} role="status" aria-live="polite">{shareStatus}</p>
+            </div>
+            <div className={styles.bottomBar}>
+              <span className={styles.hint}>✧ Tap the night sky · launch an Anaar · spin a Chakri</span>
+              <div className={styles.utilities}>
+                <button type="button" onClick={() => setSoundOn((value) => !value)} aria-pressed={soundOn}>
+                  Sound {soundOn ? "on" : "off"}
+                </button>
+                <button
+                  type="button"
+                  disabled={reducedMotion}
+                  onClick={() => setPaused((value) => !value)}
+                  aria-pressed={paused}
+                  title={reducedMotion ? "Your reduced-motion setting is respected" : undefined}
+                >
+                  {reducedMotion ? "Reduced motion" : paused ? "Resume effects" : "Pause effects"}
+                </button>
+                <button type="button" onClick={dismiss}>Explore website</button>
+              </div>
+            </div>
+          </div>
         </div>
-        <p className="diwali-festival__eyebrow">A celebration of light and new beginnings</p>
-        <div className="diwali-festival__diya" aria-hidden="true">🪔</div>
-        <h1 id="diwali-2026-title">Happy Diwali <span>2026</span></h1>
-        <p className="diwali-festival__telugu" lang="te">దీపావళి శుభాకాంక్షలు!</p>
-        <p id="diwali-2026-description" className="diwali-festival__message">
-          {isKravia
-            ? "Wishing you and your loved ones a season of light, peace, prosperity and new possibilities."
-            : "May the light of learning, curiosity and new possibilities shine brighter for every learner."}
-        </p>
-        <div className="diwali-festival__actions">
-          <button
-            ref={primaryButtonRef}
-            className="diwali-festival__launch"
-            type="button"
-            onClick={() => launchAt()}
-            disabled={reducedMotion}
-          >{reducedMotion ? "Fireworks paused" : "✨ Launch fireworks"}</button>
-          <button className="diwali-festival__effect" type="button" disabled={reducedMotion} onClick={() => { setInteracting(true); fountainRef.current(); softFireworkSound(); }}>✨ Light Anaar</button>
-          <button className="diwali-festival__effect" type="button" disabled={reducedMotion} onClick={() => { setInteracting(true); wheelRef.current(); softFireworkSound(); }}>✴ Spin Chakri</button>
-          <button className="diwali-festival__enter" type="button" onClick={dismiss}>Enter website</button>
-          <button className="diwali-festival__sound" type="button" aria-pressed={soundEnabled} onClick={() => { setSoundEnabled((value) => !value); setInteracting(true); }}>
-            {soundEnabled ? "🔊 Sound on" : "🔇 Sound off"}
-          </button>
-        </div>
-        <p className="diwali-festival__hint">{reducedMotion ? "Reduced-motion setting respected." : "Tap anywhere in the night sky for more fireworks · Esc to close"}</p>
-      </div>
-    </div> : <button
-      className={"diwali-festival__reopen diwali-festival__reopen--" + brand}
-      type="button"
-      onClick={() => { setInteracting(false); setOpen(true); }}
-      aria-label="Open the Diwali 2026 celebration"
-    >🪔 <span>Celebrate Diwali</span></button>}
-  </>;
+      ) : (
+        <button
+          type="button"
+          className={[styles.launcher, brand === "kravia" ? styles.kravia : styles.vidyaluma].join(" ")}
+          onClick={() => { setShareStatus(""); setOpen(true); }}
+          aria-label="Reopen the Diwali celebration"
+        >
+          <span aria-hidden="true">🪔</span> Celebrate Diwali
+        </button>
+      )}
+    </>
+  );
 }
