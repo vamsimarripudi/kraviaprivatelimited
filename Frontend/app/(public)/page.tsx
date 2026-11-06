@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { TechnologyHero } from "@/components/technology-hero";
+import { DiwaliCelebration } from "@/components/diwali-celebration";
 import { MagneticLink } from "@/components/premium-interactions";
 import { HomepageBody } from "@/components/homepage-body";
 import { getPublicCompanyProfile } from "@/lib/corporate/public-facts";
@@ -15,6 +16,7 @@ export default async function Home() {
   return (
     <>
 
+      <DiwaliCelebration brand="kravia" />
       <main id="main-content">
         <TechnologyHero />
         <HomepageBody profile={profile} products={products} newsroom={newsroom} />
