@@ -6,6 +6,8 @@ import "./diwali-celebration.css";
 type Brand = "kravia" | "vidyaluma";
 type Rocket = { x: number; y: number; targetX: number; targetY: number; hue: number; speed: number };
 type Spark = { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; hue: number };
+type Fountain = { x: number; y: number; life: number };
+type Wheel = { x: number; y: number; life: number; angle: number };
 
 const START = Date.parse("2026-11-07T18:30:00.000Z");
 const END = Date.parse("2026-11-08T18:30:00.000Z");
@@ -39,6 +41,8 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const primaryButtonRef = useRef<HTMLButtonElement>(null);
   const launchRef = useRef<(x?: number, y?: number) => void>(() => {});
+  const fountainRef = useRef<() => void>(() => {});
+  const wheelRef = useRef<() => void>(() => {});
   const audioRef = useRef<AudioContext | null>(null);
 
   const dismiss = useCallback(() => {
@@ -129,6 +133,8 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
     let tick = 0;
     let rockets: Rocket[] = [];
     let sparks: Spark[] = [];
+    let fountains: Fountain[] = [];
+    let wheels: Wheel[] = [];
     const timerIds: number[] = [];
 
     const resize = () => {
@@ -169,6 +175,8 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
       });
     };
     launchRef.current = launch;
+    fountainRef.current = () => { fountains.push({ x: width * 0.5, y: height * 0.86, life: 105 }); };
+    wheelRef.current = () => { wheels.push({ x: width * 0.5, y: height * 0.77, life: 115, angle: 0 }); };
     resize();
     timerIds.push(window.setTimeout(() => launch(width * 0.25), 450));
     timerIds.push(window.setTimeout(() => launch(width * 0.72), 1300));
@@ -201,6 +209,39 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
         return true;
       });
 
+      fountains = fountains.filter((fountain) => {
+        fountain.life--;
+        if (fountain.life <= 0) return false;
+        for (let i = 0; i < 3; i++) {
+          sparks.push({
+            x: fountain.x, y: fountain.y,
+            vx: (Math.random() - 0.5) * 3.8,
+            vy: -4 - Math.random() * 5.5,
+            life: 28 + Math.random() * 14, maxLife: 42,
+            hue: 30 + Math.random() * 30,
+          });
+        }
+        return true;
+      });
+      wheels = wheels.filter((wheel) => {
+        wheel.life--;
+        if (wheel.life <= 0) return false;
+        wheel.angle += 0.29;
+        for (let i = 0; i < 2; i++) {
+          const angle = wheel.angle + (i * Math.PI);
+          const radius = 12 + (115 - wheel.life) * 0.18;
+          sparks.push({
+            x: wheel.x + Math.cos(angle) * radius,
+            y: wheel.y + Math.sin(angle) * radius,
+            vx: Math.cos(angle) * 2.2,
+            vy: Math.sin(angle) * 2.2,
+            life: 24, maxLife: 24,
+            hue: [43, 190, 325][(tick + i) % 3],
+          });
+        }
+        return true;
+      });
+      if (sparks.length > 360) sparks = sparks.slice(-360);
       sparks = sparks.filter((spark) => {
         spark.life--;
         if (spark.life <= 0) return false;
@@ -223,6 +264,8 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
       window.removeEventListener("resize", resize);
       timerIds.forEach(window.clearTimeout);
       launchRef.current = () => {};
+      fountainRef.current = () => {};
+      wheelRef.current = () => {};
     };
   }, [open, reducedMotion]);
 
@@ -301,6 +344,8 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
             onClick={() => launchAt()}
             disabled={reducedMotion}
           >{reducedMotion ? "Fireworks paused" : "✨ Launch fireworks"}</button>
+          <button className="diwali-festival__effect" type="button" disabled={reducedMotion} onClick={() => { setInteracting(true); fountainRef.current(); softFireworkSound(); }}>✨ Light Anaar</button>
+          <button className="diwali-festival__effect" type="button" disabled={reducedMotion} onClick={() => { setInteracting(true); wheelRef.current(); softFireworkSound(); }}>✴ Spin Chakri</button>
           <button className="diwali-festival__enter" type="button" onClick={dismiss}>Enter website</button>
           <button className="diwali-festival__sound" type="button" aria-pressed={soundEnabled} onClick={() => { setSoundEnabled((value) => !value); setInteracting(true); }}>
             {soundEnabled ? "🔊 Sound on" : "🔇 Sound off"}
