@@ -48,7 +48,7 @@ function rememberDismissal() {
 export function DiwaliCelebration({ brand }: { brand: Brand }) {
   const config = brands[brand];
   const [active, setActive] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => typeof window === "undefined" ? true : !sessionDismissed());
   const [reducedMotion, setReducedMotion] = useState(false);
   const [paused, setPaused] = useState(false);
   const [soundOn, setSoundOn] = useState(false);
@@ -79,14 +79,6 @@ export function DiwaliCelebration({ brand }: { brand: Brand }) {
       document.removeEventListener("visibilitychange", sync);
     };
   }, []);
-
-  useEffect(() => {
-    if (!active) {
-      setOpen(false);
-    } else if (!sessionDismissed()) {
-      setOpen(true);
-    }
-  }, [active]);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
