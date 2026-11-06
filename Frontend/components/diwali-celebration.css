@@ -24,6 +24,8 @@
 .diwali-festival__content { position: relative; z-index: 3; display: flex; flex-direction: column; align-items: center; width: min(95vw, 810px); max-height: 100dvh; padding: 25px 20px 30px; overflow-y: auto; pointer-events: none; }
 .diwali-festival__brand { display: grid; place-items: center; width: min(42vw, 240px); min-height: 57px; margin-bottom: clamp(8px, 2vh, 25px); }
 .diwali-festival__brand img { display: block; width: 100%; height: auto; max-height: 68px; object-fit: contain; filter: drop-shadow(0 3px 16px rgba(0,0,0,.26)); }
+.diwali-festival--kravia .diwali-festival__brand { width: 108px; min-height: 108px; padding: 11px; border-radius: 22px; background: rgba(255,255,255,.98); box-shadow: 0 12px 32px rgba(0,0,0,.25); }
+.diwali-festival--kravia .diwali-festival__brand img { max-height: 88px; }
 .diwali-festival__eyebrow { margin: 0; font-size: clamp(10px, 2.5vw, 12px); font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: #e9d7aa; }
 .diwali-festival__diya { font-size: clamp(48px, 11vw, 78px); line-height: 1.5; filter: drop-shadow(0 0 20px rgba(252,163,53,.56)); animation: diwali-float 4s ease-in-out infinite; }
 .diwali-festival h1 { margin: 0; font-size: clamp(43px, 9vw, 95px); font-weight: 800; line-height: 1.04; letter-spacing: -.05em; color: var(--diwali-accent); text-shadow: 0 4px 32px rgba(236,167,69,.25); }
