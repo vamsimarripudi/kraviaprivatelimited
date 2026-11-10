@@ -217,7 +217,27 @@ export async function syncPayrollApproval(periodId: string) {
   const current = await requirePermission("payroll.run.read");
   const { data, error } = await current.admin.rpc("office_payroll_sync_approval", { p_actor: current.identity.userId, p_period: periodId });
   if (error || typeof data !== "string") throw new OfficePayrollError(400, error?.message ?? "Unable to synchronize payroll approval");
-  return { status: data };
+  // A fully approved run has immutable LOCKED calculations. Issue one document
+  // per employee immediately after the existing maker/checker workflow; this
+  // is NOT payment. Idempotent database issuance makes sync safely retryable.
+  const issuedSlipIds: string[] = [];
+  if (data === "APPROVED" && (
+    await allowed(current, "payroll.run.prepare") || await allowed(current, "payroll.run.review")
+  )) {
+    const locked = await current.admin.from("office_payroll_results")
+      .select("id").eq("period_id", periodId).eq("status", "LOCKED");
+    if (locked.error) throw new OfficePayrollError(503, "Approved payroll is locked, but payslip issuance evidence is unavailable");
+    for (const result of locked.data ?? []) {
+      const issued = await current.admin.rpc("office_salary_slip_issue", {
+        p_actor: current.identity.userId, p_result: result.id,
+      });
+      if (issued.error || typeof issued.data !== "string") {
+        throw new OfficePayrollError(503, "Approved payroll was retained; salary slip issue requires review before retry");
+      }
+      issuedSlipIds.push(issued.data);
+    }
+  }
+  return { status: data, issued_slip_ids: issuedSlipIds, bank_execution: false };
 }
 
 export async function prepareSalaryBatch(periodId: string) {
