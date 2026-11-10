@@ -75,22 +75,39 @@ describe("real leadership portraits and current contributions", () => {
     expect(html).toContain("vidyaluma-logo.png");
   });
 
-  it("withholds all personal links and contact details, while retaining internal team navigation", () => {
+  it("shows approved KRAVIA email and LinkedIn contacts while retaining internal team navigation", () => {
     const html = renderToStaticMarkup(<LeadershipContent />);
     const preview = renderToStaticMarkup(<LeadershipPreview />);
     for (const person of teamProfiles) {
-      expect(person.email).toBeNull();
-      expect(person.linkedIn).toBeNull();
+      expect(person.email).toMatch(/^[A-Za-z]+@kraviaprivatelimited\.com$/);
+      expect(html).toContain(`href="mailto:${person.email}"`);
+      expect(html).toContain(`aria-label="Email ${person.name} at ${person.email}"`);
+      if (person.linkedIn) {
+        expect(html).toContain(`href="${person.linkedIn}"`);
+        expect(html).toContain(`aria-label="View ${person.name} on LinkedIn"`);
+      }
       expect(person.portfolio ?? null).toBeNull();
       expect(preview).toContain('href="' + leadershipPath + "#" + person.id + '"');
       expect(preview).toContain('alt="' + person.name + '"');
     }
-    expect(html).not.toContain("mailto:");
+    expect(teamProfiles.map((person) => person.email)).toEqual([
+      "Vamsi@kraviaprivatelimited.com",
+      "Satish@kraviaprivatelimited.com",
+      "Satyanarayana@kraviaprivatelimited.com",
+    ]);
+    expect(teamProfiles.map((person) => person.linkedIn)).toEqual([
+      "https://linkedin.com/in/vamsimarripudi/",
+      "https://linkedin.com/in/satish-manohar-9699a2253/",
+      null,
+    ]);
+    expect(html.match(/href="mailto:/g)).toHaveLength(3);
+    expect(html.match(/aria-label="View .* on LinkedIn"/g)).toHaveLength(2);
     expect(html).not.toContain("tel:");
     expect(html).not.toContain("vamsimarripudi.me");
-    expect(html).not.toContain("linkedin.com/in/");
+    expect(html).not.toContain('aria-label="View Jaya Satyanarayana Mangam on LinkedIn"');
+    expect(preview).not.toContain("mailto:");
     expect(preview).not.toContain("vamsimarripudi.me");
-    expect(source("components/leadership/leadership-content.tsx")).not.toContain("profileLinks");
+    expect(source("components/leadership/leadership-content.tsx")).toContain("profileLinks");
     expect(publicCompanyLinks.linkedIn).toBe("https://linkedin.com/company/kravia-private-limited");
     expect(publicSocialProfiles).toEqual([
       { key: "facebook", label: "Facebook", href: "https://www.facebook.com/profile.php?id=61595906774125" },
@@ -100,7 +117,7 @@ describe("real leadership portraits and current contributions", () => {
     ]);
   });
 
-  it("publishes only genuine portraits in Person structured data and no unapproved profile links", () => {
+  it("publishes approved corporate contacts in Person JSON-LD without telephone or unprovided social links", () => {
     const schema = JSON.parse(JSON.stringify(leadershipJsonLd("https://www.kraviaprivatelimited.com")));
     const graph: Array<Record<string, unknown>> = schema["@graph"];
     const people = graph.filter((entry) => entry["@type"] === "Person");
@@ -111,8 +128,9 @@ describe("real leadership portraits and current contributions", () => {
         image: "https://www.kraviaprivatelimited.com" + person.portrait!.src,
         jobTitle: person.title,
       });
-      expect(entry).not.toHaveProperty("email");
-      expect(entry).not.toHaveProperty("sameAs");
+      expect(entry).toHaveProperty("email", person.email);
+      if (person.linkedIn) expect(entry).toHaveProperty("sameAs", [person.linkedIn]);
+      else expect(entry).not.toHaveProperty("sameAs");
       expect(entry).not.toHaveProperty("telephone");
     }
   });
@@ -126,11 +144,27 @@ describe("real leadership portraits and current contributions", () => {
     expect(css).toContain(".currentFocus");
     expect(css).not.toContain(".portraitLink");
     expect(css).not.toContain(".emailLink");
+    expect(css).toContain(".profileLinks");
+    expect(css).toContain(".profileLink:focus-visible");
     const publicCss = source("app/public-typography.css");
     expect(source("app/layout.tsx")).toContain('import "./public-typography.css"');
     expect(publicCss).toContain("@media screen");
     expect(publicCss).toContain("body:has(.nav-wrap) .hero h1");
     expect(publicCss).not.toContain("zoom:");
+  });
+
+  it("tightens only Leadership, Technology and Newsroom spacing without changing the global layout", () => {
+    const leaderStyles = source("components/leadership/leadership.module.css");
+    const editorialStyles = source("app/public-next-age.css");
+    const routes = source("app/(public)/[...segments]/page.tsx");
+    expect(leaderStyles).toContain("margin-bottom: clamp(1.25rem, 2.8vw, 2.5rem)");
+    expect(leaderStyles).toContain("align-items: center; gap: clamp(1.5rem, 4vw, 4rem)");
+    expect(editorialStyles).toContain("main.compact-public-editorial > .page-hero");
+    expect(editorialStyles).toContain("main.compact-public-editorial > .newsroom-shell");
+    expect(editorialStyles).toContain("main.compact-public-editorial > .detail-shell");
+    expect(editorialStyles).toContain("@media (max-width: 760px)");
+    expect(routes).toContain('key === "technology" || key === "newsroom"');
+    expect(routes).toContain('className={key === "technology" || key === "newsroom" ? "compact-public-editorial" : undefined}');
   });
 
   it("loads the unified public visual system with radiant accents and reduced-motion fallbacks", () => {
