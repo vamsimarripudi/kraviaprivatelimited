@@ -71,14 +71,14 @@ export function LeadershipContent() {
       </section>
 
       <section className={`${styles.team} shell`} aria-labelledby="key-team-title">
-        <div className={styles.sectionHeading}><div><p className={styles.kicker}>04 / Our team</p><h2 id="key-team-title">Connecting product<br /><em>and market.</em></h2></div><p>Documenting product requirements and preparing clear specifications for engineering.</p></div>
+        <div className={styles.sectionHeading}><div><p className={styles.kicker}>04 / Our team</p><h2 id="key-team-title">Connecting product<br /><em>and operations.</em></h2></div><p>Coordinating company operations, frontend work and clear requirements for engineering.</p></div>
         {team.map((person) => <Profile key={person.id} person={person} />)}
       </section>
 
       <section className={styles.working} aria-labelledby="how-we-work-title">
         <div className="shell"><div className={styles.sectionHeading}><div><p className={styles.kicker}>05 / How we work</p><h2 id="how-we-work-title">Close to the product.<br /><em>Accountable for the work.</em></h2></div></div><div className={styles.workingGrid}>
           <article><span>01</span><h3>Build with purpose</h3><p>Product planning, architecture and implementation stay connected, led by Vamsi&apos;s hands-on technical work.</p></article>
-          <article><span>02</span><h3>Keep ownership clear</h3><p>Technology, business oversight and market development have defined responsibilities within a focused team.</p></article>
+          <article><span>02</span><h3>Keep ownership clear</h3><p>Technology, operations and business oversight have defined responsibilities within a focused team.</p></article>
           <article><span>03</span><h3>Learn and improve</h3><p>We are developing our products around practical workflows and preparing to learn from customer feedback as we enter the market.</p></article>
         </div></div>
       </section>
