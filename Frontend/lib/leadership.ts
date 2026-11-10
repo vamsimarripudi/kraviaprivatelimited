@@ -26,7 +26,7 @@ export type TeamProfile = {
 
 export const leadershipPath = "/company/leadership";
 export const leadershipTitle = "Leadership & Team";
-export const leadershipDescription = "Meet Vamsi Marripudi, Satish Manohar Pennada and Jaya Satyanarayana Mangam, the founders and team behind KRAVIA and its flagship product, VidyaLuma.";
+export const leadershipDescription = "Meet KRAVIA's leadership: Founder & CTO Vamsi Marripudi, Co-Founder & CEO Satish Manohar Pennada, and COO Jaya Satyanarayana Mangam.";
 
 export const startupOverview = {
   heading: "The people building KRAVIA.",
@@ -35,7 +35,7 @@ export const startupOverview = {
   founded: "2026",
   paragraphs: [
     "KRAVIA PRIVATE LIMITED is a product-focused technology company developing software, intelligent systems and digital infrastructure around practical organisational needs. We are currently in our pre-revenue product development stage, with VidyaLuma as our flagship product.",
-    "Our three-person team works across requirements and documentation, AI engineering and product architecture, and backend development. Vamsi leads product planning and day-to-day technical execution, Satish focuses on backend engineering and VidyaLuma AI Tutor development, and Jaya maintains product requirements and documentation.",
+    "Our three-person team covers product architecture, backend and frontend engineering, and company operations. Vamsi leads product planning and day-to-day technical execution, Satish focuses on backend engineering and VidyaLuma AI Tutor development, and Jaya coordinates operations alongside frontend development and product requirements.",
   ],
 } as const;
 
@@ -90,15 +90,15 @@ export const teamProfiles: readonly TeamProfile[] = [
     name: "Jaya Satyanarayana Mangam",
     initials: "JM",
     group: "team",
-    title: "Frontend Developer & Marketing and Sales Lead",
-    roleDetail: "Product interfaces · Marketing · Sales",
-    disciplines: ["Frontend Development", "Market Development"],
+    title: "Chief Operating Officer (COO)",
+    roleDetail: "Operations leadership · Frontend development",
+    disciplines: ["Operations", "Frontend Development", "Product Documentation"],
     biography: [
-      "Jaya Satyanarayana Mangam supports KRAVIA through product documentation and requirements work.",
-      "He helps turn proposed features and workflows into clear requirements and implementation-ready documentation so the engineering team can plan, build and review product work.",
+      "Jaya Satyanarayana Mangam serves as Chief Operating Officer of KRAVIA PRIVATE LIMITED. He coordinates company operations, product requirements and frontend development.",
+      "His work connects operational responsibilities, implementation-ready requirements and frontend execution with the engineering team, supporting clear ownership and accountable product delivery.",
     ],
-    responsibilities: ["Requirements documentation", "Feature specifications", "Workflow descriptions", "Engineering hand-offs"],
-    contribution: "Documentation & Requirements",
+    responsibilities: ["Company operations coordination", "Frontend development", "Product requirements and documentation", "Engineering hand-offs"],
+    contribution: "Operations Coordination & Frontend Development",
     portrait: { src: "/team/jaya-satyanarayana-mangam.webp", width: 256, height: 256, objectPosition: "50% 50%" },
     email: null,
     linkedIn: null,

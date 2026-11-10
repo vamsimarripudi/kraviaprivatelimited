@@ -14,7 +14,7 @@ const portraitHashes: Record<string, string> = {
   "satish-manohar-pennada": "5216a89d22f37364a0ae9b0a66e9fe43c3f25a606fe52c07a1b9510d2db81de5",
 };
 const expectedContributions: Record<string, string> = {
-  "jaya-satyanarayana-mangam": "Documentation & Requirements",
+  "jaya-satyanarayana-mangam": "Operations Coordination & Frontend Development",
   "vamsi-marripudi": "AI Engineering & Product Architecture",
   "satish-manohar-pennada": "Backend Engineering & VidyaLuma AI Tutor Design and Fulfilment",
 };

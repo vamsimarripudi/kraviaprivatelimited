@@ -24,8 +24,26 @@ describe("Leadership & Team", () => {
     expect(teamProfiles[0].title).toBe("Founder & CTO");
     expect(teamProfiles[0].disciplines).toContain("Product Architect");
     expect(teamProfiles[1].title).toBe("Co-Founder, CEO & CFO");
-    expect(teamProfiles[2].title).toBe("Frontend Developer & Marketing and Sales Lead");
+    expect(teamProfiles[2].title).toBe("Chief Operating Officer (COO)");
+    expect(teamProfiles[2].roleDetail).toContain("Frontend development");
+    expect(teamProfiles[2].disciplines).toContain("Operations");
+    expect(teamProfiles[2].responsibilities).toContain("Company operations coordination");
+    const jayaProfile = JSON.stringify(teamProfiles[2]).toLowerCase();
+    expect(jayaProfile).not.toContain("marketing");
+    expect(jayaProfile).not.toContain("sales");
+    expect(startupOverview.paragraphs.join(" ")).toContain("Jaya coordinates operations");
     expect(startupOverview.paragraphs.join(" ")).toContain("Vamsi leads product planning and day-to-day technical execution");
+  });
+
+  it("publishes Jaya's COO title consistently in leadership cards and structured data", () => {
+    const leader = teamProfiles[2];
+    const html = renderToStaticMarkup(<LeadershipContent />);
+    const preview = renderToStaticMarkup(<LeadershipPreview />);
+    expect(html).toContain(leader.title);
+    expect(preview).toContain(leader.title);
+    const person = leadershipJsonLd(origin)["@graph"].find((entry) => entry["@id"] === teamPersonId(origin, leader.id));
+    expect(person).toMatchObject({ jobTitle: "Chief Operating Officer (COO)" });
+    expect(leader.group).toBe("team");
   });
 
   it("excludes draft profiles from published data, people schema and company relationships", () => {
