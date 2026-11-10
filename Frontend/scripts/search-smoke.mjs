@@ -24,7 +24,7 @@ if (base.hostname !== "www.kraviaprivatelimited.com") {
 }
 
 const results = [];
-const pagePaths = ["/", "/contact", "/support", "/company/about", "/company/leadership", "/company/faq", "/products/vidyaluma", "/products/nicerole", "/products/yukta", "/products/vorio"];
+const pagePaths = ["/", "/contact", "/support", "/company/about", "/company/startup-profile", "/company/leadership", "/company/faq", "/products/vidyaluma", "/products/nicerole", "/products/yukta", "/products/vorio"];
 let faqHtml = "";
 for (const path of pagePaths) {
   const { response, body } = await get(path);
@@ -46,10 +46,16 @@ for (const path of pagePaths) {
   assert.equal(new URL(websites[0].url).origin, canonicalOrigin);
   const organization = structured.find((item) => item["@type"] === "Corporation");
   assert.equal(organization?.sameAs?.length, 4, `${path}: corporate profile identity missing`);
+  if (path === "/company/startup-profile") {
+    assert(body.includes("proprietary software"), "Startup profile must identify product ownership");
+    assert(body.includes("/products/vidyaluma"), "Startup profile must link to the flagship product");
+  }
   if (path === "/company/faq") {
     faqHtml = body;
     const faq = structured.find((item) => item["@type"] === "FAQPage");
-    assert.equal(faq?.mainEntity?.length, 7);
+    assert.equal(faq?.mainEntity?.length, 9, "FAQ must include transparent business-model and company-classification answers");
+    assert(faq.mainEntity.some((item) => item.name.includes("consultancy")));
+    assert(faq.mainEntity.some((item) => item.name.includes("business model")));
     const text = decode(body.replace(/<script\b[\s\S]*?<\/script>/gi, "").replace(/<[^>]*>/g, ""));
     for (const item of faq.mainEntity) { assert(text.includes(item.name)); assert(text.includes(item.acceptedAnswer.text)); }
     assert(links.some((link) => link.rel === "alternate" && link.type === "text/markdown" && link.href.endsWith("/company/faq.md")));
@@ -75,6 +81,7 @@ const urls = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => decode(m
 assert(urls.length > 10);
 assert.equal(new Set(urls).size, urls.length, "Duplicate sitemap URLs");
 assert(urls.includes(`${canonicalOrigin}/company/faq`));
+assert(urls.includes(`${canonicalOrigin}/company/startup-profile`), "Startup profile must be listed in public sitemap");
 for (const value of urls) {
   const url = new URL(value);
   assert.equal(url.origin, canonicalOrigin);
