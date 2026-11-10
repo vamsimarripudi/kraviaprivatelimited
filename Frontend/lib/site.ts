@@ -64,14 +64,21 @@ export type PublicPage = {
 };
 
 export const publicPages: Record<string, PublicPage> = {
-  company: { eyebrow: "Company", title: "A company built for durable work.", intro: "Kravia is establishing a long-term technology company with a calm, exacting approach to software, intelligent systems and digital infrastructure.", sections: [
-    { title: "Purpose", body: "To make complex work simpler, safer and more connected through useful technology." },
-    { title: "How we work", body: "We value clarity, engineering judgement, responsible use of technology and long-term trust." },
+  company: { eyebrow: "Company", title: "A company built around its own products.", intro: "KRAVIA PRIVATE LIMITED is an independent Indian technology startup developing proprietary software platforms for schools and other organisations. Its business model is product-led, not client project delivery.", sections: [
+    { title: "Purpose", body: "Develop and operate our own scalable software platforms for clearly defined users." },
+    { title: "How we work", body: "Our work covers product design, engineering, software architecture, infrastructure and ongoing product operation." },
     { title: "Corporate information", body: "Verified statutory particulars are published only after corporate approval. Kravia does not publish unverified registration details." },
   ] },
-  "company/about": { eyebrow: "Company / About", title: "Useful technology, carefully built.", intro: "Kravia Private Limited is an Indian technology company building software products, intelligent systems and digital infrastructure for organisations that need simpler, safer and more connected ways to work.", sections: [
-    { title: "What Kravia does", body: "We create product and infrastructure foundations that reduce avoidable complexity while keeping accountability visible." },
-    { title: "A company, not a single product", body: "Kravia is designed to steward an evolving portfolio of serious technology products over time." },
+  "company/about": { eyebrow: "Company / About", title: "Useful technology, carefully built.", intro: "KRAVIA PRIVATE LIMITED develops proprietary technology products, led by the VidyaLuma school platform. Other products have distinct stages of readiness; the company is not marketed as a consultancy or custom software agency.", sections: [
+    { title: "What Kravia does", body: "We design, build and maintain our own products and their underlying applications, APIs, data and operating systems." },
+    { title: "A company, not a single product", body: "VidyaLuma serves school workflows; Nice Role addresses recruitment operations. YUKTA and VORIO are publicly described as products in development." },
+  ] },
+  "company/startup-profile": { eyebrow: "Company / Startup profile", title: "An independent software product company.", intro: "KRAVIA PRIVATE LIMITED is an India-incorporated, founder-led technology startup developing its own software platforms. This profile explains the products, intended commercial model, operating stage and verifiable corporate identity.", sections: [
+    { title: "Owned products", body: "KRAVIA develops its own platforms. VidyaLuma is the flagship education technology product. Nice Role is a recruitment platform in public beta. YUKTA and VORIO are in development; their public pages are not launch announcements." },
+    { title: "Product business model", body: "The intended commercial model centres on access to KRAVIA-owned software platforms through subscriptions and licensing, rather than custom client software projects. Actual plans and availability remain specific to each product." },
+    { title: "Stage and evidence", body: "KRAVIA is an early-stage company. A working product, product website and public milestones are different forms of evidence; we do not claim customers, funding, revenue or general availability without verification." },
+    { title: "Engineering", body: "The company develops product interfaces, services, APIs, data systems and operational controls. The Technology section explains its engineering approach without publishing private infrastructure details." },
+    { title: "Corporate identity", body: "Publicly approved incorporation and recognition information is available through the corporate information and leadership pages. A legal registration is not itself a product certification." },
   ] },
   "company/principles": { eyebrow: "Company / Principles", title: "A durable way of working.", intro: "Our principles help keep product ambition, engineering judgement and responsibility in the same conversation.", sections: [
     { title: "Build for usefulness", body: "Start with the work people need to do, not a feature list." },
@@ -80,11 +87,11 @@ export const publicPages: Record<string, PublicPage> = {
   "company/corporate-information": { eyebrow: "Company / Corporate information", title: "Corporate identity, stated clearly.", intro: "Approved company particulars, tax registration and recognition information are collected here. Personal information and source documents remain private.", sections: [
     { title: "Publication governance", body: "Corporate details are drawn from one controlled source so the website, disclosures, emails and structured data do not conflict." },
   ] },
-  products: { eyebrow: "Products", title: "Useful technology, made with care.", intro: "Kravia designs, develops, operates and improves technology products for real-world work. Only approved public products are shown here.", sections: [
+  products: { eyebrow: "Products", title: "Proprietary platforms for real work.", intro: "KRAVIA develops and operates its own software products. VidyaLuma is the flagship platform; Nice Role is in beta and other portfolio products are in development. Check each product page for its present scope.", sections: [
     { title: "VidyaLuma", body: "VidyaLuma is the Kravia School Intelligence and Operations Platform and remains an independent product brand." },
-    { title: "Portfolio discipline", body: "A corporate portfolio describes what is ready to be public—not a confidential roadmap." },
+    { title: "Portfolio discipline", body: "Product status, target users and public product links are shown separately. The planned business model is recurring product access and software licensing, not contract development." },
   ] },
-  technology: { eyebrow: "Technology", title: "Engineering that earns confidence.", intro: "Our direction spans software products, intelligent systems and digital infrastructure designed to be legible, resilient and responsibly operated.", sections: [
+  technology: { eyebrow: "Technology", title: "Engineering that earns confidence.", intro: "We engineer the interfaces, services, APIs, data infrastructure and intelligent capabilities that support our own software products.", sections: [
     { title: "Systems thinking", body: "We design across interfaces, data, operations and governance—not isolated screens." },
     { title: "Responsible delivery", body: "Technology decisions are shaped by security, privacy, accessibility and the people who depend on them." },
   ] },
