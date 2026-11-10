@@ -5,7 +5,7 @@ import pytest
 from fastapi import HTTPException
 from starlette.requests import Request
 
-from backend.main import require_roles
+from backend.main import require_roles, require_approval_department_write
 
 
 class FakeDatabase:
@@ -75,3 +75,20 @@ def test_unknown_permission_verdict_fails_closed():
     with pytest.raises(HTTPException) as caught:
         require_roles("OWNER")(request(), actor(), db)
     assert caught.value.status_code == 503
+
+@pytest.mark.parametrize("kind", [
+    "funding_policy", "expense", "payment_instruction", "share_change",
+    "share_transfer", "salary_batch", "payroll_run", "compensation",
+])
+def test_generic_approval_cannot_restore_transferred_finance_rights(kind):
+    db = FakeDatabase("DENY")
+    with pytest.raises(HTTPException) as caught:
+        require_approval_department_write(actor(), db, kind)
+    assert caught.value.status_code == 403
+    assert db.calls == 1
+
+
+def test_unrelated_approval_keeps_original_maker_checker_rules():
+    db = FakeDatabase("DENY")
+    require_approval_department_write(actor(), db, "company_policy")
+    assert db.calls == 0
