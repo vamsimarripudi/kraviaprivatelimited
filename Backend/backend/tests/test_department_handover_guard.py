@@ -1,0 +1,75 @@
+"""Real guard-behaviour tests for permanent Finance handover at the FastAPI boundary."""
+from types import SimpleNamespace
+
+import pytest
+from fastapi import HTTPException
+from starlette.requests import Request
+
+from backend.main import require_roles
+
+
+class FakeDatabase:
+    def __init__(self, verdict="DENY"):
+        self.verdict = verdict
+        self.calls = 0
+
+    def get_bind(self):
+        return SimpleNamespace(dialect=SimpleNamespace(name="postgresql"))
+
+    def execute(self, statement, parameters):
+        self.calls += 1
+        assert "office_department_permission_verdict" in str(statement)
+        assert parameters["permission"] == "finance.invoice.create"
+        return SimpleNamespace(scalar_one=lambda: self.verdict)
+
+
+def request(method="POST", path="/api/v1/invoices"):
+    return Request({"type": "http", "method": method, "path": path,
+                    "query_string": b"", "headers": [], "scheme": "https",
+                    "server": ("kravia.test", 443)})
+
+
+def actor():
+    return {"roles": {"OWNER"}, "auth_mode": "first_party",
+            "user_id": "cfb1065b-56ba-4a19-81b3-b63cd32e53e3"}
+
+
+@pytest.mark.parametrize("endpoint", [
+    "/api/v1/invoices", "/api/v1/banking/accounts",
+    "/api/v1/finance/expenses", "/api/v1/ownership/share-classes",
+    "/api/v1/payments/example/refunds",
+])
+def test_former_owner_cannot_write_direct_to_finance_api(endpoint):
+    db = FakeDatabase()
+    with pytest.raises(HTTPException) as caught:
+        require_roles("OWNER")(request(endpoint if False else "POST", endpoint), actor(), db)
+    assert caught.value.status_code == 403
+    assert db.calls == 1
+
+
+@pytest.mark.parametrize("verdict", ["DEFAULT", "DEPARTMENT_OWNER"])
+def test_permitted_finance_actor_passes_existing_role_check(verdict):
+    db = FakeDatabase(verdict)
+    user = actor()
+    assert require_roles("OWNER")(request(), user, db) is user
+
+
+def test_former_owner_can_still_read_finance_records():
+    db = FakeDatabase("DENY")
+    user = actor()
+    assert require_roles("OWNER")(request("GET"), user, db) is user
+    assert db.calls == 0
+
+
+def test_other_workspace_mutations_not_blocked_by_finance_handover():
+    db = FakeDatabase("DENY")
+    user = actor()
+    assert require_roles("OWNER")(request("POST", "/api/v1/governance/meetings"), user, db) is user
+    assert db.calls == 0
+
+
+def test_unknown_permission_verdict_fails_closed():
+    db = FakeDatabase("UNKNOWN")
+    with pytest.raises(HTTPException) as caught:
+        require_roles("OWNER")(request(), actor(), db)
+    assert caught.value.status_code == 503
