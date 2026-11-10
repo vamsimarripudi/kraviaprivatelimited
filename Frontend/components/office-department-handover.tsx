@@ -83,8 +83,8 @@ export function OfficeDepartmentHandover() {
         {pending ? <p className={styles.pending}><ArrowRightLeft size={15}/>Awaiting {named(pending.to_owner_user_id)} to accept</p> : null}
         <div className={styles.actions}>
           {canPropose && !pending ? <button type="button" onClick={() => setSelected(dept)} disabled={busy}><ArrowRightLeft size={16}/>Transfer</button> : null}
-          {canAccept ? <button type="button" disabled={busy} onClick={() => void transact({ action: "ACCEPT", transfer_id: pending.id }, "Ownership accepted. Previous owner's write access is revoked.")}><Check size={16}/>Accept</button> : null}
-          {canCancel ? <button type="button" disabled={busy} onClick={() => void transact({ action: "CANCEL", transfer_id: pending.id }, "Handover cancelled with no permission change.")}><X size={16}/>Cancel</button> : null}
+          {pending && canAccept ? <button type="button" disabled={busy} onClick={() => void transact({ action: "ACCEPT", transfer_id: pending.id }, "Ownership accepted. Previous owner's write access is revoked.")}><Check size={16}/>Accept</button> : null}
+          {pending && canCancel ? <button type="button" disabled={busy} onClick={() => void transact({ action: "CANCEL", transfer_id: pending.id }, "Handover cancelled with no permission change.")}><X size={16}/>Cancel</button> : null}
         </div>
       </article>;
     })}</div> : <p className={styles.empty}>No departments assigned. Pending handovers will be listed here when directed to you.</p>}
