@@ -4,11 +4,11 @@ import jwt
 from jwt import PyJWKClient
 from datetime import datetime, timezone
 from decimal import Decimal
-from fastapi import FastAPI, Depends, HTTPException, Header, Query, UploadFile, File, Form
+from fastapi import FastAPI, Depends, HTTPException, Header, Query, UploadFile, File, Form, Request
 from contextlib import asynccontextmanager
 from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
 
 from .database import Base, engine, get_db
 from .models import LegalEntity, Product, ProductTaxProfile, GstTaxpayerSnapshot, Customer, Invoice, Payment, Receipt, IdempotencyRecord, AuditEvent, WorkflowRun, ComplianceObligation, DomainEvent, ChartAccount, JournalEntry, JournalLine, BoardMeeting, Resolution, AuthorityGrant, Vendor, Contract, Employee, OfficeAsset, Document, DocumentVersion, CommercialPlan, Subscription, CreditNote, Refund, BankAccount, BankTransaction, Settlement, ApprovalRequest, NoticeCase, InspectionCase, IntegrationRecord, OperationalAlert, WorkerHeartbeat
@@ -158,10 +158,98 @@ def actor_context(
     if role not in KNOWN_ROLES: raise HTTPException(status_code=403, detail="Unknown Office role")
     return {"actor": x_office_actor or "Local Office Owner", "role": role, "roles":{role}, "subject":None, "auth_mode":"bootstrap"}
 
+# Direct authenticated Railway API calls must enforce the same permanent
+# departmental handover as the Next.js BFF. Never trust a stale OWNER JWT role.
+# Route-to-permission mapping closes direct Railway mutation bypasses even
+# if an endpoint currently checks only broad role names. It never grants access.
+_DEPARTMENT_WRITE_PERMISSION_BY_ROOT = {
+    "products": "product.roadmap.write",
+    "customers": "sales.crm.write",
+    "invoices": "finance.invoice.create",
+    "payments": "finance.payment.prepare",
+    "receipts": "finance.receipt.record",
+    "refunds": "finance.payment.prepare",
+    "credit-notes": "finance.invoice.create",
+    "settlements": "finance.payment.prepare",
+    "accounting": "finance.journal.post",
+    "banking": "finance.payment.prepare",
+    "finance": "finance.expense.request",
+    "tax": "tax.gst.prepare",
+    "ownership": "finance.payment.prepare",
+    "commercial": "finance.invoice.create",
+    "compliance": "compliance.instance.manage",
+    "governance": "governance.risk.manage",
+    "vendors": "operations.vendor.create",
+    "contracts": "legal.contract.draft",
+    "people": "people.update",
+    "assets": "operations.asset.manage",
+    "operations": "operations.asset.manage",
+}
+
+def require_department_write(ctx, db: Session, permission: str) -> str:
+    """Enforce canonical departmental DENY even for direct Railway API callers.
+
+    Existing role/maker-checker rules still apply independently.
+    """
+    # Local SQLite test/development has no PostgreSQL ownership catalogue.
+    # On production PostgreSQL, never silently skip the transfer check for
+    # OIDC/bootstrap identities: they cannot prove their canonical Office ID.
+    if db.get_bind().dialect.name!="postgresql":
+        return
+    if ctx.get("auth_mode")!="first_party":
+        raise HTTPException(status_code=403, detail="First-party Office identity required for departmental writes")
+    actor_id=ctx.get("user_id")
+    if not actor_id:
+        raise HTTPException(status_code=403, detail="Verified Office identity required")
+    try:
+        verdict=db.execute(text(
+            "select public.office_department_permission_verdict(cast(:actor as uuid), :permission)"
+        ), {"actor":actor_id,"permission":permission}).scalar_one()
+    except Exception:
+        raise HTTPException(status_code=503, detail="Department authorization unavailable")
+    if verdict=="DENY":
+        raise HTTPException(status_code=403, detail="Department write authority belongs to the current department owner")
+    if verdict not in {"DEFAULT","DEPARTMENT_OWNER"}:
+        raise HTTPException(status_code=503, detail="Invalid department authorization decision")
+    return verdict
+
+
+_FINANCIAL_APPROVAL_ENTITY_TYPES = frozenset({
+    "funding_policy", "expense", "payment_instruction", "share_change",
+    "share_transfer", "contribution_call", "mandate", "allocation",
+    "salary_batch", "payroll_run", "compensation",
+})
+
+def require_approval_department_write(ctx, db: Session, entity_type: str) -> None:
+    # Generic approvals otherwise allow Owner to approve a transferred Finance
+    # obligation even after all direct Finance endpoints are restricted.
+    if entity_type.lower() in _FINANCIAL_APPROVAL_ENTITY_TYPES:
+        require_department_write(ctx, db, "finance.payment.prepare")
+
+
 def require_roles(*allowed):
     allowed_set={x.upper() for x in allowed}
-    def dependency(ctx=Depends(actor_context)):
-        if not (ctx["roles"] & allowed_set):
+    def dependency(request: Request, ctx=Depends(actor_context), db: Session=Depends(get_db)):
+        path_parts=request.url.path.strip("/").split("/")
+        domain_permission = (
+            _DEPARTMENT_WRITE_PERMISSION_BY_ROOT.get(path_parts[2])
+            if len(path_parts)>=3 and path_parts[:2]==["api","v1"]
+            else None
+        )
+        is_safe_method=request.method.upper() in {"GET","HEAD","OPTIONS"}
+        baseline_allowed=bool(ctx["roles"] & allowed_set)
+        # Former departmental owners retain read-only access when their base role
+        # allows it. New department heads with MEMBER role can read their owned
+        # resource, but no unrelated department. Mutations always check the DB.
+        if is_safe_method:
+            if baseline_allowed:
+                return ctx
+            verdict=require_department_write(ctx,db,domain_permission) if domain_permission else None
+            if verdict!="DEPARTMENT_OWNER":
+                raise HTTPException(status_code=403, detail="Insufficient Office authority")
+            return ctx
+        verdict=require_department_write(ctx,db,domain_permission) if domain_permission else None
+        if not baseline_allowed and verdict!="DEPARTMENT_OWNER":
             raise HTTPException(status_code=403, detail="Insufficient Office authority")
         return ctx
     return dependency
@@ -930,6 +1018,7 @@ def list_approvals(db: Session=Depends(get_db), ctx=Depends(actor_context), stat
 
 @app.post("/api/v1/approvals", status_code=201)
 def create_approval(payload: ApprovalCreate, db: Session=Depends(get_db), ctx=Depends(actor_context)):
+    require_approval_department_write(ctx, db, payload.entity_type)
     role=payload.required_role.upper()
     if role not in KNOWN_ROLES: raise HTTPException(422,"Unknown required role")
     row=ApprovalRequest(id=uid("APR"),action_type=payload.action_type,entity_type=payload.entity_type,entity_id=payload.entity_id,requested_by=ctx["actor"],required_role=role,status="PENDING",reason=payload.reason)
@@ -939,6 +1028,7 @@ def create_approval(payload: ApprovalCreate, db: Session=Depends(get_db), ctx=De
 def approve_request(approval_id: str, payload: ApprovalDecision, db: Session=Depends(get_db), ctx=Depends(actor_context)):
     row=db.get(ApprovalRequest,approval_id)
     if not row: raise HTTPException(404,"Approval request not found")
+    require_approval_department_write(ctx, db, row.entity_type)
     if row.status!="PENDING": raise HTTPException(409,"Approval already decided")
     if row.required_role not in ctx["roles"] and "OWNER" not in ctx["roles"]: raise HTTPException(403,"Actor does not hold required approval authority")
     if row.requested_by==ctx["actor"]: raise HTTPException(409,"Maker-checker control: requester cannot approve own request")
@@ -949,6 +1039,7 @@ def approve_request(approval_id: str, payload: ApprovalDecision, db: Session=Dep
 def reject_request(approval_id: str, payload: ApprovalDecision, db: Session=Depends(get_db), ctx=Depends(actor_context)):
     row=db.get(ApprovalRequest,approval_id)
     if not row: raise HTTPException(404,"Approval request not found")
+    require_approval_department_write(ctx, db, row.entity_type)
     if row.status!="PENDING": raise HTTPException(409,"Approval already decided")
     if row.required_role not in ctx["roles"] and "OWNER" not in ctx["roles"]: raise HTTPException(403,"Actor does not hold required approval authority")
     if row.requested_by==ctx["actor"]: raise HTTPException(409,"Maker-checker control: requester cannot decide own request")

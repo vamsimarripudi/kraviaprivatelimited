@@ -16,7 +16,7 @@ export type OfficeResourceScope = {
 export type OfficePermissionDecision = {
   allowed: boolean;
   permission: string;
-  source?: "OWNER" | "PROFILE" | "OVERRIDE_ALLOW" | "OVERRIDE_DENY";
+  source?: "OWNER" | "DEPARTMENT_OWNER" | "DEPARTMENT_DENY" | "PROFILE" | "OVERRIDE_ALLOW" | "OVERRIDE_DENY";
   profileCode?: string;
   scopeType?: OfficeScopeType;
   scopeKey?: string | null;
@@ -75,30 +75,50 @@ export async function resolveOfficePermission(
     return { allowed: false, permission: permissionCode, reason: "Permission is not active" };
   }
 
-  if (identity.roles.includes("OWNER") && permissionResult.data.owner_bypass !== false) {
-    return enforceDevice(admin, identity.userId, permissionCode, permissionResult.data, {
-      allowed: true,
-      permission: permissionCode,
-      source: "OWNER",
-      scopeType: "COMPANY",
-      reason: "OWNER authority",
-    }, deviceId);
+  // Check permanent department ownership BEFORE the legacy OWNER bypass.
+  // A former Owner cannot restore write authority via a COMPANY access profile.
+  const { data: verdict, error: ownershipError } = await admin.rpc("office_department_permission_verdict", {
+    p_actor: identity.userId,
+    p_permission: permissionCode,
+  });
+  if (ownershipError || !["DEFAULT", "DEPARTMENT_OWNER", "DENY"].includes(String(verdict))) {
+    return { allowed: false, permission: permissionCode, reason: "Department ownership authority is unavailable" };
+  }
+  if (verdict === "DENY") {
+    return { allowed: false, permission: permissionCode, source: "DEPARTMENT_DENY", reason: "Department write authority was transferred to its current owner" };
   }
 
-  const [profileResult, overrideResult] = await Promise.all([
-    admin.from("office_user_access_profiles").select("profile_code,scope_type,scope_key,status,expires_at").eq("user_id", identity.userId).eq("status", "ACTIVE"),
-    admin.from("office_user_permission_overrides").select("permission_code,effect,scope_type,scope_key,expires_at").eq("user_id", identity.userId).eq("permission_code", permissionCode),
-  ]);
-  if (profileResult.error || overrideResult.error) {
+  const { data: overrides, error: overrideError } = await admin.from("office_user_permission_overrides")
+    .select("permission_code,effect,scope_type,scope_key,expires_at")
+    .eq("user_id", identity.userId)
+    .eq("permission_code", permissionCode);
+  if (overrideError) {
     return { allowed: false, permission: permissionCode, reason: "Authorization authority is unavailable" };
   }
-
-  const deny = (overrideResult.data ?? []).find((row) => row.effect === "DENY" && active(row.expires_at) && scopeMatches(row.scope_type as OfficeScopeType, row.scope_key, resource, identity.userId));
+  const deny = (overrides ?? []).find((row) => row.effect === "DENY" && active(row.expires_at) && scopeMatches(row.scope_type as OfficeScopeType, row.scope_key, resource, identity.userId));
   if (deny) {
     return { allowed: false, permission: permissionCode, source: "OVERRIDE_DENY", scopeType: deny.scope_type as OfficeScopeType, scopeKey: deny.scope_key, reason: "Explicit permission deny" };
   }
 
-  const allowOverride = (overrideResult.data ?? []).find((row) => row.effect === "ALLOW" && active(row.expires_at) && scopeMatches(row.scope_type as OfficeScopeType, row.scope_key, resource, identity.userId));
+  if (permissionResult.data.owner_bypass !== false && (identity.roles.includes("OWNER") || verdict === "DEPARTMENT_OWNER")) {
+    return enforceDevice(admin, identity.userId, permissionCode, permissionResult.data, {
+      allowed: true,
+      permission: permissionCode,
+      source: verdict === "DEPARTMENT_OWNER" ? "DEPARTMENT_OWNER" : "OWNER",
+      scopeType: "COMPANY",
+      reason: verdict === "DEPARTMENT_OWNER" ? "Current department owner" : "OWNER authority",
+    }, deviceId);
+  }
+
+  const profileResult = await admin.from("office_user_access_profiles")
+    .select("profile_code,scope_type,scope_key,status,expires_at")
+    .eq("user_id", identity.userId)
+    .eq("status", "ACTIVE");
+  if (profileResult.error) {
+    return { allowed: false, permission: permissionCode, reason: "Authorization authority is unavailable" };
+  }
+
+  const allowOverride = (overrides ?? []).find((row) => row.effect === "ALLOW" && active(row.expires_at) && scopeMatches(row.scope_type as OfficeScopeType, row.scope_key, resource, identity.userId));
   if (allowOverride) {
     return enforceDevice(admin, identity.userId, permissionCode, permissionResult.data, {
       allowed: true,

@@ -12,7 +12,7 @@ export class OfficeCapabilityError extends Error {
 
 export type OfficeCapabilityScope = {
   permission: string;
-  source: "OWNER" | "PROFILE" | "OVERRIDE_ALLOW";
+  source: "OWNER" | "DEPARTMENT_OWNER" | "PROFILE" | "OVERRIDE_ALLOW";
   scope_type: string;
   scope_key: string | null;
   profile_code?: string;
@@ -56,7 +56,32 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
     .eq("active", true)
     .order("code", { ascending: true });
   if (catalog.error) throw new OfficeCapabilityError(503, "Authorization catalog is temporarily unavailable");
-  const activeCodes = new Set((catalog.data ?? []).map((row) => String(row.code)));
+  // The Founder continues to see transferred departments, but their write
+  // permissions must disappear from the action capability snapshot.
+  const [departmentDeltaResult, globalDeniesResult] = await Promise.all([
+    admin.rpc("office_department_capability_changes", { p_actor: identity.userId }),
+    admin.from("office_user_permission_overrides")
+      .select("permission_code,expires_at")
+      .eq("user_id", identity.userId)
+      .eq("effect", "DENY")
+      .eq("scope_type", "COMPANY"),
+  ]);
+  if (departmentDeltaResult.error || globalDeniesResult.error || !departmentDeltaResult.data ||
+      typeof departmentDeltaResult.data !== "object" || Array.isArray(departmentDeltaResult.data)) {
+    throw new OfficeCapabilityError(503, "Department capability authority is unavailable");
+  }
+  const changes = departmentDeltaResult.data as { denied?: unknown; owned?: unknown };
+  if (!Array.isArray(changes.denied) || !Array.isArray(changes.owned)) {
+    throw new OfficeCapabilityError(503, "Invalid department capability response");
+  }
+  const denied = new Set(changes.denied.filter((code): code is string => typeof code === "string"));
+  const owned = new Set(changes.owned.filter((code): code is string => typeof code === "string"));
+  for (const row of globalDeniesResult.data ?? []) {
+    if (active(row.expires_at)) denied.add(String(row.permission_code));
+  }
+  const activeCodes = new Set((catalog.data ?? [])
+    .map((row) => String(row.code))
+    .filter((code) => !denied.has(code)));
 
   if (identity.roles.includes("OWNER")) {
     const permissions = Array.from(activeCodes).sort();
@@ -91,6 +116,13 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
   if (mappingsResult.error) throw new OfficeCapabilityError(503, "Authorization profile map is temporarily unavailable");
 
   const scopes: OfficeCapabilityScope[] = [];
+  // Department ownership is effective even without a broad company profile.
+  // The database excludes permission codes whose owner_bypass flag is false.
+  for (const permission of owned) {
+    if (activeCodes.has(permission)) scopes.push({
+      permission, source: "DEPARTMENT_OWNER", scope_type: "COMPANY", scope_key: null,
+    });
+  }
   const globallyDenied = new Set<string>();
   for (const override of overridesResult.data ?? []) {
     if (!active(override.expires_at)) continue;
