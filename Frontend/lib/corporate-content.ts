@@ -102,10 +102,10 @@ export const publicProducts: readonly KraviaProduct[] = [
 export const publicCompanyMilestones: readonly CompanyMilestone[] = [];
 
 export const companyNarrative = {
-  summary: "Kravia Private Limited is an Indian technology company building software products, intelligent systems and digital infrastructure for organisations that need simpler, safer and more connected ways to work.",
-  purpose: "Complex systems should feel clear to the people who depend on them.",
-  mission: "Build useful technology that helps organisations work with greater clarity, confidence and continuity.",
-  vision: "A future where capable technology removes unnecessary complexity without removing human judgement.",
+  summary: "KRAVIA PRIVATE LIMITED is an independent Indian software product company. We develop and operate our own technology platforms, led by VidyaLuma for schools, with subscriptions and software licensing as our intended commercial model.",
+  purpose: "Our own software products, built for real operational needs.",
+  mission: "Develop and operate proprietary software platforms that simplify important work for the people using them.",
+  vision: "A scalable portfolio of independently branded software products, built for long-term usefulness and accountable operation.",
   principles: [
     ["Build for usefulness", "Start with the work people need to do, not a feature list."],
     ["Make complexity disappear", "Design systems that make difficult work easier to understand and act on."],
