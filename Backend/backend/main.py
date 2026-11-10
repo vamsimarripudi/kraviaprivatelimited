@@ -186,6 +186,41 @@ _DEPARTMENT_WRITE_PERMISSION_BY_ROOT = {
     "operations": "operations.asset.manage",
 }
 
+def require_department_write(ctx, db: Session, permission: str) -> None:
+    """Enforce canonical departmental DENY even for direct Railway API callers.
+
+    Existing role/maker-checker rules still apply independently.
+    """
+    if ctx.get("auth_mode")!="first_party" or db.get_bind().dialect.name!="postgresql":
+        return
+    actor_id=ctx.get("user_id")
+    if not actor_id:
+        raise HTTPException(status_code=403, detail="Verified Office identity required")
+    try:
+        verdict=db.execute(text(
+            "select public.office_department_permission_verdict(cast(:actor as uuid), :permission)"
+        ), {"actor":actor_id,"permission":permission}).scalar_one()
+    except Exception:
+        raise HTTPException(status_code=503, detail="Department authorization unavailable")
+    if verdict=="DENY":
+        raise HTTPException(status_code=403, detail="Department write authority belongs to the current department owner")
+    if verdict not in {"DEFAULT","DEPARTMENT_OWNER"}:
+        raise HTTPException(status_code=503, detail="Invalid department authorization decision")
+
+
+_FINANCIAL_APPROVAL_ENTITY_TYPES = frozenset({
+    "funding_policy", "expense", "payment_instruction", "share_change",
+    "share_transfer", "contribution_call", "mandate", "allocation",
+    "salary_batch", "payroll_run", "compensation",
+})
+
+def require_approval_department_write(ctx, db: Session, entity_type: str) -> None:
+    # Generic approvals otherwise allow Owner to approve a transferred Finance
+    # obligation even after all direct Finance endpoints are restricted.
+    if entity_type.lower() in _FINANCIAL_APPROVAL_ENTITY_TYPES:
+        require_department_write(ctx, db, "finance.payment.prepare")
+
+
 def require_roles(*allowed):
     allowed_set={x.upper() for x in allowed}
     def dependency(request: Request, ctx=Depends(actor_context), db: Session=Depends(get_db)):
@@ -198,21 +233,8 @@ def require_roles(*allowed):
             and request.method.upper() not in {"GET","HEAD","OPTIONS"}
             else None
         )
-        if domain_permission and ctx.get("auth_mode")=="first_party" and db.get_bind().dialect.name=="postgresql":
-            actor_id=ctx.get("user_id")
-            if not actor_id:
-                raise HTTPException(status_code=403, detail="Verified Office identity required")
-            try:
-                verdict=db.execute(text(
-                    "select public.office_department_permission_verdict(cast(:actor as uuid), :permission)"
-                ), {"actor":actor_id,"permission":domain_permission}).scalar_one()
-            except Exception:
-                # Misconfigured/missing handover migration must fail closed.
-                raise HTTPException(status_code=503, detail="Department authorization unavailable")
-            if verdict=="DENY":
-                raise HTTPException(status_code=403, detail="Department write authority belongs to the current department owner")
-            if verdict not in {"DEFAULT","DEPARTMENT_OWNER"}:
-                raise HTTPException(status_code=503, detail="Invalid department authorization decision")
+        if domain_permission:
+            require_department_write(ctx,db,domain_permission)
         return ctx
     return dependency
 
@@ -980,6 +1002,7 @@ def list_approvals(db: Session=Depends(get_db), ctx=Depends(actor_context), stat
 
 @app.post("/api/v1/approvals", status_code=201)
 def create_approval(payload: ApprovalCreate, db: Session=Depends(get_db), ctx=Depends(actor_context)):
+    require_approval_department_write(ctx, db, payload.entity_type)
     role=payload.required_role.upper()
     if role not in KNOWN_ROLES: raise HTTPException(422,"Unknown required role")
     row=ApprovalRequest(id=uid("APR"),action_type=payload.action_type,entity_type=payload.entity_type,entity_id=payload.entity_id,requested_by=ctx["actor"],required_role=role,status="PENDING",reason=payload.reason)
@@ -989,6 +1012,7 @@ def create_approval(payload: ApprovalCreate, db: Session=Depends(get_db), ctx=De
 def approve_request(approval_id: str, payload: ApprovalDecision, db: Session=Depends(get_db), ctx=Depends(actor_context)):
     row=db.get(ApprovalRequest,approval_id)
     if not row: raise HTTPException(404,"Approval request not found")
+    require_approval_department_write(ctx, db, row.entity_type)
     if row.status!="PENDING": raise HTTPException(409,"Approval already decided")
     if row.required_role not in ctx["roles"] and "OWNER" not in ctx["roles"]: raise HTTPException(403,"Actor does not hold required approval authority")
     if row.requested_by==ctx["actor"]: raise HTTPException(409,"Maker-checker control: requester cannot approve own request")
@@ -999,6 +1023,7 @@ def approve_request(approval_id: str, payload: ApprovalDecision, db: Session=Dep
 def reject_request(approval_id: str, payload: ApprovalDecision, db: Session=Depends(get_db), ctx=Depends(actor_context)):
     row=db.get(ApprovalRequest,approval_id)
     if not row: raise HTTPException(404,"Approval request not found")
+    require_approval_department_write(ctx, db, row.entity_type)
     if row.status!="PENDING": raise HTTPException(409,"Approval already decided")
     if row.required_role not in ctx["roles"] and "OWNER" not in ctx["roles"]: raise HTTPException(403,"Actor does not hold required approval authority")
     if row.requested_by==ctx["actor"]: raise HTTPException(409,"Maker-checker control: requester cannot decide own request")
