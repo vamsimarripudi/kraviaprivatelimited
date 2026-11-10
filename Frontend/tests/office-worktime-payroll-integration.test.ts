@@ -14,8 +14,8 @@ describe("KRAVIA worktime, payroll and wage-slip integration", () => {
     expect(migration).toContain("office_worktime_policy_versions");
     expect(migration).toContain("status text not null default 'DRAFT'");
     expect(migration).toContain("office_worktime_policy_decide");
-    expect(migration).toContain("approved_by<>proposed_by");
-    expect(migration).toContain("approved_by<>employee_user_id");
+    expect(migration).toContain("approved_by <> proposed_by");
+    expect(migration).toContain("approved_by <> employee_user_id");
     expect(migration).not.toMatch(/insert into public\.office_worktime_policy_versions\s*values/i);
   });
   it("keeps independent director review and source-backed past attendance", () => {
