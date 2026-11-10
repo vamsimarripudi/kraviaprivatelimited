@@ -234,14 +234,22 @@ def require_roles(*allowed):
         domain_permission = (
             _DEPARTMENT_WRITE_PERMISSION_BY_ROOT.get(path_parts[2])
             if len(path_parts)>=3 and path_parts[:2]==["api","v1"]
-            and request.method.upper() not in {"GET","HEAD","OPTIONS"}
             else None
         )
-        # An accepted department owner can act even when their base role is
-        # MEMBER; the owner decision is checked in PostgreSQL on each request.
-        # A previous owner is denied regardless of legacy OWNER/DIRECTOR role.
-        verdict = require_department_write(ctx,db,domain_permission) if domain_permission else None
-        if not (ctx["roles"] & allowed_set) and verdict != "DEPARTMENT_OWNER":
+        is_safe_method=request.method.upper() in {"GET","HEAD","OPTIONS"}
+        baseline_allowed=bool(ctx["roles"] & allowed_set)
+        # Former departmental owners retain read-only access when their base role
+        # allows it. New department heads with MEMBER role can read their owned
+        # resource, but no unrelated department. Mutations always check the DB.
+        if is_safe_method:
+            if baseline_allowed:
+                return ctx
+            verdict=require_department_write(ctx,db,domain_permission) if domain_permission else None
+            if verdict!="DEPARTMENT_OWNER":
+                raise HTTPException(status_code=403, detail="Insufficient Office authority")
+            return ctx
+        verdict=require_department_write(ctx,db,domain_permission) if domain_permission else None
+        if not baseline_allowed and verdict!="DEPARTMENT_OWNER":
             raise HTTPException(status_code=403, detail="Insufficient Office authority")
         return ctx
     return dependency
