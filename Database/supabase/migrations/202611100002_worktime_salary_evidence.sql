@@ -329,6 +329,21 @@ begin
   return saved_id;
 end; $$;
 
+-- Validate a frozen payslip before trusted Office PDF rendering.
+create or replace function public.office_salary_slip_integrity_check(p_issue uuid)
+returns boolean language sql stable security definer set search_path='' as $
+  select exists(
+    select 1 from public.office_salary_payslip_issues i
+    join public.office_payroll_results r on r.id=i.payroll_result_id
+    where i.id=p_issue and r.status='LOCKED'
+      and i.employee_user_id=r.employee_user_id
+      and i.snapshot_sha256=encode(extensions.digest(convert_to(i.snapshot::text,'UTF8'),'sha256'),'hex')
+      and i.snapshot->>'calculation_hash'=r.calculation_hash
+  );
+$;
+revoke all on function public.office_salary_slip_integrity_check(uuid) from public,anon,authenticated;
+grant execute on function public.office_salary_slip_integrity_check(uuid) to service_role;
+
 -- Signed wage-slip facts and settlement reports are immutable evidence.
 create or replace function public.office_prohibit_wage_evidence_rewrite()
 returns trigger language plpgsql security definer set search_path='' as $$
