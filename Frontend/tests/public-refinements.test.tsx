@@ -101,7 +101,7 @@ describe("real leadership portraits and current contributions", () => {
       null,
     ]);
     expect(html.match(/href="mailto:/g)).toHaveLength(3);
-    expect(html.match(/aria-label="View .* on LinkedIn"/g)).toHaveLength(2);
+    expect(html.match(/aria-label="View [^"]+ on LinkedIn"/g)).toHaveLength(2);
     expect(html).not.toContain("tel:");
     expect(html).not.toContain("vamsimarripudi.me");
     expect(html).not.toContain('aria-label="View Jaya Satyanarayana Mangam on LinkedIn"');
