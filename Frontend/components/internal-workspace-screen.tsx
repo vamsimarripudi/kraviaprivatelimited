@@ -68,6 +68,7 @@ const OfficeMasterData = dynamic(() => import("@/components/office-master-data")
 const OfficePhysicalOffice = dynamic(() => import("@/components/office-physical-office").then((module) => module.OfficePhysicalOffice), { loading: ModuleLoading });
 const OfficeNotificationCenter = dynamic(() => import("@/components/office-notification-center").then((module) => module.OfficeNotificationCenter), { loading: ModuleLoading });
 const OfficePayrollConsole = dynamic(() => import("@/components/office-payroll-console").then((module) => module.OfficePayrollConsole), { loading: ModuleLoading });
+const OfficeWorktimeConsole = dynamic(() => import("@/components/office-worktime-console").then((module) => module.OfficeWorktimeConsole), { loading: ModuleLoading });
 const OfficePortfolioWorkspace = dynamic(() => import("@/components/office-portfolio").then((module) => module.OfficePortfolioWorkspace), { loading: ModuleLoading });
 const OfficePeopleDevelopment = dynamic(() => import("@/components/office-people-development").then((module) => module.OfficePeopleDevelopment), { loading: ModuleLoading });
 const OfficeTravelWorkspace = dynamic(() => import("@/components/office-travel-workspace").then((module) => module.OfficeTravelWorkspace), { loading: ModuleLoading });
@@ -164,6 +165,7 @@ export function InternalWorkspaceScreen({ workspace, section }: Props) {
           : workspace === "finance" && section === "ownership" ? <OfficeOwnershipWorkspace canStage={!financeReadOnly && (identity.roles.includes("OWNER") || identity.roles.includes("DIRECTOR"))} canDecide={!financeReadOnly && (identity.roles.includes("OWNER") || identity.roles.includes("DIRECTOR"))} canPost={!financeReadOnly && (identity.roles.includes("OWNER") || identity.roles.includes("DIRECTOR"))} />
           : workspace === "finance" && section === "compliance" ? <OfficeFinancialAssurance mode="compliance" canManageCompliance={!financeReadOnly && (identity.roles.some((role) => role === "OWNER" || role === "DIRECTOR" || role === "CA"))} canManageInspections={!financeReadOnly && (identity.roles.some((role) => role === "OWNER" || role === "DIRECTOR" || role === "FINANCE" || role === "CA"))} canVerifyChain={false} />
           : workspace === "finance" && section === "audit" ? <OfficeFinancialAssurance mode="audit" canManageCompliance={!financeReadOnly && (false)} canManageInspections={!financeReadOnly && (identity.roles.some((role) => role === "OWNER" || role === "DIRECTOR" || role === "FINANCE" || role === "CA"))} canVerifyChain={identity.roles.some((role) => role === "OWNER" || role === "DIRECTOR" || role === "AUDITOR")} />
+          : workspace === "office" && section === "worktime" ? <OfficeWorktimeConsole />
           : section === "payroll" ? <OfficePayrollConsole />
           : section === "budget" ? <OfficeBudgetWorkspace />
           : workspace === "office" && section === "assets" ? <OfficeAssetLifecycle />
