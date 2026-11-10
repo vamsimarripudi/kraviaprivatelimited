@@ -42,7 +42,7 @@ def actor():
 def test_former_owner_cannot_write_direct_to_finance_api(endpoint):
     db = FakeDatabase()
     with pytest.raises(HTTPException) as caught:
-        require_roles("OWNER")(request(endpoint if False else "POST", endpoint), actor(), db)
+        require_roles("OWNER")(request("POST", endpoint), actor(), db)
     assert caught.value.status_code == 403
     assert db.calls == 1
 
