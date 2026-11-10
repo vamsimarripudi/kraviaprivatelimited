@@ -3,7 +3,7 @@ export const vidyaLumaProduct = {
   slug: "vidyaluma",
   name: "VidyaLuma",
   category: "Education technology",
-  description: "A modern platform designed to help schools manage academic and operational workflows through one connected system.",
+  description: "KRAVIA's proprietary school intelligence and operations platform, designed to connect school administration, academic workflows, reporting and AI-assisted tools.",
   status: "ACTIVE",
   public: true,
   href: "/products/vidyaluma",
@@ -12,12 +12,12 @@ export const vidyaLumaProduct = {
   order: 1,
   seo: {
     title: "VidyaLuma | School Intelligence & Operations Platform by Kravia",
-    description: "VidyaLuma is Kravia's School Intelligence & Operations Platform, designed to connect academic workflows, administration, automation, reporting and AI-assisted insights.",
+    description: "VidyaLuma is the flagship proprietary software product developed by KRAVIA PRIVATE LIMITED for school operations, academic workflows, reporting and responsible AI-assisted capabilities.",
   },
   hero: {
     eyebrow: "A PRODUCT BY KRAVIA PRIVATE LIMITED",
-    title: "AI-powered School Intelligence & Operations Platform",
-    intro: "VidyaLuma is designed to bring academic workflows, school administration, automation, reporting and AI-assisted intelligence into one connected platform.",
+    title: "School Intelligence & Operations Platform",
+    intro: "Developed by KRAVIA PRIVATE LIMITED, VidyaLuma is a proprietary product for schools that connects administration, academic work, reporting and responsible automation within one platform vision.",
   },
   overview: "Schools often manage academic, administrative and communication work through disconnected tools and manual processes. VidyaLuma is being designed as a connected platform where shared identity, school data, automation and governed intelligence help those workflows work together.",
   platformAreas: [
@@ -49,6 +49,8 @@ export const vidyaLumaProduct = {
     ["Traceable operations", "Support an operational record without turning everyday school work into complexity."],
   ],
   faqs: [
+    ["Who develops and owns VidyaLuma?", "VidyaLuma is a proprietary software product developed by KRAVIA PRIVATE LIMITED. VidyaLuma is its own public-facing product brand; KRAVIA is the corporate developer and operator."],
+    ["How is VidyaLuma intended to be offered?", "VidyaLuma follows a product-led model with school access and licensing or subscription plans. Actual plan terms, live features and availability are confirmed through the official VidyaLuma website."],
     ["What is VidyaLuma?", "VidyaLuma is Kravia’s School Intelligence & Operations Platform, designed to connect academic, administrative and communication workflows through one governed system."],
     ["Who is VidyaLuma designed for?", "VidyaLuma is designed for schools and the teams that run them, including academic leaders, administrators, operations teams, teachers and authorised staff."],
     ["Does VidyaLuma replace teachers or school leadership?", "No. VidyaLuma is designed to support informed, governed workflows. Teachers, school leadership and authorised staff retain decision-making responsibility."],
