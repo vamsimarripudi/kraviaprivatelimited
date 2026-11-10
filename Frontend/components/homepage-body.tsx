@@ -16,13 +16,13 @@ import type { PublicContentRecord } from "@/lib/content/types";
 import styles from "./homepage-body.module.css";
 
 const disciplines = [
-  { title: "Software products", copy: "Clear, focused products that help people work with more confidence.", Icon: Boxes },
-  { title: "Intelligent systems", copy: "Practical intelligence designed with human judgement in view.", Icon: BrainCircuit },
-  { title: "Digital infrastructure", copy: "Connected foundations for work that needs to remain reliable.", Icon: Network },
+  { title: "Software products", copy: "Proprietary platforms for real workflows, designed for repeated use and long-term value.", Icon: Boxes },
+  { title: "Intelligent systems", copy: "AI-assisted capabilities developed inside our products, with people accountable for decisions.", Icon: BrainCircuit },
+  { title: "Digital infrastructure", copy: "Application services, secure data and infrastructure behind our software platforms.", Icon: Network },
 ] as const;
 const operatingAreas = [
-  ["Company", "A long-lived corporate foundation for products, people and partners.", "/company/about"],
-  ["Technology", "Engineering decisions that prioritise usefulness, reliability and restraint.", "/technology/engineering"],
+  ["Company", "An Indian private limited company developing and operating its own products.", "/company/about"],
+  ["Technology", "Software architecture, APIs and infrastructure supporting proprietary platforms.", "/technology/engineering"],
   ["Governance", "Clear records, thoughtful controls and accountable ways of working.", "/governance"],
 ] as const;
 const buildApproach = ["Understand", "Design", "Engineer", "Protect", "Learn", "Improve"];
@@ -46,20 +46,20 @@ export function HomepageBody({ profile, products, newsroom }: {
   const logo = leadershipAssets.vidyalumaLogo;
   const glance = [
     ["Identity", profile.legalName], ["Base", profile.country],
-    ["Focus", "Software products · Intelligent systems · Digital infrastructure"],
+    ["Focus", "Proprietary software platforms · Product-led development"],
     ["Flagship product", featured?.name],
   ].filter(([, value]) => Boolean(value));
 
   return <div className={styles.body}>
     <section className={`${styles.container} ${styles.glance}`} aria-labelledby="glance-title">
-      <div><p className={styles.eyebrow}>01 / AT A GLANCE</p><h2 id="glance-title">A corporate identity<br /><em>with room to grow.</em></h2></div>
+      <div><p className={styles.eyebrow}>01 / AT A GLANCE</p><h2 id="glance-title">A product company<br /><em>with a clear purpose.</em></h2></div>
       <dl>{glance.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
     </section>
 
     <section className={`${styles.container} ${styles.story}`} aria-labelledby="story-title">
       <HomepageReveal className={styles.storyCopy}>
         <p className={styles.eyebrow}>02 / WHO WE ARE</p>
-        <h2 id="story-title">Independent thinking.<br /><em>Connected possibilities.</em></h2>
+        <h2 id="story-title">Independent company.<br /><em>Proprietary products.</em></h2>
         <p className={styles.description}>{companyNarrative.summary}</p>
         <Link href="/company/about" className={styles.link}>Meet Kravia <ArrowUpRight aria-hidden="true" /></Link>
       </HomepageReveal>
@@ -67,13 +67,13 @@ export function HomepageBody({ profile, products, newsroom }: {
         <div className={styles.systemGrid} aria-hidden="true" />
         <div className={styles.systemCore} aria-hidden="true"><Network strokeWidth={1} /><span>KRAVIA</span></div>
         <div className={styles.systemLabels} aria-hidden="true"><span>PRODUCTS</span><span>SYSTEMS</span><span>INFRASTRUCTURE</span></div>
-        <p>One connected foundation.<br /><strong>Many useful possibilities.</strong></p>
+        <p>One product-led company.<br /><strong>Distinct platforms and users.</strong></p>
       </HomepageReveal>
     </section>
 
     <section className={styles.build} data-nav-theme="dark" aria-labelledby="build-title">
       <div className={styles.container}>
-        <HomepageReveal className={styles.sectionHead}><p className={styles.eyebrow}>03 / WHAT WE BUILD</p><h2 id="build-title">Systems with a<br /><em>useful point of view.</em></h2></HomepageReveal>
+        <HomepageReveal className={styles.sectionHead}><p className={styles.eyebrow}>03 / WHAT WE BUILD</p><h2 id="build-title">Software products for<br /><em>the work people do.</em></h2></HomepageReveal>
         <div className={styles.disciplines}>{disciplines.map(({ title, copy, Icon }, index) => <HomepageReveal as="article" key={title} className={styles.discipline} delay={index * 80}>
           <div className={styles.disciplineTop}><Icon aria-hidden="true" strokeWidth={1.3} /><span>0{index + 1}</span></div>
           <h3>{title}</h3><p>{copy}</p><span className={styles.drawLine} aria-hidden="true" />
@@ -106,7 +106,7 @@ export function HomepageBody({ profile, products, newsroom }: {
         </div>
       </HomepageReveal> : null}
       {products.length > 1 ? <ProductPortfolio products={products.slice(1)} /> : null}
-      <p className={styles.portfolioNote}>Products appear here only after their public identity and positioning have been approved.</p>
+      <p className={styles.portfolioNote}>KRAVIA develops the platforms in this portfolio. Their status labels distinguish available, beta and in-development products; a public profile is not a launch claim.</p>
       <HomepageReveal><HomepageProductMarket products={products} /></HomepageReveal>
     </section>
 
