@@ -102,3 +102,19 @@ def test_alternate_auth_modes_cannot_skip_postgres_handover(auth_mode):
         require_roles("OWNER")(request("POST", "/api/v1/invoices"), external, db)
     assert caught.value.status_code == 403
     assert db.calls == 0
+
+
+def test_new_department_owner_with_member_role_can_manage_accepted_department():
+    user = {**actor(), "roles": {"MEMBER"}}
+    db = FakeDatabase("DEPARTMENT_OWNER")
+    assert require_roles("FINANCE")(request("POST", "/api/v1/invoices"), user, db) is user
+    assert db.calls == 1
+
+
+def test_member_without_accepted_department_ownership_is_denied():
+    user = {**actor(), "roles": {"MEMBER"}}
+    db = FakeDatabase("DEFAULT")
+    with pytest.raises(HTTPException) as caught:
+        require_roles("FINANCE")(request("POST", "/api/v1/invoices"), user, db)
+    assert caught.value.status_code == 403
+    assert db.calls == 1
