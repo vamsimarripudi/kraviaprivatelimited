@@ -166,7 +166,10 @@ describe("Legal & Trust Center publication guard", () => {
       expect(pages.length, record.slug).toBeGreaterThan(0);
       const sourceParagraphs = document!.sections.flatMap((section) => section.paragraphs);
       const printedParagraphs = pages.flatMap((page) => page.fragments).flatMap((fragment) => fragment.paragraphs);
-      expect(printedParagraphs, record.slug).toEqual(sourceParagraphs);
+      // Long canonical paragraphs can span multiple A4 print pages.
+      // Compare every word in order, not the number of printed fragments.
+      expect(printedParagraphs.join(" ").replace(/\s+/g, " ").trim(), record.slug)
+        .toBe(sourceParagraphs.join(" ").replace(/\s+/g, " ").trim());
       const sourceRows = document!.sections.flatMap((section) => section.tables ?? []).flatMap((table) => table.rows);
       const printedRows = pages.flatMap((page) => page.fragments).flatMap((fragment) => fragment.tables).flatMap((table) => table.rows);
       expect(printedRows, record.slug).toEqual(sourceRows);
