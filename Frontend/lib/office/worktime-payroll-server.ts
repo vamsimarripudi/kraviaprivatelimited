@@ -83,7 +83,7 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
   const employeeId = input.employeeUserId || actor.identity.userId;
   const self = employeeId === actor.identity.userId;
   const [canReadOthers, canReviewWorktime, canPreparePayroll] = await Promise.all([
-    Promise.all([can(actor, "people.basic.read"), can(actor, "payroll.run.read")]).then(([people, payroll]) => people || payroll),
+    Promise.all([can(actor, "people.sensitive.read"), can(actor, "payroll.run.read")]).then(([people, payroll]) => people || payroll),
     can(actor, "people.update"), can(actor, "payroll.run.prepare"),
   ]);
   if (!self && !canReadOthers) throw new OfficeWorktimeError(403, "Employee record is not assigned to you");
