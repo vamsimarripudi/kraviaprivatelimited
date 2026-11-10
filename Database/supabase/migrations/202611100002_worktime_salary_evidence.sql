@@ -261,6 +261,7 @@ begin
   select * into payslip from public.office_payroll_results where id=p_result and status='LOCKED';
   if not found then raise exception 'An approved locked payroll result is required'; end if;
   if p_amount<=0 or p_amount>payslip.net_pay_minor then raise exception 'Invalid payment amount'; end if;
+  if p_credited>now() then raise exception 'Future-dated bank credit is not verified evidence'; end if;
   if length(trim(coalesce(p_masked_bank_ref,'')))<6 or length(trim(coalesce(p_evidence,'')))<8 then
     raise exception 'Independent bank evidence is required'; end if;
   insert into public.office_salary_settlement_evidence
@@ -299,8 +300,12 @@ create or replace function public.office_salary_slip_issue(p_actor uuid,p_result
 returns uuid language plpgsql security definer set search_path='' as $$
 declare rec record; payload jsonb; digest text; saved_id uuid;
 begin
-  if not public.office_effective_permission(p_actor,'payroll.run.review','COMPANY',null,null) then
-    raise exception 'Payroll review authority is required to issue a wage slip'; end if;
+  -- Once independent payroll approval has locked the result, the authorised
+  -- preparer or reviewer may issue an immutable wage statement. Approval of
+  -- the underlying payroll is never bypassed by this step.
+  if not public.office_effective_permission(p_actor,'payroll.run.review','COMPANY',null,null)
+    and not public.office_effective_permission(p_actor,'payroll.run.prepare','COMPANY',null,null) then
+    raise exception 'Authorised payroll preparer or reviewer required to issue a wage slip'; end if;
   select r.*,p.period_code,p.starts_on,p.ends_on,p.status as period_status,
          i.display_name,e.employment_code,c.annual_ctc_minor,c.monthly_gross_minor
   into rec from public.office_payroll_results r
