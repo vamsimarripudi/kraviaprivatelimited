@@ -1,7 +1,8 @@
 -- KRAVIA Office: evidence-led worktime, company-benefit policies and salary documents.
 -- NO live employee salary, attendance, payment, policy or user is seeded.
 -- Apply after the permanent ownership migration; do not deploy code first.
--- These records supplement canonical attendance, approved payroll results and
+-- The canonical source is KRAVIA Office attendance for recorded worktime.
+-- These records supplement recorded attendance, approved payroll results and
 -- bank reconciliation. They are not an alternate payroll or payment system.
 
 create table if not exists public.office_worktime_policy_versions (
