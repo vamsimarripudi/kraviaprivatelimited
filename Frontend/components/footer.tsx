@@ -70,7 +70,7 @@ export async function Footer() {
         <div className={styles.top}>
           <div className={styles.brand}>
             <BrandLogo inverse animated />
-            <p>Software products, intelligent systems and digital infrastructure.</p>
+            <p>Independent product company developing proprietary software platforms.</p>
             <SocialLinks inverse />
           </div>
           <div className={styles.directory}>
