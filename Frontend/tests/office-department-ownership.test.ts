@@ -18,7 +18,7 @@ describe("KRAVIA permanent department ownership", () => {
     expect(sql).toContain("Only the current department owner may propose a transfer");
     expect(sql).toContain("office_department_one_pending_transfer");
     expect(sql).toContain("if req.status<>'PENDING'");
-    expect(sql).toContain("p_actor=req.to_owner_user_id");
+    expect(sql).toContain("if p_actor<>req.to_owner_user_id then");
     expect(sql).not.toContain("access_grant_expires_at");
   });
 
