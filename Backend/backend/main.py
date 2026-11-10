@@ -191,8 +191,13 @@ def require_department_write(ctx, db: Session, permission: str) -> None:
 
     Existing role/maker-checker rules still apply independently.
     """
-    if ctx.get("auth_mode")!="first_party" or db.get_bind().dialect.name!="postgresql":
+    # Local SQLite test/development has no PostgreSQL ownership catalogue.
+    # On production PostgreSQL, never silently skip the transfer check for
+    # OIDC/bootstrap identities: they cannot prove their canonical Office ID.
+    if db.get_bind().dialect.name!="postgresql":
         return
+    if ctx.get("auth_mode")!="first_party":
+        raise HTTPException(status_code=403, detail="First-party Office identity required for departmental writes")
     actor_id=ctx.get("user_id")
     if not actor_id:
         raise HTTPException(status_code=403, detail="Verified Office identity required")
