@@ -23,10 +23,12 @@ export async function OrganizationJsonLd() {
     alternateName: corporateIdentity.displayName,
     legalName: corporateIdentity.legalName,
     sameAs: Object.values(publicCompanyLinks),
-    description: "KRAVIA PRIVATE LIMITED is an Indian technology company building software products, intelligent systems and digital infrastructure.",
+    description: "KRAVIA PRIVATE LIMITED is an India-incorporated technology startup developing proprietary software platforms, including its flagship education product VidyaLuma. The company focuses on product ownership, software development and platform operation.",
     url: siteUrl,
     logo: `${siteUrl}/brand/kravia-logo.png`,
     areaServed: corporateIdentity.country,
+    knowsAbout: ["Proprietary software products", "School operations software", "Recruitment software", "SaaS product engineering"],
+    owns: publicProducts.flatMap((product) => product.public && product.href?.startsWith("/") ? [{ "@id": `${siteUrl}${product.href}#product` }] : []),
     foundingDate: corporateIdentity.incorporationDate,
     ...leadershipRelationships(siteUrl),
     address: {
@@ -62,7 +64,19 @@ export function BreadcrumbJsonLd({ items }: { items: Breadcrumb[] }) {
 export function ProductJsonLd({ slug }: { slug: string }) {
   const product = publicProducts.find((candidate) => candidate.slug === slug && candidate.public);
   if (!product) return null;
-  return <JsonLd data={{ "@context": "https://schema.org", "@type": "SoftwareApplication", name: product.name, applicationCategory: product.category, description: product.description, ...(product.href ? { url: `${siteUrl}${product.href}` } : {}), publisher: { "@id": `${siteUrl}#organization` } }} />;
+  const unreleased = product.status === "COMING_SOON";
+  return <JsonLd data={{
+    "@context": "https://schema.org",
+    "@type": unreleased ? "CreativeWork" : "SoftwareApplication",
+    "@id": `${siteUrl}${product.href ?? "/products"}#product`,
+    name: product.name,
+    description: product.description,
+    ...(unreleased ? { creativeWorkStatus: "In development" } : { applicationCategory: product.category }),
+    ...(product.href ? { url: `${siteUrl}${product.href}` } : {}),
+    ...(product.website?.startsWith("https://") ? { sameAs: product.website } : {}),
+    creator: { "@id": `${siteUrl}#organization` },
+    publisher: { "@id": `${siteUrl}#organization` },
+  }} />;
 }
 export function WebPageJsonLd({ name, description, path, about }: { name: string; description: string; path: string; about?: string }) {
   return <JsonLd data={{
