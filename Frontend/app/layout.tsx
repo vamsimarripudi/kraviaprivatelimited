@@ -25,13 +25,13 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: publicSiteIdentity.name,
-    title: "KRAVIA PRIVATE LIMITED | Software & AI Technology Company",
+    title: "KRAVIA | Proprietary Software Product Company",
     description: publicDescription,
     url: "/",
   },
   twitter: {
     card: "summary_large_image",
-    title: "KRAVIA PRIVATE LIMITED | Software & AI Technology Company",
+    title: "KRAVIA | Proprietary Software Product Company",
     description: publicDescription,
   },
 };
