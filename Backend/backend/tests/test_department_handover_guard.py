@@ -19,7 +19,7 @@ class FakeDatabase:
     def execute(self, statement, parameters):
         self.calls += 1
         assert "office_department_permission_verdict" in str(statement)
-        assert parameters["permission"] == "finance.invoice.create"
+        assert "." in parameters["permission"]
         return SimpleNamespace(scalar_one=lambda: self.verdict)
 
 
@@ -38,6 +38,8 @@ def actor():
     "/api/v1/invoices", "/api/v1/banking/accounts",
     "/api/v1/finance/expenses", "/api/v1/ownership/share-classes",
     "/api/v1/payments/example/refunds",
+    "/api/v1/products", "/api/v1/customers",
+    "/api/v1/commercial/plans", "/api/v1/people",
 ])
 def test_former_owner_cannot_write_direct_to_finance_api(endpoint):
     db = FakeDatabase()
@@ -64,7 +66,7 @@ def test_former_owner_can_still_read_finance_records():
 def test_other_workspace_mutations_not_blocked_by_finance_handover():
     db = FakeDatabase("DENY")
     user = actor()
-    assert require_roles("OWNER")(request("POST", "/api/v1/governance/meetings"), user, db) is user
+    assert require_roles("OWNER")(request("POST", "/api/v1/approvals"), user, db) is user
     assert db.calls == 0
 
 
