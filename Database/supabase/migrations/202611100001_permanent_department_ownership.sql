@@ -124,7 +124,15 @@ begin
   select o.owner_user_id into current_owner from public.office_department_ownership o
   where o.department_code=department;
   if current_owner is null then return 'DEFAULT'; end if;
-  if current_owner=p_actor then return 'DEPARTMENT_OWNER'; end if;
+  if current_owner=p_actor then
+    -- Statutory and other non-bypassable permissions still require explicit
+    -- scoped authorization; accepting a department cannot elevate them.
+    if exists(select 1 from public.office_permission_catalog p
+              where p.code=p_permission and p.owner_bypass is distinct from false) then
+      return 'DEPARTMENT_OWNER';
+    end if;
+    return 'DEFAULT';
+  end if;
 
   if exists(select 1 from public.office_department_former_owners f
             where f.department_code=department and f.user_id=p_actor)
