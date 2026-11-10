@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Linkedin, Mail } from "lucide-react";
 import { leadershipAssets, leadershipPath, publishedTeam, startupOverview, type TeamProfile } from "../../lib/leadership";
 import { vidyaLumaProduct } from "../../lib/products/vidyaluma";
 import { LeadershipMedia } from "./leadership-media";
@@ -15,6 +15,12 @@ function Profile({ person }: { person: TeamProfile }) {
           <h3 id={person.id + "-name"}>{person.name}</h3>
           <p className={styles.role}>{person.title}</p>
           <p className={styles.roleDetail}>{person.roleDetail}</p>
+          {(person.email || person.linkedIn) && (
+            <div className={styles.profileLinks} role="group" aria-label={`${person.name} contact links`}>
+              {person.email && <a className={styles.profileLink} href={`mailto:${person.email}`} aria-label={`Email ${person.name} at ${person.email}`} title={person.email}><Mail aria-hidden="true" /></a>}
+              {person.linkedIn && <a className={styles.profileLink} href={person.linkedIn} target="_blank" rel="noopener noreferrer" aria-label={`View ${person.name} on LinkedIn`} title={`LinkedIn — ${person.name}`}><Linkedin aria-hidden="true" /></a>}
+            </div>
+          )}
           <div className={styles.currentFocus}><span>Current contribution</span><strong>{person.contribution}</strong></div>
         </div>
       </header>

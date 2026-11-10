@@ -126,12 +126,13 @@ describe("Leadership & Team", () => {
   });
 
   it("omits absent portraits and unprovided professional links from structured data", () => {
-    const schema = leadershipJsonLd(origin, teamProfiles.map((person) => ({ ...person, portrait: null, linkedIn: null, portfolio: null })));
+    const schema = leadershipJsonLd(origin, teamProfiles.map((person) => ({ ...person, portrait: null, email: null, linkedIn: null, portfolio: null })));
     expect(schema["@graph"]).toHaveLength(4);
     const people = schema["@graph"].filter((entry) => entry["@type"] === "Person");
     for (const person of people) {
       expect(person).not.toHaveProperty("image");
       expect(person).not.toHaveProperty("sameAs");
+      expect(person).not.toHaveProperty("email");
       expect(person).toHaveProperty("worksFor", { "@id": `${origin}#organization` });
     }
     expect(schema["@graph"].some((entry) => ["Organization", "Corporation"].includes(entry["@type"]))).toBe(false);
@@ -151,6 +152,25 @@ describe("Leadership & Team", () => {
     const serialized = serializeLeadershipJsonLd(value);
     expect(serialized).not.toContain("<");
     expect(JSON.parse(serialized)).toEqual(value);
+  });
+
+  it("renders approved contact icons and does not invent a LinkedIn profile for Jaya", () => {
+    const people = publishedTeam();
+    expect(people.map((person) => person.email)).toEqual([
+      "Vamsi@kraviaprivatelimited.com",
+      "Satish@kraviaprivatelimited.com",
+      "Satyanarayana@kraviaprivatelimited.com",
+    ]);
+    expect(people.map((person) => person.linkedIn)).toEqual([
+      "https://linkedin.com/in/vamsimarripudi/",
+      "https://linkedin.com/in/satish-manohar-9699a2253/",
+      null,
+    ]);
+    const markup = renderToStaticMarkup(<LeadershipContent />);
+    expect(markup.match(/href="mailto:/g)).toHaveLength(3);
+    expect(markup.match(/aria-label="View [^"]+ on LinkedIn"/g)).toHaveLength(2);
+    expect(markup).toContain("target=\"_blank\" rel=\"noopener noreferrer\"");
+    expect(markup).not.toContain('aria-label="View Jaya Satyanarayana Mangam on LinkedIn"');
   });
 
   it("links preview names and avatars to the supplied portfolio or profile anchor", () => {

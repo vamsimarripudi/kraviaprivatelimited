@@ -19,7 +19,7 @@ export type TeamProfile = {
   contribution: string;
   portrait: LeadershipImage | null;
   email: string | null;
-  linkedIn: `https://www.linkedin.com/in/${string}` | null;
+  linkedIn: `https://www.linkedin.com/in/${string}` | `https://linkedin.com/in/${string}` | null;
   portfolio?: `https://${string}` | null;
   publicationStatus: "approved" | "draft";
 };
@@ -61,8 +61,8 @@ export const teamProfiles: readonly TeamProfile[] = [
     responsibilities: ["AI engineering", "Product architecture", "Full-stack development", "Day-to-day technical execution"],
     contribution: "AI Engineering & Product Architecture",
     portrait: { src: "/team/vamsi-marripudi.webp", width: 256, height: 256, objectPosition: "50% 50%" },
-    email: null,
-    linkedIn: null,
+    email: "Vamsi@kraviaprivatelimited.com",
+    linkedIn: "https://linkedin.com/in/vamsimarripudi/",
     portfolio: null,
     publicationStatus: "approved",
   },
@@ -81,8 +81,8 @@ export const teamProfiles: readonly TeamProfile[] = [
     responsibilities: ["Backend development", "VidyaLuma AI Tutor design", "Implementation and fulfilment", "Technical collaboration"],
     contribution: "Backend Engineering & VidyaLuma AI Tutor Design and Fulfilment",
     portrait: { src: "/team/satish-manohar-pennada.webp", width: 256, height: 256, objectPosition: "50% 50%" },
-    email: null,
-    linkedIn: null,
+    email: "Satish@kraviaprivatelimited.com",
+    linkedIn: "https://linkedin.com/in/satish-manohar-9699a2253/",
     publicationStatus: "approved",
   },
   {
@@ -100,7 +100,7 @@ export const teamProfiles: readonly TeamProfile[] = [
     responsibilities: ["Company operations coordination", "Frontend development", "Product requirements and documentation", "Engineering hand-offs"],
     contribution: "Operations Coordination & Frontend Development",
     portrait: { src: "/team/jaya-satyanarayana-mangam.webp", width: 256, height: 256, objectPosition: "50% 50%" },
-    email: null,
+    email: "Satyanarayana@kraviaprivatelimited.com",
     linkedIn: null,
     publicationStatus: "approved",
   },
