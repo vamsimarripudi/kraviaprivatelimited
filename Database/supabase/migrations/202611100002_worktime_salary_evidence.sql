@@ -122,11 +122,50 @@ grant select,insert,update on public.office_worktime_policy_versions,public.offi
 grant select,insert on public.office_worktime_events,public.office_salary_payslip_issues to service_role;
 grant usage,select on sequence public.office_worktime_events_id_seq to service_role;
 
+-- Directors draft a policy; a different director approves it after actual
+-- policy/Board evidence is checked. Do not silently apply proposed 3x rates.
+create or replace function public.office_worktime_policy_propose(
+  p_actor uuid,p_employee uuid,p_effective date,p_authority text
+) returns uuid language plpgsql security definer set search_path='' as $
+declare result_id uuid;
+begin
+  if not exists(select 1 from public.office_user_roles where user_id=p_actor and role in ('OWNER','DIRECTOR')
+       and (expires_at is null or expires_at>now())) then raise exception 'Director authority required'; end if;
+  if not exists(select 1 from public.office_identity_users where user_id=p_employee and status='ACTIVE') then
+    raise exception 'Active employee identity required'; end if;
+  if length(trim(coalesce(p_authority,'')))<12 then raise exception 'Written policy evidence reference required'; end if;
+  if exists(select 1 from public.office_worktime_policy_versions where employee_user_id=p_employee
+      and effective_from=p_effective and status in ('DRAFT','APPROVED')) then
+    raise exception 'Policy version exists for effective date'; end if;
+  insert into public.office_worktime_policy_versions
+    (employee_user_id,effective_from,authority_reference,proposed_by)
+  values(p_employee,p_effective,p_authority,p_actor) returning id into result_id;
+  return result_id;
+end; $;
+
+create or replace function public.office_worktime_policy_decide(
+  p_actor uuid,p_policy uuid,p_decision text
+) returns text language plpgsql security definer set search_path='' as $
+declare rec public.office_worktime_policy_versions%rowtype;
+begin
+  select * into rec from public.office_worktime_policy_versions where id=p_policy for update;
+  if not found or rec.status<>'DRAFT' then raise exception 'Pending work policy not found'; end if;
+  if p_actor=rec.proposed_by or p_actor=rec.employee_user_id then
+    raise exception 'A separate, non-beneficiary director must approve this policy'; end if;
+  if not exists(select 1 from public.office_user_roles where user_id=p_actor and role in ('OWNER','DIRECTOR')
+      and (expires_at is null or expires_at>now())) then raise exception 'Director review required'; end if;
+  if p_decision not in ('APPROVE','REJECT') then raise exception 'Invalid work policy decision'; end if;
+  update public.office_worktime_policy_versions set
+    status=case when p_decision='APPROVE' then 'APPROVED' else 'REJECTED' end,
+    approved_by=p_actor,approved_at=now() where id=p_policy;
+  return case when p_decision='APPROVE' then 'APPROVED' else 'REJECTED' end;
+end; $;
+
 create or replace function public.office_worktime_submit(
   p_actor uuid,p_employee uuid,p_attendance uuid,p_start timestamptz,p_end timestamptz,
   p_breaks jsonb,p_source_kind text,p_source_reference text,p_reason text
 ) returns uuid language plpgsql security definer set search_path='' as $$
-declare new_id uuid; recorded public.office_attendance_sessions%rowtype;
+declare new_id uuid; recorded public.office_attendance_sessions%rowtype; canonical_breaks jsonb;
 begin
   if p_actor<>p_employee then raise exception 'Only employee self-service may submit worktime; director changes require a correction request'; end if;
   if not exists(select 1 from public.office_identity_users where user_id=p_actor and status='ACTIVE') then
@@ -139,10 +178,25 @@ begin
     select * into recorded from public.office_attendance_sessions where id=p_attendance and user_id=p_actor;
     if not found or recorded.check_out_at is null or recorded.check_in_at<>p_start or recorded.check_out_at<>p_end then
       raise exception 'Reviewed time must match a completed recorded session'; end if;
+    if exists(select 1 from public.office_attendance_breaks b
+              where b.attendance_session_id=p_attendance and b.ended_at is null) then
+      raise exception 'Attendance has an unfinished break'; end if;
+    select coalesce(jsonb_agg(jsonb_build_object('startAt',b.started_at,'endAt',b.ended_at)
+           order by b.started_at),'[]'::jsonb) into canonical_breaks
+      from public.office_attendance_breaks b where b.attendance_session_id=p_attendance;
+    -- Never trust client-provided breaks; canonical source is KRAVIA Office attendance.
+    p_breaks:=canonical_breaks;
   elsif p_source_kind='HISTORICAL_CORRECTION' and p_attendance is null then
     -- A historical claim has its original timestamp and its actual submission
     -- date; it is never rewritten into a fabricated live check-in.
-    null;
+    -- Validate provided historical break intervals before sending for review.
+    if exists(
+      select 1 from jsonb_array_elements(coalesce(p_breaks,'[]'::jsonb)) x
+      where not (jsonb_typeof(x)='object'
+        and x ? 'startAt' and x ? 'endAt'
+        and (x->>'startAt') ~ '^20[0-9]{2}-'
+        and (x->>'endAt') ~ '^20[0-9]{2}-')
+    ) then raise exception 'Historical break timestamps are invalid'; end if;
   else raise exception 'Invalid worktime evidence type'; end if;
   insert into public.office_worktime_review_cases
     (employee_user_id,attendance_session_id,work_starts_at,work_ends_at,
@@ -273,16 +327,38 @@ end; $$;
 drop trigger if exists office_salary_issue_write_once on public.office_salary_payslip_issues;
 create trigger office_salary_issue_write_once before update or delete
   on public.office_salary_payslip_issues for each row execute function public.office_prohibit_wage_evidence_rewrite();
+create or replace function public.office_salary_settlement_immutable_after_review()
+returns trigger language plpgsql security definer set search_path='' as $
+begin
+  if old.status<>'PENDING' then
+    raise exception 'Reviewed salary settlement evidence is immutable'; end if;
+  if new.payroll_result_id<>old.payroll_result_id or new.amount_minor<>old.amount_minor
+    or new.currency<>old.currency or new.credited_at<>old.credited_at
+    or new.masked_bank_reference<>old.masked_bank_reference
+    or new.evidence_reference<>old.evidence_reference or new.submitted_by<>old.submitted_by then
+    raise exception 'Original payment evidence cannot be edited'; end if;
+  if new.status not in ('VERIFIED','REJECTED') or new.verified_by is null or new.verified_at is null then
+    raise exception 'Settlement review requires recorded verification'; end if;
+  return new;
+end; $;
+drop trigger if exists office_salary_evidence_sealed_update on public.office_salary_settlement_evidence;
+create trigger office_salary_evidence_sealed_update before update on public.office_salary_settlement_evidence
+  for each row execute function public.office_salary_settlement_immutable_after_review();
+
 drop trigger if exists office_salary_evidence_no_delete on public.office_salary_settlement_evidence;
 create trigger office_salary_evidence_no_delete before delete
   on public.office_salary_settlement_evidence for each row execute function public.office_prohibit_wage_evidence_rewrite();
 
+revoke all on function public.office_worktime_policy_propose(uuid,uuid,date,text) from public,anon,authenticated;
+revoke all on function public.office_worktime_policy_decide(uuid,uuid,text) from public,anon,authenticated;
 revoke all on function public.office_worktime_submit(uuid,uuid,uuid,timestamptz,timestamptz,jsonb,text,text,text) from public,anon,authenticated;
 revoke all on function public.office_worktime_decide(uuid,uuid,text,text) from public,anon,authenticated;
 revoke all on function public.office_salary_settlement_submit(uuid,uuid,bigint,timestamptz,text,text) from public,anon,authenticated;
 revoke all on function public.office_salary_settlement_decide(uuid,uuid,text) from public,anon,authenticated;
 revoke all on function public.office_salary_slip_issue(uuid,uuid) from public,anon,authenticated;
 revoke all on function public.office_prohibit_wage_evidence_rewrite() from public,anon,authenticated;
+grant execute on function public.office_worktime_policy_propose(uuid,uuid,date,text) to service_role;
+grant execute on function public.office_worktime_policy_decide(uuid,uuid,text) to service_role;
 grant execute on function public.office_worktime_submit(uuid,uuid,uuid,timestamptz,timestamptz,jsonb,text,text,text) to service_role;
 grant execute on function public.office_worktime_decide(uuid,uuid,text,text) to service_role;
 grant execute on function public.office_salary_settlement_submit(uuid,uuid,bigint,timestamptz,text,text) to service_role;
