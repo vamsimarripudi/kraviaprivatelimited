@@ -60,6 +60,11 @@ create table if not exists public.office_worktime_review_cases (
 create unique index if not exists office_worktime_one_approved_session
   on public.office_worktime_review_cases(attendance_session_id)
   where status='APPROVED' and attendance_session_id is not null;
+-- Reject duplicate automatic OT imports even under concurrent requests.
+create unique index if not exists office_worktime_adjustment_unique
+  on public.office_payroll_adjustments(period_id,employment_id,adjustment_code,source_reference)
+  where adjustment_code in ('WORKTIME_WEEKDAY_OT','WORKTIME_WEEKEND','WORKTIME_NIGHT');
+
 create index if not exists office_worktime_employee_index
   on public.office_worktime_review_cases(employee_user_id,work_starts_at);
 
@@ -130,7 +135,9 @@ create or replace function public.office_worktime_policy_propose(
 declare result_id uuid;
 begin
   if not exists(select 1 from public.office_user_roles where user_id=p_actor and role in ('OWNER','DIRECTOR')
-       and (expires_at is null or expires_at>now())) then raise exception 'Director authority required'; end if;
+       and (expires_at is null or expires_at>now()))
+    or not public.office_effective_permission(p_actor,'payroll.rules.manage','COMPANY',null,null) then
+    raise exception 'Current director payroll-policy authority required'; end if;
   if not exists(select 1 from public.office_identity_users where user_id=p_employee and status='ACTIVE') then
     raise exception 'Active employee identity required'; end if;
   if length(trim(coalesce(p_authority,'')))<12 then raise exception 'Written policy evidence reference required'; end if;
@@ -153,7 +160,9 @@ begin
   if p_actor=rec.proposed_by or p_actor=rec.employee_user_id then
     raise exception 'A separate, non-beneficiary director must approve this policy'; end if;
   if not exists(select 1 from public.office_user_roles where user_id=p_actor and role in ('OWNER','DIRECTOR')
-      and (expires_at is null or expires_at>now())) then raise exception 'Director review required'; end if;
+      and (expires_at is null or expires_at>now()))
+    or not public.office_effective_permission(p_actor,'payroll.run.review','COMPANY',null,null) then
+    raise exception 'Independent director payroll approval authority required'; end if;
   if p_decision not in ('APPROVE','REJECT') then raise exception 'Invalid work policy decision'; end if;
   update public.office_worktime_policy_versions set
     status=case when p_decision='APPROVE' then 'APPROVED' else 'REJECTED' end,
@@ -220,6 +229,8 @@ begin
   if not exists(select 1 from public.office_user_roles where user_id=p_actor
          and role in ('OWNER','DIRECTOR') and (expires_at is null or expires_at>now())) then
     raise exception 'Independent director authority is required'; end if;
+  if not public.office_effective_permission(p_actor,'people.update','COMPANY',null,null) then
+    raise exception 'Director has no current People department review authority'; end if;
   if p_decision not in ('APPROVE','REJECT') then raise exception 'Invalid review decision'; end if;
   if p_decision='APPROVE' and exists (
     select 1 from public.office_worktime_review_cases e
