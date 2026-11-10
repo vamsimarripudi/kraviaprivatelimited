@@ -186,7 +186,7 @@ _DEPARTMENT_WRITE_PERMISSION_BY_ROOT = {
     "operations": "operations.asset.manage",
 }
 
-def require_department_write(ctx, db: Session, permission: str) -> None:
+def require_department_write(ctx, db: Session, permission: str) -> str:
     """Enforce canonical departmental DENY even for direct Railway API callers.
 
     Existing role/maker-checker rules still apply independently.
@@ -211,6 +211,7 @@ def require_department_write(ctx, db: Session, permission: str) -> None:
         raise HTTPException(status_code=403, detail="Department write authority belongs to the current department owner")
     if verdict not in {"DEFAULT","DEPARTMENT_OWNER"}:
         raise HTTPException(status_code=503, detail="Invalid department authorization decision")
+    return verdict
 
 
 _FINANCIAL_APPROVAL_ENTITY_TYPES = frozenset({
@@ -229,8 +230,6 @@ def require_approval_department_write(ctx, db: Session, entity_type: str) -> Non
 def require_roles(*allowed):
     allowed_set={x.upper() for x in allowed}
     def dependency(request: Request, ctx=Depends(actor_context), db: Session=Depends(get_db)):
-        if not (ctx["roles"] & allowed_set):
-            raise HTTPException(status_code=403, detail="Insufficient Office authority")
         path_parts=request.url.path.strip("/").split("/")
         domain_permission = (
             _DEPARTMENT_WRITE_PERMISSION_BY_ROOT.get(path_parts[2])
@@ -238,8 +237,12 @@ def require_roles(*allowed):
             and request.method.upper() not in {"GET","HEAD","OPTIONS"}
             else None
         )
-        if domain_permission:
-            require_department_write(ctx,db,domain_permission)
+        # An accepted department owner can act even when their base role is
+        # MEMBER; the owner decision is checked in PostgreSQL on each request.
+        # A previous owner is denied regardless of legacy OWNER/DIRECTOR role.
+        verdict = require_department_write(ctx,db,domain_permission) if domain_permission else None
+        if not (ctx["roles"] & allowed_set) and verdict != "DEPARTMENT_OWNER":
+            raise HTTPException(status_code=403, detail="Insufficient Office authority")
         return ctx
     return dependency
 
