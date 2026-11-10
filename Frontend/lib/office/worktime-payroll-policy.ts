@@ -8,9 +8,7 @@
  * the hourly rate or each attendance minute.
  */
 export const IST_OFFSET_MS = 330 * 60_000;
-const DAY_MS = 86_400_000;
 const MINUTE_MS = 60_000;
-const WEEKDAY_BASE_MS = 6 * 60 * MINUTE_MS;
 
 export type ApprovedWorkPolicy = {
   status: "APPROVED";
