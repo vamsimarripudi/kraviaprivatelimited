@@ -68,6 +68,6 @@ describe("KRAVIA permanent department ownership", () => {
     expect(sql).toContain("to service_role");
     expect(sql).toContain("office_department_transfer_events");
     expect(sql).toContain("to kravia_office_backend");
-    expect(sql).not.toMatch(/grant\\s+select,\\s*insert,\\s*update,\\s*delete\\s+on\\s+public\\.office_department_ownership/);
+    expect(sql).not.toContain("grant select, insert, update, delete on public.office_department_ownership");
   });
 });
