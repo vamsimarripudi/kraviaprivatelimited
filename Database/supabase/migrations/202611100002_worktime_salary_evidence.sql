@@ -132,7 +132,7 @@ grant usage,select on sequence public.office_worktime_events_id_seq to service_r
 -- policy/Board evidence is checked. Do not silently apply proposed 3x rates.
 create or replace function public.office_worktime_policy_propose(
   p_actor uuid,p_employee uuid,p_effective date,p_authority text
-) returns uuid language plpgsql security definer set search_path='' as $$
+) returns uuid language plpgsql security definer set search_path='' as $kravia_payroll$
 declare result_id uuid;
 begin
   if not exists(select 1 from public.office_user_roles where user_id=p_actor and role in ('OWNER','DIRECTOR')
@@ -149,11 +149,11 @@ begin
     (employee_user_id,effective_from,authority_reference,proposed_by)
   values(p_employee,p_effective,p_authority,p_actor) returning id into result_id;
   return result_id;
-end; $$;
+end; $kravia_payroll$;
 
 create or replace function public.office_worktime_policy_decide(
   p_actor uuid,p_policy uuid,p_decision text
-) returns text language plpgsql security definer set search_path='' as $$
+) returns text language plpgsql security definer set search_path='' as $kravia_payroll$
 declare rec public.office_worktime_policy_versions%rowtype;
 begin
   select * into rec from public.office_worktime_policy_versions where id=p_policy for update;
@@ -169,12 +169,12 @@ begin
     status=case when p_decision='APPROVE' then 'APPROVED' else 'REJECTED' end,
     approved_by=p_actor,approved_at=now() where id=p_policy;
   return case when p_decision='APPROVE' then 'APPROVED' else 'REJECTED' end;
-end; $$;
+end; $kravia_payroll$;
 
 create or replace function public.office_worktime_submit(
   p_actor uuid,p_employee uuid,p_attendance uuid,p_start timestamptz,p_end timestamptz,
   p_breaks jsonb,p_source_kind text,p_source_reference text,p_reason text
-) returns uuid language plpgsql security definer set search_path='' as $$
+) returns uuid language plpgsql security definer set search_path='' as $kravia_payroll$
 declare new_id uuid; recorded public.office_attendance_sessions%rowtype; canonical_breaks jsonb;
 begin
   if p_actor<>p_employee and (
@@ -220,11 +220,11 @@ begin
   insert into public.office_worktime_events(case_id,actor_user_id,event_type)
   values(new_id,p_actor,'SUBMITTED');
   return new_id;
-end; $$;
+end; $kravia_payroll$;
 
 create or replace function public.office_worktime_decide(
   p_actor uuid,p_case uuid,p_decision text,p_note text
-) returns text language plpgsql security definer set search_path='' as $$
+) returns text language plpgsql security definer set search_path='' as $kravia_payroll$
 declare claim public.office_worktime_review_cases%rowtype;
 begin
   select * into claim from public.office_worktime_review_cases where id=p_case for update;
@@ -249,12 +249,12 @@ begin
   values(p_case,p_actor,case when p_decision='APPROVE' then 'APPROVED' else 'REJECTED' end,
          jsonb_build_object('note',left(coalesce(p_note,''),500)));
   return case when p_decision='APPROVE' then 'APPROVED' else 'REJECTED' end;
-end; $$;
+end; $kravia_payroll$;
 
 create or replace function public.office_salary_settlement_submit(
   p_actor uuid,p_result uuid,p_amount bigint,p_credited timestamptz,
   p_masked_bank_ref text,p_evidence text
-) returns uuid language plpgsql security definer set search_path='' as $$
+) returns uuid language plpgsql security definer set search_path='' as $kravia_payroll$
 declare payslip public.office_payroll_results%rowtype; record_id uuid;
 begin
   if not public.office_effective_permission(p_actor,'payroll.payment.prepare','COMPANY',null,null) then
@@ -269,11 +269,11 @@ begin
     (payroll_result_id,amount_minor,currency,credited_at,masked_bank_reference,evidence_reference,submitted_by)
   values(p_result,p_amount,payslip.currency,p_credited,p_masked_bank_ref,p_evidence,p_actor) returning id into record_id;
   return record_id;
-end; $$;
+end; $kravia_payroll$;
 
 create or replace function public.office_salary_settlement_decide(
   p_actor uuid,p_settlement uuid,p_decision text
-) returns text language plpgsql security definer set search_path='' as $$
+) returns text language plpgsql security definer set search_path='' as $kravia_payroll$
 declare rec public.office_salary_settlement_evidence%rowtype; payable bigint; already_paid bigint; employee uuid;
 begin
   select * into rec from public.office_salary_settlement_evidence where id=p_settlement for update;
@@ -295,10 +295,10 @@ begin
     status=case when p_decision='VERIFY' then 'VERIFIED' else 'REJECTED' end,
     verified_by=p_actor,verified_at=now() where id=p_settlement;
   return case when p_decision='VERIFY' then 'VERIFIED' else 'REJECTED' end;
-end; $$;
+end; $kravia_payroll$;
 
 create or replace function public.office_salary_slip_issue(p_actor uuid,p_result uuid)
-returns uuid language plpgsql security definer set search_path='' as $$
+returns uuid language plpgsql security definer set search_path='' as $kravia_payroll$
 declare rec record; payload jsonb; digest text; saved_id uuid;
 begin
   -- Once independent payroll approval has locked the result, the authorised
@@ -337,11 +337,11 @@ begin
   if saved_id is null then select id into saved_id from public.office_salary_payslip_issues
     where payroll_result_id=rec.id; end if;
   return saved_id;
-end; $$;
+end; $kravia_payroll$;
 
 -- Validate a frozen payslip before trusted Office PDF rendering.
 create or replace function public.office_salary_slip_integrity_check(p_issue uuid)
-returns boolean language sql stable security definer set search_path='' as $$
+returns boolean language sql stable security definer set search_path='' as $kravia_payroll$
   select exists(
     select 1 from public.office_salary_payslip_issues i
     join public.office_payroll_results r on r.id=i.payroll_result_id
@@ -350,21 +350,21 @@ returns boolean language sql stable security definer set search_path='' as $$
       and i.snapshot_sha256=encode(extensions.digest(convert_to(i.snapshot::text,'UTF8'),'sha256'),'hex')
       and i.snapshot->>'calculation_hash'=r.calculation_hash
   );
-$$;
+$kravia_payroll$;
 revoke all on function public.office_salary_slip_integrity_check(uuid) from public,anon,authenticated;
 grant execute on function public.office_salary_slip_integrity_check(uuid) to service_role;
 
 -- Signed wage-slip facts and settlement reports are immutable evidence.
 create or replace function public.office_prohibit_wage_evidence_rewrite()
-returns trigger language plpgsql security definer set search_path='' as $$
+returns trigger language plpgsql security definer set search_path='' as $kravia_payroll$
 begin
   raise exception 'Issued payroll evidence is immutable; use a versioned corrective record';
-end; $$;
+end; $kravia_payroll$;
 drop trigger if exists office_salary_issue_write_once on public.office_salary_payslip_issues;
 create trigger office_salary_issue_write_once before update or delete
   on public.office_salary_payslip_issues for each row execute function public.office_prohibit_wage_evidence_rewrite();
 create or replace function public.office_salary_settlement_immutable_after_review()
-returns trigger language plpgsql security definer set search_path='' as $$
+returns trigger language plpgsql security definer set search_path='' as $kravia_payroll$
 begin
   if old.status<>'PENDING' then
     raise exception 'Reviewed salary settlement evidence is immutable'; end if;
@@ -376,7 +376,7 @@ begin
   if new.status not in ('VERIFIED','REJECTED') or new.verified_by is null or new.verified_at is null then
     raise exception 'Settlement review requires recorded verification'; end if;
   return new;
-end; $$;
+end; $kravia_payroll$;
 drop trigger if exists office_salary_evidence_sealed_update on public.office_salary_settlement_evidence;
 create trigger office_salary_evidence_sealed_update before update on public.office_salary_settlement_evidence
   for each row execute function public.office_salary_settlement_immutable_after_review();
