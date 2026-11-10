@@ -22,7 +22,7 @@ describe("technology hero server rendering", () => {
     expect(html).not.toContain("Built for");
     expect(html).toContain(heroStatements[0]);
     expect(html).toContain('aria-live="polite"');
-    expect(html).toContain("We are KRAVIA.");
+    expect(html).toContain("KRAVIA PRIVATE LIMITED develops its own software platforms.");
     expect(html).toContain('href="#products"');
     expect(html).toContain('href="/company/about"');
     expect(html).toContain("Explore our products");
