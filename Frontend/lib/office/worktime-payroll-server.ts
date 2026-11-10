@@ -87,15 +87,20 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
     can(actor, "people.update"), can(actor, "payroll.run.prepare"),
   ]);
   if (!self && !canReadOthers) throw new OfficeWorktimeError(403, "Employee record is not assigned to you");
-  const [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult] = await Promise.all([
+  const [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult, periodResult] = await Promise.all([
     actor.admin.from("office_identity_users").select("user_id,display_name,status").eq("user_id", employeeId).maybeSingle(),
     actor.admin.from("office_worktime_policy_versions").select("*").eq("employee_user_id", employeeId).lte("effective_from", range.last).order("effective_from", { ascending: false }).limit(12),
     actor.admin.from("office_worktime_review_cases").select("id,employee_user_id,attendance_session_id,work_starts_at,work_ends_at,breaks,source_reference,review_note,requested_by,reviewed_by,status").eq("employee_user_id", employeeId).gte("work_starts_at", range.from).lt("work_starts_at", range.to).order("work_starts_at"),
     actor.admin.from("office_compensation_versions").select("id,monthly_gross_minor,currency,status").eq("employee_user_id", employeeId).eq("status", "APPROVED").lte("effective_from", range.first).order("effective_from", { ascending: false }).limit(1),
     actor.admin.from("office_salary_payslip_issues").select("id,payroll_result_id,employee_user_id,issue_code,snapshot,issued_at").eq("employee_user_id", employeeId).order("issued_at", { ascending: false }).limit(60),
     canReadOthers ? actor.admin.from("office_identity_users").select("user_id,display_name,status").eq("status", "ACTIVE").order("display_name").limit(500) : Promise.resolve({ data: [], error: null }),
+    canPreparePayroll ? actor.admin.from("office_payroll_periods")
+      .select("id,period_code,starts_on,ends_on,status").eq("period_kind", "MONTHLY")
+      .gte("starts_on", range.first).lte("starts_on", range.last)
+      .order("starts_on", { ascending: false }).limit(12)
+      : Promise.resolve({ data: [], error: null }),
   ]);
-  for (const r of [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult]) check(r, "Office worktime evidence is unavailable");
+  for (const r of [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult, periodResult]) check(r, "Office worktime evidence is unavailable");
   if (!identityResult.data) throw new OfficeWorktimeError(404, "Employee not found");
   const policies = (policiesResult.data ?? []) as PolicyRow[];
   const claims = (claimsResult.data ?? []) as ClaimRow[];
@@ -133,7 +138,7 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
   });
   return {
     actor: { user_id: actor.identity.userId, roles: actor.identity.roles },
-    employee: identityResult.data, employees: directoryResult.data ?? [], month, target_payment: targetSalaryDate(month),
+    employee: identityResult.data, employees: directoryResult.data ?? [], payroll_periods: periodResult.data ?? [], month, target_payment: targetSalaryDate(month),
     approved_policy: policy ?? null, policies, claims, preview,
     salary_slips: salarySlips,
     capabilities: { self, review_worktime: canReviewWorktime && actor.identity.roles.some(role => role === "OWNER" || role === "DIRECTOR"), prepare_payroll: canPreparePayroll },
