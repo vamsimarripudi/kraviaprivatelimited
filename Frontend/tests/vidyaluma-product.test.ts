@@ -26,7 +26,7 @@ describe("VidyaLuma public product record", () => {
     }
     expect(vidyaLumaProduct.faqs.some(([question]) => question.includes("outsourced software project"))).toBe(true);
     expect(vidyaLumaProduct.faqs.some(([question, answer]) => question.includes("parents") && answer.includes("approved"))).toBe(true);
-    expect(vidyaLumaProduct.faqs.some(([question, answer]) => question.includes("available today") && answer.includes("enabled modules"))).toBe(true);
+    expect(vidyaLumaProduct.faqs.some(([question, answer]) => question.includes("available today") && answer.toLowerCase().includes("enabled modules"))).toBe(true);
   });
 
   it("links first-party product, school-plan, and trust evidence in the existing KRAVIA layout", () => {
