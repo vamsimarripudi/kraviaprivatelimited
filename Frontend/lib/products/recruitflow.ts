@@ -3,7 +3,7 @@ export const recruitFlowProduct = {
   slug: "nicerole",
   name: "Nice Role",
   category: "Recruitment technology",
-  description: "An accountable recruitment workspace for jobs, applications, candidate review, interviews, hiring decisions and recruiter analytics.",
+  description: "A KRAVIA-developed recruitment software product in public beta for structured jobs, applications, interview workflows and human-controlled hiring decisions.",
   status: "BETA",
   public: true,
   href: "/products/nicerole",
@@ -12,7 +12,7 @@ export const recruitFlowProduct = {
   order: 2,
   seo: {
     title: "Nice Role | Recruitment Operations Platform by Kravia",
-    description: "Nice Role is Kravia's recruitment operations platform for structured jobs, applications, candidate review, interviews, scorecards, human hiring decisions and analytics.",
+    description: "Nice Role is KRAVIA's proprietary recruitment SaaS product in public beta, connecting jobs, applications, candidate review, interviews, scorecards and human hiring decisions.",
   },
   hero: {
     eyebrow: "A PRODUCT BY KRAVIA PRIVATE LIMITED / RECRUITMENT TECHNOLOGY",

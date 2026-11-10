@@ -96,6 +96,13 @@ describe("public answer and machine-readable surfaces", () => {
     expect(source("app/company/faq/page.tsx")).toContain("const questions = companyFaqs()");
     expect(source("app/company/faq/page.tsx")).toContain("text: item.answer");
   });
+  it("keeps product business model and company classification consistent in public discovery", () => {
+    const questions = companyFaqs();
+    expect(questions.find((item) => item.id === "product-company")?.answer).toContain("proprietary software products");
+    expect(questions.find((item) => item.id === "commercial-model")?.answer).toContain("subscriptions");
+    expect(llmsIndex()).toContain("/company/startup-profile");
+  });
+
   it("links the FAQ and discovery guide without altering the company logo", () => {
     expect(source("components/footer.tsx")).toContain('["Company FAQ", "/company/faq"]');
     expect(source("components/footer.tsx")).toContain("<BrandLogo inverse animated />");

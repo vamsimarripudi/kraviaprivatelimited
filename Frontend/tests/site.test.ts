@@ -14,6 +14,12 @@ describe("public company data", () => {
     expect(Object.keys(publicPages)).toEqual(expect.arrayContaining(["company", "products", "governance", "disclosures", "trust/data-protection"]));
   });
 
+  it("exposes a truthful product-company profile without a visual redesign", () => {
+    expect(publicPages["company/startup-profile"]?.intro).toContain("developing its own software platforms");
+    expect(publicPages.products.intro).toContain("develops and operates its own software products");
+    expect(isPublicSitemapPath("/company/startup-profile")).toBe(true);
+  });
+
   it("declares the approved human-readable site name for search", () => {
     expect(publicSiteIdentity).toEqual({ name: "KRAVIA", alternateName: "KRAVIA PRIVATE LIMITED" });
     expect(publicWebsiteStructuredData()).toMatchObject({
