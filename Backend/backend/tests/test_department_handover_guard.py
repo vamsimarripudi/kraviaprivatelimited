@@ -92,3 +92,13 @@ def test_unrelated_approval_keeps_original_maker_checker_rules():
     db = FakeDatabase("DENY")
     require_approval_department_write(actor(), db, "company_policy")
     assert db.calls == 0
+
+
+@pytest.mark.parametrize("auth_mode", ["oidc", "bootstrap"])
+def test_alternate_auth_modes_cannot_skip_postgres_handover(auth_mode):
+    db = FakeDatabase("DEFAULT")
+    external = {**actor(), "auth_mode": auth_mode}
+    with pytest.raises(HTTPException) as caught:
+        require_roles("OWNER")(request("POST", "/api/v1/invoices"), external, db)
+    assert caught.value.status_code == 403
+    assert db.calls == 0
