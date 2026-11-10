@@ -30,6 +30,7 @@ describe("KRAVIA permanent department ownership", () => {
     expect(sql).toContain("if verdict='DENY' then return false");
     expect(sql).toContain("public.office_department_former_owners");
     expect(sql).toContain("permission_record.owner_bypass is distinct from false");
+    expect(sql).toContain("p.owner_bypass is distinct from false");
     expect(sql).toContain("and o.effect='DENY'");
     expect(sql).toContain("if current_owner=p_actor then return 'DEPARTMENT_OWNER'");
     expect(sql).toContain("permission_action like 'READ%'");
