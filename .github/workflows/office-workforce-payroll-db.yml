@@ -1,0 +1,54 @@
+name: KRAVIA Office workforce and payroll PostgreSQL integration
+on:
+  pull_request:
+    paths:
+      - 'Database/supabase/migrations/202611100001_permanent_department_ownership.sql'
+      - 'Database/supabase/migrations/202611100002_worktime_salary_evidence.sql'
+      - 'Database/supabase/migrations/202611100003_flex_day_credits.sql'
+      - 'Database/supabase/tests/workforce-release-*.sql'
+      - '.github/workflows/office-workforce-payroll-db.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres:
+    name: Ephemeral PostgreSQL 17 migration and business-flow smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: kravia_workforce_ci
+          POSTGRES_PASSWORD: ci-workforce-postgres-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kravia_workforce_ci"
+          --health-interval 3s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Rehearse all three versioned migrations in a disposable database
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg() {
+            docker run --rm --network host \
+              -v "$PWD:/repo:ro" --workdir /repo \
+              --env PGPASSWORD=ci-workforce-postgres-only postgres:17 \
+              psql --host 127.0.0.1 --username postgres \
+                   --dbname kravia_workforce_ci \
+                   --set ON_ERROR_STOP=1 "$@"
+          }
+          pg -f Database/supabase/tests/workforce-release-fixture.sql
+          pg -f Database/supabase/migrations/202611100001_permanent_department_ownership.sql
+          pg -f Database/supabase/migrations/202611100002_worktime_salary_evidence.sql
+          pg -f Database/supabase/migrations/202611100003_flex_day_credits.sql
+          test "$(pg --tuples-only --no-align \
+            -f Database/supabase/tests/workforce-release-smoke.sql | tail -n 1)" = "WORKFORCE_MIGRATIONS_VERIFIED"
+          echo "All isolated Office workforce/payroll SQL migrations and business flows passed."
