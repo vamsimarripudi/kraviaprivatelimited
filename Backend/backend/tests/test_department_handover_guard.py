@@ -118,3 +118,19 @@ def test_member_without_accepted_department_ownership_is_denied():
         require_roles("FINANCE")(request("POST", "/api/v1/invoices"), user, db)
     assert caught.value.status_code == 403
     assert db.calls == 1
+
+
+def test_member_department_owner_can_read_owned_department():
+    user = {**actor(), "roles": {"MEMBER"}}
+    db = FakeDatabase("DEPARTMENT_OWNER")
+    assert require_roles("FINANCE")(request("GET", "/api/v1/invoices"), user, db) is user
+    assert db.calls == 1
+
+
+def test_member_cannot_read_unowned_department():
+    user = {**actor(), "roles": {"MEMBER"}}
+    db = FakeDatabase("DEFAULT")
+    with pytest.raises(HTTPException) as caught:
+        require_roles("FINANCE")(request("GET", "/api/v1/invoices"), user, db)
+    assert caught.value.status_code == 403
+    assert db.calls == 1
