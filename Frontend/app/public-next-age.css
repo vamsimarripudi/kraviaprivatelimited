@@ -127,3 +127,56 @@ body:has(.nav-wrap) .footer a:hover, body:has(.nav-wrap) .signature-prefooter a:
   body:has(.nav-wrap) .hero::after, body:has(.nav-wrap) .technology-hero::after, body:has(.nav-wrap) .contactDot { animation: none; }
   body:has(.nav-wrap) .content-row, body:has(.nav-wrap) .principle, body:has(.nav-wrap) .detail-section, body:has(.nav-wrap) .trust-grid a, body:has(.nav-wrap) .homepage-product-market-grid article, body:has(.nav-wrap) .ui-card, body:has(.nav-wrap) .footer a, body:has(.nav-wrap) .signature-prefooter a { transition: none; }
 }
+
+/* Route-scoped density adjustments: preserve the public visual system while
+   reducing unused hero and section whitespace on Technology and Newsroom. */
+body:has(.nav-wrap) main.compact-public-editorial > .page-hero {
+  min-height: 0;
+  align-content: center;
+  padding-block: clamp(1.9rem, 3vw, 2.5rem) clamp(1.5rem, 2.5vw, 2rem);
+}
+body:has(.nav-wrap) main.compact-public-editorial > .page-hero h1 {
+  margin-block: .7rem 1rem;
+}
+body:has(.nav-wrap) main.compact-public-editorial > .detail-shell {
+  padding-block: 1.5rem 3.75rem;
+}
+body:has(.nav-wrap) main.compact-public-editorial > .detail-shell .detail-section {
+  padding-block: 2rem;
+}
+body:has(.nav-wrap) main.compact-public-editorial > .newsroom-shell {
+  padding-block: 1.5rem 3.75rem;
+}
+body:has(.nav-wrap) main.compact-public-editorial > .newsroom-shell .newsroom-empty {
+  min-height: 13rem;
+  padding: clamp(1.5rem, 3vw, 2.5rem);
+}
+body:has(.nav-wrap) main.compact-public-editorial > .newsroom-shell .newsroom-feature {
+  min-height: clamp(18rem, 34vw, 23rem);
+  padding: clamp(1.5rem, 3.4vw, 3.5rem);
+}
+body:has(.nav-wrap) main.compact-public-editorial > .newsroom-shell .newsroom-list {
+  margin-top: 2rem;
+}
+@media (max-width: 760px) {
+  body:has(.nav-wrap) main.compact-public-editorial > .page-hero {
+    min-height: 0;
+    padding-block: 1.75rem 1.4rem;
+  }
+  body:has(.nav-wrap) main.compact-public-editorial > .detail-shell {
+    padding-block: 1rem 2.75rem;
+  }
+  body:has(.nav-wrap) main.compact-public-editorial > .detail-shell .detail-section {
+    padding-block: 1.4rem;
+  }
+  body:has(.nav-wrap) main.compact-public-editorial > .newsroom-shell {
+    padding-block: 1rem 2.75rem;
+  }
+  body:has(.nav-wrap) main.compact-public-editorial > .newsroom-shell .newsroom-empty {
+    min-height: 0;
+    padding: 1.5rem;
+  }
+  body:has(.nav-wrap) main.compact-public-editorial > .newsroom-shell .newsroom-feature {
+    min-height: 17rem;
+  }
+}
