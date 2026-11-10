@@ -23,7 +23,7 @@ export function TechnologyHero() {
       </div>
       <div className={styles.inner}>
         <div className={styles.content}>
-          <p className={styles.eyebrow}><span aria-hidden="true" />Independent thinking. Purposeful technology.</p>
+          <p className={styles.eyebrow}><span aria-hidden="true" />Independent software product company.</p>
           <h1 id="home-title" className={styles.title}>Technology for<br /><span>what comes next.</span></h1>
           <p className={styles.rotatingStatement}>
             <span className={styles.rotator}>
@@ -37,12 +37,12 @@ export function TechnologyHero() {
               />
             </span>
           </p>
-          <p className={styles.description}>We are KRAVIA. An Indian technology company building software products, intelligent systems and digital infrastructure for work that matters.</p>
+          <p className={styles.description}>KRAVIA PRIVATE LIMITED develops its own software platforms. Our flagship product, VidyaLuma, brings school intelligence and operations into one connected product.</p>
           <div className={styles.actions}>
             <Link href="#products" className={styles.primary}>Explore our products <ArrowUpRight aria-hidden="true" /></Link>
             <Link href="/company/about" className={styles.secondary}>Meet the company <ArrowUpRight aria-hidden="true" /></Link>
           </div>
-          <p className={styles.note}>Built in India. Built with intention.</p>
+          <p className={styles.note}>Built in India. Built as products.</p>
         </div>
         <div className={styles.bottom}>
           <a href="#products" className={styles.discover}><ArrowDown aria-hidden="true" /><span>Discover KRAVIA</span></a>
