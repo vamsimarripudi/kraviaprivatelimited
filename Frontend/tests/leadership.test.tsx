@@ -168,7 +168,7 @@ describe("Leadership & Team", () => {
     ]);
     const markup = renderToStaticMarkup(<LeadershipContent />);
     expect(markup.match(/href="mailto:/g)).toHaveLength(3);
-    expect(markup.match(/aria-label="View .* on LinkedIn"/g)).toHaveLength(2);
+    expect(markup.match(/aria-label="View [^"]+ on LinkedIn"/g)).toHaveLength(2);
     expect(markup).toContain("target=\"_blank\" rel=\"noopener noreferrer\"");
     expect(markup).not.toContain('aria-label="View Jaya Satyanarayana Mangam on LinkedIn"');
   });
