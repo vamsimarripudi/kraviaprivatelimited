@@ -310,6 +310,10 @@ revoke all on function public.office_department_transfer_cancel(uuid,uuid) from 
 
 grant execute on function public.office_department_for_permission(text) to service_role;
 grant execute on function public.office_department_permission_verdict(uuid,text) to service_role;
+-- FastAPI runs with a constrained PostgreSQL execution role. It must be able
+-- to ask for a read-only verdict before processing protected mutations.
+-- Do not grant this backend role transfer proposal/acceptance authority.
+grant execute on function public.office_department_permission_verdict(uuid,text) to kravia_office_backend;
 grant execute on function public.office_effective_permission(uuid,text,text,text,uuid) to service_role;
 grant execute on function public.office_department_transfer_propose(uuid,text,uuid,text) to service_role;
 grant execute on function public.office_department_transfer_accept(uuid,uuid) to service_role;
