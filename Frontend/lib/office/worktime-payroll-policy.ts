@@ -202,8 +202,16 @@ export function calculateApprovedWorkPremiums(input: {
   const completedWeeks = [...weekdayWeekMs.entries()].filter(([start, worked]) => {
     const friday = new Date(start + "T00:00:00Z");
     friday.setUTCDate(friday.getUTCDate() + 4);
+    // A 30-hour week compressed into three long days is NOT five completed
+    // six-hour weekdays. Require all five scheduled days, net of breaks.
+    const fullFiveDays = Array.from({ length: 5 }, (_, offset) => {
+      const day = new Date(start + "T00:00:00Z");
+      day.setUTCDate(day.getUTCDate() + offset);
+      return (dayMs.get(day.toISOString().slice(0, 10)) ?? 0) >=
+        policy.regularDailyMinutes * MINUTE_MS;
+    }).every(Boolean);
     return friday.toISOString().slice(0, 7) === month &&
-      worked >= policy.weeklyTargetMinutes * MINUTE_MS;
+      worked >= policy.weeklyTargetMinutes * MINUTE_MS && fullFiveDays;
   }).map(([week]) => week).sort();
   const weekdayOvertimeMinor = toPayMinor(monthlyGrossMinor, weekdayOtMs, policy.weekdayOvertimeBasisPoints, policy.referenceMonthlyMinutes);
   const weekendPremiumMinor = toPayMinor(monthlyGrossMinor, weekendMs, policy.weekendBasisPoints, policy.referenceMonthlyMinutes);
