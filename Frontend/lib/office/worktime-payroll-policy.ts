@@ -147,8 +147,20 @@ export function calculateApprovedWorkPremiums(input: {
     if (spans[i].start < spans[i - 1].end) throw new Error("Overlapping attendance would double-pay work");
   }
   const inMonth = (date: string) => date.startsWith(month);
-  const dayMs = new Map<string, number>(), weekMs = new Map<string, number>();
+  const dayMs = new Map<string, number>();
+  const weekMs = new Map<string, number>();
+  const weekdayWeekMs = new Map<string, number>();
   const warnings: string[] = [];
+  // A >6-hour session must have a qualifying rest interval. Record the legal
+  // exception without deleting wages already earned; block automatic import.
+  for (const session of sessions) {
+    const total = asMs(session.endAt) - asMs(session.startAt);
+    const breakIntervals = (session.breaks ?? []).map(b => ({ start: asMs(b.startAt), end: asMs(b.endAt) }));
+    if (total > policy.regularDailyMinutes * MINUTE_MS &&
+        !breakIntervals.some(b => b.end - b.start >= 30 * MINUTE_MS)) {
+      warnings.push(session.id + ": statutory rest interval requires review");
+    }
+  }
   let weekdayBaseMs = 0, weekdayOtMs = 0, weekendMs = 0, nightMs = 0, totalMs = 0;
   for (const span of spans) {
     for (let at = span.start; at < span.end;) {
@@ -163,13 +175,15 @@ export function calculateApprovedWorkPremiums(input: {
       const weekday = dateWeekday(dt);
       const previous = dayMs.get(dt) ?? 0;
       dayMs.set(dt, previous + amount);
+      const week = monday(dt);
+      weekMs.set(week, (weekMs.get(week) ?? 0) + amount);
       totalMs += amount;
       if (weekday === 0 || weekday === 6) weekendMs += amount;
       else {
         const availableBase = Math.max(0, policy.regularDailyMinutes * MINUTE_MS - previous);
         const base = Math.min(availableBase, amount);
         weekdayBaseMs += base; weekdayOtMs += amount - base;
-        const week = monday(dt); weekMs.set(week, (weekMs.get(week) ?? 0) + amount);
+        weekdayWeekMs.set(week, (weekdayWeekMs.get(week) ?? 0) + amount);
       }
       const localHour = new Date(at + IST_OFFSET_MS).getUTCHours();
       const night = policy.nightStartsHour < policy.nightEndsHour
@@ -185,7 +199,7 @@ export function calculateApprovedWorkPremiums(input: {
   for (const [week, worked] of weekMs) {
     if (worked > policy.maxWeeklyMinutes * MINUTE_MS) warnings.push(week + ": over configured weekly work limit");
   }
-  const completedWeeks = [...weekMs.entries()].filter(([start, worked]) => {
+  const completedWeeks = [...weekdayWeekMs.entries()].filter(([start, worked]) => {
     const friday = new Date(start + "T00:00:00Z");
     friday.setUTCDate(friday.getUTCDate() + 4);
     return friday.toISOString().slice(0, 7) === month &&
