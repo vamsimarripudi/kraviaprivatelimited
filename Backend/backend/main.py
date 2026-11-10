@@ -4,11 +4,11 @@ import jwt
 from jwt import PyJWKClient
 from datetime import datetime, timezone
 from decimal import Decimal
-from fastapi import FastAPI, Depends, HTTPException, Header, Query, UploadFile, File, Form
+from fastapi import FastAPI, Depends, HTTPException, Header, Query, UploadFile, File, Form, Request
 from contextlib import asynccontextmanager
 from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
 
 from .database import Base, engine, get_db
 from .models import LegalEntity, Product, ProductTaxProfile, GstTaxpayerSnapshot, Customer, Invoice, Payment, Receipt, IdempotencyRecord, AuditEvent, WorkflowRun, ComplianceObligation, DomainEvent, ChartAccount, JournalEntry, JournalLine, BoardMeeting, Resolution, AuthorityGrant, Vendor, Contract, Employee, OfficeAsset, Document, DocumentVersion, CommercialPlan, Subscription, CreditNote, Refund, BankAccount, BankTransaction, Settlement, ApprovalRequest, NoticeCase, InspectionCase, IntegrationRecord, OperationalAlert, WorkerHeartbeat
@@ -158,11 +158,40 @@ def actor_context(
     if role not in KNOWN_ROLES: raise HTTPException(status_code=403, detail="Unknown Office role")
     return {"actor": x_office_actor or "Local Office Owner", "role": role, "roles":{role}, "subject":None, "auth_mode":"bootstrap"}
 
+# Direct authenticated Railway API calls must enforce the same permanent
+# departmental handover as the Next.js BFF. Never trust a stale OWNER JWT role.
+_FINANCE_WRITE_ROOTS = frozenset({
+    "invoices", "payments", "receipts", "refunds", "credit-notes",
+    "settlements", "accounting", "banking", "finance", "tax", "ownership",
+    "plans", "subscriptions",
+})
+
 def require_roles(*allowed):
     allowed_set={x.upper() for x in allowed}
-    def dependency(ctx=Depends(actor_context)):
+    def dependency(request: Request, ctx=Depends(actor_context), db: Session=Depends(get_db)):
         if not (ctx["roles"] & allowed_set):
             raise HTTPException(status_code=403, detail="Insufficient Office authority")
+        path_parts=request.url.path.strip("/").split("/")
+        finance_mutation=(
+            request.method.upper() not in {"GET","HEAD","OPTIONS"}
+            and len(path_parts)>=3 and path_parts[:2]==["api","v1"]
+            and path_parts[2] in _FINANCE_WRITE_ROOTS
+        )
+        if finance_mutation and ctx.get("auth_mode")=="first_party" and db.get_bind().dialect.name=="postgresql":
+            actor_id=ctx.get("user_id")
+            if not actor_id:
+                raise HTTPException(status_code=403, detail="Verified Office identity required")
+            try:
+                verdict=db.execute(text(
+                    "select public.office_department_permission_verdict(cast(:actor as uuid), :permission)"
+                ), {"actor":actor_id,"permission":"finance.invoice.create"}).scalar_one()
+            except Exception:
+                # Misconfigured/missing handover migration must fail closed.
+                raise HTTPException(status_code=503, detail="Department authorization unavailable")
+            if verdict=="DENY":
+                raise HTTPException(status_code=403, detail="Finance write authority belongs to the current department owner")
+            if verdict not in {"DEFAULT","DEPARTMENT_OWNER"}:
+                raise HTTPException(status_code=503, detail="Invalid department authorization decision")
         return ctx
     return dependency
 
