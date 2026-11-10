@@ -6,6 +6,7 @@ import { useState } from "react";
 import { EnquiryForm } from "@/components/enquiry-form";
 import { Badge, Card, CardDescription, CardHeader, CardTitle } from "@/components/ui";
 import type { PublicFormPresentation } from "@/lib/admin/site-control-types";
+import { publicEnquiryEmail } from "@/lib/corporate/public-email-directory";
 
 const routes = [
   { category: "Product enquiry", label: "Products", copy: "Learn about a Kravia product or its fit for your organisation.", Icon: Sparkles },
@@ -20,6 +21,7 @@ type ContactExperienceProps = { presentation?: PublicFormPresentation | null; in
 
 export function ContactExperience({ presentation, initialCategory }: ContactExperienceProps) {
   const [category, setCategory] = useState<string>(initialCategory ?? "Business enquiry");
+  const directEmail = publicEnquiryEmail(category);
   return <section className="contact-experience shell" aria-labelledby="contact-router-title">
     <header className="contact-router-heading"><div><p className="eyebrow">CONTACT ROUTER</p><h2 id="contact-router-title">Start in the right place.</h2></div><p>Select a route and Kravia will carry that context into the enquiry form. Security concerns use a separate restricted workflow.</p></header>
     <div className="contact-router-grid">
@@ -30,6 +32,6 @@ export function ContactExperience({ presentation, initialCategory }: ContactExpe
           : <button key={label} className="contact-route-button" type="button" aria-pressed={category === routeCategory} onClick={() => { setCategory(routeCategory); document.getElementById("enquiry-form")?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }); }}><Card variant="contact" interactive><CardHeader><Icon aria-hidden="true" /><Badge tone={category === routeCategory ? "success" : "neutral"}>{category === routeCategory ? "Selected" : "Route"}</Badge></CardHeader><CardTitle>{label}</CardTitle><CardDescription>{copy}</CardDescription><ArrowDownRight aria-hidden="true" /></Card></button>;
       })}
     </div>
-    <div id="enquiry-form" className="contact-form-panel"><div><p className="eyebrow">{category.toUpperCase()}</p><h2>{presentation?.title ?? "Tell us what you need."}</h2><p>{presentation?.intro ?? "The form is sent through Kravia’s controlled corporate intake. It will not create a public post or expose your details."}</p></div><EnquiryForm initialCategory={category} presentation={presentation} /></div>
+    <div id="enquiry-form" className="contact-form-panel"><div><p className="eyebrow">{category.toUpperCase()}</p><h2>{presentation?.title ?? "Tell us what you need."}</h2><p>{presentation?.intro ?? "The form is sent through Kravia’s controlled corporate intake. It will not create a public post or expose your details."}</p>{directEmail ? <p>Prefer to email this team? <a href={`mailto:${directEmail}`}>{directEmail}</a></p> : <p>Use the private request form for sensitive information.</p>}</div><EnquiryForm initialCategory={category} presentation={presentation} /></div>
   </section>;
 }

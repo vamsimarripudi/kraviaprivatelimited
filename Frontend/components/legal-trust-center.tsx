@@ -5,6 +5,7 @@ import type { PublicContentRecord } from "@/lib/content/types";
 import { legalDocumentGroupLabels } from "@/lib/legal/groups";
 import { legalDocumentGroup } from "@/lib/legal/published-policy-pack";
 import { parseLegalDocumentBody } from "@/lib/legal/document-body";
+import { publicCorporateEmails } from "@/lib/corporate/public-email-directory";
 import type { LegalDocumentGroup } from "@/lib/legal/types";
 import styles from "./legal-trust-center.module.css";
 
@@ -40,7 +41,7 @@ export function LegalTrustCenter({ scope, records }: { scope: "legal" | "trust";
       <p className="eyebrow">KRAVIA PRIVATE LIMITED</p>
       <h1 id="legal-trust-title">{heading}</h1>
       <p>{intro}</p>
-      <div className={styles.actions}><Link className="button button-dark" href="/privacy-request">Request help with your information <ArrowUpRight aria-hidden="true" /></Link><Link className="text-link" href="/support">Support &amp; case tracking <ArrowUpRight aria-hidden="true" /></Link></div>
+      <div className={styles.actions}><Link className="button button-dark" href="/privacy-request">Request help with your information <ArrowUpRight aria-hidden="true" /></Link><Link className="text-link" href="/support">Support &amp; case tracking <ArrowUpRight aria-hidden="true" /></Link></div>{scope === "legal" ? <p>For general corporate legal correspondence: <a href={`mailto:${publicCorporateEmails.legal}`}>{publicCorporateEmails.legal}</a>. Privacy, grievance and security reports should use the restricted channels below.</p> : null}
     </header>
 
     <section className={styles.readingNote} aria-labelledby="reading-note-title"><ShieldCheck aria-hidden="true" /><div><p className="eyebrow">PUBLICATION CONTROL</p><h2 id="reading-note-title">A clear record of what is public.</h2><p>Documents appear only after their content, scope, approval and release conditions have been recorded. A target effective date or successful website build does not publish a draft.</p></div></section>
