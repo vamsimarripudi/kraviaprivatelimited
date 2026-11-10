@@ -21,7 +21,7 @@ describe("KRAVIA worktime, payroll and wage-slip integration", () => {
   it("keeps independent director review and source-backed past attendance", () => {
     expect(migration).toContain("office_worktime_review_cases");
     expect(migration).toContain("office_attendance_sessions");
-    expect(migration).toContain("Canonical source is KRAVIA Office attendance");
+    expect(migration).toContain("canonical source is KRAVIA Office attendance");
     expect(migration).toContain("Worktime overlaps an existing approved claim");
     expect(migration).toContain("Worktime cannot be self-approved");
     expect(migration).toContain("'HISTORICAL_CORRECTION'");
