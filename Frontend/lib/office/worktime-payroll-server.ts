@@ -83,17 +83,19 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
   const employeeId = input.employeeUserId || actor.identity.userId;
   const self = employeeId === actor.identity.userId;
   const [canReadOthers, canReviewWorktime, canPreparePayroll] = await Promise.all([
-    can(actor, "people.basic.read"), can(actor, "people.update"), can(actor, "payroll.run.prepare"),
+    Promise.all([can(actor, "people.basic.read"), can(actor, "payroll.run.read")]).then(([people, payroll]) => people || payroll),
+    can(actor, "people.update"), can(actor, "payroll.run.prepare"),
   ]);
   if (!self && !canReadOthers) throw new OfficeWorktimeError(403, "Employee record is not assigned to you");
-  const [identityResult, policiesResult, claimsResult, compensationResult, issuesResult] = await Promise.all([
+  const [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult] = await Promise.all([
     actor.admin.from("office_identity_users").select("user_id,display_name,status").eq("user_id", employeeId).maybeSingle(),
     actor.admin.from("office_worktime_policy_versions").select("*").eq("employee_user_id", employeeId).lte("effective_from", range.last).order("effective_from", { ascending: false }).limit(12),
     actor.admin.from("office_worktime_review_cases").select("id,employee_user_id,attendance_session_id,work_starts_at,work_ends_at,breaks,source_reference,review_note,requested_by,reviewed_by,status").eq("employee_user_id", employeeId).gte("work_starts_at", range.from).lt("work_starts_at", range.to).order("work_starts_at"),
     actor.admin.from("office_compensation_versions").select("id,monthly_gross_minor,currency,status").eq("employee_user_id", employeeId).eq("status", "APPROVED").lte("effective_from", range.first).order("effective_from", { ascending: false }).limit(1),
     actor.admin.from("office_salary_payslip_issues").select("id,payroll_result_id,employee_user_id,issue_code,snapshot,issued_at").eq("employee_user_id", employeeId).order("issued_at", { ascending: false }).limit(60),
+    canReadOthers ? actor.admin.from("office_identity_users").select("user_id,display_name,status").eq("status", "ACTIVE").order("display_name").limit(500) : Promise.resolve({ data: [], error: null }),
   ]);
-  for (const r of [identityResult, policiesResult, claimsResult, compensationResult, issuesResult]) check(r, "Office worktime evidence is unavailable");
+  for (const r of [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult]) check(r, "Office worktime evidence is unavailable");
   if (!identityResult.data) throw new OfficeWorktimeError(404, "Employee not found");
   const policies = (policiesResult.data ?? []) as PolicyRow[];
   const claims = (claimsResult.data ?? []) as ClaimRow[];
@@ -117,16 +119,21 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
     ? await actor.admin.from("office_salary_settlement_evidence").select("payroll_result_id,amount_minor,status").in("payroll_result_id", resultIds).eq("status", "VERIFIED")
     : { data: [], error: null };
   check(paidResult, "Verified salary settlement evidence is unavailable");
+  const today = new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
   const salarySlips = issues.map(issue => {
     const net = Number(issue.snapshot.net_pay_minor || 0);
     const confirmed = (paidResult.data ?? []).filter(row => row.payroll_result_id === issue.payroll_result_id).map(row => Number(row.amount_minor));
+    const balance = reconcileWageDebt(net, confirmed);
+    const periodStart = String(issue.snapshot.period_start || "");
+    const due = /^\d{4}-(0[1-9]|1[0-2])/.test(periodStart) ? targetSalaryDate(periodStart.slice(0, 7)).date : null;
+    const status = balance.balanceMinor > 0 && balance.confirmedMinor === 0 && due && today <= due ? "PAYMENT_PENDING" : balance.status;
     return { id: issue.id, code: issue.issue_code, issued_at: issue.issued_at,
-      period: String(issue.snapshot.period_code ?? ""),
-      net_pay_minor: net, ...reconcileWageDebt(net, confirmed) };
+      period: String(issue.snapshot.period_code ?? ""), net_pay_minor: net,
+      ...balance, status, due_date: due };
   });
   return {
     actor: { user_id: actor.identity.userId, roles: actor.identity.roles },
-    employee: identityResult.data, month, target_payment: targetSalaryDate(month),
+    employee: identityResult.data, employees: directoryResult.data ?? [], month, target_payment: targetSalaryDate(month),
     approved_policy: policy ?? null, policies, claims, preview,
     salary_slips: salarySlips,
     capabilities: { self, review_worktime: canReviewWorktime && actor.identity.roles.some(role => role === "OWNER" || role === "DIRECTOR"), prepare_payroll: canPreparePayroll },
@@ -134,7 +141,7 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
   };
 }
 export async function officeWorktimeAction(input:
-  | { action: "SUBMIT"; sessionId?: string; startAt: string; endAt: string; breaks: unknown[]; sourceKind: "RECORDED_SESSION" | "HISTORICAL_CORRECTION"; sourceReference: string; reason: string }
+  | { action: "SUBMIT"; employeeId?: string; sessionId?: string; startAt: string; endAt: string; breaks: unknown[]; sourceKind: "RECORDED_SESSION" | "HISTORICAL_CORRECTION"; sourceReference: string; reason: string }
   | { action: "DECIDE"; caseId: string; decision: "APPROVE" | "REJECT"; note?: string }
   | { action: "PROPOSE_POLICY"; employeeId: string; effectiveFrom: string; authorityReference: string }
   | { action: "DECIDE_POLICY"; policyId: string; decision: "APPROVE" | "REJECT" }
@@ -149,7 +156,7 @@ export async function officeWorktimeAction(input:
   switch (input.action) {
     case "SUBMIT":
       rpcName = "office_worktime_submit";
-      params = { p_actor: user, p_employee: user, p_attendance: input.sessionId || null, p_start: input.startAt, p_end: input.endAt,
+      params = { p_actor: user, p_employee: input.employeeId || user, p_attendance: input.sessionId || null, p_start: input.startAt, p_end: input.endAt,
         p_breaks: input.breaks, p_source_kind: input.sourceKind, p_source_reference: input.sourceReference, p_reason: input.reason };
       break;
     case "DECIDE":
