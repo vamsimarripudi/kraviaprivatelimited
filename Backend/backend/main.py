@@ -160,11 +160,31 @@ def actor_context(
 
 # Direct authenticated Railway API calls must enforce the same permanent
 # departmental handover as the Next.js BFF. Never trust a stale OWNER JWT role.
-_FINANCE_WRITE_ROOTS = frozenset({
-    "invoices", "payments", "receipts", "refunds", "credit-notes",
-    "settlements", "accounting", "banking", "finance", "tax", "ownership",
-    "plans", "subscriptions",
-})
+# Route-to-permission mapping closes direct Railway mutation bypasses even
+# if an endpoint currently checks only broad role names. It never grants access.
+_DEPARTMENT_WRITE_PERMISSION_BY_ROOT = {
+    "products": "product.roadmap.write",
+    "customers": "sales.crm.write",
+    "invoices": "finance.invoice.create",
+    "payments": "finance.payment.prepare",
+    "receipts": "finance.receipt.record",
+    "refunds": "finance.payment.prepare",
+    "credit-notes": "finance.invoice.create",
+    "settlements": "finance.payment.prepare",
+    "accounting": "finance.journal.post",
+    "banking": "finance.payment.prepare",
+    "finance": "finance.expense.request",
+    "tax": "tax.gst.prepare",
+    "ownership": "finance.payment.prepare",
+    "commercial": "finance.invoice.create",
+    "compliance": "compliance.instance.manage",
+    "governance": "governance.risk.manage",
+    "vendors": "operations.vendor.create",
+    "contracts": "legal.contract.draft",
+    "people": "people.update",
+    "assets": "operations.asset.manage",
+    "operations": "operations.asset.manage",
+}
 
 def require_roles(*allowed):
     allowed_set={x.upper() for x in allowed}
@@ -172,24 +192,25 @@ def require_roles(*allowed):
         if not (ctx["roles"] & allowed_set):
             raise HTTPException(status_code=403, detail="Insufficient Office authority")
         path_parts=request.url.path.strip("/").split("/")
-        finance_mutation=(
-            request.method.upper() not in {"GET","HEAD","OPTIONS"}
-            and len(path_parts)>=3 and path_parts[:2]==["api","v1"]
-            and path_parts[2] in _FINANCE_WRITE_ROOTS
+        domain_permission = (
+            _DEPARTMENT_WRITE_PERMISSION_BY_ROOT.get(path_parts[2])
+            if len(path_parts)>=3 and path_parts[:2]==["api","v1"]
+            and request.method.upper() not in {"GET","HEAD","OPTIONS"}
+            else None
         )
-        if finance_mutation and ctx.get("auth_mode")=="first_party" and db.get_bind().dialect.name=="postgresql":
+        if domain_permission and ctx.get("auth_mode")=="first_party" and db.get_bind().dialect.name=="postgresql":
             actor_id=ctx.get("user_id")
             if not actor_id:
                 raise HTTPException(status_code=403, detail="Verified Office identity required")
             try:
                 verdict=db.execute(text(
                     "select public.office_department_permission_verdict(cast(:actor as uuid), :permission)"
-                ), {"actor":actor_id,"permission":"finance.invoice.create"}).scalar_one()
+                ), {"actor":actor_id,"permission":domain_permission}).scalar_one()
             except Exception:
                 # Misconfigured/missing handover migration must fail closed.
                 raise HTTPException(status_code=503, detail="Department authorization unavailable")
             if verdict=="DENY":
-                raise HTTPException(status_code=403, detail="Finance write authority belongs to the current department owner")
+                raise HTTPException(status_code=403, detail="Department write authority belongs to the current department owner")
             if verdict not in {"DEFAULT","DEPARTMENT_OWNER"}:
                 raise HTTPException(status_code=503, detail="Invalid department authorization decision")
         return ctx
