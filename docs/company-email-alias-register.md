@@ -1,9 +1,9 @@
 # KRAVIA Google Workspace aliases and website contact registry
 
-**Status:** PROPOSED — nothing in this register certifies that an alias has been provisioned, can receive mail, or is approved for public publication.
+**Status:** OWNER-CONFIRMED ADDED (11 November 2026) — the owner reports all 30 aliases were created in Google Workspace. External delivery, reply-from capability and confidential routing have not been independently verified. Publishing a website link does not imply separate access control.
 **Primary mailbox:** `hello@kraviaprivatelimited.com`
 **Domain:** `kraviaprivatelimited.com`
-**Proposed aliases:** exactly 30 (the current Google Workspace per-user alias limit).
+**Owner-reported aliases:** 30 (the current Google Workspace per-user alias limit).
 
 ## Single registry
 
@@ -50,7 +50,7 @@
 6. The existing `/contact` enquiry form, `/support` case tracking, `/trust` privacy/grievance request forms, and `/trust/security-reporting` restricted security form remain the primary intake workflows. Alias addresses must not bypass consent, case-tracking, security triage, or retention controls.
 7. VidyaLuma and other KRAVIA products have distinct public branding. Do not replace their product-domain contacts with these KRAVIA corporate addresses by default; use a reviewed, explicit cross-brand handoff if necessary.
 
-## Recommended public website mapping (only after activation)
+## Website contact mapping (implementation proposed in PR #99)
 
 | KRAVIA route | Approved candidate aliases | Preserve |
 |---|---|---|
@@ -65,14 +65,13 @@
 
 ## Google Workspace setup and release checklist
 
-- [ ] In `admin.google.com` open Directory → Users → `hello@kraviaprivatelimited.com` → Add Alternate Emails.
-- [ ] Check existing aliases and reserve remaining slots (30 aliases per user total).
-- [ ] Add each approved alias under `kraviaprivatelimited.com`; Google Workspace automatically delivers alias mail to the user inbox.
+- [x] Owner reports all 30 aliases added to `hello@kraviaprivatelimited.com` in Google Workspace (not independently verified).
 - [ ] Send an independent external test to all 30 addresses; verify delivery, original recipient / routing and Gmail filters.
 - [ ] Configure Gmail Settings → Accounts and Import → Send mail as for any address that should be used to reply.
 - [ ] Apply Gmail filters/labels by receiving alias for operational triage. Labels are **not** access-control boundaries.
 - [ ] Review restricted categories and assign dedicated authorized mailbox/group or private case workflow where confidentiality requires it.
-- [ ] Only then update KRAVIA public UI and legal contact routes, keeping design and restricted forms unchanged; validate mailto links, frontend tests, legal references, and build.
+- [x] Prepare public contact links on an isolated PR branch, without changing existing layouts or restricted forms.
+- [ ] Verify all mailto links, frontend lint/type/tests/build and email delivery before publishing to production.
 - [ ] Do not deploy or merge unverified alias addresses to production.
 
 Reference: Google Workspace Help — https://knowledge.workspace.google.com/admin/users/add-or-delete-an-alternate-email-address-email-alias
