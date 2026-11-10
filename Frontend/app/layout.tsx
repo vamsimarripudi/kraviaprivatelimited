@@ -11,14 +11,14 @@ import { CookiePreferences } from "@/components/cookie-preferences";
 import { OptionalAnalytics } from "@/components/optional-analytics";
 import { OrganizationJsonLd } from "@/components/structured-data";
 
-const publicDescription = "KRAVIA PRIVATE LIMITED is an Indian software and AI technology company building software products, intelligent systems and digital infrastructure. Official website: kraviaprivatelimited.com.";
+const publicDescription = "KRAVIA PRIVATE LIMITED is an independent Indian software product company developing proprietary platforms, including VidyaLuma for school intelligence and operations.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   applicationName: publicSiteIdentity.name,
-  title: { default: "KRAVIA PRIVATE LIMITED | Software & AI Technology Company", template: `%s — ${publicSiteIdentity.name}` },
+  title: { default: "KRAVIA | Proprietary Software Product Company", template: `%s — ${publicSiteIdentity.name}` },
   description: publicDescription,
-  keywords: ["KRAVIA PRIVATE LIMITED", "Kravia", "software company India", "AI technology company India", "software products", "intelligent systems", "digital infrastructure"],
+  keywords: ["KRAVIA PRIVATE LIMITED", "Kravia", "proprietary software products", "Indian technology startup", "product development company", "VidyaLuma", "school intelligence and operations", "software platform licensing"],
   creator: publicSiteIdentity.name,
   publisher: publicSiteIdentity.name,
   robots: publicPageRobots(isProductionSite),
