@@ -88,6 +88,18 @@ describe("KRAVIA six-hour/30-hour approved work policy", () => {
     expect(out.flexDaysEarnedThisMonth).toBe(1);
   });
 
+  it("does not grant an extra paid day for 30 hours compressed into three weekdays", () => {
+    const compressed = [3, 4, 5].map((date, i) => item("long-" + i,
+      "2026-08-" + String(date).padStart(2, "0") + "T00:30:00Z",
+      "2026-08-" + String(date).padStart(2, "0") + "T10:30:00Z",
+      [{ startAt: "2026-08-" + String(date).padStart(2, "0") + "T04:30:00Z",
+         endAt: "2026-08-" + String(date).padStart(2, "0") + "T05:00:00Z" }]));
+    const result = calculate(compressed);
+    expect(result.workedMinutes).toBe(1_710);
+    expect(result.flexDaysEarnedThisMonth).toBe(0);
+    expect(result.flexDayEligibleWeeks).toHaveLength(0);
+  });
+
   it("uses the 30th or February 28th and moves weekend targets earlier", () => {
     expect(targetSalaryDate("2026-08").date).toBe("2026-08-28"); // 30th is Sunday
     expect(targetSalaryDate("2026-09").date).toBe("2026-09-30");
