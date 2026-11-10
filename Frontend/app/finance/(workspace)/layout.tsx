@@ -8,9 +8,7 @@ export default async function AuthenticatedFinanceLayout({
   children: React.ReactNode;
 }) {
   const identity = await requireWorkspaceIdentity("finance", "/finance/dashboard");
-  const permissions = identity.roles.includes("OWNER")
-    ? []
-    : (await getOfficeCapabilitySnapshot(identity)).permissions;
+  const permissions = (await getOfficeCapabilitySnapshot(identity)).permissions;
 
   return (
     <OfficeWorkspaceShell workspace="finance" identity={identity} permissions={permissions}>
