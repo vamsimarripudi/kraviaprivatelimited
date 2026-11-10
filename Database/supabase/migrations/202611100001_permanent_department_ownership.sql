@@ -330,3 +330,7 @@ returns jsonb language sql stable security definer set search_path='' as $$
 $$;
 revoke all on function public.office_department_capability_changes(uuid) from public,anon,authenticated;
 grant execute on function public.office_department_capability_changes(uuid) to service_role;
+
+-- First-party FastAPI executes under the restricted database role.
+-- Grant only the read-only verdict function, never ownership mutation RPCs.
+grant execute on function public.office_department_permission_verdict(uuid,text) to kravia_office_backend;
