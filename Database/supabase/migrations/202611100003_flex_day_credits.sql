@@ -36,9 +36,11 @@ create or replace function public.office_flex_day_request(
 ) returns uuid language plpgsql security definer set search_path='' as $$
 declare
   rule_rec public.office_worktime_policy_versions%rowtype;
-  first_at timestamptz;
-  last_at timestamptz;
-  worked numeric;
+  day_start timestamptz;
+  day_finish timestamptz;
+  day_minutes numeric;
+  day_index integer;
+  worked numeric:=0;
   earned_month_code text;
   request_id uuid;
 begin
@@ -54,19 +56,26 @@ begin
     where employee_user_id=p_actor and status='APPROVED' and effective_from<=p_week_monday
     order by effective_from desc limit 1;
   if not found or rule_rec.flex_days_per_month<1 then raise exception 'Approved Flex Day policy required'; end if;
-  first_at:=p_week_monday::timestamp at time zone 'Asia/Kolkata';
-  last_at:=(p_week_monday+5)::timestamp at time zone 'Asia/Kolkata';
-  select coalesce(sum(
-      greatest(0,extract(epoch from
-        least(c.work_ends_at,last_at)-greatest(c.work_starts_at,first_at))/60)
+  -- Require five distinct Monday-Friday calendar workdays with six approved
+  -- productive hours EACH, rather than compressed 30 hours in three days.
+  for day_index in 0..4 loop
+    day_start:=(p_week_monday+day_index)::timestamp at time zone 'Asia/Kolkata';
+    day_finish:=(p_week_monday+day_index+1)::timestamp at time zone 'Asia/Kolkata';
+    select coalesce(sum(greatest(0,
+      greatest(0,extract(epoch from least(c.work_ends_at,day_finish)
+                     - greatest(c.work_starts_at,day_start))/60)
       - coalesce((select sum(greatest(0,extract(epoch from
-          least((b->>'endAt')::timestamptz,last_at)
-          -greatest((b->>'startAt')::timestamptz,first_at))/60))
-        from jsonb_array_elements(c.breaks) b),0)
-    ),0) into worked
-  from public.office_worktime_review_cases c
-  where c.employee_user_id=p_actor and c.status='APPROVED'
-    and c.work_starts_at<last_at and c.work_ends_at>first_at;
+                     least((b->>'endAt')::timestamptz,day_finish)
+                     - greatest((b->>'startAt')::timestamptz,day_start))/60))
+                  from jsonb_array_elements(c.breaks) b),0)
+      )),0) into day_minutes
+    from public.office_worktime_review_cases c
+    where c.employee_user_id=p_actor and c.status='APPROVED'
+      and c.work_starts_at<day_finish and c.work_ends_at>day_start;
+    if day_minutes < rule_rec.regular_daily_minutes then
+      raise exception 'Flex Day requires six verified productive hours on each weekday'; end if;
+    worked:=worked+day_minutes;
+  end loop;
   if worked < rule_rec.weekly_target_minutes then
     raise exception 'Verified 30-hour qualifying workweek not yet recorded'; end if;
   if exists(select 1 from public.office_flex_day_requests where employee_user_id=p_actor
