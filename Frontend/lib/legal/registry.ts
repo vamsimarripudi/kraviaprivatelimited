@@ -8,7 +8,7 @@ type CandidateSeed = Omit<LegalCandidateDocument, "status" | "publish" | "approv
 // downloadable artifact can receive them.
 const candidateSeeds = [
   ["P01", "Trust Charter and Company Information", "trust-charter", "COMPANY_AND_TRUST", "582c0679f14d0e02075b717ff119396a5e2c9bef06bc1d5e0614fc18ec54dd60", ["company_identifiers", "functional_inboxes", "approved_claims", "product_scope"]],
-  ["P02", "Global Privacy Policy", "privacy", "PRIVACY_AND_DATA_RIGHTS", "d50f0f19c26ebb85f6b5a04f0485382598db541121e02a122a445a2e308d20b1", ["data_map", "registration_necessity", "vendors", "retention", "rights_workflow", "inboxes", "ai_no_training"]],
+  ["P02", "Global Privacy Policy", "privacy", "PRIVACY_AND_DATA_RIGHTS", "5ad4dab91b4bcacfb61f74178f5977abe1e5d7f8aa35f43a58a6bf2970951455", ["data_map", "registration_necessity", "vendors", "retention", "rights_workflow", "inboxes", "ai_no_training"]],
   ["P03", "Terms of Use and Service", "terms", "COMMERCIAL_TERMS", "a6ce53be10ac602958a93a4c25c1f66e39e89d63dbb5622985cf5241027ec172", ["contract_acceptance", "consumer_terms", "grievance_identity", "commercial_configuration", "counsel_approval"]],
   ["P04", "AI Usage and Responsible AI Policy", "ai-policy", "AI_AND_ACCEPTABLE_USE", "92affce161f99699c3facbf0f81cc6996a73a04980982159683bc38dc235bac2", ["ai_no_training", "ai_model_register", "ai_safety_evaluation", "ai_memory", "human_review"]],
   ["P05", "Acceptable Use Policy", "acceptable-use", "AI_AND_ACCEPTABLE_USE", "906a717f7daafce5bd580c46f11a6db7ef8ef038ac36238524e64ab221e4f44d", ["enforcement_workflow", "appeals", "product_scope"]],
