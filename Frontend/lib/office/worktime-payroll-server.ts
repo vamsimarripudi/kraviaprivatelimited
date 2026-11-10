@@ -87,7 +87,7 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
     can(actor, "people.update"), can(actor, "payroll.run.prepare"),
   ]);
   if (!self && !canReadOthers) throw new OfficeWorktimeError(403, "Employee record is not assigned to you");
-  const [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult, periodResult] = await Promise.all([
+  const [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult, periodResult, flexResult] = await Promise.all([
     actor.admin.from("office_identity_users").select("user_id,display_name,status").eq("user_id", employeeId).maybeSingle(),
     actor.admin.from("office_worktime_policy_versions").select("*").eq("employee_user_id", employeeId).lte("effective_from", range.last).order("effective_from", { ascending: false }).limit(12),
     actor.admin.from("office_worktime_review_cases").select("id,employee_user_id,attendance_session_id,work_starts_at,work_ends_at,breaks,source_reference,review_note,requested_by,reviewed_by,status").eq("employee_user_id", employeeId).gte("work_starts_at", range.from).lt("work_starts_at", range.to).order("work_starts_at"),
@@ -99,8 +99,11 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
       .gte("starts_on", range.first).lte("starts_on", range.last)
       .order("starts_on", { ascending: false }).limit(12)
       : Promise.resolve({ data: [], error: null }),
+    actor.admin.from("office_flex_day_requests")
+      .select("id,employee_user_id,earned_month,earned_week_monday,leave_date,qualifying_work_minutes,status,requested_by,reviewed_by,reviewed_at")
+      .eq("employee_user_id", employeeId).eq("earned_month", month).order("requested_at", { ascending: false }).limit(20),
   ]);
-  for (const r of [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult, periodResult]) check(r, "Office worktime evidence is unavailable");
+  for (const r of [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult, periodResult, flexResult]) check(r, "Office worktime evidence is unavailable");
   if (!identityResult.data) throw new OfficeWorktimeError(404, "Employee not found");
   const policies = (policiesResult.data ?? []) as PolicyRow[];
   const claims = (claimsResult.data ?? []) as ClaimRow[];
@@ -138,7 +141,7 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
   });
   return {
     actor: { user_id: actor.identity.userId, roles: actor.identity.roles },
-    employee: identityResult.data, employees: directoryResult.data ?? [], payroll_periods: periodResult.data ?? [], month, target_payment: targetSalaryDate(month),
+    employee: identityResult.data, employees: directoryResult.data ?? [], payroll_periods: periodResult.data ?? [], flex_days: flexResult.data ?? [], month, target_payment: targetSalaryDate(month),
     approved_policy: policy ?? null, policies, claims, preview,
     salary_slips: salarySlips,
     capabilities: { self, review_worktime: canReviewWorktime && actor.identity.roles.some(role => role === "OWNER" || role === "DIRECTOR"), prepare_payroll: canPreparePayroll },
@@ -148,6 +151,8 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
 export async function officeWorktimeAction(input:
   | { action: "SUBMIT"; employeeId?: string; sessionId?: string; startAt: string; endAt: string; breaks: unknown[]; sourceKind: "RECORDED_SESSION" | "HISTORICAL_CORRECTION"; sourceReference: string; reason: string }
   | { action: "DECIDE"; caseId: string; decision: "APPROVE" | "REJECT"; note?: string }
+  | { action: "REQUEST_FLEX"; weekMonday: string; leaveDate: string }
+  | { action: "DECIDE_FLEX"; flexId: string; decision: "APPROVE" | "REJECT"; note?: string }
   | { action: "PROPOSE_POLICY"; employeeId: string; effectiveFrom: string; authorityReference: string }
   | { action: "DECIDE_POLICY"; policyId: string; decision: "APPROVE" | "REJECT" }
   | { action: "ISSUE_SLIP"; payrollResultId: string }
@@ -168,6 +173,15 @@ export async function officeWorktimeAction(input:
       if (!actor.identity.roles.some(role => role === "OWNER" || role === "DIRECTOR") || !await can(actor, "people.update")) throw new OfficeWorktimeError(403, "Director People approval required");
       rpcName = "office_worktime_decide";
       params = { p_actor: user, p_case: input.caseId, p_decision: input.decision, p_note: input.note || null };
+      break;
+    case "REQUEST_FLEX":
+      rpcName = "office_flex_day_request";
+      params = { p_actor: user, p_week_monday: input.weekMonday, p_leave_date: input.leaveDate };
+      break;
+    case "DECIDE_FLEX":
+      if (!actor.identity.roles.some(role => role === "OWNER" || role === "DIRECTOR") || !await can(actor, "people.update")) throw new OfficeWorktimeError(403, "Director People approval required");
+      rpcName = "office_flex_day_decide";
+      params = { p_actor: user, p_flex: input.flexId, p_decision: input.decision, p_note: input.note || null };
       break;
     case "PROPOSE_POLICY":
       if (!await can(actor, "payroll.rules.manage")) throw new OfficeWorktimeError(403, "Payroll policy permission required");
