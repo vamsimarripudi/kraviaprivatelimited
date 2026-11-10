@@ -132,7 +132,7 @@ grant usage,select on sequence public.office_worktime_events_id_seq to service_r
 -- policy/Board evidence is checked. Do not silently apply proposed 3x rates.
 create or replace function public.office_worktime_policy_propose(
   p_actor uuid,p_employee uuid,p_effective date,p_authority text
-) returns uuid language plpgsql security definer set search_path='' as $
+) returns uuid language plpgsql security definer set search_path='' as $$
 declare result_id uuid;
 begin
   if not exists(select 1 from public.office_user_roles where user_id=p_actor and role in ('OWNER','DIRECTOR')
@@ -149,11 +149,11 @@ begin
     (employee_user_id,effective_from,authority_reference,proposed_by)
   values(p_employee,p_effective,p_authority,p_actor) returning id into result_id;
   return result_id;
-end; $;
+end; $$;
 
 create or replace function public.office_worktime_policy_decide(
   p_actor uuid,p_policy uuid,p_decision text
-) returns text language plpgsql security definer set search_path='' as $
+) returns text language plpgsql security definer set search_path='' as $$
 declare rec public.office_worktime_policy_versions%rowtype;
 begin
   select * into rec from public.office_worktime_policy_versions where id=p_policy for update;
@@ -169,7 +169,7 @@ begin
     status=case when p_decision='APPROVE' then 'APPROVED' else 'REJECTED' end,
     approved_by=p_actor,approved_at=now() where id=p_policy;
   return case when p_decision='APPROVE' then 'APPROVED' else 'REJECTED' end;
-end; $;
+end; $$;
 
 create or replace function public.office_worktime_submit(
   p_actor uuid,p_employee uuid,p_attendance uuid,p_start timestamptz,p_end timestamptz,
@@ -341,7 +341,7 @@ end; $$;
 
 -- Validate a frozen payslip before trusted Office PDF rendering.
 create or replace function public.office_salary_slip_integrity_check(p_issue uuid)
-returns boolean language sql stable security definer set search_path='' as $
+returns boolean language sql stable security definer set search_path='' as $$
   select exists(
     select 1 from public.office_salary_payslip_issues i
     join public.office_payroll_results r on r.id=i.payroll_result_id
@@ -350,7 +350,7 @@ returns boolean language sql stable security definer set search_path='' as $
       and i.snapshot_sha256=encode(extensions.digest(convert_to(i.snapshot::text,'UTF8'),'sha256'),'hex')
       and i.snapshot->>'calculation_hash'=r.calculation_hash
   );
-$;
+$$;
 revoke all on function public.office_salary_slip_integrity_check(uuid) from public,anon,authenticated;
 grant execute on function public.office_salary_slip_integrity_check(uuid) to service_role;
 
@@ -364,7 +364,7 @@ drop trigger if exists office_salary_issue_write_once on public.office_salary_pa
 create trigger office_salary_issue_write_once before update or delete
   on public.office_salary_payslip_issues for each row execute function public.office_prohibit_wage_evidence_rewrite();
 create or replace function public.office_salary_settlement_immutable_after_review()
-returns trigger language plpgsql security definer set search_path='' as $
+returns trigger language plpgsql security definer set search_path='' as $$
 begin
   if old.status<>'PENDING' then
     raise exception 'Reviewed salary settlement evidence is immutable'; end if;
@@ -376,7 +376,7 @@ begin
   if new.status not in ('VERIFIED','REJECTED') or new.verified_by is null or new.verified_at is null then
     raise exception 'Settlement review requires recorded verification'; end if;
   return new;
-end; $;
+end; $$;
 drop trigger if exists office_salary_evidence_sealed_update on public.office_salary_settlement_evidence;
 create trigger office_salary_evidence_sealed_update before update on public.office_salary_settlement_evidence
   for each row execute function public.office_salary_settlement_immutable_after_review();
