@@ -55,8 +55,10 @@ alter table public.office_department_transfer_events enable row level security;
 revoke all on public.office_department_ownership, public.office_department_former_owners,
   public.office_department_transfer_requests, public.office_department_transfer_events
   from public, anon, authenticated;
-grant select, insert, update, delete on public.office_department_ownership,
-  public.office_department_former_owners, public.office_department_transfer_requests
+-- Ownership and transfer-request records are never deleted; history persists.
+grant select, insert, update on public.office_department_ownership,
+  public.office_department_transfer_requests to service_role;
+grant select, insert, update, delete on public.office_department_former_owners
   to service_role;
 grant select, insert on public.office_department_transfer_events to service_role;
 grant usage, select on sequence public.office_department_transfer_events_id_seq to service_role;
