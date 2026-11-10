@@ -3,6 +3,7 @@ import { ArrowUpRight, FileText } from "lucide-react";
 import { CopyLinkButton } from "@/components/premium-interactions";
 import { ArticleShareLinks } from "@/components/social-links";
 import { siteUrl } from "@/lib/site";
+import { publicCorporateEmails } from "@/lib/corporate/public-email-directory";
 import { relatedContent } from "@/lib/content/relationships";
 import { publicContentPath } from "@/lib/content/seo";
 import type { PublicContentRecord } from "@/lib/content/types";
@@ -20,6 +21,7 @@ export function NewsroomLanding({ articles }: { articles: readonly PublicContent
   return <section className="newsroom-shell shell">
     {featured ? <article className="newsroom-feature"><p className="eyebrow">FEATURED · {typeLabel(featured.type)}</p><h2>{featured.title}</h2><p>{featured.summary}</p><Link href={publicContentPath(featured)} className="text-link">Read the update <ArrowUpRight /></Link></article> : <div className="newsroom-empty"><FileText /><div><p className="eyebrow">OFFICIAL KRAVIA NEWSROOM</p><h2>Updates will appear here when they are ready.</h2><p>Kravia publishes company, product, engineering, research and press material only after it has been reviewed and approved.</p></div></div>}
     {latest.length > 0 && <div className="newsroom-list" aria-label="Latest updates">{latest.map((article) => <article key={article.id}><p className="eyebrow">{typeLabel(article.type)} · {dateLabel(article.publishedAt)}</p><h2><Link href={publicContentPath(article)}>{article.title}</Link></h2><p>{article.summary}</p><Link href={publicContentPath(article)} aria-label={`Read ${article.title}`}><ArrowUpRight /></Link></article>)}</div>}
+    <p>Press and media enquiries: <a href={`mailto:${publicCorporateEmails.press}`}>{publicCorporateEmails.press}</a>.</p>
   </section>;
 }
 
@@ -56,5 +58,5 @@ export function PublicContentArticle({ article, allArticles }: { article: Public
 export const NewsArticle = PublicContentArticle;
 
 export function MediaKitContent() {
-  return <section className="media-kit shell"><div><p className="eyebrow">PRESS & MEDIA</p><h2>Official Kravia identity, clearly shared.</h2><p>Use the company name <strong>KRAVIA PRIVATE LIMITED</strong> in formal contexts and <strong>Kravia</strong> for approved brand references. The approved Kravia logo remains the only logo authorised for editorial use.</p></div><div className="media-kit-grid"><article><p className="eyebrow">COMPANY BOILERPLATE</p><p>Kravia Private Limited is an Indian technology company building software products, intelligent systems and digital infrastructure for organisations that need simpler, safer and more connected ways to work.</p></article><article><p className="eyebrow">BRAND USE</p><p>Do not redraw, alter or recreate the Kravia mark. Do not imply endorsement, partnership or certification without written approval.</p></article><article><p className="eyebrow">PRESS MATERIAL</p><p>Approved press releases and public company statements appear in the Newsroom when available. There are no public media releases configured at this time.</p></article></div></section>;
+  return <section className="media-kit shell"><div><p className="eyebrow">PRESS & MEDIA</p><h2>Official Kravia identity, clearly shared.</h2><p>Use the company name <strong>KRAVIA PRIVATE LIMITED</strong> in formal contexts and <strong>Kravia</strong> for approved brand references. The approved Kravia logo remains the only logo authorised for editorial use.</p></div><div className="media-kit-grid"><article><p className="eyebrow">COMPANY BOILERPLATE</p><p>Kravia Private Limited is an Indian technology company building software products, intelligent systems and digital infrastructure for organisations that need simpler, safer and more connected ways to work.</p></article><article><p className="eyebrow">BRAND USE</p><p>Do not redraw, alter or recreate the Kravia mark. Do not imply endorsement, partnership or certification without written approval.</p></article><article><p className="eyebrow">PRESS MATERIAL</p><p>Approved press releases and public company statements appear in the Newsroom when available. There are no public media releases configured at this time.</p><p>Media enquiries: <a href={`mailto:${publicCorporateEmails.press}`}>{publicCorporateEmails.press}</a>.</p></article></div></section>;
 }
