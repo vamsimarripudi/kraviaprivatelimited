@@ -176,7 +176,11 @@ create or replace function public.office_worktime_submit(
 ) returns uuid language plpgsql security definer set search_path='' as $$
 declare new_id uuid; recorded public.office_attendance_sessions%rowtype; canonical_breaks jsonb;
 begin
-  if p_actor<>p_employee then raise exception 'Only employee self-service may submit worktime; director changes require a correction request'; end if;
+  if p_actor<>p_employee and (
+      not exists(select 1 from public.office_user_roles r where r.user_id=p_actor
+         and r.role in ('OWNER','DIRECTOR') and (r.expires_at is null or r.expires_at>now()))
+      or not public.office_effective_permission(p_actor,'people.update','COMPANY',null,null)
+    ) then raise exception 'Employee or authorised director may propose worktime correction'; end if;
   if not exists(select 1 from public.office_identity_users where user_id=p_actor and status='ACTIVE') then
     raise exception 'Active employee identity required'; end if;
   if p_end<=p_start or p_end-p_start>interval '24 hours' then raise exception 'Invalid worktime range'; end if;
