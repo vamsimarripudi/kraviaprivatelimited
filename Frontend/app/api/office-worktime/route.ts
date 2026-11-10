@@ -7,7 +7,7 @@ const uuid = z.string().uuid();
 const datetime = z.string().datetime({ offset: true });
 const month = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
 const schema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("SUBMIT"), sessionId: uuid.optional(),
+  z.object({ action: z.literal("SUBMIT"), employeeId: uuid.optional(), sessionId: uuid.optional(),
     startAt: datetime, endAt: datetime,
     breaks: z.array(z.object({ startAt: datetime, endAt: datetime })).max(40).default([]),
     sourceKind: z.enum(["RECORDED_SESSION","HISTORICAL_CORRECTION"]),
