@@ -314,3 +314,19 @@ grant execute on function public.office_effective_permission(uuid,text,text,text
 grant execute on function public.office_department_transfer_propose(uuid,text,uuid,text) to service_role;
 grant execute on function public.office_department_transfer_accept(uuid,uuid) to service_role;
 grant execute on function public.office_department_transfer_cancel(uuid,uuid) to service_role;
+
+-- One controlled read for responsive sidebar/action capability presentation.
+-- It is a UI hint only; every mutation must still use the DB permission check.
+create or replace function public.office_department_capability_changes(p_actor uuid)
+returns jsonb language sql stable security definer set search_path='' as $$
+  select jsonb_build_object(
+    'denied',coalesce(jsonb_agg(p.code) filter (where x.verdict='DENY'),'[]'::jsonb),
+    'owned',coalesce(jsonb_agg(p.code) filter (
+      where x.verdict='DEPARTMENT_OWNER' and p.owner_bypass is distinct from false
+    ),'[]'::jsonb)
+  ) from public.office_permission_catalog p
+  cross join lateral (select public.office_department_permission_verdict(p_actor,p.code) as verdict) x
+  where p.active=true;
+$$;
+revoke all on function public.office_department_capability_changes(uuid) from public,anon,authenticated;
+grant execute on function public.office_department_capability_changes(uuid) to service_role;
