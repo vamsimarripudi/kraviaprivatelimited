@@ -41,6 +41,7 @@ type RolePackageAction =
   | { action: "CREATE"; draft: PackageDraft }
   | { action: "PUBLISH"; packageId: string }
   | { action: "APPLY"; packageId: string; employeeId: string; reason: string }
+  | { action: "BULK_APPLY"; packageId: string; employeeIds: string[]; reason: string }
   | { action: "TASK"; taskId: string; decision: "SUBMIT" | "VERIFY" | "RETURN" | "WAIVE"; reference?: string; note?: string };
 
 function check(result: { error?: { message?: string } | null }, message: string) {
@@ -159,6 +160,10 @@ export async function changeRolePackage(input: RolePackageAction) {
   } else if (input.action === "APPLY") {
     method = "office_role_package_apply";
     params = { p_actor: actorId, p_target: input.employeeId,
+      p_package: input.packageId, p_reason: input.reason };
+  } else if (input.action === "BULK_APPLY") {
+    method = "office_role_package_apply_many";
+    params = { p_actor: actorId, p_targets: input.employeeIds,
       p_package: input.packageId, p_reason: input.reason };
   } else {
     method = "office_role_package_task_decide";
