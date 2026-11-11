@@ -57,7 +57,7 @@ const defaultPattern: WorkPattern = {
   flexible: true, time_zone: "Asia/Kolkata",
 };
 const employmentOptions = ["EMPLOYEE","CONTRACTOR","INTERN","TRAINEE","ADVISOR","PROFESSIONAL"] as const;
-const scopeOptions = ["DEPARTMENT","PROJECT","REPOSITORY","TEAM","PRODUCT","COST_CENTER","OWN","COMPANY"] as const;
+const scopeOptions = ["DEPARTMENT","PROJECT","REPOSITORY","TEAM","PRODUCT","COST_CENTER","OWN"] as const;
 const weekdayCodes = ["MON","TUE","WED","THU","FRI","SAT","SUN"];
 
 async function api<T>(body?: Record<string, unknown>, employee?: string): Promise<T> {
@@ -242,7 +242,7 @@ export function OfficeRolePackageStudio({ view = "admin" }: { view?: "admin" | "
               <input aria-label="Resource scope key" value={grantDraft.scope_key} onChange={e => setGrantDraft(g => ({ ...g, scope_key: e.target.value }))} placeholder="Project / repository key"/> : null}
             <button type="button" onClick={addProfile} disabled={!grantDraft.profile_code}><Plus size={15}/>Add access</button>
           </div>
-          {grantDraft.scope_type === "COMPANY" ? <p className={styles.warning}>Company-wide profiles can grant broad access; only Founder may create them. Prefer department or project scope.</p> : null}
+          <p>Company-wide privileges remain in separately reviewed Access Administration and cannot be bundled into reusable staff packages.</p>
           <div className={styles.tokens}>{grants.map((g,i) => <span key={i}>{g.profile_code} · {g.scope_type}{g.scope_key ? " / "+g.scope_key : ""}
             <button type="button" onClick={() => setGrants(v => v.filter((_,j) => i!==j))} aria-label="Remove access"><X size={14}/></button></span>)}</div>
         </div>
