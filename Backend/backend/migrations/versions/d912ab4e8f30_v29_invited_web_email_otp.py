@@ -15,7 +15,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.add_column("office_auth_sessions_v2", sa.Column("email_otp_verified_at", sa.DateTime(timezone=True), nullable=True))
+    op.add_column("office_email_otp_challenges", sa.Column("browser_session_id", sa.String(length=36), nullable=True))
+    op.create_index("ix_office_email_otp_browser_session", "office_email_otp_challenges", ["browser_session_id", "channel"])
 
 
 def downgrade() -> None:
+    op.drop_index("ix_office_email_otp_browser_session", table_name="office_email_otp_challenges")
+    op.drop_column("office_email_otp_challenges", "browser_session_id")
     op.drop_column("office_auth_sessions_v2", "email_otp_verified_at")
