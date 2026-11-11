@@ -422,32 +422,40 @@ def _email_otp_json(
     }
 
 
-def _invited_member_email_otp_allowed(db: Session, user: OfficeAuthUser) -> bool:
-    """Allow mailbox verification only for the permissions in an accepted invite.
+# Exact identities approved for email OTP as an alternative to TOTP.
+# Email OTP is never available to Satish or to arbitrary corporate accounts.
+OFFICE_WEB_EMAIL_OTP_FOUNDER = "vamsi@kraviaprivatelimited.com"
+OFFICE_WEB_EMAIL_OTP_STAFF = "satyanarayana@kraviaprivatelimited.com"
 
-    A Founder can never use this fallback. No extra privileges assigned AFTER
-    acceptance may gain email-based AAL2 without Authenticator enrollment.
-    The private invitation already required an Office OWNER/ADMIN decision.
+
+def _invited_member_email_otp_allowed(db: Session, user: OfficeAuthUser) -> bool:
+    """Allow password + single-use mailbox code for Vamsi and Jaya only.
+
+    This does not disable or replace their Authenticator factor. The AAL1
+    session and rate-limited challenge must still be verified in the existing
+    email-OTP endpoint. The two real accounts are bound to their established
+    Founder slot or accepted private Office invitation, respectively.
     """
-    if user.founder_slot or user.mfa_secret_ciphertext or user.status != "ACTIVE":
-        return False
-    if _identity_status(db, user) != "ACTIVE":
+    if user.status != "ACTIVE" or _identity_status(db, user) != "ACTIVE":
         return False
     active_roles = set(_active_roles(db, user.id))
-    if not active_roles or "OWNER" in active_roles:
+    if not active_roles or not _has_active_login_authority(db, user):
         return False
-    invites = db.execute(
-        select(OfficeAuthInvite).where(
+    if user.email == OFFICE_WEB_EMAIL_OTP_FOUNDER:
+        return user.founder_slot == "PRIMARY_FOUNDER" and "OWNER" in active_roles
+    if (
+        user.email != OFFICE_WEB_EMAIL_OTP_STAFF
+        or user.founder_slot is not None
+        or "OWNER" in active_roles
+    ):
+        return False
+    return db.execute(
+        select(OfficeAuthInvite.id).where(
             OfficeAuthInvite.used_by == user.id,
             OfficeAuthInvite.status == "ACCEPTED",
             OfficeAuthInvite.email == user.email,
-        )
-    ).scalars().all()
-    for invitation in invites:
-        approved_roles = set(json.loads(invitation.roles_json or "[]"))
-        if active_roles.issubset(approved_roles) and "OWNER" not in approved_roles:
-            return True
-    return False
+        ).limit(1)
+    ).first() is not None
 
 
 def _expire_email_otp_challenge(challenge: OfficeEmailOtpChallenge, now: datetime) -> bool:
@@ -1578,7 +1586,7 @@ def build_identity_router() -> APIRouter:
         ctx = authenticate_office_access(_bearer_token(authorization), db)
         user = db.get(OfficeAuthUser, ctx["user_id"])
         if ctx["aal"] != "aal1" or not user or not _invited_member_email_otp_allowed(db, user):
-            raise HTTPException(status_code=403, detail="Invited-member email verification is not available")
+            raise HTTPException(status_code=403, detail="Email verification is not available for this Office account")
         session = db.execute(select(OfficeAuthSession).where(
             OfficeAuthSession.id == ctx["session_id"],
             OfficeAuthSession.user_id == user.id,
@@ -1671,7 +1679,7 @@ def build_identity_router() -> APIRouter:
         ctx = authenticate_office_access(_bearer_token(authorization), db)
         user = db.get(OfficeAuthUser, ctx["user_id"])
         if ctx["aal"] != "aal1" or not user or not _invited_member_email_otp_allowed(db, user):
-            raise HTTPException(status_code=403, detail="Invited-member email verification is not available")
+            raise HTTPException(status_code=403, detail="Email verification is not available for this Office account")
         session = db.execute(select(OfficeAuthSession).where(
             OfficeAuthSession.id == ctx["session_id"],
             OfficeAuthSession.user_id == user.id,
