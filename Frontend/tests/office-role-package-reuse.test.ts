@@ -45,7 +45,7 @@ describe("KRAVIA universal reusable workforce role packages", () => {
     expect(server).toContain("Department heads can view only their own team members");
     expect(ui).toContain("Read-only after ownership handover");
     expect(ui).toContain("canEdit(t.department_code)");
-    expect(sections).toContain("Accepted department heads");
+    expect(sections).toContain("accepted department heads");
   });
 
   it("version locks both package and applied snapshots", () => {
