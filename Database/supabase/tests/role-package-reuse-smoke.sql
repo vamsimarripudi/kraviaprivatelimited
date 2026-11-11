@@ -6,6 +6,7 @@ declare
  recipient uuid:='f0000000-0000-4000-8000-000000000002';
  employee uuid:='f0000000-0000-4000-8000-000000000004';
  package uuid; newer uuid; application uuid; second_application uuid; task uuid; transfer uuid;
+ delegated_package uuid; delegated_application uuid;
 begin
  package:=public.office_role_package_create(
    founder,'GENERIC_TECH_TEAM','Reusable engineering contributor',
@@ -109,6 +110,31 @@ begin
  transfer:=public.office_department_transfer_propose(
    founder,'ENGINEERING',recipient,'Permanent handover of Engineering ownership');
  perform public.office_department_transfer_accept(recipient,transfer);
+ -- The recipient has MEMBER role, not company-wide ADMIN. After accepting
+ -- Engineering ownership they can package and assign only Engineering work.
+ delegated_package:=public.office_role_package_create(
+   recipient,'SCOPED_ENGINEERING_HEAD','Scoped Engineering contributor',
+   'Delegated permanent Engineering head can assign existing verified team.',
+   'ENGINEERING','FRONTEND_DEV','EMPLOYEE',
+   '["Implement scoped Engineering work","Record reviewable delivery evidence"]'::jsonb,
+   '[]'::jsonb,
+   '[{"profile_code":"FRONTEND_EDITOR","scope_type":"DEPARTMENT","scope_key":"ENGINEERING"}]'::jsonb,
+   '[{"code":"IDENTITY_VERIFIED","label":"Verify identity","required":true},{"code":"APPOINTMENT_SIGNED","label":"Verify signed appointment","required":true},{"code":"POLICIES_ACKNOWLEDGED","label":"Acknowledge company policy","required":true},{"code":"BANK_DETAILS_REVIEWED","label":"Review bank identity evidence","required":true}]'::jsonb,
+   '{"days":["MON","TUE","WED","THU","FRI"],"daily_minutes":360,"weekly_minutes":1800,"flexible":true,"time_zone":"Asia/Kolkata"}'::jsonb);
+ if public.office_role_package_publish(recipient,delegated_package)<>'ACTIVE'
+   then raise exception 'Accepted department head could not publish owned package'; end if;
+ delegated_application:=public.office_role_package_apply(recipient,employee,delegated_package,
+   'Scoped access and engineering duties granted by the accepted department head');
+ if delegated_application is null or not exists(
+   select 1 from public.office_access_audit a
+   where a.actor_user_id=recipient and a.target_user_id=employee
+      and a.action='PROFILE_ASSIGNED' and a.department='ENGINEERING'
+ ) then raise exception 'Delegated Engineer owner did not produce audited scoped assignment'; end if;
+ if (select position_code from public.office_job_assignments where user_id=employee)<>'FRONTEND_DEV'
+    then raise exception 'Delegated job write did not update primary position'; end if;
+ if exists(select 1 from public.office_user_roles r where r.user_id=recipient
+    and r.role in ('OWNER','ADMIN')) then raise exception 'Department head was improperly elevated'; end if;
+
  begin
    perform public.office_role_package_create(
      founder,'TRY_BYPASS','Should be rejected','Cannot bypass transferred department',
