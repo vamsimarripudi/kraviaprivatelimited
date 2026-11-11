@@ -35,6 +35,7 @@ const everyAdmittedRole: readonly OfficeRole[] = officeRoles;
 
 export const officeSections = {
   dashboard: { title: "My work", eyebrow: "KRAVIA OFFICE", description: "Your role-scoped company workspace, pending work, approvals, requests and governed operational modules.", roles: everyAdmittedRole, group: "My Work" },
+  "my-role": { title: "My roles & onboarding", eyebrow: "EMPLOYEE PROFILE", description: "My assigned functional responsibilities, working pattern and evidence-backed onboarding checklist.", roles: everyAdmittedRole, group: "My Work" },
   notifications: { title: "Notifications", eyebrow: "ATTENTION CENTER", description: "Personal workflow, task and security signals with explicit read and dismissal state.", roles: everyAdmittedRole, group: "My Work" },
   tasks: { title: "Company inbox", eyebrow: "ACTIONABLE WORK", description: "Assigned tasks, blockers and execution work kept separate from approvals and authority decisions.", roles: everyAdmittedRole, group: "My Work" },
   calendar: { title: "Company calendar", eyebrow: "OPERATIONAL TIMELINE", description: "Scoped internal events plus authorised projections of real tasks, compliance deadlines, board meetings, contracts and subscription dates.", roles: everyAdmittedRole, group: "My Work" },
@@ -71,6 +72,7 @@ export const officeSections = {
   it: { title: "IT service desk", eyebrow: "IT · SOFTWARE · ACCESS", description: "Employee technology requests, device support and governed software-licence assignments without granting unrelated system authority.", roles: officeWorkspaceRoles, group: "Office" },
   facilities: { title: "Physical office", eyebrow: "ROOMS · VISITORS · FACILITIES", description: "Room booking, visitor approvals, temporary credentials and facility incidents governed by the same company identity and access model.", roles: officeWorkspaceRoles, group: "Office" },
   support: { title: "Support operations", eyebrow: "CUSTOMER OPERATIONS", description: "Controlled customer cases, ownership, status transitions and approval-led remedies.", roles: officeWorkspaceRoles, group: "Office" },
+  "role-packages": { title: "Reusable role packages", eyebrow: "DEPARTMENT OWNERSHIP · WORKFORCE", description: "Founder and accepted department heads may publish reusable scoped job/access packages; every action is checked against current ownership.", roles: everyAdmittedRole, group: "Lead" },
   access: { title: "Access administration", eyebrow: "IDENTITY & AUTHORIZATION", description: "Owner-controlled administrator appointment, invite-only onboarding, workforce access, devices, reviews and auditable privilege changes.", roles: accessAdministration, group: "Assure" },
   data: { title: "Data movement", eyebrow: "CONTROLLED IMPORT / EXPORT", description: "Scoped data-movement requests with independent approval before any execution or canonical record change.", roles: officeWorkspaceRoles, group: "Assure" },
   privacy: { title: "Privacy governance", eyebrow: "DATA GOVERNANCE", description: "Privacy cases, reviewed retention evidence, legal holds and governed data handling without automatic legal conclusions.", roles: officeWorkspaceRoles, group: "Assure" },

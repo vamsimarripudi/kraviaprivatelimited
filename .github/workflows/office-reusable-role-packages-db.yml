@@ -1,0 +1,51 @@
+name: KRAVIA reusable role packages PostgreSQL integration
+on:
+  pull_request:
+    paths:
+      - "Database/supabase/migrations/202611110001_reusable_workforce_role_packages.sql"
+      - "Database/supabase/tests/role-package-reuse-*.sql"
+      - ".github/workflows/office-reusable-role-packages-db.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres:
+    name: Reusable workforce packages on ephemeral PostgreSQL 17
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: kravia_role_pack_ci
+          POSTGRES_PASSWORD: ci-role-pack-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kravia_role_pack_ci"
+          --health-interval 3s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Rehearse canonical access plus reusable role packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg() {
+            docker run --rm --network host \
+              -v "$PWD:/repo:ro" --workdir /repo \
+              --env PGPASSWORD=ci-role-pack-only postgres:17 \
+              psql --host 127.0.0.1 --username postgres \
+                --dbname kravia_role_pack_ci --set ON_ERROR_STOP=1 "$@"
+          }
+          pg -f Database/supabase/tests/workforce-release-fixture.sql
+          pg -f Database/supabase/migrations/202611100001_permanent_department_ownership.sql
+          pg -f Database/supabase/tests/role-package-reuse-fixture.sql
+          pg -f Database/supabase/migrations/202611110001_reusable_workforce_role_packages.sql
+          output="$(pg --tuples-only --no-align -f Database/supabase/tests/role-package-reuse-smoke.sql)"
+          echo "$output"
+          test "$(printf '%s\n' "$output" | tail -n 1)" = "REUSABLE_ROLE_PACKAGE_VERIFIED"
