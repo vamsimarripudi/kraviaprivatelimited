@@ -94,7 +94,7 @@ export function OfficeRolePackageStudio({ view = "admin" }: { view?: "admin" | "
   const [steps, setSteps] = useState<Step[]>(standardSteps);
   const [stepDraft, setStepDraft] = useState({ code: "", label: "", required: true });
   const [pattern, setPattern] = useState<WorkPattern>(defaultPattern);
-  const [targetId, setTargetId] = useState("");
+  const [targetIds, setTargetIds] = useState<string[]>([]);
   const [applyTemplate, setApplyTemplate] = useState("");
   const [reason, setReason] = useState("");
   const [evidence, setEvidence] = useState<Record<string, string>>({});
@@ -188,9 +188,12 @@ export function OfficeRolePackageStudio({ view = "admin" }: { view?: "admin" | "
   }
   async function apply(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const ok = await mutate({ action: "APPLY", packageId: applyTemplate, employeeId: targetId, reason },
+    const payload = targetIds.length === 1
+      ? { action: "APPLY", packageId: applyTemplate, employeeId: targetIds[0], reason }
+      : { action: "BULK_APPLY", packageId: applyTemplate, employeeIds: targetIds, reason };
+    const ok = await mutate(payload,
       "Reusable package applied atomically through the canonical job and access-profile controls. Salary and department ownership remain separate.");
-    if (ok) { setApplyTemplate(""); setReason(""); setTargetId(""); }
+    if (ok) { setApplyTemplate(""); setReason(""); setTargetIds([]); }
   }
   async function review(task: Task, decision: "SUBMIT" | "VERIFY" | "RETURN" | "WAIVE") {
     const success = await mutate({
@@ -306,16 +309,22 @@ export function OfficeRolePackageStudio({ view = "admin" }: { view?: "admin" | "
             </div></div>) : <p className={styles.empty}>No reusable packages yet. Create one from your existing departments, positions and access profiles.</p>}
         </article>
         <article className={styles.panel}>
-          <div className={styles.sectionHeader}><h3><Users size={18}/>Assign to verified employee</h3></div>
+          <div className={styles.sectionHeader}><h3><Users size={18}/>Assign to verified employees</h3></div>
           <p>Same published package works for any employee. Existing canonical approvals, trusted identities and scopes are enforced.</p>
           <form className={styles.inlineForm} onSubmit={apply}>
             <label>Published package<select required value={applyTemplate} onChange={e => setApplyTemplate(e.target.value)}>
               <option value="">Select reusable package</option>{active.map(t => <option key={t.id} value={t.id}>{t.label} · v{t.version}</option>)}</select></label>
-            <label>Recipient<select required value={targetId} onChange={e => setTargetId(e.target.value)}>
-              <option value="">Select verified active employee</option>{state.people.filter(p => p.status==="ACTIVE" && p.user_id!==state.actor.user_id).map(p => <option key={p.user_id} value={p.user_id}>{p.display_name || p.user_id}</option>)}</select></label>
+            <fieldset className={styles.recipients}><legend>Verified active recipients · {targetIds.length} selected</legend>
+              {state.people.filter(p => p.status==="ACTIVE" && p.user_id!==state.actor.user_id).map(p =>
+                <label key={p.user_id}><input type="checkbox" checked={targetIds.includes(p.user_id)}
+                onChange={e => setTargetIds(ids => e.target.checked ? [...ids,p.user_id] : ids.filter(id => id!==p.user_id))}/>
+                {p.display_name || p.user_id}</label>)}
+              {!state.people.some(p => p.status==="ACTIVE" && p.user_id!==state.actor.user_id) ?
+                <p>No verified recipients. Invite and activate employees using existing Office onboarding first.</p> : null}
+            </fieldset>
             <label>Assignment reason<textarea required minLength={12} value={reason} placeholder="Transfer defined project responsibilities and department-scoped access" onChange={e => setReason(e.target.value)}/></label>
-            <button className={styles.primary} disabled={!applyTemplate || !targetId || busy || reason.trim().length<12} type="submit">
-              {busy ? <LoaderCircle size={16}/> : <CheckCheck size={16}/>} Apply package to employee
+            <button className={styles.primary} disabled={!applyTemplate || !targetIds.length || busy || reason.trim().length<12} type="submit">
+              {busy ? <LoaderCircle size={16}/> : <CheckCheck size={16}/>} Apply package to {targetIds.length || "selected"} employee(s)
             </button>
           </form>
         </article>
