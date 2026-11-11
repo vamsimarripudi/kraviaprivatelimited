@@ -350,6 +350,26 @@ begin
   return application;
 end; $func$;
 
+-- Apply ONE reusable package to many people atomically. Either every
+-- recipient passes the canonical actor/target/scope checks, or nobody changes.
+create or replace function public.office_role_package_apply_many(
+  p_actor uuid,p_targets uuid[],p_package uuid,p_reason text
+) returns jsonb language plpgsql security definer set search_path='' as $func$
+declare target_id uuid; applied_id uuid; result jsonb:='[]'::jsonb;
+begin
+  if coalesce(cardinality(p_targets),0) not between 1 and 30
+     then raise exception 'Select between 1 and 30 verified employees'; end if;
+  if (select count(distinct v) from unnest(p_targets) as v)
+       <> cardinality(p_targets) then
+    raise exception 'Duplicate or missing employee targets'; end if;
+  for target_id in select v from unnest(p_targets) as v order by v loop
+    applied_id:=public.office_role_package_apply(p_actor,target_id,p_package,p_reason);
+    result:=result||jsonb_build_array(jsonb_build_object(
+      'employee_user_id',target_id,'application_id',applied_id));
+  end loop;
+  return result;
+end; $func$;
+
 create or replace function public.office_role_package_task_decide(
   p_actor uuid,p_task uuid,p_action text,p_reference text,p_note text
 ) returns text language plpgsql security definer set search_path='' as $func$
@@ -398,9 +418,11 @@ revoke all on function public.office_role_package_authorised(uuid,text) from pub
 revoke all on function public.office_role_package_create(uuid,text,text,text,text,text,text,jsonb,jsonb,jsonb,jsonb,jsonb) from public,anon,authenticated;
 revoke all on function public.office_role_package_publish(uuid,uuid) from public,anon,authenticated;
 revoke all on function public.office_role_package_apply(uuid,uuid,uuid,text) from public,anon,authenticated;
+revoke all on function public.office_role_package_apply_many(uuid,uuid[],uuid,text) from public,anon,authenticated;
 revoke all on function public.office_role_package_task_decide(uuid,uuid,text,text,text) from public,anon,authenticated;
 grant execute on function public.office_role_package_authorised(uuid,text) to service_role;
 grant execute on function public.office_role_package_create(uuid,text,text,text,text,text,text,jsonb,jsonb,jsonb,jsonb,jsonb) to service_role;
 grant execute on function public.office_role_package_publish(uuid,uuid) to service_role;
 grant execute on function public.office_role_package_apply(uuid,uuid,uuid,text) to service_role;
+grant execute on function public.office_role_package_apply_many(uuid,uuid[],uuid,text) to service_role;
 grant execute on function public.office_role_package_task_decide(uuid,uuid,text,text,text) to service_role;
