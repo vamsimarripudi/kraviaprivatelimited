@@ -423,22 +423,31 @@ def _email_otp_json(
 
 
 def _invited_member_email_otp_allowed(db: Session, user: OfficeAuthUser) -> bool:
-    """Never make email OTP a shortcut for Owner, Director or another privileged role.
+    """Allow mailbox verification only for the permissions in an accepted invite.
 
-    An invited, active MEMBER with a previously accepted private invitation
-    is the only eligible account. This does not alter Authenticator enrollment.
+    A Founder can never use this fallback. No extra privileges assigned AFTER
+    acceptance may gain email-based AAL2 without Authenticator enrollment.
+    The private invitation already required an Office OWNER/ADMIN decision.
     """
     if user.founder_slot or user.mfa_secret_ciphertext or user.status != "ACTIVE":
         return False
-    if _identity_status(db, user) != "ACTIVE" or set(_active_roles(db, user.id)) != {"MEMBER"}:
+    if _identity_status(db, user) != "ACTIVE":
         return False
-    return db.execute(
-        select(OfficeAuthInvite.id).where(
+    active_roles = set(_active_roles(db, user.id))
+    if not active_roles or "OWNER" in active_roles:
+        return False
+    invites = db.execute(
+        select(OfficeAuthInvite).where(
             OfficeAuthInvite.used_by == user.id,
             OfficeAuthInvite.status == "ACCEPTED",
             OfficeAuthInvite.email == user.email,
         )
-    ).first() is not None
+    ).scalars().all()
+    for invitation in invites:
+        approved_roles = set(json.loads(invitation.roles_json or "[]"))
+        if active_roles.issubset(approved_roles) and "OWNER" not in approved_roles:
+            return True
+    return False
 
 
 def _expire_email_otp_challenge(challenge: OfficeEmailOtpChallenge, now: datetime) -> bool:
