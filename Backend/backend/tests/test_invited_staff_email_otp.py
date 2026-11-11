@@ -124,3 +124,49 @@ def test_invited_code_delivery_failure_does_not_upgrade_login(tmp_path, monkeypa
         assert current.json()["aal"] == "aal1"
     finally:
         engine.dispose()
+
+
+def test_original_accepted_admin_roles_can_verify_email_but_extra_roles_cannot(tmp_path, monkeypatch):
+    """One accepted invite can carry ADMIN/CS/LEGAL/OPERATIONS without granting
+    more authority than the Founder originally invited."""
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        owner = aal2_founder(client)
+        _, created = invite_and_register(
+            client, owner["access_token"], email="staff-admin@example.test",
+            display_name="Staff Admin", roles=["ADMIN", "CS", "LEGAL", "OPERATIONS"],
+            password="Member-Admin1!",
+        )
+        assert created["email_otp_available"] is True
+        headers = {"Authorization": "Bearer " + created["access_token"]}
+        issued = client.post("/api/v1/auth/office-invite-email-otp/request",
+                             headers=headers, json={})
+        assert issued.status_code == 201, issued.text
+        challenge = issued.json()
+        verified = client.post("/api/v1/auth/office-invite-email-otp/verify",
+                               headers=headers, json={
+                                   "challenge_id": challenge["challenge_id"],
+                                   "challenge_token": challenge["challenge_token"],
+                                   "code": "482915",
+                               })
+        assert verified.status_code == 200, verified.text
+        assert verified.json()["aal"] == "aal2"
+
+        # A new role outside the accepted invitation makes email OTP
+        # unavailable on all subsequent password sessions.
+        from sqlalchemy.orm import Session
+        from backend.auth_models import OfficeAuthRole
+        with Session(engine) as db:
+            user = db.query(identity_auth.OfficeAuthUser).filter_by(
+                email="staff-admin@example.test"
+            ).one()
+            db.add(OfficeAuthRole(user_id=user.id, role="FINANCE", granted_by=owner["user_id"],
+                                  grant_reason="Later unrelated role for regression test"))
+            db.commit()
+        later = client.post("/api/v1/auth/sign-in", json={
+            "email": "staff-admin@example.test", "password": "Member-Admin1!",
+        })
+        assert later.status_code == 200
+        assert later.json()["email_otp_available"] is False
+    finally:
+        engine.dispose()
