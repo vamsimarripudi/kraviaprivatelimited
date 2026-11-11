@@ -216,7 +216,7 @@ begin
   if (select count(distinct value->>'code') from jsonb_array_elements(p_steps))
       <>jsonb_array_length(p_steps) then
     raise exception 'Onboarding step codes must be unique'; end if;
-  if (select count(distinct (value->>'profile_code'||':'||value->>'scope_type'||':'||coalesce(value->>'scope_key','')))
+  if (select count(distinct ((value->>'profile_code')||':'||(value->>'scope_type')||':'||coalesce(value->>'scope_key','')))
       from jsonb_array_elements(p_profiles)) <> jsonb_array_length(p_profiles)
       then raise exception 'Duplicate access profile grants in package'; end if;
   perform pg_advisory_xact_lock(hashtext('KRAVIA_ROLE_PACKAGE'),hashtext(parsed_code));
