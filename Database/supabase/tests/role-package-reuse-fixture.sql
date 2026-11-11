@@ -40,6 +40,9 @@ create table if not exists public.office_access_audit (
   reason text,
   metadata jsonb not null default '{}'::jsonb
 );
+alter table public.office_permission_catalog
+  add column if not exists high_risk boolean not null default false,
+  add column if not exists sensitivity text not null default 'LOW';
 insert into public.office_position_catalog(code,label,family,level) values
  ('FULL_STACK_DEV','Full Stack Developer','ENGINEERING',3),
  ('FRONTEND_DEV','Frontend Developer','ENGINEERING',3),
@@ -52,9 +55,11 @@ insert into public.office_access_profile_catalog(code,label) values
  ('SALES_MANAGER','Sales Manager'),
  ('FRONTEND_EDITOR','Frontend Editor');
 insert into public.office_permission_catalog(code,module,action,owner_bypass) values
- ('access.profile.assign','ACCESS','ASSIGN_PROFILE',true);
+ ('access.profile.assign','ACCESS','ASSIGN_PROFILE',true),
+ ('engineering.code.read','ENGINEERING','READ',true);
 insert into public.office_access_profile_permissions(profile_code,permission_code,effect,default_scope_type)
- values ('ENGINEERING_MANAGER','finance.read','ALLOW','DEPARTMENT');
+ values ('ENGINEERING_MANAGER','finance.read','ALLOW','DEPARTMENT'),
+  ('FRONTEND_EDITOR','engineering.code.read','ALLOW','DEPARTMENT');
 insert into public.office_job_assignments(user_id,position_code,department_code,employment_type,assigned_by)
 values ('f0000000-0000-4000-8000-000000000001','FULL_STACK_DEV','ENGINEERING','EMPLOYEE',
         'f0000000-0000-4000-8000-000000000001');
