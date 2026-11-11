@@ -1,20 +1,5 @@
 {
   "schemaVersion": 1,
   "reviewBy": "2026-11-26",
-  "exceptions": [
-    {
-      "source": 1240912,
-      "package": "node-forge",
-      "severity": "high",
-      "scope": "Expo CLI and code-signing build tooling only",
-      "reason": "Verified against the npm audit report on 2026-10-10. Expo SDK 57 resolves this transitive package to 1.4.0 and npm reports no compatible remediation; its offered Expo 44.0.6 change is an incompatible downgrade. Build-tool-only exception retained for a fresh automated advisory-ID review under Expo SDK 57, subject to CI verification. Re-review due 2026-11-26."
-    },
-    {
-      "source": 1240992,
-      "package": "braces",
-      "severity": "high",
-      "scope": "Metro file-map build tooling only",
-      "reason": "Verified against the npm audit report on 2026-10-10. Expo SDK 57 resolves this transitive package through Metro and npm reports no compatible remediation; its offered Expo 44.0.6 change is an incompatible downgrade. Build-tool-only exception retained for a fresh automated advisory-ID review under Expo SDK 57, subject to CI verification. Re-review due 2026-11-26."
-    }
-  ]
+  "exceptions": []
 }
