@@ -26,11 +26,26 @@ describe("KRAVIA universal reusable workforce role packages", () => {
   it("applies the canonical job and access profile mutators in a single database transaction", () => {
     expect(sql).toContain("public.office_assign_job(p_actor,p_target");
     expect(sql).toContain("public.office_assign_access_profile(p_actor,p_target");
-    expect(sql).toContain("not public.office_actor_can_administer_target(p_actor,p_target)");
+    expect(sql).toContain("global_admin:=public.office_actor_can_administer_target(p_actor,p_target)");
     expect(sql).toContain("public.office_role_package_authorised(p_actor,tmpl.department_code)");
     expect(sql).toContain("p_reason ||");
     expect(sql).toContain("p_reason || ' · ' || tmpl.code");
     expect(sql).toContain("tmpl.version::text,null);"); // permanent, non-expiring grant
+  });
+
+  it("lets accepted department heads delegate only within their own department", () => {
+    expect(sql).toContain("office_role_package_assign_by_department_head");
+    expect(sql).toContain("current_owner=p_actor");
+    expect(sql).toContain("i.primary_department=tmpl.department_code");
+    expect(sql).toContain("Delegated owner cannot change privileged employee roles");
+    expect(sql).toContain("Cross-department or high-risk permission cannot be delegated");
+    expect(sql).toContain("office_role_package_authorised(p_actor,tmpl.department_code)");
+    expect(server).toContain("ownedDepartments");
+    expect(server).toContain("writable_departments");
+    expect(server).toContain("Department heads can view only their own team members");
+    expect(ui).toContain("Read-only after ownership handover");
+    expect(ui).toContain("canEdit(t.department_code)");
+    expect(sections).toContain("Accepted department heads");
   });
 
   it("version locks both package and applied snapshots", () => {
