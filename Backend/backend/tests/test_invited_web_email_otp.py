@@ -131,7 +131,9 @@ def test_founder_and_privileged_invites_cannot_use_email_as_authenticator(tmp_pa
         assert _request(client, owner["access_token"]).status_code == 403
     finally:
         engine.dispose()
-    client2, engine2 = make_client(tmp_path / "priv", monkeypatch)
+    privileged_dir = tmp_path / "priv"
+    privileged_dir.mkdir()
+    client2, engine2 = make_client(privileged_dir, monkeypatch)
     try:
         _, registered = _employee(client2, roles=["MEMBER", "ADMIN"])
         assert _request(client2, registered["access_token"]).status_code == 403
