@@ -202,7 +202,7 @@ begin
     elsif (item->>'scope_type')='COMPANY' and not exists(
       select 1 from public.office_user_roles where user_id=p_actor and role='OWNER'
       and (expires_at is null or expires_at>now())) then
-      raise exception 'Only Founder can draft company-wide grants'; end if;
+      raise exception 'Only Founder can draft company-wide grants';
     elsif (item->>'scope_type') not in ('OWN','COMPANY')
       and length(btrim(coalesce(item->>'scope_key',''))) < 2 then
       raise exception 'Resource-scoped profile requires a resource key'; end if;
