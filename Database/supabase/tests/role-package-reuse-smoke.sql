@@ -141,6 +141,13 @@ begin
     then raise exception 'Delegated job write did not update primary position'; end if;
  if exists(select 1 from public.office_user_roles r where r.user_id=recipient
     and r.role in ('OWNER','ADMIN')) then raise exception 'Department head was improperly elevated'; end if;
+ begin
+   perform public.office_role_package_apply(
+     recipient,recipient,delegated_package,'Self assignment should not be authorised');
+   raise exception 'Department head self-granted privileges';
+ exception when others then
+   if sqlerrm='Department head self-granted privileges' then raise; end if;
+ end;
 
  begin
    perform public.office_role_package_create(
