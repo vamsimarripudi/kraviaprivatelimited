@@ -11,7 +11,7 @@ type Person = {
 };
 type Position = { code: string; label: string; family: string; level: number; is_manager: boolean };
 type Department = { code: string; label: string };
-type Profile = { code: string; label: string; category: string; description: string; owner_managed_only: boolean };
+type Profile = { code: string; label: string; category: string; description: string; owner_managed_only: boolean; assignable_by_admin: boolean };
 type ProfileGrant = { profile_code: string; scope_type: "DEPARTMENT" | "COMPANY" | "TEAM" | "PRODUCT" | "PROJECT" | "REPOSITORY" | "COST_CENTER" | "OWN"; scope_key?: string };
 type ExtraRole = { position_code: string; department_code: string; responsibilities?: string[] };
 type Step = { code: string; label: string; required: boolean };
