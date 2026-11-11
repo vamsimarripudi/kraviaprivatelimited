@@ -182,6 +182,7 @@ def test_approved_founder_can_choose_email_otp_even_after_authenticator_enrollme
                         lambda **kwargs: deliveries.append(kwargs) or "brevo-confirmed")
     try:
         owner = aal2_founder(client)
+        deliveries.clear()  # Exclude the separate authenticator-activation mailbox challenge.
         signed = client.post("/api/v1/auth/sign-in", json={
             "email": "founder@example.test", "password": "Strong-Founder1!",
         })
