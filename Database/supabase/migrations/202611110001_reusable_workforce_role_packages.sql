@@ -162,6 +162,11 @@ begin
   if length(btrim(coalesce(p_label,''))) not between 3 and 140 then raise exception 'Invalid title'; end if;
   if not exists(select 1 from public.office_position_catalog where code=p_position and active=true)
      then raise exception 'Active canonical primary position required'; end if;
+  if exists(select 1 from public.office_position_catalog where code=p_position
+    and (family='EXECUTIVE' or level>=8))
+    and not exists(select 1 from public.office_user_roles where user_id=p_actor
+      and role='OWNER' and (expires_at is null or expires_at>now())) then
+    raise exception 'Executive and department-head positions require Founder authority'; end if;
   if p_employment not in ('EMPLOYEE','CONTRACTOR','INTERN','TRAINEE','ADVISOR','PROFESSIONAL')
     then raise exception 'Invalid employment relationship'; end if;
   if jsonb_typeof(p_responsibilities) is distinct from 'array' or jsonb_array_length(p_responsibilities)>30
@@ -186,6 +191,11 @@ begin
        then raise exception 'Additional roles must reference active catalogue positions/departments'; end if;
     if not public.office_role_package_authorised(p_actor,item->>'department_code')
        then raise exception 'Additional role is outside current departmental authority'; end if;
+    if exists(select 1 from public.office_position_catalog p
+      where p.code=item->>'position_code' and (p.family='EXECUTIVE' or p.level>=8))
+      and not exists(select 1 from public.office_user_roles r where r.user_id=p_actor
+        and r.role='OWNER' and (r.expires_at is null or r.expires_at>now())) then
+      raise exception 'Additional executive positions require Founder authority'; end if;
   end loop;
   for item in select value from jsonb_array_elements(p_profiles) loop
     if not exists(select 1 from public.office_access_profile_catalog
@@ -199,13 +209,17 @@ begin
         where code=item->>'scope_key' and active=true)
         or not public.office_role_package_authorised(p_actor,item->>'scope_key') then
         raise exception 'Cannot grant permissions outside owned departments'; end if;
-    elsif (item->>'scope_type')='COMPANY' and not exists(
-      select 1 from public.office_user_roles where user_id=p_actor and role='OWNER'
-      and (expires_at is null or expires_at>now())) then
-      raise exception 'Only Founder can draft company-wide grants';
-    elsif (item->>'scope_type') not in ('OWN','COMPANY')
-      and length(btrim(coalesce(item->>'scope_key',''))) < 2 then
-      raise exception 'Resource-scoped profile requires a resource key'; end if;
+    elsif (item->>'scope_type')='COMPANY' then
+      -- A reusable staff bundle must never silently grant cross-department
+      -- company privileges after a department has been handed over.
+      raise exception 'Company-wide authority must use separately reviewed Access Administration';
+    elsif (item->>'scope_type') not in ('OWN','DEPARTMENT') then
+      if length(btrim(coalesce(item->>'scope_key',''))) < 2 then
+        raise exception 'Resource-scoped profile requires a resource key'; end if;
+      if not exists(select 1 from public.office_user_roles
+        where user_id=p_actor and role='OWNER' and (expires_at is null or expires_at>now())) then
+        raise exception 'Project and repository package grants require Founder review'; end if;
+    end if;
   end loop;
   for item in select value from jsonb_array_elements(p_steps) loop
     if (item->>'code') !~ '^[A-Z][A-Z0-9_]{2,59}$'
