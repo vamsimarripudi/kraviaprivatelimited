@@ -30,7 +30,7 @@ describe("KRAVIA universal reusable workforce role packages", () => {
     expect(sql).toContain("public.office_role_package_authorised(p_actor,tmpl.department_code)");
     expect(sql).toContain("p_reason ||");
     expect(sql).toContain("p_reason || ' · ' || tmpl.code");
-    expect(sql).toContain("p_reason, p_expires_at"); // no, direct function uses null
+    expect(sql).toContain("tmpl.version::text,null);"); // permanent, non-expiring grant
   });
 
   it("version locks both package and applied snapshots", () => {
@@ -49,7 +49,7 @@ describe("KRAVIA universal reusable workforce role packages", () => {
     expect(sql).toContain("reviewed_by<>employee_user_id");
     expect(sql).not.toContain("office_payroll_calculate");
     expect(sql).not.toContain("office_department_transfer_accept");
-    expect(server).toContain("My roles");
+    expect(ui).toContain("My roles & onboarding");
   });
 
   it("uses one employee-specific reader with strict manager and employee boundaries", () => {
