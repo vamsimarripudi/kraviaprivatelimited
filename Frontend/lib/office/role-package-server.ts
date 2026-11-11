@@ -58,11 +58,12 @@ export async function getRolePackageWorkspace(employeeId?: string) {
   const actorId = identity.userId;
   const [assign, ownership] = await Promise.all([
     resolveOfficePermission(admin, identity, "access.profile.assign", { type: "COMPANY" }),
-    admin.from("office_department_ownership").select("department_code")
-      .eq("owner_user_id", actorId),
+    admin.from("office_department_ownership").select("department_code,owner_user_id"),
   ]);
   check(ownership, "Assigned department authority is unavailable");
-  const ownedDepartments = (ownership.data ?? []).map(item => item.department_code);
+  const acceptedTransfers = ownership.data ?? [];
+  const ownedDepartments = acceptedTransfers
+    .filter(item => item.owner_user_id === actorId).map(item => item.department_code);
   const globalManager = identity.roles.some((role) => role === "OWNER" || role === "ADMIN") && assign.allowed;
   const manager = globalManager || ownedDepartments.length > 0;
   const targetId = employeeId || actorId;
@@ -131,9 +132,15 @@ export async function getRolePackageWorkspace(employeeId?: string) {
     check(r, "The reusable position and access catalogues are unavailable");
   }
 
+  const founder = identity.roles.includes("OWNER");
+  const writableDepartments = founder
+    ? (departments.data ?? []).filter(item => !acceptedTransfers.some(
+      owner => owner.department_code === item.code && owner.owner_user_id !== actorId)).map(item => item.code)
+    : ownedDepartments;
+
   return {
-    actor: { user_id: actorId, can_manage: true, is_founder: identity.roles.includes("OWNER"),
-      managed_departments: ownedDepartments },
+    actor: { user_id: actorId, can_manage: true, is_founder: founder,
+      managed_departments: ownedDepartments, writable_departments: writableDepartments },
     employee: selected.data, employment,
     applications: applications.data ?? [],
     tasks: tasks.data ?? [],
