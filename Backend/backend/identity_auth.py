@@ -77,7 +77,8 @@ EMAIL_OTP_MOBILE_REFRESH_TTL_SECONDS = int(os.getenv("OFFICE_EMAIL_OTP_MOBILE_RE
 DEVICE_APPROVAL_REQUIRED = os.getenv("OFFICE_DEVICE_APPROVAL_REQUIRED", "true").strip().lower() == "true"
 DEVICE_APPROVAL_TTL_SECONDS = int(os.getenv("OFFICE_DEVICE_APPROVAL_TTL_SECONDS", "900"))
 DEVICE_TRUST_TTL_SECONDS = int(os.getenv("OFFICE_DEVICE_TRUST_TTL_SECONDS", str(30 * 24 * 60 * 60)))
-QR_SIGNIN_TTL_SECONDS = int(os.getenv("OFFICE_QR_SIGNIN_TTL_SECONDS", "60"))
+QR_SIGNIN_TTL_SECONDS = int(os.getenv("OFFICE_QR_SIGNIN_TTL_SECONDS", "120"))
+QR_SIGNIN_REVIEW_TTL_SECONDS = int(os.getenv("OFFICE_QR_SIGNIN_REVIEW_TTL_SECONDS", "120"))
 CANONICAL_PUBLIC_WEB_ORIGIN = "https://www.kraviaprivatelimited.com"
 OFFICE_SESSION_PURPOSE = "OFFICE"
 AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE = "AUTHENTICATOR_ACTIVATION"
@@ -623,6 +624,12 @@ def _qr_signin_ttl_seconds() -> int:
     if QR_SIGNIN_TTL_SECONDS < 30 or QR_SIGNIN_TTL_SECONDS > 300:
         raise RuntimeError("QR sign-in lifetime must be between 30 seconds and 5 minutes")
     return QR_SIGNIN_TTL_SECONDS
+
+
+def _qr_signin_review_ttl_seconds() -> int:
+    if QR_SIGNIN_REVIEW_TTL_SECONDS < 30 or QR_SIGNIN_REVIEW_TTL_SECONDS > 300:
+        raise RuntimeError("QR review lifetime must be between 30 seconds and 5 minutes")
+    return QR_SIGNIN_REVIEW_TTL_SECONDS
 
 
 def _expire_qr_signin(approval: OfficeQrSigninApproval, now: datetime) -> bool:
@@ -2199,6 +2206,14 @@ def build_identity_router() -> APIRouter:
             raise HTTPException(status_code=409, detail="This browser sign-in is no longer available")
         if approval.status != "PENDING":
             raise HTTPException(status_code=409, detail="This QR sign-in request has already been used")
+        # Scanning must happen within the short-lived QR capability window.
+        # Once the trusted device proves possession, allow a separate bounded
+        # decision window for reading browser details and biometric consent.
+        # Never extend unscanned, expired, or otherwise terminal requests.
+        try:
+            approval.expires_at = now + timedelta(seconds=_qr_signin_review_ttl_seconds())
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail="QR review lifetime is not configured") from exc
         approval.status = "SCANNED"
         approval.scanned_by_device_id = payload.device_approval_id
         approval.scanned_at = now
