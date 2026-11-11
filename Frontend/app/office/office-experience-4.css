@@ -291,3 +291,32 @@
   .kravia-office .office-v4 .office-topbar{padding-inline:8px!important}
   .kravia-office .kravia-office-auth :where([class*="card"]){padding:15px!important;border-radius:19px!important}
 }
+
+
+/* Phone-sized Office authentication must not inherit the desktop density.
+   These are intentionally scoped overrides of the !important Experience 4
+   theme above; the rest of Office and desktop layouts remain unchanged. */
+@media (max-width: 720px) {
+  .kravia-office .kravia-office-auth :where([class*="card"]) {
+    width: 100% !important;
+    padding: 10px 12px !important;
+    border-radius: 16px !important;
+  }
+  .kravia-office .kravia-office-auth :where([class*="form"]) h2 {
+    font-size: clamp(1.375rem, 5.8vw, 1.55rem) !important;
+    line-height: 1.08 !important;
+  }
+  .kravia-office .kravia-office-auth :where([class*="form"]) :is(input,textarea,select) {
+    min-height: 44px !important;
+  }
+  .kravia-office .kravia-office-auth :where([class*="primary"],[class*="secondary"]) {
+    min-height: 44px !important;
+  }
+  .kravia-office .kravia-office-auth :where([class*="qrPanel"],[class*="timer"]) {
+    border-radius: 12px !important;
+  }
+}
+@media (max-width: 720px) and (max-height: 720px) {
+  .kravia-office .kravia-office-auth :where([class*="card"]) { padding: 8px 10px !important; }
+  .kravia-office .kravia-office-auth :where([class*="form"]) h2 { font-size: 1.375rem !important; }
+}

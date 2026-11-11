@@ -13,6 +13,14 @@ describe("KRAVIA mobile Office sign-in viewport", () => {
     expect(css).toContain("env(safe-area-inset-bottom)");
   });
 
+  it("overrides Office Experience 4 desktop-density rules on phones", () => {
+    const css = read("app/office/office-experience-4.css");
+    expect(css).toContain("Phone-sized Office authentication");
+    expect(css).toContain("font-size: clamp(1.375rem, 5.8vw, 1.55rem) !important;");
+    expect(css).toContain("padding: 10px 12px !important;");
+    expect(css).toContain("min-height: 44px !important;");
+  });
+
   it("reduces QR dimensions and offers a larger scannable display", () => {
     const css = read("components/workspace-login-form.module.css");
     const tsx = read("components/workspace-login-form.tsx");
