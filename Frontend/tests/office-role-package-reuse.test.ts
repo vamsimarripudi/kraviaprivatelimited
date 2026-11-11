@@ -16,7 +16,7 @@ describe("KRAVIA universal reusable workforce role packages", () => {
     expect(sql).toContain("office_role_package_publish");
     expect(sql).toContain("office_role_package_apply");
     expect(ui).toContain("state.positions.map");
-    expect(ui).toContain("state.departments.map");
+    expect(ui).toContain("state.departments.filter(d => canEdit(d.code)).map");
     expect(ui).toContain("state.access_profiles");
     expect(sql).not.toContain("Vamsi Marripudi");
     expect(sql).not.toContain("Satish Manohar");
