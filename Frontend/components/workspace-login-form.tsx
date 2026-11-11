@@ -107,6 +107,8 @@ export function WorkspaceLoginForm({
   const [phase, setPhase] = useState<Phase>("password");
   const [code, setCode] = useState("");
   const [emailOtp, setEmailOtp] = useState<{ challenge_id: string; challenge_token: string; email: string; expires_at: string; resend_available_at: string }>();
+  const [emailOtpAllowed, setEmailOtpAllowed] = useState(false);
+  const [authenticatorEnrolled, setAuthenticatorEnrolled] = useState(false);
   const [status, setStatus] = useState<string>();
   const [statusTone, setStatusTone] = useState<StatusTone>("info");
   const [isPending, setIsPending] = useState(false);
@@ -301,6 +303,21 @@ export function WorkspaceLoginForm({
     } finally { setIsPending(false); }
   }
 
+  async function chooseEmailOtp() {
+    if (!emailOtpAllowed) return;
+    setCode("");
+    setEmailOtp(undefined);
+    setPhase("email");
+    setIsPending(true);
+    setStatus(undefined);
+    try {
+      await sendInvitedEmailCode();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Email code unavailable. Select Send a new email code to retry.");
+      setStatusTone("error");
+    } finally { setIsPending(false); }
+  }
+
   async function verifyInvitedEmailCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!emailOtp || !/^\d{6}$/.test(code)) return;
@@ -328,6 +345,10 @@ export function WorkspaceLoginForm({
     const defaultPath = preferredLandingPath(validRoles);
     const selected = nextPath === "/office/dashboard" || nextPath === "/finance/dashboard" ? defaultPath : nextPath;
     setDestination(selected);
+    setEmailOtpAllowed(auth.email_otp_available === true);
+    setAuthenticatorEnrolled(auth.mfa.enrolled);
+    setEmailOtp(undefined);
+    setCode("");
 
     if (auth.aal === "aal2") {
       await finish(selected);
@@ -457,11 +478,11 @@ export function WorkspaceLoginForm({
       <form className={styles.form} onSubmit={verifyInvitedEmailCode} noValidate>
         <div className={styles.icon}><ShieldCheck /></div>
         <SecurityJourney phase={phase} />
-        <p className={styles.eyebrow}>INVITED STAFF EMAIL CODE</p>
+        <p className={styles.eyebrow}>KRAVIA CORPORATE EMAIL OTP</p>
         <h2>Check your corporate email</h2>
         <p className={styles.intro}>
           Enter the six-digit code sent to <strong>{emailOtp?.email || email}</strong>.
-          Codes expire after 10 minutes. This method is available only for roles approved in the original private invitation.
+          Codes expire after 10 minutes. This option is enabled only for accounts explicitly approved for corporate email verification.
         </p>
         <label className={styles.field} htmlFor="invited-email-code">
           <span>Email verification code</span>
@@ -477,6 +498,12 @@ export function WorkspaceLoginForm({
         </button>
         <button className={styles.secondary} type="button" disabled={isPending}
           onClick={() => void requestAgain()}>Send a new email code</button>
+        {authenticatorEnrolled ? (
+          <button className={styles.secondary} type="button" disabled={isPending}
+            onClick={() => { setCode(""); setEmailOtp(undefined); setPhase("verify"); setStatus("Enter the six-digit code from KRAVIA Authenticator."); setStatusTone("info"); }}>
+            Use KRAVIA Authenticator instead
+          </button>
+        ) : null}
         <p className={styles.note}>Check Spam if the code is missing. Request again after 60 seconds. Your existing password remains required for each new login.</p>
       </form>
     );
@@ -557,6 +584,11 @@ export function WorkspaceLoginForm({
           {isPending ? <LoaderCircle className={styles.spin} /> : <ShieldCheck />}
           Verify and continue
         </button>
+        {emailOtpAllowed ? (
+          <button className={styles.secondary} type="button" onClick={() => void chooseEmailOtp()} disabled={isPending}>
+            Send a code to my corporate email instead
+          </button>
+        ) : null}
         <button className={styles.secondary} type="button" onClick={() => void showAuthenticatorQr()} disabled={isPending}>
           <QrCode /> Use Authenticator approval instead
         </button>
@@ -573,7 +605,7 @@ export function WorkspaceLoginForm({
         <SecurityJourney phase={phase} />
         <p className={styles.eyebrow}>IDENTITY VERIFIED</p>
         <h2 id="mfa-success-title">You’re securely signed in</h2>
-        <p className={styles.intro}>Your Authenticator code was verified. We’re opening your authorised KRAVIA workspace now.</p>
+        <p className={styles.intro}>Your chosen second factor was verified. We’re opening your authorised KRAVIA workspace now.</p>
         {status ? <p className={styles.status} data-tone="success" role="status">{status}</p> : null}
         <div className={styles.successProgress} aria-hidden="true"><span /></div>
       </section>
