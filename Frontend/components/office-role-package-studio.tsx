@@ -338,8 +338,8 @@ export function OfficeRolePackageStudio({ view = "admin" }: { view?: "admin" | "
           </div>;
         }) : <p className={styles.empty}>No role package assigned yet. An authorised director can apply a published package without generating fictitious employment or payroll records.</p>}
         <div className={styles.references}>
-          <a href="/office/recruitment"><BookOpen size={15}/>Recruitment</a>
-          <a href="/office/documents"><FileText size={15}/>Appointment & documents</a>
+          {admin ? <><a href="/office/recruitment"><BookOpen size={15}/>Recruitment</a>
+          <a href="/office/documents"><FileText size={15}/>Appointment & documents</a></> : null}
           <a href="/office/worktime"><CalendarDays size={15}/>Attendance & payslips</a>
         </div>
       </article>
