@@ -148,6 +148,18 @@ describe("KRAVIA Authenticator native security profile", () => {
     expect(appSource).not.toContain("Clipboard.getString");
   });
 
+  it("recovers stale rotated QR sessions only with the original trusted phone proof", () => {
+    const activationSource = readFileSync(new URL("../src/activation.ts", import.meta.url), "utf8");
+    expect(appSource).toContain("await refreshAuthenticatorSession(session)");
+    expect(appSource).toContain("refreshed = await completeDeviceApproval({");
+    expect(appSource).toContain("approvalId: session.deviceApprovalId");
+    expect(appSource).toContain("deviceProof: session.deviceProof");
+    expect(appSource).toContain("await saveAuthenticatorSession(refreshed)");
+    expect(appSource).toContain("await clearAuthenticatorSession()");
+    expect(appSource).toContain("setScreen(\"credentials\")");
+    expect(activationSource).toContain('Pick<PendingDeviceApproval, "approvalId" | "deviceProof">');
+  });
+
   it("uses one accessible feedback surface and keeps the approved artwork bytes intact", () => {
     expect(appSource).toContain("FeedbackToast");
     expect(appSource).toContain("useSafeAreaInsets");
