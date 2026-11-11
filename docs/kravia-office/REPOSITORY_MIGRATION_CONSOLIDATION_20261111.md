@@ -141,3 +141,9 @@ A historical branch is not an outstanding feature solely because its Git commit 
 ## Migration-history reconciliation outcome
 
 On 11 November 2026, the three later duplicate migration **history rows** (`20261110191609`, `20261110191708`, `20261110191713`) were removed within a checked transaction. The original versions (`20261110190951`, `20261110191539`, `20261110191543`) remain, with the SQL hashes shown above; a follow-up `list_migrations` confirmed the entries. No schema changes or application-data deletion occurred during this ledger cleanup.
+
+## Security release patch
+
+Supabase Security Advisor flagged `public.office_salary_settlement_immutable_after_review()` as a publicly callable `SECURITY DEFINER` trigger helper (lints 0028 and 0029). The approved, versioned migration `Database/supabase/migrations/202611110002_harden_salary_settlement_trigger_execute.sql` revokes direct `EXECUTE` from `PUBLIC`, `anon`, and `authenticated`, while preserving the service-role grant and existing trigger. It was applied to the KRAVIA Office Supabase project using the migration tool and verified by read-only `has_function_privilege` checks: `anon=false`, `authenticated=false`, `service_role=true`, trigger enabled. Both database security-advisor lints cleared.
+
+The remaining Auth leaked-password-protection warning belongs to Supabase Auth and is unrelated to the first-party Office credential flow; it requires a separate decision about project Auth configuration. See https://supabase.com/docs/guides/database/functions and https://supabase.com/docs/guides/observability/advisors?lint=0028_anon_security_definer_function_executable.
