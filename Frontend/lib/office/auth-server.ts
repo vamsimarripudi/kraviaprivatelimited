@@ -411,6 +411,52 @@ export async function registerInvitedOfficeUser(input: { token: string; display_
   return context;
 }
 
+export type InvitedWebEmailChallenge = {
+  challenge_id: string;
+  challenge_token: string;
+  email: string;
+  expires_at: string;
+  resend_available_at: string;
+};
+
+/** An already-signed-in invited employee requests a code at their registered
+ * corporate mailbox. Neither the browser nor this BFF chooses a recipient. */
+export async function requestInvitedWebEmailOtp(context: OfficeSessionContext) {
+  if (context.identity.aal !== "aal1" || context.mfa.enrolled) {
+    throw new OfficeApiError(409, "This account cannot use invited email verification");
+  }
+  const response = await rawApi("/api/v1/auth/invited-web-otp/request", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${context.session.access_token}` },
+    body: JSON.stringify({}),
+  });
+  return parseOrThrow<InvitedWebEmailChallenge>(response);
+}
+
+/** Upgrade only the same browser's invited-member session. */
+export async function verifyInvitedWebEmailOtp(
+  context: OfficeSessionContext, input: { challenge_id: string; challenge_token: string; code: string },
+) {
+  if (context.identity.aal !== "aal1") {
+    throw new OfficeApiError(409, "Email verification is unavailable for this session");
+  }
+  const response = await rawApi("/api/v1/auth/invited-web-otp/verify", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${context.session.access_token}` },
+    body: JSON.stringify(input),
+  });
+  const result = await parseOrThrow<{ verified: boolean; aal: string; access_token: string; expires_in: number }>(response);
+  if (result.verified !== true || result.aal !== "aal2" || !result.access_token) {
+    throw new OfficeApiError(409, "Registered mailbox verification was not completed");
+  }
+  await writeOfficeSessionCookies({
+    ...context.session,
+    access_token: result.access_token,
+    expires_in: result.expires_in,
+  });
+  return { verified: true, aal: "aal2" as const };
+}
+
 export async function verifyOfficeMfa(context: OfficeSessionContext, code: string) {
   const device = await currentOfficeLoginDeviceProof();
   const response = await rawApi("/api/v1/auth/mfa/verify", {
