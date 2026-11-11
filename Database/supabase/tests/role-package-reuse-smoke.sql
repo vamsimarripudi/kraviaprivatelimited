@@ -6,7 +6,7 @@ declare
  recipient uuid:='f0000000-0000-4000-8000-000000000002';
  employee uuid:='f0000000-0000-4000-8000-000000000004';
  package uuid; newer uuid; application uuid; second_application uuid; task uuid; transfer uuid;
- delegated_package uuid; delegated_application uuid;
+ delegated_package uuid; delegated_application uuid; unsafe_package uuid;
 begin
  package:=public.office_role_package_create(
    founder,'GENERIC_TECH_TEAM','Reusable engineering contributor',
@@ -107,9 +107,23 @@ begin
     has_table_privilege('authenticated','public.office_role_package_onboarding_tasks','SELECT') or
     has_function_privilege('anon','public.office_role_package_apply(uuid,uuid,uuid,text)','EXECUTE') then
     raise exception 'Role packages unexpectedly exposed to browser database roles'; end if;
+ unsafe_package:=public.office_role_package_create(
+   founder,'FUTURE_UNSAFE_DRAFT','Founder draft with cross-module profile',
+   'This older draft cannot be published by a newly receiving department head.',
+   'ENGINEERING','FULL_STACK_DEV','EMPLOYEE','[]'::jsonb,'[]'::jsonb,
+   '[{"profile_code":"ENGINEERING_MANAGER","scope_type":"DEPARTMENT","scope_key":"ENGINEERING"}]'::jsonb,
+   '[{"code":"IDENTITY_VERIFIED","label":"Verify identity","required":true},{"code":"APPOINTMENT_SIGNED","label":"Verify signed appointment","required":true},{"code":"POLICIES_ACKNOWLEDGED","label":"Acknowledge company policy","required":true},{"code":"BANK_DETAILS_REVIEWED","label":"Review bank evidence","required":true}]'::jsonb,
+   '{"days":["MON","TUE","WED","THU","FRI"],"daily_minutes":360,"weekly_minutes":1800,"flexible":true,"time_zone":"Asia/Kolkata"}'::jsonb
+ );
  transfer:=public.office_department_transfer_propose(
    founder,'ENGINEERING',recipient,'Permanent handover of Engineering ownership');
  perform public.office_department_transfer_accept(recipient,transfer);
+ begin
+   perform public.office_role_package_publish(recipient,unsafe_package);
+   raise exception 'Delegated head published cross-department Founder draft';
+ exception when others then
+   if sqlerrm='Delegated head published cross-department Founder draft' then raise; end if;
+ end;
  -- The recipient has MEMBER role, not company-wide ADMIN. After accepting
  -- Engineering ownership they can package and assign only Engineering work.
  delegated_package:=public.office_role_package_create(
