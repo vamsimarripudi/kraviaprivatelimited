@@ -56,8 +56,15 @@ function check(result: { error?: { message?: string } | null }, message: string)
 export async function getRolePackageWorkspace(employeeId?: string) {
   const { admin, identity } = await requireOfficeActor();
   const actorId = identity.userId;
-  const assign = await resolveOfficePermission(admin, identity, "access.profile.assign", { type: "COMPANY" });
-  const manager = identity.roles.some((role) => role === "OWNER" || role === "ADMIN") && assign.allowed;
+  const [assign, ownership] = await Promise.all([
+    resolveOfficePermission(admin, identity, "access.profile.assign", { type: "COMPANY" }),
+    admin.from("office_department_ownership").select("department_code")
+      .eq("owner_user_id", actorId),
+  ]);
+  check(ownership, "Assigned department authority is unavailable");
+  const ownedDepartments = (ownership.data ?? []).map(item => item.department_code);
+  const globalManager = identity.roles.some((role) => role === "OWNER" || role === "ADMIN") && assign.allowed;
+  const manager = globalManager || ownedDepartments.length > 0;
   const targetId = employeeId || actorId;
   if (targetId !== actorId && !manager) throw new OfficeRolePackageError(403, "Other employees' role records are restricted");
 
@@ -66,6 +73,10 @@ export async function getRolePackageWorkspace(employeeId?: string) {
     .eq("user_id", targetId).maybeSingle();
   check(selected, "Employee identity could not be verified");
   if (!selected.data) throw new OfficeRolePackageError(404, "Employee not found");
+  if (targetId !== actorId && !globalManager &&
+      !ownedDepartments.includes(String(selected.data.primary_department ?? ""))) {
+    throw new OfficeRolePackageError(403, "Department heads can view only their own team members");
+  }
 
   const employmentResult = await admin.from("office_employment_registry")
     .select("employment_code,relationship_type,status,start_date,end_date,source")
@@ -121,16 +132,21 @@ export async function getRolePackageWorkspace(employeeId?: string) {
   }
 
   return {
-    actor: { user_id: actorId, can_manage: true, is_founder: identity.roles.includes("OWNER") },
+    actor: { user_id: actorId, can_manage: true, is_founder: identity.roles.includes("OWNER"),
+      managed_departments: ownedDepartments },
     employee: selected.data, employment,
     applications: applications.data ?? [],
     tasks: tasks.data ?? [],
     functional_positions: functionalPositions.data ?? [],
-    templates: templates.data ?? [],
-    people: people.data ?? [],
-    departments: departments.data ?? [],
+    templates: globalManager ? templates.data ?? [] :
+      (templates.data ?? []).filter(item => ownedDepartments.includes(item.department_code)),
+    people: globalManager ? people.data ?? [] :
+      (people.data ?? []).filter(item => ownedDepartments.includes(String(item.primary_department ?? ""))),
+    departments: globalManager ? departments.data ?? [] :
+      (departments.data ?? []).filter(item => ownedDepartments.includes(item.code)),
     positions: positions.data ?? [],
-    access_profiles: accessProfiles.data ?? [],
+    access_profiles: globalManager ? accessProfiles.data ?? [] :
+      (accessProfiles.data ?? []).filter(item => item.assignable_by_admin && !item.owner_managed_only),
     notice: "One published, versioned package can be applied to any authorised employee. Applying it never creates an identity, issues salary, confirms a document or transfers department ownership.",
   };
 }
