@@ -669,6 +669,7 @@ export function WorkspaceLoginForm({
     return (
       <section className={styles.form} aria-labelledby="device-approval-title" aria-live="polite">
         <div className={styles.icon}><ShieldCheck /></div>
+        <SecurityJourney phase={phase} error={Boolean(status) && statusTone === "error"} />
         <p className={styles.eyebrow}>NEW DEVICE PROTECTION</p>
         <h2 id="device-approval-title">Approve this browser from your email</h2>
         <p className={styles.intro}>
