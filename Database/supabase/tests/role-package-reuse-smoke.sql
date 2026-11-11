@@ -14,7 +14,7 @@ begin
    '["Deliver assigned product features","Record implementation and security evidence"]'::jsonb,
    '[{"position_code":"SALES_HEAD","department_code":"SALES","responsibilities":["Support approved sales workflows"]}]'::jsonb,
    '[{"profile_code":"ENGINEERING_MANAGER","scope_type":"DEPARTMENT","scope_key":"ENGINEERING"}]'::jsonb,
-   '[{"code":"IDENTITY_VERIFIED","label":"Verify identity","required":true},{"code":"APPOINTMENT_SIGNED","label":"Verify signed appointment","required":true}]'::jsonb,
+   '[{"code":"IDENTITY_VERIFIED","label":"Verify identity","required":true},{"code":"APPOINTMENT_SIGNED","label":"Verify signed appointment","required":true},{"code":"POLICIES_ACKNOWLEDGED","label":"Company policies acknowledged","required":true},{"code":"BANK_DETAILS_REVIEWED","label":"Verify payroll banking evidence","required":true}]'::jsonb,
    '{"days":["MON","TUE","WED","THU","FRI"],"daily_minutes":360,"weekly_minutes":1800,"flexible":true,"time_zone":"Asia/Kolkata"}'::jsonb
  );
  if (select status from public.office_role_packages where id=package)<>'DRAFT' then
@@ -44,7 +44,7 @@ begin
       where employee_user_id=employee and position_code='SALES_HEAD' and department_code='SALES' and active)<>1 then
    raise exception 'Additional functional position missing'; end if;
  if (select count(*) from public.office_role_package_onboarding_tasks
-      where application_id=application and status='PENDING')<>2 then
+      where application_id=application and status='PENDING')<>4 then
    raise exception 'Onboarding checklist was not created as pending'; end if;
  if (select snapshot_sha256 from public.office_employee_role_package_applications
       where id=application) <> (
@@ -91,7 +91,7 @@ begin
    'ENGINEERING','FRONTEND_DEV','EMPLOYEE',
    '["Deliver assigned frontend features"]'::jsonb,'[]'::jsonb,
    '[{"profile_code":"FRONTEND_EDITOR","scope_type":"DEPARTMENT","scope_key":"ENGINEERING"}]'::jsonb,
-   '[{"code":"IDENTITY_VERIFIED","label":"Verify identity","required":true}]'::jsonb,
+   '[{"code":"IDENTITY_VERIFIED","label":"Verify identity","required":true},{"code":"APPOINTMENT_SIGNED","label":"Verify signed appointment","required":true},{"code":"POLICIES_ACKNOWLEDGED","label":"Company policies acknowledged","required":true},{"code":"BANK_DETAILS_REVIEWED","label":"Verify payroll banking evidence","required":true}]'::jsonb,
    '{"days":["MON","TUE","WED","THU","FRI"],"daily_minutes":360,"weekly_minutes":1800,"flexible":true,"time_zone":"Asia/Kolkata"}'::jsonb
  );
  if (select version from public.office_role_packages where id=newer)<>2 then
