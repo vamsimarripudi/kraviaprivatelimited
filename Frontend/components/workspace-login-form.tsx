@@ -80,7 +80,7 @@ function QrImage({ value }: { value: string }) {
 
 function SecurityJourney({ phase }: { phase: Phase }) {
   const active = phase === "password" ? 0 : phase === "activate" || phase === "verify" || phase === "qr" ? 1 : phase === "device-approval" ? 2 : 3;
-  const steps = ["Credentials", "MFA", "Device trust", "Office"];
+  const steps = ["Credentials", phase === "email" ? "Email code" : "MFA", "Device trust", "Office"];
   return (
     <div className={styles.journey} aria-label={`Secure sign-in progress: step ${active + 1} of 4`}>
       {steps.map((label, index) => (
@@ -299,6 +299,23 @@ export function WorkspaceLoginForm({
       setStatusTone("info");
       return;
     }
+    const basicInvite = auth.roles.includes("MEMBER") &&
+      auth.roles.every(role => ["MEMBER", "OPERATIONS", "CS"].includes(role)) && !auth.founder;
+    if (basicInvite) {
+      setPhase("email");
+      setStatus("Sending a six-digit code to your invited corporate email…");
+      setStatusTone("info");
+      try {
+        const challenge = await jsonRequest<NonNullable<typeof emailOtp>>("/api/office-auth/invited-email", { action: "request" });
+        setEmailOtp(challenge);
+        setStatus("Email code sent to " + challenge.email + ". Enter the six digits to access Office.");
+      } catch (error) {
+        setStatus((error instanceof Error ? error.message : "Email verification unavailable.") +
+          " If no code arrives, use Send code again or contact your Founder.");
+        setStatusTone("error");
+      }
+      return;
+    }
     setPhase("activate");
     setStatus("Open Authenticator on your phone and sign in with your corporate credentials to request activation.");
     setStatusTone("info");
@@ -318,6 +335,53 @@ export function WorkspaceLoginForm({
       await prepareMfa(auth);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to sign in.");
+      setStatusTone("error");
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  async function sendInvitedEmailOtp() {
+    setIsPending(true);
+    setStatus("Requesting a new email verification code…");
+    setStatusTone("info");
+    try {
+      const challenge = await jsonRequest<NonNullable<typeof emailOtp>>("/api/office-auth/invited-email", { action: "request" });
+      setEmailOtp(challenge);
+      setCode("");
+      setStatus("Email verification code sent to " + challenge.email);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Email code delivery could not be confirmed.");
+      setStatusTone("error");
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  async function verifyInvitedEmailOtp(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!emailOtp || !/^\\d{6}$/.test(code)) {
+      setStatus("Request a code and enter the six digits sent to your corporate email.");
+      setStatusTone("error");
+      return;
+    }
+    setIsPending(true);
+    setStatus(undefined);
+    try {
+      const result = await jsonRequest<{ verified: true; aal: "aal2" }>("/api/office-auth/invited-email", {
+        action: "verify",
+        challenge_id: emailOtp.challenge_id,
+        challenge_token: emailOtp.challenge_token,
+        code: code.trim(),
+      });
+      if (!result.verified) throw new Error("Corporate email verification is incomplete");
+      setCode("");
+      setEmailOtp(undefined);
+      setStatus("Corporate email verified. Opening your authorised Office workspace…");
+      setStatusTone("success");
+      setPhase("success");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Email verification failed.");
       setStatusTone("error");
     } finally {
       setIsPending(false);
@@ -399,6 +463,38 @@ export function WorkspaceLoginForm({
       setPhase("verify");
       setIsPending(false);
     }
+  }
+
+  if (phase === "email") {
+    return <form className={styles.form} onSubmit={verifyInvitedEmailOtp} noValidate>
+      <div className={styles.icon}><ShieldCheck /></div>
+      <SecurityJourney phase={phase}/>
+      <p className={styles.eyebrow}>INVITED EMPLOYEE EMAIL VERIFICATION</p>
+      <h2>Check your corporate email</h2>
+      <p className={styles.intro}>We send a single-use six-digit code to <b>{emailOtp?.email || email}</b>.
+        Enter it to complete your basic employee sign-in. No phone Authenticator setup is required for this access level.</p>
+      <label className={styles.field} htmlFor="invited-email-code">
+        <span>Six-digit email verification code</span>
+        <input id="invited-email-code" inputMode="numeric" autoComplete="one-time-code"
+          placeholder="000000" maxLength={6} pattern="[0-9]*" required autoFocus
+          value={code} onChange={event => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+          disabled={isPending}/>
+      </label>
+      {emailOtp ? <p className={styles.note}>Code expires {new Date(emailOtp.expires_at).toLocaleTimeString("en-IN", {
+        hour: "2-digit", minute: "2-digit",
+      })}. Maximum five attempts.</p> : null}
+      {status ? <p className={styles.status} data-tone={statusTone} role="status">{status}</p> : null}
+      <button className={styles.primary} type="submit" disabled={isPending || !emailOtp || code.length !== 6}>
+        {isPending ? <LoaderCircle className={styles.spin}/> : <ShieldCheck/>} Verify email and enter Office
+      </button>
+      <button className={styles.secondary} type="button" disabled={isPending} onClick={() => void sendInvitedEmailOtp()}>
+        {emailOtp ? "Resend email code" : "Send email code"}
+      </button>
+      <button className={styles.secondary} type="button" disabled={isPending} onClick={() => { setPhase("password"); setEmailOtp(undefined); setCode(""); setStatus(undefined); }}>
+        Back to sign in
+      </button>
+      <p className={styles.note}>Founder, Finance and other privileged accounts continue to require KRAVIA Authenticator.</p>
+    </form>;
   }
 
   if (phase === "activate") {
