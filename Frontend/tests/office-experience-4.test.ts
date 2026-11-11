@@ -23,7 +23,7 @@ describe("KRAVIA Office Experience 4.0 foundation", () => {
     const login = read("components/workspace-login-form.tsx");
     expect(login).toContain('const steps = ["Credentials", "MFA", "Device trust", "Office"]');
     expect(login).toContain("<SecurityJourney phase={phase} />");
-    expect(login).toContain('type Phase = "password" | "activate" | "verify" | "qr" | "device-approval" | "success"');
+    expect(login).toContain('type Phase = "password" | "email" | "activate" | "verify" | "qr" | "device-approval" | "success"');
   });
 
   it("uses governed owner decision dialogs instead of browser-native confirms", () => {
