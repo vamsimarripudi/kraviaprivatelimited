@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timedelta
 from urllib.parse import parse_qs, urlsplit
 
 import pyotp
@@ -1001,6 +1002,12 @@ def test_trusted_authenticator_qr_approval_promotes_only_the_original_browser(tm
         assert qr_body["scan_token"]
         assert "access_token" not in qr_body
 
+        # Scan before the 120-second capability expires, but allow enough time
+        # for human review and biometrics after the original QR window.
+        qr_expires_at = datetime.fromisoformat(qr_body["expires_at"])
+        server_time = {"now": qr_expires_at - timedelta(seconds=20)}
+        monkeypatch.setattr(identity_auth, "_now", lambda: server_time["now"])
+
         scanned = client.post(
             "/api/v1/auth/qr-signins/scan",
             headers={"Authorization": f"Bearer {native['access_token']}"},
@@ -1013,6 +1020,7 @@ def test_trusted_authenticator_qr_approval_promotes_only_the_original_browser(tm
         )
         assert scanned.status_code == 200, scanned.text
         assert scanned.json()["status"] == "SCANNED"
+        assert datetime.fromisoformat(scanned.json()["expires_at"]) > qr_expires_at
 
         replay = client.post(
             "/api/v1/auth/qr-signins/scan",
@@ -1025,6 +1033,7 @@ def test_trusted_authenticator_qr_approval_promotes_only_the_original_browser(tm
             },
         )
         assert replay.status_code == 409
+        server_time["now"] = qr_expires_at + timedelta(seconds=25)
 
         approved = client.post(
             "/api/v1/auth/qr-signins/decision",
