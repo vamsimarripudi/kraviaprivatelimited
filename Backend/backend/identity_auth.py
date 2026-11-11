@@ -1577,7 +1577,7 @@ def build_identity_router() -> APIRouter:
         authorization: str | None = Header(default=None),
         db: Session = Depends(get_db),
     ):
-        """Send a six-digit code to the approved user's registered email.
+        """Send the six-digit sign-in code to the accepted invite's email.
 
         Only a password-authenticated AAL1 Office session may request it.
         Sender authentication, delivery uncertainty, cooldown and attempts
