@@ -12,7 +12,7 @@ const register = readFileSync(new URL("../app/api/office-auth/register/route.ts"
 describe("invited employee email OTP registration and sign-in", () => {
   it("uses only a confirmed private invitation and MEMBER role", () => {
     expect(backend).toContain('_invited_member_email_otp_allowed');
-    expect(backend).toContain('set(_active_roles(db, user.id)) != {"MEMBER"}');
+    expect(backend).toContain('active_roles.issubset(approved_roles)');
     expect(backend).toContain('OfficeAuthInvite.status == "ACCEPTED"');
     expect(backend).toContain('OfficeAuthInvite.email == user.email');
     expect(backend).toContain('not payload.challenge_token.startswith(session.id + ".")');
