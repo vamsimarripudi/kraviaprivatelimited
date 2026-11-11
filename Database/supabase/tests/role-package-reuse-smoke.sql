@@ -5,7 +5,7 @@ declare
  founder uuid:='f0000000-0000-4000-8000-000000000001';
  recipient uuid:='f0000000-0000-4000-8000-000000000002';
  employee uuid:='f0000000-0000-4000-8000-000000000004';
- package uuid; newer uuid; application uuid; task uuid; transfer uuid;
+ package uuid; newer uuid; application uuid; second_application uuid; task uuid; transfer uuid;
 begin
  package:=public.office_role_package_create(
    founder,'GENERIC_TECH_TEAM','Reusable engineering contributor',
@@ -27,6 +27,13 @@ begin
  if application is null then raise exception 'Application not created'; end if;
  if public.office_role_package_apply(founder,employee,package,'Repeat idempotent request')<>application then
    raise exception 'Reapplication was not idempotent'; end if;
+ second_application:=public.office_role_package_apply(
+   founder,recipient,package,'Same published package reused for second verified employee');
+ if second_application is null or second_application=application then
+   raise exception 'A reusable package must create separate employee applications'; end if;
+ if (select count(*) from public.office_employee_role_package_applications
+     where package_id=package)<>2 then
+   raise exception 'Reusable package failed to serve two employees'; end if;
  if (select position_code from public.office_job_assignments where user_id=employee)<>'FULL_STACK_DEV'
     or (select department_code from public.office_job_assignments where user_id=employee)<>'ENGINEERING'
     then raise exception 'Canonical primary position not assigned'; end if;
@@ -66,6 +73,18 @@ begin
  if exists(select 1 from public.office_role_package_onboarding_tasks
      where application_id=application and required and status='WAIVED') then
    raise exception 'Required document was waived'; end if;
+ begin
+   perform public.office_role_package_create(
+     founder,'COMPANY_BYPASS','Company-wide grant should be denied',
+     'Reusable packages must never bypass transferred department ownership.',
+     'ENGINEERING','FULL_STACK_DEV','EMPLOYEE','[]'::jsonb,'[]'::jsonb,
+     '[{"profile_code":"ENGINEERING_MANAGER","scope_type":"COMPANY"}]'::jsonb,
+     '[]'::jsonb,
+     '{"days":["MON","TUE","WED","THU","FRI"],"daily_minutes":360,"weekly_minutes":1800,"flexible":true,"time_zone":"Asia/Kolkata"}'::jsonb);
+   raise exception 'Unsafe company-wide package was permitted';
+ exception when others then
+   if sqlerrm='Unsafe company-wide package was permitted' then raise; end if;
+ end;
  newer:=public.office_role_package_create(
    founder,'GENERIC_TECH_TEAM','Reusable engineering contributor V2',
    'New version must not retroactively mutate a previous employee snapshot.',
