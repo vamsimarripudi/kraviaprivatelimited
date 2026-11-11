@@ -63,8 +63,8 @@ function QrImage({ value }: { value: string }) {
     let active = true;
     void QRCode.toDataURL(value, {
       errorCorrectionLevel: "M",
-      margin: 2,
-      width: 272,
+      margin: 4,
+      width: 384,
       color: { dark: "#10241c", light: "#ffffff" },
     }).then((next) => {
       if (active) setDataUrl(next);
@@ -117,9 +117,23 @@ export function WorkspaceLoginForm({
   const [deviceApprovalRetryRequired, setDeviceApprovalRetryRequired] = useState(false);
   const deviceApprovalCompletionInFlight = useRef(false);
   const [qrPayload, setQrPayload] = useState<string>();
+  const [qrExpanded, setQrExpanded] = useState(false);
+  const qrDialogRef = useRef<HTMLDialogElement>(null);
   const [qrExpiresAt, setQrExpiresAt] = useState<string>();
   const [qrBrowserLabel, setQrBrowserLabel] = useState<string>();
   const totp = officeTotpWindow(now);
+
+  useEffect(() => {
+    const dialog = qrDialogRef.current;
+    if (!dialog) return;
+    if (qrExpanded && !dialog.open) dialog.showModal();
+    if (!qrExpanded && dialog.open) dialog.close();
+    return () => { if (dialog.open) dialog.close(); };
+  }, [qrExpanded]);
+
+  useEffect(() => {
+    if (phase !== "qr") setQrExpanded(false);
+  }, [phase]);
 
   async function finish(path = destination) {
     router.replace(path);
@@ -494,10 +508,18 @@ export function WorkspaceLoginForm({
         <SecurityJourney phase={phase} />
         <p className={styles.eyebrow}>AUTHENTICATOR APPROVAL</p>
         <h2 id="qr-approval-title">Confirm on your trusted phone</h2>
-        <p className={styles.intro}>Scan this one-time sign-in code only in KRAVIA Authenticator. The phone will show the browser details before you choose Accept or Reject.</p>
+        <p className={styles.intro}>Scan only with KRAVIA Authenticator on your trusted phone. Review this browser, then choose Accept or Reject.</p>
         <div className={styles.qrPanel}>
-          <QrImage value={qrPayload} />
+          <button className={styles.qrZoomTrigger} type="button" onClick={() => setQrExpanded(true)} aria-label="Enlarge sign-in QR code" title="Enlarge QR code">
+            <QrImage value={qrPayload} />
+          </button>
+          <span className={styles.qrHint}>Tap QR to enlarge</span>
         </div>
+        <dialog ref={qrDialogRef} className={styles.qrDialog} aria-label="Enlarged KRAVIA Authenticator QR code" onClose={() => setQrExpanded(false)}>
+          <button className={styles.qrDialogClose} type="button" onClick={() => setQrExpanded(false)}>Close</button>
+          {qrExpanded ? <QrImage value={qrPayload} /> : null}
+          <p>Scan only with KRAVIA Authenticator.</p>
+        </dialog>
         <div className={styles.timer} role="timer" aria-live="polite" aria-label={secondsRemaining === null ? "QR sign-in request active" : `QR sign-in request expires in ${secondsRemaining} seconds`}>
           <div className={styles.timerRing} style={{ "--timer-progress": `${Math.max(0, Math.min(360, (secondsRemaining ?? 0) * 6))}deg` } as CSSProperties}>
             <span>{secondsRemaining === null ? "WAIT" : `00:${secondsRemaining.toString().padStart(2, "0")}`}</span>
