@@ -38,7 +38,9 @@ type Task = {
 type Functional = { position_code: string; department_code: string; application_id: string; responsibilities: string[] };
 type State = {
   actor: { user_id: string; can_manage: boolean; is_founder?: boolean };
-  employee: Person; applications: Application[]; tasks: Task[]; functional_positions: Functional[];
+  employee: Person;
+  employment: { employment_code: string; relationship_type: string; status: string; start_date?: string | null; end_date?: string | null; source: string } | null;
+  applications: Application[]; tasks: Task[]; functional_positions: Functional[];
   people: Person[]; templates: Template[]; positions: Position[]; departments: Department[]; access_profiles: Profile[];
   notice: string;
 };
@@ -307,7 +309,9 @@ export function OfficeRolePackageStudio({ view = "admin" }: { view?: "admin" | "
           }}><option value="">My profile</option>{state.people.map(p => <option key={p.user_id} value={p.user_id}>{p.display_name || p.user_id}</option>)}</select></label> : null}
         </div>
         <div className={styles.person}><div className={styles.avatar}>{(state.employee.display_name || "KR").split(" ").map(x=>x[0]).slice(0,2).join("").toUpperCase()}</div>
-          <div><strong>{state.employee.display_name || "Office employee"}</strong><small>{state.employee.job_title || "No primary job assigned"} · {state.employee.primary_department || "Unassigned"}</small></div></div>
+          <div><strong>{state.employee.display_name || "Office employee"}</strong>
+            <small>{state.employee.job_title || "No primary job assigned"} · {state.employee.primary_department || "Unassigned"}</small>
+            <small>{state.employment ? "Employee ID: "+state.employment.employment_code+" · "+state.employment.status+" · Effective: "+(state.employment.start_date || "Pending verification") : "Employee ID not yet registered — complete employment onboarding"}</small></div></div>
         {state.applications.length ? state.applications.map(application => {
           const items=applicationTasks(application);
           return <div className={styles.application} key={application.id}>
