@@ -21,8 +21,10 @@ employee* through one atomic transaction calling the canonical
 
 ## Role package lifecycle
 
-1. A current authorised department administrator opens
+1. The Founder or accepted department head opens
    **Office → Reusable role packages** with a first-party MFA session.
+   After a handover, the Founder retains read-only departmental visibility;
+   the receiving head may manage only their own department's team.
 2. Select an existing primary department and position. Add job responsibilities,
    supplemental functional positions, department/project/repository-scoped
    access profiles, work-pattern metadata and onboarding evidence checklist.
@@ -31,7 +33,11 @@ employee* through one atomic transaction calling the canonical
    versions are retired, but any previously applied snapshots remain untouched.
 5. **Apply** to an already activated Office identity. The database rechecks
    all department authority, actor/recipient permissions and scoped profile
-   rights, and writes existing job and access records in one transaction.
+   rights. For Founder/ADMIN it calls existing job/profile RPCs. For a
+   receiving department head without global ADMIN it uses a tightly scoped
+   and audited assignment path, restricted to already verified staff in that
+   same department with non-privileged positions and low-risk access profiles.
+   Every operation is one database transaction.
 6. Each employee opens **Office → My roles & onboarding**. Items start as
    \`PENDING\`; a human submits actual document references and a separate
    authorised reviewer verifies them.
@@ -95,6 +101,12 @@ protected Office sections, not fabricated applications.
 - All package and task tables use RLS and have no browser API permissions.
 - Mutations require a first-party Office MFA session and same-origin POST.
 - Transfer-authority checks happen **before** assigning a role, not afterward.
+- Accepted department heads never require COMPANY-level ADMIN rights to
+  assign scoped jobs or independently verify onboarding evidence for their team.
+  Company-wide grants and executive appointments remain outside their scope.
+- The Founder loses package editing and team approval actions in a transferred
+  department; their cross-company records remain visible read-only.
+
 - Existing \`OWNER\` job protection, owner-only profiles and independent
   statutory/payroll approvals remain in place.
 - An applied package snapshot is hashed and cannot be silently edited.
