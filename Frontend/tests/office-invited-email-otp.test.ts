@@ -10,9 +10,12 @@ const signin = readFileSync(new URL("../app/api/office-auth/sign-in/route.ts", i
 const register = readFileSync(new URL("../app/api/office-auth/register/route.ts", import.meta.url), "utf8");
 
 describe("invited employee email OTP registration and sign-in", () => {
-  it("uses only a confirmed private invitation and MEMBER role", () => {
+  it("limits the alternative to approved Founder and Jaya identities, not all invited staff", () => {
     expect(backend).toContain('_invited_member_email_otp_allowed');
-    expect(backend).toContain('active_roles.issubset(approved_roles)');
+    expect(backend).toContain('OFFICE_WEB_EMAIL_OTP_FOUNDER = "vamsi@kraviaprivatelimited.com"');
+    expect(backend).toContain('OFFICE_WEB_EMAIL_OTP_STAFF = "satyanarayana@kraviaprivatelimited.com"');
+    expect(backend).toContain('user.founder_slot == "PRIMARY_FOUNDER"');
+    expect(backend).toContain('"OWNER" in active_roles');
     expect(backend).toContain('OfficeAuthInvite.status == "ACCEPTED"');
     expect(backend).toContain('OfficeAuthInvite.email == user.email');
     expect(backend).toContain('not payload.challenge_token.startswith(session.id + ".")');
@@ -32,12 +35,16 @@ describe("invited employee email OTP registration and sign-in", () => {
     expect(registration).toContain('Send email code');
     expect(registration).toContain('Verify email and enter Office');
   });
-  it("also supports subsequent invited MEMBER sign-ins without changing Authenticator paths", () => {
+  it("offers enrolled iPhone users either corporate email OTP or Authenticator, without modifying Satish", () => {
     expect(signin).toContain("email_otp_available");
     expect(register).toContain("email_otp_available");
     expect(login).toContain('auth.email_otp_available === true');
     expect(login).toContain('Use Authenticator approval instead');
     expect(login).toContain('verifyInvitedEmailCode');
+    expect(login).toContain('emailOtpAllowed ? (');
+    expect(login).toContain('authenticatorEnrolled ? (');
+    expect(login).toContain("Send a code to my corporate email instead");
+    expect(login).toContain("Use KRAVIA Authenticator instead");
   });
   it("preserves HttpOnly session tokens and same-origin OTP handling", () => {
     expect(route).toContain("officeMutationIsSameOrigin");
