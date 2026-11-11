@@ -66,6 +66,13 @@ export async function getRolePackageWorkspace(employeeId?: string) {
   check(selected, "Employee identity could not be verified");
   if (!selected.data) throw new OfficeRolePackageError(404, "Employee not found");
 
+  const employmentResult = await admin.from("office_employment_registry")
+    .select("employment_code,relationship_type,status,start_date,end_date,source")
+    .eq("identity_user_id", targetId)
+    .order("created_at", { ascending: false }).limit(5);
+  check(employmentResult, "Employment registry could not be verified");
+  const employment = employmentResult.data?.[0] ?? null;
+
   const applicationsQuery = admin.from("office_employee_role_package_applications")
     .select("id,package_id,employee_user_id,applied_at,applied_by,snapshot,reason")
     .eq("employee_user_id", targetId)
@@ -83,7 +90,7 @@ export async function getRolePackageWorkspace(employeeId?: string) {
   if (!manager) {
     return {
       actor: { user_id: actorId, can_manage: false },
-      employee: selected.data,
+      employee: selected.data, employment,
       applications: applications.data ?? [],
       tasks: tasks.data ?? [],
       functional_positions: functionalPositions.data ?? [],
@@ -114,7 +121,7 @@ export async function getRolePackageWorkspace(employeeId?: string) {
 
   return {
     actor: { user_id: actorId, can_manage: true, is_founder: identity.roles.includes("OWNER") },
-    employee: selected.data,
+    employee: selected.data, employment,
     applications: applications.data ?? [],
     tasks: tasks.data ?? [],
     functional_positions: functionalPositions.data ?? [],
