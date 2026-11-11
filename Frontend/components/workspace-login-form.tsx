@@ -79,16 +79,30 @@ function QrImage({ value }: { value: string }) {
 }
 
 
-function SecurityJourney({ phase }: { phase: Phase }) {
-  const active = phase === "password" ? 0 : phase === "email" || phase === "activate" || phase === "verify" || phase === "qr" ? 1 : phase === "device-approval" ? 2 : 3;
-  const steps = ["Credentials", "MFA", "Device trust", "Office"];
+function SecurityJourney({ phase, error = false }: { phase: Phase; error?: boolean }) {
+  const active = phase === "password" ? 0 : ["email", "activate", "verify", "qr"].includes(phase) ? 1 : phase === "device-approval" ? 2 : 3;
+  const steps = ["Credentials", "MFA", "Device trust", "Office"] as const;
   return (
-    <div className={styles.journey} aria-label={`Secure sign-in progress: step ${active + 1} of 4`}>
-      {steps.map((label, index) => (
-        <span key={label} data-state={index < active ? "complete" : index === active ? "current" : "upcoming"}>
-          <i aria-hidden="true">{index < active ? "✓" : index + 1}</i><b>{label}</b>
-        </span>
-      ))}
+    <div className={styles.journey} role="group" aria-label={`Secure sign-in: ${steps[active]}, step ${active + 1} of 4`}>
+      {steps.map((label, index) => {
+        const state = index < active ? "complete" : index > active ? "upcoming" : error ? "error" : "current";
+        return (
+          <span
+            key={label}
+            className={styles.journeyStep}
+            data-state={state}
+            aria-current={index === active ? "step" : undefined}
+            aria-label={index === active ? `${label}, ${error ? "needs attention" : "current"}` : `${label}, ${state === "complete" ? "completed" : "pending"}`}
+          >
+            {index === active ? (
+              <>
+                {error ? <i className={styles.journeyDot} aria-hidden="true" /> : null}
+                <b>{label}</b>
+              </>
+            ) : <i className={styles.journeyDot} aria-hidden="true" />}
+          </span>
+        );
+      })}
     </div>
   );
 }
@@ -262,13 +276,16 @@ export function WorkspaceLoginForm({
         }
         if (["REJECTED", "EXPIRED", "REVOKED"].includes(approval.status)) {
           setQrPayload(undefined);
-          setStatus(
-            approval.status === "REJECTED"
-              ? "This browser sign-in was rejected in Authenticator. It has been signed out."
-              : "This QR sign-in request has expired or is no longer available. Start again to use Authenticator approval.",
-          );
           setStatusTone("error");
-          setPhase("password");
+          if (approval.status === "REJECTED") {
+            setStatus("This browser sign-in was rejected on the trusted phone. Sign in again.");
+            setPhase("password");
+          } else {
+            // QR expiry/replacement leaves the password-only browser session intact.
+            setStatus("The QR request expired or was replaced. Use Authenticator approval to generate a new code.");
+            setPhase("verify");
+          }
+          return;
         }
       } catch (error) {
         if (!disposed) {
@@ -477,7 +494,7 @@ export function WorkspaceLoginForm({
     return (
       <form className={styles.form} onSubmit={verifyInvitedEmailCode} noValidate>
         <div className={styles.icon}><ShieldCheck /></div>
-        <SecurityJourney phase={phase} />
+        <SecurityJourney phase={phase} error={Boolean(status) && statusTone === "error"} />
         <p className={styles.eyebrow}>KRAVIA CORPORATE EMAIL OTP</p>
         <h2>Check your corporate email</h2>
         <p className={styles.intro}>
@@ -513,7 +530,7 @@ export function WorkspaceLoginForm({
     return (
       <section className={styles.form} aria-labelledby="phone-activation-title">
         <div className={styles.icon}><ShieldCheck /></div>
-        <SecurityJourney phase={phase} />
+        <SecurityJourney phase={phase} error={Boolean(status) && statusTone === "error"} />
         <p className={styles.eyebrow}>MANDATORY MFA</p>
         <h2 id="phone-activation-title">Activate your phone</h2>
         <p className={styles.intro}>
@@ -543,7 +560,7 @@ export function WorkspaceLoginForm({
     return (
       <form className={styles.form} onSubmit={verifyMfa} noValidate>
         <div className={styles.icon}><ShieldCheck /></div>
-        <SecurityJourney phase={phase} />
+        <SecurityJourney phase={phase} error={Boolean(status) && statusTone === "error"} />
         <p className={styles.eyebrow}>MANDATORY MFA</p>
         <h2>Verify your identity</h2>
         <p className={styles.intro}>Your password is correct. Complete the second factor to continue.</p>
@@ -602,7 +619,7 @@ export function WorkspaceLoginForm({
     return (
       <section className={`${styles.form} ${styles.success}`} aria-labelledby="mfa-success-title" aria-live="polite">
         <div className={styles.successIcon}><CheckCircle2 /></div>
-        <SecurityJourney phase={phase} />
+        <SecurityJourney phase={phase} error={Boolean(status) && statusTone === "error"} />
         <p className={styles.eyebrow}>IDENTITY VERIFIED</p>
         <h2 id="mfa-success-title">You’re securely signed in</h2>
         <p className={styles.intro}>Your chosen second factor was verified. We’re opening your authorised KRAVIA workspace now.</p>
@@ -618,7 +635,7 @@ export function WorkspaceLoginForm({
     return (
       <section className={`${styles.form} ${styles.qrForm}`} aria-labelledby="qr-approval-title" aria-live="polite">
         <div className={styles.icon}><Smartphone /></div>
-        <SecurityJourney phase={phase} />
+        <SecurityJourney phase={phase} error={Boolean(status) && statusTone === "error"} />
         <p className={styles.eyebrow}>AUTHENTICATOR APPROVAL</p>
         <h2 id="qr-approval-title">Confirm on your trusted phone</h2>
         <p className={styles.intro}>Scan only with KRAVIA Authenticator on your trusted phone. Review this browser, then choose Accept or Reject.</p>
@@ -634,8 +651,8 @@ export function WorkspaceLoginForm({
           <p>Scan only with KRAVIA Authenticator.</p>
         </dialog>
         <div className={styles.timer} role="timer" aria-live="polite" aria-label={secondsRemaining === null ? "QR sign-in request active" : `QR sign-in request expires in ${secondsRemaining} seconds`}>
-          <div className={styles.timerRing} style={{ "--timer-progress": `${Math.max(0, Math.min(360, (secondsRemaining ?? 0) * 6))}deg` } as CSSProperties}>
-            <span>{secondsRemaining === null ? "WAIT" : `00:${secondsRemaining.toString().padStart(2, "0")}`}</span>
+          <div className={styles.timerRing} style={{ "--timer-progress": `${Math.max(0, Math.min(360, (secondsRemaining ?? 0) * 3))}deg` } as CSSProperties}>
+            <span>{secondsRemaining === null ? "WAIT" : `${Math.floor(secondsRemaining / 60).toString().padStart(2, "0")}:${(secondsRemaining % 60).toString().padStart(2, "0")}`}</span>
           </div>
           <p>{qrBrowserLabel ? `${qrBrowserLabel} is waiting for your decision.` : "Waiting for your trusted phone."}</p>
         </div>
@@ -652,6 +669,7 @@ export function WorkspaceLoginForm({
     return (
       <section className={styles.form} aria-labelledby="device-approval-title" aria-live="polite">
         <div className={styles.icon}><ShieldCheck /></div>
+        <SecurityJourney phase={phase} error={Boolean(status) && statusTone === "error"} />
         <p className={styles.eyebrow}>NEW DEVICE PROTECTION</p>
         <h2 id="device-approval-title">Approve this browser from your email</h2>
         <p className={styles.intro}>
@@ -689,11 +707,10 @@ export function WorkspaceLoginForm({
   return (
     <form className={styles.form} onSubmit={signIn} noValidate>
       <div className={styles.icon}><KeyRound /></div>
-      <SecurityJourney phase={phase} />
+      <SecurityJourney phase={phase} error={Boolean(status) && statusTone === "error"} />
       <p className={styles.eyebrow}>{workspace === "finance" ? "KRAVIA FINANCE · OFFICIAL ACCESS" : "KRAVIA OFFICE · OFFICIAL ACCESS"}</p>
       <h2>Sign in to KRAVIA {workspace === "finance" ? "Finance" : "Office"}</h2>
-      <p className={styles.intro}>This private workspace is operated by Kravia Private Limited for authorised personnel only.</p>
-      <p className={styles.identityNotice}>Only enter a password you created for KRAVIA {workspace === "finance" ? "Finance" : "Office"} on <b>www.kraviaprivatelimited.com</b>. Kravia does not request this password by email, phone or on a third-party page.</p>
+      <p className={styles.intro}>Private workspace for authorised KRAVIA personnel.</p>
 
       {configurationRequired ? <p className={styles.alert}>Internal identity service is not active on this deployment.</p> : null}
       {reason === "mfa_required" ? <p className={styles.alert}>Complete multi-factor verification before opening this workspace.</p> : null}
@@ -746,7 +763,7 @@ export function WorkspaceLoginForm({
         <Link href="/office/recover">Recover access</Link>
         {registrationOpen ? <Link href="/office/register">Founder registration</Link> : null}
       </div>
-      <p className={styles.note}>Private access only. New users join through private, Founder-issued registration links.</p>
+      <p className={styles.note}>Only sign in at <b>www.kraviaprivatelimited.com</b>. KRAVIA never requests your password by email or phone.</p>
     </form>
   );
 }

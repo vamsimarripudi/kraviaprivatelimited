@@ -27,14 +27,14 @@
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",
-    "expo": "~57.0.27",
+    "expo": "~57.0.32",
     "expo-camera": "~57.0.6",
     "expo-file-system": "~57.0.7",
     "expo-haptics": "~57.0.3",
     "expo-local-authentication": "~57.0.3",
     "expo-screen-capture": "~57.0.4",
     "expo-secure-store": "~57.0.4",
-    "expo-splash-screen": "~57.0.9",
+    "expo-splash-screen": "~57.0.11",
     "react": "19.2.3",
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0"
@@ -44,6 +44,7 @@
     "@types/react": "~19.2.2",
     "typescript": "~6.0.3",
     "vitest": "4.1.11",
-    "yaml": "2.9.1"
+    "yaml": "2.9.1",
+    "vite": "8.3.8"
   }
 }

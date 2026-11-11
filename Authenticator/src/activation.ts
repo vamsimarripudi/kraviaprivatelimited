@@ -363,7 +363,7 @@ export async function checkDeviceApproval(pending: PendingDeviceApproval) {
   return result;
 }
 
-export async function completeDeviceApproval(pending: PendingDeviceApproval) {
+export async function completeDeviceApproval(pending: Pick<PendingDeviceApproval, "approvalId" | "deviceProof">) {
   return toSession(
     await requestJson<ActiveSessionResponse>(
       "/api/v1/auth/device-approvals/complete",

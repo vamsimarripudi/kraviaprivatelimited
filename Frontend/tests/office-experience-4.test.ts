@@ -22,7 +22,7 @@ describe("KRAVIA Office Experience 4.0 foundation", () => {
   it("keeps the complete security journey visible across sign-in phases", () => {
     const login = read("components/workspace-login-form.tsx");
     expect(login).toContain('const steps = ["Credentials", "MFA", "Device trust", "Office"]');
-    expect(login).toContain("<SecurityJourney phase={phase} />");
+    expect(login).toContain('<SecurityJourney phase={phase} error={Boolean(status) && statusTone === "error"} />');
     expect(login).toContain('type Phase = "password" | "email" | "activate" | "verify" | "qr" | "device-approval" | "success"');
   });
 

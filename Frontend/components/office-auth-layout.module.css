@@ -55,8 +55,17 @@
   .mobileBrand b { font-size: 9px; white-space: nowrap; }
   .mobileBrand :global(.brand-logo img) { width: 28px; height: 29px; }
   .card {
-    flex: 1 1 auto; min-height: 0; max-height: none; margin-top: 0;
-    overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+    /* Natural-height card removes the empty white panel seen on iOS.
+       If the keyboard, landscape or accessibility zoom reduces the viewport,
+       the card alone remains scrollable instead of hiding form controls. */
+    flex: 0 1 auto;
+    min-height: 0;
+    max-height: calc(100dvh - 80px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    margin: clamp(5px, 1.5dvh, 14px) 0 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
   .copyright {
     position: static; flex: 0 0 auto; margin: 7px 0 0;
