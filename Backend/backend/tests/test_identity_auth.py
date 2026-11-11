@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlsplit
 
 import pyotp
@@ -1005,6 +1005,8 @@ def test_trusted_authenticator_qr_approval_promotes_only_the_original_browser(tm
         # Scan before the 120-second capability expires, but allow enough time
         # for human review and biometrics after the original QR window.
         qr_expires_at = datetime.fromisoformat(qr_body["expires_at"])
+        if qr_expires_at.tzinfo is None:
+            qr_expires_at = qr_expires_at.replace(tzinfo=timezone.utc)
         server_time = {"now": qr_expires_at - timedelta(seconds=20)}
         monkeypatch.setattr(identity_auth, "_now", lambda: server_time["now"])
 
