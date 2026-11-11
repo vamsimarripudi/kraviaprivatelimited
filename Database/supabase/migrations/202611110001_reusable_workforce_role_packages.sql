@@ -302,6 +302,8 @@ begin
     select 1 from public.office_department_ownership o where o.department_code=tmpl.department_code
       and o.owner_user_id=p_actor
   ) then raise exception 'Only the accepted department owner may delegate this package'; end if;
+  if p_actor=p_target then
+    raise exception 'Department head cannot change their own assigned job or permissions'; end if;
   if not exists(
     select 1 from public.office_identity_users i where i.user_id=p_target
       and i.status='ACTIVE' and i.primary_department=tmpl.department_code
