@@ -1,6 +1,17 @@
 -- Run only in ephemeral CI PostgreSQL, after fixtures + migrations.
 -- Test transaction never commits actual pay, policies or ownership transfers.
 begin;
+-- The wage settlement trigger helper must never become a public RPC again.
+do $trigger_acl$
+begin
+  if has_function_privilege('anon','public.office_salary_settlement_immutable_after_review()','EXECUTE')
+    or has_function_privilege('authenticated','public.office_salary_settlement_immutable_after_review()','EXECUTE') then
+    raise exception 'Payroll settlement trigger helper must not be executable by public API roles';
+  end if;
+  if not has_function_privilege('service_role','public.office_salary_settlement_immutable_after_review()','EXECUTE') then
+    raise exception 'Service role lost salary settlement trigger helper access';
+  end if;
+end $trigger_acl$;
 do $$
 declare
   founder uuid := 'f0000000-0000-4000-8000-000000000001';

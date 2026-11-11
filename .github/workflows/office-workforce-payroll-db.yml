@@ -5,6 +5,7 @@ on:
       - 'Database/supabase/migrations/202611100001_permanent_department_ownership.sql'
       - 'Database/supabase/migrations/202611100002_worktime_salary_evidence.sql'
       - 'Database/supabase/migrations/202611100003_flex_day_credits.sql'
+      - 'Database/supabase/migrations/202611110002_harden_salary_settlement_trigger_execute.sql'
       - 'Database/supabase/tests/workforce-release-*.sql'
       - '.github/workflows/office-workforce-payroll-db.yml'
   workflow_dispatch:
@@ -49,6 +50,7 @@ jobs:
           pg -f Database/supabase/migrations/202611100001_permanent_department_ownership.sql
           pg -f Database/supabase/migrations/202611100002_worktime_salary_evidence.sql
           pg -f Database/supabase/migrations/202611100003_flex_day_credits.sql
+          pg -f Database/supabase/migrations/202611110002_harden_salary_settlement_trigger_execute.sql
           test "$(pg --tuples-only --no-align \
             -f Database/supabase/tests/workforce-release-smoke.sql | tail -n 1)" = "WORKFORCE_MIGRATIONS_VERIFIED"
           echo "All isolated Office workforce/payroll SQL migrations and business flows passed."
