@@ -135,16 +135,14 @@ begin
   select exists(select 1 from public.office_user_roles
     where user_id=p_actor and role='OWNER'
       and (expires_at is null or expires_at>now())) into founder;
-  if not founder and not exists(select 1 from public.office_user_roles
-    where user_id=p_actor and role='ADMIN'
-      and (expires_at is null or expires_at>now())) then return false; end if;
-  if not public.office_effective_permission(p_actor,'access.profile.assign','COMPANY',null,null)
-    then return false; end if;
   select owner_user_id into current_owner from public.office_department_ownership
     where department_code=p_department;
-  if current_owner is not null and current_owner<>p_actor then return false; end if;
-  if current_owner is null and not founder then return false; end if;
-  return true;
+  -- Transfer is an explicit permanent management delegation: the accepted
+  -- department head controls only that department, even with MEMBER base role.
+  if current_owner is not null then return current_owner=p_actor; end if;
+  -- Before a transfer, all unowned departments remain Founder-managed.
+  if not founder then return false; end if;
+  return public.office_effective_permission(p_actor,'access.profile.assign','COMPANY',null,null);
 end; $func$;
 
 create or replace function public.office_role_package_create(
@@ -201,6 +199,23 @@ begin
     if not exists(select 1 from public.office_access_profile_catalog
          where code=item->>'profile_code' and active=true) then
       raise exception 'Unknown access profile in package'; end if;
+    if not exists(select 1 from public.office_user_roles r
+      where r.user_id=p_actor and r.role='OWNER'
+        and (r.expires_at is null or r.expires_at>now())) then
+      if item->>'scope_type'<>'DEPARTMENT' or item->>'scope_key'<>p_department then
+        raise exception 'Delegated department heads can package only their department-scoped access'; end if;
+      if exists(
+        select 1 from public.office_access_profile_catalog ap
+        where ap.code=item->>'profile_code'
+          and (ap.owner_managed_only or not ap.assignable_by_admin)
+      ) or exists(
+        select 1 from public.office_access_profile_permissions pp
+        join public.office_permission_catalog permission on permission.code=pp.permission_code
+        where pp.profile_code=item->>'profile_code' and pp.effect='ALLOW'
+          and (permission.high_risk or permission.sensitivity in ('HIGH','CRITICAL')
+            or public.office_department_for_permission(permission.code) is distinct from p_department)
+      ) then raise exception 'Delegated package cannot include reserved or cross-department permissions'; end if;
+    end if;
     if item->>'scope_type' not in
       ('DEPARTMENT','TEAM','PRODUCT','PROJECT','REPOSITORY','COST_CENTER','COMPANY','OWN')
       then raise exception 'Invalid access scope'; end if;
@@ -273,19 +288,112 @@ begin
   return 'ACTIVE';
 end; $func$;
 
+-- Controlled delegation path for a department head with a basic MEMBER role.
+-- Never expand global actor_can_administer_target: doing so would elevate the
+-- caller across unrelated Office administration. Only this service-role RPC
+-- invokes this helper and rechecks the exact owned department and recipient.
+create or replace function public.office_role_package_assign_by_department_head(
+  p_actor uuid,p_target uuid,p_package uuid,p_reason text
+) returns boolean language plpgsql security definer set search_path='' as $func$
+declare tmpl public.office_role_packages%rowtype; item jsonb; saved_id uuid;
+begin
+  select * into tmpl from public.office_role_packages where id=p_package and status='ACTIVE';
+  if not found or not exists(
+    select 1 from public.office_department_ownership o where o.department_code=tmpl.department_code
+      and o.owner_user_id=p_actor
+  ) then raise exception 'Only the accepted department owner may delegate this package'; end if;
+  if not exists(
+    select 1 from public.office_identity_users i where i.user_id=p_target
+      and i.status='ACTIVE' and i.primary_department=tmpl.department_code
+  ) then raise exception 'Recipient must already be verified in the assigned department'; end if;
+  if exists(select 1 from public.office_user_roles r
+       where r.user_id=p_target and r.role in ('OWNER','ADMIN','DIRECTOR')
+        and (r.expires_at is null or r.expires_at>now())) then
+    raise exception 'Delegated owner cannot change privileged employee roles'; end if;
+  if exists(select 1 from public.office_position_catalog p
+       where p.code=tmpl.primary_position_code and (p.family='EXECUTIVE' or p.level>=8)) then
+    raise exception 'Delegated owner cannot appoint executives or department heads'; end if;
+  -- One department only, low-risk predefined profiles only.
+  for item in select value from jsonb_array_elements(tmpl.access_profiles) loop
+    if item->>'scope_type'<>'DEPARTMENT' or item->>'scope_key'<>tmpl.department_code then
+      raise exception 'Cross-department package profile is forbidden for a department head'; end if;
+    if exists(select 1 from public.office_access_profile_catalog ap
+      where ap.code=item->>'profile_code' and
+        (not ap.active or ap.owner_managed_only or not ap.assignable_by_admin)) then
+      raise exception 'Restricted profile cannot be delegated by a department head'; end if;
+    if exists(select 1 from public.office_access_profile_permissions pp
+      join public.office_permission_catalog permission on permission.code=pp.permission_code
+      where pp.profile_code=item->>'profile_code' and pp.effect='ALLOW' and
+       (permission.high_risk or permission.sensitivity in ('HIGH','CRITICAL')
+        or public.office_department_for_permission(permission.code) is distinct from tmpl.department_code)) then
+      raise exception 'Cross-department or high-risk permission cannot be delegated'; end if;
+  end loop;
+  insert into public.office_job_assignments
+    (user_id,position_code,department_code,reports_to_user_id,team_key,
+     product_key,employment_type,status,assigned_by,updated_at)
+  values(p_target,tmpl.primary_position_code,tmpl.department_code,p_actor,null,null,
+         tmpl.employment_type,'ACTIVE',p_actor,now())
+  on conflict(user_id) do update set position_code=excluded.position_code,
+    department_code=excluded.department_code,reports_to_user_id=p_actor,
+    employment_type=excluded.employment_type,status='ACTIVE',
+    assigned_by=p_actor,updated_at=now();
+  update public.office_identity_users set primary_department=tmpl.department_code,
+    job_title=(select label from public.office_position_catalog where code=tmpl.primary_position_code),
+    updated_at=now() where user_id=p_target;
+  insert into public.office_access_audit(actor_user_id,actor_roles,target_user_id,
+    action,department,reason,metadata)
+  select p_actor,coalesce((select array_agg(r.role order by r.role)
+    from public.office_user_roles r where r.user_id=p_actor
+      and (r.expires_at is null or r.expires_at>now())),array[]::text[]),
+    p_target,'JOB_ASSIGNMENT_CHANGED',tmpl.department_code,p_reason,
+    jsonb_build_object('position',tmpl.primary_position_code,'delegate','ACCEPTED_DEPARTMENT_OWNER');
+  for item in select value from jsonb_array_elements(tmpl.access_profiles) loop
+    select id into saved_id from public.office_user_access_profiles
+      where user_id=p_target and profile_code=item->>'profile_code'
+        and scope_type='DEPARTMENT' and scope_key=tmpl.department_code
+      limit 1 for update;
+    if saved_id is null then
+      insert into public.office_user_access_profiles
+        (user_id,profile_code,scope_type,scope_key,status,granted_by,grant_reason,expires_at)
+      values(p_target,item->>'profile_code','DEPARTMENT',tmpl.department_code,
+        'ACTIVE',p_actor,p_reason,null);
+    else
+      update public.office_user_access_profiles set status='ACTIVE',
+        granted_by=p_actor,grant_reason=p_reason,expires_at=null,updated_at=now()
+      where id=saved_id;
+    end if;
+    insert into public.office_access_audit(actor_user_id,actor_roles,target_user_id,
+      action,department,reason,metadata)
+    select p_actor,coalesce((select array_agg(r.role order by r.role)
+      from public.office_user_roles r where r.user_id=p_actor
+       and (r.expires_at is null or r.expires_at>now())),array[]::text[]),
+      p_target,'PROFILE_ASSIGNED',tmpl.department_code,p_reason,
+      jsonb_build_object('profile',item->>'profile_code','scope_type','DEPARTMENT',
+        'scope_key',tmpl.department_code,'delegate','ACCEPTED_DEPARTMENT_OWNER');
+    saved_id:=null;
+  end loop;
+  return true;
+end; $func$;
+
 create or replace function public.office_role_package_apply(
   p_actor uuid,p_target uuid,p_package uuid,p_reason text
 ) returns uuid language plpgsql security definer set search_path='' as $func$
 declare tmpl public.office_role_packages%rowtype; item jsonb; rec record;
-  existing uuid; application uuid; snapshot jsonb;
+  existing uuid; application uuid; snapshot jsonb; global_admin boolean;
 begin
   if length(btrim(coalesce(p_reason,''))) not between 12 and 500
     then raise exception 'An accountable assignment reason is required'; end if;
   select * into tmpl from public.office_role_packages where id=p_package and status='ACTIVE';
   if not found then raise exception 'Published package not available'; end if;
-  if not public.office_role_package_authorised(p_actor,tmpl.department_code)
-     or not public.office_actor_can_administer_target(p_actor,p_target) then
-    raise exception 'Current trusted workforce administrator authority required'; end if;
+  if not public.office_role_package_authorised(p_actor,tmpl.department_code) then
+    raise exception 'Current department authority required'; end if;
+  global_admin:=public.office_actor_can_administer_target(p_actor,p_target);
+  if not global_admin and not exists(
+    select 1 from public.office_department_ownership o
+    join public.office_identity_users i on i.user_id=p_target
+    where o.department_code=tmpl.department_code and o.owner_user_id=p_actor
+      and i.status='ACTIVE' and i.primary_department=tmpl.department_code
+  ) then raise exception 'Head can manage only already-allocated staff in their department'; end if;
   if not exists(select 1 from public.office_identity_users where user_id=p_target and status='ACTIVE')
      then raise exception 'Recipient must have accepted and activated their Office account'; end if;
   if exists(select 1 from public.office_user_roles where user_id=p_target and role='OWNER'
@@ -308,14 +416,18 @@ begin
       public.office_role_package_authorised(p_actor,item->>'scope_key') then
       raise exception 'Access-profile scope was transferred to a different owner'; end if;
   end loop;
-  if not public.office_assign_job(p_actor,p_target,tmpl.primary_position_code,tmpl.department_code,
-      null,null,null,tmpl.employment_type,p_reason) then
-    raise exception 'Canonical job assignment rejected'; end if;
-  for item in select value from jsonb_array_elements(tmpl.access_profiles) loop
-    perform public.office_assign_access_profile(p_actor,p_target,
-      item->>'profile_code',item->>'scope_type',nullif(item->>'scope_key',''),
-      p_reason || ' · ' || tmpl.code || ' v' || tmpl.version::text,null);
-  end loop;
+  if global_admin then
+    -- Continue using the existing audited canonical mutations for Founder.
+    if not public.office_assign_job(p_actor,p_target,tmpl.primary_position_code,tmpl.department_code,
+        null,null,null,tmpl.employment_type,p_reason) then
+      raise exception 'Canonical job assignment rejected'; end if;
+    for item in select value from jsonb_array_elements(tmpl.access_profiles) loop
+      perform public.office_assign_access_profile(p_actor,p_target,
+        item->>'profile_code',item->>'scope_type',nullif(item->>'scope_key',''),
+        p_reason || ' · ' || tmpl.code || ' v' || tmpl.version::text,null);
+    end loop;
+  elsif not public.office_role_package_assign_by_department_head(p_actor,p_target,tmpl.id,p_reason)
+    then raise exception 'Scoped delegated package assignment was rejected'; end if;
   snapshot:=jsonb_build_object(
     'code',tmpl.code,'version',tmpl.version,'label',tmpl.label,
     'department_code',tmpl.department_code,'primary_position_code',tmpl.primary_position_code,
@@ -417,6 +529,7 @@ revoke all on function public.office_role_package_protect_evidence() from public
 revoke all on function public.office_role_package_authorised(uuid,text) from public,anon,authenticated;
 revoke all on function public.office_role_package_create(uuid,text,text,text,text,text,text,jsonb,jsonb,jsonb,jsonb,jsonb) from public,anon,authenticated;
 revoke all on function public.office_role_package_publish(uuid,uuid) from public,anon,authenticated;
+revoke all on function public.office_role_package_assign_by_department_head(uuid,uuid,uuid,text) from public,anon,authenticated;
 revoke all on function public.office_role_package_apply(uuid,uuid,uuid,text) from public,anon,authenticated;
 revoke all on function public.office_role_package_apply_many(uuid,uuid[],uuid,text) from public,anon,authenticated;
 revoke all on function public.office_role_package_task_decide(uuid,uuid,text,text,text) from public,anon,authenticated;
