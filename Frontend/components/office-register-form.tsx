@@ -6,6 +6,14 @@ import { ArrowRight, Check, Eye, EyeOff, LoaderCircle, LockKeyhole, ShieldCheck,
 import { useRouter } from "next/navigation";
 import styles from "./office-register-form.module.css";
 
+type InvitedEmailChallenge = {
+  challenge_id: string;
+  challenge_token: string;
+  email: string;
+  expires_at: string;
+  resend_available_at: string;
+};
+
 type Props = {
   mode: "founder" | "invite";
   inviteToken?: string;
@@ -34,7 +42,8 @@ export function OfficeRegisterForm({ mode, inviteToken, email: presetEmail = "",
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [phase, setPhase] = useState<"register" | "mfa">("register");
+  const [phase, setPhase] = useState<"register" | "mfa" | "email">("register");
+  const [emailChallenge, setEmailChallenge] = useState<InvitedEmailChallenge>();
   const [code, setCode] = useState("");
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<string>();
@@ -65,8 +74,20 @@ export function OfficeRegisterForm({ mode, inviteToken, email: presetEmail = "",
         : { mode, token: inviteToken, display_name: displayName.trim(), password });
       setPassword("");
       setConfirm("");
-      setPhase("mfa");
-      setStatus("Registration complete. Open Authenticator and sign in with the credentials you just created to request this phone.");
+      if (mode === "invite") {
+        setPhase("email");
+        setStatus("Your account was created. Sending a one-time code to your registered corporate email…");
+        try {
+          const challenge = await json<InvitedEmailChallenge>("/api/office-auth/invited-email", { action: "request" });
+          setEmailChallenge(challenge);
+          setStatus("Verification code sent to " + challenge.email + ". Check your inbox.");
+        } catch (emailError) {
+          setStatus((emailError instanceof Error ? emailError.message : "Email delivery could not be confirmed.") + " Your account is saved. You can retry sending the code.");
+        }
+      } else {
+        setPhase("mfa");
+        setStatus("Registration complete. Activate KRAVIA Authenticator to continue.");
+      }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Registration failed.");
     } finally {
@@ -83,7 +104,15 @@ export function OfficeRegisterForm({ mode, inviteToken, email: presetEmail = "",
     setPending(true);
     setStatus(undefined);
     try {
-      await json("/api/office-auth/mfa", { action: "verify", code });
+      if (mode === "invite") {
+        if (!emailChallenge) throw new Error("Request an email verification code first.");
+        await json("/api/office-auth/invited-email", {
+          action: "verify", challenge_id: emailChallenge.challenge_id,
+          challenge_token: emailChallenge.challenge_token, code,
+        });
+      } else {
+        await json("/api/office-auth/mfa", { action: "verify", code });
+      }
       router.replace("/office/dashboard");
       router.refresh();
     } catch (error) {
@@ -91,6 +120,46 @@ export function OfficeRegisterForm({ mode, inviteToken, email: presetEmail = "",
     } finally {
       setPending(false);
     }
+  }
+
+  async function resendEmailOtp() {
+    setPending(true);
+    setStatus("Requesting a new email verification code…");
+    try {
+      const challenge = await json<InvitedEmailChallenge>("/api/office-auth/invited-email", { action: "request" });
+      setEmailChallenge(challenge);
+      setCode("");
+      setStatus("A new code was sent to " + challenge.email + ". Previous codes will not work.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to resend the email verification code.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  if (phase === "email") {
+    return <form className={styles.form} onSubmit={verify}>
+      <div className={styles.icon}><ShieldCheck /></div>
+      <p className={styles.eyebrow}>EMAIL VERIFICATION</p>
+      <h2>Check your corporate email</h2>
+      <p className={styles.intro}>We send a single-use six-digit code to <b>{email || "your invited email address"}</b>. Enter that code below to complete your invited employee sign-in. No Authenticator setup is needed for this basic employee access.</p>
+      <label className={styles.field}>Email verification code
+        <input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}"
+          placeholder="6-digit code" maxLength={6} value={code}
+          onChange={event => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+        />
+      </label>
+      {emailChallenge ? <p className={styles.note}>Code expires at {new Date(emailChallenge.expires_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}. Maximum five attempts.</p> : null}
+      {status ? <p className={styles.status} role="status">{status}</p> : null}
+      <button className={styles.primary} type="submit" disabled={pending || !emailChallenge || code.length !== 6}>
+        {pending ? <LoaderCircle className={styles.spin}/> : <ShieldCheck/>} Verify email and enter Office
+      </button>
+      <button className={styles.secondary} type="button" disabled={pending} onClick={() => void resendEmailOtp()}>
+        {emailChallenge ? "Resend code to my email" : "Send email verification code"}
+      </button>
+      <p className={styles.note}>For privileged Office roles, an approved Authenticator factor is still required.</p>
+      <p className={styles.note}>Already finished registration? <Link href="/office/login">Return to sign in</Link></p>
+    </form>;
   }
 
   if (phase === "mfa") {
