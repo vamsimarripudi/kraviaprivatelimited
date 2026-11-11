@@ -130,6 +130,13 @@ begin
    where a.actor_user_id=recipient and a.target_user_id=employee
       and a.action='PROFILE_ASSIGNED' and a.department='ENGINEERING'
  ) then raise exception 'Delegated Engineer owner did not produce audited scoped assignment'; end if;
+ select id into task from public.office_role_package_onboarding_tasks
+   where application_id=delegated_application and task_code='IDENTITY_VERIFIED';
+ if public.office_role_package_task_decide(employee,task,'SUBMIT','EMPLOYEE-EVIDENCE-DELEGATED',null)<>'SUBMITTED'
+   then raise exception 'Employee could not submit to delegated department owner'; end if;
+ if public.office_role_package_task_decide(recipient,task,'VERIFY',null,
+     'Existing verified identity evidence independently reviewed')<>'VERIFIED' then
+   raise exception 'Department head could not approve own team evidence'; end if;
  if (select position_code from public.office_job_assignments where user_id=employee)<>'FRONTEND_DEV'
     then raise exception 'Delegated job write did not update primary position'; end if;
  if exists(select 1 from public.office_user_roles r where r.user_id=recipient
