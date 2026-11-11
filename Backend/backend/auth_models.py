@@ -244,6 +244,7 @@ class OfficeEmailOtpChallenge(Base):
     code_hash = Column(String(64), nullable=False)
     status = Column(String(24), nullable=False, default="PENDING")
     channel = Column(String(48), nullable=False)
+    browser_session_id = Column(String(36), nullable=True)
     attempt_count = Column(Integer, nullable=False, default=0)
     delivery_attempt_count = Column(Integer, nullable=False, default=0)
     provider_message_id = Column(String(320), nullable=True)
