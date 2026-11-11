@@ -230,6 +230,14 @@ begin
   if (select count(distinct value->>'code') from jsonb_array_elements(p_steps))
       <>jsonb_array_length(p_steps) then
     raise exception 'Onboarding step codes must be unique'; end if;
+  if p_employment='EMPLOYEE' and exists(
+    select 1 from (values ('IDENTITY_VERIFIED'),('APPOINTMENT_SIGNED'),
+      ('POLICIES_ACKNOWLEDGED'),('BANK_DETAILS_REVIEWED')) as mandatory(code)
+    where not exists(
+      select 1 from jsonb_array_elements(p_steps) task
+      where task->>'code'=mandatory.code and task->>'required'='true'
+    )
+  ) then raise exception 'Employee packages require identity, signed appointment, policies and bank verification'; end if;
   if (select count(distinct ((value->>'profile_code')||':'||(value->>'scope_type')||':'||coalesce(value->>'scope_key','')))
       from jsonb_array_elements(p_profiles)) <> jsonb_array_length(p_profiles)
       then raise exception 'Duplicate access profile grants in package'; end if;
