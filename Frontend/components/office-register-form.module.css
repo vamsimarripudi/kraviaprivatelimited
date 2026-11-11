@@ -7,3 +7,23 @@
 .requirements{border-radius:13px!important;background:rgba(249,244,234,.8)!important}.requirements[data-ready=true]{background:rgba(237,247,241,.86)!important}
 .status{border-radius:13px!important}.primary{min-height:48px!important;border-radius:13px!important;background:linear-gradient(135deg,#10271d,#245f49)!important;box-shadow:0 12px 26px rgba(18,70,50,.16)!important;transition:transform 150ms ease,box-shadow 150ms ease}.primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 17px 32px rgba(18,70,50,.2)!important}
 @media(prefers-reduced-motion:reduce){.field input,.primary{transition:none}.field input:focus,.primary:hover:not(:disabled){transform:none}}
+
+/* Existing invited staff may request another bounded email code. Keep this
+   action visually secondary to verification and available on mobile. */
+.secondary {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(41, 96, 80, 0.3);
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+.secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+.secondary:focus-visible { outline: 3px solid #2f836b; outline-offset: 3px; }
