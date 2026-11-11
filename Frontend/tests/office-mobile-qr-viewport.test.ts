@@ -9,7 +9,8 @@ describe("KRAVIA mobile Office sign-in viewport", () => {
     const css = read("components/office-auth-layout.module.css");
     expect(css).toContain("Mobile viewport frame:");
     expect(css).toContain("max-height: 100dvh; overflow: hidden;");
-    expect(css).toContain("overflow-x: hidden; overflow-y: auto;");
+    expect(css).toContain("overflow-x: hidden;");
+    expect(css).toContain("overflow-y: auto;");
     expect(css).toContain("env(safe-area-inset-bottom)");
   });
 
