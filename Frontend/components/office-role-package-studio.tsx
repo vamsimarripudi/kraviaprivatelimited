@@ -154,6 +154,22 @@ export function OfficeRolePackageStudio({ view = "admin" }: { view?: "admin" | "
     setStepDraft({ code: "", label: "", required: true });
   }
 
+  function cloneVersion(template: Template) {
+    setDraft({
+      code: template.code, label: template.label, description: template.description || "",
+      department: template.department_code, position: template.primary_position_code,
+      employmentType: template.employment_type, responsibilities: (template.responsibilities || []).join("\n"),
+    });
+    setGrants(template.access_profiles || []);
+    setExtraRoles(template.additional_roles || []);
+    setSteps(template.onboarding_steps || standardSteps);
+    setPattern(template.work_pattern || defaultPattern);
+    setGrantDraft({ profile_code: "", scope_type: "DEPARTMENT", scope_key: template.department_code });
+    setExtraDraft({ position_code: "", department_code: "" });
+    setError("");
+    setCreateOpen(true);
+  }
+
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const ok = await mutate({ action: "CREATE", draft: {
@@ -164,7 +180,11 @@ export function OfficeRolePackageStudio({ view = "admin" }: { view?: "admin" | "
       responsibilities: draft.responsibilities.split("\n").map(s => s.trim()).filter(Boolean),
       additionalRoles: extraRoles, profiles: grants, steps, workPattern: pattern,
     } }, "Versioned role package saved as draft. No employee or permission was changed.");
-    if (ok) { setCreateOpen(false); setDraft({ code: "", label: "", description: "", department: "", position: "", employmentType: "EMPLOYEE", responsibilities: "" }); }
+    if (ok) {
+      setCreateOpen(false);
+      setDraft({ code: "", label: "", description: "", department: "", position: "", employmentType: "EMPLOYEE", responsibilities: "" });
+      setGrants([]); setExtraRoles([]); setSteps(standardSteps); setPattern(defaultPattern);
+    }
   }
   async function apply(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -282,6 +302,7 @@ export function OfficeRolePackageStudio({ view = "admin" }: { view?: "admin" | "
             <div className={styles.actions}><span data-status={t.status}>{t.status}</span>
               {t.status === "DRAFT" ? <button type="button" disabled={busy} onClick={() => void mutate({ action:"PUBLISH",packageId:t.id },"Published reusable package; no employee changed.")}>Publish</button> :
                 t.status === "ACTIVE" ? <button type="button" disabled={busy} onClick={() => {setApplyTemplate(t.id);setReason("");}}>Assign</button> : null}
+              <button type="button" disabled={busy} onClick={() => cloneVersion(t)}>New version</button>
             </div></div>) : <p className={styles.empty}>No reusable packages yet. Create one from your existing departments, positions and access profiles.</p>}
         </article>
         <article className={styles.panel}>
