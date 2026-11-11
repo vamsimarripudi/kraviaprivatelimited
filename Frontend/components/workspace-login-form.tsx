@@ -360,7 +360,7 @@ export function WorkspaceLoginForm({
 
   async function verifyInvitedEmailOtp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!emailOtp || !/^\\d{6}$/.test(code)) {
+    if (!emailOtp || !/^[0-9]{6}$/.test(code)) {
       setStatus("Request a code and enter the six digits sent to your corporate email.");
       setStatusTone("error");
       return;
