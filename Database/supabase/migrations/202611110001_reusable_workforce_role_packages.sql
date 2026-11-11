@@ -270,6 +270,46 @@ begin
   return new_id;
 end; $func$;
 
+-- Revalidate at PUBLISH and APPLY, not merely when a draft was created.
+-- A newly delegated department head must not publish an old Founder draft
+-- containing company/cross-department/high-risk privileges.
+create or replace function public.office_role_package_scope_safe(
+  p_actor uuid,p_package uuid
+) returns boolean language plpgsql stable security definer set search_path='' as $func$
+declare tmpl public.office_role_packages%rowtype; item jsonb;
+begin
+  select * into tmpl from public.office_role_packages where id=p_package;
+  if not found or not public.office_role_package_authorised(p_actor,tmpl.department_code)
+    then return false; end if;
+  if exists(select 1 from public.office_user_roles r where r.user_id=p_actor
+     and r.role='OWNER' and (r.expires_at is null or r.expires_at>now()))
+     then return true; end if;
+  if exists(select 1 from public.office_position_catalog p
+     where p.code=tmpl.primary_position_code and (p.family='EXECUTIVE' or p.level>=8))
+     then return false; end if;
+  for item in select value from jsonb_array_elements(tmpl.additional_roles) loop
+    if item->>'department_code'<>tmpl.department_code or exists(
+      select 1 from public.office_position_catalog p
+      where p.code=item->>'position_code' and (p.family='EXECUTIVE' or p.level>=8)
+    ) then return false; end if;
+  end loop;
+  for item in select value from jsonb_array_elements(tmpl.access_profiles) loop
+    if item->>'scope_type'<>'DEPARTMENT' or item->>'scope_key'<>tmpl.department_code
+      or not exists(
+         select 1 from public.office_access_profile_catalog ap
+         where ap.code=item->>'profile_code' and ap.active and ap.assignable_by_admin
+           and not ap.owner_managed_only
+      ) or exists(
+         select 1 from public.office_access_profile_permissions pp
+         join public.office_permission_catalog p on p.code=pp.permission_code
+         where pp.profile_code=item->>'profile_code' and pp.effect='ALLOW'
+           and (p.high_risk or p.sensitivity in ('HIGH','CRITICAL')
+             or public.office_department_for_permission(p.code) is distinct from tmpl.department_code)
+      ) then return false; end if;
+  end loop;
+  return true;
+end; $func$;
+
 create or replace function public.office_role_package_publish(
   p_actor uuid,p_package uuid
 ) returns text language plpgsql security definer set search_path='' as $func$
@@ -278,7 +318,8 @@ begin
   select * into tmpl from public.office_role_packages where id=p_package for update;
   if not found or tmpl.status<>'DRAFT' then raise exception 'Only a draft package can be published'; end if;
   if not public.office_role_package_authorised(p_actor,tmpl.department_code)
-    then raise exception 'Current department authority required'; end if;
+    or not public.office_role_package_scope_safe(p_actor,tmpl.id) then
+    raise exception 'Current scoped department authority and safe package required'; end if;
   -- New role-template versions never silently replace an active template.
   update public.office_role_packages set status='RETIRED' where code=tmpl.code and status='ACTIVE';
   update public.office_role_packages set status='ACTIVE',published_by=p_actor,
@@ -387,8 +428,9 @@ begin
     then raise exception 'An accountable assignment reason is required'; end if;
   select * into tmpl from public.office_role_packages where id=p_package and status='ACTIVE';
   if not found then raise exception 'Published package not available'; end if;
-  if not public.office_role_package_authorised(p_actor,tmpl.department_code) then
-    raise exception 'Current department authority required'; end if;
+  if not public.office_role_package_authorised(p_actor,tmpl.department_code)
+    or not public.office_role_package_scope_safe(p_actor,tmpl.id) then
+    raise exception 'Current scoped department authority and safe package required'; end if;
   global_admin:=public.office_actor_can_administer_target(p_actor,p_target);
   if not global_admin and not exists(
     select 1 from public.office_department_ownership o
@@ -538,6 +580,7 @@ revoke all on function public.office_role_package_protect_evidence() from public
 revoke all on function public.office_role_package_authorised(uuid,text) from public,anon,authenticated;
 revoke all on function public.office_role_package_create(uuid,text,text,text,text,text,text,jsonb,jsonb,jsonb,jsonb,jsonb) from public,anon,authenticated;
 revoke all on function public.office_role_package_publish(uuid,uuid) from public,anon,authenticated;
+revoke all on function public.office_role_package_scope_safe(uuid,uuid) from public,anon,authenticated;
 revoke all on function public.office_role_package_assign_by_department_head(uuid,uuid,uuid,text) from public,anon,authenticated;
 revoke all on function public.office_role_package_apply(uuid,uuid,uuid,text) from public,anon,authenticated;
 revoke all on function public.office_role_package_apply_many(uuid,uuid[],uuid,text) from public,anon,authenticated;
