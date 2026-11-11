@@ -83,6 +83,9 @@ class OfficeAuthSession(Base):
     # A mobile email-verification session can authorize only Authenticator
     # activation. It must never be accepted as a general Office web session.
     purpose = Column(String(48), nullable=False, default="OFFICE")
+    # Invite-only mailbox verification is tracked separately from phone TOTP.
+    # The authority boundary revokes this session if its roles become elevated.
+    email_otp_verified_at = Column(DateTime(timezone=True), nullable=True)
     mfa_failed_attempts = Column(Integer, nullable=False, default=0)
     ip_address = Column(String(64), nullable=True)
     user_agent_hash = Column(String(64), nullable=True)
