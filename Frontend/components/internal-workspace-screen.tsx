@@ -29,6 +29,7 @@ const OfficeNavLink = dynamic(() => import("@/components/office-nav-link").then(
 const AccessGovernancePanel = dynamic(() => import("@/components/access-governance-panel").then((module) => module.AccessGovernancePanel), { loading: ModuleLoading });
 const WorkforceAdministrationPanel = dynamic(() => import("@/components/workforce-administration-panel").then((module) => module.WorkforceAdministrationPanel), { loading: ModuleLoading });
 const OfficeDepartmentHandover = dynamic(() => import("@/components/office-department-handover").then((module) => module.OfficeDepartmentHandover), { loading: ModuleLoading });
+const OfficeRolePackageStudio = dynamic(() => import("@/components/office-role-package-studio").then((module) => module.OfficeRolePackageStudio), { loading: ModuleLoading });
 const WorkforceLiveOverview = dynamic(() => import("@/components/workforce-live-overview").then((module) => module.WorkforceLiveOverview), { loading: ModuleLoading });
 const OfficeWorkforceLifecycle = dynamic(() => import("@/components/office-workforce-lifecycle").then((module) => module.OfficeWorkforceLifecycle), { loading: ModuleLoading });
 const OfficeActivityTimeline = dynamic(() => import("@/components/office-activity-timeline").then((module) => module.OfficeActivityTimeline), { loading: ModuleLoading });
@@ -136,7 +137,9 @@ export function InternalWorkspaceScreen({ workspace, section }: Props) {
     <>
       {permitted && item ? (
         <>
-          {workspace === "office" && section === "department-ownership" ? <OfficeDepartmentHandover />
+          {workspace === "office" && section === "role-packages" ? <OfficeRolePackageStudio view="admin" />
+          : workspace === "office" && section === "my-role" ? <OfficeRolePackageStudio view="self" />
+          : workspace === "office" && section === "department-ownership" ? <OfficeDepartmentHandover />
           : workspace === "office" && section === "access" ? <><AccessGovernancePanel identity={identity} /><WorkforceAdministrationPanel identity={identity} /></>
           : workspace === "office" && section === "notifications" ? <OfficeNotificationCenter />
           : workspace === "office" && section === "tasks" ? <OfficeCompanyInbox />
