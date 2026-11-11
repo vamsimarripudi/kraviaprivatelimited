@@ -135,7 +135,7 @@ export function OfficeRegisterForm({ mode, inviteToken, email: presetEmail = "",
       <p className={styles.intro}>
         Your Office account was created. We sent a six-digit verification code to
         <strong> {emailChallenge?.email || email}</strong>. It expires in 10 minutes.
-        Verify your mailbox to finish signing in. No Authenticator setup is needed for this invited MEMBER account.
+        Verify your mailbox to finish signing in. No Authenticator setup is required for this invited account while email verification is enabled.
       </p>
       <label className={styles.field}>Email verification code
         <input inputMode="numeric" autoComplete="one-time-code" required maxLength={6}
