@@ -461,7 +461,7 @@ export function WorkspaceLoginForm({
         <h2>Check your corporate email</h2>
         <p className={styles.intro}>
           Enter the six-digit code sent to <strong>{emailOtp?.email || email}</strong>.
-          Codes expire after 10 minutes. This email method is available only to invited MEMBER accounts.
+          Codes expire after 10 minutes. This method is available only for roles approved in the original private invitation.
         </p>
         <label className={styles.field} htmlFor="invited-email-code">
           <span>Email verification code</span>
