@@ -1075,7 +1075,36 @@ function AuthenticatorApp() {
       return await operation(session);
     } catch (error) {
       if (!(error instanceof IdentityApiError) || error.status !== 401) throw error;
-      const refreshed = await refreshAuthenticatorSession(session);
+      let refreshed: AuthenticatorDeviceSession;
+      try {
+        refreshed = await refreshAuthenticatorSession(session);
+      } catch (refreshError) {
+        if (!(refreshError instanceof IdentityApiError) || refreshError.status !== 401) {
+          throw refreshError;
+        }
+        // A refresh token can be rotated server-side after a successful
+        // response is lost. The original trusted-device proof can recover
+        // this exact ACTIVE phone session, but never a revoked/replaced one.
+        // The server validates both the device proof and its trust lifetime.
+        try {
+          refreshed = await completeDeviceApproval({
+            approvalId: session.deviceApprovalId,
+            deviceProof: session.deviceProof,
+          });
+        } catch (recoveryError) {
+          if (recoveryError instanceof IdentityApiError &&
+            [401, 403, 404, 409, 410].includes(recoveryError.status)) {
+            await clearAuthenticatorSession();
+            setSession(null);
+            setFactor(null);
+            setScreen("credentials");
+            throw new Error("This phone's trusted session is no longer active. Sign in to Authenticator again to approve a browser QR.");
+          }
+          throw recoveryError;
+        }
+      }
+      // Persist the replacement before scanning. Never retry with an
+      // invalidated refresh token or silently accept an untrusted handset.
       await saveAuthenticatorSession(refreshed);
       setSession(refreshed);
       return operation(refreshed);
