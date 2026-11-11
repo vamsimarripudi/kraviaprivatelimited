@@ -501,10 +501,17 @@ begin
            submitted_by=p_actor,submitted_at=now()
        where id=task.id;
   else
-    if p_actor=task.employee_user_id or
-      not public.office_actor_can_administer_target(p_actor,task.employee_user_id)
-      or not public.office_effective_permission(p_actor,'people.update','COMPANY',null,null)
-      then raise exception 'Independent authorised reviewer required'; end if;
+    if p_actor=task.employee_user_id then
+      raise exception 'Employee cannot verify their own onboarding'; end if;
+    if not (
+      (public.office_actor_can_administer_target(p_actor,task.employee_user_id)
+       and public.office_effective_permission(p_actor,'people.update','COMPANY',null,null))
+      or exists(
+         select 1 from public.office_department_ownership o
+         join public.office_identity_users i on i.user_id=task.employee_user_id
+         where o.owner_user_id=p_actor and o.department_code=i.primary_department
+       )
+    ) then raise exception 'Independent owner or People reviewer required'; end if;
     if p_action='VERIFY' and task.status='SUBMITTED' then
       new_state:='VERIFIED';action_type:='TASK_VERIFIED';
     elsif p_action='RETURN' and task.status in ('SUBMITTED','VERIFIED') then
