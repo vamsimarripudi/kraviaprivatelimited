@@ -30,6 +30,7 @@ export async function POST(request: Request) {
         aal: context.identity.aal,
         next_aal: "aal2",
         founder: context.identity.founder === true,
+        email_otp_available: context.emailOtpAvailable === true,
         display_role: context.identity.displayRole,
         mfa: { enrolled: context.mfa.enrolled, factor_ids: context.mfa.enrolled ? ["totp"] : [] },
       },

@@ -17,6 +17,7 @@ type SignInResponse = {
   aal: "aal1" | "aal2" | null;
   next_aal: "aal1" | "aal2" | null;
   founder?: boolean;
+  email_otp_available?: boolean;
   display_role?: string;
   mfa: { enrolled: boolean; verified?: boolean; factor_ids: string[] };
 };
@@ -41,7 +42,7 @@ type QrSigninResponse = {
   verified?: boolean;
   aal?: "aal2";
 };
-type Phase = "password" | "activate" | "verify" | "qr" | "device-approval" | "success";
+type Phase = "password" | "email" | "activate" | "verify" | "qr" | "device-approval" | "success";
 type StatusTone = "info" | "error" | "success";
 
 async function jsonRequest<T>(url: string, body?: unknown): Promise<T> {
@@ -79,7 +80,7 @@ function QrImage({ value }: { value: string }) {
 
 
 function SecurityJourney({ phase }: { phase: Phase }) {
-  const active = phase === "password" ? 0 : phase === "activate" || phase === "verify" || phase === "qr" ? 1 : phase === "device-approval" ? 2 : 3;
+  const active = phase === "password" ? 0 : phase === "email" || phase === "activate" || phase === "verify" || phase === "qr" ? 1 : phase === "device-approval" ? 2 : 3;
   const steps = ["Credentials", "MFA", "Device trust", "Office"];
   return (
     <div className={styles.journey} aria-label={`Secure sign-in progress: step ${active + 1} of 4`}>
@@ -105,6 +106,7 @@ export function WorkspaceLoginForm({
   const [showPassword, setShowPassword] = useState(false);
   const [phase, setPhase] = useState<Phase>("password");
   const [code, setCode] = useState("");
+  const [emailOtp, setEmailOtp] = useState<{ challenge_id: string; challenge_token: string; email: string; expires_at: string; resend_available_at: string }>();
   const [status, setStatus] = useState<string>();
   const [statusTone, setStatusTone] = useState<StatusTone>("info");
   const [isPending, setIsPending] = useState(false);
@@ -280,6 +282,45 @@ export function WorkspaceLoginForm({
     return () => { disposed = true; window.clearInterval(interval); };
   }, [phase]);
 
+  async function sendInvitedEmailCode() {
+    const result = await jsonRequest<{ challenge_id: string; challenge_token: string; email: string; expires_at: string; resend_available_at: string }>(
+      "/api/office-auth/invited-email-otp", { action: "request" },
+    );
+    setEmailOtp(result);
+    setStatus("We sent a six-digit verification code to " + result.email + ".");
+    setStatusTone("info");
+  }
+
+  async function requestAgain() {
+    setIsPending(true);
+    setStatus(undefined);
+    try { await sendInvitedEmailCode(); }
+    catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to send another email code.");
+      setStatusTone("error");
+    } finally { setIsPending(false); }
+  }
+
+  async function verifyInvitedEmailCode(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!emailOtp || !/^\d{6}$/.test(code)) return;
+    setIsPending(true);
+    setStatus(undefined);
+    try {
+      await jsonRequest<{ verified: true; aal: "aal2" }>("/api/office-auth/invited-email-otp", {
+        action: "verify", challenge_id: emailOtp.challenge_id,
+        challenge_token: emailOtp.challenge_token, code,
+      });
+      setCode("");
+      setStatus("Corporate email verified. Opening KRAVIA Office.");
+      setStatusTone("success");
+      setPhase("success");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Email verification failed");
+      setStatusTone("error");
+    } finally { setIsPending(false); }
+  }
+
   async function prepareMfa(auth: SignInResponse) {
     const validRoles = auth.roles.filter((role): role is OfficeRole =>
       ["OWNER", "DIRECTOR", "ADMIN", "MEMBER", "FINANCE", "CA", "CS", "LEGAL", "HR", "OPERATIONS", "AUDITOR", "PRODUCT_ADMIN"].includes(role)
@@ -297,6 +338,16 @@ export function WorkspaceLoginForm({
       setPhase("verify");
       setStatus("Open Authenticator and enter the current 6-digit code.");
       setStatusTone("info");
+      return;
+    }
+    if (auth.email_otp_available === true) {
+      setPhase("email");
+      setEmailOtp(undefined);
+      try { await sendInvitedEmailCode(); }
+      catch (error) {
+        setStatus(error instanceof Error ? error.message : "Email code unavailable. Use Send email code to retry.");
+        setStatusTone("error");
+      }
       return;
     }
     setPhase("activate");
@@ -399,6 +450,36 @@ export function WorkspaceLoginForm({
       setPhase("verify");
       setIsPending(false);
     }
+  }
+
+  if (phase === "email") {
+    return (
+      <form className={styles.form} onSubmit={verifyInvitedEmailCode} noValidate>
+        <div className={styles.icon}><ShieldCheck /></div>
+        <SecurityJourney phase={phase} />
+        <p className={styles.eyebrow}>INVITED STAFF EMAIL CODE</p>
+        <h2>Check your corporate email</h2>
+        <p className={styles.intro}>
+          Enter the six-digit code sent to <strong>{emailOtp?.email || email}</strong>.
+          Codes expire after 10 minutes. This method is available only for roles approved in the original private invitation.
+        </p>
+        <label className={styles.field} htmlFor="invited-email-code">
+          <span>Email verification code</span>
+          <input id="invited-email-code" inputMode="numeric" autoComplete="one-time-code"
+            pattern="[0-9]*" maxLength={6} required autoFocus
+            value={code} onChange={event => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+            placeholder="6-digit email code" disabled={isPending}/>
+        </label>
+        {status ? <p className={styles.status} data-tone={statusTone} role="status">{status}</p> : null}
+        <button className={styles.primary} type="submit" disabled={!emailOtp || code.length !== 6 || isPending}>
+          {isPending ? <LoaderCircle className={styles.spin}/> : <ShieldCheck/>}
+          Verify email and enter Office
+        </button>
+        <button className={styles.secondary} type="button" disabled={isPending}
+          onClick={() => void requestAgain()}>Send a new email code</button>
+        <p className={styles.note}>Check Spam if the code is missing. Request again after 60 seconds. Your existing password remains required for each new login.</p>
+      </form>
+    );
   }
 
   if (phase === "activate") {

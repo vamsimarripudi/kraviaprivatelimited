@@ -24,6 +24,7 @@ function safe(context: Awaited<ReturnType<typeof registerInvitedOfficeUser>>) {
     access_status: context.identity.accessStatus,
     aal: context.identity.aal,
     founder: context.identity.founder === true,
+    email_otp_available: context.emailOtpAvailable === true,
     display_role: context.identity.displayRole,
     mfa: { enrolled: context.mfa.enrolled },
   };

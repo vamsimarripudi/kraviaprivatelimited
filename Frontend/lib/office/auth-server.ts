@@ -40,6 +40,7 @@ export type OfficeSessionContext = {
   session: OfficeSession;
   identity: OfficeIdentity;
   mfa: { enrolled: boolean };
+  emailOtpAvailable?: boolean;
 };
 
 export type OfficeAuthSessionRecord = {
@@ -102,6 +103,7 @@ type FirstPartyAuthResponse = {
   founder?: boolean;
   display_role?: string;
   mfa?: { enrolled?: boolean };
+  email_otp_available?: boolean;
   device_approval_pending?: boolean;
   device_approval_id?: string;
   device_proof?: string;
@@ -304,6 +306,7 @@ async function contextFromPayload(payload: FirstPartyAuthResponse): Promise<Offi
     session,
     identity: toIdentity(payload),
     mfa: { enrolled: payload.mfa?.enrolled === true },
+    emailOtpAvailable: payload.email_otp_available === true,
   };
 }
 
@@ -409,6 +412,46 @@ export async function registerInvitedOfficeUser(input: { token: string; display_
   const context = await contextFromPayload(payload);
   await writeOfficeSessionCookies(context.session);
   return context;
+}
+
+export type InvitedEmailOtpChallenge = {
+  challenge_id: string;
+  challenge_token: string;
+  email: string;
+  expires_at: string;
+  resend_available_at: string;
+};
+
+/** Email OTP is available only to invited non-privileged employees. */
+export async function requestInvitedOfficeEmailOtp(context: OfficeSessionContext): Promise<InvitedEmailOtpChallenge> {
+  if (context.identity.aal !== "aal1") throw new OfficeApiError(409, "Password authentication required");
+  const response = await rawApi("/api/v1/auth/office-invite-email-otp/request", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + context.session.access_token },
+    body: JSON.stringify({}),
+  });
+  return parseOrThrow<InvitedEmailOtpChallenge>(response);
+}
+
+export async function verifyInvitedOfficeEmailOtp(
+  context: OfficeSessionContext, input: { challenge_id: string; challenge_token: string; code: string },
+) {
+  if (context.identity.aal !== "aal1") throw new OfficeApiError(409, "A fresh password session is required");
+  const response = await rawApi("/api/v1/auth/office-invite-email-otp/verify", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + context.session.access_token },
+    body: JSON.stringify(input),
+  });
+  const payload = await parseOrThrow<{ verified: boolean; aal: "aal2"; access_token: string; expires_in?: number }>(response);
+  if (!payload.verified || payload.aal !== "aal2" || !payload.access_token) {
+    throw new OfficeApiError(409, "Email verification did not complete");
+  }
+  await writeOfficeSessionCookies({
+    access_token: payload.access_token,
+    refresh_token: context.session.refresh_token,
+    expires_in: payload.expires_in,
+  });
+  return { verified: true as const, aal: "aal2" as const };
 }
 
 export async function verifyOfficeMfa(context: OfficeSessionContext, code: string) {
