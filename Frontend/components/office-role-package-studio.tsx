@@ -37,7 +37,7 @@ type Task = {
 };
 type Functional = { position_code: string; department_code: string; application_id: string; responsibilities: string[] };
 type State = {
-  actor: { user_id: string; can_manage: boolean; is_founder?: boolean };
+  actor: { user_id: string; can_manage: boolean; is_founder?: boolean; managed_departments?: string[]; writable_departments?: string[] };
   employee: Person;
   employment: { employment_code: string; relationship_type: string; status: string; start_date?: string | null; end_date?: string | null; source: string } | null;
   applications: Application[]; tasks: Task[]; functional_positions: Functional[];
@@ -124,6 +124,7 @@ export function OfficeRolePackageStudio({ view = "admin" }: { view?: "admin" | "
     } finally { setBusy(false); }
   }
   const admin = view === "admin" && state?.actor.can_manage === true;
+  const canEdit = (department: string) => Boolean(state?.actor.writable_departments?.includes(department));
   const active = useMemo(() => (state?.templates ?? []).filter(t => t.status === "ACTIVE"), [state?.templates]);
   const applicationTasks = (application: Application) =>
     (state?.tasks ?? []).filter(task => task.application_id === application.id);
@@ -234,7 +235,7 @@ export function OfficeRolePackageStudio({ view = "admin" }: { view?: "admin" | "
             const dept = e.target.value;
             setDraft(d => ({ ...d, department: dept }));
             setGrantDraft(g => ({ ...g, scope_key: dept }));
-          }}><option value="">Select department</option>{state.departments.map(d => <option key={d.code} value={d.code}>{d.label}</option>)}</select></label>
+          }}><option value="">Select department</option>{state.departments.filter(d => canEdit(d.code)).map(d => <option key={d.code} value={d.code}>{d.label}</option>)}</select></label>
           <label>Primary position<select required value={draft.position} onChange={e => setDraft(d => ({ ...d, position: e.target.value }))}><option value="">Select position</option>{state.positions.map(p => <option key={p.code} value={p.code}>{p.label} · {p.family}</option>)}</select></label>
           <label>Employment relationship<select value={draft.employmentType} onChange={e => setDraft(d => ({ ...d, employmentType: e.target.value }))}>{employmentOptions.map(v => <option key={v} value={v}>{v}</option>)}</select></label>
           <label className={styles.full}>Description<textarea maxLength={2000} value={draft.description} onChange={e => setDraft(d => ({ ...d, description: e.target.value }))}/></label>
@@ -245,7 +246,7 @@ export function OfficeRolePackageStudio({ view = "admin" }: { view?: "admin" | "
         <div className={styles.subsection}><h4>Additional functional positions</h4>
           <p>These record additional duties. They never confer permissions or department ownership by themselves.</p>
           <div className={styles.inlineFields}><select aria-label="Additional department" value={extraDraft.department_code} onChange={e => setExtraDraft(d => ({ ...d, department_code: e.target.value }))}>
-            <option value="">Department</option>{state.departments.map(d => <option key={d.code} value={d.code}>{d.label}</option>)}</select>
+            <option value="">Department</option>{state.departments.filter(d => canEdit(d.code)).map(d => <option key={d.code} value={d.code}>{d.label}</option>)}</select>
             <select aria-label="Additional position" value={extraDraft.position_code} onChange={e => setExtraDraft(d => ({ ...d, position_code: e.target.value }))}>
               <option value="">Position</option>{state.positions.map(p => <option key={p.code} value={p.code}>{p.label}</option>)}</select>
             <button type="button" disabled={!extraDraft.position_code || !extraDraft.department_code} onClick={addExtraRole}><Plus size={15}/>Add duty</button></div>
@@ -261,7 +262,7 @@ export function OfficeRolePackageStudio({ view = "admin" }: { view?: "admin" | "
               {scopeOptions.map(s => <option key={s} value={s}>{s}</option>)}</select>
             {grantDraft.scope_type !== "COMPANY" && grantDraft.scope_type !== "OWN" ?
               grantDraft.scope_type === "DEPARTMENT" ? <select aria-label="Scoped department" value={grantDraft.scope_key} onChange={e => setGrantDraft(g => ({ ...g, scope_key: e.target.value }))}>
-                <option value="">Choose department</option>{state.departments.map(d => <option key={d.code} value={d.code}>{d.label}</option>)}</select> :
+                <option value="">Choose department</option>{state.departments.filter(d => canEdit(d.code)).map(d => <option key={d.code} value={d.code}>{d.label}</option>)}</select> :
               <input aria-label="Resource scope key" value={grantDraft.scope_key} onChange={e => setGrantDraft(g => ({ ...g, scope_key: e.target.value }))} placeholder="Project / repository key"/> : null}
             <button type="button" onClick={addProfile} disabled={!grantDraft.profile_code}><Plus size={15}/>Add access</button>
           </div>
@@ -303,9 +304,9 @@ export function OfficeRolePackageStudio({ view = "admin" }: { view?: "admin" | "
             <div><strong>{t.label}</strong><small>{heading(t)} · {t.department_code} · {t.primary_position_code}</small>
               <small>{t.access_profiles?.length ?? 0} scoped profiles · {t.additional_roles?.length ?? 0} additional roles · {t.onboarding_steps?.length ?? 0} onboarding steps</small></div>
             <div className={styles.actions}><span data-status={t.status}>{t.status}</span>
-              {t.status === "DRAFT" ? <button type="button" disabled={busy} onClick={() => void mutate({ action:"PUBLISH",packageId:t.id },"Published reusable package; no employee changed.")}>Publish</button> :
-                t.status === "ACTIVE" ? <button type="button" disabled={busy} onClick={() => {setApplyTemplate(t.id);setReason("");}}>Assign</button> : null}
-              <button type="button" disabled={busy} onClick={() => cloneVersion(t)}>New version</button>
+              {t.status === "DRAFT" && canEdit(t.department_code) ? <button type="button" disabled={busy} onClick={() => void mutate({ action:"PUBLISH",packageId:t.id },"Published reusable package; no employee changed.")}>Publish</button> :
+                t.status === "ACTIVE" && canEdit(t.department_code) ? <button type="button" disabled={busy} onClick={() => {setApplyTemplate(t.id);setReason("");}}>Assign</button> : null}
+              {canEdit(t.department_code) ? <button type="button" disabled={busy} onClick={() => cloneVersion(t)}>New version</button> : <small>Read-only after ownership handover</small>}
             </div></div>) : <p className={styles.empty}>No reusable packages yet. Create one from your existing departments, positions and access profiles.</p>}
         </article>
         <article className={styles.panel}>
@@ -313,7 +314,7 @@ export function OfficeRolePackageStudio({ view = "admin" }: { view?: "admin" | "
           <p>Same published package works for any employee. Existing canonical approvals, trusted identities and scopes are enforced.</p>
           <form className={styles.inlineForm} onSubmit={apply}>
             <label>Published package<select required value={applyTemplate} onChange={e => setApplyTemplate(e.target.value)}>
-              <option value="">Select reusable package</option>{active.map(t => <option key={t.id} value={t.id}>{t.label} · v{t.version}</option>)}</select></label>
+              <option value="">Select reusable package</option>{active.filter(t => canEdit(t.department_code)).map(t => <option key={t.id} value={t.id}>{t.label} · v{t.version}</option>)}</select></label>
             <fieldset className={styles.recipients}><legend>Verified active recipients · {targetIds.length} selected</legend>
               {state.people.filter(p => p.status==="ACTIVE" && p.user_id!==state.actor.user_id).map(p =>
                 <label key={p.user_id}><input type="checkbox" checked={targetIds.includes(p.user_id)}
@@ -362,7 +363,7 @@ export function OfficeRolePackageStudio({ view = "admin" }: { view?: "admin" | "
                 {task.status==="PENDING" || task.status==="SUBMITTED" ? task.status!=="SUBMITTED" || application.employee_user_id===state.actor.user_id ?
                   <><input aria-label={"Evidence for "+task.label} placeholder="Verified document or record reference" value={evidence[task.id] || ""} onChange={e=>setEvidence(x=>({...x,[task.id]:e.target.value}))}/>
                     {application.employee_user_id===state.actor.user_id ? <button type="button" disabled={busy || (evidence[task.id]||"").trim().length<8} onClick={()=>void review(task,"SUBMIT")}>Submit</button> : null}</> : null : null}
-                {admin && application.employee_user_id!==state.actor.user_id && task.status==="SUBMITTED" ? <><input aria-label={"Review note for "+task.label} placeholder="Optional reviewer note" value={reviewNotes[task.id] || ""} onChange={e=>setReviewNotes(x=>({...x,[task.id]:e.target.value}))}/>
+                {admin && canEdit(application.snapshot.department_code) && application.employee_user_id!==state.actor.user_id && task.status==="SUBMITTED" ? <><input aria-label={"Review note for "+task.label} placeholder="Optional reviewer note" value={reviewNotes[task.id] || ""} onChange={e=>setReviewNotes(x=>({...x,[task.id]:e.target.value}))}/>
                   <button type="button" disabled={busy} onClick={()=>void review(task,"VERIFY")}>Verify</button><button type="button" disabled={busy} onClick={()=>void review(task,"RETURN")}>Return</button></> : null}
               </div></div>)}</div> : null}
           </div>;
