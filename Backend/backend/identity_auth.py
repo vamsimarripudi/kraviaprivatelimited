@@ -81,6 +81,10 @@ QR_SIGNIN_TTL_SECONDS = int(os.getenv("OFFICE_QR_SIGNIN_TTL_SECONDS", "60"))
 CANONICAL_PUBLIC_WEB_ORIGIN = "https://www.kraviaprivatelimited.com"
 OFFICE_SESSION_PURPOSE = "OFFICE"
 AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE = "AUTHENTICATOR_ACTIVATION"
+INVITED_WEB_OTP_CHANNEL = "invited_office_web"
+# Never substitute mailbox verification for an executive/finance/security factor.
+INVITED_EMAIL_OTP_ELIGIBLE_ROLES = frozenset({"MEMBER", "OPERATIONS", "CS"})
+INVITED_EMAIL_OTP_SESSION_TTL_SECONDS = 12 * 60 * 60
 
 OFFICE_ROLES = {
     "OWNER",
@@ -174,6 +178,12 @@ class AuthenticatorActivationClaimPayload(BaseModel):
 
 class EmailOtpChallengePayload(SignInPayload):
     channel: Literal["authenticator_mobile"]
+
+
+class InvitedWebEmailOtpVerifyPayload(BaseModel):
+    challenge_id: str = Field(min_length=36, max_length=36)
+    challenge_token: str = Field(min_length=32, max_length=256)
+    code: str = Field(pattern=r"^[0-9]{6}$")
 
 
 class EmailOtpChallengeTokenPayload(BaseModel):
@@ -423,6 +433,37 @@ def _expire_email_otp_challenge(challenge: OfficeEmailOtpChallenge, now: datetim
         return True
     return False
 
+
+
+def _invited_web_email_otp_allowed(db: Session, user: OfficeAuthUser) -> bool:
+    """Allow only originally invited, low-authority staff, never Founder.
+    
+    A mailbox code is lower assurance than Authenticator; elevated roles and
+    accepted department ownership must make this option unavailable instantly.
+    """
+    if user.founder_slot or user.mfa_secret_ciphertext or user.status != "ACTIVE":
+        return False
+    roles = set(_active_roles(db, user.id))
+    if "MEMBER" not in roles or not roles.issubset(INVITED_EMAIL_OTP_ELIGIBLE_ROLES):
+        return False
+    if not db.execute(
+        select(OfficeAuthInvite.id).where(
+            OfficeAuthInvite.used_by == user.id,
+            OfficeAuthInvite.email == user.email,
+            OfficeAuthInvite.status == "ACCEPTED",
+        )
+    ).first():
+        return False
+    if _control_plane_present(db):
+        # A delegated department owner requires Authenticator before managing
+        # a team. This also prevents reassignment after a mailbox code.
+        result = db.execute(
+            text("select 1 from office_department_ownership where owner_user_id=cast(:user_id as uuid) limit 1"),
+            {"user_id": user.id},
+        ).first()
+        if result:
+            return False
+    return True
 
 def _request_metadata(request: Request) -> tuple[str | None, str | None]:
     # Forwarding headers are client-controlled unless a trusted proxy boundary
@@ -1266,6 +1307,8 @@ def authenticate_office_access(
         raise HTTPException(status_code=403, detail="KRAVIA Office access is not active")
     if not roles and not review_access:
         raise HTTPException(status_code=403, detail="No KRAVIA Office role is assigned")
+    if session.email_otp_verified_at is not None and not _invited_web_email_otp_allowed(db, user):
+        raise HTTPException(status_code=403, detail="Email-verified Office access is no longer eligible. Enroll Authenticator.")
 
     # Do not write last_seen_at on every business API request. Session activity is
     # already captured by the dedicated auth/session heartbeat paths; avoiding a
@@ -1529,6 +1572,146 @@ def build_identity_router() -> APIRouter:
         db.commit()
         return result
 
+
+    @router.post("/invited-web-otp/request", status_code=201)
+    def request_invited_web_email_otp(
+        request: Request,
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ):
+        """Deliver OTP to the accepted invite's corporate mailbox, never an arbitrary address."""
+        context = authenticate_office_access(_bearer_token(authorization), db, require_aal2=False)
+        session = db.get(OfficeAuthSession, context["session_id"])
+        user = db.execute(
+            select(OfficeAuthUser)
+            .where(OfficeAuthUser.id == context["user_id"]).with_for_update()
+        ).scalar_one_or_none()
+        if not user or not session or session.aal != "aal1" or not _invited_web_email_otp_allowed(db, user):
+            raise HTTPException(status_code=403, detail="Invited employee email verification is unavailable for this account")
+        ttl, resend_interval, _, _ = _email_otp_settings()
+        now = _now()
+        # Serialize challenge issuance per account, including concurrent tabs.
+        pending = db.execute(
+            select(OfficeEmailOtpChallenge)
+            .where(OfficeEmailOtpChallenge.user_id == user.id,
+                   OfficeEmailOtpChallenge.channel == INVITED_WEB_OTP_CHANNEL,
+                   OfficeEmailOtpChallenge.status.in_(["PENDING", "SENT", "DELIVERY_UNKNOWN"]))
+            .order_by(OfficeEmailOtpChallenge.created_at.desc())
+            .with_for_update()
+        ).scalars().all()
+        for older in pending:
+            if _expire_email_otp_challenge(older, now):
+                continue
+            if older.status == "DELIVERY_UNKNOWN":
+                db.commit()
+                raise HTTPException(status_code=503, detail="Delivery status is uncertain. Request a fresh code after this one expires.")
+            if _aware(older.resend_available_at) > now:
+                db.commit()
+                raise HTTPException(status_code=429, detail="A code was already sent. Wait one minute before requesting another.")
+            older.status = "CANCELLED"
+            older.cancelled_at = now
+        challenge_id = str(uuid.uuid4())
+        challenge_token = secrets.token_urlsafe(48)
+        code = f"{secrets.randbelow(1_000_000):06d}"
+        challenge = OfficeEmailOtpChallenge(
+            id=challenge_id,
+            user_id=user.id,
+            challenge_token_hash=_hash_token(challenge_token),
+            code_hash=_email_otp_code_hash(challenge_id, code),
+            channel=INVITED_WEB_OTP_CHANNEL,
+            browser_session_id=session.id,
+            status="PENDING", attempt_count=0, delivery_attempt_count=1,
+            expires_at=now + timedelta(seconds=ttl),
+            resend_available_at=now + timedelta(seconds=resend_interval),
+        )
+        db.add(challenge)
+        _event(db, "INVITED_WEB_EMAIL_OTP_REQUESTED", request, user_id=user.id,
+               session_id=session.id, metadata={"channel": INVITED_WEB_OTP_CHANNEL})
+        db.commit()
+        try:
+            provider_id = send_office_email_verification_code(
+                recipient_email=user.email, code=code, expiry_minutes=max(1, ttl // 60),
+                delivery_id=f"invited-web-otp:{challenge.id}:1",
+            )
+        except (EmailDeliveryRejected, EmailDeliveryUnavailable) as exc:
+            challenge.status = "DELIVERY_FAILED"
+            _event(db, "INVITED_WEB_EMAIL_OTP_DELIVERY_FAILED", request,
+                   user_id=user.id, session_id=session.id)
+            db.commit()
+            raise HTTPException(status_code=503, detail="Email delivery is unavailable. Try again later.") from exc
+        except EmailDeliveryUnknown as exc:
+            challenge.status = "DELIVERY_UNKNOWN"
+            _event(db, "INVITED_WEB_EMAIL_OTP_DELIVERY_UNCERTAIN", request,
+                   user_id=user.id, session_id=session.id)
+            db.commit()
+            raise HTTPException(status_code=503, detail="Email delivery could not be confirmed. Wait until the current code expires.") from exc
+        challenge.status = "SENT"
+        challenge.delivered_at = _now()
+        challenge.provider_message_id = provider_id
+        _event(db, "INVITED_WEB_EMAIL_OTP_SENT", request,
+               user_id=user.id, session_id=session.id, metadata={"provider": "BREVO"})
+        db.commit()
+        return {"challenge_id": challenge.id, "challenge_token": challenge_token,
+                "email": user.email, "expires_at": _aware(challenge.expires_at).isoformat(),
+                "resend_available_at": _aware(challenge.resend_available_at).isoformat()}
+
+    @router.post("/invited-web-otp/verify")
+    def verify_invited_web_email_otp(
+        payload: InvitedWebEmailOtpVerifyPayload,
+        request: Request,
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ):
+        context = authenticate_office_access(_bearer_token(authorization), db, require_aal2=False)
+        session = db.execute(
+            select(OfficeAuthSession).where(OfficeAuthSession.id == context["session_id"]).with_for_update()
+        ).scalar_one_or_none()
+        user = db.get(OfficeAuthUser, context["user_id"])
+        if not session or not user or session.aal != "aal1" or not _invited_web_email_otp_allowed(db, user):
+            raise HTTPException(status_code=403, detail="This Office session is not eligible for email verification")
+        try:
+            challenge_uuid = str(uuid.UUID(payload.challenge_id))
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail="Email verification request not found") from exc
+        challenge = db.execute(
+            select(OfficeEmailOtpChallenge)
+            .where(OfficeEmailOtpChallenge.id == challenge_uuid).with_for_update()
+        ).scalar_one_or_none()
+        if not challenge or challenge.user_id != user.id or challenge.channel != INVITED_WEB_OTP_CHANNEL or (
+            challenge.browser_session_id != session.id
+        ) or not hmac.compare_digest(challenge.challenge_token_hash, _hash_token(payload.challenge_token)):
+            raise HTTPException(status_code=404, detail="Email verification request not found")
+        now = _now()
+        if _expire_email_otp_challenge(challenge, now):
+            db.commit()
+            raise HTTPException(status_code=410, detail="Email verification code expired. Request a new code.")
+        if challenge.status != "SENT":
+            raise HTTPException(status_code=409, detail="Email verification request is no longer available")
+        if not hmac.compare_digest(challenge.code_hash, _email_otp_code_hash(challenge.id, payload.code)):
+            challenge.attempt_count = int(challenge.attempt_count or 0) + 1
+            _, _, max_attempts, _ = _email_otp_settings()
+            if challenge.attempt_count >= max_attempts:
+                challenge.status = "CANCELLED"
+                challenge.cancelled_at = now
+            _event(db, "INVITED_WEB_EMAIL_OTP_FAILED", request, user_id=user.id,
+                   session_id=session.id, metadata={"attempts": challenge.attempt_count})
+            db.commit()
+            raise HTTPException(status_code=429 if challenge.status == "CANCELLED" else 400,
+                                detail="Too many incorrect codes" if challenge.status == "CANCELLED" else "Email verification code was not accepted")
+        challenge.status = "VERIFIED"
+        challenge.verified_at = now
+        session.aal = "aal2"
+        session.email_otp_verified_at = now
+        session.expires_at = min(_aware(session.expires_at), now + timedelta(seconds=INVITED_EMAIL_OTP_SESSION_TTL_SECONDS))
+        session.last_seen_at = now
+        _event(db, "INVITED_WEB_EMAIL_OTP_VERIFIED", request, user_id=user.id,
+               session_id=session.id, metadata={"auth_method": "invited_email_otp"})
+        result = {"verified": True, "aal": "aal2", "email": user.email,
+                  "access_token": _encode_access(db, user, session),
+                  "expires_in": ACCESS_TTL_SECONDS}
+        db.commit()
+        return result
+
     @router.post("/email-otp/challenges", status_code=201)
     def request_email_otp_challenge(
         payload: EmailOtpChallengePayload,
@@ -1643,7 +1826,7 @@ def build_identity_router() -> APIRouter:
             .where(OfficeEmailOtpChallenge.id == challenge_id)
             .with_for_update()
         ).scalar_one_or_none()
-        if not challenge or not hmac.compare_digest(challenge.challenge_token_hash, _hash_token(payload.challenge_token)):
+        if not challenge or challenge.channel not in {"authenticator_mobile", "play_reviewer_mobile"} or not hmac.compare_digest(challenge.challenge_token_hash, _hash_token(payload.challenge_token)):
             raise HTTPException(status_code=404, detail="Email verification request was not found")
         user = db.get(OfficeAuthUser, challenge.user_id)
         if not user:
@@ -1734,7 +1917,7 @@ def build_identity_router() -> APIRouter:
             .where(OfficeEmailOtpChallenge.id == challenge_id)
             .with_for_update()
         ).scalar_one_or_none()
-        if not challenge or not hmac.compare_digest(challenge.challenge_token_hash, _hash_token(payload.challenge_token)):
+        if not challenge or challenge.channel not in {"authenticator_mobile", "play_reviewer_mobile"} or not hmac.compare_digest(challenge.challenge_token_hash, _hash_token(payload.challenge_token)):
             raise HTTPException(status_code=404, detail="Email verification request was not found")
         user = db.get(OfficeAuthUser, challenge.user_id)
         if not user:
