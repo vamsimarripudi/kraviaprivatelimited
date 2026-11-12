@@ -337,6 +337,94 @@ def office_workspace_ready_template(*, recipient_name: str) -> TransactionalEmai
     )
 
 
+
+EMPLOYEE_REFERENCE_CODE_PATTERN = re.compile(r"^KRV-E[0-9]{2}-[A-F0-9]{16}$")
+
+
+def office_employee_id_issued_template(*, recipient_name: str, employee_reference: str) -> TransactionalEmail:
+    """Private, immutable employee-reference notice after governed issuance.
+
+    Called only for a committed, independently verified employee outbox event.
+    Neither invitation acceptance nor an Office access role is proof of
+    employment. No banking, salary or document contents are included.
+    """
+    name = recipient_name.strip() or "Colleague"
+    if not 1 <= len(name) <= 160 or any(ord(ch) < 32 for ch in name):
+        raise ValueError("Invalid employee notification recipient")
+    if not EMPLOYEE_REFERENCE_CODE_PATTERN.fullmatch(employee_reference):
+        raise ValueError("Invalid permanent employee reference")
+    safe_name = escape(name)
+    safe_reference = escape(employee_reference)
+    url = KRAVIA_SITE_URL + "/office/my-role"
+    html_content = (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8"/>'
+        '<meta name="viewport" content="width=device-width,initial-scale=1"/>'
+        '<meta name="color-scheme" content="light"/>'
+        '<meta name="supported-color-schemes" content="light"/>'
+        '<title>KRAVIA employee reference</title></head>'
+        '<body style="margin:0;padding:0;background-color:#f2f5fa;'
+        'font-family:Arial,Helvetica,sans-serif;color:#142338">'
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        'border="0" style="width:100%"><tr><td align="center" style="padding:24px 12px">'
+        '<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" '
+        'style="max-width:600px;width:100%;background-color:#fff;border:1px solid #dae3ee">'
+        '<tr><td align="center" style="padding:24px;background-color:#fff">'
+        f'<img alt="KRAVIA PRIVATE LIMITED" width="210" height="71" '
+        f'src="{KRAVIA_SITE_URL}/brand/kravia-header-lockup-v2.png" '
+        'style="display:block;width:210px;max-width:100%;height:auto;'
+        'background-color:#fff;border:0"/></td></tr>'
+        '<tr><td style="padding:27px 28px;border-top:3px solid #174ea6">'
+        '<p style="font-size:11px;line-height:18px;letter-spacing:1.2px;'
+        'font-weight:700;color:#174ea6;margin:0 0 10px">KRAVIA OFFICE · EMPLOYEE RECORD</p>'
+        '<h1 style="font-size:26px;line-height:34px;color:#142338;margin:0 0 18px">'
+        'Your permanent employee reference is available</h1>'
+        f'<p style="font-size:15px;line-height:25px;margin:0 0 18px">Hello {safe_name},</p>'
+        '<p style="font-size:14px;line-height:23px;color:#485d73;margin:0 0 18px">'
+        'An authorised reviewer has completed the independent checks required '
+        'for issuance of your permanent employee-facing reference.</p>'
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        'border="0" style="background:#f0f5fc;border:1px solid #cddcf0;margin:0 0 18px">'
+        '<tr><td style="padding:18px">'
+        '<p style="font-size:10px;font-weight:700;letter-spacing:1px;'
+        'color:#37567d;margin:0 0 8px">PERMANENT EMPLOYEE REFERENCE</p>'
+        f'<p style="font-size:20px;line-height:27px;font-weight:700;letter-spacing:.5px;'
+        f'color:#183f78;margin:0">{safe_reference}</p></td></tr></table>'
+        '<p style="font-size:13px;line-height:23px;color:#485d73;margin:0 0 17px">'
+        'This reference does not replace your canonical employment record '
+        'or independently certify a statutory appointment, payroll payment or signed document.</p>'
+        f'<a href="{url}" style="display:inline-block;padding:12px 20px;'
+        'background-color:#174ea6;color:#fff;text-decoration:none;'
+        'font-weight:700;font-size:14px;line-height:22px">'
+        'View your private employee profile</a>'
+        '</td></tr>'
+        '<tr><td align="center" style="background-color:#172c48;'
+        'padding:22px 24px;color:#eef5fc">'
+        '<p style="font-size:12px;line-height:20px;font-weight:700;margin:0 0 8px">'
+        'KRAVIA PRIVATE LIMITED</p>'
+        '<p style="font-size:11px;line-height:19px;margin:0;color:#dce7f6">'
+        'Private Office communication. Never share passwords, verification codes '
+        'or banking credentials by email.</p>'
+        '</td></tr></table></td></tr></table></body></html>'
+    )
+    text_content = (
+        "KRAVIA PRIVATE LIMITED\n"
+        "Your permanent employee reference is available\n\n"
+        f"Hello {name},\n\n"
+        "Your permanent employee-facing reference was issued following the required "
+        "independent onboarding verification.\n"
+        f"Employee reference: {employee_reference}\n\n"
+        "View your private employee profile: " + url + "\n\n"
+        "This notice does not establish a payroll payment, statutory appointment "
+        "or independently verified signed document. Never share your credentials.\n"
+        "KRAVIA PRIVATE LIMITED"
+    )
+    return TransactionalEmail(
+        subject="Your permanent KRAVIA employee reference is available",
+        html_content=html_content,
+        text_content=text_content,
+    )
+
+
 def office_email_verification_template(*, code: str, expiry_minutes: int) -> TransactionalEmail:
     """Build a single-use sign-in code message from the email source."""
     if not VERIFICATION_CODE_PATTERN.fullmatch(code):
