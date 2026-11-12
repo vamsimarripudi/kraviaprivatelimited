@@ -17,6 +17,7 @@ create table if not exists public.office_employee_intake_profiles (
   bank_account_holder text check(bank_account_holder is null or length(bank_account_holder) between 2 and 160),
   bank_verified_by uuid references public.office_identity_users(user_id) on delete restrict,
   bank_verified_at timestamptz,
+  bank_verification_evidence text check(bank_verification_evidence is null or length(bank_verification_evidence)<=400),
   photo_storage_reference text check(photo_storage_reference is null or length(photo_storage_reference)<=300),
   signature_evidence_reference text check(signature_evidence_reference is null or length(signature_evidence_reference)<=450),
   policy_acknowledged_at timestamptz,
