@@ -77,3 +77,280 @@
   :global(.kravia-office .office-modern) .toolbar,
   :global(.kravia-office .office-modern) .tabs{flex-wrap:nowrap!important}
 }
+
+
+/*
+ * Office 2026 unified employee drawer. The drawer and combobox must inherit the
+ * same explicit light/dark tokens as Office & Finance, including all modules.
+ * These selectors are scoped to KRAVIA Office, never the public landing site.
+ */
+:global(.kravia-office .office-v2.office-modern) .drawerBackdrop {
+  z-index: 330 !important;
+  background: rgba(8,10,15,.56) !important;
+  backdrop-filter: blur(9px) !important;
+}
+:global(.kravia-office .office-v2.office-modern) .drawer {
+  --workforce-ink: var(--office-ui-ink);
+  --workforce-muted: var(--office-ui-muted);
+  --workforce-panel: var(--office-ui-surface);
+  --workforce-alt: var(--office-ui-surface-alt);
+  --workforce-line: var(--office-ui-line);
+  width: min(640px, calc(100vw - 28px)) !important;
+  max-width: 100vw;
+  margin: 14px !important;
+  height: calc(100dvh - 28px) !important;
+  max-height: calc(100dvh - 28px) !important;
+  padding: 18px clamp(16px, 2.5vw, 24px) 24px !important;
+  background: var(--workforce-panel) !important;
+  color: var(--workforce-ink) !important;
+  border: 1px solid var(--workforce-line) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 20px 75px rgba(0,0,0,.29) !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+}
+:global(.kravia-office .office-v2.office-modern) .drawer > header {
+  position: sticky;
+  top: -18px;
+  z-index: 45;
+  align-items: center;
+  padding: 8px 0 14px;
+  margin-bottom: 6px;
+  background: var(--workforce-panel) !important;
+  border-color: var(--workforce-line) !important;
+}
+:global(.kravia-office .office-v2.office-modern) .personHeader {
+  min-width: 0;
+}
+:global(.kravia-office .office-v2.office-modern) .personHeader span {
+  min-width: 0;
+}
+:global(.kravia-office .office-v2.office-modern) .personHeader :is(h2,b) {
+  color: var(--workforce-ink) !important;
+  font-size: clamp(1.13rem, 1.65vw, 1.42rem) !important;
+  font-weight: 700 !important;
+  line-height: 1.16 !important;
+  letter-spacing: -.035em !important;
+}
+:global(.kravia-office .office-v2.office-modern) .personHeader :is(p,small) {
+  font-size: .79rem !important;
+  line-height: 1.4 !important;
+  color: var(--workforce-muted) !important;
+  overflow-wrap: anywhere;
+}
+:global(.kravia-office .office-v2.office-modern) .avatar {
+  background: #1559ce !important;
+  color: #fff !important;
+}
+:global(.kravia-office .office-v2.office-modern) .drawer > header > button {
+  flex: none;
+  width: 38px !important;
+  height: 38px !important;
+  background: var(--workforce-alt) !important;
+  color: var(--workforce-ink) !important;
+  border: 1px solid var(--workforce-line) !important;
+  border-radius: 10px !important;
+}
+:global(.kravia-office .office-v2.office-modern) .drawerFacts {
+  margin: 12px 0 !important;
+  gap: 8px !important;
+}
+:global(.kravia-office .office-v2.office-modern) .drawerFacts span {
+  background: var(--workforce-alt) !important;
+  border-color: var(--workforce-line) !important;
+  border-radius: 11px !important;
+}
+:global(.kravia-office .office-v2.office-modern) .drawerFacts b {
+  color: var(--workforce-ink) !important;
+  font-size: .92rem !important;
+}
+:global(.kravia-office .office-v2.office-modern) .drawerFacts small {
+  color: var(--workforce-muted) !important;
+  font-size: .72rem !important;
+}
+:global(.kravia-office .office-v2.office-modern) .drawerTabs {
+  position: relative;
+  margin: 12px 0 16px !important;
+  background: var(--workforce-alt) !important;
+  border-color: var(--workforce-line) !important;
+  border-radius: 12px !important;
+  scrollbar-width: none;
+}
+:global(.kravia-office .office-v2.office-modern) .drawerTabs button {
+  min-height: 40px;
+  padding: 8px 11px !important;
+  color: var(--workforce-muted) !important;
+  background: transparent !important;
+  font-size: .81rem !important;
+  border: 0 !important;
+}
+:global(.kravia-office .office-v2.office-modern) .drawerTabs button[data-active="true"] {
+  background: var(--workforce-panel) !important;
+  color: var(--office-ui-accent) !important;
+  box-shadow: var(--office-ui-shadow) !important;
+}
+:global(.kravia-office .office-v2.office-modern) .drawerForm,
+:global(.kravia-office .office-v2.office-modern) .drawerStack,
+:global(.kravia-office .office-v2.office-modern) .protectedOverview {
+  gap: 15px !important;
+  color: var(--workforce-ink) !important;
+  background: transparent !important;
+}
+:global(.kravia-office .office-v2.office-modern) .sectionIntro {
+  padding: 14px !important;
+  align-items: flex-start;
+  gap: 12px !important;
+  border: 1px solid color-mix(in srgb, var(--office-ui-accent) 17%, var(--workforce-line)) !important;
+  border-radius: 13px !important;
+  background: color-mix(in srgb, var(--office-ui-accent) 9%, var(--workforce-panel)) !important;
+  color: var(--workforce-ink) !important;
+}
+:global(.kravia-office .office-v2.office-modern) .sectionIntro > svg {
+  width: 22px !important;
+  height: 22px !important;
+  color: var(--office-ui-accent) !important;
+}
+:global(.kravia-office .office-v2.office-modern) .sectionIntro b {
+  color: var(--workforce-ink) !important;
+  font-size: 1.03rem !important;
+  font-weight: 710 !important;
+  letter-spacing: -.025em;
+  line-height: 1.25;
+}
+:global(.kravia-office .office-v2.office-modern) .sectionIntro p {
+  margin: 4px 0 0 !important;
+  color: var(--workforce-muted) !important;
+  font-size: .82rem !important;
+  line-height: 1.46 !important;
+}
+:global(.kravia-office .office-v2.office-modern) .formGrid {
+  min-width: 0;
+  gap: 13px !important;
+}
+:global(.kravia-office .office-v2.office-modern) .formGrid label {
+  min-width: 0;
+  gap: 7px !important;
+  color: var(--workforce-ink) !important;
+  font-size: .84rem !important;
+  font-weight: 690 !important;
+}
+:global(.kravia-office .office-v2.office-modern) .formGrid :is(input,select,textarea) {
+  width: 100%;
+  min-height: 49px !important;
+  padding: 10px 13px !important;
+  border: 1px solid var(--workforce-line) !important;
+  border-radius: 11px !important;
+  background: var(--office-ui-control) !important;
+  color: var(--workforce-ink) !important;
+  font-size: .89rem !important;
+}
+:global(.kravia-office .office-v2.office-modern) .drawerForm > button[type="submit"] {
+  width: 100%;
+  justify-content: center !important;
+  min-height: 47px !important;
+  border-radius: 11px !important;
+  background: #1559ce !important;
+  color: white !important;
+  border: 1px solid #1559ce !important;
+  font-size: .9rem !important;
+  font-weight: 720 !important;
+  padding: 12px 16px !important;
+  box-shadow: 0 8px 22px rgba(16,77,177,.16) !important;
+}
+:global(.kravia-office .office-v2.office-modern) .drawerForm > button[type="submit"]:disabled {
+  background: #8b97aa !important;
+  color: #fff !important;
+  border-color: #8b97aa !important;
+  opacity: .86 !important;
+}
+:global(.kravia-office .office-v2.office-modern) .profilePreview,
+:global(.kravia-office .office-v2.office-modern) .assignments > article,
+:global(.kravia-office .office-v2.office-modern) .permissionImpact,
+:global(.kravia-office .office-v2.office-modern) .deviceCards > article {
+  background: var(--workforce-alt) !important;
+  color: var(--workforce-ink) !important;
+  border-color: var(--workforce-line) !important;
+  box-shadow: none !important;
+}
+:global(.kravia-office .office-v2.office-modern) .profilePreview :is(small,em),
+:global(.kravia-office .office-v2.office-modern) .assignments small,
+:global(.kravia-office .office-v2.office-modern) .permissionImpact span {
+  color: var(--workforce-muted) !important;
+  font-size: .75rem !important;
+}
+:global(.kravia-office .office-v2.office-modern) .protected {
+  border: 1px solid var(--workforce-line) !important;
+  background: var(--workforce-alt) !important;
+  color: var(--workforce-ink) !important;
+  border-radius: 12px;
+  padding: 11px !important;
+}
+:global(.kravia-office .office-v2.office-modern) .protected :is(svg,p) {
+  color: var(--workforce-ink) !important;
+}
+:global(.kravia-office .office-v2.office-modern) .protectedDetails {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 9px;
+  margin: 0;
+}
+:global(.kravia-office .office-v2.office-modern) .protectedDetails > div {
+  background: var(--workforce-alt) !important;
+  border: 1px solid var(--workforce-line) !important;
+  border-radius: 11px;
+  padding: 12px 13px;
+  min-width: 0;
+}
+:global(.kravia-office .office-v2.office-modern) .protectedDetails dt {
+  margin: 0 0 5px;
+  font-size: .76rem !important;
+  color: var(--workforce-muted) !important;
+}
+:global(.kravia-office .office-v2.office-modern) .protectedDetails dd {
+  margin: 0;
+  font-size: .91rem !important;
+  font-weight: 690;
+  color: var(--workforce-ink) !important;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  :global(.kravia-office .office-v2.office-modern) .drawerBackdrop {
+    align-items: flex-end;
+    justify-content: center;
+  }
+  :global(.kravia-office .office-v2.office-modern) .drawer {
+    width: 100% !important;
+    max-width: 100%;
+    height: auto !important;
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 12px) !important;
+    margin: 0 !important;
+    padding: 14px 16px calc(18px + env(safe-area-inset-bottom, 0px)) !important;
+    border-radius: 20px 20px 0 0 !important;
+    border-bottom: 0 !important;
+  }
+  :global(.kravia-office .office-v2.office-modern) .drawer > header {
+    top: -14px;
+  }
+  :global(.kravia-office .office-v2.office-modern) .drawerFacts {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+  }
+  :global(.kravia-office .office-v2.office-modern) .drawerForm,
+  :global(.kravia-office .office-v2.office-modern) .drawerStack {
+    gap: 12px !important;
+  }
+  :global(.kravia-office .office-v2.office-modern) .formGrid,
+  :global(.kravia-office .office-v2.office-modern) .protectedDetails {
+    grid-template-columns: minmax(0,1fr) !important;
+  }
+  :global(.kravia-office .office-v2.office-modern) .formGrid :is(input,select,textarea) {
+    font-size: 16px !important;
+  }
+  :global(.kravia-office .office-v2.office-modern) .drawerForm > button[type="submit"] {
+    min-height: 50px !important;
+    font-size: .91rem !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :global(.kravia-office .office-v2.office-modern) .drawer { animation: none !important; }
+}

@@ -1,0 +1,613 @@
+/*
+ * KRAVIA Office / Finance — unified visual system.
+ *
+ * This file is deliberately imported last in both workspace layouts. The
+ * previous Office generations contain hard-coded green light/dark styles;
+ * these tokens and scoped overrides give every workflow the same visual
+ * contract without changing the corporate public website or access policy.
+ *
+ * Color roles: near-black / white neutrals; blue = action, focus, information;
+ * red = alerts and destructive actions. No green surfaces or green accents.
+ */
+.kravia-office .office-v2.office-modern {
+  --office-ui-canvas: #f6f7fa;
+  --office-ui-surface: #ffffff;
+  --office-ui-surface-alt: #f2f4f8;
+  --office-ui-control: #ffffff;
+  --office-ui-ink: #171b25;
+  --office-ui-muted: #5c6574;
+  --office-ui-soft: #778195;
+  --office-ui-line: #d9dfe9;
+  --office-ui-accent: #1559ce;
+  --office-ui-accent-hover: #0a45ab;
+  --office-ui-danger: #cc293b;
+  --office-ui-ring: rgba(31, 98, 214, .16);
+  --office-ui-sidebar: #10151e;
+  --office-ui-selected: rgba(73, 133, 240, .20);
+  --office-ui-shadow: 0 8px 30px rgba(18, 32, 58, .065);
+  --off-next-canvas: var(--office-ui-canvas);
+  --off-next-panel: var(--office-ui-surface);
+  --off-next-ink: var(--office-ui-ink);
+  --off-next-muted: var(--office-ui-muted);
+  --off-next-line: var(--office-ui-line);
+  --off-next-side: var(--office-ui-sidebar);
+  --off-next-side-line: rgba(255,255,255,.12);
+  --off-next-accent: var(--office-ui-accent);
+  --off-next-active: var(--office-ui-selected);
+  --off-next-shadow: var(--office-ui-shadow);
+  --ox4-canvas: var(--office-ui-canvas);
+  --ox4-canvas-strong: var(--office-ui-surface-alt);
+  --ox4-surface: var(--office-ui-surface);
+  --ox4-surface-solid: var(--office-ui-surface);
+  --ox4-surface-soft: var(--office-ui-surface-alt);
+  --ox4-surface-dark: var(--office-ui-sidebar);
+  --ox4-surface-dark-2: var(--office-ui-sidebar);
+  --ox4-text: var(--office-ui-ink);
+  --ox4-text-soft: var(--office-ui-muted);
+  --ox4-text-faint: var(--office-ui-soft);
+  --ox4-line: var(--office-ui-line);
+  --ox4-line-strong: var(--office-ui-line);
+  --ox4-accent: var(--office-ui-accent);
+  --ox4-accent-strong: var(--office-ui-accent-hover);
+  --ox4-info: var(--office-ui-accent);
+  --ox4-success: var(--office-ui-accent);
+  --ox4-warning: var(--office-ui-danger);
+  --ox4-danger: var(--office-ui-danger);
+  --kravia-canvas: var(--office-ui-canvas);
+  --kravia-paper: var(--office-ui-surface);
+  --kravia-ink: var(--office-ui-ink);
+  --kravia-muted: var(--office-ui-muted);
+  --kravia-line: var(--office-ui-line);
+  --kravia-navy: var(--office-ui-sidebar);
+  --kravia-navy-2: #172742;
+  --kravia-blue: var(--office-ui-accent);
+  --kravia-positive: var(--office-ui-accent);
+  --kravia-amber: var(--office-ui-danger);
+  --kravia-amber-bg: #fff1f2;
+  --ink: var(--office-ui-ink);
+  --ink-2: var(--office-ui-muted);
+  --paper: var(--office-ui-canvas);
+  --mist: var(--office-ui-surface-alt);
+  --green: var(--office-ui-accent);
+  --line: var(--office-ui-line);
+  color-scheme: light;
+  color: var(--office-ui-ink) !important;
+  background: var(--office-ui-canvas) !important;
+  font-family: var(--font-sans, Inter, "Segoe UI", Arial, sans-serif) !important;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.kravia-office .office-v2.office-modern[data-ui-theme="dark"] {
+  --office-ui-canvas: #050609;
+  --office-ui-surface: #111319;
+  --office-ui-surface-alt: #1b1e27;
+  --office-ui-control: #171a22;
+  --office-ui-ink: #f7f8fb;
+  --office-ui-muted: #c2c6d0;
+  --office-ui-soft: #a7aebc;
+  --office-ui-line: #353945;
+  --office-ui-accent: #4f8fff;
+  --office-ui-accent-hover: #77a9ff;
+  --office-ui-danger: #ff6574;
+  --office-ui-ring: rgba(95, 152, 255, .28);
+  --office-ui-sidebar: #080a0e;
+  --office-ui-selected: rgba(80, 143, 255, .24);
+  --office-ui-shadow: 0 18px 46px rgba(0,0,0,.37);
+  --kravia-navy-2: #151b2b;
+  --kravia-amber-bg: #321820;
+  --ox4-shadow-raised: 0 12px 28px rgba(0,0,0,.32);
+  --ox4-shadow-floating: 0 24px 65px rgba(0,0,0,.55);
+  --ox4-shadow-overlay: 0 36px 120px rgba(0,0,0,.74);
+  color-scheme: dark;
+}
+
+.kravia-office .office-v2.office-modern,
+.kravia-office .office-v2.office-modern > .office-main,
+.kravia-office .office-v2.office-modern.office-floating-rail > .office-main {
+  background: var(--office-ui-canvas) !important;
+  color: var(--office-ui-ink) !important;
+}
+
+.kravia-office .office-v2.office-modern .ox4-ambient--workspace {
+  background: none !important;
+  opacity: .25;
+}
+
+.kravia-office .office-v2.office-modern > .office-mega-aside,
+.kravia-office .office-v2.office-modern > aside {
+  background: var(--office-ui-sidebar) !important;
+  color: #f7f8fc !important;
+  border-color: rgba(255,255,255,.12) !important;
+}
+
+.kravia-office .office-modern .office-rail-category[data-active="true"],
+.kravia-office .office-modern .office-rail-category:hover,
+.kravia-office .office-modern .office-mega-link-list a:is(:hover,[aria-current="page"]) {
+  background: var(--office-ui-selected) !important;
+  color: #ffffff !important;
+}
+.kravia-office .office-modern .office-rail-category[data-active="true"] svg,
+.kravia-office .office-modern .office-mega-link-list a[aria-current="page"] svg {
+  color: #8bb6ff !important;
+}
+.kravia-office .office-modern .office-menu-heading,
+.kravia-office .office-modern .office-menu-identity,
+.kravia-office .office-modern .office-sidebar-footer {
+  border-color: rgba(255,255,255,.13) !important;
+}
+
+.kravia-office .office-v2.office-modern .office-topbar-compact {
+  background: var(--office-ui-surface) !important;
+  border-color: var(--office-ui-line) !important;
+  color: var(--office-ui-ink) !important;
+}
+.kravia-office .office-modern .office-breadcrumbs,
+.kravia-office .office-modern .office-breadcrumbs :is(span,strong,a,svg) {
+  color: var(--office-ui-ink) !important;
+}
+.kravia-office .office-modern .office-breadcrumbs > span {
+  opacity: .6;
+}
+
+/* Match the corporate landing page's restrained, tightly tracked sans-serif
+ * headline hierarchy without applying public-site CSS to internal forms. */
+.kravia-office .office-modern :where(h1,h2,h3,h4) {
+  font-family: var(--font-sans, Inter, "Segoe UI", Arial, sans-serif) !important;
+  color: var(--office-ui-ink) !important;
+  letter-spacing: -.035em !important;
+  line-height: 1.17 !important;
+  text-wrap: balance;
+}
+.kravia-office .office-modern .office-main :where(h1) {
+  font-size: clamp(1.6rem,2.65vw,2.3rem) !important;
+  font-weight: 700 !important;
+}
+.kravia-office .office-modern .office-main :where(h2) {
+  font-size: clamp(1.17rem,1.9vw,1.65rem) !important;
+  font-weight: 690 !important;
+}
+.kravia-office .office-modern .office-main :where(h3) {
+  font-size: clamp(1rem,1.4vw,1.2rem) !important;
+  font-weight: 680 !important;
+}
+.kravia-office .office-modern .office-main :where(p,li,td,th,dd,dt) {
+  line-height: 1.55;
+}
+.kravia-office .office-modern .office-main :where(.eyebrow,[class*="eyebrow"],[class*="kicker"]) {
+  color: var(--office-ui-accent) !important;
+  font-family: var(--font-sans, Inter, "Segoe UI", Arial, sans-serif) !important;
+  letter-spacing: .09em !important;
+  font-weight: 720 !important;
+}
+.kravia-office .office-modern .office-main :where(label) {
+  color: var(--office-ui-ink) !important;
+  font-size: .83rem !important;
+  line-height: 1.35 !important;
+  font-weight: 660 !important;
+}
+.kravia-office .office-modern .office-main :where(input,textarea,select,button) {
+  font-family: var(--font-sans, Inter, "Segoe UI", Arial, sans-serif) !important;
+}
+
+.kravia-office .office-modern .office-main :where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  textarea, select
+) {
+  min-width: 0;
+  box-sizing: border-box;
+  background: var(--office-ui-control) !important;
+  color: var(--office-ui-ink) !important;
+  border: 1px solid var(--office-ui-line) !important;
+  border-radius: 11px !important;
+  box-shadow: none !important;
+  font-size: max(.875rem, 14px) !important;
+  opacity: 1;
+}
+.kravia-office .office-modern .office-main :where(input,textarea)::placeholder {
+  color: var(--office-ui-soft) !important;
+  opacity: 1;
+}
+.kravia-office .office-modern .office-main :where(
+  input:not([type="checkbox"]):not([type="radio"]),select,textarea,button,a
+):focus-visible {
+  outline: 2px solid var(--office-ui-accent) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px var(--office-ui-ring) !important;
+}
+
+/* Existing modules use several generations of card/panel class names.
+ * Keep surfaces and text readable without changing their actual workflow UI. */
+.kravia-office .office-modern .office-main :where(
+  [class*="hero"], [class*="Hero"],
+  [class*="panel"], [class*="Panel"],
+  [class*="card"], [class*="Card"],
+  [class*="tableWrap"], [class*="toolbar"], [class*="state"]
+) {
+  color: var(--office-ui-ink) !important;
+  border-color: var(--office-ui-line) !important;
+}
+.kravia-office .office-modern[data-ui-theme="dark"] .office-main :where(
+  [class*="hero"], [class*="Hero"],
+  [class*="panel"], [class*="Panel"],
+  [class*="card"], [class*="Card"],
+  [class*="tableWrap"], [class*="toolbar"],
+  [class*="metric"], [class*="form"], [class*="section"], [class*="state"]
+) {
+  background-color: var(--office-ui-surface) !important;
+  color: var(--office-ui-ink) !important;
+  border-color: var(--office-ui-line) !important;
+}
+
+/* No more pale text inside dark cards or vice versa. */
+.kravia-office .office-modern[data-ui-theme="dark"] .office-main :where(
+  p,small,span,em,label,li,dt,dd,td,th,legend
+) {
+  color: inherit;
+}
+.kravia-office .office-modern .office-main :where(
+  [class*="muted"],[class*="subtitle"],[class*="description"],[class*="hint"]
+) {
+  color: var(--office-ui-muted) !important;
+}
+.kravia-office .office-modern .office-main :where(
+  [data-tone="error"],[data-status="REVOKED"],[data-status="FAILED"],
+  [class*="danger"],[class*="error"]
+) {
+  color: var(--office-ui-danger) !important;
+}
+.kravia-office .office-modern .office-main :where(
+  [data-tone="success"],[data-status="ACTIVE"],[data-status="APPROVED"]
+) {
+  color: var(--office-ui-accent) !important;
+}
+.kravia-office .office-modern .office-main :where(
+  a:not([class*="tab"]):not([class*="nav"])
+):hover {
+  color: var(--office-ui-accent);
+}
+
+/* Buttons and semantic state changes follow one blue/red palette. */
+.kravia-office .office-modern .office-main :where(
+  button[class*="primary"],button[class*="submit"],button[class*="save"],
+  button[class*="approve"],button[type="submit"],
+  a[class*="primary"]
+) {
+  background: #1559ce !important;
+  border: 1px solid #1559ce !important;
+  color: #ffffff !important;
+  border-radius: 11px !important;
+  box-shadow: 0 7px 18px rgba(15,79,181,.16) !important;
+  font-weight: 700 !important;
+}
+.kravia-office .office-modern .office-main :where(
+  button[class*="primary"],button[class*="submit"],button[class*="save"],
+  button[class*="approve"],button[type="submit"]
+):hover:not(:disabled) {
+  background: #0948b3 !important;
+  border-color: #0948b3 !important;
+}
+.kravia-office .office-modern .office-main :where(
+  button[class*="danger"],button[class*="delete"],button[class*="revoke"],
+  button[data-tone="danger"]
+) {
+  background: var(--office-ui-danger) !important;
+  color: #fff !important;
+  border-color: var(--office-ui-danger) !important;
+}
+.kravia-office .office-modern .office-main :where(button):disabled {
+  cursor: not-allowed !important;
+  opacity: .56;
+}
+
+/* Dialogs and menus are elevated surfaces in both themes. */
+.kravia-office .office-modern .office-main :where([role="dialog"],[role="alertdialog"]) {
+  color: var(--office-ui-ink) !important;
+  border-color: var(--office-ui-line) !important;
+}
+.kravia-office .office-modern .office-main :where(
+  [class*="popover"],[class*="Popover"],[class*="menuCard"],[class*="dropdown"]
+) {
+  color: var(--office-ui-ink) !important;
+  border-color: var(--office-ui-line) !important;
+}
+.kravia-office .office-modern[data-ui-theme="dark"] .office-main :where(
+  [role="dialog"],[role="alertdialog"],
+  [class*="popover"],[class*="Popover"],[class*="menuCard"],[class*="dropdown"]
+) {
+  background-color: var(--office-ui-surface) !important;
+}
+
+/* Shared searchable combobox (job roles, departments, managers, access grants). */
+.kravia-office .office-modern .enterprise-combobox {
+  min-width: 0;
+  gap: 7px;
+}
+.kravia-office .office-modern .enterprise-combobox-label {
+  color: var(--office-ui-ink) !important;
+  font-size: .85rem !important;
+  font-weight: 680 !important;
+  letter-spacing: -.01em;
+}
+.kravia-office .office-modern .enterprise-combobox-trigger {
+  min-height: 54px !important;
+  width: 100% !important;
+  padding: 10px 13px !important;
+  border-radius: 11px !important;
+  background: var(--office-ui-control) !important;
+  border: 1px solid var(--office-ui-line) !important;
+  color: var(--office-ui-ink) !important;
+  text-align: left;
+  box-shadow: none !important;
+  gap: 12px;
+}
+.kravia-office .office-modern .enterprise-combobox-trigger > span {
+  min-width: 0;
+}
+.kravia-office .office-modern .enterprise-combobox-trigger b {
+  font-size: .92rem !important;
+  font-weight: 680 !important;
+  color: var(--office-ui-ink) !important;
+  line-height: 1.35;
+}
+.kravia-office .office-modern .enterprise-combobox-trigger small {
+  font-size: .76rem !important;
+  color: var(--office-ui-muted) !important;
+  line-height: 1.32;
+}
+.kravia-office .office-modern .enterprise-combobox-trigger svg {
+  flex: none;
+  width: 17px !important;
+  color: var(--office-ui-muted) !important;
+}
+.kravia-office .office-modern .enterprise-combobox-trigger:hover:not(:disabled) {
+  border-color: var(--office-ui-accent) !important;
+}
+.kravia-office .office-modern .enterprise-combobox-popover {
+  inset-inline: 0;
+  top: calc(100% + 5px) !important;
+  z-index: 85 !important;
+  max-width: 100%;
+  border: 1px solid var(--office-ui-line) !important;
+  border-radius: 12px !important;
+  background: var(--office-ui-surface) !important;
+  color: var(--office-ui-ink) !important;
+  box-shadow: var(--office-ui-shadow) !important;
+}
+.kravia-office .office-modern .enterprise-combobox-popover > label {
+  background: var(--office-ui-surface-alt) !important;
+  color: var(--office-ui-muted) !important;
+}
+.kravia-office .office-modern .enterprise-combobox-popover > div > button {
+  background: transparent !important;
+  color: var(--office-ui-ink) !important;
+  min-height: 42px;
+  border-radius: 8px;
+}
+.kravia-office .office-modern .enterprise-combobox-popover > div > button:is(:hover,[data-selected="true"]) {
+  background: var(--office-ui-surface-alt) !important;
+}
+.kravia-office .office-modern .enterprise-combobox-popover > div > button b {
+  color: var(--office-ui-ink) !important;
+  font-size: .84rem !important;
+}
+.kravia-office .office-modern .enterprise-combobox-popover > div > button small {
+  color: var(--office-ui-muted) !important;
+  font-size: .74rem !important;
+}
+
+/* Mobile, iOS touch inputs and dense section text. */
+@media (max-width: 760px) {
+  .kravia-office .office-v2.office-modern {
+    font-size: 14px;
+  }
+  .kravia-office .office-modern .office-main :where(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    textarea,select
+  ) {
+    font-size: 16px !important; /* prevents iOS autofocus zoom */
+  }
+  .kravia-office .office-modern .office-main :where(
+    [class*="hero"],[class*="Hero"]
+  ) {
+    padding: 12px !important;
+    min-height: 0 !important;
+  }
+  .kravia-office .office-modern .enterprise-combobox-trigger {
+    min-height: 52px !important;
+  }
+  .kravia-office .office-modern .enterprise-combobox-popover > div {
+    max-height: min(34dvh, 280px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kravia-office .office-modern :where([role="dialog"],[role="alertdialog"]) {
+    animation: none !important;
+  }
+}
+
+
+/* One selected-state vocabulary for all department and finance submodules. */
+.kravia-office .office-modern .office-main :where(
+  button[data-active="true"],button[aria-selected="true"],button[aria-pressed="true"],
+  a[aria-current="page"]
+) {
+  background: var(--office-ui-accent) !important;
+  border-color: var(--office-ui-accent) !important;
+  color: #fff !important;
+}
+.kravia-office .office-modern .office-main :where(
+  button[data-active="true"],button[aria-selected="true"],button[aria-pressed="true"],
+  a[aria-current="page"]
+) :is(svg,span,small) {
+  color: #fff !important;
+}
+.kravia-office .office-modern .office-main :where(
+  [class*="sectionIntro"],[class*="cardTitle"],[class*="sectionHead"]
+) svg {
+  color: var(--office-ui-accent) !important;
+}
+.kravia-office .office-modern .office-main :where(
+  [class*="avatar"],[class*="Avatar"]
+) {
+  background: #1559ce !important;
+  color: #fff !important;
+}
+.kravia-office .office-modern[data-ui-theme="light"] .office-main :where(
+  [class*="hero"],[class*="Hero"],
+  [class*="panel"],[class*="Panel"],
+  [class*="card"],[class*="Card"],
+  [class*="tableWrap"],[class*="toolbar"],[class*="state"]
+) {
+  background-color: var(--office-ui-surface) !important;
+}
+.kravia-office .office-modern[data-ui-theme="light"] .office-main :where(
+  [class*="sectionIntro"],[class*="notice"],[class*="hint"]
+) {
+  border-color: var(--office-ui-line) !important;
+}
+
+
+/* The same system extends to sign-in and onboarding, which do not mount the
+ * authenticated shell and therefore need tokens at the Office layout root. */
+.kravia-office {
+  --office-ui-canvas: #f6f7fa;
+  --office-ui-surface: #ffffff;
+  --office-ui-surface-alt: #f2f4f8;
+  --office-ui-control: #ffffff;
+  --office-ui-ink: #171b25;
+  --office-ui-muted: #5c6574;
+  --office-ui-soft: #778195;
+  --office-ui-line: #d9dfe9;
+  --office-ui-accent: #1559ce;
+  --office-ui-danger: #cc293b;
+  --office-ui-ring: rgba(31,98,214,.16);
+  --office-ui-shadow: 0 12px 32px rgba(18,32,58,.08);
+}
+.kravia-office[data-office-theme="dark"] {
+  --office-ui-canvas: #050609;
+  --office-ui-surface: #111319;
+  --office-ui-surface-alt: #1b1e27;
+  --office-ui-control: #171a22;
+  --office-ui-ink: #f7f8fb;
+  --office-ui-muted: #c2c6d0;
+  --office-ui-soft: #a7aebc;
+  --office-ui-line: #353945;
+  --office-ui-accent: #4f8fff;
+  --office-ui-danger: #ff6574;
+  --office-ui-ring: rgba(95,152,255,.28);
+  --office-ui-shadow: 0 22px 60px rgba(0,0,0,.48);
+  color-scheme: dark;
+}
+.kravia-office .kravia-office-auth {
+  background: var(--office-ui-canvas) !important;
+  color: var(--office-ui-ink) !important;
+  font-family: var(--font-sans, Inter, "Segoe UI", Arial, sans-serif) !important;
+}
+.kravia-office .kravia-office-auth > section:first-child {
+  background: linear-gradient(150deg,#10141e,#141c2b 65%,#101319) !important;
+  color: #ffffff !important;
+}
+.kravia-office .kravia-office-auth > section:last-child {
+  background: var(--office-ui-canvas) !important;
+  color: var(--office-ui-ink) !important;
+}
+.kravia-office .kravia-office-auth :where([class*="brandCopy"],[class*="brandTop"],[class*="brandFooter"]) :is(h1,h2,h3,b) {
+  color: #ffffff !important;
+}
+.kravia-office .kravia-office-auth :where([class*="kicker"],[class*="trustGrid"]) svg {
+  color: #8bb6ff !important;
+}
+.kravia-office .kravia-office-auth [class*="identityNotice"] {
+  border-left-color: var(--office-ui-accent) !important;
+}
+.kravia-office .kravia-office-auth :where([class*="formSide"],[class*="card"]) {
+  color: var(--office-ui-ink) !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] [class*="card"] {
+  background: var(--office-ui-surface) !important;
+  color: var(--office-ui-ink) !important;
+  border: 1px solid var(--office-ui-line) !important;
+  box-shadow: var(--office-ui-shadow) !important;
+  backdrop-filter: none !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] :where(h1,h2,h3) {
+  color: var(--office-ui-ink) !important;
+  font-family: var(--font-sans, Inter, "Segoe UI", Arial, sans-serif) !important;
+  letter-spacing: -.04em !important;
+  line-height: 1.16 !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] :where(
+  p,[class*="intro"],[class*="description"],[class*="field"]
+) {
+  color: var(--office-ui-muted) !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] :where([class*="field"]) {
+  font-size: .84rem !important;
+  font-weight: 670 !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] :where(input,select,textarea) {
+  background: var(--office-ui-control) !important;
+  color: var(--office-ui-ink) !important;
+  border: 1px solid var(--office-ui-line) !important;
+  border-radius: 11px !important;
+  font-size: 16px !important;
+  box-shadow: none !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] :where(input,select,textarea)::placeholder {
+  color: var(--office-ui-soft) !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] :where(input,select,textarea):focus-visible {
+  outline: 2px solid var(--office-ui-accent) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px var(--office-ui-ring) !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] :where(
+  button[class*="primary"],button[type="submit"]
+) {
+  background: #1559ce !important;
+  border: 1px solid #1559ce !important;
+  color: #fff !important;
+  border-radius: 11px !important;
+  box-shadow: 0 8px 20px rgba(15,79,181,.14) !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] :where(
+  button[class*="secondary"]
+) {
+  color: var(--office-ui-ink) !important;
+  background: var(--office-ui-surface-alt) !important;
+  border: 1px solid var(--office-ui-line) !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] :where(
+  [class*="icon"],[class*="status"],[class*="alert"],[class*="identityNotice"]
+) {
+  background: var(--office-ui-surface-alt) !important;
+  border-color: var(--office-ui-line) !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] :where(
+  [data-tone="error"],[class*="alert"]
+) {
+  color: var(--office-ui-danger) !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] :where(
+  [data-tone="success"],[data-tone="info"]
+) {
+  color: var(--office-ui-accent) !important;
+}
+.kravia-office[data-office-theme="dark"] .kravia-office-auth > section:first-child {
+  background: linear-gradient(145deg,#06070a,#111521) !important;
+}
+.kravia-office[data-office-theme="dark"] .kravia-office-auth [class*="formSide"] :where(
+  [class*="form"],[class*="status"],[class*="alert"],[class*="tabs"],[class*="timer"],[class*="qrPanel"]
+) {
+  color: var(--office-ui-ink) !important;
+  background-color: var(--office-ui-surface) !important;
+}
+@media (max-width:760px) {
+  .kravia-office .kravia-office-auth [class*="formSide"] [class*="card"] {
+    border-radius: 17px !important;
+    padding: 18px !important;
+  }
+}

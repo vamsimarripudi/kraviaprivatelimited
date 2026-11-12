@@ -150,12 +150,39 @@ function PersonDrawer({ person, state, owner, pending, mutate, onClose }: { pers
     <header><div className={styles.personHeader}><div className={styles.avatar}>{initials(person)}</div><span><p>WORKFORCE IDENTITY</p><h2>{person.display_name || person.email}</h2><small>{person.email} · {person.roles.join(" · ")}</small></span></div><button type="button" onClick={onClose} aria-label="Close"><X /></button></header>
     <div className={styles.drawerFacts}><span><b>{person.status}</b><small>Identity</small></span><span><b>{person.authorization_version}</b><small>Authz revision</small></span><span><b>{person.access_profiles.filter((profile) => profile.active).length}</b><small>Active profiles</small></span><span><b>{person.devices.filter((device) => device.trust_state === "TRUSTED").length}</b><small>Trusted devices</small></span></div>
     {!manageable ? <div className={styles.protected}><ShieldCheck /><p>{person.roles.includes("OWNER") ? "Protected OWNER authority cannot be changed through ordinary workforce administration." : "This privileged identity is outside your delegated ADMIN boundary."}</p></div> : null}
-    <nav className={styles.drawerTabs}>{(["job", "profiles", "permissions", "devices"] as const).map((key) => <button type="button" key={key} data-active={section === key} onClick={() => setSection(key)}>{key === "job" ? "Position & reporting" : key === "profiles" ? "Access profiles" : key === "permissions" ? "Permission exceptions" : "Devices"}</button>)}</nav>
-    {section === "job" ? <JobForm person={person} positions={positionOptions} departments={departmentOptions} managers={managerOptions} pending={pending || !manageable} mutate={mutate} /> : null}
-    {section === "profiles" ? <ProfileForm person={person} profiles={profileOptions} allProfiles={state.access_profiles} mappings={state.profile_permissions} permissions={state.permissions} pending={pending || !manageable} mutate={mutate} /> : null}
-    {section === "permissions" ? <PermissionForm person={person} options={permissionOptions} permissions={state.permissions} owner={owner} pending={pending || !manageable} mutate={mutate} /> : null}
-    {section === "devices" ? <DevicePanel person={person} pending={pending || !manageable} mutate={mutate} /> : null}
+    {manageable ? <>
+      <nav className={styles.drawerTabs} aria-label="Employee access details">{(["job", "profiles", "permissions", "devices"] as const).map((key) => <button type="button" key={key} data-active={section === key} onClick={() => setSection(key)}>{key === "job" ? "Position & reporting" : key === "profiles" ? "Access profiles" : key === "permissions" ? "Permission exceptions" : "Devices"}</button>)}</nav>
+      {section === "job" ? <JobForm person={person} positions={positionOptions} departments={departmentOptions} managers={managerOptions} pending={pending} mutate={mutate} /> : null}
+      {section === "profiles" ? <ProfileForm person={person} profiles={profileOptions} allProfiles={state.access_profiles} mappings={state.profile_permissions} permissions={state.permissions} pending={pending} mutate={mutate} /> : null}
+      {section === "permissions" ? <PermissionForm person={person} options={permissionOptions} permissions={state.permissions} owner={owner} pending={pending} mutate={mutate} /> : null}
+      {section === "devices" ? <DevicePanel person={person} pending={pending} mutate={mutate} /> : null}
+    </> : <ProtectedPersonOverview person={person} positions={state.positions} managers={state.people} />}
+
   </aside></div>;
+}
+
+function ProtectedPersonOverview({ person, positions, managers }: {
+  person: Person;
+  positions: Position[];
+  managers: Person[];
+}) {
+  const position = positions.find((item) => item.code === person.job?.position_code);
+  const manager = managers.find((item) => item.user_id === person.job?.reports_to_user_id);
+  const rows = [
+    ["Position", position?.label ?? person.job_title ?? "Not assigned"],
+    ["Department", person.job?.department_code ?? person.primary_department ?? "Not assigned"],
+    ["Reports to", manager?.display_name ?? manager?.email ?? "No reporting manager"],
+    ["Employment type", person.job?.employment_type ?? "Not recorded"],
+    ["Team scope", person.job?.team_key ?? "Not assigned"],
+    ["Product scope", person.job?.product_key ?? "Company-wide"],
+  ];
+  return <section className={styles.protectedOverview} aria-label="Read-only position and reporting">
+    <div className={styles.sectionIntro}><UserCog aria-hidden="true" /><div><b>Position and reporting line</b>
+      <p>This protected identity can be reviewed here. Founder and other protected authorities cannot be reassigned through an ordinary workforce form.</p></div></div>
+    <dl className={styles.protectedDetails}>
+      {rows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+    </dl>
+  </section>;
 }
 
 function JobForm({ person, positions, departments, managers, pending, mutate }: { person: Person; positions: Array<{ value: string; label: string; meta?: string; disabled?: boolean }>; departments: Array<{ value: string; label: string; meta?: string }>; managers: Array<{ value: string; label: string; meta?: string }>; pending: boolean; mutate: (body: Record<string, unknown>, success: string) => Promise<boolean> }) {

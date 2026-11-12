@@ -2,6 +2,16 @@ name: KRAVIA Office browser E2E
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "Frontend/app/office/office-design-system.css"
+      - "Frontend/app/office/layout.tsx"
+      - "Frontend/app/finance/layout.tsx"
+      - "Frontend/components/office-appearance-root.tsx"
+      - "Frontend/components/office-workspace-processing*"
+      - "Frontend/components/workforce-administration-panel*"
+      - "Testing/playwright/**"
+      - ".github/workflows/office-e2e.yml"
   push:
     branches: [main]
     paths:
