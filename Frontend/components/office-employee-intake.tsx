@@ -67,6 +67,68 @@ function fromProfile(profile:Profile|null,identity:Overview["identity"]):Draft{
   };
 }
 
+function ExtendedIntakeFields({draft,update}:{draft:Draft;update:React.Dispatch<React.SetStateAction<Draft>>}) {
+  return <>
+    <div className={styles.subsection}>
+      <div className={styles.row}>
+        <strong>Emergency contacts · private</strong>
+        <button type="button" disabled={draft.emergency_contacts.length>=4}
+          onClick={()=>update(d=>({...d,emergency_contacts:[...d.emergency_contacts,{name:"",relation:"",phone:""}]}))}>
+          Add contact
+        </button>
+      </div>
+      {draft.emergency_contacts.length===0?<p>Optional. Only authorised employee and HR workflows can view these records.</p>:null}
+      {draft.emergency_contacts.map((contact,i)=><div className={styles.edu} key={i}>
+        <label>Contact name<input required maxLength={160} value={contact.name}
+          onChange={e=>update(d=>({...d,emergency_contacts:d.emergency_contacts.map((x,j)=>j===i?{...x,name:e.target.value}:x)}))}/></label>
+        <label>Relationship<input required maxLength={80} value={contact.relation}
+          onChange={e=>update(d=>({...d,emergency_contacts:d.emergency_contacts.map((x,j)=>j===i?{...x,relation:e.target.value}:x)}))}/></label>
+        <label>Contact phone<input required type="tel" maxLength={32} value={contact.phone}
+          onChange={e=>update(d=>({...d,emergency_contacts:d.emergency_contacts.map((x,j)=>j===i?{...x,phone:e.target.value}:x)}))}/></label>
+        <button type="button" onClick={()=>update(d=>({...d,emergency_contacts:d.emergency_contacts.filter((_,j)=>j!==i)}))}>Remove contact</button>
+      </div>)}
+    </div>
+    <div className={styles.subsection}>
+      <div className={styles.row}>
+        <strong>Prior employment and experience</strong>
+        <button type="button" disabled={draft.prior_experience.length>=15}
+          onClick={()=>update(d=>({...d,prior_experience:[...d.prior_experience,{organisation:"",position:""}]}))}>
+          Add experience
+        </button>
+      </div>
+      {draft.prior_experience.map((work,i)=><div className={styles.edu} key={i}>
+        <label>Organisation<input required maxLength={180} value={work.organisation}
+          onChange={e=>update(d=>({...d,prior_experience:d.prior_experience.map((x,j)=>j===i?{...x,organisation:e.target.value}:x)}))}/></label>
+        <label>Position<input required maxLength={160} value={work.position}
+          onChange={e=>update(d=>({...d,prior_experience:d.prior_experience.map((x,j)=>j===i?{...x,position:e.target.value}:x)}))}/></label>
+        <label>Start date<input type="date" value={work.started_at||""}
+          onChange={e=>update(d=>({...d,prior_experience:d.prior_experience.map((x,j)=>j===i?{...x,started_at:e.target.value||undefined}:x)}))}/></label>
+        <label>End date<input type="date" min={work.started_at||undefined} value={work.ended_at||""}
+          onChange={e=>update(d=>({...d,prior_experience:d.prior_experience.map((x,j)=>j===i?{...x,ended_at:e.target.value||undefined}:x)}))}/></label>
+        <button type="button" onClick={()=>update(d=>({...d,prior_experience:d.prior_experience.filter((_,j)=>j!==i)}))}>Remove experience</button>
+      </div>)}
+    </div>
+    <div className={styles.subsection}>
+      <strong>Payroll declarations · sensitive identifiers are not collected here</strong>
+      <div className={styles.fields}>
+        <label>Tax residency<select value={draft.tax_declarations.tax_residency||"UNDECLARED"}
+          onChange={e=>update(d=>({...d,tax_declarations:{...d.tax_declarations,tax_residency:e.target.value as "INDIA"|"OTHER"|"UNDECLARED"}}))}>
+          <option value="UNDECLARED">Not declared</option><option value="INDIA">India</option><option value="OTHER">Other</option>
+        </select></label>
+        <label>Income-tax regime preference<select value={draft.tax_declarations.regime_preference||"UNDECLARED"}
+          onChange={e=>update(d=>({...d,tax_declarations:{...d.tax_declarations,regime_preference:e.target.value as "OLD"|"NEW"|"UNDECLARED"}}))}>
+          <option value="UNDECLARED">Not declared</option><option value="OLD">Old regime</option><option value="NEW">New regime</option>
+        </select></label>
+        <label className={styles.checkbox}><input type="checkbox" checked={draft.tax_declarations.pf_declaration_submitted||false}
+          onChange={e=>update(d=>({...d,tax_declarations:{...d.tax_declarations,pf_declaration_submitted:e.target.checked}}))}/>
+          I have submitted any required provident-fund declarations through an approved private channel.
+        </label>
+      </div>
+      <p>Do not enter PAN, Aadhaar or other tax identification numbers into free-text fields. Verification requires a separate authorised secure collection process.</p>
+    </div>
+  </>;
+}
+
 export function OfficeEmployeeIntake({view="self"}:{view?:"self"|"hr"}){
   const [directory,setDirectory]=useState<Person[]>([]);
   const [target,setTarget]=useState("");
@@ -191,11 +253,20 @@ export function OfficeEmployeeIntake({view="self"}:{view?:"self"|"hr"}){
                 <label>Qualification<input required value={edu.qualification} onChange={e=>setDraft(d=>({...d,education:d.education.map((x,j)=>j===i?{...x,qualification:e.target.value}:x)}))}/></label>
                 <label>Institution<input required value={edu.institution} onChange={e=>setDraft(d=>({...d,education:d.education.map((x,j)=>j===i?{...x,institution:e.target.value}:x)}))}/></label>
                 <label>Course<input value={edu.course||""} onChange={e=>setDraft(d=>({...d,education:d.education.map((x,j)=>j===i?{...x,course:e.target.value}:x)}))}/></label>
+                <label>Specialisation<input maxLength={160} value={edu.specialisation||""}
+                  onChange={e=>setDraft(d=>({...d,education:d.education.map((x,j)=>j===i?{...x,specialisation:e.target.value}:x)}))}/></label>
+                <label>Study start<input type="date" value={edu.start_date||""}
+                  onChange={e=>setDraft(d=>({...d,education:d.education.map((x,j)=>j===i?{...x,start_date:e.target.value||undefined}:x)}))}/></label>
+                <label>Study end<input type="date" min={edu.start_date||undefined} value={edu.end_date||""}
+                  onChange={e=>setDraft(d=>({...d,education:d.education.map((x,j)=>j===i?{...x,end_date:e.target.value||undefined}:x)}))}/></label>
+                <label>Completion date<input type="date" value={edu.completion_date||""}
+                  onChange={e=>setDraft(d=>({...d,education:d.education.map((x,j)=>j===i?{...x,completion_date:e.target.value||undefined}:x)}))}/></label>
                 <label>Completion year<input type="number" min={1950} max={2100} value={edu.year||""}
                   onChange={e=>setDraft(d=>({...d,education:d.education.map((x,j)=>j===i?{...x,year:e.target.value?Number(e.target.value):undefined}:x)}))}/></label>
                 <button type="button" disabled={draft.education.length===1} onClick={()=>setDraft(d=>({...d,education:d.education.filter((_,j)=>j!==i)}))}>Remove</button>
               </div>)}
             </div>
+            <ExtendedIntakeFields draft={draft} update={setDraft}/>
             <div className={styles.subsection}>
               <strong>Bank details · encrypted server-side</strong>
               <small>Existing account: {profile?.bank_account_last4?"••••"+profile.bank_account_last4:"not recorded"}. Enter a new account only when updating it.</small>
