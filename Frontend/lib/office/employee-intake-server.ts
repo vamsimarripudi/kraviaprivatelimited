@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createCipheriv, randomBytes } from "node:crypto";
-import { requireOfficeActor, resolveOfficePermission } from "@/lib/office/permission-engine";
+import { OfficePermissionError, requireOfficeActor, resolveOfficePermission } from "@/lib/office/permission-engine";
 import type { OfficeIdentity } from "@/lib/office/auth-server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -21,7 +21,8 @@ type Draft = {
 
 async function actor() {
   try { return await requireOfficeActor(); }
-  catch { throw new EmployeeIntakeError(401, "Verified Office sign-in required"); }
+  catch (error) { throw new EmployeeIntakeError(error instanceof OfficePermissionError ? error.status : 503,
+    error instanceof OfficePermissionError ? error.message : "Trusted Office identity service unavailable"); }
 }
 function check(error: {message?:string}|null, message: string) { if (error) throw new EmployeeIntakeError(503,message); }
 async function reviewer(current: Actor, employeeId: string, permission: string) {
@@ -80,7 +81,7 @@ export async function employeeIntakeOverview(employeeId?: string) {
 export async function saveEmployeeIntake(input: Draft) {
   const current=await actor(), id=current.identity.userId;
   const old=await current.admin.from("office_employee_intake_profiles")
-    .select("status,revision,bank_account_ciphertext,bank_account_last4,bank_verified_at")
+    .select("status,revision,bank_account_ciphertext,bank_account_last4,bank_verified_at,bank_account_holder,bank_ifsc,signature_evidence_reference,policy_acknowledged_at")
     .eq("employee_user_id",id).maybeSingle();
   check(old.error,"Cannot read current onboarding state");
   if(old.data?.status==="SUBMITTED"||old.data?.status==="VERIFIED"){
@@ -99,10 +100,10 @@ export async function saveEmployeeIntake(input: Draft) {
     education:input.education,
     bank_account_ciphertext:encrypted,
     bank_account_last4:bank?bank.slice(-4):old.data?.bank_account_last4??null,
-    bank_account_holder:input.bank_account_holder?.trim()||null,
-    bank_ifsc:input.bank_ifsc?.trim().toUpperCase()||null,
-    signature_evidence_reference:input.signature_evidence_reference?.trim()||null,
-    policy_acknowledged_at:input.policy_acknowledged?new Date().toISOString():null,
+    bank_account_holder:input.bank_account_holder?.trim()||old.data?.bank_account_holder||null,
+    bank_ifsc:input.bank_ifsc?.trim().toUpperCase()||old.data?.bank_ifsc||null,
+    signature_evidence_reference:input.signature_evidence_reference?.trim()||old.data?.signature_evidence_reference||null,
+    policy_acknowledged_at:input.policy_acknowledged?(old.data?.policy_acknowledged_at||new Date().toISOString()):null,
     // A change of bank credentials invalidates the old Finance verification.
     ...(bank?{bank_verified_by:null,bank_verified_at:null,bank_verification_evidence:null}:{}),
     status:"DRAFT",reviewed_by:null,reviewed_at:null,review_note:null,
@@ -189,4 +190,26 @@ export async function issuePermanentEmployeeId(input:{employeeId:string;reason:s
     throw new EmployeeIntakeError(409,error?.message||"Employee ID issuance blocked by verification gates");
   }
   throw new EmployeeIntakeError(503,"Unique employee ID collision; no ID was issued");
+}
+
+/** Minimal directory for authorised HR. A delegated head cannot enumerate
+ * employees in an unrelated department. No banking, DOB, documents or
+ * employment compensation is included. */
+export async function employeeIntakeDirectory(){
+  const current=await actor();
+  const directory=await current.admin.from("office_identity_users")
+    .select("user_id,display_name,primary_department,status")
+    .eq("status","ACTIVE").order("display_name").limit(250);
+  check(directory.error,"Employee directory is unavailable");
+  const allowed: Array<{user_id:string;display_name:string;department:string}> = [];
+  for(const person of directory.data||[]){
+    const permission=await resolveOfficePermission(current.admin,current.identity,"people.update",{
+      type:"DEPARTMENT",key:person.primary_department||"EXECUTIVE",
+    });
+    if(permission.allowed) allowed.push({
+      user_id:person.user_id, display_name:person.display_name||"Office employee",
+      department:person.primary_department||"UNASSIGNED",
+    });
+  }
+  return {employees:allowed};
 }
