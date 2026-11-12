@@ -26,6 +26,10 @@ async function read<T>(init?: RequestInit): Promise<T> {
   return body as T;
 }
 
+function displayCount(value:number|null|undefined) {
+  return typeof value === "number" ? value.toLocaleString("en-IN") : "Unknown";
+}
+
 /** Explicit Owner-only, AAL2, effective-dated corporate mail control.
  * This component never triggers an email or bypasses the worker approval RPC.
  */
@@ -91,8 +95,7 @@ export function OfficeEmployeeMailControls() {
         {(["PENDING","SENDING","SENT","UNKNOWN","REJECTED"] as const).map(status =>
           <div key={status}>
             <small>{status === "SENT" ? "Provider accepted" : status.replaceAll("_"," ").toLowerCase()}</small>
-            <strong>{typeof policy.count_by_status?.[status] === "number"
-              ? policy.count_by_status[status]!.toLocaleString("en-IN") : "Unknown"}</strong>
+            <strong>{displayCount(policy.count_by_status?.[status])}</strong>
           </div>)}
       </div>
       <p className={styles.state}>{policy.note}</p>
