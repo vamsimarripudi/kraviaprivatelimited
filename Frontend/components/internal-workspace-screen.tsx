@@ -202,7 +202,7 @@ export function InternalWorkspaceScreen({ workspace, section }: Props) {
           : workspace === "office" && section === "domains" ? <OfficeDomainControl />
           : workspace === "office" && section === "custody" ? <OfficeSecureCustody />
           : workspace === "office" && section === "audit" ? <OfficeAuditExplorer />
-          : workspace === "office" && section === "settings" ? <OfficeSettingsHub identity={identity} />
+          : section === "settings" ? <OfficeSettingsHub identity={identity} />
           : workspace === "finance" && section === "cards" ? <OfficeCorporateCards />
           : workspace === "finance" && section === "insurance" ? <OfficeResilienceWorkspace mode="insurance" />
           : workspace === "finance" && section === "dashboard" ? <OfficeFinanceCommandCenter />
