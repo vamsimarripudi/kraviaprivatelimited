@@ -20,8 +20,9 @@ describe("KRAVIA Authenticator verified-device boundary", () => {
       expect(login).toContain(`"${role}"`);
     }
     expect(login).toContain('href="/office/authenticator"');
-    expect(installPage).toContain("MANDATORY FOR EVERY OFFICE ROLE");
-    expect(installPage).toContain("KRAVIA_AUTHENTICATOR_ANDROID_URL");
+    expect(installPage).toContain("OFFICIAL KRAVIA AUTHENTICATOR");
+    expect(installPage).toContain("KRAVIA_AUTHENTICATOR_PLAY_STORE_URL");
+    expect(installPage).toContain("GOOGLE_PLAY_BADGE_IMAGE_URL");
     expect(installPage).toContain("KRAVIA_AUTHENTICATOR_IOS_URL");
   });
 
