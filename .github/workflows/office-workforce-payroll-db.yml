@@ -6,7 +6,11 @@ on:
       - 'Database/supabase/migrations/202611100002_worktime_salary_evidence.sql'
       - 'Database/supabase/migrations/202611100003_flex_day_credits.sql'
       - 'Database/supabase/migrations/202611110002_harden_salary_settlement_trigger_execute.sql'
+      - 'Database/supabase/migrations/202611130001_future_effective_hr_access.sql'
+      - 'Database/supabase/migrations/202611130002_hr_worktime_evidence_authority.sql'
       - 'Database/supabase/tests/workforce-release-*.sql'
+      - 'Database/supabase/tests/future-effective-hr-access-smoke.sql'
+      - 'Database/supabase/tests/hr-manager-worktime-smoke.sql'
       - '.github/workflows/office-workforce-payroll-db.yml'
   workflow_dispatch:
 permissions:
@@ -51,6 +55,12 @@ jobs:
           pg -f Database/supabase/migrations/202611100002_worktime_salary_evidence.sql
           pg -f Database/supabase/migrations/202611100003_flex_day_credits.sql
           pg -f Database/supabase/migrations/202611110002_harden_salary_settlement_trigger_execute.sql
+          pg -f Database/supabase/migrations/202611130001_future_effective_hr_access.sql
+          pg -f Database/supabase/migrations/202611130002_hr_worktime_evidence_authority.sql
           test "$(pg --tuples-only --no-align \
             -f Database/supabase/tests/workforce-release-smoke.sql | tail -n 1)" = "WORKFORCE_MIGRATIONS_VERIFIED"
-          echo "All isolated Office workforce/payroll SQL migrations and business flows passed."
+          test "$(pg --tuples-only --no-align \
+            -f Database/supabase/tests/future-effective-hr-access-smoke.sql | tail -n 1)" = "FUTURE_HR_ACCESS_VERIFIED"
+          test "$(pg --tuples-only --no-align \
+            -f Database/supabase/tests/hr-manager-worktime-smoke.sql | tail -n 1)" = "HR_WORKTIME_AUTHORITY_VERIFIED"
+          echo "All isolated Office workforce/payroll, HR evidence and future grants passed."

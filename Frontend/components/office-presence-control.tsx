@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Clock3, LoaderCircle, ShieldCheck } from "lucide-react";
+import Link from "next/link";
 import {
   availabilityOption,
   officeAvailabilityOptions,
@@ -173,7 +174,7 @@ export function OfficePresenceControl() {
   return <details className={styles.control}>
     <summary className={styles.summary} aria-label="Open workforce status">
       <span className={styles.dot} data-status={availability.value} aria-hidden="true" />
-      <span><b>{availability.label}</b><small>{state?.attendance.state === "ON_BREAK" ? "On break" : state?.attendance.state === "WORKING" ? duration(liveTracked) : employment.label}</small></span>
+      <span><b>{availability.label}</b><small>{state?.attendance.state === "ON_BREAK" ? "On break" : state?.attendance.state === "WORKING" ? "Working · " + duration(liveTracked) : "Check in to record work"}</small></span>
     </summary>
     <div className={styles.panel}>
       <header><div><p>MY STATUS</p><h2>{availability.emoji} {availability.label}</h2></div>{busy ? <LoaderCircle className="spin" /> : <ShieldCheck />}</header>
@@ -183,7 +184,7 @@ export function OfficePresenceControl() {
         <section><label>Availability</label><div className={styles.statusGrid}>{officeAvailabilityOptions.map((option) => <button key={option.value} type="button" disabled={busy} data-active={state.presence.effective_status === option.value} onClick={() => void setAvailability(option.value)}><span>{option.emoji}</span>{option.label}</button>)}</div></section>
         <section className={styles.expiryRow}><label htmlFor="presence-expiry">Auto-clear status</label><select id="presence-expiry" value={expiry} onChange={(event) => setExpiry(event.target.value as ExpirySelection)}><option value="NONE">No expiry</option><option value="1H">In 1 hour</option><option value="4H">In 4 hours</option><option value="EOD">End of day</option></select></section>
         <section className={styles.attendance}>
-          <div className={styles.attendanceHead}><div><label>Attendance</label><strong>{state.attendance.state === "OFF_CLOCK" ? "Not checked in" : state.attendance.state === "ON_BREAK" ? "Break active" : duration(liveTracked)}</strong></div><Clock3 /></div>
+          <div className={styles.attendanceHead}><div><label>Attendance · six-hour weekday target</label><strong>{state.attendance.state === "OFF_CLOCK" ? "Not checked in" : state.attendance.state === "ON_BREAK" ? "Break active" : duration(liveTracked)}</strong></div><Clock3 /></div>
           {state.attendance.state === "OFF_CLOCK" ? <>
             <select aria-label="Work mode" value={workMode} onChange={(event) => setWorkMode(event.target.value as WorkModeSelection)}><option value="">Choose work mode</option>{officeWorkModeOptions.map((option) => <option key={option.value} value={option.value}>{option.emoji} {option.label}</option>)}</select>
             <button className={styles.primary} type="button" disabled={busy || !workMode || !attendanceAllowed} onClick={() => void attendance("CHECK_IN")}>Check in</button>
@@ -193,7 +194,7 @@ export function OfficePresenceControl() {
             <div className={styles.attendanceActions}>{state.attendance.state === "ON_BREAK" ? <button type="button" disabled={busy} onClick={() => void attendance("BREAK_END")}>End break</button> : <button type="button" disabled={busy} onClick={() => void attendance("BREAK_START")}>Start break</button>}<button className={styles.danger} type="button" disabled={busy} onClick={() => void attendance("CHECK_OUT")}>Check out</button></div>
           </>}
         </section>
-        <p className={styles.note}>Presence, attendance and authenticated sessions remain separate records. Browser activity is never treated as payroll time.</p>
+        <p className={styles.note}>Start a real attendance session with Check in; use Break and Check out for net worktime. No fixed 10–5 shift: six hours per weekday and 30 hours Monday–Friday. <Link href="/office/worktime">Review daily/weekly hours and August historical corrections</Link>. Presence, attendance and authenticated sessions remain separate records. Browser activity is never treated as payroll time.</p>
       </>}
     </div>
   </details>;

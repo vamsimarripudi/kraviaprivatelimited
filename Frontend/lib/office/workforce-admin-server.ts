@@ -92,7 +92,7 @@ export async function getWorkforceAdministrationState() {
     admin.from("office_access_profile_catalog").select("code,label,category,description,max_active_devices,requires_managed_device_for_high_risk,assignable_by_admin,owner_managed_only,active").eq("active", true).order("label", { ascending: true }),
     admin.from("office_access_profile_permissions").select("profile_code,permission_code,effect,default_scope_type"),
     admin.from("office_permission_catalog").select("code,module,action,label,description,sensitivity,high_risk,requires_managed_device,active").eq("active", true).order("module", { ascending: true }).order("label", { ascending: true }),
-    admin.from("office_user_access_profiles").select("id,user_id,profile_code,scope_type,scope_key,status,granted_by,grant_reason,expires_at,created_at,updated_at").order("created_at", { ascending: true }),
+    admin.from("office_user_access_profiles").select("id,user_id,profile_code,scope_type,scope_key,status,granted_by,grant_reason,effective_from,expires_at,created_at,updated_at").order("created_at", { ascending: true }),
     admin.from("office_user_permission_overrides").select("*").order("created_at", { ascending: false }),
     admin.from("office_device_registry").select("id,user_id,device_label,device_kind,platform,trust_state,company_managed,approved_by,approved_at,revoked_at,last_seen_at,created_at").order("created_at", { ascending: false }),
     admin.from("office_department_catalog").select("code,label,description,active").eq("active", true).order("label", { ascending: true }),
@@ -119,7 +119,8 @@ export async function getWorkforceAdministrationState() {
     const current = profilesByUser.get(userId) ?? [];
     const expiresAt = typeof profile.expires_at === "string" ? profile.expires_at : null;
     const expiryMs = expiresAt ? Date.parse(expiresAt) : Number.POSITIVE_INFINITY;
-    current.push({ ...profile, active: profile.status === "ACTIVE" && (!expiresAt || (Number.isFinite(expiryMs) && expiryMs > nowMs)) });
+    const effectiveAt = typeof profile.effective_from === "string" ? Date.parse(profile.effective_from) : null;
+    current.push({ ...profile, active: profile.status === "ACTIVE" && (!effectiveAt || (Number.isFinite(effectiveAt) && effectiveAt <= nowMs)) && (!expiresAt || (Number.isFinite(expiryMs) && expiryMs > nowMs)) });
     profilesByUser.set(userId, current);
   }
   const devicesByUser = new Map<string, Array<Record<string, unknown>>>();

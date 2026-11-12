@@ -2,7 +2,7 @@ name: KRAVIA Office corporate employee mail outbox PostgreSQL integration
 on:
   pull_request:
     paths:
-      - 'Database/supabase/migrations/202611130002_office_employee_mail_delivery_worker.sql'
+      - 'Database/supabase/migrations/202611130021_office_employee_mail_delivery_worker.sql'
       - 'Database/supabase/tests/employee-mail-outbox-*.sql'
       - '.github/workflows/office-employee-mail-db.yml'
   workflow_dispatch:
@@ -39,8 +39,8 @@ jobs:
             docker run --rm --network host               -v "$PWD:/repo:ro" --workdir /repo               --env PGPASSWORD=ci-office-mail-only postgres:17               psql --host 127.0.0.1 --username postgres --dbname kravia_employee_mail_ci                 --set ON_ERROR_STOP=1 "$@"
           }
           pg -f Database/supabase/tests/employee-mail-outbox-fixture.sql
-          pg -f Database/supabase/migrations/202611130002_office_employee_mail_delivery_worker.sql
-          pg -f Database/supabase/migrations/202611130002_office_employee_mail_delivery_worker.sql
+          pg -f Database/supabase/migrations/202611130021_office_employee_mail_delivery_worker.sql
+          pg -f Database/supabase/migrations/202611130021_office_employee_mail_delivery_worker.sql
           result="$(pg --tuples-only --no-align -f Database/supabase/tests/employee-mail-outbox-smoke.sql)"
           echo "$result"
           test "$(printf '%s\n' "$result" | tail -n 1)" = "EMPLOYEE_MAIL_DELIVERY_VERIFIED"

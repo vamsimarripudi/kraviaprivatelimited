@@ -5,7 +5,7 @@ const route = readFileSync(new URL("../app/api/office-employee-intake/route.ts",
 const server = readFileSync(new URL("../lib/office/employee-intake-server.ts", import.meta.url),"utf8");
 const form = readFileSync(new URL("../components/office-employee-intake.tsx", import.meta.url),"utf8");
 const profile = readFileSync(new URL("../components/office-employee-summary.tsx", import.meta.url),"utf8");
-const migration = readFileSync(new URL("../../Database/supabase/migrations/202611130001_extended_employee_intake.sql", import.meta.url),"utf8");
+const migration = readFileSync(new URL("../../Database/supabase/migrations/202611130020_extended_employee_intake.sql", import.meta.url),"utf8");
 
 describe("KRAVIA extended employee onboarding",()=>{
   it("preserves only service-role access to private supplementary evidence",()=>{

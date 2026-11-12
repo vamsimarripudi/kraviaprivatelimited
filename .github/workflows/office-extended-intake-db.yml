@@ -2,7 +2,7 @@ name: KRAVIA Office extended HR intake PostgreSQL rehearsal
 on:
   pull_request:
     paths:
-      - 'Database/supabase/migrations/202611130001_extended_employee_intake.sql'
+      - 'Database/supabase/migrations/202611130020_extended_employee_intake.sql'
       - 'Database/supabase/tests/extended-employee-intake-*.sql'
       - '.github/workflows/office-extended-intake-db.yml'
   workflow_dispatch:
@@ -39,8 +39,8 @@ jobs:
             docker run --rm --network host               -v "$PWD:/repo:ro" --workdir /repo               --env PGPASSWORD=ci-extended-intake-only postgres:17               psql --host 127.0.0.1 --username postgres                    --dbname kravia_employee_intake_ci --set ON_ERROR_STOP=1 "$@"
           }
           pg -f Database/supabase/tests/extended-employee-intake-fixture.sql
-          pg -f Database/supabase/migrations/202611130001_extended_employee_intake.sql
-          pg -f Database/supabase/migrations/202611130001_extended_employee_intake.sql
+          pg -f Database/supabase/migrations/202611130020_extended_employee_intake.sql
+          pg -f Database/supabase/migrations/202611130020_extended_employee_intake.sql
           output="$(pg --tuples-only --no-align -f Database/supabase/tests/extended-employee-intake-smoke.sql)"
           echo "$output"
           test "$(printf '%s\n' "$output" | tail -n 1)" = "KRAVIA_EXTENDED_INTAKE_VERIFIED"

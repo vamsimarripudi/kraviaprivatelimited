@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 const endpoint = readFileSync(new URL("../app/api/office-employee-mail-policy/route.ts",import.meta.url),"utf8");
 const controls = readFileSync(new URL("../components/office-employee-mail-controls.tsx",import.meta.url),"utf8");
 const settings = readFileSync(new URL("../components/office-settings-hub.tsx",import.meta.url),"utf8");
-const sql = readFileSync(new URL("../../Database/supabase/migrations/202611130002_office_employee_mail_delivery_worker.sql",import.meta.url),"utf8");
+const sql = readFileSync(new URL("../../Database/supabase/migrations/202611130021_office_employee_mail_delivery_worker.sql",import.meta.url),"utf8");
 const worker = readFileSync(new URL("../../Backend/backend/office_employee_mail_worker.py",import.meta.url),"utf8");
 
 describe("KRAVIA Office authorised employee notification delivery",()=>{
