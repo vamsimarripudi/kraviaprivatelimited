@@ -11,3 +11,27 @@
 .actions button,.toolbar button{border-radius:10px!important;transition:transform 140ms ease}.actions button:hover,.toolbar button:hover{transform:translateY(-1px)}
 @media(max-width:620px){.card:hover,.profile:hover,.person:hover,.asset:hover,.device:hover,.metrics article:hover,.actions button:hover,.toolbar button:hover{transform:none}}
 @media(prefers-reduced-motion:reduce){.card,.profile,.person,.asset,.device,.metrics article,.actions button,.toolbar button{transition:none}}
+
+/* Unified Office dense view — responsive compact surfaces, no workflow changes. */
+.shell{gap:11px!important}
+.hero{min-height:0!important;padding:13px 15px!important;gap:10px!important;border-radius:14px!important}
+.hero h2{font-size:clamp(1.05rem,1.7vw,1.45rem)!important;line-height:1.2!important}
+.hero span{font-size:.73rem!important;line-height:1.45!important}
+.metrics{gap:6px!important;flex-wrap:wrap!important}
+.metrics article{min-width:78px!important;padding:7px 9px!important;min-height:0!important;border-radius:10px!important}
+.metrics b{font-size:1rem!important;line-height:1.15!important}
+.metrics span{font-size:.62rem!important}
+.toolbar,.tabs{gap:5px!important;flex-wrap:wrap!important}
+.toolbar button,.tabs button{padding:7px 9px!important;min-height:32px!important;font-size:.72rem!important;border-radius:9px!important}
+.grid,.list{gap:8px!important}
+.card,.person{padding:11px 13px!important;gap:9px!important;border-radius:12px!important}
+.card h3,.person h3{font-size:.92rem!important}
+.kv{gap:5px!important}
+.kv span{padding:7px!important;font-size:.65rem!important;border-radius:8px!important}
+.actions{gap:5px!important;flex-wrap:wrap!important}
+.actions button{padding:6px 9px!important;min-height:32px!important;font-size:.69rem!important;border-radius:9px!important}
+.empty{padding:17px!important;border-radius:11px!important}
+@media(max-width:720px){.hero{flex-direction:column!important;align-items:flex-start!important}
+.metrics{width:100%!important}.metrics article{flex:1 1 85px!important}
+.kv{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+.toolbar{overflow-x:auto}.card,.person{padding:10px!important}}
