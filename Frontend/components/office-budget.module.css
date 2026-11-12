@@ -40,3 +40,74 @@
 .metrics{width:100%!important}.metrics article{flex:1 1 85px!important}
 .kv{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 .toolbar{overflow-x:auto}.card,.person{padding:10px!important}}
+
+/* Compact responsive operational modules — shared visual vocabulary. */
+:global(.kravia-office .office-modern) .shell {gap:11px!important;margin-top:10px!important;margin-bottom:18px!important;max-width:100%;min-width:0}
+:global(.kravia-office .office-modern) .hero {
+  padding:12px 15px!important;gap:12px!important;min-height:0!important;
+  align-items:center!important;border-radius:14px!important;
+  background:var(--off-next-panel,#fff)!important;color:var(--off-next-ink,#17251f)!important;
+  box-shadow:var(--off-next-shadow,0 8px 22px rgba(0,0,0,.04))!important;
+  border:1px solid var(--off-next-line,#dce6df)!important
+}
+:global(.kravia-office .office-modern) .hero h2{
+  font-size:clamp(1rem,1.8vw,1.36rem)!important;line-height:1.3!important;letter-spacing:-.025em!important;
+  color:var(--off-next-ink,#17251f)!important
+}
+:global(.kravia-office .office-modern) .hero p {font-size:10px!important;letter-spacing:.08em!important;color:var(--off-next-muted,#5f7165)!important}
+:global(.kravia-office .office-modern) .hero span{font-size:11px!important;line-height:1.4!important;color:var(--off-next-muted,#5f7165)!important}
+:global(.kravia-office .office-modern) .metrics{gap:6px!important;display:flex!important;flex-wrap:wrap!important;align-items:stretch!important}
+:global(.kravia-office .office-modern) .metrics article{
+  min-width:90px!important;padding:6px 9px!important;border-radius:9px!important;
+  background:rgba(109,161,131,.08)!important;border:1px solid var(--off-next-line,#dce6df)!important;
+}
+:global(.kravia-office .office-modern) .metrics b{font-size:16px!important;line-height:1.2!important}
+:global(.kravia-office .office-modern) .metrics span{font-size:10px!important}
+:global(.kravia-office .office-modern) .toolbar,
+:global(.kravia-office .office-modern) .tabs {
+  display:flex!important;align-items:center!important;gap:5px!important;
+  min-width:0;overflow-x:auto;padding:4px!important;border-radius:11px!important;
+  border:1px solid var(--off-next-line,#dce6df)!important;background:var(--off-next-panel,#fff)!important;
+}
+:global(.kravia-office .office-modern) .toolbar button,
+:global(.kravia-office .office-modern) .tabs button{
+  min-height:34px!important;padding:6px 9px!important;border-radius:8px!important;
+  font-size:11px!important;white-space:nowrap;flex:none;
+}
+:global(.kravia-office .office-modern) .grid,
+:global(.kravia-office .office-modern) .list{gap:8px!important;min-width:0}
+:global(.kravia-office .office-modern) .card,
+:global(.kravia-office .office-modern) .person{
+  padding:12px!important;border-radius:13px!important;min-height:0!important;
+  background:var(--off-next-panel,#fff)!important;color:var(--off-next-ink,#17251f)!important;
+  border:1px solid var(--off-next-line,#dce6df)!important;
+}
+:global(.kravia-office .office-modern) .card h3{font-size:.91rem!important;line-height:1.25!important}
+:global(.kravia-office .office-modern) .card small,
+:global(.kravia-office .office-modern) .card span{font-size:11px!important}
+:global(.kravia-office .office-modern) .card button,
+:global(.kravia-office .office-modern) .actions button{min-height:31px!important;padding:5px 9px!important;font-size:11px!important}
+:global(.kravia-office .office-modern) .state,
+:global(.kravia-office .office-modern) .empty{
+  min-height:0!important;padding:14px!important;border-radius:12px!important;
+}
+:global(.kravia-office .office-modern[data-ui-theme="dark"]) .hero,
+:global(.kravia-office .office-modern[data-ui-theme="dark"]) .card,
+:global(.kravia-office .office-modern[data-ui-theme="dark"]) .person,
+:global(.kravia-office .office-modern[data-ui-theme="dark"]) .toolbar,
+:global(.kravia-office .office-modern[data-ui-theme="dark"]) .tabs{
+  background:#192722!important;color:#e5f0e9!important;border-color:#32423a!important;
+}
+:global(.kravia-office .office-modern[data-ui-theme="dark"]) .metrics article{
+  background:#22352b!important;border-color:#375143!important;color:#e5f0e9!important
+}
+@media(max-width:760px){
+  :global(.kravia-office .office-modern) .hero{flex-direction:column!important;align-items:stretch!important;padding:11px!important}
+  :global(.kravia-office .office-modern) .hero>div:first-child{max-width:100%!important}
+  :global(.kravia-office .office-modern) .hero h2{font-size:1.12rem!important}
+  :global(.kravia-office .office-modern) .metrics{width:100%!important}
+  :global(.kravia-office .office-modern) .metrics article{flex:1 1 86px!important;min-width:0!important}
+  :global(.kravia-office .office-modern) .card{padding:10px!important}
+  :global(.kravia-office .office-modern) .toolbar,
+  :global(.kravia-office .office-modern) .tabs{flex-wrap:nowrap!important}
+}
