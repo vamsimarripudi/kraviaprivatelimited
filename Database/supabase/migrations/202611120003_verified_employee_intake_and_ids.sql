@@ -102,7 +102,7 @@ comment on table public.office_employee_mail_outbox is
 -- No bank details are placed in the outbox or email payload.
 create or replace function public.office_employee_reference_issue(
   p_actor uuid, p_employee uuid, p_reference text, p_reason text
-) returns text language plpgsql security definer set search_path=public as $$
+) returns text language plpgsql security definer set search_path='' as $
 declare
   v_profile public.office_employee_intake_profiles%rowtype;
   v_employment public.office_employment_registry%rowtype;
