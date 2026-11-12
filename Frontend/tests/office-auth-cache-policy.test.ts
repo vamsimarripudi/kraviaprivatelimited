@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const nextConfig = readFileSync(new URL("../next.config.ts", import.meta.url), "utf8");
+const loginForm = readFileSync(new URL("../components/workspace-login-form.tsx", import.meta.url), "utf8");
+const releaseRoute = readFileSync(new URL("../app/api/office-release/route.ts", import.meta.url), "utf8");
 const vercel = JSON.parse(readFileSync(new URL("../vercel.json", import.meta.url), "utf8")) as { ignoreCommand: string };
 const login = readFileSync(new URL("../components/workspace-login-form.tsx", import.meta.url), "utf8");
 const release = readFileSync(new URL("../app/api/office-release/route.ts", import.meta.url), "utf8");
@@ -18,6 +20,8 @@ describe("KRAVIA Office auth cache boundary", () => {
     expect(nextConfig).toContain('{ key: "Cache-Control", value: "no-store, max-age=0" }');
     expect(nextConfig).toContain('{ key: "Pragma", value: "no-cache" }');
     expect(nextConfig).toContain('{ key: "Expires", value: "0" }');
+    expect(nextConfig).toContain('X-KRAVIA-Office-Login-Release');
+    expect(nextConfig).toContain('2026-11-12-login-refresh');
   });
 
   it("prevents stale Office login HTML and exposes a truthful release fingerprint", () => {
@@ -36,5 +40,12 @@ describe("KRAVIA Office auth cache boundary", () => {
     expect(vercel.ignoreCommand).toContain("exit 1");
     expect(vercel.ignoreCommand).toContain("git diff --quiet HEAD^ HEAD ./");
     expect(vercel.ignoreCommand).not.toBe("git diff --quiet HEAD^ HEAD ./");
+  });
+  it("keeps a visible, versioned login release and a separate live release endpoint", () => {
+    expect(loginForm).toContain('data-office-login-release="2026-11-12-login-refresh"');
+    expect(loginForm).toContain("Secure login updated · 12 Nov 2026");
+    expect(loginForm).toContain("Send a code to my corporate email instead");
+    expect(releaseRoute).toContain('release: "2026-11-12-login-refresh"');
+    expect(releaseRoute).toContain("VERCEL_GIT_COMMIT_SHA");
   });
 });

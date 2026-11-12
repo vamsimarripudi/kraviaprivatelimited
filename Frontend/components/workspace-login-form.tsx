@@ -711,6 +711,7 @@ export function WorkspaceLoginForm({
       <p className={styles.eyebrow}>{workspace === "finance" ? "KRAVIA FINANCE · OFFICIAL ACCESS" : "KRAVIA OFFICE · OFFICIAL ACCESS"}</p>
       <h2>Sign in to KRAVIA {workspace === "finance" ? "Finance" : "Office"}</h2>
       <p className={styles.intro}>Enter your password first, then use KRAVIA Authenticator or corporate email OTP if enabled for your account.</p>
+        <p className={styles.note} data-office-login-release="2026-11-12-login-refresh">Secure login updated · 12 Nov 2026</p>
 
       {configurationRequired ? <p className={styles.alert}>Internal identity service is not active on this deployment.</p> : null}
       {reason === "mfa_required" ? <p className={styles.alert}>Complete multi-factor verification before opening this workspace.</p> : null}

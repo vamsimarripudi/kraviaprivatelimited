@@ -40,7 +40,7 @@ const nextConfig: NextConfig = {
           { key: "Cache-Control", value: "private, no-store, max-age=0, must-revalidate" },
           { key: "Pragma", value: "no-cache" },
           { key: "Expires", value: "0" },
-          { key: "X-KRAVIA-Office-Login-Release", value: "2026-11-12-email-otp-choice" },
+          { key: "X-KRAVIA-Office-Login-Release", value: "2026-11-12-login-refresh" },
         ],
       },
       {
