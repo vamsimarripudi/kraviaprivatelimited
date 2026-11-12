@@ -1,0 +1,46 @@
+name: KRAVIA Office extended HR intake PostgreSQL rehearsal
+on:
+  pull_request:
+    paths:
+      - 'Database/supabase/migrations/202611130001_extended_employee_intake.sql'
+      - 'Database/supabase/tests/extended-employee-intake-*.sql'
+      - '.github/workflows/office-extended-intake-db.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres:
+    name: Isolated private HR migration and RLS tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: kravia_employee_intake_ci
+          POSTGRES_PASSWORD: ci-extended-intake-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kravia_employee_intake_ci"
+          --health-interval 3s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Test non-destructive migration and private access on ephemeral PostgreSQL 17
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg() {
+            docker run --rm --network host               -v "$PWD:/repo:ro" --workdir /repo               --env PGPASSWORD=ci-extended-intake-only postgres:17               psql --host 127.0.0.1 --username postgres                    --dbname kravia_employee_intake_ci --set ON_ERROR_STOP=1 "$@"
+          }
+          pg -f Database/supabase/tests/extended-employee-intake-fixture.sql
+          pg -f Database/supabase/migrations/202611130001_extended_employee_intake.sql
+          pg -f Database/supabase/migrations/202611130001_extended_employee_intake.sql
+          output="$(pg --tuples-only --no-align -f Database/supabase/tests/extended-employee-intake-smoke.sql)"
+          echo "$output"
+          test "$(printf '%s\n' "$output" | tail -n 1)" = "KRAVIA_EXTENDED_INTAKE_VERIFIED"
