@@ -188,8 +188,13 @@ function toIdentity(payload: FirstPartyAuthResponse): OfficeIdentity {
   };
 }
 
-export function officeIdentityIsProvisioned(identity: OfficeIdentity) {
+export function officeIdentityCanAuthenticate(identity: OfficeIdentity) {
+  // Identity setup and MFA remain available to invited but not-yet-approved staff.
   return identity.accessStatus === "ACTIVE" && identity.roles.length > 0;
+}
+export function officeIdentityIsProvisioned(identity: OfficeIdentity) {
+  // A pending ADMIN or DIRECTOR cannot bypass the operational authorization gate.
+  return officeIdentityCanAuthenticate(identity) && identity.workspaceStatus === "ACTIVE";
 }
 
 export async function writeOfficeSessionCookies(session: OfficeSession) {

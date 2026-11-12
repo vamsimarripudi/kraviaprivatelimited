@@ -1,7 +1,7 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import { getOfficeRuntimeOrigin } from "@/lib/env/office";
-import { getOfficeSessionContext, officeIdentityIsProvisioned } from "@/lib/office/auth-server";
+import { getOfficeSessionContext, officeIdentityCanAuthenticate } from "@/lib/office/auth-server";
 import { preferredWorkspace, roleCanAccessWorkspace, workspaceDefinitions, type WorkspaceKind } from "@/lib/office/workspaces";
 
 function loginUrl(workspace: WorkspaceKind, nextPath: string, reason?: string) {
@@ -14,7 +14,7 @@ export async function requireWorkspaceIdentity(workspace: WorkspaceKind, nextPat
   if (!getOfficeRuntimeOrigin()) redirect(loginUrl(workspace, nextPath, "configuration_required"));
   const context = await getOfficeSessionContext();
   if (!context) redirect(loginUrl(workspace, nextPath));
-  if (!officeIdentityIsProvisioned(context.identity)) redirect(loginUrl(workspace, nextPath, "access_not_active"));
+  if (!officeIdentityCanAuthenticate(context.identity)) redirect(loginUrl(workspace, nextPath, "access_not_active"));
   if (context.identity.aal !== "aal2") redirect(loginUrl(workspace, nextPath, "mfa_required"));
   if (context.identity.workspaceStatus !== "ACTIVE") redirect("/office/processing");
   if (!roleCanAccessWorkspace(workspace, context.identity.roles)) {

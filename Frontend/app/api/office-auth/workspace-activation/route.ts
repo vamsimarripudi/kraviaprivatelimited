@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { getOfficeRuntimeOrigin } from "@/lib/env/office";
-import { getOfficeSessionContext, officeIdentityIsProvisioned } from "@/lib/office/auth-server";
+import { getOfficeSessionContext, officeIdentityCanAuthenticate } from "@/lib/office/auth-server";
 import { officeMutationIsSameOrigin } from "@/lib/office/request-security";
 
 export async function POST(request: Request) {
   if (!officeMutationIsSameOrigin(request))
     return NextResponse.json({ detail: "Cross-origin request rejected" }, { status: 403 });
   const ctx = await getOfficeSessionContext();
-  if (!ctx || !officeIdentityIsProvisioned(ctx.identity))
+  if (!ctx || !officeIdentityCanAuthenticate(ctx.identity))
     return NextResponse.json({ detail: "Office sign-in is required" }, { status: 401 });
   if (ctx.identity.aal !== "aal2")
     return NextResponse.json({ detail: "MFA verification is required" }, { status: 403 });
