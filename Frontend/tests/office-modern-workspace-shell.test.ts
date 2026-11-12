@@ -49,9 +49,9 @@ describe("KRAVIA Office responsive mega navigation and compact access", () => {
   });
   it("clearly identifies occupied roles without removing the catalogue", () => {
     expect(access).toContain("assignedRoles");
-    expect(access).toContain("Assigned · ");
+    expect(access).toContain("Existing holder · ");
     expect(access).toContain('data-assigned={Boolean(assigned)}');
-    expect(access).toContain("disabled={pending || Boolean(assigned)}");
+    expect(access).toContain("disabled={pending} onChange={() => toggleRole(role.role)}");
     expect(access).toContain("assignedToOthers");
     expect(accessCss).toContain(".roleTag");
     expect(access).toContain("inviteDisclosure");

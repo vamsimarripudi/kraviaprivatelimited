@@ -22,7 +22,7 @@ describe("KRAVIA Office invitation lifecycle", () => {
     expect(accessAdmin).toContain("registration_url");
     expect(accessPanel).toContain("Private registration link");
     expect(accessPanel).toContain("copyInviteLink");
-    expect(accessPanel).toContain("send it only to the intended person");
+    expect(accessPanel).toContain("The Office backend attempts email delivery automatically.");
     expect(backendAuth).toContain("registration_token");
     expect(backendAuth).toContain('invite.status = "ACCEPTED"');
   });
@@ -40,5 +40,6 @@ describe("KRAVIA Office invitation lifecycle", () => {
     expect(backendAuth).toContain("office_user_roles");
     expect(backendAuth).toContain("office_access_invitations");
     expect(backendAuth).toContain("_mirror_identity");
+    expect(backendAuth).toContain("Invitation roles or department are not accepted by the Office database");
   });
 });

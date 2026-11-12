@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { OfficeApiError, getOfficeSessionContext, officeIdentityIsProvisioned, startOfficeQrSignin } from "@/lib/office/auth-server";
+import { OfficeApiError, getOfficeSessionContext, officeIdentityCanAuthenticate, startOfficeQrSignin } from "@/lib/office/auth-server";
 import { officeMutationIsSameOrigin } from "@/lib/office/request-security";
 
 export async function POST(request: Request) {
@@ -7,7 +7,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ detail: "Cross-origin Authenticator approval request is not allowed" }, { status: 403 });
   }
   const context = await getOfficeSessionContext();
-  if (!context || !officeIdentityIsProvisioned(context.identity)) {
+  if (!context || !officeIdentityCanAuthenticate(context.identity)) {
     return NextResponse.json({ detail: "Office sign-in required" }, { status: 401, headers: { "Cache-Control": "no-store" } });
   }
   try {

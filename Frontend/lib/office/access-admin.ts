@@ -27,7 +27,7 @@ type AccessActor = { userId: string; email?: string; roles: OfficeRole[] };
 type TargetAccess = { userId: string; email?: string; status: OfficeIdentityStatus; roles: OfficeRole[] };
 
 type ErrorLike = { message?: string } | null;
-type AuthDirectoryUser = { id: string; email?: string | null; last_login_at?: string | null; display_name?: string | null; founder_slot?: string | null; mfa_verified_at?: string | null };
+type AuthDirectoryUser = { id: string; email?: string | null; last_login_at?: string | null; display_name?: string | null; founder_slot?: string | null; mfa_verified_at?: string | null; workspace_status?: "PENDING" | "REQUESTED" | "ACTIVE" };
 
 function createOfficeAdminClient() {
   const environment = requireOfficeAdminEnvironment();
@@ -59,7 +59,7 @@ async function requireAccessAdministrator(): Promise<{ admin: SupabaseClient; ac
 async function listAllAuthUsers(admin: SupabaseClient): Promise<AuthDirectoryUser[]> {
   const { data, error } = await admin
     .from("office_auth_users")
-    .select("id,email,last_login_at,display_name,founder_slot,mfa_verified_at")
+    .select("id,email,last_login_at,display_name,founder_slot,mfa_verified_at,workspace_status")
     .order("created_at", { ascending: true })
     .limit(5000);
   failIf(error, "Unable to list KRAVIA Office identities");
@@ -156,6 +156,7 @@ export async function listOfficeAccessState() {
       email_confirmed: true,
       last_sign_in_at: authUser?.last_login_at ?? null,
       status: row.status,
+      workspace_status: authUser?.workspace_status ?? "ACTIVE",
       display_name: row.display_name,
       job_title: row.job_title,
       department: row.primary_department,
@@ -205,7 +206,7 @@ export async function inviteOfficeUser(input: {
   if (existing) throw new OfficeAccessError(409, "That email already exists in KRAVIA Office");
 
   const runtime = getOfficeRuntimeOrigin();
-  if (!runtime) throw new OfficeAccessError(503, "KRAVIA Office identity service is unavailable");
+  if (!runtime) throw new OfficeAccessError(503, "KRAVIA Office backend is not configured. Verify the server-only OFFICE_API_ORIGIN and restart the Office frontend.");
   let response: Response;
   try {
     response = await fetch(new URL("/api/v1/auth/invitations", runtime), {
@@ -228,7 +229,7 @@ export async function inviteOfficeUser(input: {
       signal: AbortSignal.timeout(25_000),
     });
   } catch {
-    throw new OfficeAccessError(503, "KRAVIA Office invitation service is unavailable");
+    throw new OfficeAccessError(503, "KRAVIA Office identity API is unreachable. Verify the FastAPI deployment, its HTTPS health endpoint, and OFFICE_API_ORIGIN.");
   }
   const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
   if (!response.ok) {

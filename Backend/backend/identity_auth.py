@@ -52,6 +52,7 @@ from .email_delivery import (
     EmailDeliveryUnknown,
     send_office_device_approval,
     send_office_email_verification_code,
+    send_office_invitation_email,
 )
 
 ACCESS_TTL_SECONDS = int(os.getenv("OFFICE_AUTH_ACCESS_TTL_SECONDS", "1800"))
@@ -680,6 +681,7 @@ def _qr_scanner_context(
         db,
         require_aal2=True,
         required_purpose=AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE,
+        allow_pending_workspace=True,
     )
     if not _known_browser_device(
         db,
@@ -1077,6 +1079,16 @@ def _identity_metadata(db: Session, user_id: str) -> dict[str, Any]:
     return {"department": row.get("primary_department"), "authorization_version": version}
 
 
+def _workspace_approval_required() -> bool:
+    """Enforce Founder activation in production; legacy local test setup may opt out."""
+    default = "true" if os.getenv("APP_ENV", "").strip().lower() == "production" else "false"
+    return os.getenv("OFFICE_WORKSPACE_APPROVAL_REQUIRED", default).strip().lower() in {"1", "true", "yes"}
+
+
+def _workspace_status(user: OfficeAuthUser) -> str:
+    return str(user.workspace_status or "ACTIVE").upper()
+
+
 def _safe_identity(db: Session, user: OfficeAuthUser, aal: str) -> dict[str, Any]:
     roles = _active_roles(db, user.id)
     is_play_reviewer = _active_play_reviewer_access(db, user) is not None
@@ -1087,6 +1099,7 @@ def _safe_identity(db: Session, user: OfficeAuthUser, aal: str) -> dict[str, Any
         "display_name": user.display_name,
         "roles": roles,
         "access_status": _identity_status(db, user),
+        "workspace_status": _workspace_status(user),
         "department": metadata["department"],
         "authorization_version": metadata["authorization_version"],
         "aal": aal,
@@ -1244,6 +1257,7 @@ def authenticate_office_access(
     require_aal2: bool = False,
     required_purpose: Literal["OFFICE", "AUTHENTICATOR_ACTIVATION"] = OFFICE_SESSION_PURPOSE,
     allowed_purposes: frozenset[str] | None = None,
+    allow_pending_workspace: bool = False,
 ) -> dict[str, Any]:
     claims = _decode_access(token)
     user_id = str(claims.get("sub") or "")
@@ -1314,6 +1328,9 @@ def authenticate_office_access(
         raise HTTPException(status_code=403, detail="KRAVIA Office access is not active")
     if not roles and not review_access:
         raise HTTPException(status_code=403, detail="No KRAVIA Office role is assigned")
+    if _workspace_approval_required() and not allow_pending_workspace and not review_access:
+        if _workspace_status(user) != "ACTIVE":
+            raise HTTPException(status_code=403, detail="KRAVIA Office workspace activation is pending")
 
     # Do not write last_seen_at on every business API request. Session activity is
     # already captured by the dedicated auth/session heartbeat paths; avoiding a
@@ -1590,7 +1607,7 @@ def build_identity_router() -> APIRouter:
         Sender authentication, delivery uncertainty, cooldown and attempts
         follow the existing Brevo-backed OTP boundary.
         """
-        ctx = authenticate_office_access(_bearer_token(authorization), db)
+        ctx = authenticate_office_access(_bearer_token(authorization), db, allow_pending_workspace=True)
         user = db.get(OfficeAuthUser, ctx["user_id"])
         if ctx["aal"] != "aal1" or not user or not _invited_member_email_otp_allowed(db, user):
             raise HTTPException(status_code=403, detail="Email verification is not available for this Office account")
@@ -1683,7 +1700,7 @@ def build_identity_router() -> APIRouter:
         db: Session = Depends(get_db),
     ):
         """One-time verification upgrades only the original password session."""
-        ctx = authenticate_office_access(_bearer_token(authorization), db)
+        ctx = authenticate_office_access(_bearer_token(authorization), db, allow_pending_workspace=True)
         user = db.get(OfficeAuthUser, ctx["user_id"])
         if ctx["aal"] != "aal1" or not user or not _invited_member_email_otp_allowed(db, user):
             raise HTTPException(status_code=403, detail="Email verification is not available for this Office account")
@@ -2080,7 +2097,7 @@ def build_identity_router() -> APIRouter:
         it has no browser proof and can only be accepted by the same user's
         already trusted Authenticator phone.
         """
-        context = authenticate_office_access(_bearer_token(authorization), db, require_aal2=False)
+        context = authenticate_office_access(_bearer_token(authorization), db, require_aal2=False, allow_pending_workspace=True)
         session = db.get(OfficeAuthSession, context["session_id"])
         user = db.get(OfficeAuthUser, context["user_id"])
         if not session or not user or session.purpose != OFFICE_SESSION_PURPOSE or session.aal != "aal1":
@@ -2346,6 +2363,7 @@ def build_identity_router() -> APIRouter:
             db,
             require_aal2=True,
             required_purpose=AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE,
+        allow_pending_workspace=True,
         )
         user = db.execute(
             select(OfficeAuthUser).where(OfficeAuthUser.id == context["user_id"]).with_for_update()
@@ -2433,7 +2451,7 @@ def build_identity_router() -> APIRouter:
     ):
         # Retained as an empty compatibility response for older Office clients.
         # Cross-account phone approvals are deliberately unavailable.
-        authenticate_office_access(_bearer_token(authorization), db, require_aal2=True)
+        authenticate_office_access(_bearer_token(authorization), db, require_aal2=True, allow_pending_workspace=True)
         return {"activation_requests": []}
 
     @router.post("/authenticator/activation-requests/{activation_id}/approve")
@@ -2558,7 +2576,7 @@ def build_identity_router() -> APIRouter:
         db: Session = Depends(get_db),
     ):
         token = _bearer_token(authorization)
-        context = authenticate_office_access(token, db, require_aal2=False)
+        context = authenticate_office_access(token, db, require_aal2=False, allow_pending_workspace=True)
         user = db.get(OfficeAuthUser, context["user_id"])
         session = db.get(OfficeAuthSession, context["session_id"])
         if not user or not session:
@@ -2572,7 +2590,7 @@ def build_identity_router() -> APIRouter:
         db: Session = Depends(get_db),
     ):
         token = _bearer_token(authorization)
-        context = authenticate_office_access(token, db, require_aal2=True)
+        context = authenticate_office_access(token, db, require_aal2=True, allow_pending_workspace=True)
         sessions = list(
             db.execute(
                 select(OfficeAuthSession)
@@ -2599,7 +2617,7 @@ def build_identity_router() -> APIRouter:
         db: Session = Depends(get_db),
     ):
         token = _bearer_token(authorization)
-        context = authenticate_office_access(token, db, require_aal2=True)
+        context = authenticate_office_access(token, db, require_aal2=True, allow_pending_workspace=True)
         try:
             normalized_session_id = str(uuid.UUID(session_id))
         except ValueError as exc:
@@ -2641,7 +2659,7 @@ def build_identity_router() -> APIRouter:
         db: Session = Depends(get_db),
     ):
         token = _bearer_token(authorization)
-        context = authenticate_office_access(token, db, require_aal2=True)
+        context = authenticate_office_access(token, db, require_aal2=True, allow_pending_workspace=True)
         user = db.get(OfficeAuthUser, context["user_id"])
         if not user:
             raise HTTPException(status_code=401, detail="Office identity is unavailable")
@@ -2773,6 +2791,7 @@ def build_identity_router() -> APIRouter:
                 OFFICE_SESSION_PURPOSE,
                 AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE,
             }),
+            allow_pending_workspace=True,
         )
         session = db.get(OfficeAuthSession, context["session_id"])
         if session:
@@ -2804,7 +2823,7 @@ def build_identity_router() -> APIRouter:
         db: Session = Depends(get_db),
     ):
         token = _bearer_token(authorization)
-        context = authenticate_office_access(token, db, require_aal2=True)
+        context = authenticate_office_access(token, db, require_aal2=True, allow_pending_workspace=True)
         try:
             device_id = str(uuid.UUID(payload.device_id))
         except ValueError as exc:
@@ -2860,7 +2879,7 @@ def build_identity_router() -> APIRouter:
         db: Session = Depends(get_db),
     ):
         token = _bearer_token(authorization)
-        context = authenticate_office_access(token, db, require_aal2=False)
+        context = authenticate_office_access(token, db, require_aal2=False, allow_pending_workspace=True)
         user = db.get(OfficeAuthUser, context["user_id"])
         session = db.get(OfficeAuthSession, context["session_id"])
         if not user or not session or not user.mfa_secret_ciphertext:
@@ -3157,6 +3176,7 @@ def build_identity_router() -> APIRouter:
             db,
             require_aal2=True,
             required_purpose=AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE,
+        allow_pending_workspace=True,
         )
         approval = _device_approval_from_proof(payload, db)
         now = _now()
@@ -3362,6 +3382,7 @@ def build_identity_router() -> APIRouter:
             display_name=payload.display_name.strip(),
             password_hash=PASSWORD_HASHER.hash(payload.password),
             status="ACTIVE",
+            workspace_status="PENDING" if _workspace_approval_required() else "ACTIVE",
         )
         db.add(user)
         # Persist the auth user before its dependent role rows for the same reason
@@ -3420,6 +3441,65 @@ def build_identity_router() -> APIRouter:
                 status_code=403,
                 detail="ADMIN cannot manage OWNER, DIRECTOR or ADMIN identities",
             )
+
+    @router.post("/workspace-activation/request")
+    def request_workspace_activation(
+        request: Request,
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ):
+        actor = authenticate_office_access(
+            _bearer_token(authorization), db,
+            require_aal2=True, allow_pending_workspace=True,
+        )
+        user = db.execute(select(OfficeAuthUser)
+                          .where(OfficeAuthUser.id == actor["user_id"])
+                          .with_for_update()).scalar_one_or_none()
+        if not user or user.founder_slot == FOUNDER_SLOT:
+            raise HTTPException(status_code=403, detail="Workspace activation request is unavailable")
+        if _workspace_status(user) not in {"PENDING", "REQUESTED"}:
+            raise HTTPException(status_code=409, detail="Workspace is not awaiting activation")
+        if _workspace_status(user) == "PENDING":
+            user.workspace_status = "REQUESTED"
+            _event(db, "WORKSPACE_ACTIVATION_REQUESTED", request,
+                   user_id=user.id, session_id=actor["session_id"])
+            db.commit()
+        return {"workspace_status": "REQUESTED", "requested": True}
+
+    @router.post("/workspace-activation/{user_id}/approve")
+    def approve_workspace_activation(
+        user_id: str,
+        request: Request,
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ):
+        actor = authenticate_office_access(_bearer_token(authorization), db, require_aal2=True)
+        if "OWNER" not in actor["roles"]:
+            raise HTTPException(status_code=403, detail="Only the Founder can unlock a workspace")
+        user = db.execute(select(OfficeAuthUser)
+                          .where(OfficeAuthUser.id == user_id)
+                          .with_for_update()).scalar_one_or_none()
+        if not user or user.founder_slot == FOUNDER_SLOT or user.status != "ACTIVE":
+            raise HTTPException(status_code=404, detail="Eligible employee account not found")
+        if _workspace_status(user) != "REQUESTED":
+            raise HTTPException(status_code=409, detail="Employee has not requested workspace activation")
+        if not _active_roles(db, user.id):
+            raise HTTPException(status_code=409, detail="Assign an Office role before activation")
+        if _control_plane_present(db):
+            profile = db.execute(text("""
+                select 1 from office_user_access_profiles
+                where user_id=cast(:user_id as uuid) and status='ACTIVE'
+                  and (expires_at is null or expires_at>current_timestamp)
+                limit 1
+            """), {"user_id": user.id}).first()
+            if not profile:
+                raise HTTPException(status_code=409, detail="Assign an active scoped access profile before unlocking")
+        user.workspace_status = "ACTIVE"
+        _event(db, "WORKSPACE_ACTIVATED", request, user_id=user.id,
+               session_id=actor["session_id"],
+               metadata={"approved_by": actor["user_id"]})
+        db.commit()
+        return {"activated": True, "workspace_status": "ACTIVE", "user_id": user.id}
 
     @router.post("/founder/recovery-link")
     def issue_founder_break_glass_recovery(
@@ -3542,6 +3622,36 @@ def build_identity_router() -> APIRouter:
             "revoked_sessions": len(active_sessions),
         }
 
+    def _deliver_invitation(invite: OfficeAuthInvite, raw_token: str, request: Request,
+                            actor: dict[str, Any], db: Session) -> str:
+        """Delivery is attempted once after commit; unknown outcomes are never blindly retried."""
+        delivery = "ACCEPTED"
+        message_id = None
+        try:
+            message_id = send_office_invitation_email(
+                recipient_email=invite.email,
+                recipient_name=invite.display_name or "Colleague",
+                registration_url=f"https://kraviaprivatelimited.com/office/register?invite={raw_token}",
+                expiry_hours=max(1, (INVITE_TTL_SECONDS + 3599) // 3600),
+                delivery_id=f"office-invite-{invite.id}",
+            )
+        except EmailDeliveryUnavailable:
+            delivery = "UNAVAILABLE"
+        except EmailDeliveryRejected:
+            delivery = "REJECTED"
+        except EmailDeliveryUnknown:
+            delivery = "UNKNOWN"
+        _event(
+            db, f"INVITATION_EMAIL_{delivery}", request,
+            user_id=actor["user_id"], session_id=actor["session_id"],
+            metadata={
+                "invitation_id": invite.id, "delivery_status": delivery,
+                "provider_message_id": message_id if delivery == "ACCEPTED" else None,
+            },
+        )
+        db.commit()
+        return delivery
+
     @router.post("/invitations", status_code=201)
     def create_invitation(
         payload: InviteCreatePayload,
@@ -3580,18 +3690,27 @@ def build_identity_router() -> APIRouter:
             used_by=invited_user_id,
         )
         db.add(invite)
-        _mirror_invitation(
-            db,
-            invite_id=invite_id,
-            email=payload.email,
-            display_name=invite.display_name,
-            job_title=invite.job_title,
-            department=invite.department,
-            roles=payload.roles,
-            requested_by=actor["user_id"],
-            invited_user_id=invited_user_id,
-            expires_at=expires_at,
-        )
+        try:
+            _mirror_invitation(
+                db,
+                invite_id=invite_id,
+                email=payload.email,
+                display_name=invite.display_name,
+                job_title=invite.job_title,
+                department=invite.department,
+                roles=payload.roles,
+                requested_by=actor["user_id"],
+                invited_user_id=invited_user_id,
+                expires_at=expires_at,
+            )
+        except IntegrityError as exc:
+            # A stale control-plane CHECK must not become a 500 with SQL and
+            # recipient details in application logs. Nothing has been committed.
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail="Invitation roles or department are not accepted by the Office database. Contact the Founder to review the access configuration.",
+            ) from None
         _event(
             db,
             "INVITATION_CREATED",
@@ -3601,6 +3720,7 @@ def build_identity_router() -> APIRouter:
             metadata={"invitation_id": invite_id, "target_email": payload.email, "roles": payload.roles},
         )
         db.commit()
+        email_delivery = _deliver_invitation(invite, raw_token, request, actor, db)
         return {
             "invited": True,
             "invitation_id": invite_id,
@@ -3608,6 +3728,7 @@ def build_identity_router() -> APIRouter:
             "roles": payload.roles,
             "department": payload.department,
             "expires_at": expires_at.isoformat(),
+            "email_delivery": email_delivery,
             "registration_token": raw_token,
             "registration_path": f"/office/register?invite={raw_token}",
         }
@@ -3664,6 +3785,83 @@ def build_identity_router() -> APIRouter:
         )
         db.commit()
         return {"revoked": True, "invitation_id": invitation_id}
+
+    @router.post("/invitations/{invitation_id}/reissue", status_code=201)
+    def reissue_invitation(
+        invitation_id: str,
+        request: Request,
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ):
+        """Replace a pending link atomically; the old registration token dies first."""
+        actor = _invite_actor(authorization, db)
+        previous = db.execute(
+            select(OfficeAuthInvite).where(OfficeAuthInvite.id == invitation_id).with_for_update()
+        ).scalar_one_or_none()
+        if not previous or previous.status != "PENDING":
+            raise HTTPException(status_code=409, detail="Only a pending invitation can be reissued")
+        if db.execute(select(OfficeAuthUser.id).where(OfficeAuthUser.email == previous.email)).first():
+            raise HTTPException(status_code=409, detail="Account already exists; use account recovery")
+        try:
+            roles = json.loads(previous.roles_json or "[]")
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=409, detail="Invitation roles are invalid") from exc
+        if not isinstance(roles, list) or not roles or any(role not in INVITABLE_ROLES for role in roles):
+            raise HTTPException(status_code=409, detail="Invitation roles are invalid")
+        _require_delegated_identity_authority(actor, set(roles))
+        now = _now()
+        previous.status = "REVOKED"
+        previous.revoked_at = now
+        if _control_plane_present(db):
+            db.execute(text("""
+                update office_access_invitations
+                set status='REVOKED',revoked_at=current_timestamp,updated_at=current_timestamp
+                where id=cast(:id as uuid)
+            """), {"id": previous.id})
+            if previous.used_by:
+                db.execute(text("""
+                    update office_identity_users set status='REVOKED',updated_at=current_timestamp
+                    where user_id=cast(:id as uuid) and status='INVITED'
+                """), {"id": previous.used_by})
+        raw_token = secrets.token_urlsafe(48)
+        new_id = str(uuid.uuid4())
+        invited_user_id = str(uuid.uuid4())
+        replacement = OfficeAuthInvite(
+            id=new_id, token_hash=_hash_token(raw_token),
+            email=previous.email, display_name=previous.display_name,
+            job_title=previous.job_title, department=previous.department,
+            roles_json=json.dumps(roles), status="PENDING",
+            created_by=actor["user_id"], expires_at=now + timedelta(seconds=INVITE_TTL_SECONDS),
+            used_by=invited_user_id,
+        )
+        db.add(replacement)
+        try:
+            _mirror_invitation(
+                db, invite_id=new_id, email=replacement.email,
+                display_name=replacement.display_name, job_title=replacement.job_title,
+                department=replacement.department, roles=roles,
+                requested_by=actor["user_id"], invited_user_id=invited_user_id,
+                expires_at=replacement.expires_at,
+            )
+        except IntegrityError:
+            # Keep the original invitation intact when atomic replacement fails.
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail="Replacement roles or department are not accepted by the Office database.",
+            ) from None
+        _event(db, "INVITATION_REISSUED", request, user_id=actor["user_id"],
+               session_id=actor["session_id"],
+               metadata={"previous_invitation_id": previous.id, "invitation_id": new_id})
+        db.commit()
+        delivery = _deliver_invitation(replacement, raw_token, request, actor, db)
+        return {
+            "invited": True, "reissued": True,
+            "previous_invitation_id": previous.id, "invitation_id": new_id,
+            "email": replacement.email, "email_delivery": delivery,
+            "expires_at": _aware(replacement.expires_at).isoformat(),
+            "registration_path": f"/office/register?invite={raw_token}",
+        }
 
     @router.post("/users/{user_id}/mfa-reset")
     def reset_mfa(

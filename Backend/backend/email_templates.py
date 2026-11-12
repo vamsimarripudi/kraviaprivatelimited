@@ -124,6 +124,56 @@ def _render(
     return TransactionalEmail(subject=subject, html_content=html_content, text_content=text_content)
 
 
+def office_invitation_template(*, recipient_name: str, registration_url: str, expiry_hours: int) -> TransactionalEmail:
+    """Branded, escaped, one-time invitation with a real email CTA and text fallback."""
+    name = recipient_name.strip() or "Colleague"
+    if len(name) > 120:
+        raise ValueError("Invalid invitation recipient")
+    parsed = urlsplit(registration_url)
+    if (parsed.scheme != "https" or parsed.hostname not in
+            {"kraviaprivatelimited.com", "www.kraviaprivatelimited.com"}
+            or parsed.username or parsed.password or parsed.path != "/office/register"
+            or not parsed.query.startswith("invite=") or parsed.fragment):
+        raise ValueError("Invalid Office invitation URL")
+    if not 1 <= expiry_hours <= 168:
+        raise ValueError("Invalid invitation expiry")
+    safe_url = escape(registration_url, quote=True)
+    safe_name = escape(name)
+    html_content = (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1"></head>'
+        '<body style="margin:0;background:#f4f8f5;color:#162c20;font-family:Arial,sans-serif">'
+        '<main style="max-width:560px;margin:32px auto;padding:32px;background:#fff;'
+        'border:1px solid #dce8df;border-radius:18px">'
+        '<p style="color:#226347;font-size:12px;font-weight:700;letter-spacing:.12em">KRAVIA PRIVATE LIMITED</p>'
+        '<h1 style="font-size:26px;line-height:1.2">Your Office invitation</h1>'
+        f'<p>Hello {safe_name},</p>'
+        '<p>You have been invited to KRAVIA Office. Select the button below to register '
+        'your account and verify your identity. Your assigned workspace becomes available '
+        'only after the required access approvals.</p>'
+        f'<a href="{safe_url}" style="display:inline-block;background:#123d30;color:#fff;'
+        'text-decoration:none;font-weight:700;padding:14px 22px;border-radius:10px">'
+        'Accept Invitation</a>'
+        f'<p style="font-size:13px;color:#52645a">This single-use invitation expires in {expiry_hours} hours. '
+        'If you did not expect it, ignore this email.</p>'
+        '<p style="font-size:12px;color:#52645a;word-break:break-all">'
+        'If the button does not work, copy this address into your browser:</p>'
+        f'<p style="font-size:12px;word-break:break-all"><a href="{safe_url}">{safe_url}</a></p>'
+        '</main></body></html>'
+    )
+    text_content = (
+        f"Hello {name},\\n\\nYou have been invited to KRAVIA Office.\\n"
+        f"Accept Invitation: {registration_url}\\n\\n"
+        f"This single-use invitation expires in {expiry_hours} hours. "
+        "Your workspace remains locked until access approval.\\n"
+        "If you did not expect this invitation, ignore this email."
+    )
+    return TransactionalEmail(
+        subject="You are invited to KRAVIA Office",
+        html_content=html_content,
+        text_content=text_content,
+    )
+
 def office_email_verification_template(*, code: str, expiry_minutes: int) -> TransactionalEmail:
     """Build a single-use sign-in code message from the email source."""
     if not VERIFICATION_CODE_PATTERN.fullmatch(code):
