@@ -111,7 +111,7 @@ export async function resolveOfficePermission(
   }
 
   const profileResult = await admin.from("office_user_access_profiles")
-    .select("profile_code,scope_type,scope_key,status,expires_at")
+    .select("profile_code,scope_type,scope_key,status,expires_at,effective_from")
     .eq("user_id", identity.userId)
     .eq("status", "ACTIVE");
   if (profileResult.error) {
@@ -130,7 +130,10 @@ export async function resolveOfficePermission(
     }, deviceId);
   }
 
-  const activeProfiles = (profileResult.data ?? []).filter((row) => active(row.expires_at));
+  const activeProfiles = (profileResult.data ?? []).filter((row) => {
+    const effectiveAt = typeof row.effective_from === "string" ? Date.parse(row.effective_from) : 0;
+    return active(row.expires_at) && Number.isFinite(effectiveAt) && effectiveAt <= Date.now();
+  });
   if (!activeProfiles.length) return { allowed: false, permission: permissionCode, reason: "No active access profile grants this permission" };
   const profileCodes = activeProfiles.map((row) => row.profile_code);
   const mappingResult = await admin.from("office_access_profile_permissions").select("profile_code,permission_code,effect,default_scope_type").in("profile_code", profileCodes).eq("permission_code", permissionCode).eq("effect", "ALLOW");
