@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, CircleDashed, Clock3, LoaderCircle, Plus, Search, ShieldCheck, X } from "lucide-react";
 import { officeMutation, officeQuery } from "@/lib/office/http-client";
+import { HoverActionButton } from "./office-hover-action-button";
 import styles from "./office-company-inbox.module.css";
 
 type TaskStatus = "OPEN" | "IN_PROGRESS" | "BLOCKED" | "DONE" | "CANCELLED";
@@ -146,7 +147,7 @@ export function OfficeCompanyInbox({ compact = false }: { compact?: boolean }) {
   return <section className={styles.shell} data-compact={compact}>
     <header className={styles.hero}>
       <div><p>COMPANY INBOX</p><h2>{compact ? "Actionable work across KRAVIA." : "One task queue across the company."}</h2><span>Tasks are separate from approvals: they coordinate execution after authority is established.</span></div>
-      <button className={styles.primary} type="button" onClick={() => { setDraft((current) => ({ ...current, assignee: current.assignee || data.actor.user_id })); setNewOpen(true); }}><Plus /> New task</button>
+      <HoverActionButton Icon={Plus} label="New task" tone="primary" onClick={() => { setDraft((current) => ({ ...current, assignee: current.assignee || data.actor.user_id })); setNewOpen(true); }}/>
     </header>
 
     <div className={styles.metrics}>
