@@ -124,8 +124,8 @@ export function OfficeWorktimeConsole() {
     {!data ? <p className={styles.loading}><LoaderCircle size={17}/>Loading verified attendance and payroll evidence…</p> :
       <>
         <div className={styles.summary}>
-          <article><Timer size={20}/><small>Today's tracked work</small><strong>{formatHours(data.attendance_targets.today?.total_minutes ?? 0)}</strong><span>6 net hours on weekdays · {formatHours(data.attendance_targets.today?.remaining_minutes ?? 0)} remaining</span></article>
-          <article><CalendarClock size={20}/><small>This week's working time</small><strong>{formatHours(data.attendance_targets.current_week?.tracked_minutes ?? 0)}</strong><span>30h target Mon-Fri · {formatHours(data.attendance_targets.current_week?.remaining_minutes ?? 0)} remaining</span></article>
+          <article><Timer size={20}/><small>Daily tracked work</small><strong>{formatHours(data.attendance_targets.today?.total_minutes ?? 0)}</strong><span>6 net hours on weekdays · {formatHours(data.attendance_targets.today?.remaining_minutes ?? 0)} remaining</span></article>
+          <article><CalendarClock size={20}/><small>Current weekly worktime</small><strong>{formatHours(data.attendance_targets.current_week?.tracked_minutes ?? 0)}</strong><span>30h target Mon-Fri · {formatHours(data.attendance_targets.current_week?.remaining_minutes ?? 0)} remaining</span></article>
           <article><ShieldCheck size={20}/><small>Recorded / approved historical</small><strong>{formatHours(data.attendance_targets.total_minutes)}</strong><span>{formatHours(data.attendance_targets.approved_historical_minutes)} in historical approvals · selected month</span></article>
           <article><Timer size={20}/><small>Potential overtime</small><strong>{formatHours(data.attendance_targets.potential_overtime_minutes)}</strong><span>Time beyond six weekday hours · not yet payable</span></article>
           <article><Wallet size={20}/><small>Approved time premiums</small><strong>{data.preview ? money(data.preview.totalAdditionalEarningsMinor) : "Not configured"}</strong><span>Independent policy and payroll review required</span></article>
