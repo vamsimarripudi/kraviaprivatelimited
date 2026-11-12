@@ -1,8 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { canChangeRole, canChangeStatus, canInviteRoles, canManageTarget, hasRoleConflict } from "../lib/office/access-policy";
 import { officeSections, roleCanAccessSection, roleCanAccessWorkspace } from "../lib/office/workspaces";
+import { capabilityCanAccessSection } from "../lib/office/workspace-capabilities";
 
 describe("KRAVIA Office owner-admin hierarchy", () => {
+  it("requires explicit scoped capabilities for departmental navigation", () => {
+    expect(capabilityCanAccessSection("office", "dashboard", ["MEMBER"], [])).toBe(true);
+    expect(capabilityCanAccessSection("office", "governance", ["CS"], [])).toBe(false);
+    expect(capabilityCanAccessSection("office", "governance", ["CS"], ["secretarial.board.read"])).toBe(true);
+    expect(capabilityCanAccessSection("office", "people", ["OPERATIONS"], [])).toBe(false);
+    expect(capabilityCanAccessSection("office", "contracts", ["LEGAL"], ["legal.contract.draft"])).toBe(true);
+    expect(capabilityCanAccessSection("office", "portfolio", ["MEMBER"], [])).toBe(false);
+  });
+
   it("keeps ADMIN in Office but out of Finance and business-data modules by default", () => {
     expect(roleCanAccessWorkspace("office", ["ADMIN"])).toBe(true);
     expect(roleCanAccessWorkspace("finance", ["ADMIN"])).toBe(false);

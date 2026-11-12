@@ -375,3 +375,13 @@
 @media (max-width:900px) {
   .kravia-office .office-v2.office-modern.office-floating-rail { padding-left:0!important; }
 }
+
+/* Hide scrollbar chrome in controlled Office panels without disabling native scrolling. */
+.kravia-office .office-modern.office-floating-rail :where(
+  [class*="list"],[class*="tableWrap"],[class*="drawer"],[class*="panel"],
+  [class*="content"],[class*="scroll"],[class*="menu"]
+) { scrollbar-width:none; }
+.kravia-office .office-modern.office-floating-rail :where(
+  [class*="list"],[class*="tableWrap"],[class*="drawer"],[class*="panel"],
+  [class*="content"],[class*="scroll"],[class*="menu"]
+)::-webkit-scrollbar { width:0;height:0;display:none; }

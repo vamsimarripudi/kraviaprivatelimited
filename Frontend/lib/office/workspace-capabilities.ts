@@ -79,6 +79,13 @@ const requirements: Record<string, readonly string[]> = {
 
 // Director title alone never substitutes for a scoped permission assignment.
 
+// Personal account utilities are available to any activated employee.
+// Every other business module requires an explicit capability assignment.
+const personalOfficeSections = new Set([
+  "dashboard", "my-role", "notifications", "tasks", "calendar", "requests",
+  "approvals", "worktime", "settings", "emergency",
+]);
+
 export function requiredCapabilities(workspace: WorkspaceKind, section: string) {
   return requirements[`${workspace}:${section}`] ?? [];
 }
@@ -91,7 +98,7 @@ export function capabilityCanAccessSection(
 ) {
   if (roles.includes("OWNER")) return true;
   const required = requiredCapabilities(workspace, section);
-  if (!required.length) return true;
+  if (!required.length) return workspace === "office" && personalOfficeSections.has(section);
   const granted = new Set(permissions);
   return required.some((permission) => granted.has(permission));
 }
