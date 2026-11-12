@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
-import { getOfficeSessionContext, officeIdentityIsProvisioned } from "@/lib/office/auth-server";
+import { getOfficeSessionContext, officeIdentityCanAuthenticate } from "@/lib/office/auth-server";
 import { getOfficeCompanyIdentity } from "@/lib/office/company-identity-server";
 
 export async function GET() {
   const context = await getOfficeSessionContext();
-  if (!context || !officeIdentityIsProvisioned(context.identity)) {
+  if (!context || !officeIdentityCanAuthenticate(context.identity)) {
     return NextResponse.json({ authenticated: false }, { status: 401, headers: { "Cache-Control": "no-store" } });
   }
 
   let companyIdentity = null;
-  try { companyIdentity = await getOfficeCompanyIdentity(context.identity.userId); } catch { /* metadata remains non-blocking */ }
+  if (context.identity.workspaceStatus === "ACTIVE") {
+    try { companyIdentity = await getOfficeCompanyIdentity(context.identity.userId); } catch { /* metadata remains non-blocking */ }
+  }
 
   return NextResponse.json(
     {
@@ -17,6 +19,7 @@ export async function GET() {
       email: context.identity.email,
       roles: context.identity.roles,
       access_status: context.identity.accessStatus,
+      workspace_status: context.identity.workspaceStatus,
       company_identity: companyIdentity,
       aal: context.identity.aal,
       next_aal: context.identity.aal === "aal2" ? "aal2" : "aal2",

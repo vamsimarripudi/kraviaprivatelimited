@@ -17,6 +17,11 @@ describe("Office activation and least-privilege leadership workspaces", () => {
     expect(route).toContain("officeMutationIsSameOrigin");
     expect(route).toContain("Cache-Control");
     expect(read("components/access-governance-panel.tsx")).toContain("Activate workspace");
+    const auth = read("lib/office/auth-server.ts");
+    expect(auth).toContain('identity.workspaceStatus === "ACTIVE"');
+    expect(auth).toContain("officeIdentityCanAuthenticate");
+    expect(read("app/api/office-auth/mfa/route.ts")).toContain("officeIdentityCanAuthenticate");
+    expect(read("app/api/office-auth/invited-email-otp/route.ts")).toContain("officeIdentityCanAuthenticate");
   });
   it("limits navigation to active capability assignments, with an Owner oversight shortlist", () => {
     const shell = read("components/office-workspace-shell.tsx");

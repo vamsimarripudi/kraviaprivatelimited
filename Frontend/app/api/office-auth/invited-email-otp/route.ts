@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getOfficeSessionContext, officeIdentityIsProvisioned, requestInvitedOfficeEmailOtp, verifyInvitedOfficeEmailOtp, OfficeApiError } from "@/lib/office/auth-server";
+import { getOfficeSessionContext, officeIdentityCanAuthenticate, requestInvitedOfficeEmailOtp, verifyInvitedOfficeEmailOtp, OfficeApiError } from "@/lib/office/auth-server";
 import { officeMutationIsSameOrigin } from "@/lib/office/request-security";
 
 const schema = z.discriminatedUnion("action", [
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ detail: "Invalid verification request" }, { status: 400 });
   const context = await getOfficeSessionContext();
-  if (!context || !officeIdentityIsProvisioned(context.identity) || context.identity.aal !== "aal1") {
+  if (!context || !officeIdentityCanAuthenticate(context.identity) || context.identity.aal !== "aal1") {
     return NextResponse.json({ detail: "Sign in with the invited account password first" }, { status: 401 });
   }
   try {
