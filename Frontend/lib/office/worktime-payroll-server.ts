@@ -110,6 +110,18 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
   ]);
   for (const r of [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult, periodResult, flexResult, sessionsResult]) check(r, "Office worktime evidence is unavailable");
   if (!identityResult.data) throw new OfficeWorktimeError(404, "Employee not found");
+  const manager = await actor.admin.from("office_user_access_profiles")
+    .select("effective_from,expires_at").eq("user_id", actor.identity.userId)
+    .eq("profile_code", "HR_MANAGER").eq("status", "ACTIVE");
+  check(manager, "HR Manager authority is unavailable");
+  const nowMs = Date.now();
+  const hrManagerActive = (manager.data ?? []).some(row => {
+    const from = row.effective_from ? Date.parse(String(row.effective_from)) : 0;
+    const until = row.expires_at ? Date.parse(String(row.expires_at)) : Number.POSITIVE_INFINITY;
+    return Number.isFinite(from) && from <= nowMs && until > nowMs;
+  });
+  const isDirector = actor.identity.roles.some(role => role === "OWNER" || role === "DIRECTOR");
+  const policyProposal = isDirector && await can(actor, "payroll.rules.manage");
   const policies = (policiesResult.data ?? []) as PolicyRow[];
   const claims = (claimsResult.data ?? []) as ClaimRow[];
   const issues = (issuesResult.data ?? []) as IssueRow[];
@@ -168,7 +180,7 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
     approved_monthly_gross_minor: compensation ? Number(compensation.monthly_gross_minor) : null,
     approved_gross_currency: compensation?.currency ?? null,
     salary_slips: salarySlips,
-    capabilities: { self, review_worktime: canReviewWorktime && actor.identity.roles.some(role => role === "OWNER" || role === "DIRECTOR"), prepare_payroll: canPreparePayroll },
+    capabilities: { self, review_worktime: canReviewWorktime && (isDirector || hrManagerActive), propose_policy: policyProposal, prepare_payroll: canPreparePayroll },
     notice: "Attendance targets reflect tracked net time plus independently approved historical corrections; they are not wage evidence. Unpaid salary is not marked PAID without verified bank evidence. No overtime rates or payroll are created automatically.",
   };
 }
