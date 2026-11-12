@@ -23,13 +23,13 @@ export function OfficeAuthLayout({
   footerLabel = "Return to corporate website",
 }: Props) {
   return (
-    <main className={`${styles.shell} kravia-office-auth`}>
+    <main className={`${styles.shell} kravia-office-auth`} data-office-auth-layout>
       <section className={styles.brand} aria-label="KRAVIA Office identity">
         <OfficeAmbientField variant="auth" />
         <div className={styles.glowOne} />
         <div className={styles.glowTwo} />
         <div className={styles.brandTop}>
-          <BrandLogo />
+          <BrandLogo priority />
           <span className={styles.identityLabel}>{eyebrow}</span>
         </div>
 
@@ -54,7 +54,13 @@ export function OfficeAuthLayout({
       </section>
 
       <section className={styles.formSide}>
-        <div className={styles.mobileBrand}><BrandLogo /><b>OFFICIAL PRIVATE ACCESS</b></div>
+        <div className={styles.mobileBrand} data-office-auth-mobile-header>
+          <div className={styles.mobileLogoVariants}>
+            <span data-office-logo-variant="light"><BrandLogo priority /></span>
+            <span data-office-logo-variant="dark"><BrandLogo priority /></span>
+          </div>
+          <b>OFFICIAL PRIVATE ACCESS</b>
+        </div>
         <div className={styles.card}>{children}</div>
         <p className={styles.copyright}>KRAVIA PRIVATE LIMITED · Authorized personnel only</p>
       </section>
