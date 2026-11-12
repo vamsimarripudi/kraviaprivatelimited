@@ -102,6 +102,10 @@ export function AccessGovernancePanel({ identity }: { identity: OfficeIdentity }
 
   async function submitInvite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (invite.roles.some(role => role !== "MEMBER" && assignedRoles.get(role))) {
+      setNotice({ message: "A selected role is already assigned. Transfer or review authority before another assignment.", error: true });
+      return;
+    }
     if (!invite.department || !invite.roles.length) {
       setNotice({ message: "Choose a department and at least one role.", error: true });
       return;
@@ -157,6 +161,20 @@ export function AccessGovernancePanel({ identity }: { identity: OfficeIdentity }
   }
 
   const inviteRoles = state.role_catalog.filter((role) => role.role !== "OWNER" && (owner || role.assignable_by_admin));
+  const assignedRoles = new Map<OfficeRole,string>();
+  for (const user of state.users) {
+    if (user.status !== "ACTIVE" || activeRoles(user).includes("OWNER")) continue;
+    for (const role of activeRoles(user)) {
+      if (role !== "OWNER" && role !== "MEMBER") assignedRoles.set(role,user.display_name || user.email || "Office employee");
+    }
+  }
+  for (const item of state.invitations) {
+    if (item.status !== "PENDING") continue;
+    for (const role of item.requested_roles) {
+      if (role !== "OWNER" && role !== "MEMBER" && !assignedRoles.has(role)) assignedRoles.set(role,"Pending invitation");
+    }
+  }
+
 
   return <div className={styles.wrap}>
     <section className={styles.summary}>
@@ -173,16 +191,27 @@ export function AccessGovernancePanel({ identity }: { identity: OfficeIdentity }
     </section> : null}
 
     <section className={styles.panel}>
-      <div className={styles.head}><div><p className="eyebrow">JOINER</p><h2>{owner ? "Appoint administrator or invite a team member" : "Invite an authorised team member"}</h2></div><UserPlus /></div>
+      <div className={styles.head}><div><p className="eyebrow">JOINER</p><h2>Invite an employee</h2></div><UserPlus /></div>
+      <details className={styles.inviteDisclosure}><summary><UserPlus size={16}/> New invitation <span>Identity · Department · Role</span></summary>
       <form className={styles.form} onSubmit={submitInvite}>
         <label>Email<input required type="email" autoComplete="off" value={invite.email} onChange={(event) => setInvite({ ...invite, email: event.target.value })} /></label>
         <label>Display name<input maxLength={120} value={invite.display_name} onChange={(event) => setInvite({ ...invite, display_name: event.target.value })} /></label>
         <label>Job title<input maxLength={120} value={invite.job_title} onChange={(event) => setInvite({ ...invite, job_title: event.target.value })} /></label>
         <label>Department<select required value={invite.department} onChange={(event) => setInvite({ ...invite, department: event.target.value })}><option value="">Select department</option>{state.departments.map((department) => <option key={department.code} value={department.code}>{department.label}</option>)}</select></label>
-        <fieldset className={styles.roles}><legend>Roles</legend>{inviteRoles.map((role) => <label key={role.role}><input type="checkbox" checked={invite.roles.includes(role.role)} onChange={() => toggleRole(role.role)} /><span><b>{role.label}</b><small>{role.description}</small></span></label>)}</fieldset>
+        <fieldset className={styles.roles}><legend>Roles · Assigned positions are locked</legend>{inviteRoles.map((role) => {
+          const assigned = assignedRoles.get(role.role);
+          return <label key={role.role} data-assigned={Boolean(assigned)}>
+            <input type="checkbox" checked={invite.roles.includes(role.role)}
+              disabled={pending || Boolean(assigned)} onChange={() => toggleRole(role.role)} />
+            <span><b>{role.label}</b><small>{role.description}</small></span>
+            <em className={styles.roleTag} data-assigned={Boolean(assigned)}>
+              {assigned ? "Assigned · " + assigned : "Available"}
+            </em>
+          </label>;
+        })}</fieldset>
         <label className={styles.reason}>Business reason<textarea required minLength={3} maxLength={500} rows={3} value={invite.reason} onChange={(event) => setInvite({ ...invite, reason: event.target.value })} /></label>
-        <button type="submit" disabled={pending}>{pending ? <LoaderCircle className="spin" /> : <UserPlus />} Issue controlled invite</button>
-      </form>
+        <button type="submit" disabled={pending}>{pending ? <LoaderCircle className="spin" /> : <UserPlus />} Issue invite</button>
+      </form></details>
     </section>
 
     <section className={styles.panel}>
