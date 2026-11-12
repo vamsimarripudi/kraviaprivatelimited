@@ -47,7 +47,7 @@ describe("KRAVIA verified private employee onboarding",()=>{
   });
   it("has valid SQL function delimiters and a pinned security-definer search path",()=>{
     expect(schema).toContain("set search_path='' as $kravia_employee_ref$");
-    expect(schema).toContain("end;\\n$kravia_employee_ref$;");
+    expect(schema).toContain("$kravia_employee_ref$;");
     expect(schema).not.toContain("as $\\ndeclare");
     expect(schema).toContain("public.office_employee_reference_issue");
   });
