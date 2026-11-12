@@ -10,7 +10,7 @@ export function GET() {
   return NextResponse.json(
     {
       application: "KRAVIA Office",
-      release: "2026-11-12-email-otp-choice",
+      release: "2026-11-12-login-refresh",
       commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) || "unavailable",
       environment: process.env.VERCEL_ENV || "unknown",
     },
