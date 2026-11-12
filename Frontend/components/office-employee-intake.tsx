@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { BadgeCheck, BookOpen, CheckCircle2, ChevronRight, CircleAlert, FileText, IdCard, ImagePlus, LoaderCircle, Save, ShieldCheck, Upload, UserRound, Wallet } from "lucide-react";
+import { BadgeCheck, BookOpen, CheckCircle2, ChevronRight, CircleAlert, FileText, IdCard, ImagePlus, Save, ShieldCheck, Upload, UserRound, Wallet } from "lucide-react";
 import styles from "./office-employee-intake.module.css";
 
 type Education={qualification:string;institution:string;year?:number;course?:string};
