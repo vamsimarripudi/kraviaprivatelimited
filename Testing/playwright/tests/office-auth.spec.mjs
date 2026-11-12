@@ -50,7 +50,8 @@ test("renders the configured private Office sign-in boundary", async ({ page }) 
   await expect(page.getByLabel("Corporate email")).toBeEnabled();
   await expect(passwordInput(page)).toBeEnabled();
   await expect(page.getByText("Internal identity service is not active on this deployment.")).toHaveCount(0);
-  await expect(page.getByText(/Only enter a password you created for KRAVIA Office/)).toBeVisible();
+  await expect(page.getByText(/corporate email OTP if enabled for your account/)).toBeVisible();
+  await expect(page.locator('[data-office-login-release="2026-11-12-email-otp-choice"]')).toBeVisible();
 });
 
 test("keeps an invalid password at the first factor", async ({ page }) => {
@@ -72,9 +73,9 @@ test("first activation directs the user to an approved phone without exposing QR
   await page.getByRole("button", { name: "Sign in to KRAVIA Office" }).click();
 
   await expect(page.getByRole("heading", { name: "Activate your phone" })).toBeVisible();
-  await expect(page.getByText(/never shows a QR code or setup key in the browser/i)).toBeVisible();
+  await expect(page.getByText(/never shows a QR code or setup key for device enrollment/i)).toBeVisible();
   await expect(page.getByRole("img", { name: /QR code/i })).toHaveCount(0);
-  await expect(page.getByLabel("Authenticator code")).toHaveCount(0);
+  await expect(page.locator("#workspace-mfa-code")).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Open Authenticator instructions" })).toHaveAttribute("href", "/office/authenticator");
 
   await page.getByRole("button", { name: "Return to sign in" }).click();
@@ -94,7 +95,7 @@ test("existing enrollment accepts six digits only and surfaces a rejected code",
   await page.getByRole("button", { name: "Sign in to KRAVIA Office" }).click();
 
   await expect(page.getByRole("heading", { name: "Verify your identity" })).toBeVisible();
-  const code = page.getByLabel("Authenticator code");
+  const code = page.locator("#workspace-mfa-code");
   await code.fill("12ab345678");
   await expect(code).toHaveValue("123456");
   await page.getByRole("button", { name: "Verify and continue" }).click();
@@ -112,7 +113,7 @@ test("successful MFA continues to the requested Office destination", async ({ pa
   await page.getByLabel("Corporate email").fill(account);
   await passwordInput(page).fill(password);
   await page.getByRole("button", { name: "Sign in to KRAVIA Office" }).click();
-  await page.getByLabel("Authenticator code").fill("123456");
+  await page.locator("#workspace-mfa-code").fill("123456");
 
   await page.route((url) => url.pathname === "/office/e2e-complete", (route) =>
     route.fulfill({ status: 200, contentType: "text/html", body: "<main><h1>AAL2 destination reached</h1></main>" }),
