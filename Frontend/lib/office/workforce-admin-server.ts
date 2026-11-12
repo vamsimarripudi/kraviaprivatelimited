@@ -87,7 +87,7 @@ export async function getWorkforceAdministrationState() {
     listAllUsers(admin),
     admin.from("office_identity_users").select("user_id,status,display_name,job_title,primary_department,authorization_version,access_review_due_at,created_at").order("created_at", { ascending: true }),
     admin.from("office_user_roles").select("user_id,role,expires_at").order("created_at", { ascending: true }),
-    admin.from("office_job_assignments").select("user_id,position_code,department_code,reports_to_user_id,team_key,product_key,employment_type,status,started_at,ended_at,updated_at"),
+    admin.from("office_job_assignments").select("user_id,position_code,department_code,reports_to_user_id,team_key,product_key,employment_type,status,start_date,end_date,updated_at"),
     admin.from("office_position_catalog").select("code,label,family,level,is_manager,description,active").eq("active", true).order("level", { ascending: false }).order("label", { ascending: true }),
     admin.from("office_access_profile_catalog").select("code,label,category,description,max_active_devices,requires_managed_device_for_high_risk,assignable_by_admin,owner_managed_only,active").eq("active", true).order("label", { ascending: true }),
     admin.from("office_access_profile_permissions").select("profile_code,permission_code,effect,default_scope_type"),
