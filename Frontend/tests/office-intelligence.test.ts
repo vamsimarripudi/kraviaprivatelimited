@@ -47,7 +47,15 @@ describe("KRAVIA Intelligence", () => {
     expect(workspaces).toContain('title: "KRAVIA Intelligence"');
     expect(screen).toContain("OfficeIntelligenceBrief");
     expect(screen).toContain('section === "intelligence"');
-    expect(screen).toContain("<OfficeIntelligenceBrief compact />");
+    expect(screen).not.toContain("<OfficeIntelligenceBrief compact />");
+    const shell = readFileSync(new URL("../components/office-workspace-shell.tsx", import.meta.url), "utf8");
+    const peek = readFileSync(new URL("../components/office-intelligence-peek.tsx", import.meta.url), "utf8");
+    expect(shell).toContain("OfficeIntelligencePeek");
+    expect(shell).toContain('role === "OWNER" || role === "DIRECTOR"');
+    expect(peek).toContain("/api/office-intelligence");
+    expect(peek).toContain("View full intelligence brief");
+    expect(server).not.toContain('select("id,user_id,status,last_seen_at,aal,expires_at,revoked_at")');
+    expect(server).toContain("unavailableSources");
     expect(component).toContain("No autonomous writes");
   });
 });
