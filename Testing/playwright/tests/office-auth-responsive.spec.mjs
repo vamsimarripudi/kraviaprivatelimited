@@ -40,7 +40,9 @@ test("Office sign-in fills supported viewport sizes without clipping or horizont
 
     expect(metrics, JSON.stringify(viewport)).not.toBeNull();
     expect(metrics.horizontalScroll, JSON.stringify(viewport)).toBeLessThanOrEqual(metrics.viewportWidth + 2);
-    expect(metrics.sideHeight, JSON.stringify(viewport)).toBeGreaterThanOrEqual(metrics.viewportHeight - 4);
+    // Mobile Chromium's emulated window.innerHeight may differ slightly from
+    // the requested physical CSS viewport; layout must cover the requested size.
+    expect(metrics.sideHeight, JSON.stringify(viewport)).toBeGreaterThanOrEqual(viewport.height - 4);
     expect(metrics.cardWidth, JSON.stringify(viewport)).toBeGreaterThan(250);
     expect(metrics.formWidth, JSON.stringify(viewport)).toBeGreaterThan(240);
     expect(metrics.cardLeft, JSON.stringify(viewport)).toBeGreaterThanOrEqual(-1);

@@ -391,3 +391,15 @@
     gap: 5px;
   }
 }
+
+/* Desktop's ambient brand decoration can extend a few pixels past the grid.
+ * Clip horizontally at the authentication frame only, retaining document
+ * vertical scrolling for landscape, zoom and mobile on-screen keyboards. */
+.kravia-office [data-office-auth-layout] {
+  max-width: 100% !important;
+  overflow-x: clip !important;
+  overflow-y: visible !important;
+}
+.kravia-office [data-office-auth-layout] > section {
+  min-width: 0;
+}
