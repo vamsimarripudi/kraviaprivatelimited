@@ -1181,6 +1181,11 @@ def test_password_change_requires_aal2_and_revokes_other_sessions(tmp_path, monk
 
 
 def test_administrator_recovery_link_is_single_use_and_revokes_target_sessions(tmp_path, monkeypatch):
+    sent = []
+    monkeypatch.setattr(
+        identity_auth, "send_office_password_recovery_email",
+        lambda **kwargs: sent.append(kwargs) or "mock-recovery-provider-message",
+    )
     client, engine = make_client(tmp_path, monkeypatch)
     try:
         owner = aal2_founder(client)
@@ -1218,9 +1223,12 @@ def test_administrator_recovery_link_is_single_use_and_revokes_target_sessions(t
         body = issued.json()
         assert body["issued"] is True
         assert body["target_user_id"] == member_id
-        assert body["recovery_path"].startswith("/office/reset-password?token=")
+        assert body["email_delivery"] == "ACCEPTED"
+        assert "recovery_path" not in body and "recovery_token" not in body
         assert body["revoked_sessions"] >= 1
-        recovery_token = body["recovery_token"]
+        assert len(sent) == 1
+        assert sent[0]["recipient_email"] == "recoverable@example.test"
+        recovery_token = parse_qs(urlsplit(sent[0]["recovery_url"]).query)["token"][0]
 
         recovered = client.post(
             "/api/v1/auth/recovery/password",
@@ -1246,6 +1254,48 @@ def test_administrator_recovery_link_is_single_use_and_revokes_target_sessions(t
             json={"email": "recoverable@example.test", "password": "Member-Recovered2!"},
         )
         assert new_password.status_code == 200
+    finally:
+        engine.dispose()
+
+
+
+def test_password_recovery_unavailable_never_exposes_reset_token(tmp_path, monkeypatch):
+    sent = []
+
+    def unavailable(**kwargs):
+        sent.append(kwargs)
+        raise identity_auth.EmailDeliveryUnavailable("Test provider unavailable")
+
+    monkeypatch.setattr(identity_auth, "send_office_password_recovery_email", unavailable)
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        owner = aal2_founder(client)
+        headers = {"Authorization": f"Bearer {owner['access_token']}"}
+        invited = client.post("/api/v1/auth/invitations", headers=headers, json={
+            "email": "unavailable-reset@example.test",
+            "display_name": "Unavailable Reset Member",
+            "department": "OPERATIONS",
+            "roles": ["MEMBER"],
+            "reason": "Test explicit recovery delivery feedback",
+        })
+        assert invited.status_code == 201
+        registered = client.post("/api/v1/auth/invitation/register", json={
+            "token": invited.json()["registration_token"],
+            "display_name": "Unavailable Reset Member",
+            "password": "Member-Original1!",
+        })
+        assert registered.status_code == 201
+        recovered = client.post(
+            f"/api/v1/auth/users/{registered.json()['user_id']}/recovery-link",
+            headers=headers,
+            json={"reason": "Test sender outage"},
+        )
+        assert recovered.status_code == 200
+        assert recovered.json()["email_delivery"] == "UNAVAILABLE"
+        assert "recovery_path" not in recovered.json()
+        assert "recovery_token" not in recovered.json()
+        assert len(sent) == 1
+        assert sent[0]["recipient_email"] == "unavailable-reset@example.test"
     finally:
         engine.dispose()
 

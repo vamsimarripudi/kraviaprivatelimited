@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, Copy, Link2, LoaderCircle, RefreshCw, ShieldAlert, UserPlus, UsersRound } from "lucide-react";
+import { CheckCircle2, Copy, Link2, LoaderCircle, Mail, RefreshCw, ShieldAlert, UserPlus, UsersRound } from "lucide-react";
 import type { OfficeIdentity } from "@/lib/office/auth-server";
 import type { OfficeRole } from "@/lib/office/workspaces";
 import styles from "./access-governance-panel.module.css";
@@ -287,9 +287,8 @@ function UserCard({ user, state, owner, currentUserId, pending, mutate }: {
   const [department, setDepartment] = useState(user.department ?? state.departments[0]?.code ?? "OPERATIONS");
   const [reason, setReason] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
-  const [recoveryUrl, setRecoveryUrl] = useState("");
   const [recoveryBusy, setRecoveryBusy] = useState(false);
-  const [recoveryCopied, setRecoveryCopied] = useState(false);
+  const [recoveryNotice, setRecoveryNotice] = useState<{ accepted: boolean; message: string }>();
   const [recoveryError, setRecoveryError] = useState<string>();
   const reasonReady = reason.trim().length >= 3;
 
@@ -300,31 +299,26 @@ function UserCard({ user, state, owner, currentUserId, pending, mutate }: {
 
   async function issueRecovery() {
     setRecoveryBusy(true);
-    setRecoveryUrl("");
-    setRecoveryCopied(false);
+    setRecoveryNotice(undefined);
     setRecoveryError(undefined);
     try {
-      const result = await json<{ recovery_url: string; expires_in: number; revoked_sessions: number }>("/api/office-access/password-recovery", {
+      const result = await json<{ issued: true; email_delivery: "ACCEPTED" | "UNAVAILABLE" | "REJECTED" | "UNKNOWN"; expires_in: number; revoked_sessions: number }>("/api/office-access/password-recovery", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ target_user_id: user.user_id, reason }),
       });
-      setRecoveryUrl(result.recovery_url);
+      const accepted = result.email_delivery === "ACCEPTED";
+      setRecoveryNotice({
+        accepted,
+        message: accepted
+          ? `The password-reset message was accepted by the email provider for ${user.email}. The link expires in ${Math.ceil(result.expires_in / 60)} minutes. Inbox delivery is not guaranteed.`
+          : `Password recovery was issued, but delivery to ${user.email} was not confirmed (${result.email_delivery.toLowerCase()}). Do not repeatedly resend while an earlier attempt may still arrive. The recipient cannot access this private link from this screen.`,
+      });
+      setReason("");
     } catch (error) {
-      setRecoveryError(error instanceof Error ? error.message : "Unable to issue a recovery link");
+      setRecoveryError(error instanceof Error ? error.message : "Unable to email the password-reset link");
     } finally {
       setRecoveryBusy(false);
-    }
-  }
-
-  async function copyRecoveryLink() {
-    if (!recoveryUrl) return;
-    try {
-      await navigator.clipboard.writeText(new URL(recoveryUrl, window.location.origin).toString());
-      setRecoveryCopied(true);
-      window.setTimeout(() => setRecoveryCopied(false), 2500);
-    } catch {
-      setRecoveryCopied(false);
     }
   }
 
@@ -332,7 +326,7 @@ function UserCard({ user, state, owner, currentUserId, pending, mutate }: {
     <div className={styles.userHead}><div><b>{user.display_name || user.email || "Office identity"}</b><span>{user.job_title || user.email}</span><small>{user.department ?? "No department"} · Workspace: {user.workspace_status ?? "ACTIVE"} · authz v{user.authorization_version}</small></div><em data-status={user.status}>{user.status}</em></div>
     <div className={styles.badges}>{user.roles.map((grant) => <span key={grant.role} data-expired={!grant.active}>{grant.role}{grant.expires_at ? ` · until ${formatDate(grant.expires_at)}` : ""}</span>)}</div>
     <div className={styles.userMeta}><span>Last sign-in <b>{formatDate(user.last_sign_in_at)}</b></span><span>Access review due <b>{formatDate(user.access_review_due_at)}</b></span></div>
-    {manageable ? <details className={styles.userDisclosure}><summary>Manage access <span>Roles · Team · MFA · Review</span></summary><div className={styles.controls}>
+    {manageable ? <details className={styles.userDisclosure}><summary>Manage access <span>Roles · Team · Password reset · MFA · Review</span></summary><div className={styles.controls}>
       <label>Role<select value={role} onChange={(event) => setRole(event.target.value as OfficeRole)}>{roleOptions.map((option) => <option key={option.role} value={option.role} disabled={false}>{option.label}{assignedToOthers.get(option.role) ? " · Assigned to " + assignedToOthers.get(option.role) : ""}</option>)}</select></label>
       <label>Optional role expiry<input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></label>
       <label>Department<select value={department} onChange={(event) => setDepartment(event.target.value)}>{state.departments.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}</select></label>
@@ -348,14 +342,13 @@ function UserCard({ user, state, owner, currentUserId, pending, mutate }: {
         {user.status === "ACTIVE" ? <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/status", { target_user_id: user.user_id, status: "SUSPENDED", reason }, "Identity suspended.")}><ShieldAlert size={14}/>Suspend</button> : <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/status", { target_user_id: user.user_id, status: "ACTIVE", reason }, "Identity reactivated.")}><CheckCircle2 size={14}/>Reactivate</button>}
         <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/status", { target_user_id: user.user_id, status: "REVOKED", reason }, "Identity revoked.")}><ShieldAlert size={14}/>Remove</button>
         <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/mfa-reset", { target_user_id: user.user_id, reason }, "Authenticator factors reset; the user must enroll MFA again.")}><RefreshCw size={14}/>Reset MFA</button>
-        <button type="button" disabled={pending || recoveryBusy || !reasonReady} onClick={() => void issueRecovery()}>{recoveryBusy ? "Issuing…" : "Issue recovery link"}</button>
+        <button type="button" disabled={pending || recoveryBusy || !reasonReady} onClick={() => void issueRecovery()}>{recoveryBusy ? "Sending…" : <Mail size={14} />} Email password reset</button>
         <button type="button" disabled={pending || user.user_id === currentUserId} onClick={() => void post("/api/office-access/review", { target_user_id: user.user_id, decision: "APPROVED", notes: reason || undefined }, "Access review approved.")}><CheckCircle2 size={14}/>Approve</button>
         <button type="button" disabled={pending || user.user_id === currentUserId} onClick={() => void post("/api/office-access/review", { target_user_id: user.user_id, decision: "CHANGES_REQUIRED", notes: reason || undefined }, "Access review marked for changes.")}><ShieldAlert size={14}/>Changes</button>
       </div>
       {recoveryError ? <p className={styles.recoveryError}>{recoveryError}</p> : null}
-      {recoveryUrl ? <div className={styles.privateLink}>
-        <div><Link2 /><span><b>Private recovery link</b><small>Single-use. Issuing it revoked the user’s active sessions. Send it only to the intended person.</small></span></div>
-        <div className={styles.privateLinkRow}><input readOnly value={new URL(recoveryUrl, "https://www.kraviaprivatelimited.com").toString()} aria-label="Private password recovery URL" /><button type="button" onClick={() => void copyRecoveryLink()}><Copy />{recoveryCopied ? "Copied" : "Copy link"}</button></div>
+      {recoveryNotice ? <div className={styles.privateLink} role="status">
+        <div>{recoveryNotice.accepted ? <CheckCircle2 /> : <ShieldAlert />}<span><b>{recoveryNotice.accepted ? "Reset email submitted" : "Reset email not confirmed"}</b><small>{recoveryNotice.message}</small></span></div>
       </div> : null}
     </div></details> : <p className={styles.protected}>{user.status === "INVITED" ? "Pending invitation — no workspace access exists yet. Manage this identity through the invitation ledger until acceptance." : user.status === "REVOKED" ? "Revoked identity — ordinary role and lifecycle administration is permanently closed. Re-entry requires a new controlled onboarding decision." : roles.includes("OWNER") ? "Protected OWNER identity — ordinary administration cannot suspend, revoke, reset MFA or transfer this authority." : "This privileged identity is outside your delegated administration boundary."}</p>}
   </article>;
