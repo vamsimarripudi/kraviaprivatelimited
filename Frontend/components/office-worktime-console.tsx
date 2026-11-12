@@ -150,7 +150,7 @@ export function OfficeWorktimeConsole() {
           <div className={styles.heading}><h3>Weekly 30-hour review</h3><small>Monday to Friday · net of unpaid breaks</small></div>
           <div className={styles.weekLedger}>{data.attendance_targets.weeks.map(week => <div className={styles.weekRow} key={week.monday}>
             <span><b>{week.monday} – {week.through}</b><small>{week.status === "HISTORICAL" ? "Historical / boundary week" : week.status === "TARGET_MET" ? "Weekly target met" : "Worktime still to verify"}</small></span>
-            <span><strong>{formatHours(week.tracked_minutes)}</strong><small>{week.target_minutes ? formatHours(week.target_minutes) + " goal · " + formatHours(week.remaining_minutes) + " left" : "Target not assessed for this week"}</small></span>
+            <span><strong>{formatHours(week.tracked_minutes)}</strong><small>{week.target_minutes ? formatHours(week.target_minutes) + " goal · " + week.completed_weekdays + "/5 days ≥ 6h · " + formatHours(week.remaining_minutes) + " time remaining" : "Target not assessed for this week"}</small></span>
           </div>)}</div>
         </article>
         <div className={styles.columns}>
