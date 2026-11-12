@@ -53,6 +53,7 @@ from .email_delivery import (
     send_office_device_approval,
     send_office_email_verification_code,
     send_office_invitation_email,
+    send_office_workspace_ready_email,
 )
 
 ACCESS_TTL_SECONDS = int(os.getenv("OFFICE_AUTH_ACCESS_TTL_SECONDS", "1800"))
@@ -3499,7 +3500,38 @@ def build_identity_router() -> APIRouter:
                session_id=actor["session_id"],
                metadata={"approved_by": actor["user_id"]})
         db.commit()
-        return {"activated": True, "workspace_status": "ACTIVE", "user_id": user.id}
+        # Post-commit transactional notice: only this Founder approval can
+        # trigger it. Provider failure cannot undo the already approved scope.
+        email_delivery = "ACCEPTED"
+        provider_message_id = None
+        try:
+            provider_message_id = send_office_workspace_ready_email(
+                recipient_email=user.email,
+                recipient_name=user.display_name or "Colleague",
+                delivery_id=f"office-workspace-ready-{user.id}",
+            )
+        except EmailDeliveryUnavailable:
+            email_delivery = "UNAVAILABLE"
+        except EmailDeliveryRejected:
+            email_delivery = "REJECTED"
+        except EmailDeliveryUnknown:
+            email_delivery = "UNKNOWN"
+        _event(
+            db, f"WORKSPACE_READY_EMAIL_{email_delivery}", request,
+            user_id=user.id, session_id=actor["session_id"],
+            metadata={
+                "approved_by": actor["user_id"],
+                "delivery_status": email_delivery,
+                "provider_message_id": provider_message_id if email_delivery == "ACCEPTED" else None,
+            },
+        )
+        db.commit()
+        return {
+            "activated": True,
+            "workspace_status": "ACTIVE",
+            "user_id": user.id,
+            "email_delivery": email_delivery,
+        }
 
     @router.post("/founder/recovery-link")
     def issue_founder_break_glass_recovery(

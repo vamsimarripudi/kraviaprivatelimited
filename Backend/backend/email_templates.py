@@ -124,8 +124,54 @@ def _render(
     return TransactionalEmail(subject=subject, html_content=html_content, text_content=text_content)
 
 
+KRAVIA_OFFICE_LOGIN_URL = "https://kraviaprivatelimited.com/office/login"
+KRAVIA_OFFICE_AUTHENTICATOR_GUIDE_URL = "https://kraviaprivatelimited.com/office/authenticator"
+KRAVIA_AUTHENTICATOR_GOOGLE_PLAY_URL = (
+    "https://play.google.com/store/apps/details?id=com.kraviaprivatelimited.authenticator"
+)
+GOOGLE_PLAY_BADGE_IMAGE_URL = (
+    "https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"
+)
+
+
+def _office_app_download_html() -> str:
+    """Use Google's official unmodified badge with a text fallback for blocked images."""
+    return (
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" '
+        'style="margin:22px 0;background:#f0f4fb;border:1px solid #d9e3f1;border-radius:12px">'
+        '<tr><td style="padding:18px 20px">'
+        '<p style="font:700 15px/23px Arial,sans-serif;color:#182339;margin:0 0 5px">'
+        'Get KRAVIA Authenticator</p>'
+        '<p style="font:13px/21px Arial,sans-serif;color:#515d70;margin:0 0 11px">'
+        'For Android phones, install the official app from Google Play.</p>'
+        f'<a href="{KRAVIA_AUTHENTICATOR_GOOGLE_PLAY_URL}" '
+        'style="display:inline-block;text-decoration:none" target="_blank" rel="noopener noreferrer">'
+        f'<img src="{GOOGLE_PLAY_BADGE_IMAGE_URL}" alt="Get it on Google Play" '
+        'width="194" height="75" '
+        'style="display:block;width:194px;max-width:100%;height:auto;border:0" /></a>'
+        '<p style="font:12px/20px Arial,sans-serif;color:#515d70;margin:10px 0 0">'
+        'If the badge is blocked, open '
+        f'<a style="color:#1559ce;text-decoration:underline" href="{KRAVIA_AUTHENTICATOR_GOOGLE_PLAY_URL}">'
+        'KRAVIA Authenticator on Google Play</a>.</p>'
+        '<p style="font:12px/20px Arial,sans-serif;color:#515d70;margin:7px 0 0">'
+        f'Activation instructions: <a href="{KRAVIA_OFFICE_AUTHENTICATOR_GUIDE_URL}" '
+        'style="color:#1559ce;text-decoration:underline">KRAVIA Office setup guide</a>. '
+        'Do not install APKs from unverified sources.</p>'
+        '</td></tr></table>'
+    )
+
+
+def _office_app_download_text() -> str:
+    return (
+        "KRAVIA Authenticator for Android\n"
+        f"Get it on Google Play: {KRAVIA_AUTHENTICATOR_GOOGLE_PLAY_URL}\n"
+        f"Phone activation instructions: {KRAVIA_OFFICE_AUTHENTICATOR_GUIDE_URL}\n"
+        "Never install APKs from unverified sources."
+    )
+
+
 def office_invitation_template(*, recipient_name: str, registration_url: str, expiry_hours: int) -> TransactionalEmail:
-    """Branded, escaped, one-time invitation with a real email CTA and text fallback."""
+    """Private registration CTA plus official Authenticator download instructions."""
     name = recipient_name.strip() or "Colleague"
     if len(name) > 120:
         raise ValueError("Invalid invitation recipient")
@@ -142,30 +188,39 @@ def office_invitation_template(*, recipient_name: str, registration_url: str, ex
     html_content = (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1"></head>'
-        '<body style="margin:0;background:#f4f8f5;color:#162c20;font-family:Arial,sans-serif">'
-        '<main style="max-width:560px;margin:32px auto;padding:32px;background:#fff;'
-        'border:1px solid #dce8df;border-radius:18px">'
-        '<p style="color:#226347;font-size:12px;font-weight:700;letter-spacing:.12em">KRAVIA PRIVATE LIMITED</p>'
-        '<h1 style="font-size:26px;line-height:1.2">Your Office invitation</h1>'
-        f'<p>Hello {safe_name},</p>'
-        '<p>You have been invited to KRAVIA Office. Select the button below to register '
-        'your account and verify your identity. Your assigned workspace becomes available '
-        'only after the required access approvals.</p>'
-        f'<a href="{safe_url}" style="display:inline-block;background:#123d30;color:#fff;'
-        'text-decoration:none;font-weight:700;padding:14px 22px;border-radius:10px">'
-        'Accept Invitation</a>'
-        f'<p style="font-size:13px;color:#52645a">This single-use invitation expires in {expiry_hours} hours. '
+        '<body style="margin:0;background:#f3f5f8;color:#172235;font-family:Arial,sans-serif">'
+        '<main style="max-width:560px;margin:26px auto;padding:30px;background:#fff;'
+        'border:1px solid #d7dfea;border-radius:18px">'
+        '<p style="font:700 11px/18px Arial,sans-serif;color:#1559ce;letter-spacing:1.3px">'
+        'KRAVIA PRIVATE LIMITED</p>'
+        '<h1 style="font:700 25px/33px Arial,sans-serif;color:#172235">'
+        'Your Office invitation</h1>'
+        f'<p style="font:15px/24px Arial,sans-serif">Hello {safe_name},</p>'
+        '<p style="font:14px/24px Arial,sans-serif;color:#495467">'
+        'You have been invited to KRAVIA Office. Use the secure invitation link '
+        'to register and verify your identity. Your workspace stays locked until '
+        'the Founder approves the assigned access.</p>'
+        f'<a href="{safe_url}" style="display:inline-block;background:#1559ce;color:#fff;'
+        'text-decoration:none;font:700 15px/22px Arial,sans-serif;padding:14px 22px;'
+        'border-radius:10px">Accept Invitation</a>'
+        f'<p style="font:13px/21px Arial,sans-serif;color:#515d70">'
+        f'This single-use invitation expires in {expiry_hours} hours. '
         'If you did not expect it, ignore this email.</p>'
-        '<p style="font-size:12px;color:#52645a;word-break:break-all">'
-        'If the button does not work, copy this address into your browser:</p>'
-        f'<p style="font-size:12px;word-break:break-all"><a href="{safe_url}">{safe_url}</a></p>'
+        '<p style="font:12px/19px Arial,sans-serif;color:#515d70;word-break:break-all">'
+        'If the invitation button is blocked, paste this link into your browser: '
+        f'<a href="{safe_url}" style="color:#1559ce">{safe_url}</a></p>'
+        + _office_app_download_html()
+        + '<p style="font:12px/19px Arial,sans-serif;color:#515d70">'
+        'KRAVIA will never ask you to share your password or one-time codes.</p>'
         '</main></body></html>'
     )
     text_content = (
-        f"Hello {name},\\n\\nYou have been invited to KRAVIA Office.\\n"
-        f"Accept Invitation: {registration_url}\\n\\n"
-        f"This single-use invitation expires in {expiry_hours} hours. "
-        "Your workspace remains locked until access approval.\\n"
+        f"Hello {name},\n\nYou have been invited to KRAVIA Office.\n"
+        f"Accept Invitation: {registration_url}\n\n"
+        f"This single-use invitation expires in {expiry_hours} hours.\n"
+        "Your workspace remains locked until access approval.\n\n"
+        f"{_office_app_download_text()}\n\n"
+        "KRAVIA will never ask for your password or one-time code by email.\n"
         "If you did not expect this invitation, ignore this email."
     )
     return TransactionalEmail(
@@ -173,6 +228,50 @@ def office_invitation_template(*, recipient_name: str, registration_url: str, ex
         html_content=html_content,
         text_content=text_content,
     )
+
+
+def office_workspace_ready_template(*, recipient_name: str) -> TransactionalEmail:
+    """Sent once after Founder activation, not on page visits or existing accounts."""
+    name = (recipient_name.strip() or "Colleague")[:160]
+    safe_name = escape(name)
+    html_content = (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1"></head>'
+        '<body style="margin:0;background:#f3f5f8;color:#172235;font-family:Arial,sans-serif">'
+        '<main style="max-width:560px;margin:26px auto;padding:30px;background:#fff;'
+        'border:1px solid #d7dfea;border-radius:18px">'
+        '<p style="font:700 11px/18px Arial,sans-serif;color:#1559ce;letter-spacing:1.3px">'
+        'KRAVIA PRIVATE LIMITED</p>'
+        '<h1 style="font:700 25px/33px Arial,sans-serif;color:#172235">'
+        'Your Office workspace is ready</h1>'
+        f'<p style="font:15px/24px Arial,sans-serif">Hello {safe_name},</p>'
+        '<p style="font:14px/24px Arial,sans-serif;color:#495467">'
+        'Your requested KRAVIA Office workspace access has been approved. '
+        'You can sign in with your existing corporate credentials and complete '
+        'multi-factor authentication to access your assigned work.</p>'
+        f'<a href="{KRAVIA_OFFICE_LOGIN_URL}" style="display:inline-block;background:#1559ce;'
+        'color:#fff;text-decoration:none;font:700 15px/22px Arial,sans-serif;'
+        'padding:14px 22px;border-radius:10px">Open KRAVIA Office</a>'
+        + _office_app_download_html()
+        + '<p style="font:12px/19px Arial,sans-serif;color:#515d70">'
+        'You do not need to create another account. If this approval was unexpected, '
+        'contact your company administrator through the established Office channel.</p>'
+        '</main></body></html>'
+    )
+    text_content = (
+        f"Hello {name},\n\n"
+        "Your KRAVIA Office workspace access has been approved.\n"
+        "Sign in with your existing corporate credentials and complete MFA.\n"
+        f"Open KRAVIA Office: {KRAVIA_OFFICE_LOGIN_URL}\n\n"
+        f"{_office_app_download_text()}\n\n"
+        "If this approval was unexpected, contact your company administrator."
+    )
+    return TransactionalEmail(
+        subject="Your KRAVIA Office workspace is ready",
+        html_content=html_content,
+        text_content=text_content,
+    )
+
 
 def office_email_verification_template(*, code: str, expiry_minutes: int) -> TransactionalEmail:
     """Build a single-use sign-in code message from the email source."""
