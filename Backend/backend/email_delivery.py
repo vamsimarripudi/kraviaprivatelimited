@@ -20,6 +20,7 @@ from .email_templates import (
     kravia_welcome_template,
     office_device_approval_template,
     office_email_verification_template,
+    office_invitation_template,
     public_form_follow_up_template,
     public_form_receipt_template,
     public_intake_internal_notification_template,
@@ -208,6 +209,22 @@ def send_office_email_verification_code(
         tags=["kravia-office-auth", "email-otp"],
     )
 
+
+def send_office_invitation_email(
+    *, recipient_email: str, recipient_name: str,
+    registration_url: str, expiry_hours: int, delivery_id: str,
+) -> str | None:
+    """Submit the private registration link directly to the intended recipient."""
+    return _send_transactional_email(
+        recipient_email=recipient_email,
+        template=office_invitation_template(
+            recipient_name=recipient_name,
+            registration_url=registration_url,
+            expiry_hours=expiry_hours,
+        ),
+        delivery_id=delivery_id,
+        tags=["kravia-office-auth", "invitation"],
+    )
 
 def send_office_device_approval(
     *,

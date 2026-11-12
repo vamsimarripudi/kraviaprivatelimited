@@ -205,7 +205,7 @@ export async function inviteOfficeUser(input: {
   if (existing) throw new OfficeAccessError(409, "That email already exists in KRAVIA Office");
 
   const runtime = getOfficeRuntimeOrigin();
-  if (!runtime) throw new OfficeAccessError(503, "KRAVIA Office identity service is unavailable");
+  if (!runtime) throw new OfficeAccessError(503, "KRAVIA Office backend is not configured. Verify the server-only OFFICE_API_ORIGIN and restart the Office frontend.");
   let response: Response;
   try {
     response = await fetch(new URL("/api/v1/auth/invitations", runtime), {
@@ -228,7 +228,7 @@ export async function inviteOfficeUser(input: {
       signal: AbortSignal.timeout(25_000),
     });
   } catch {
-    throw new OfficeAccessError(503, "KRAVIA Office invitation service is unavailable");
+    throw new OfficeAccessError(503, "KRAVIA Office identity API is unreachable. Verify the FastAPI deployment, its HTTPS health endpoint, and OFFICE_API_ORIGIN.");
   }
   const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
   if (!response.ok) {

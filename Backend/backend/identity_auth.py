@@ -52,6 +52,7 @@ from .email_delivery import (
     EmailDeliveryUnknown,
     send_office_device_approval,
     send_office_email_verification_code,
+    send_office_invitation_email,
 )
 
 ACCESS_TTL_SECONDS = int(os.getenv("OFFICE_AUTH_ACCESS_TTL_SECONDS", "1800"))
@@ -3542,6 +3543,36 @@ def build_identity_router() -> APIRouter:
             "revoked_sessions": len(active_sessions),
         }
 
+    def _deliver_invitation(invite: OfficeAuthInvite, raw_token: str, request: Request,
+                            actor: dict[str, Any], db: Session) -> str:
+        """Delivery is attempted once after commit; unknown outcomes are never blindly retried."""
+        delivery = "ACCEPTED"
+        message_id = None
+        try:
+            message_id = send_office_invitation_email(
+                recipient_email=invite.email,
+                recipient_name=invite.display_name or "Colleague",
+                registration_url=f"{CANONICAL_PUBLIC_WEB_ORIGIN}/office/register?invite={raw_token}",
+                expiry_hours=max(1, (INVITE_TTL_SECONDS + 3599) // 3600),
+                delivery_id=f"office-invite-{invite.id}",
+            )
+        except EmailDeliveryUnavailable:
+            delivery = "UNAVAILABLE"
+        except EmailDeliveryRejected:
+            delivery = "REJECTED"
+        except EmailDeliveryUnknown:
+            delivery = "UNKNOWN"
+        _event(
+            db, f"INVITATION_EMAIL_{delivery}", request,
+            user_id=actor["user_id"], session_id=actor["session_id"],
+            metadata={
+                "invitation_id": invite.id, "delivery_status": delivery,
+                "provider_message_id": message_id if delivery == "ACCEPTED" else None,
+            },
+        )
+        db.commit()
+        return delivery
+
     @router.post("/invitations", status_code=201)
     def create_invitation(
         payload: InviteCreatePayload,
@@ -3601,6 +3632,7 @@ def build_identity_router() -> APIRouter:
             metadata={"invitation_id": invite_id, "target_email": payload.email, "roles": payload.roles},
         )
         db.commit()
+        email_delivery = _deliver_invitation(invite, raw_token, request, actor, db)
         return {
             "invited": True,
             "invitation_id": invite_id,
@@ -3608,6 +3640,7 @@ def build_identity_router() -> APIRouter:
             "roles": payload.roles,
             "department": payload.department,
             "expires_at": expires_at.isoformat(),
+            "email_delivery": email_delivery,
             "registration_token": raw_token,
             "registration_path": f"/office/register?invite={raw_token}",
         }
@@ -3664,6 +3697,75 @@ def build_identity_router() -> APIRouter:
         )
         db.commit()
         return {"revoked": True, "invitation_id": invitation_id}
+
+    @router.post("/invitations/{invitation_id}/reissue", status_code=201)
+    def reissue_invitation(
+        invitation_id: str,
+        request: Request,
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ):
+        """Replace a pending link atomically; the old registration token dies first."""
+        actor = _invite_actor(authorization, db)
+        previous = db.execute(
+            select(OfficeAuthInvite).where(OfficeAuthInvite.id == invitation_id).with_for_update()
+        ).scalar_one_or_none()
+        if not previous or previous.status != "PENDING":
+            raise HTTPException(status_code=409, detail="Only a pending invitation can be reissued")
+        if db.execute(select(OfficeAuthUser.id).where(OfficeAuthUser.email == previous.email)).first():
+            raise HTTPException(status_code=409, detail="Account already exists; use account recovery")
+        try:
+            roles = json.loads(previous.roles_json or "[]")
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=409, detail="Invitation roles are invalid") from exc
+        if not isinstance(roles, list) or not roles or any(role not in INVITABLE_ROLES for role in roles):
+            raise HTTPException(status_code=409, detail="Invitation roles are invalid")
+        _require_delegated_identity_authority(actor, set(roles))
+        now = _now()
+        previous.status = "REVOKED"
+        previous.revoked_at = now
+        if _control_plane_present(db):
+            db.execute(text("""
+                update office_access_invitations
+                set status='REVOKED',revoked_at=current_timestamp,updated_at=current_timestamp
+                where id=cast(:id as uuid)
+            """), {"id": previous.id})
+            if previous.used_by:
+                db.execute(text("""
+                    update office_identity_users set status='REVOKED',updated_at=current_timestamp
+                    where user_id=cast(:id as uuid) and status='INVITED'
+                """), {"id": previous.used_by})
+        raw_token = secrets.token_urlsafe(48)
+        new_id = str(uuid.uuid4())
+        invited_user_id = str(uuid.uuid4())
+        replacement = OfficeAuthInvite(
+            id=new_id, token_hash=_hash_token(raw_token),
+            email=previous.email, display_name=previous.display_name,
+            job_title=previous.job_title, department=previous.department,
+            roles_json=json.dumps(roles), status="PENDING",
+            created_by=actor["user_id"], expires_at=now + timedelta(seconds=INVITE_TTL_SECONDS),
+            used_by=invited_user_id,
+        )
+        db.add(replacement)
+        _mirror_invitation(
+            db, invite_id=new_id, email=replacement.email,
+            display_name=replacement.display_name, job_title=replacement.job_title,
+            department=replacement.department, roles=roles,
+            requested_by=actor["user_id"], invited_user_id=invited_user_id,
+            expires_at=replacement.expires_at,
+        )
+        _event(db, "INVITATION_REISSUED", request, user_id=actor["user_id"],
+               session_id=actor["session_id"],
+               metadata={"previous_invitation_id": previous.id, "invitation_id": new_id})
+        db.commit()
+        delivery = _deliver_invitation(replacement, raw_token, request, actor, db)
+        return {
+            "invited": True, "reissued": True,
+            "previous_invitation_id": previous.id, "invitation_id": new_id,
+            "email": replacement.email, "email_delivery": delivery,
+            "expires_at": _aware(replacement.expires_at).isoformat(),
+            "registration_path": f"/office/register?invite={raw_token}",
+        }
 
     @router.post("/users/{user_id}/mfa-reset")
     def reset_mfa(
