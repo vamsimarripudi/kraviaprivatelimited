@@ -163,6 +163,14 @@ export function OfficeWorkspaceShell({
     return () => window.cancelAnimationFrame(frame);
   }, [pathname]);
   useEffect(() => {
+    const themeHandler = (event: Event) => {
+      const next = (event as CustomEvent<Theme>).detail;
+      if (next === "light" || next === "dark") setTheme(next);
+    };
+    window.addEventListener("kravia-office-theme-change",themeHandler);
+    return () => window.removeEventListener("kravia-office-theme-change",themeHandler);
+  }, []);
+  useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (event.key === "Escape") { setMobileNav(false); setMoreOpen(false); }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") setMoreOpen(true);
