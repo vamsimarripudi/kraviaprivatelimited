@@ -249,7 +249,7 @@ function WorkspaceDashboard({ workspace, section, identity, permissions }: { wor
         </div>
         <p className="office-briefing-principle">Disciplined decisions,<br />a stronger tomorrow.</p>
       </section>
-      {executive ? <OfficeIntelligenceBrief compact /> : null}<OfficeWorkHub identity={identity} mode="dashboard" /><OfficeCompanyInbox compact /><OfficeActivityTimeline />
+      <OfficeWorkHub identity={identity} mode="dashboard" /><OfficeCompanyInbox compact /><OfficeActivityTimeline />
     </> : <section className="workspace-hero-panel"><div><p className="eyebrow">VERIFIED AAL2 SESSION</p><h2>Finance work without mixing ownership, tax and treasury.</h2></div><ShieldCheck aria-hidden="true" /></section>}
     {runtime && !onlyShellRoles ? <WorkspaceRuntimePanel title={workspace === "finance" ? "Finance overview" : "Office overview"} spec={runtime} /> : null}
     <div className="office-dashboard-grid workspace-module-grid">{sections.map(([slug, sectionItem]) => <OfficeNavLink href={`${basePath}/${slug}`} key={slug} className="workspace-module-card"><div className="workspace-module-card-head"><NavIcon group={sectionItem.group} /><p className="eyebrow">{sectionItem.group}</p></div><h2>{sectionItem.title}</h2><span>{sectionItem.description}</span><b>Open <ArrowRight aria-hidden="true" /></b></OfficeNavLink>)}</div>
