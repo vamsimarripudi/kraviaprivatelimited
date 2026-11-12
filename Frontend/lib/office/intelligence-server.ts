@@ -76,7 +76,7 @@ export async function getOfficeIntelligenceBrief() {
       ...result,
       data:(result.data??[]).filter((row)=>Number(row.balance_paise||0)>0).sort((a,b)=>String(a.due_date||"9999-12-31").localeCompare(String(b.due_date||"9999-12-31"))).slice(0,300),
     })),
-    admin.from("office_auth_sessions_v2").select("id,user_id,status,last_seen_at,aal,expires_at,revoked_at").eq("status", "ACTIVE").order("last_seen_at", { ascending: false }).limit(300),
+    admin.from("office_auth_sessions_v2").select("user_id,status,last_seen_at,aal,expires_at,revoked_at").eq("status", "ACTIVE").order("last_seen_at", { ascending: false }).limit(300),
     admin.from("office_access_reviews").select("id,user_id,status,due_at").eq("status", "PENDING").order("due_at", { ascending: true }).limit(300),
     admin.from("office_notifications").select("id,user_id,kind,title,status,created_at").eq("status", "UNREAD").order("created_at", { ascending: false }).limit(300),
     readOfficeRuntimeResult<Array<Record<string,unknown>>>("contracts").then((result)=>({
@@ -86,8 +86,18 @@ export async function getOfficeIntelligenceBrief() {
     admin.from("office_engineering_services").select("id,service_code,name,environment,status,runtime_provider,updated_at").neq("status", "RETIRED").order("name", { ascending: true }).limit(200),
   ]);
 
-  const results = [tasks, approvals, incidents, opportunities, compliance, invoices, authSessions, accessReviews, notifications, contracts, services];
-  if (results.some((result) => result.error)) throw new OfficeIntelligenceError(503, "Company intelligence sources are temporarily unavailable");
+  // Optional runtime sources can be unconfigured. Preserve real available data
+  // without treating an unavailable source as a healthy zero-count signal.
+  const sources = [
+    { name: "tasks", result: tasks }, { name: "approvals", result: approvals },
+    { name: "incidents", result: incidents }, { name: "opportunities", result: opportunities },
+    { name: "compliance", result: compliance }, { name: "invoices", result: invoices },
+    { name: "authentication", result: authSessions }, { name: "access reviews", result: accessReviews },
+    { name: "notifications", result: notifications }, { name: "contracts", result: contracts },
+    { name: "engineering services", result: services },
+  ];
+  const unavailableSources = sources.filter(({ result }) => Boolean(result.error)).map(({ name }) => name);
+  const available = (source: string) => !unavailableSources.includes(source);
 
   const taskRows = tasks.data ?? [];
   const approvalRows = approvals.data ?? [];
@@ -127,6 +137,12 @@ export async function getOfficeIntelligenceBrief() {
   if (approvalRows.length) attention.push({ key: "approvals", severity: "MEDIUM", area: "Approvals", title: `${approvalRows.length} approval step${approvalRows.length === 1 ? "" : "s"} pending`, detail: "Approval authority is evaluated independently from task ownership.", href: "/office/approvals" });
   if (overdueAccessReviews.length) attention.push({ key: "access-reviews", severity: "MEDIUM", area: "Security", title: `${overdueAccessReviews.length} access review${overdueAccessReviews.length === 1 ? "" : "s"} past due`, detail: "Review retained privilege and workforce access scope.", href: "/office/access" });
   if (nonActiveServices.length) attention.push({ key: "engineering-service-state", severity: "MEDIUM", area: "Engineering", title: `${nonActiveServices.length} registered service${nonActiveServices.length === 1 ? "" : "s"} not marked ACTIVE`, detail: "This reflects the Office service registry state and does not independently probe provider uptime.", href: "/office/engineering" });
+  if (unavailableSources.length) attention.unshift({
+    key: "data-source-health", severity: "MEDIUM", area: "Intelligence",
+    title: unavailableSources.length + " source" + (unavailableSources.length === 1 ? "" : "s") + " unavailable",
+    detail: "Unverified sources: " + unavailableSources.join(", ") + ". Figures from these sources are unknown, not zero.",
+    href: "/office/intelligence",
+  });
   if (!attention.length) attention.push({ key: "no-material-exceptions", severity: "INFO", area: "Company", title: "No material exception triggered by current stored data", detail: "This means the deterministic checks above found no exception; it is not a guarantee that every system or obligation is healthy.", href: "/office/dashboard" });
 
   return {
@@ -134,6 +150,20 @@ export async function getOfficeIntelligenceBrief() {
     mode: "DETERMINISTIC_READ_MODEL",
     disclaimer: "This brief summarizes canonical Office records. It does not infer facts from missing data and does not execute company actions.",
     guardrail: "Read-only intelligence. KRAVIA Intelligence never executes payments, filings, deployments or other high-risk actions.",
+    data_quality: { degraded: unavailableSources.length > 0, unavailable_sources: unavailableSources },
+    // Unknown counts must never be reported to the UI as zero.
+    unavailable_metrics: [
+      ...(!available("tasks") ? ["active_tasks","overdue_tasks","blocked_tasks"] : []),
+      ...(!available("approvals") ? ["pending_approval_steps"] : []),
+      ...(!available("incidents") ? ["active_incidents","critical_incidents"] : []),
+      ...(!available("opportunities") ? ["open_opportunities","pipeline_by_currency"] : []),
+      ...(!available("invoices") ? ["invoices_with_balance","receivables_by_currency"] : []),
+      ...(!available("compliance") ? ["compliance_due_30d"] : []),
+      ...(!available("contracts") ? ["contracts_expiring_60d"] : []),
+      ...(!available("engineering services") ? ["engineering_services","engineering_services_not_active"] : []),
+      ...(!available("notifications") ? ["unread_notifications"] : []),
+      ...(!available("authentication") ? ["active_auth_sessions","auth_sessions_without_aal2"] : []),
+    ],
     metrics: {
       active_tasks: taskRows.length,
       overdue_tasks: overdueTasks.length,
