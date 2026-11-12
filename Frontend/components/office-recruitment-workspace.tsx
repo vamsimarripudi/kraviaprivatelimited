@@ -13,7 +13,7 @@ type Capabilities = {
   prepare_offer: boolean; review_offer: boolean; manage_onboarding: boolean;
 };
 type Person = { user_id: string; display_name?: string | null; job_title?: string | null; primary_department?: string | null };
-type Position = { code: string; label: string; department_code: string; is_manager: boolean };
+type Position = { code: string; label: string; family: string; is_manager: boolean; active: boolean };
 type Department = { code: string; label: string };
 type Requisition = {
   id: string; requisition_code: string; position_code: string; department_code: string; hiring_manager_user_id: string; openings: number;
@@ -103,7 +103,7 @@ export function OfficeRecruitmentWorkspace() {
     finally { setBusy(false); }
   }
   function openRequisition() {
-    const firstPosition = data?.positions[0]; setDraft({ position: firstPosition?.code || "", department: firstPosition?.department_code || data?.departments[0]?.code || "", manager_user_id: data?.actor.user_id || "", openings: "1", employment_type: "EMPLOYEE", work_mode: "OFFICE", currency: "INR" }); setModal({ kind: "REQUISITION" });
+    const firstPosition = data?.positions[0]; setDraft({ position: firstPosition?.code || "", department: data?.departments[0]?.code || "", manager_user_id: data?.actor.user_id || "", openings: "1", employment_type: "EMPLOYEE", work_mode: "OFFICE", currency: "INR" }); setModal({ kind: "REQUISITION" });
   }
   function openCandidate(requisition?: Requisition) { setDraft({ requisition_id: requisition?.id || data?.requisitions.find((r) => r.status === "OPEN")?.id || "", source_channel: "DIRECT" }); setModal({ kind: "CANDIDATE", requisition }); }
 
@@ -203,7 +203,7 @@ export function OfficeRecruitmentWorkspace() {
     {modal ? <div className={styles.backdrop} role="presentation" onMouseDown={() => !busy && setModal(undefined)}><form className={styles.dialog} onSubmit={submit} onMouseDown={(e) => e.stopPropagation()}>
       <header><div><p>CONTROLLED PEOPLE WORKFLOW</p><h3>{modal.kind === "REQUISITION" ? "Create hiring requisition" : modal.kind === "CANDIDATE" ? "Add candidate" : modal.kind === "TRANSITION" ? "Change candidate stage" : modal.kind === "INTERVIEW" ? "Schedule interview" : modal.kind === "FEEDBACK" ? "Record interview feedback" : modal.kind === "DOCUMENT" ? "Request candidate document" : modal.kind === "UPLOAD_DOCUMENT" ? "Upload candidate evidence" : modal.kind === "OFFER" ? "Prepare offer proposal" : "Record offer acceptance"}</h3></div><button type="button" onClick={() => setModal(undefined)}><X /></button></header>
       {modal.kind === "REQUISITION" ? <>
-        <div className={styles.two}><label>Position<select value={draft.position || ""} onChange={(e) => { const pos=data.positions.find((p)=>p.code===e.target.value); setDraft({ ...draft, position:e.target.value, department:pos?.department_code || draft.department }); }}>{data.positions.map((p)=><option key={p.code} value={p.code}>{p.label}</option>)}</select></label><label>Department<select value={draft.department || ""} onChange={(e)=>setDraft({...draft,department:e.target.value})}>{data.departments.map((d)=><option key={d.code} value={d.code}>{d.label}</option>)}</select></label></div>
+        <div className={styles.two}><label>Position<select value={draft.position || ""} onChange={(e) => { const pos=data.positions.find((p)=>p.code===e.target.value); setDraft({ ...draft, position:e.target.value, department:draft.department }); }}>{data.positions.map((p)=><option key={p.code} value={p.code}>{p.label}</option>)}</select></label><label>Department<select value={draft.department || ""} onChange={(e)=>setDraft({...draft,department:e.target.value})}>{data.departments.map((d)=><option key={d.code} value={d.code}>{d.label}</option>)}</select></label></div>
         <label>Hiring manager<select value={draft.manager_user_id || ""} onChange={(e)=>setDraft({...draft,manager_user_id:e.target.value})}>{data.identities.map((p)=><option key={p.user_id} value={p.user_id}>{p.display_name || p.job_title || p.user_id}</option>)}</select></label>
         <div className={styles.three}><label>Openings<input type="number" min="1" value={draft.openings || "1"} onChange={(e)=>setDraft({...draft,openings:e.target.value})} /></label><label>Employment<select value={draft.employment_type || "EMPLOYEE"} onChange={(e)=>setDraft({...draft,employment_type:e.target.value})}>{["EMPLOYEE","CONTRACTOR","INTERN","TRAINEE","PROFESSIONAL"].map(v=><option key={v}>{v}</option>)}</select></label><label>Work mode<select value={draft.work_mode || "OFFICE"} onChange={(e)=>setDraft({...draft,work_mode:e.target.value})}>{["OFFICE","REMOTE","HYBRID","FIELD"].map(v=><option key={v}>{v}</option>)}</select></label></div>
         <label>Location<input value={draft.location || ""} onChange={(e)=>setDraft({...draft,location:e.target.value})} /></label>
