@@ -18,7 +18,7 @@ type Roles = {
   tasks: Array<{ required: boolean; status: string; label: string }>;
   functional_positions: Array<{ position_code: string; department_code: string; responsibilities: string[] }>;
 };
-type EmployeeIntake = { profile:{photo_storage_reference?:string|null}|null;permanent_employee_id:string|null };
+type EmployeeIntake = { profile:{photo_storage_reference?:string|null;status?:"DRAFT"|"SUBMITTED"|"RETURNED"|"VERIFIED"}|null;permanent_employee_id:string|null };
 type Worktime = {
   month: string;
   approved_monthly_gross_minor?: number | null;
@@ -88,7 +88,7 @@ export function OfficeEmployeeSummary() {
 
   return <section className={styles.shell} aria-label="My verified employee profile">
     <header className={styles.header}>
-      {intake?.profile?.photo_storage_reference ?
+      {intake?.profile?.status === "VERIFIED" && intake.profile.photo_storage_reference ?
         <Image unoptimized className={styles.avatar} width={48} height={48} alt="Verified employee profile photo"
           src="/api/office-employee-intake/photo" /> :
         <div className={styles.avatar} aria-hidden="true">{initials}</div>}
