@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from backend import email_delivery
-from backend.email_templates import kravia_welcome_template, office_device_approval_template, office_email_verification_template, public_form_follow_up_template, public_form_receipt_template, public_intake_internal_notification_template
+from backend.email_templates import kravia_welcome_template, office_device_approval_template, office_email_verification_template, office_invitation_template, office_workspace_ready_template, public_form_follow_up_template, public_form_receipt_template, public_intake_internal_notification_template
 
 
 class FakeResponse:
@@ -371,3 +371,58 @@ def test_public_access_mail_catalog_is_safe_and_separately_branded():
     )
     assert "&lt;unsafe&gt;" in digest.html_content
     assert "Unsubscribe" in digest.html_content
+
+
+def test_employee_invitation_email_includes_official_google_play_badge_and_plain_text_fallback():
+    invite = office_invitation_template(
+        recipient_name="Sample & Teammate",
+        registration_url="https://kraviaprivatelimited.com/office/register?invite=" + "a" * 64,
+        expiry_hours=72,
+    )
+    link = "https://play.google.com/store/apps/details?id=com.kraviaprivatelimited.authenticator"
+    badge = "https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"
+    assert invite.subject == "You are invited to KRAVIA Office"
+    assert "Accept Invitation" in invite.html_content
+    assert link in invite.html_content and link in invite.text_content
+    assert badge in invite.html_content and 'alt="Get it on Google Play"' in invite.html_content
+    assert "/office/authenticator" in invite.html_content
+    assert "Sample &amp; Teammate" in invite.html_content
+    assert "Sample & Teammate" in invite.text_content
+    assert "\n\nYou have been invited" in invite.text_content
+    assert "\\n" not in invite.text_content
+    assert "Your workspace remains locked until access approval" in invite.text_content
+
+
+def test_workspace_approved_email_has_google_play_install_link_and_no_private_tokens():
+    ready = office_workspace_ready_template(recipient_name="Sample <Employee>")
+    link = "https://play.google.com/store/apps/details?id=com.kraviaprivatelimited.authenticator"
+    assert ready.subject == "Your KRAVIA Office workspace is ready"
+    assert "Sample &lt;Employee&gt;" in ready.html_content
+    assert "Your requested KRAVIA Office workspace access has been approved" in ready.html_content
+    assert "Open KRAVIA Office" in ready.html_content
+    assert link in ready.html_content and link in ready.text_content
+    assert 'alt="Get it on Google Play"' in ready.html_content
+    assert "sample-token" not in ready.html_content.lower()
+    assert "invite=" not in ready.html_content
+    assert "Sample <Employee>" in ready.text_content
+
+
+def test_ready_email_sends_only_when_explicitly_invoked(monkeypatch):
+    FakeClient.calls = []
+    FakeClient.response = FakeResponse(201, {"messageId": "workspace-ready-provider-id"})
+    monkeypatch.setenv("BREVO_API_KEY", "test-key-not-a-production-secret")
+    monkeypatch.setattr(email_delivery.httpx, "Client", FakeClient)
+    assert FakeClient.calls == []
+    receipt = email_delivery.send_office_workspace_ready_email(
+        recipient_email="employee@example.test",
+        recipient_name="Office Employee",
+        delivery_id="office-workspace-ready-test-employee",
+    )
+    assert receipt == "workspace-ready-provider-id"
+    assert len(FakeClient.calls) == 1
+    payload = FakeClient.calls[0]["json"]
+    assert payload["sender"]["email"] == "hello@kraviaprivatelimited.com"
+    assert payload["to"] == [{"email": "employee@example.test"}]
+    assert payload["tags"] == ["kravia-office-auth", "workspace-ready"]
+    assert payload["headers"]["Idempotency-Key"] == "office-workspace-ready-test-employee"
+    assert "play.google.com/store/apps/details?id=com.kraviaprivatelimited.authenticator" in payload["htmlContent"]

@@ -101,3 +101,45 @@
   :global(html[data-legal-print="true"]) .root,
   :global(html:has([data-legal-print-document])) .root { display: none !important; }
 }
+
+
+/* Official Google Play download badge; unchanged brand artwork hosted by Google. */
+.authenticator {
+  display: grid;
+  justify-items: start;
+  gap: 7px;
+  margin-top: 15px;
+  max-width: 280px;
+}
+.authenticator > p {
+  color: var(--footer-muted);
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  font-weight: 600;
+}
+.authenticator .playBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border-radius: 9px;
+  padding: 2px 0;
+  line-height: 0;
+  text-decoration: none;
+}
+.authenticator .playBadge img {
+  width: min(194px, 100%);
+  height: auto;
+  display: block;
+}
+.authenticator .playBadge:focus-visible {
+  outline: 2px solid #9ec3ff;
+  outline-offset: 3px;
+}
+@media (max-width: 1100px) {
+  .authenticator { margin-top: 0; }
+}
+@media (max-width: 700px) {
+  .authenticator { margin-top: 12px; }
+}

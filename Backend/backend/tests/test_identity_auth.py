@@ -1472,6 +1472,11 @@ def test_workspace_activation_requires_request_and_founder_approval(tmp_path, mo
     try:
         owner = aal2_founder(client)
         monkeypatch.setenv("OFFICE_WORKSPACE_APPROVAL_REQUIRED", "true")
+        ready_sent = []
+        monkeypatch.setattr(
+            identity_auth, "send_office_workspace_ready_email",
+            lambda **kwargs: ready_sent.append(kwargs) or "mock-ready-provider-id",
+        )
         staff = aal2_invited_user(
             client, owner["access_token"],
             email="pending-office@example.test",
@@ -1495,6 +1500,7 @@ def test_workspace_activation_requires_request_and_founder_approval(tmp_path, mo
                 assert False, "Pending employee must not enter an operational workspace"
             except HTTPException as exc:
                 assert exc.status_code == 403
+        assert ready_sent == []
         requested = client.post("/api/v1/auth/workspace-activation/request", headers=headers)
         assert requested.status_code == 200, requested.text
         assert requested.json()["workspace_status"] == "REQUESTED"
@@ -1507,6 +1513,15 @@ def test_workspace_activation_requires_request_and_founder_approval(tmp_path, mo
             headers={"Authorization": f"Bearer {owner['access_token']}"},
         )
         assert approved.status_code == 200, approved.text
+        assert approved.json()["email_delivery"] == "ACCEPTED"
+        assert len(ready_sent) == 1
+        assert ready_sent[0]["recipient_email"] == "pending-office@example.test"
+        second_approval = client.post(
+            f"/api/v1/auth/workspace-activation/{staff['user_id']}/approve",
+            headers={"Authorization": f"Bearer {owner['access_token']}"},
+        )
+        assert second_approval.status_code == 409
+        assert len(ready_sent) == 1
         after = client.get("/api/v1/auth/session", headers=headers)
         assert after.status_code == 200
         assert after.json()["workspace_status"] == "ACTIVE"

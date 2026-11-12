@@ -1,4 +1,6 @@
+import Image from "next/image";
 import Link from "next/link";
+import { GOOGLE_PLAY_BADGE_IMAGE_URL, KRAVIA_AUTHENTICATOR_PLAY_STORE_URL } from "@/lib/office/authenticator-store";
 import styles from "./footer.module.css";
 import { BadgeCheck, ChevronDown, ExternalLink } from "lucide-react";
 import { SocialLinks } from "./social-links";
@@ -72,6 +74,24 @@ export async function Footer() {
             <BrandLogo inverse animated />
             <p>Independent product company developing proprietary software platforms.</p>
             <SocialLinks inverse />
+            <div className={styles.authenticator}>
+              <p>KRAVIA Authenticator · Official Android app</p>
+              <a
+                className={styles.playBadge}
+                href={KRAVIA_AUTHENTICATOR_PLAY_STORE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Get KRAVIA Authenticator on Google Play (opens in a new tab)"
+              >
+                <Image
+                  src={GOOGLE_PLAY_BADGE_IMAGE_URL}
+                  alt="Get it on Google Play"
+                  width={194}
+                  height={75}
+                  unoptimized
+                />
+              </a>
+            </div>
           </div>
           <div className={styles.directory}>
             {footerColumns.map((column) => (

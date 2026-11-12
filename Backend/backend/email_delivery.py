@@ -21,6 +21,7 @@ from .email_templates import (
     office_device_approval_template,
     office_email_verification_template,
     office_invitation_template,
+    office_workspace_ready_template,
     public_form_follow_up_template,
     public_form_receipt_template,
     public_intake_internal_notification_template,
@@ -225,6 +226,18 @@ def send_office_invitation_email(
         delivery_id=delivery_id,
         tags=["kravia-office-auth", "invitation"],
     )
+
+def send_office_workspace_ready_email(
+    *, recipient_email: str, recipient_name: str, delivery_id: str,
+) -> str | None:
+    """Send only after an explicit Founder workspace-activation approval."""
+    return _send_transactional_email(
+        recipient_email=recipient_email,
+        template=office_workspace_ready_template(recipient_name=recipient_name),
+        delivery_id=delivery_id,
+        tags=["kravia-office-auth", "workspace-ready"],
+    )
+
 
 def send_office_device_approval(
     *,
