@@ -6311,6 +6311,63 @@
         ]
       }
     },
+    "/api/v1/auth/invitations/{invitation_id}/reissue": {
+      "post": {
+        "description": "Replace a pending link atomically; the old registration token dies first.",
+        "operationId": "reissue_invitation_api_v1_auth_invitations__invitation_id__reissue_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invitation_id",
+            "required": true,
+            "schema": {
+              "title": "Invitation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reissue Invitation",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
     "/api/v1/auth/invitations/{invitation_id}/revoke": {
       "post": {
         "operationId": "revoke_invitation_api_v1_auth_invitations__invitation_id__revoke_post",
