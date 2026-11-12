@@ -18,6 +18,8 @@ describe("KRAVIA Office auth cache boundary", () => {
     expect(nextConfig).toContain('{ key: "Cache-Control", value: "no-store, max-age=0" }');
     expect(nextConfig).toContain('{ key: "Pragma", value: "no-cache" }');
     expect(nextConfig).toContain('{ key: "Expires", value: "0" }');
+    expect(nextConfig).toContain('X-KRAVIA-Office-Login-Release');
+    expect(nextConfig).toContain('2026-11-12-login-refresh');
   });
 
   it("prevents stale Office login HTML and exposes a truthful release fingerprint", () => {
