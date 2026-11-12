@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { CheckCircle2, Copy, Link2, LoaderCircle, RefreshCw, ShieldAlert, UserPlus, UsersRound } from "lucide-react";
 import type { OfficeIdentity } from "@/lib/office/auth-server";
 import type { OfficeRole } from "@/lib/office/workspaces";
@@ -181,6 +182,13 @@ export function AccessGovernancePanel({ identity }: { identity: OfficeIdentity }
       <div><p className="eyebrow">ACCESS AUTHORITY</p><h2>{owner ? "Owner-controlled delegation" : "Delegated administration"}</h2><p>{owner ? "Appoint ADMINs, directors and delegated professionals without allowing a second OWNER. The OWNER identity is protected from ordinary suspension, role removal, MFA reset and transfer." : "Onboard and manage delegated workforce/professional roles. ADMIN cannot alter itself, another ADMIN, a DIRECTOR or OWNER, and receives no business-data privilege automatically."}</p></div>
       <div className={styles.metrics}><article><span>Identities</span><strong>{state.users.length}</strong></article><article><span>Pending invitations</span><strong>{state.invitations.filter((item) => item.status === "PENDING").length}</strong></article><article><span>Your authority</span><strong>{identity.roles.join(" · ")}</strong></article></div>
     </section>
+
+    {owner ? <div className={styles.ownershipHint}>
+      <ShieldAlert size={17}/>
+      <span><b>Assignment ≠ ownership handover.</b> Existing role slots are labelled Assigned.
+      To make your former department access read-only, the receiving head must accept a formal
+      <Link href="/office/department-ownership">department handover</Link>.</span>
+    </div> : null}
 
     {notice ? <div className={styles.notice} data-error={notice.error} role="status">{notice.error ? <ShieldAlert /> : <CheckCircle2 />}{notice.message}</div> : null}
 
