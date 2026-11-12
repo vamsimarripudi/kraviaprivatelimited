@@ -4,6 +4,7 @@ import "./office-platform.css";
 import "./office-experience-4.css";
 import "./office-shell-next.css";
 import "./office-design-system.css";
+import { OfficeAppearanceRoot } from "@/components/office-appearance-root";
 
 export const metadata: Metadata = {
   title: "KRAVIA Office",
@@ -12,5 +13,5 @@ export const metadata: Metadata = {
 
 
 export default function OfficeLayout({ children }: { children: React.ReactNode }) {
-  return <div className="kravia-office">{children}</div>;
+  return <OfficeAppearanceRoot>{children}</OfficeAppearanceRoot>;
 }

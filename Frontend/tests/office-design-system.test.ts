@@ -9,6 +9,8 @@ const css = read("app/office/office-design-system.css");
 describe("KRAVIA shared Office & Finance visual system", () => {
   it("loads the final visual contract after previous generation styles in both workspaces", () => {
     expect(officeLayout.indexOf('import "./office-shell-next.css"')).toBeLessThan(officeLayout.indexOf('import "./office-design-system.css"'));
+    expect(officeLayout).toContain('OfficeAppearanceRoot');
+    expect(financeLayout).toContain('OfficeAppearanceRoot');
     expect(financeLayout.indexOf('import "../office/office-shell-next.css"')).toBeLessThan(financeLayout.indexOf('import "../office/office-design-system.css"'));
   });
 
@@ -30,6 +32,8 @@ describe("KRAVIA shared Office & Finance visual system", () => {
     expect(css).toContain("font-size: 16px !important");
     expect(css).toContain("[role=\"dialog\"]");
     expect(css).toContain('button[data-active="true"]');
+    expect(css).toContain('.kravia-office[data-office-theme="dark"]');
+    expect(css).toContain('.kravia-office-auth > section:first-child');
     expect(css).toContain('data-ui-theme="light"] .office-main');
   });
 });

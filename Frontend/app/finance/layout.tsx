@@ -4,6 +4,7 @@ import "../office/office-platform.css";
 import "../office/office-experience-4.css";
 import "../office/office-shell-next.css";
 import "../office/office-design-system.css";
+import { OfficeAppearanceRoot } from "@/components/office-appearance-root";
 
 export const metadata: Metadata = {
   title: "KRAVIA Finance",
@@ -12,5 +13,5 @@ export const metadata: Metadata = {
 
 
 export default function FinanceLayout({ children }: { children: React.ReactNode }) {
-  return <div className="kravia-office">{children}</div>;
+  return <OfficeAppearanceRoot>{children}</OfficeAppearanceRoot>;
 }

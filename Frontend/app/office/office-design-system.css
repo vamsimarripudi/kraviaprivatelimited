@@ -468,3 +468,146 @@
 ) {
   border-color: var(--office-ui-line) !important;
 }
+
+
+/* The same system extends to sign-in and onboarding, which do not mount the
+ * authenticated shell and therefore need tokens at the Office layout root. */
+.kravia-office {
+  --office-ui-canvas: #f6f7fa;
+  --office-ui-surface: #ffffff;
+  --office-ui-surface-alt: #f2f4f8;
+  --office-ui-control: #ffffff;
+  --office-ui-ink: #171b25;
+  --office-ui-muted: #5c6574;
+  --office-ui-soft: #778195;
+  --office-ui-line: #d9dfe9;
+  --office-ui-accent: #1559ce;
+  --office-ui-danger: #cc293b;
+  --office-ui-ring: rgba(31,98,214,.16);
+  --office-ui-shadow: 0 12px 32px rgba(18,32,58,.08);
+}
+.kravia-office[data-office-theme="dark"] {
+  --office-ui-canvas: #050609;
+  --office-ui-surface: #111319;
+  --office-ui-surface-alt: #1b1e27;
+  --office-ui-control: #171a22;
+  --office-ui-ink: #f7f8fb;
+  --office-ui-muted: #c2c6d0;
+  --office-ui-soft: #a7aebc;
+  --office-ui-line: #353945;
+  --office-ui-accent: #4f8fff;
+  --office-ui-danger: #ff6574;
+  --office-ui-ring: rgba(95,152,255,.28);
+  --office-ui-shadow: 0 22px 60px rgba(0,0,0,.48);
+  color-scheme: dark;
+}
+.kravia-office .kravia-office-auth {
+  background: var(--office-ui-canvas) !important;
+  color: var(--office-ui-ink) !important;
+  font-family: var(--font-sans, Inter, "Segoe UI", Arial, sans-serif) !important;
+}
+.kravia-office .kravia-office-auth > section:first-child {
+  background: linear-gradient(150deg,#10141e,#141c2b 65%,#101319) !important;
+  color: #ffffff !important;
+}
+.kravia-office .kravia-office-auth > section:last-child {
+  background: var(--office-ui-canvas) !important;
+  color: var(--office-ui-ink) !important;
+}
+.kravia-office .kravia-office-auth :where([class*="brandCopy"],[class*="brandTop"],[class*="brandFooter"]) :is(h1,h2,h3,b) {
+  color: #ffffff !important;
+}
+.kravia-office .kravia-office-auth :where([class*="kicker"],[class*="trustGrid"]) svg {
+  color: #8bb6ff !important;
+}
+.kravia-office .kravia-office-auth [class*="identityNotice"] {
+  border-left-color: var(--office-ui-accent) !important;
+}
+.kravia-office .kravia-office-auth :where([class*="formSide"],[class*="card"]) {
+  color: var(--office-ui-ink) !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] [class*="card"] {
+  background: var(--office-ui-surface) !important;
+  color: var(--office-ui-ink) !important;
+  border: 1px solid var(--office-ui-line) !important;
+  box-shadow: var(--office-ui-shadow) !important;
+  backdrop-filter: none !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] :where(h1,h2,h3) {
+  color: var(--office-ui-ink) !important;
+  font-family: var(--font-sans, Inter, "Segoe UI", Arial, sans-serif) !important;
+  letter-spacing: -.04em !important;
+  line-height: 1.16 !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] :where(
+  p,[class*="intro"],[class*="description"],[class*="field"]
+) {
+  color: var(--office-ui-muted) !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] :where([class*="field"]) {
+  font-size: .84rem !important;
+  font-weight: 670 !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] :where(input,select,textarea) {
+  background: var(--office-ui-control) !important;
+  color: var(--office-ui-ink) !important;
+  border: 1px solid var(--office-ui-line) !important;
+  border-radius: 11px !important;
+  font-size: 16px !important;
+  box-shadow: none !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] :where(input,select,textarea)::placeholder {
+  color: var(--office-ui-soft) !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] :where(input,select,textarea):focus-visible {
+  outline: 2px solid var(--office-ui-accent) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px var(--office-ui-ring) !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] :where(
+  button[class*="primary"],button[type="submit"]
+) {
+  background: #1559ce !important;
+  border: 1px solid #1559ce !important;
+  color: #fff !important;
+  border-radius: 11px !important;
+  box-shadow: 0 8px 20px rgba(15,79,181,.14) !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] :where(
+  button[class*="secondary"]
+) {
+  color: var(--office-ui-ink) !important;
+  background: var(--office-ui-surface-alt) !important;
+  border: 1px solid var(--office-ui-line) !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] :where(
+  [class*="icon"],[class*="status"],[class*="alert"],[class*="identityNotice"]
+) {
+  background: var(--office-ui-surface-alt) !important;
+  border-color: var(--office-ui-line) !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] :where(
+  [data-tone="error"],[class*="alert"]
+) {
+  color: var(--office-ui-danger) !important;
+}
+.kravia-office .kravia-office-auth [class*="formSide"] :where(
+  [data-tone="success"],[data-tone="info"]
+) {
+  color: var(--office-ui-accent) !important;
+}
+.kravia-office[data-office-theme="dark"] .kravia-office-auth > section:first-child {
+  background: linear-gradient(145deg,#06070a,#111521) !important;
+}
+.kravia-office[data-office-theme="dark"] .kravia-office-auth [class*="formSide"] :where(
+  [class*="form"],[class*="status"],[class*="alert"],[class*="tabs"],[class*="timer"],[class*="qrPanel"]
+) {
+  color: var(--office-ui-ink) !important;
+  background-color: var(--office-ui-surface) !important;
+}
+@media (max-width:760px) {
+  .kravia-office .kravia-office-auth [class*="formSide"] [class*="card"] {
+    border-radius: 17px !important;
+    padding: 18px !important;
+  }
+}
