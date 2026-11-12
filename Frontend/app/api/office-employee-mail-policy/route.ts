@@ -27,9 +27,21 @@ async function readPolicy(actor:Awaited<ReturnType<typeof requireOwner>>) {
   const result=await actor.admin.from("office_employee_mail_delivery_policy")
     .select("enabled,approved_at,effective_from").eq("key","EMPLOYEE_ID_ISSUED").maybeSingle();
   if(result.error||!result.data) throw new Error("Employee mail policy has not been migrated or configured");
+  const states = ["PENDING","SENDING","SENT","UNKNOWN","REJECTED"] as const;
+  const countResults = await Promise.all(states.map(status =>
+    actor.admin.from("office_employee_mail_outbox")
+      .select("id",{count:"exact",head:true})
+      .eq("kind","EMPLOYEE_ID_ISSUED").eq("status",status)
+  ));
+  // Missing service grants or unavailable sources must be unknown, never 0.
+  const count_by_status = Object.fromEntries(states.map((status,index) => {
+    const item=countResults[index];
+    return [status, !item?.error && typeof item?.count === "number" ? item.count : null];
+  }));
   return {
     kind:"EMPLOYEE_ID_ISSUED" as const,
     enabled:result.data.enabled===true,
+    count_by_status,
     approved_at:result.data.approved_at||null,
     effective_from:result.data.effective_from||null,
     note:"Provider acceptance is not inbox delivery. No historical messages are dispatched. A separately configured Brevo-enabled Railway worker is required.",

@@ -19,3 +19,9 @@
 .error{color:#ad433e;background:rgba(195,62,57,.07)}.notice{color:#27684f;background:rgba(40,128,79,.07)}
 @media(max-width:580px){.shell{padding:12px}.info{grid-template-columns:minmax(0,1fr)}.action{width:100%}}
 @media(prefers-reduced-motion:reduce){.action,.refresh{transition:none}}
+
+.countGrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
+.countGrid>div{display:grid;gap:5px;min-width:0;padding:11px;border:1px solid var(--off-next-line,#dce6df);border-radius:10px;background:var(--off-next-canvas,#f6f8f7)}
+.countGrid small{font-size:10px;line-height:1.35;color:var(--off-next-muted,#63736b);overflow-wrap:anywhere}
+.countGrid strong{font-size:15px;line-height:1.3;overflow-wrap:anywhere}
+@media(max-width:700px){.countGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}

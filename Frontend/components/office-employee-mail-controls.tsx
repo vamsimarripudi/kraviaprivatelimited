@@ -7,6 +7,7 @@ import styles from "./office-employee-mail-controls.module.css";
 type DeliveryPolicy = {
   kind: "EMPLOYEE_ID_ISSUED";
   enabled: boolean;
+  count_by_status?: Record<"PENDING"|"SENDING"|"SENT"|"UNKNOWN"|"REJECTED", number|null>;
   approved_at: string | null;
   effective_from: string | null;
   note: string;
@@ -86,6 +87,14 @@ export function OfficeEmployeeMailControls() {
         <div><dt>Approval recorded</dt><dd>{policy.approved_at?new Date(policy.approved_at).toLocaleString("en-IN"):"Not recorded"}</dd></div>
         <div><dt>Effective from</dt><dd>{policy.effective_from?new Date(policy.effective_from).toLocaleString("en-IN"):"Not activated"}</dd></div>
       </dl>
+      <div className={styles.countGrid} role="group" aria-label="Verified corporate delivery ledger summary">
+        {(["PENDING","SENDING","SENT","UNKNOWN","REJECTED"] as const).map(status =>
+          <div key={status}>
+            <small>{status === "SENT" ? "Provider accepted" : status.replaceAll("_"," ").toLowerCase()}</small>
+            <strong>{typeof policy.count_by_status?.[status] === "number"
+              ? policy.count_by_status[status]!.toLocaleString("en-IN") : "Unknown"}</strong>
+          </div>)}
+      </div>
       <p className={styles.state}>{policy.note}</p>
       <label className={styles.label} htmlFor="office-employee-mail-reason">
         Documented reason and authorisation reference
