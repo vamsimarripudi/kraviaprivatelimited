@@ -3,7 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
-import { BadgeCheck, CalendarClock, ChevronRight, CircleAlert, ClipboardCheck, FileDown, IdCard, ShieldCheck, Timer, Wallet } from "lucide-react";
+import { BadgeCheck, CalendarClock, ChevronRight, CircleAlert, ClipboardCheck, FileDown, IdCard, RefreshCw, ShieldCheck, Timer, Wallet } from "lucide-react";
+import { HoverActionButton } from "./office-hover-action-button";
 import styles from "./office-employee-summary.module.css";
 
 type RoleApplication = { id: string; snapshot: {
@@ -98,8 +99,8 @@ export function OfficeEmployeeSummary() {
         <p>{department} · {title}</p>
         <span><IdCard size={14} aria-hidden="true"/>{intake?.permanent_employee_id || roles?.employment?.employment_code || "Employment verification pending"}</span>
       </div>
-      <button type="button" className={styles.refresh} onClick={() => void refresh()}
-        disabled={refreshing} aria-label="Refresh employee profile">Refresh</button>
+      <HoverActionButton Icon={RefreshCw} label="Refresh employee profile"
+        onClick={() => void refresh()} disabled={refreshing}/>
     </header>
     {errors.length ? <div className={styles.error} role="status"><CircleAlert size={16}/>
       <span>{errors.join(" · ")}. Other verified records remain available.</span></div> : null}
