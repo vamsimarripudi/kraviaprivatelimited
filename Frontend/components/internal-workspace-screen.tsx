@@ -84,7 +84,7 @@ const OfficeRegistrationRegistry = dynamic(() => import("@/components/office-reg
 const OfficeAuditExplorer = dynamic(() => import("@/components/office-audit-explorer").then((module) => module.OfficeAuditExplorer), { loading: ModuleLoading });
 const OfficeResilienceWorkspace = dynamic(() => import("@/components/office-resilience").then((module) => module.OfficeResilienceWorkspace), { loading: ModuleLoading });
 const OfficeSecurityOverview = dynamic(() => import("@/components/office-security-overview").then((module) => module.OfficeSecurityOverview), { loading: ModuleLoading });
-const OfficeSecuritySettings = dynamic(() => import("@/components/office-security-settings").then((module) => module.OfficeSecuritySettings), { loading: ModuleLoading });
+const OfficeSettingsHub = dynamic(() => import("@/components/office-settings-hub").then((module) => module.OfficeSettingsHub), { loading: ModuleLoading });
 const OfficeSecureCustody = dynamic(() => import("@/components/office-secure-custody").then((module) => module.OfficeSecureCustody), { loading: ModuleLoading });
 const OfficeSupportOperations = dynamic(() => import("@/components/office-support-operations").then((module) => module.OfficeSupportOperations), { loading: ModuleLoading });
 const OfficeStrategyWorkspace = dynamic(() => import("@/components/office-strategy").then((module) => module.OfficeStrategyWorkspace), { loading: ModuleLoading });
@@ -202,7 +202,7 @@ export function InternalWorkspaceScreen({ workspace, section }: Props) {
           : workspace === "office" && section === "domains" ? <OfficeDomainControl />
           : workspace === "office" && section === "custody" ? <OfficeSecureCustody />
           : workspace === "office" && section === "audit" ? <OfficeAuditExplorer />
-          : workspace === "office" && section === "settings" ? <OfficeSecuritySettings identity={identity} />
+          : workspace === "office" && section === "settings" ? <OfficeSettingsHub identity={identity} />
           : workspace === "finance" && section === "cards" ? <OfficeCorporateCards />
           : workspace === "finance" && section === "insurance" ? <OfficeResilienceWorkspace mode="insurance" />
           : workspace === "finance" && section === "dashboard" ? <OfficeFinanceCommandCenter />
