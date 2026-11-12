@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BrainCircuit, ChevronRight, CircleAlert, RefreshCw, X } from "lucide-react";
+import { HoverActionButton } from "./office-hover-action-button";
 import styles from "./office-intelligence-peek.module.css";
 
 type Attention = { key: string; severity: "CRITICAL" | "HIGH" | "MEDIUM" | "INFO"; area: string; title: string; detail: string; href: string };
@@ -63,7 +64,7 @@ export function OfficeIntelligencePeek() {
       <header className={styles.heading}>
         <div><strong>Company intelligence</strong><small>Verified sources · read-only</small></div>
         <div className={styles.actions}>
-          <button type="button" onClick={() => void refresh()} disabled={busy} aria-label="Refresh company intelligence"><RefreshCw size={16}/></button>
+          <HoverActionButton Icon={RefreshCw} label="Refresh company intelligence" onClick={() => void refresh()} disabled={busy}/>
           <button type="button" onClick={() => setOpen(false)} aria-label="Close company intelligence"><X size={16}/></button>
         </div>
       </header>
