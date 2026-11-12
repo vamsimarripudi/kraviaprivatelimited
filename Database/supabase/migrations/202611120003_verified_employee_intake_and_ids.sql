@@ -102,7 +102,7 @@ comment on table public.office_employee_mail_outbox is
 -- No bank details are placed in the outbox or email payload.
 create or replace function public.office_employee_reference_issue(
   p_actor uuid, p_employee uuid, p_reference text, p_reason text
-) returns text language plpgsql security definer set search_path='' as $
+) returns text language plpgsql security definer set search_path='' as $kravia_employee_ref$
 declare
   v_profile public.office_employee_intake_profiles%rowtype;
   v_employment public.office_employment_registry%rowtype;
@@ -166,6 +166,6 @@ begin
     jsonb_build_object('reference_code',p_reference,'reason',trim(p_reason)));
   return p_reference;
 end;
-$$;
+$kravia_employee_ref$;
 revoke all on function public.office_employee_reference_issue(uuid,uuid,text,text) from public,anon,authenticated;
 grant execute on function public.office_employee_reference_issue(uuid,uuid,text,text) to service_role;
