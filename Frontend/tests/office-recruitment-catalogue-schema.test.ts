@@ -14,7 +14,9 @@ describe("KRAVIA recruitment canonical catalogue schema", () => {
 
   it("separates hiring positions from departments without inventing their association", () => {
     expect(screen).toContain("type Position = { code: string; label: string; family: string; is_manager: boolean; active: boolean }");
-    expect(screen).toContain('department: data?.departments[0]?.code || ""');
+    expect(screen).toContain('department: ""');
+    expect(screen).toContain('<option value="">Choose department</option>');
+    expect(screen).toContain('Department<select required value={draft.department || ""}');
     expect(screen).toContain('onChange={(e)=>setDraft({...draft,department:e.target.value})}');
     expect(screen).not.toContain("pos?.department_code");
     expect(screen).toContain("position:e.target.value");
