@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { CheckCircle2, Copy, Link2, LoaderCircle, RefreshCw, ShieldAlert, UserPlus, UsersRound } from "lucide-react";
 import type { OfficeIdentity } from "@/lib/office/auth-server";
 import type { OfficeRole } from "@/lib/office/workspaces";
@@ -102,6 +103,10 @@ export function AccessGovernancePanel({ identity }: { identity: OfficeIdentity }
 
   async function submitInvite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (invite.roles.some(role => role !== "MEMBER" && assignedRoles.get(role))) {
+      setNotice({ message: "A selected role is already assigned. Transfer or review authority before another assignment.", error: true });
+      return;
+    }
     if (!invite.department || !invite.roles.length) {
       setNotice({ message: "Choose a department and at least one role.", error: true });
       return;
@@ -157,12 +162,33 @@ export function AccessGovernancePanel({ identity }: { identity: OfficeIdentity }
   }
 
   const inviteRoles = state.role_catalog.filter((role) => role.role !== "OWNER" && (owner || role.assignable_by_admin));
+  const assignedRoles = new Map<OfficeRole,string>();
+  for (const user of state.users) {
+    if (user.status !== "ACTIVE" || activeRoles(user).includes("OWNER")) continue;
+    for (const role of activeRoles(user)) {
+      if (role !== "OWNER" && role !== "MEMBER") assignedRoles.set(role,user.display_name || user.email || "Office employee");
+    }
+  }
+  for (const item of state.invitations) {
+    if (item.status !== "PENDING") continue;
+    for (const role of item.requested_roles) {
+      if (role !== "OWNER" && role !== "MEMBER" && !assignedRoles.has(role)) assignedRoles.set(role,"Pending invitation");
+    }
+  }
+
 
   return <div className={styles.wrap}>
     <section className={styles.summary}>
       <div><p className="eyebrow">ACCESS AUTHORITY</p><h2>{owner ? "Owner-controlled delegation" : "Delegated administration"}</h2><p>{owner ? "Appoint ADMINs, directors and delegated professionals without allowing a second OWNER. The OWNER identity is protected from ordinary suspension, role removal, MFA reset and transfer." : "Onboard and manage delegated workforce/professional roles. ADMIN cannot alter itself, another ADMIN, a DIRECTOR or OWNER, and receives no business-data privilege automatically."}</p></div>
       <div className={styles.metrics}><article><span>Identities</span><strong>{state.users.length}</strong></article><article><span>Pending invitations</span><strong>{state.invitations.filter((item) => item.status === "PENDING").length}</strong></article><article><span>Your authority</span><strong>{identity.roles.join(" · ")}</strong></article></div>
     </section>
+
+    {owner ? <div className={styles.ownershipHint}>
+      <ShieldAlert size={17}/>
+      <span><b>Assignment ≠ ownership handover.</b> Existing role slots are labelled Assigned.
+      To make your former department access read-only, the receiving head must accept a formal
+      <Link href="/office/department-ownership">department handover</Link>.</span>
+    </div> : null}
 
     {notice ? <div className={styles.notice} data-error={notice.error} role="status">{notice.error ? <ShieldAlert /> : <CheckCircle2 />}{notice.message}</div> : null}
 
@@ -173,16 +199,27 @@ export function AccessGovernancePanel({ identity }: { identity: OfficeIdentity }
     </section> : null}
 
     <section className={styles.panel}>
-      <div className={styles.head}><div><p className="eyebrow">JOINER</p><h2>{owner ? "Appoint administrator or invite a team member" : "Invite an authorised team member"}</h2></div><UserPlus /></div>
+      <div className={styles.head}><div><p className="eyebrow">JOINER</p><h2>Invite an employee</h2></div><UserPlus /></div>
+      <details className={styles.inviteDisclosure}><summary><UserPlus size={16}/> New invitation <span>Identity · Department · Role</span></summary>
       <form className={styles.form} onSubmit={submitInvite}>
         <label>Email<input required type="email" autoComplete="off" value={invite.email} onChange={(event) => setInvite({ ...invite, email: event.target.value })} /></label>
         <label>Display name<input maxLength={120} value={invite.display_name} onChange={(event) => setInvite({ ...invite, display_name: event.target.value })} /></label>
         <label>Job title<input maxLength={120} value={invite.job_title} onChange={(event) => setInvite({ ...invite, job_title: event.target.value })} /></label>
         <label>Department<select required value={invite.department} onChange={(event) => setInvite({ ...invite, department: event.target.value })}><option value="">Select department</option>{state.departments.map((department) => <option key={department.code} value={department.code}>{department.label}</option>)}</select></label>
-        <fieldset className={styles.roles}><legend>Roles</legend>{inviteRoles.map((role) => <label key={role.role}><input type="checkbox" checked={invite.roles.includes(role.role)} onChange={() => toggleRole(role.role)} /><span><b>{role.label}</b><small>{role.description}</small></span></label>)}</fieldset>
+        <fieldset className={styles.roles}><legend>Roles · Assigned positions are locked</legend>{inviteRoles.map((role) => {
+          const assigned = assignedRoles.get(role.role);
+          return <label key={role.role} data-assigned={Boolean(assigned)}>
+            <input type="checkbox" checked={invite.roles.includes(role.role)}
+              disabled={pending || Boolean(assigned)} onChange={() => toggleRole(role.role)} />
+            <span><b>{role.label}</b><small>{role.description}</small></span>
+            <em className={styles.roleTag} data-assigned={Boolean(assigned)}>
+              {assigned ? "Assigned · " + assigned : "Available"}
+            </em>
+          </label>;
+        })}</fieldset>
         <label className={styles.reason}>Business reason<textarea required minLength={3} maxLength={500} rows={3} value={invite.reason} onChange={(event) => setInvite({ ...invite, reason: event.target.value })} /></label>
-        <button type="submit" disabled={pending}>{pending ? <LoaderCircle className="spin" /> : <UserPlus />} Issue controlled invite</button>
-      </form>
+        <button type="submit" disabled={pending}>{pending ? <LoaderCircle className="spin" /> : <UserPlus />} Issue invite</button>
+      </form></details>
     </section>
 
     <section className={styles.panel}>
@@ -210,6 +247,13 @@ function UserCard({ user, state, owner, currentUserId, pending, mutate }: {
   const lifecycleReady = user.status === "ACTIVE" || user.status === "SUSPENDED";
   const manageable = lifecycleReady && !roles.includes("OWNER") && (owner || (user.user_id !== currentUserId && !privileged));
   const roleOptions = state.role_catalog.filter((item) => item.role !== "OWNER" && (owner || item.assignable_by_admin));
+  const assignedToOthers = new Map<OfficeRole,string>();
+  for (const person of state.users) {
+    if (person.status !== "ACTIVE" || person.user_id === user.user_id || activeRoles(person).includes("OWNER")) continue;
+    for (const otherRole of activeRoles(person)) {
+      if (otherRole !== "MEMBER") assignedToOthers.set(otherRole,person.display_name || person.email || "Office employee");
+    }
+  }
   const [role, setRole] = useState<OfficeRole>(roleOptions[0]?.role ?? "MEMBER");
   const [department, setDepartment] = useState(user.department ?? state.departments[0]?.code ?? "OPERATIONS");
   const [reason, setReason] = useState("");
@@ -259,28 +303,28 @@ function UserCard({ user, state, owner, currentUserId, pending, mutate }: {
     <div className={styles.userHead}><div><b>{user.display_name || user.email || "Office identity"}</b><span>{user.job_title || user.email}</span><small>{user.department ?? "No department"} · authz v{user.authorization_version}</small></div><em data-status={user.status}>{user.status}</em></div>
     <div className={styles.badges}>{user.roles.map((grant) => <span key={grant.role} data-expired={!grant.active}>{grant.role}{grant.expires_at ? ` · until ${formatDate(grant.expires_at)}` : ""}</span>)}</div>
     <div className={styles.userMeta}><span>Last sign-in <b>{formatDate(user.last_sign_in_at)}</b></span><span>Access review due <b>{formatDate(user.access_review_due_at)}</b></span></div>
-    {manageable ? <div className={styles.controls}>
-      <label>Role<select value={role} onChange={(event) => setRole(event.target.value as OfficeRole)}>{roleOptions.map((option) => <option key={option.role} value={option.role}>{option.label}</option>)}</select></label>
+    {manageable ? <details className={styles.userDisclosure}><summary>Manage access <span>Roles · Team · MFA · Review</span></summary><div className={styles.controls}>
+      <label>Role<select value={role} onChange={(event) => setRole(event.target.value as OfficeRole)}>{roleOptions.map((option) => <option key={option.role} value={option.role} disabled={Boolean(assignedToOthers.get(option.role))}>{option.label}{assignedToOthers.get(option.role) ? " · Assigned to " + assignedToOthers.get(option.role) : ""}</option>)}</select></label>
       <label>Optional role expiry<input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></label>
       <label>Department<select value={department} onChange={(event) => setDepartment(event.target.value)}>{state.departments.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}</select></label>
       <label className={styles.reason}>Reason / review note<input maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} /></label>
       <div className={styles.actions}>
-        <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/role", { target_user_id: user.user_id, role, action: "GRANT", expires_at: expiresAt ? new Date(expiresAt).toISOString() : undefined, reason }, `${role} granted.`)}>Grant role</button>
-        <button type="button" disabled={pending || !reasonReady || !roles.includes(role)} onClick={() => void post("/api/office-access/role", { target_user_id: user.user_id, role, action: "REVOKE", reason }, `${role} revoked.`)}>Revoke role</button>
-        <button type="button" disabled={pending || !reasonReady || department === user.department} onClick={() => void post("/api/office-access/department", { target_user_id: user.user_id, department, reason }, `Department changed to ${department}.`)}>Change department</button>
-        {user.status === "ACTIVE" ? <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/status", { target_user_id: user.user_id, status: "SUSPENDED", reason }, "Identity suspended.")}>Suspend</button> : <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/status", { target_user_id: user.user_id, status: "ACTIVE", reason }, "Identity reactivated.")}>Reactivate</button>}
-        <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/status", { target_user_id: user.user_id, status: "REVOKED", reason }, "Identity revoked.")}>Revoke access</button>
-        <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/mfa-reset", { target_user_id: user.user_id, reason }, "Authenticator factors reset; the user must enroll MFA again.")}>Reset MFA</button>
+        <button type="button" disabled={pending || !reasonReady || roles.includes(role) || Boolean(assignedToOthers.get(role))} onClick={() => void post("/api/office-access/role", { target_user_id: user.user_id, role, action: "GRANT", expires_at: expiresAt ? new Date(expiresAt).toISOString() : undefined, reason }, `${role} granted.`)}><UserPlus size={14}/>Grant</button>
+        <button type="button" disabled={pending || !reasonReady || !roles.includes(role)} onClick={() => void post("/api/office-access/role", { target_user_id: user.user_id, role, action: "REVOKE", reason }, `${role} revoked.`)}><ShieldAlert size={14}/>Revoke</button>
+        <button type="button" disabled={pending || !reasonReady || department === user.department} onClick={() => void post("/api/office-access/department", { target_user_id: user.user_id, department, reason }, `Department changed to ${department}.`)}><UsersRound size={14}/>Department</button>
+        {user.status === "ACTIVE" ? <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/status", { target_user_id: user.user_id, status: "SUSPENDED", reason }, "Identity suspended.")}><ShieldAlert size={14}/>Suspend</button> : <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/status", { target_user_id: user.user_id, status: "ACTIVE", reason }, "Identity reactivated.")}><CheckCircle2 size={14}/>Reactivate</button>}
+        <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/status", { target_user_id: user.user_id, status: "REVOKED", reason }, "Identity revoked.")}><ShieldAlert size={14}/>Remove</button>
+        <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/mfa-reset", { target_user_id: user.user_id, reason }, "Authenticator factors reset; the user must enroll MFA again.")}><RefreshCw size={14}/>Reset MFA</button>
         <button type="button" disabled={pending || recoveryBusy || !reasonReady} onClick={() => void issueRecovery()}>{recoveryBusy ? "Issuing…" : "Issue recovery link"}</button>
-        <button type="button" disabled={pending || user.user_id === currentUserId} onClick={() => void post("/api/office-access/review", { target_user_id: user.user_id, decision: "APPROVED", notes: reason || undefined }, "Access review approved.")}>Approve review</button>
-        <button type="button" disabled={pending || user.user_id === currentUserId} onClick={() => void post("/api/office-access/review", { target_user_id: user.user_id, decision: "CHANGES_REQUIRED", notes: reason || undefined }, "Access review marked for changes.")}>Review changes</button>
+        <button type="button" disabled={pending || user.user_id === currentUserId} onClick={() => void post("/api/office-access/review", { target_user_id: user.user_id, decision: "APPROVED", notes: reason || undefined }, "Access review approved.")}><CheckCircle2 size={14}/>Approve</button>
+        <button type="button" disabled={pending || user.user_id === currentUserId} onClick={() => void post("/api/office-access/review", { target_user_id: user.user_id, decision: "CHANGES_REQUIRED", notes: reason || undefined }, "Access review marked for changes.")}><ShieldAlert size={14}/>Changes</button>
       </div>
       {recoveryError ? <p className={styles.recoveryError}>{recoveryError}</p> : null}
       {recoveryUrl ? <div className={styles.privateLink}>
         <div><Link2 /><span><b>Private recovery link</b><small>Single-use. Issuing it revoked the user’s active sessions. Send it only to the intended person.</small></span></div>
         <div className={styles.privateLinkRow}><input readOnly value={new URL(recoveryUrl, "https://www.kraviaprivatelimited.com").toString()} aria-label="Private password recovery URL" /><button type="button" onClick={() => void copyRecoveryLink()}><Copy />{recoveryCopied ? "Copied" : "Copy link"}</button></div>
       </div> : null}
-    </div> : <p className={styles.protected}>{user.status === "INVITED" ? "Pending invitation — no workspace access exists yet. Manage this identity through the invitation ledger until acceptance." : user.status === "REVOKED" ? "Revoked identity — ordinary role and lifecycle administration is permanently closed. Re-entry requires a new controlled onboarding decision." : roles.includes("OWNER") ? "Protected OWNER identity — ordinary administration cannot suspend, revoke, reset MFA or transfer this authority." : "This privileged identity is outside your delegated administration boundary."}</p>}
+    </div></details> : <p className={styles.protected}>{user.status === "INVITED" ? "Pending invitation — no workspace access exists yet. Manage this identity through the invitation ledger until acceptance." : user.status === "REVOKED" ? "Revoked identity — ordinary role and lifecycle administration is permanently closed. Re-entry requires a new controlled onboarding decision." : roles.includes("OWNER") ? "Protected OWNER identity — ordinary administration cannot suspend, revoke, reset MFA or transfer this authority." : "This privileged identity is outside your delegated administration boundary."}</p>}
   </article>;
 }
 

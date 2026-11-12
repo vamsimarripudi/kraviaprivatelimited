@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const screen = readFileSync(new URL("../components/internal-workspace-screen.tsx", import.meta.url), "utf8");
 const panel = readFileSync(new URL("../components/office-security-settings.tsx", import.meta.url), "utf8");
+const hub = readFileSync(new URL("../components/office-settings-hub.tsx", import.meta.url), "utf8");
 const deviceServer = readFileSync(new URL("../lib/office/device-binding-server.ts", import.meta.url), "utf8");
 const deviceSql = readFileSync(new URL("../../Backend/spec/identity/SUPABASE_DEVICE_BINDING.sql", import.meta.url), "utf8");
 const overviewServer = readFileSync(new URL("../lib/office/security-overview-server.ts", import.meta.url), "utf8");
@@ -10,7 +11,9 @@ const overviewUi = readFileSync(new URL("../components/office-security-overview.
 
 describe("KRAVIA Office security settings", () => {
   it("renders the live security control in Office settings", () => {
-    expect(screen).toContain("OfficeSecuritySettings");
+    expect(screen).toContain("OfficeSettingsHub");
+    expect(hub).toContain("OfficeSecuritySettings");
+    expect(hub).toContain("kravia.office.appearance");
     expect(screen).toContain('section === "settings"');
     expect(panel).toContain("Session, MFA and trusted-device control");
     expect(panel).toContain("/api/office-auth/sessions");

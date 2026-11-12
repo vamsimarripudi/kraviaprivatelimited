@@ -57,9 +57,11 @@ describe("Office command and search boundary", () => {
   it("provides mobile navigation, skip navigation and reduced-motion fallbacks", () => {
     expect(shell).toContain('className="office-skip-link"');
     expect(shell).toContain('id="office-main-content"');
-    expect(shell).toContain('className="office-mobile-menu"');
-    expect(shell).toContain("aria-expanded={mobileNavOpen}");
-    expect(shell).toContain('data-mobile-open={mobileNavOpen ? "true" : "false"}');
+    expect(shell).toContain('className="office-mobile-trigger"');
+    expect(shell).toContain("aria-expanded={mobileNav}");
+    expect(shell).toContain("data-mobile-open={mobileNav}");
+    expect(shell).toContain('office-mega-panel');
+    expect(shell).toContain('office-icon-rail');
     expect(enterpriseCss).toContain('data-mobile-open="true"');
     expect(enterpriseCss).toContain("@media(prefers-reduced-motion:reduce)");
     expect(enterpriseCss).toContain(":focus-visible");

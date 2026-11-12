@@ -111,6 +111,7 @@ export const financeSections = {
   emergency: { title: "Emergency contacts", eyebrow: "PRIVATE SAFETY RECORD", description: "Private self-service emergency contacts with non-bypass HR/safety access and audited privileged reveal.", roles: financeCore, group: "Evidence" },
   ai: { title: "AI governance", eyebrow: "APPROVED AI USE", description: "Approved AI tools and scoped finance use cases with explicit data boundaries, expiry and human-review requirements.", roles: financeCore, group: "Evidence" },
   audit: { title: "Financial audit", eyebrow: "ASSURANCE", description: "Inspection evidence, document hashes, canonical audit events and on-demand tamper-evident chain verification without replacing professional audit judgment.", roles: financeCore, group: "Evidence" },
+  settings: { title: "Finance settings", eyebrow: "ACCOUNT · APPEARANCE · SECURITY", description: "Personal finance workspace settings, account identity, theme and first-party security controls.", roles: financeCore, group: "Evidence" },
 } as const satisfies Record<string, WorkspaceSection>;
 
 export type OfficeSection = keyof typeof officeSections;
