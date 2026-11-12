@@ -94,6 +94,33 @@ export function AccessGovernancePanel({ identity }: { identity: OfficeIdentity }
     }
   }
 
+  async function reissueInvite(invitationId: string, email: string) {
+    setPending(true);
+    setNotice(undefined);
+    try {
+      const result = await json<{ registration_url: string; email_delivery: string }>(
+        "/api/office-access/invitation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "REISSUE", invitation_id: invitationId }),
+        },
+      );
+      setLastInviteUrl(result.registration_url);
+      setCopiedInvite(false);
+      await reload();
+      setNotice({
+        message: result.email_delivery === "ACCEPTED"
+          ? `Replacement invitation submitted to ${email}; previous link revoked.`
+          : `Old invitation revoked and replaced for ${email}. Email delivery was not confirmed; securely copy the new link below.`,
+        error: result.email_delivery !== "ACCEPTED",
+      });
+    } catch (error) {
+      setNotice({ message: error instanceof Error ? error.message : "Invitation reissue failed", error: true });
+    } finally {
+      setPending(false);
+    }
+  }
+
   function toggleRole(role: OfficeRole) {
     setInvite((current) => ({
       ...current,
@@ -103,10 +130,6 @@ export function AccessGovernancePanel({ identity }: { identity: OfficeIdentity }
 
   async function submitInvite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (invite.roles.some(role => role !== "MEMBER" && assignedRoles.get(role))) {
-      setNotice({ message: "A selected role is already assigned. Transfer or review authority before another assignment.", error: true });
-      return;
-    }
     if (!invite.department || !invite.roles.length) {
       setNotice({ message: "Choose a department and at least one role.", error: true });
       return;
@@ -116,7 +139,7 @@ export function AccessGovernancePanel({ identity }: { identity: OfficeIdentity }
     setLastInviteUrl(undefined);
     setCopiedInvite(false);
     try {
-      const result = await json<{ registration_url?: string }>("/api/office-access/invite", {
+      const result = await json<{ registration_url?: string; email_delivery?: string }>("/api/office-access/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -133,8 +156,10 @@ export function AccessGovernancePanel({ identity }: { identity: OfficeIdentity }
       setLastInviteUrl(result.registration_url);
       setInvite(emptyInvite);
       setNotice({
-        message: "Private registration link created. Copy it now and send it only to the intended person.",
-        error: false,
+        message: result.email_delivery === "ACCEPTED"
+          ? "Invitation submitted to the recipient's email provider. Delivery may take time; a secure copy link is available below."
+          : "Invitation created, but email delivery was not confirmed. Verify email configuration or securely copy the link; you can revoke/reissue it.",
+        error: result.email_delivery !== "ACCEPTED",
       });
     } catch (error) {
       setNotice({ message: error instanceof Error ? error.message : "Invitation failed", error: true });
@@ -150,7 +175,10 @@ export function AccessGovernancePanel({ identity }: { identity: OfficeIdentity }
       setCopiedInvite(true);
       window.setTimeout(() => setCopiedInvite(false), 2500);
     } catch {
-      setNotice({ message: "Copy failed. Select the private link manually.", error: true });
+      const field = document.querySelector<HTMLInputElement>('input[aria-label="Private registration URL"]');
+      field?.focus();
+      field?.select();
+      setNotice({ message: "Automatic copy is unavailable. The secure link is selected; use Ctrl+C or your browser's Copy option.", error: true });
     }
   }
 
@@ -195,7 +223,7 @@ export function AccessGovernancePanel({ identity }: { identity: OfficeIdentity }
     {lastInviteUrl ? <section className={styles.privateLink} aria-label="Private registration link">
       <div><Link2 /><span><b>Private registration link</b><small>Shown only now. It is single-use and expires automatically.</small></span></div>
       <div className={styles.privateLinkRow}><input readOnly value={lastInviteUrl} aria-label="Private registration URL" /><button type="button" onClick={() => void copyInviteLink()}><Copy />{copiedInvite ? "Copied" : "Copy link"}</button></div>
-      <p>Send this URL directly to the intended person. Do not post it in a public channel.</p>
+      <p>The Office backend attempts email delivery automatically. This single-use URL is a fallback. Never post it publicly.</p>
     </section> : null}
 
     <section className={styles.panel}>
@@ -206,14 +234,14 @@ export function AccessGovernancePanel({ identity }: { identity: OfficeIdentity }
         <label>Display name<input maxLength={120} value={invite.display_name} onChange={(event) => setInvite({ ...invite, display_name: event.target.value })} /></label>
         <label>Job title<input maxLength={120} value={invite.job_title} onChange={(event) => setInvite({ ...invite, job_title: event.target.value })} /></label>
         <label>Department<select required value={invite.department} onChange={(event) => setInvite({ ...invite, department: event.target.value })}><option value="">Select department</option>{state.departments.map((department) => <option key={department.code} value={department.code}>{department.label}</option>)}</select></label>
-        <fieldset className={styles.roles}><legend>Roles · Assigned positions are locked</legend>{inviteRoles.map((role) => {
+        <fieldset className={styles.roles}><legend>Roles · Multiple employees may hold the same functional role</legend>{inviteRoles.map((role) => {
           const assigned = assignedRoles.get(role.role);
           return <label key={role.role} data-assigned={Boolean(assigned)}>
             <input type="checkbox" checked={invite.roles.includes(role.role)}
-              disabled={pending || Boolean(assigned)} onChange={() => toggleRole(role.role)} />
+              disabled={pending} onChange={() => toggleRole(role.role)} />
             <span><b>{role.label}</b><small>{role.description}</small></span>
             <em className={styles.roleTag} data-assigned={Boolean(assigned)}>
-              {assigned ? "Assigned · " + assigned : "Available"}
+              {assigned ? "Existing holder · " + assigned : "Available"}
             </em>
           </label>;
         })}</fieldset>
@@ -228,7 +256,7 @@ export function AccessGovernancePanel({ identity }: { identity: OfficeIdentity }
     </section>
 
     <section className={styles.split}>
-      <article className={styles.panel}><div className={styles.head}><div><p className="eyebrow">INVITATIONS</p><h2>Onboarding ledger</h2></div><UsersRound /></div><div className={styles.list}>{state.invitations.slice(0, 12).map((item) => <InviteRow key={item.id} item={item} owner={owner} pending={pending} mutate={mutate} />)}{!state.invitations.length ? <p>No invitations issued yet.</p> : null}</div></article>
+      <article className={styles.panel}><div className={styles.head}><div><p className="eyebrow">INVITATIONS</p><h2>Onboarding ledger</h2></div><UsersRound /></div><div className={styles.list}>{state.invitations.slice(0, 12).map((item) => <InviteRow key={item.id} item={item} owner={owner} pending={pending} mutate={mutate} reissue={reissueInvite} />)}{!state.invitations.length ? <p>No invitations issued yet.</p> : null}</div></article>
       <article className={styles.panel}><div className={styles.head}><div><p className="eyebrow">IMMUTABLE AUDIT</p><h2>Latest access changes</h2></div><ShieldAlert /></div><div className={styles.audit}>{state.audit.slice(0, 16).map((item) => <div key={item.id}><time>{formatDate(item.created_at)}</time><b>{item.action.replaceAll("_", " ")}</b><span>{item.target_email ?? "Controlled identity"}{item.role ? ` · ${item.role}` : ""}</span></div>)}{!state.audit.length ? <p>No access changes recorded yet.</p> : null}</div></article>
     </section>
   </div>;
@@ -304,12 +332,12 @@ function UserCard({ user, state, owner, currentUserId, pending, mutate }: {
     <div className={styles.badges}>{user.roles.map((grant) => <span key={grant.role} data-expired={!grant.active}>{grant.role}{grant.expires_at ? ` · until ${formatDate(grant.expires_at)}` : ""}</span>)}</div>
     <div className={styles.userMeta}><span>Last sign-in <b>{formatDate(user.last_sign_in_at)}</b></span><span>Access review due <b>{formatDate(user.access_review_due_at)}</b></span></div>
     {manageable ? <details className={styles.userDisclosure}><summary>Manage access <span>Roles · Team · MFA · Review</span></summary><div className={styles.controls}>
-      <label>Role<select value={role} onChange={(event) => setRole(event.target.value as OfficeRole)}>{roleOptions.map((option) => <option key={option.role} value={option.role} disabled={Boolean(assignedToOthers.get(option.role))}>{option.label}{assignedToOthers.get(option.role) ? " · Assigned to " + assignedToOthers.get(option.role) : ""}</option>)}</select></label>
+      <label>Role<select value={role} onChange={(event) => setRole(event.target.value as OfficeRole)}>{roleOptions.map((option) => <option key={option.role} value={option.role} disabled={false}>{option.label}{assignedToOthers.get(option.role) ? " · Assigned to " + assignedToOthers.get(option.role) : ""}</option>)}</select></label>
       <label>Optional role expiry<input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></label>
       <label>Department<select value={department} onChange={(event) => setDepartment(event.target.value)}>{state.departments.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}</select></label>
       <label className={styles.reason}>Reason / review note<input maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} /></label>
       <div className={styles.actions}>
-        <button type="button" disabled={pending || !reasonReady || roles.includes(role) || Boolean(assignedToOthers.get(role))} onClick={() => void post("/api/office-access/role", { target_user_id: user.user_id, role, action: "GRANT", expires_at: expiresAt ? new Date(expiresAt).toISOString() : undefined, reason }, `${role} granted.`)}><UserPlus size={14}/>Grant</button>
+        <button type="button" disabled={pending || !reasonReady || roles.includes(role)} onClick={() => void post("/api/office-access/role", { target_user_id: user.user_id, role, action: "GRANT", expires_at: expiresAt ? new Date(expiresAt).toISOString() : undefined, reason }, `${role} granted.`)}><UserPlus size={14}/>Grant</button>
         <button type="button" disabled={pending || !reasonReady || !roles.includes(role)} onClick={() => void post("/api/office-access/role", { target_user_id: user.user_id, role, action: "REVOKE", reason }, `${role} revoked.`)}><ShieldAlert size={14}/>Revoke</button>
         <button type="button" disabled={pending || !reasonReady || department === user.department} onClick={() => void post("/api/office-access/department", { target_user_id: user.user_id, department, reason }, `Department changed to ${department}.`)}><UsersRound size={14}/>Department</button>
         {user.status === "ACTIVE" ? <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/status", { target_user_id: user.user_id, status: "SUSPENDED", reason }, "Identity suspended.")}><ShieldAlert size={14}/>Suspend</button> : <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/status", { target_user_id: user.user_id, status: "ACTIVE", reason }, "Identity reactivated.")}><CheckCircle2 size={14}/>Reactivate</button>}
@@ -328,11 +356,12 @@ function UserCard({ user, state, owner, currentUserId, pending, mutate }: {
   </article>;
 }
 
-function InviteRow({ item, owner, pending, mutate }: {
+function InviteRow({ item, owner, pending, mutate, reissue }: {
   item: Invitation;
   owner: boolean;
   pending: boolean;
   mutate: (task: () => Promise<unknown>, success: string) => Promise<boolean>;
+  reissue: (invitationId: string, email: string) => Promise<void>;
 }) {
   const [reason, setReason] = useState("");
   const privileged = item.requested_roles.some((role) => ["ADMIN", "DIRECTOR", "OWNER"].includes(role));
@@ -347,5 +376,5 @@ function InviteRow({ item, owner, pending, mutate }: {
     if (ok) setReason("");
   }
 
-  return <div className={styles.inviteRow}><div><b>{item.email}</b><small>{item.requested_roles.join(" · ")} · {item.department ?? "Unassigned"}</small><small>Expires {formatDate(item.expires_at)}</small>{canRevoke ? <div className={styles.inviteControls}><input aria-label={`Reason to revoke invitation for ${item.email}`} placeholder="Revocation reason" maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} /><button type="button" disabled={pending || reason.trim().length < 3} onClick={() => void revoke()}>Revoke invite</button></div> : null}</div><span data-status={item.status}>{item.status}</span></div>;
+  return <div className={styles.inviteRow}><div><b>{item.email}</b><small>{item.requested_roles.join(" · ")} · {item.department ?? "Unassigned"}</small><small>Expires {formatDate(item.expires_at)}</small>{canRevoke ? <div className={styles.inviteControls}><input aria-label={`Reason to revoke invitation for ${item.email}`} placeholder="Revocation reason" maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} /><button type="button" disabled={pending || reason.trim().length < 3} onClick={() => void revoke()}>Revoke</button><button type="button" disabled={pending} onClick={() => void reissue(item.id, item.email)}>Reissue &amp; email</button></div> : null}</div><span data-status={item.status}>{item.status}</span></div>;
 }

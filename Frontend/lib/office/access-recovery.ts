@@ -157,6 +157,35 @@ export async function revokeOfficeInvitation(input: { invitationId: string; reas
   return { revoked: true, invitation_id: invitation.id };
 }
 
+export async function reissueOfficeInvitation(input: { invitationId: string }) {
+  const { admin, actor, accessToken } = await authority();
+  const { data: invitation, error } = await admin.from("office_access_invitations")
+    .select("id,email,requested_roles,auth_user_id,status")
+    .eq("id", input.invitationId).maybeSingle();
+  if (error || !invitation) throw new OfficeAccessError(404, "Invitation not found");
+  if (invitation.status !== "PENDING") throw new OfficeAccessError(409, "Only pending invitations can be reissued");
+  const requestedRoles = (Array.isArray(invitation.requested_roles) ? invitation.requested_roles : []).filter(isOfficeRole);
+  const decision = canInviteRoles(actor.roles, requestedRoles);
+  if (!decision.allowed) throw new OfficeAccessError(403, decision.reason);
+  const result = await identityApi<{
+    invitation_id: string;
+    registration_path: string;
+    email_delivery: "ACCEPTED" | "UNAVAILABLE" | "REJECTED" | "UNKNOWN";
+  }>(accessToken, `/api/v1/auth/invitations/${encodeURIComponent(input.invitationId)}/reissue`, {
+    method: "POST",
+  });
+  await audit(admin, actor, {
+    targetUserId: typeof invitation.auth_user_id === "string" ? invitation.auth_user_id : undefined,
+    targetEmail: invitation.email,
+    action: "INVITE_REISSUED",
+    metadata: { previous_invitation_id: invitation.id, replacement_invitation_id: result.invitation_id },
+  });
+  return {
+    ...result,
+    registration_url: new URL(result.registration_path, "https://www.kraviaprivatelimited.com").toString(),
+  };
+}
+
 export async function changeOfficeDepartment(input: { targetUserId: string; department: OfficeDepartment; reason: string }) {
   const { admin, actor } = await authority();
   if (!isOfficeDepartment(input.department)) throw new OfficeAccessError(400, "Invalid Office department");
