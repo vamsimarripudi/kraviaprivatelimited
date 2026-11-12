@@ -199,7 +199,7 @@ export function OfficeWorkspaceShell({
   return <OfficeWorkspaceProvider identity={identity} permissions={permissions}>
     <main className={"office office-v2 office-v4 office-modern workspace-shell workspace-" + workspace}
       data-ui-theme={theme} data-menu-expanded={megaExpanded}>
-      <OfficeAmbientField variant="workspace"/>
+      <OfficeAmbientField variant="workspace" />
       <a className="office-skip-link" href="#office-main-content">Skip to main content</a>
       <OfficePrefetchRoutes hrefs={prefetchedRoutes}/>
       <button className="office-mobile-backdrop" type="button" aria-label="Close navigation"
