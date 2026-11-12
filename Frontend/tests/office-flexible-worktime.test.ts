@@ -34,6 +34,18 @@ describe("KRAVIA flexible six-hour day and 30-hour week", () => {
     });
     expect(result.day_records.find(d => d.date === "2026-11-21")?.daily_target_minutes).toBe(0);
   });
+  it("does not accept 30 weekly hours if one weekday has fewer than six", () => {
+    const full = ["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19"];
+    const shifts = [
+      ...full.map((day, i) => session("regular" + i, day, "09:00", "16:30")),
+      session("missing", "2026-11-20", "09:00", "09:30"),
+    ];
+    const result = report("2026-11", shifts);
+    const week = result.weeks.find(w => w.monday === "2026-11-16")!;
+    expect(week.tracked_minutes).toBe(1830);
+    expect(week.completed_weekdays).toBe(4);
+    expect(week.status).toBe("IN_PROGRESS");
+  });
   it("subtracts unpaid breaks and does not count browser login as attendance", () => {
     const s = session("break", "2026-11-16", "09:00", "16:00");
     const result = report("2026-11", [s], [], {
