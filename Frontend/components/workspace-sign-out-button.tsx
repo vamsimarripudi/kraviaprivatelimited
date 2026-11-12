@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { WorkspaceKind } from "@/lib/office/workspaces";
 
-export function WorkspaceSignOutButton({ workspace }: { workspace: WorkspaceKind }) {
+export function WorkspaceSignOutButton({ workspace, iconOnly = false }: { workspace: WorkspaceKind; iconOnly?: boolean }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
 
@@ -20,7 +20,8 @@ export function WorkspaceSignOutButton({ workspace }: { workspace: WorkspaceKind
     }
   }
 
-  return <button type="button" className="workspace-signout" onClick={signOut} disabled={pending}>
-    <LogOut aria-hidden="true" /> {pending ? "Signing out…" : "Sign out"}
+  return <button type="button" className="workspace-signout" onClick={signOut} disabled={pending}
+    aria-label={pending ? "Signing out" : "Sign out of KRAVIA Office"} title={pending ? "Signing out" : "Sign out"}>
+    <LogOut aria-hidden="true" />{!iconOnly ? <span>{pending ? "Signing out…" : "Sign out"}</span> : null}
   </button>;
 }
