@@ -65,8 +65,8 @@ export function OfficeEmployeeSummary() {
 
   useEffect(() => {
     const controller = new AbortController();
-    void refresh(controller.signal);
-    return () => controller.abort();
+    const frame = window.requestAnimationFrame(() => void refresh(controller.signal));
+    return () => { window.cancelAnimationFrame(frame); controller.abort(); };
   }, [refresh]);
 
   const latest = roles?.applications?.[0];
