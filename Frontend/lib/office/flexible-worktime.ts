@@ -146,7 +146,9 @@ export function monthlyFlexibleWorktime(input: {
   }
   const weeks = [...grouped.entries()].map(([monday, days]): WorktimeWeek => {
     const tracked = days.filter(d => d.weekday >= 1 && d.weekday <= 5).reduce((sum, day) => sum + day.total_minutes, 0);
-    const target = addDays(monday, 0) >= WORKTIME_DAILY_ENFORCEMENT_START ? WEEKLY_TARGET_MINUTES : 0;
+    // A month-only read cannot judge weeks whose other weekdays fall in another month.
+    const completeMonthWeek = monday >= first && addDays(monday, 4) <= until;
+    const target = completeMonthWeek && monday >= WORKTIME_DAILY_ENFORCEMENT_START ? WEEKLY_TARGET_MINUTES : 0;
     return {
       monday, through: addDays(monday, 6), tracked_minutes: tracked,
       target_minutes: target, remaining_minutes: Math.max(0, target - tracked),
