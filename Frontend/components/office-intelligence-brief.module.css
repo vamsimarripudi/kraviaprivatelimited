@@ -11,3 +11,5 @@
 .notice,.error,.warning,.guard{border-radius:14px!important}.actions button,.toolbar button{border-radius:10px!important;transition:transform 140ms ease}.actions button:hover,.toolbar button:hover{transform:translateY(-1px)}
 @media(max-width:620px){.card:hover,.panel:hover,.metrics article:hover,.actions button:hover,.toolbar button:hover{transform:none}}
 @media(prefers-reduced-motion:reduce){.card,.panel,.metrics article,.actions button,.toolbar button,.tableWrap tbody tr{transition:none}}
+
+.warning{font-size:12px;line-height:1.5;padding:11px 13px;border:1px solid rgba(156,119,36,.27);border-radius:12px;background:rgba(224,178,75,.10);color:#8c6a21}
