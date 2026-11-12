@@ -96,3 +96,75 @@ comment on table public.office_employee_reference_ids is
 'Permanent, unique employee-facing reference; internal employment identifiers remain unchanged.';
 comment on table public.office_employee_mail_outbox is
 'Provider-acknowledged employee transactional mail only. No automatic sends on schema or profile creation.';
+
+-- Final issuance is a single durable transaction; service role only.
+-- No bank details are placed in the outbox or email payload.
+create or replace function public.office_employee_reference_issue(
+  p_actor uuid, p_employee uuid, p_reference text, p_reason text
+) returns text language plpgsql security definer set search_path=public as $$
+declare
+  v_profile public.office_employee_intake_profiles%rowtype;
+  v_employment public.office_employment_registry%rowtype;
+  v_email text;
+  v_existing text;
+begin
+  if p_actor is null or p_employee is null or p_actor=p_employee then
+    raise exception 'Independent HR approval is required';
+  end if;
+  if p_reference !~ '^KRV-E[0-9]{2}-[A-F0-9]{16}$' then
+    raise exception 'Invalid employee reference format';
+  end if;
+  if length(trim(coalesce(p_reason,''))) < 12 then
+    raise exception 'Documented issuance reason required';
+  end if;
+  if not exists (select 1 from public.office_user_roles
+                 where user_id=p_actor and role in ('OWNER','HR')
+                   and (expires_at is null or expires_at>now())) then
+    raise exception 'Director or authorised HR reviewer required';
+  end if;
+  if public.office_department_permission_verdict(p_actor,'people.update') = 'DENY' then
+    raise exception 'Department ownership was transferred; issuer has read-only access';
+  end if;
+  select * into v_profile from public.office_employee_intake_profiles
+    where employee_user_id=p_employee for update;
+  if v_profile.employee_user_id is null or v_profile.status <> 'VERIFIED' or
+     v_profile.bank_verified_at is null or v_profile.signature_evidence_reference is null then
+    raise exception 'Verified onboarding, Finance evidence and signed-document reference required';
+  end if;
+  if not exists (
+    select 1 from public.office_role_package_onboarding_tasks
+    where employee_user_id=p_employee and task_code='APPOINTMENT_SIGNED'
+      and status='VERIFIED'
+  ) then
+    raise exception 'Independent signed appointment verification is required';
+  end if;
+  select * into v_employment from public.office_employment_registry
+    where identity_user_id=p_employee and status='ACTIVE'
+    order by created_at desc limit 1;
+  if v_employment.employment_id is null or v_employment.start_date is null then
+    raise exception 'Verified active employment with effective date required';
+  end if;
+  select reference_code into v_existing from public.office_employee_reference_ids
+    where employee_user_id=p_employee;
+  if v_existing is not null then return v_existing; end if;
+  select email into v_email from public.office_auth_users
+    where id=p_employee::text and status='ACTIVE';
+  if v_email is null or v_email not like '%@kraviaprivatelimited.com' then
+    raise exception 'Verified corporate registration email required';
+  end if;
+  insert into public.office_employee_reference_ids(
+    employee_user_id,employment_id,reference_code,issued_by
+  ) values(p_employee,v_employment.employment_id,p_reference,p_actor);
+  insert into public.office_employee_mail_outbox(
+    employee_user_id,recipient_email,kind,reference_code,status
+  ) values(p_employee,v_email,'EMPLOYEE_ID_ISSUED',p_reference,'PENDING')
+    on conflict(employee_user_id,kind,reference_code) do nothing;
+  insert into public.office_employee_intake_events(
+    employee_user_id,actor_user_id,event_type,metadata
+  ) values(p_employee,p_actor,'REFERENCE_ID_ISSUED',
+    jsonb_build_object('reference_code',p_reference,'reason',trim(p_reason)));
+  return p_reference;
+end;
+$$;
+revoke all on function public.office_employee_reference_issue(uuid,uuid,text,text) from public,anon,authenticated;
+grant execute on function public.office_employee_reference_issue(uuid,uuid,text,text) to service_role;
