@@ -229,6 +229,51 @@ export function OfficeEmployeeIntake({view="self"}:{view?:"self"|"hr"}){
         <span className={styles.status} data-status={profile?.status||"DRAFT"}>{profile?.status||"NOT STARTED"}</span>
       </div>
       {profile?.review_note?<p className={styles.reviewNote}>Reviewer note: {profile.review_note}</p>:null}
+      {reviewed && profile ? <details className={styles.details}>
+        <summary><BookOpen size={17}/> Complete private employee intake review <ChevronRight size={16}/></summary>
+        <div className={styles.files}>
+          <div className={styles.subsection}>
+            <strong>Identity & contact</strong>
+            <small>Legal name: {profile.legal_name||"Not supplied"}</small>
+            <small>Preferred name: {profile.preferred_name||"Not supplied"}</small>
+            <small>Phone: {profile.contact_phone||"Not supplied"}</small>
+            <small>Date of birth: {profile.date_of_birth||"Not supplied"}</small>
+            <small>Address: {profile.current_address ? Object.values(profile.current_address).filter(Boolean).join(", ") : "Not supplied"}</small>
+          </div>
+          <div className={styles.subsection}>
+            <strong>Emergency contacts</strong>
+            {profile.emergency_contacts?.length ? profile.emergency_contacts.map((contact,i)=>
+              <small key={i}>{contact.name} · {contact.relation} · {contact.phone}</small>
+            ) : <small>None submitted</small>}
+          </div>
+          <div className={styles.subsection}>
+            <strong>Qualifications, certifications & experience</strong>
+            {profile.education?.length ? profile.education.map((edu,i)=>
+              <small key={i}>{edu.qualification} · {edu.institution}
+                {edu.specialisation ? " · "+edu.specialisation : ""}
+                {edu.course ? " · "+edu.course : ""}
+                {edu.completion_date ? " · Completed "+edu.completion_date : ""}</small>
+            ) : <small>No qualifications submitted</small>}
+            {profile.certificates?.map((item,i)=><small key={"cert-"+i}>Certificate: {item.label||"Unlabelled"} · {item.review_status||"PENDING"}</small>)}
+            {profile.prior_experience?.map((work,i)=>
+              <small key={"work-"+i}>Experience: {work.position} · {work.organisation}
+                {work.started_at ? " · From "+work.started_at : ""}
+                {work.ended_at ? " · To "+work.ended_at : ""}</small>)}
+          </div>
+          <div className={styles.subsection}>
+            <strong>Private Finance and document evidence</strong>
+            <small>Bank account: {profile.bank_account_last4 ? "••••"+profile.bank_account_last4 : "Not submitted"} (masked)</small>
+            <small>IFSC: {profile.bank_ifsc||"Not supplied"}</small>
+            <small>Bank verification: {profile.bank_verified_at ? "Verified "+profile.bank_verified_at : "Pending independent Finance verification"}</small>
+            <small>Tax residency: {profile.tax_declarations?.tax_residency||"Not declared"}</small>
+            <small>Tax regime: {profile.tax_declarations?.regime_preference||"Not declared"}</small>
+            <small>Signed-document reference: {profile.signature_evidence_reference||"Missing"}</small>
+            <small>Policies: {profile.policy_acknowledged_at ? "Acknowledged "+profile.policy_acknowledged_at : "Acknowledgement missing"}</small>
+            <small>Photo: {profile.photo_storage_reference ? "Scanned privately; subject to HR review" : "Not submitted"}</small>
+          </div>
+          <p>Only authorised reviewers may use these records. Profile scanning, a typed reference and a bank-account number do not alone establish verification or valid e-signature.</p>
+        </div>
+      </details> : null}
       {view==="self"?<details className={styles.details} open={!profile}>
         <summary><BookOpen size={17}/> Employee intake details <ChevronRight size={16}/></summary>
         <form className={styles.form} onSubmit={save}>
