@@ -83,10 +83,10 @@ export async function getOfficeIntelligenceBrief() {
   const sixtyDays = new Date(now + 60 * 24 * 60 * 60 * 1000).toISOString();
 
   const [tasks, approvals, incidents, opportunities, compliance, invoices, authSessions, accessReviews, notifications, contracts, services] = await Promise.all([
-    admin.from("office_tasks").select("id,task_code,title,priority,status,due_at,assigned_user_id,department_code").in("status", ["OPEN", "IN_PROGRESS", "BLOCKED"]).order("due_at", { ascending: true, nullsFirst: false }).limit(300),
+    admin.from("office_tasks").select("id,task_code,title,priority,status,due_at,assigned_user_id,department_code,updated_at").in("status", ["OPEN", "IN_PROGRESS", "BLOCKED"]).order("due_at", { ascending: true, nullsFirst: false }).limit(300),
     admin.from("office_request_steps").select("id,request_id,label,status,assigned_user_id,created_at").eq("status", "PENDING").order("created_at", { ascending: true }).limit(300),
-    admin.from("office_engineering_incidents").select("id,incident_code,severity,title,status,service_id,started_at").neq("status", "RESOLVED").order("started_at", { ascending: true }).limit(200),
-    admin.from("office_crm_opportunities").select("id,opportunity_code,title,stage,value_minor,currency,expected_close_date,owner_user_id").not("stage", "in", "(WON,LOST)").order("expected_close_date", { ascending: true, nullsFirst: false }).limit(300),
+    admin.from("office_engineering_incidents").select("id,incident_code,severity,title,status,service_id,started_at,updated_at").neq("status", "RESOLVED").order("started_at", { ascending: true }).limit(200),
+    admin.from("office_crm_opportunities").select("id,opportunity_code,title,stage,value_minor,currency,expected_close_date,owner_user_id,updated_at").not("stage", "in", "(WON,LOST)").order("expected_close_date", { ascending: true, nullsFirst: false }).limit(300),
     readOfficeRuntimeResult<Array<Record<string,unknown>>>("compliance").then((result)=>({
       ...result,
       data:(result.data??[]).filter((row)=>!["COMPLETED","CLOSED"].includes(String(row.status))&&Boolean(row.due_date)&&String(row.due_date)<=thirtyDays.slice(0,10)).sort((a,b)=>String(a.due_date||"").localeCompare(String(b.due_date||""))).slice(0,200),
@@ -96,7 +96,7 @@ export async function getOfficeIntelligenceBrief() {
       data:(result.data??[]).filter((row)=>Number(row.balance_paise||0)>0).sort((a,b)=>String(a.due_date||"9999-12-31").localeCompare(String(b.due_date||"9999-12-31"))).slice(0,300),
     })),
     admin.from("office_auth_sessions_v2").select("user_id,status,last_seen_at,aal,expires_at,revoked_at").eq("status", "ACTIVE").order("last_seen_at", { ascending: false }).limit(300),
-    admin.from("office_access_reviews").select("id,user_id,status,due_at").eq("status", "PENDING").order("due_at", { ascending: true }).limit(300),
+    admin.from("office_access_reviews").select("id,user_id,status,due_at,updated_at").eq("status", "PENDING").order("due_at", { ascending: true }).limit(300),
     admin.from("office_notifications").select("id,user_id,kind,title,status,created_at").eq("status", "UNREAD").order("created_at", { ascending: false }).limit(300),
     readOfficeRuntimeResult<Array<Record<string,unknown>>>("contracts").then((result)=>({
       ...result,
