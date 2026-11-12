@@ -28,7 +28,7 @@ describe("Official KRAVIA Authenticator Google Play install links", () => {
   it("does not send emails on rendering or deployment", () => {
     const page = read("app/office/authenticator/page.tsx");
     const footer = read("components/footer.tsx");
-    const auth = read("../../Backend/backend/identity_auth.py");
+    const auth = read("../Backend/backend/identity_auth.py");
     expect(page).not.toContain("send_office_workspace_ready_email");
     expect(footer).not.toContain("send_office_workspace_ready_email");
     expect(auth).toContain("send_office_workspace_ready_email");

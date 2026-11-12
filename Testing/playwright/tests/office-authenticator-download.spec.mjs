@@ -10,5 +10,5 @@ test("office authenticator installation uses the official Google Play badge and 
   await expect(download).toHaveAttribute("href", store);
   await expect(download).toHaveAttribute("target", "_blank");
   await expect(download.getByAltText("Get it on Google Play")).toHaveAttribute("src", badge);
-  await expect(page.getByText("Never install APKs from messages or third-party websites.")).toHaveCount(0);
+  await expect(page.getByText(/Do not install APKs from messages or third-party websites/)).toBeVisible();
 });
