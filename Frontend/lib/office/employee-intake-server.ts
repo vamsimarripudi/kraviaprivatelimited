@@ -73,7 +73,10 @@ export async function employeeIntakeOverview(employeeId?: string) {
     profile:profile.data || null,
     permanent_employee_id:reference.data?.reference_code || null,
     issued_at:reference.data?.issued_at || null,
-    bank_encryption_available:Boolean(process.env.OFFICE_EMPLOYEE_DATA_ENCRYPTION_KEY),
+    bank_encryption_available:(() => {
+      const key=process.env.OFFICE_EMPLOYEE_DATA_ENCRYPTION_KEY?.trim();
+      return Boolean(key&&Buffer.from(key,"base64").length===32);
+    })(),
     note:"Raw banking values, confidential scans and passwords are never included in this response. An issued ID is permanent; a salary, signature or bank credit is never inferred.",
   };
 }
@@ -90,6 +93,11 @@ export async function saveEmployeeIntake(input: Draft) {
   const bank = input.bank_account?.replace(/\s|-/g,"");
   if(bank && !/^[0-9]{8,24}$/.test(bank))throw new EmployeeIntakeError(400,"Bank account format is invalid");
   const encrypted=bank?sealBankAccount(bank):old.data?.bank_account_ciphertext??null;
+  const bankHolder=input.bank_account_holder?.trim()||old.data?.bank_account_holder||null;
+  const bankIfsc=input.bank_ifsc?.trim().toUpperCase()||old.data?.bank_ifsc||null;
+  const bankChanged=Boolean(bank) || (old.data && (bankHolder!==old.data.bank_account_holder || bankIfsc!==old.data.bank_ifsc));
+  // Any bank routing change invalidates independent Finance verification.
+  // A masked account is never silently treated as freshly verified.
   const data = {
     employee_user_id:id,
     legal_name:input.legal_name.trim(),
@@ -100,18 +108,23 @@ export async function saveEmployeeIntake(input: Draft) {
     education:input.education,
     bank_account_ciphertext:encrypted,
     bank_account_last4:bank?bank.slice(-4):old.data?.bank_account_last4??null,
-    bank_account_holder:input.bank_account_holder?.trim()||old.data?.bank_account_holder||null,
-    bank_ifsc:input.bank_ifsc?.trim().toUpperCase()||old.data?.bank_ifsc||null,
+    bank_account_holder:bankHolder,
+    bank_ifsc:bankIfsc,
     signature_evidence_reference:input.signature_evidence_reference?.trim()||old.data?.signature_evidence_reference||null,
     policy_acknowledged_at:input.policy_acknowledged?(old.data?.policy_acknowledged_at||new Date().toISOString()):null,
     // A change of bank credentials invalidates the old Finance verification.
-    ...(bank?{bank_verified_by:null,bank_verified_at:null,bank_verification_evidence:null}:{}),
+    ...(bankChanged?{bank_verified_by:null,bank_verified_at:null,bank_verification_evidence:null}:{}),
     status:"DRAFT",reviewed_by:null,reviewed_at:null,review_note:null,
     revision:(old.data?.revision||0)+1,updated_at:new Date().toISOString(),
   };
-  const {error}=await current.admin.from("office_employee_intake_profiles")
-    .upsert(data,{onConflict:"employee_user_id"});
-  check(error,"Unable to securely save employee onboarding draft");
+  const saved=old.data
+    ? await current.admin.from("office_employee_intake_profiles")
+        .update(data).eq("employee_user_id",id).eq("revision",old.data.revision)
+        .in("status",["DRAFT","RETURNED"]).select("employee_user_id").maybeSingle()
+    : await current.admin.from("office_employee_intake_profiles")
+        .insert(data).select("employee_user_id").maybeSingle();
+  if(saved.error||!saved.data)throw new EmployeeIntakeError(409,
+    "Onboarding changed while you edited it; reload the current draft");
   await log(current,id,"PROFILE_DRAFT_SAVED",{revision:data.revision});
   return {saved:true,status:"DRAFT",revision:data.revision};
 }
@@ -129,9 +142,11 @@ export async function submitEmployeeIntake() {
     !p.policy_acknowledged_at)throw new EmployeeIntakeError(409,
       "Complete name, phone, education, encrypted bank details, profile photo, signature reference and policy acknowledgment before submitting");
   const now=new Date().toISOString();
-  const {error}=await current.admin.from("office_employee_intake_profiles")
-    .update({status:"SUBMITTED",submitted_at:now,updated_at:now}).eq("employee_user_id",id).in("status",["DRAFT","RETURNED"]);
-  check(error,"Unable to submit employee onboarding");
+  const saved=await current.admin.from("office_employee_intake_profiles")
+    .update({status:"SUBMITTED",submitted_at:now,updated_at:now})
+    .eq("employee_user_id",id).in("status",["DRAFT","RETURNED"])
+    .select("employee_user_id").maybeSingle();
+  if(saved.error||!saved.data)throw new EmployeeIntakeError(409,"Onboarding state changed; reload before submitting");
   await log(current,id,"PROFILE_SUBMITTED");
   return {submitted:true,status:"SUBMITTED"};
 }
@@ -147,10 +162,12 @@ export async function reviewEmployeeIntake(input:{employeeId:string;decision:"VE
     throw new EmployeeIntakeError(409,"Finance bank verification and signed-document reference required");
   }
   const status=input.decision==="VERIFY"?"VERIFIED":"RETURNED";
-  const {error}=await current.admin.from("office_employee_intake_profiles")
+  const reviewed=await current.admin.from("office_employee_intake_profiles")
     .update({status,reviewed_by:current.identity.userId,reviewed_at:new Date().toISOString(),review_note:input.reason,updated_at:new Date().toISOString()})
-    .eq("employee_user_id",id).eq("status","SUBMITTED");
-  check(error,"Unable to review employee onboarding");
+    .eq("employee_user_id",id).eq("status","SUBMITTED")
+    .select("employee_user_id").maybeSingle();
+  if(reviewed.error||!reviewed.data)throw new EmployeeIntakeError(409,
+    "Another reviewer changed this employee's state; refresh before deciding");
   await log(current,id,status==="VERIFIED"?"PROFILE_VERIFIED":"PROFILE_RETURNED",{reason:input.reason});
   return {status,reviewed:true};
 }
@@ -159,17 +176,20 @@ export async function verifyEmployeeBank(input:{employeeId:string;reason:string;
   const current=await actor(),id=input.employeeId;
   await reviewer(current,id,"payroll.payment.prepare");
   const record=await current.admin.from("office_employee_intake_profiles")
-    .select("bank_account_ciphertext,bank_ifsc,status").eq("employee_user_id",id).maybeSingle();
+    .select("bank_account_ciphertext,bank_ifsc,status,revision").eq("employee_user_id",id).maybeSingle();
   check(record.error,"Bank verification record unavailable");
   if(!record.data?.bank_account_ciphertext||!record.data.bank_ifsc)
     throw new EmployeeIntakeError(409,"The employee has not securely submitted bank details");
   if(!["DRAFT","SUBMITTED","RETURNED"].includes(record.data.status))
     throw new EmployeeIntakeError(409,"Verified onboarding cannot be silently re-reviewed");
-  const {error}=await current.admin.from("office_employee_intake_profiles")
+  const updated=await current.admin.from("office_employee_intake_profiles")
     .update({bank_verified_by:current.identity.userId,bank_verified_at:new Date().toISOString(),
       bank_verification_evidence:input.evidenceReference,updated_at:new Date().toISOString()})
-    .eq("employee_user_id",id);
-  check(error,"Unable to record independent Finance bank verification");
+    .eq("employee_user_id",id).eq("revision",record.data.revision)
+    .in("status",["DRAFT","SUBMITTED","RETURNED"])
+    .select("employee_user_id").maybeSingle();
+  if(updated.error||!updated.data)throw new EmployeeIntakeError(409,
+    "Bank details changed before Finance verification; reload and recheck");
   await log(current,id,"BANK_DETAILS_VERIFIED",{evidence_reference:input.evidenceReference,reason:input.reason});
   return {verified:true};
 }
