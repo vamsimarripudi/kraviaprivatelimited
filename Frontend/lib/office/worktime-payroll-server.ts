@@ -143,6 +143,8 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
     actor: { user_id: actor.identity.userId, roles: actor.identity.roles },
     employee: identityResult.data, employees: directoryResult.data ?? [], payroll_periods: periodResult.data ?? [], flex_days: flexResult.data ?? [], month, target_payment: targetSalaryDate(month),
     approved_policy: policy ?? null, policies, claims, preview,
+    approved_monthly_gross_minor: compensation ? Number(compensation.monthly_gross_minor) : null,
+    approved_gross_currency: compensation?.currency ?? null,
     salary_slips: salarySlips,
     capabilities: { self, review_worktime: canReviewWorktime && actor.identity.roles.some(role => role === "OWNER" || role === "DIRECTOR"), prepare_payroll: canPreparePayroll },
     notice: "Only independently approved worktime is included. Unpaid salary is not marked PAID without verified bank evidence. No policy or payroll is created automatically.",
