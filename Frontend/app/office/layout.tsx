@@ -3,6 +3,7 @@ import "./office-enterprise.css";
 import "./office-platform.css";
 import "./office-experience-4.css";
 import "./office-shell-next.css";
+import "./office-design-system.css";
 
 export const metadata: Metadata = {
   title: "KRAVIA Office",

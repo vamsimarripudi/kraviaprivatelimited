@@ -3,6 +3,7 @@ import "../office/office-enterprise.css";
 import "../office/office-platform.css";
 import "../office/office-experience-4.css";
 import "../office/office-shell-next.css";
+import "../office/office-design-system.css";
 
 export const metadata: Metadata = {
   title: "KRAVIA Finance",
