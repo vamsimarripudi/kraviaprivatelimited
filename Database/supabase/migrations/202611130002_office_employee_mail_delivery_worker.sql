@@ -58,8 +58,9 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'Current corporate Owner approval required';
   END IF;
-  IF p_enabled AND (p_effective_from IS NULL OR p_effective_from>pg_catalog.now()) THEN
-    RAISE EXCEPTION 'An effective approved activation time is required';
+  IF p_enabled AND (p_effective_from IS NULL OR p_effective_from>pg_catalog.now()
+    OR p_effective_from<pg_catalog.now()-interval '1 minute') THEN
+    RAISE EXCEPTION 'Activation must be newly approved and effective now';
   END IF;
   UPDATE public.office_employee_mail_delivery_policy
     SET enabled=p_enabled,approved_by=p_actor,approved_at=pg_catalog.now(),
@@ -135,7 +136,7 @@ BEGIN
       SELECT c.id,'CLAIMED' FROM claimed c RETURNING outbox_id
   )
   SELECT c.id,c.claim_token,c.recipient_email,c.reference_code,
-    pg_catalog.coalesce(pg_catalog.nullif(pg_catalog.btrim(u.display_name),''),'Colleague')
+    coalesce(nullif(pg_catalog.btrim(u.display_name),''),'Colleague')
   FROM claimed c
   JOIN public.office_identity_users u ON u.user_id=c.employee_user_id
   JOIN recorded r ON r.outbox_id=c.id;
