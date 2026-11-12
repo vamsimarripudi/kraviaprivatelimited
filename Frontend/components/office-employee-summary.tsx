@@ -125,7 +125,7 @@ export function OfficeEmployeeSummary() {
           <p>{approvedTasks} verified onboarding steps{requiredTasks ? " · " + requiredTasks + " required" : ""}.</p>
           {roles?.tasks?.map((task,i)=><div className={styles.task} key={i}><span>{task.label}</span><b>{task.status.replaceAll("_"," ")}</b></div>)}
           {!roles?.tasks?.length ? <p>No reviewed onboarding steps yet.</p> : null}
-          <Link href="/office/recruitment">View HR onboarding <ChevronRight size={15}/></Link>
+          <p>HR reviews formal onboarding evidence in the governed employee record below.</p>
         </div>
       </details>
       <details>
