@@ -413,3 +413,11 @@
 .kravia-office .office-modern .office-dashboard-quick-link:hover{border-color:var(--off-next-accent,#205c46)}
 @media(max-width:780px){.kravia-office .office-modern .office-briefing-compact{align-items:flex-start;flex-direction:column}.kravia-office .office-modern .office-briefing-actions{justify-content:flex-start}.kravia-office .office-modern .office-dashboard-quick-links{grid-template-columns:1fr 1fr}}
 @media(max-width:480px){.kravia-office .office-modern .office-dashboard-quick-links{grid-template-columns:1fr}.kravia-office .office-modern .office-dashboard-extras>summary span{display:none}}
+
+/* Employee self-service keeps formal role paperwork available but collapsed. */
+.kravia-office .office-modern .office-employee-full-record{margin:8px clamp(12px,2vw,25px) 24px;border:1px solid var(--off-next-line,#dce6df);background:var(--off-next-panel,#fff);border-radius:14px}
+.kravia-office .office-modern .office-employee-full-record>summary{display:flex;align-items:center;justify-content:space-between;list-style:none;cursor:pointer;padding:13px 15px;font-weight:700;font-size:12px;color:var(--off-next-ink,#17251f)}
+.kravia-office .office-modern .office-employee-full-record>summary::-webkit-details-marker{display:none}
+.kravia-office .office-modern .office-employee-full-record>summary:after{content:"+";font-size:18px;color:var(--off-next-muted,#63736b)}
+.kravia-office .office-modern .office-employee-full-record[open]>summary:after{content:"−"}
+.kravia-office .office-modern .office-employee-full-record>section{padding:0 12px 12px}
