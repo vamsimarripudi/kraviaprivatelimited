@@ -21,6 +21,7 @@ from .email_templates import (
     office_device_approval_template,
     office_email_verification_template,
     office_invitation_template,
+    office_employee_id_issued_template,
     office_password_recovery_template,
     office_workspace_ready_template,
     public_form_follow_up_template,
@@ -226,6 +227,26 @@ def send_office_invitation_email(
         ),
         delivery_id=delivery_id,
         tags=["kravia-office-auth", "invitation"],
+    )
+
+
+def send_office_employee_id_issued_email(
+    *, recipient_email: str, recipient_name: str,
+    employee_reference: str, delivery_id: str,
+) -> str | None:
+    """Submit only a previously claimed, independently approved outbox event.
+
+    The worker passes the immutable outbox UUID as delivery_id; neither a
+    preview render nor a browser refresh can initiate this mail.
+    """
+    return _send_transactional_email(
+        recipient_email=recipient_email,
+        template=office_employee_id_issued_template(
+            recipient_name=recipient_name,
+            employee_reference=employee_reference,
+        ),
+        delivery_id=delivery_id,
+        tags=["kravia-office-employee", "employee-id-issued"],
     )
 
 
