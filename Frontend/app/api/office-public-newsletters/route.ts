@@ -21,7 +21,15 @@ const decisionSchema=z.object({
   action:z.enum(["APPROVE","CANCEL","SEND_BATCH"]),
   campaignId:z.uuid(),
 }).strict();
-function unavailable(){return NextResponse.json({error:"The newsletter system is temporarily unavailable."},{status:503,headers});}
+function unavailable(){
+  const missingPublicDatabase = !process.env.KRAVIA_PUBLIC_ACCESS_DATABASE_URL?.trim();
+  return NextResponse.json({
+    error: missingPublicDatabase
+      ? "Newsletter drafts require a separate public-access database. Configure KRAVIA_PUBLIC_ACCESS_DATABASE_URL in the website deployment before publishing."
+      : "Newsletter service could not read the public-access database. Verify the public_access schema, database credentials and service health.",
+    status: missingPublicDatabase ? "NEEDS_CONFIGURATION" : "SERVICE_ERROR",
+  },{status:503,headers});
+}
 async function ownerOnly(){try{return await requireResourceOwner();}catch{return null;}}
 export async function GET(){
   const owner=await ownerOnly();
