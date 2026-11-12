@@ -34,6 +34,24 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // Do not let a prior login form survive release changes in browser/CDN.
+        source: "/office/login",
+        headers: [
+          { key: "Cache-Control", value: "private, no-store, max-age=0, must-revalidate" },
+          { key: "Pragma", value: "no-cache" },
+          { key: "Expires", value: "0" },
+          { key: "X-KRAVIA-Office-Login-Release", value: "2026-11-12-email-otp-choice" },
+        ],
+      },
+      {
+        source: "/finance/login",
+        headers: [
+          { key: "Cache-Control", value: "private, no-store, max-age=0, must-revalidate" },
+          { key: "Pragma", value: "no-cache" },
+          { key: "Expires", value: "0" },
+        ],
+      },
+      {
         source: "/api/office-auth/:path*",
         headers: [
           { key: "Cache-Control", value: "no-store, max-age=0" },
