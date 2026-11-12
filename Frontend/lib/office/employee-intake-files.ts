@@ -58,7 +58,7 @@ export async function uploadEmployeeIntakeFile(input:{file:File;kind:FileKind;la
   });
   if(uploaded.error)throw new EmployeeIntakeError(503,"Private employee document storage unavailable");
   const old=await admin.from("office_employee_intake_profiles")
-    .select("status,certificates").eq("employee_user_id",identity.userId).maybeSingle();
+    .select("status,certificates,revision").eq("employee_user_id",identity.userId).maybeSingle();
   if(old.error||!old.data||!["DRAFT","RETURNED"].includes(old.data.status)){
     await admin.storage.from(bucket).remove([storagePath]);
     throw new EmployeeIntakeError(409,"Employee onboarding changed during upload; private file removed");
@@ -73,8 +73,9 @@ export async function uploadEmployeeIntakeFile(input:{file:File;kind:FileKind;la
       sha256:sha,mime_type:detected.mime,byte_size:bytes.length,review_status:"PENDING"}],
   };
   const persisted=await admin.from("office_employee_intake_profiles")
-    .update({...update,updated_at:new Date().toISOString()})
-    .eq("employee_user_id",identity.userId).in("status",["DRAFT","RETURNED"]).select("employee_user_id").maybeSingle();
+    .update({...update,revision:old.data.revision+1,updated_at:new Date().toISOString()})
+    .eq("employee_user_id",identity.userId).eq("revision",old.data.revision)
+    .in("status",["DRAFT","RETURNED"]).select("employee_user_id").maybeSingle();
   if(persisted.error||!persisted.data) {
     await admin.storage.from(bucket).remove([storagePath]);
     throw new EmployeeIntakeError(409,"Private document metadata could not be verified; upload removed");
