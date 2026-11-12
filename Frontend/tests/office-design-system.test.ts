@@ -34,6 +34,9 @@ describe("KRAVIA shared Office & Finance visual system", () => {
     expect(css).toContain('button[data-active="true"]');
     expect(css).toContain('.kravia-office[data-office-theme="dark"]');
     expect(css).toContain('.kravia-office-auth > section:first-child');
+    expect(read("components/office-workspace-shell.tsx")).toContain('window.dispatchEvent(new CustomEvent("kravia-office-theme-change"');
+    expect(read("components/office-workspace-processing.tsx")).toContain("office-workspace-processing.module.css");
+    expect(read("components/office-workspace-processing.module.css")).toContain("var(--office-ui-canvas");
     expect(css).toContain('data-ui-theme="light"] .office-main');
   });
 });

@@ -203,11 +203,10 @@ export function OfficeWorkspaceShell({
   }, [moreOpen]);
 
   function switchTheme() {
-    setTheme(previous => {
-      const next: Theme = previous === "dark" ? "light" : "dark";
-      try { window.localStorage.setItem(themeKey,next); } catch {}
-      return next;
-    });
+    const next: Theme = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    try { window.localStorage.setItem(themeKey,next); } catch {}
+    window.dispatchEvent(new CustomEvent("kravia-office-theme-change", { detail: next }));
   }
 
   const settingsHref = workspace === "finance" ? "/office/settings" : definition.basePath + "/settings";

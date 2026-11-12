@@ -1,0 +1,20 @@
+/* Reuse KRAVIA OfficeAppearanceRoot light/dark theme variables. */
+.shell{min-height:100dvh;display:grid;place-items:center;background:var(--office-ui-canvas,#f6f7fa);color:var(--office-ui-ink,#171b25);font-family:var(--font-sans,Inter,Arial,sans-serif);padding:22px}
+.card{width:min(100%,480px);padding:clamp(22px,4vw,32px);display:grid;gap:15px;background:var(--office-ui-surface,#fff);color:var(--office-ui-ink,#171b25);border:1px solid var(--office-ui-line,#d9dfe9);border-radius:19px;box-shadow:var(--office-ui-shadow,0 12px 32px rgba(18,32,58,.08))}
+.symbol{width:48px;height:48px;display:grid;place-items:center;border-radius:13px;background:var(--office-ui-surface-alt,#f2f4f8);color:var(--office-ui-accent,#1559ce)}
+.symbol svg{width:23px;height:23px}
+.eyebrow{font-size:11px;line-height:1.4;font-weight:740;letter-spacing:.1em;color:var(--office-ui-accent,#1559ce)}
+.card h1{font-size:clamp(1.5rem,2.7vw,1.8rem);line-height:1.15;font-weight:720;letter-spacing:-.045em;margin:0;color:var(--office-ui-ink,#171b25)}
+.intro{margin:0;line-height:1.62;font-size:14px;color:var(--office-ui-muted,#5c6574)}
+.status{display:flex;align-items:flex-start;gap:8px;background:var(--office-ui-surface-alt,#f2f4f8);border:1px solid var(--office-ui-line,#d9dfe9);border-radius:11px;padding:11px 12px;margin:0;font-size:13px;font-weight:630;color:var(--office-ui-ink,#171b25)}
+.status svg{width:16px;height:16px;flex:none;color:var(--office-ui-accent,#1559ce)}
+.error{color:var(--office-ui-danger,#cc293b);margin:0;font-size:13px}
+.primary,.secondary{width:100%;min-height:46px;border-radius:11px;padding:11px 15px;display:inline-flex;align-items:center;justify-content:center;gap:9px;font-size:14px;font-weight:700;cursor:pointer}
+.primary{background:#1559ce;color:#fff;border:1px solid #1559ce}
+.primary:disabled{opacity:.65;cursor:not-allowed}
+.secondary{background:var(--office-ui-surface-alt,#f2f4f8);color:var(--office-ui-ink,#171b25);border:1px solid var(--office-ui-line,#d9dfe9)}
+.secondary svg{width:16px;height:16px}
+.primary:focus-visible,.secondary:focus-visible{outline:2px solid var(--office-ui-accent,#1559ce);outline-offset:3px}
+.footer{display:flex;justify-content:flex-end}
+.footer button{color:var(--office-ui-muted,#5c6574)!important;background:transparent!important;border:1px solid var(--office-ui-line,#d9dfe9)!important;border-radius:10px!important;padding:8px 11px}
+@media(max-width:600px){.shell{padding:14px}.card{border-radius:17px;padding:21px}}
