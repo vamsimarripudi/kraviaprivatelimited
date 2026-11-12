@@ -40,6 +40,16 @@ describe("KRAVIA HR Manager effective-date access and evidence-based worktime", 
     const reviewPolicy = read("../Database/supabase/migrations/202611100002_worktime_salary_evidence.sql");
     expect(reviewPolicy).toContain("Worktime cannot be self-approved");
   });
+  it("lets effective HR Managers file other-employee evidence without giving them self-approval or payroll execution", () => {
+    const managerSql = read("../Database/supabase/migrations/202611130002_hr_worktime_evidence_authority.sql");
+    expect(managerSql).toContain("h.profile_code='HR_MANAGER'");
+    expect(managerSql).toContain("h.effective_from is null or h.effective_from<=now()");
+    expect(managerSql).toContain("Worktime cannot be self-approved");
+    expect(managerSql).toContain("office_effective_permission(p_actor,'people.update'");
+    expect(managerSql).not.toContain("office_worktime_policy_decide(");
+    expect(worktime).toContain("hrManagerActive");
+    expect(worktime).toContain("propose_policy: policyProposal");
+  });
   it("does not automatically grant salary, weekend bonuses or overtime compensation", () => {
     expect(worktimeUi).toContain("Potential overtime");
     expect(worktimeUi).toContain("not yet payable");
