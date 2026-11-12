@@ -25,7 +25,7 @@ type Overview={
   identity:{display_name?:string;job_title?:string;primary_department?:string;status:string};
   profile:Profile|null;permanent_employee_id:string|null;issued_at:string|null;
   employment:{employment_code:string;status:string;start_date?:string|null}|null;
-  bank_encryption_available:boolean;note:string;
+  bank_encryption_available:boolean;employee_mail_status?:string;employee_mail_submitted_at?:string|null;note:string;
 };
 type Person={user_id:string;display_name:string;department:string};
 type Draft={
@@ -47,6 +47,18 @@ async function api<T>(url:string,init?:RequestInit):Promise<T>{
   const body=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(typeof body.detail==="string"?body.detail:"Private HR request unavailable");
   return body as T;
+}
+/** A Brevo submission acknowledgement does not prove mailbox delivery. */
+function officeEmployeeMailStatus(status?:string):string {
+  switch(status){
+    case "SENT":return "Accepted by mail provider; inbox delivery not independently confirmed";
+    case "SENDING":return "Corporate transactional email is being submitted";
+    case "PENDING":return "Employee ID email remains pending until verified provider acknowledgement";
+    case "UNKNOWN":return "Delivery result unknown; no automatic duplicate submission";
+    case "REJECTED":return "Mail provider rejected the notification; authorised review required";
+    case "UNAVAILABLE":return "Employee notification ledger is temporarily unavailable";
+    default:return "Employee ID notification has not been queued";
+  }
 }
 function fromProfile(profile:Profile|null,identity:Overview["identity"]):Draft{
   return {
@@ -225,7 +237,8 @@ export function OfficeEmployeeIntake({view="self"}:{view?:"self"|"hr"}){
         <div><strong>{profile?.legal_name||state.identity.display_name||"Employee"}</strong>
           <small>{state.identity.primary_department||"Unassigned"} · {state.identity.job_title||"Role pending"}</small>
           <small>Employee reference: {state.permanent_employee_id||"Not yet issued"}</small>
-          <small>Existing employment: {state.employment?.employment_code||"Not yet registered"}</small></div>
+          <small>Existing employment: {state.employment?.employment_code||"Not yet registered"}</small>
+          {state.permanent_employee_id ? <small>Employee ID mail: {officeEmployeeMailStatus(state.employee_mail_status)}</small> : null}</div>
         <span className={styles.status} data-status={profile?.status||"DRAFT"}>{profile?.status||"NOT STARTED"}</span>
       </div>
       {profile?.review_note?<p className={styles.reviewNote}>Reviewer note: {profile.review_note}</p>:null}
@@ -382,7 +395,7 @@ export function OfficeEmployeeIntake({view="self"}:{view?:"self"|"hr"}){
             <IdCard size={16}/> Issue permanent ID
           </button>
         </div>
-        <small>Employee ID email remains pending until the corporate transactional delivery worker acknowledges it.</small>
+        <small>{officeEmployeeMailStatus(state.employee_mail_status)}</small>
       </div>:null}
       <div className={styles.disclaimer}><FileText size={16}/>{state.note}</div>
     </>}
