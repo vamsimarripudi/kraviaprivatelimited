@@ -45,6 +45,25 @@ function numeric(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+/** The latest timestamp actually returned by a source query. Unknown when
+ * the selected fields contain no usable record timestamp; never infer freshness
+ * from the time the read was executed. */
+function newestRecordTimestamp(data: unknown): string | null {
+  if (!Array.isArray(data)) return null;
+  let newest = Number.NEGATIVE_INFINITY;
+  for (const item of data) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    for (const key of ["updated_at", "last_seen_at", "created_at", "started_at"]) {
+      const value = row[key];
+      if (typeof value !== "string") continue;
+      const ms = Date.parse(value);
+      if (Number.isFinite(ms)) newest = Math.max(newest, ms);
+    }
+  }
+  return Number.isFinite(newest) ? new Date(newest).toISOString() : null;
+}
+
 function moneyBuckets(rows: Array<Record<string, unknown>>, amountField: string): MoneyBucket[] {
   const totals = new Map<string, number>();
   for (const row of rows) {
@@ -97,6 +116,7 @@ export async function getOfficeIntelligenceBrief() {
     { name: "engineering services", result: services },
   ];
   const unavailableSources = sources.filter(({ result }) => Boolean(result.error)).map(({ name }) => name);
+  const checkedAt = new Date().toISOString();
   const available = (source: string) => !unavailableSources.includes(source);
 
   const taskRows = tasks.data ?? [];
@@ -151,6 +171,14 @@ export async function getOfficeIntelligenceBrief() {
     disclaimer: "This brief summarizes canonical Office records. It does not infer facts from missing data and does not execute company actions.",
     guardrail: "Read-only intelligence. KRAVIA Intelligence never executes payments, filings, deployments or other high-risk actions.",
     data_quality: { degraded: unavailableSources.length > 0, unavailable_sources: unavailableSources },
+    // Availability is based on the real query result. A query time is not a
+    // source-update time; null latest_record_at means freshness is unknown.
+    source_health: sources.map(({ name, result }) => ({
+      name,
+      status: result.error ? "UNAVAILABLE" : "AVAILABLE",
+      checked_at: checkedAt,
+      latest_record_at: result.error ? null : newestRecordTimestamp(result.data),
+    })),
     // Unknown counts must never be reported to the UI as zero.
     unavailable_metrics: [
       ...(!available("tasks") ? ["active_tasks","overdue_tasks","blocked_tasks"] : []),

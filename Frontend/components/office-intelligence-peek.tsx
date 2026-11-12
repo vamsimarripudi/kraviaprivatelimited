@@ -10,6 +10,7 @@ type Brief = {
   generated_at: string;
   attention: Attention[];
   data_quality: { degraded: boolean; unavailable_sources: string[] };
+  source_health?: Array<{ name: string; status: "AVAILABLE" | "UNAVAILABLE"; checked_at: string; latest_record_at: string | null }>;
 };
 
 /** Explicitly opened, read-only executive preview. It performs no background
@@ -78,7 +79,16 @@ export function OfficeIntelligencePeek() {
             <span><small>{entry.area} · {entry.severity}</small><strong>{entry.title}</strong>
               <em>{entry.detail}</em></span><ChevronRight size={17}/>
           </Link>)}</div>
-        <small className={styles.timestamp}>Updated {new Date(brief.generated_at).toLocaleTimeString("en-IN", {hour: "2-digit", minute: "2-digit"})}</small>
+        {brief.source_health?.length ? <details className={styles.sources}>
+          <summary>Source status · {brief.source_health.filter(source => source.status === "AVAILABLE").length}/{brief.source_health.length} available</summary>
+          <ul>{brief.source_health.map(source => <li key={source.name}>
+            <strong>{source.name}</strong>
+            <span>{source.status === "AVAILABLE" ? "Available" : "Unavailable"} · {source.latest_record_at
+              ? `Latest observed record ${new Date(source.latest_record_at).toLocaleDateString("en-IN")}`
+              : "Record freshness unknown"} · Checked {new Date(source.checked_at).toLocaleTimeString("en-IN", {hour:"2-digit",minute:"2-digit"})}</span>
+          </li>)}</ul>
+        </details> : null}
+        <small className={styles.timestamp}>Brief checked {new Date(brief.generated_at).toLocaleTimeString("en-IN", {hour: "2-digit", minute: "2-digit"})}</small>
       </> : null}
       <Link className={styles.openFull} href="/office/intelligence" onClick={() => setOpen(false)}>
         View full intelligence brief <ChevronRight size={16}/>
