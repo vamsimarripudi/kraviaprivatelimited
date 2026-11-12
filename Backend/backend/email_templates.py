@@ -279,12 +279,12 @@ def office_password_recovery_template(*, recipient_name: str, recovery_url: str,
         '</main></body></html>'
     )
     text_content = (
-        f"Hello {name},\\n\\n"
-        "An authorised KRAVIA Office administrator requested a password reset for your account.\\n"
-        f"Create a new password: {recovery_url}\\n\\n"
-        f"This link expires in {expiry_minutes} minutes and stops working after a successful reset.\\n"
-        "Other active Office sessions were revoked. No permissions were changed.\\n"
-        "If you did not expect this request, contact your Office administrator.\\n"
+        f"Hello {name},\n\n"
+        "An authorised KRAVIA Office administrator requested a password reset for your account.\n"
+        f"Create a new password: {recovery_url}\n\n"
+        f"This link expires in {expiry_minutes} minutes and stops working after a successful reset.\n"
+        "Other active Office sessions were revoked. No permissions were changed.\n"
+        "If you did not expect this request, contact your Office administrator.\n"
         "Never share this link, your password or a one-time code."
     )
     return TransactionalEmail(
