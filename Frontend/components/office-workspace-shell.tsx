@@ -198,6 +198,9 @@ export function OfficeWorkspaceShell({
     });
   }
 
+  const settingsHref = workspace === "finance" ? "/office/settings" : definition.basePath + "/settings";
+  const canOpenSettings = workspace === "office" || canSwitch;
+
   const navId = workspace + "-workspace-mega-navigation";
   return <OfficeWorkspaceProvider identity={identity} permissions={permissions}>
     <main className={"office office-v2 office-v4 office-modern workspace-shell workspace-" + workspace}
@@ -226,8 +229,8 @@ export function OfficeWorkspaceShell({
             </button>)}
           </div>
           <div className="office-sidebar-footer">
-            <OfficeNavLink href={definition.basePath + "/settings"} className="office-rail-action"
-              aria-label="Office settings"><Settings size={18} aria-hidden="true"/></OfficeNavLink>
+            {canOpenSettings ? <OfficeNavLink href={settingsHref} className="office-rail-action"
+              aria-label="Office settings"><Settings size={18} aria-hidden="true"/></OfficeNavLink> : null}
             {canSwitch ? <OfficeNavLink href={"/" + switchWorkspace + "/dashboard"}
                 className="office-rail-action"
                 aria-label={"Open " + (switchWorkspace === "finance" ? "Finance" : "Office")}>
@@ -316,7 +319,7 @@ export function OfficeWorkspaceShell({
               <OfficeCommandPalette commands={commands}/>
               <IdentityCard identity={identity}/>
               <div className="office-more-shortcuts">
-                <OfficeNavLink href={definition.basePath + "/settings"}><Cog size={15}/>Settings</OfficeNavLink>
+                {canOpenSettings ? <OfficeNavLink href={settingsHref}><Cog size={15}/>Settings</OfficeNavLink> : null}
                 <button type="button" onClick={switchTheme}>
                   {theme === "dark" ? <Sun size={15}/> : <Moon size={15}/>}
                   {theme === "dark" ? "Light theme" : "Dark theme"}
