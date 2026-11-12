@@ -182,7 +182,7 @@ export async function reissueOfficeInvitation(input: { invitationId: string }) {
   });
   return {
     ...result,
-    registration_url: new URL(result.registration_path, "https://www.kraviaprivatelimited.com").toString(),
+    registration_url: new URL(result.registration_path, "https://kraviaprivatelimited.com").toString(),
   };
 }
 

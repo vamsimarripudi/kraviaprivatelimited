@@ -3631,7 +3631,7 @@ def build_identity_router() -> APIRouter:
             message_id = send_office_invitation_email(
                 recipient_email=invite.email,
                 recipient_name=invite.display_name or "Colleague",
-                registration_url=f"{CANONICAL_PUBLIC_WEB_ORIGIN}/office/register?invite={raw_token}",
+                registration_url=f"https://kraviaprivatelimited.com/office/register?invite={raw_token}",
                 expiry_hours=max(1, (INVITE_TTL_SECONDS + 3599) // 3600),
                 delivery_id=f"office-invite-{invite.id}",
             )
