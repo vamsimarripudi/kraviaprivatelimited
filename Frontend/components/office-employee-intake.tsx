@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import { BadgeCheck, BookOpen, CheckCircle2, ChevronRight, CircleAlert, FileText, IdCard, ImagePlus, Save, ShieldCheck, Upload, UserRound, Wallet } from "lucide-react";
 import styles from "./office-employee-intake.module.css";
 
@@ -67,7 +67,7 @@ function fromProfile(profile:Profile|null,identity:Overview["identity"]):Draft{
   };
 }
 
-function ExtendedIntakeFields({draft,update}:{draft:Draft;update:React.Dispatch<React.SetStateAction<Draft>>}) {
+function ExtendedIntakeFields({draft,update}:{draft:Draft;update:Dispatch<SetStateAction<Draft>>}) {
   return <>
     <div className={styles.subsection}>
       <div className={styles.row}>
