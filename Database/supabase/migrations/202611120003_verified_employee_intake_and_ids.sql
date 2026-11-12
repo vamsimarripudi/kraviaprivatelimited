@@ -57,7 +57,7 @@ create table if not exists public.office_employee_intake_events (
 create table if not exists public.office_employee_mail_outbox (
   id uuid primary key default gen_random_uuid(),
   employee_user_id uuid not null references public.office_identity_users(user_id) on delete restrict,
-  recipient_email text not null check(recipient_email ~ '^[^[:space:]@]+@[^[:space:]@]+\\.[^[:space:]@]+$'),
+  recipient_email text not null check(recipient_email ~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$'),
   kind text not null check(kind in ('EMPLOYEE_ID_ISSUED','ONBOARDING_APPROVED')),
   reference_code text not null,
   status text not null default 'PENDING' check(status in ('PENDING','SENDING','SENT','UNKNOWN','REJECTED')),
