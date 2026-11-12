@@ -385,3 +385,7 @@
   [class*="list"],[class*="tableWrap"],[class*="drawer"],[class*="panel"],
   [class*="content"],[class*="scroll"],[class*="menu"]
 )::-webkit-scrollbar { width:0;height:0;display:none; }
+
+/* Top-right tools share a stable row on desktop and mobile. */
+.kravia-office .office-modern .office-topbar-tools{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex:none;min-width:0}
+@media(max-width:620px){.kravia-office .office-modern .office-topbar-tools{gap:5px}}
