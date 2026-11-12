@@ -127,7 +127,7 @@ export function OfficeWorktimeConsole() {
           <article><Timer size={20}/><small>Daily tracked work</small><strong>{formatHours(data.attendance_targets.today?.total_minutes ?? 0)}</strong><span>6 net hours on weekdays · {formatHours(data.attendance_targets.today?.remaining_minutes ?? 0)} remaining</span></article>
           <article><CalendarClock size={20}/><small>Current weekly worktime</small><strong>{formatHours(data.attendance_targets.current_week?.tracked_minutes ?? 0)}</strong><span>30h target Mon-Fri · {formatHours(data.attendance_targets.current_week?.remaining_minutes ?? 0)} remaining</span></article>
           <article><ShieldCheck size={20}/><small>Recorded / approved historical</small><strong>{formatHours(data.attendance_targets.total_minutes)}</strong><span>{formatHours(data.attendance_targets.approved_historical_minutes)} in historical approvals · selected month</span></article>
-          <article><Timer size={20}/><small>Potential overtime</small><strong>{formatHours(data.attendance_targets.potential_overtime_minutes)}</strong><span>Time beyond six weekday hours · not yet payable</span></article>
+          <article><Timer size={20}/><small>Potential overtime</small><strong>{formatHours(data.attendance_targets.potential_overtime_minutes)}</strong><span>Above six weekday hours + optional weekend work · not yet payable</span></article>
           <article><Wallet size={20}/><small>Approved time premiums</small><strong>{data.preview ? money(data.preview.totalAdditionalEarningsMinor) : "Not configured"}</strong><span>Independent policy and payroll review required</span></article>
           <article><CalendarClock size={20}/><small>Scheduled pay target</small><strong>{data.target_payment.date}</strong><span>6:00 P.M. IST · confirm bank holidays</span></article>
         </div>
@@ -150,7 +150,7 @@ export function OfficeWorktimeConsole() {
           <div className={styles.heading}><h3>Weekly 30-hour review</h3><small>Monday to Friday · net of unpaid breaks</small></div>
           <div className={styles.weekLedger}>{data.attendance_targets.weeks.map(week => <div className={styles.weekRow} key={week.monday}>
             <span><b>{week.monday} – {week.through}</b><small>{week.status === "HISTORICAL" ? "Historical / boundary week" : week.status === "TARGET_MET" ? "Weekly target met" : "Worktime still to verify"}</small></span>
-            <span><strong>{formatHours(week.tracked_minutes)}</strong><small>{week.target_minutes ? formatHours(week.target_minutes) + " goal · " + week.completed_weekdays + "/5 days ≥ 6h · " + formatHours(week.remaining_minutes) + " time remaining" : "Target not assessed for this week"}</small></span>
+            <span><strong>{formatHours(week.tracked_minutes)}</strong><small>{week.target_minutes ? formatHours(week.target_minutes) + " goal · " + week.completed_weekdays + "/5 days ≥ 6h · " + formatHours(week.remaining_minutes) + " time remaining · " + formatHours(week.weekend_minutes) + " weekend" : "Target not assessed for this week"}</small></span>
           </div>)}</div>
         </article>
         <div className={styles.columns}>
