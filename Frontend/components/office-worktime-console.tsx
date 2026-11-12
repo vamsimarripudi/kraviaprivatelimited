@@ -113,7 +113,7 @@ export function OfficeWorktimeConsole() {
       <div><span className={styles.eyebrow}>KRAVIA OFFICE · WORKFORCE</span><h2>Worktime, Flex Days & Wage Records</h2>
         <p>Flexible six-hour weekdays · 30 net hours Monday-Friday · no fixed shift · track breaks · OT requires independent approval</p></div>
       <div className={styles.filters}>
-        <label>Month<input aria-label="Payroll month" type="month" value={month} onChange={e => setMonth(e.target.value)}/></label>
+        <label>Month<input aria-label="Payroll month" type="month" min="2026-08" value={month} onChange={e => setMonth(e.target.value)}/></label>
         {data?.employees.length ? <label>Employee<select aria-label="Employee" value={employee} onChange={e => setEmployee(e.target.value)}>
           <option value="">My profile</option>{data.employees.map(person => <option key={person.user_id} value={person.user_id}>{person.display_name || "Employee"}</option>)}
         </select></label> : null}
