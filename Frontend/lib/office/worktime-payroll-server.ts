@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { requireOfficeActor, resolveOfficePermission, type OfficePermissionDecision } from "@/lib/office/permission-engine";
+import { monthlyFlexibleWorktime, type TrackedSession, type WorktimeBreak, type HistoricalWorkClaim } from "@/lib/office/flexible-worktime";
 import { calculateApprovedWorkPremiums, reconcileWageDebt, targetSalaryDate,
   type ApprovedWorkPolicy, type ApprovedWorkSession } from "@/lib/office/worktime-payroll-policy";
 
@@ -10,7 +11,7 @@ export class OfficeWorktimeError extends Error {
 type Actor = Awaited<ReturnType<typeof requireOfficeActor>>;
 type ClaimRow = {
   id: string; employee_user_id: string; attendance_session_id: string | null;
-  work_starts_at: string; work_ends_at: string; breaks: unknown; source_reference: string;
+  work_starts_at: string; work_ends_at: string; breaks: unknown; source_reference: string; source_kind: "RECORDED_SESSION" | "HISTORICAL_CORRECTION";
   review_note: string | null; requested_by: string; reviewed_by: string | null;
   status: "PENDING" | "APPROVED" | "REJECTED";
 };
@@ -87,10 +88,10 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
     can(actor, "people.update"), can(actor, "payroll.run.prepare"),
   ]);
   if (!self && !canReadOthers) throw new OfficeWorktimeError(403, "Employee record is not assigned to you");
-  const [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult, periodResult, flexResult] = await Promise.all([
+  const [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult, periodResult, flexResult, sessionsResult] = await Promise.all([
     actor.admin.from("office_identity_users").select("user_id,display_name,status").eq("user_id", employeeId).maybeSingle(),
     actor.admin.from("office_worktime_policy_versions").select("*").eq("employee_user_id", employeeId).lte("effective_from", range.last).order("effective_from", { ascending: false }).limit(12),
-    actor.admin.from("office_worktime_review_cases").select("id,employee_user_id,attendance_session_id,work_starts_at,work_ends_at,breaks,source_reference,review_note,requested_by,reviewed_by,status").eq("employee_user_id", employeeId).gte("work_starts_at", range.from).lt("work_starts_at", range.to).order("work_starts_at"),
+    actor.admin.from("office_worktime_review_cases").select("id,employee_user_id,attendance_session_id,work_starts_at,work_ends_at,breaks,source_kind,source_reference,review_note,requested_by,reviewed_by,status").eq("employee_user_id", employeeId).gte("work_starts_at", range.from).lt("work_starts_at", range.to).order("work_starts_at"),
     actor.admin.from("office_compensation_versions").select("id,monthly_gross_minor,currency,status").eq("employee_user_id", employeeId).eq("status", "APPROVED").lte("effective_from", range.first).order("effective_from", { ascending: false }).limit(1),
     actor.admin.from("office_salary_payslip_issues").select("id,payroll_result_id,employee_user_id,issue_code,snapshot,issued_at").eq("employee_user_id", employeeId).order("issued_at", { ascending: false }).limit(60),
     canReadOthers ? actor.admin.from("office_identity_users").select("user_id,display_name,status").eq("status", "ACTIVE").order("display_name").limit(500) : Promise.resolve({ data: [], error: null }),
@@ -102,12 +103,33 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
     actor.admin.from("office_flex_day_requests")
       .select("id,employee_user_id,earned_month,earned_week_monday,leave_date,qualifying_work_minutes,status,requested_by,reviewed_by,reviewed_at")
       .eq("employee_user_id", employeeId).eq("earned_month", month).order("requested_at", { ascending: false }).limit(20),
+    actor.admin.from("office_attendance_sessions")
+      .select("id,check_in_at,check_out_at,status")
+      .eq("user_id", employeeId).gte("check_in_at", range.from).lt("check_in_at", range.to)
+      .order("check_in_at", { ascending: true }).limit(400),
   ]);
-  for (const r of [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult, periodResult, flexResult]) check(r, "Office worktime evidence is unavailable");
+  for (const r of [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult, periodResult, flexResult, sessionsResult]) check(r, "Office worktime evidence is unavailable");
   if (!identityResult.data) throw new OfficeWorktimeError(404, "Employee not found");
   const policies = (policiesResult.data ?? []) as PolicyRow[];
   const claims = (claimsResult.data ?? []) as ClaimRow[];
   const issues = (issuesResult.data ?? []) as IssueRow[];
+  const sessions = (sessionsResult.data ?? []) as TrackedSession[];
+  const breakResult = sessions.length
+    ? await actor.admin.from("office_attendance_breaks")
+        .select("attendance_session_id,started_at,ended_at")
+        .in("attendance_session_id", sessions.map(session => session.id))
+    : { data: [], error: null };
+  check(breakResult, "Attendance break evidence is unavailable");
+  const serverNow = Date.now();
+  const breakMap: Record<string, WorktimeBreak[]> = {};
+  for (const row of breakResult.data ?? []) {
+    const key = String(row.attendance_session_id);
+    const item = { startAt: String(row.started_at), endAt: row.ended_at ? String(row.ended_at) : new Date(serverNow).toISOString() };
+    breakMap[key] = [...(breakMap[key] ?? []), item];
+  }
+  const attendanceTargets = monthlyFlexibleWorktime({
+    month, now: serverNow, sessions, breaksBySession: breakMap, historicalClaims: claims as HistoricalWorkClaim[],
+  });
   const policy = policies.find(x => x.status === "APPROVED");
   const compensation = (compensationResult.data ?? [])[0] as CompensationRow | undefined;
   let preview = null;
@@ -142,12 +164,12 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
   return {
     actor: { user_id: actor.identity.userId, roles: actor.identity.roles },
     employee: identityResult.data, employees: directoryResult.data ?? [], payroll_periods: periodResult.data ?? [], flex_days: flexResult.data ?? [], month, target_payment: targetSalaryDate(month),
-    approved_policy: policy ?? null, policies, claims, preview,
+    approved_policy: policy ?? null, policies, claims, preview, attendance_targets: attendanceTargets,
     approved_monthly_gross_minor: compensation ? Number(compensation.monthly_gross_minor) : null,
     approved_gross_currency: compensation?.currency ?? null,
     salary_slips: salarySlips,
     capabilities: { self, review_worktime: canReviewWorktime && actor.identity.roles.some(role => role === "OWNER" || role === "DIRECTOR"), prepare_payroll: canPreparePayroll },
-    notice: "Only independently approved worktime is included. Unpaid salary is not marked PAID without verified bank evidence. No policy or payroll is created automatically.",
+    notice: "Attendance targets reflect tracked net time plus independently approved historical corrections; they are not wage evidence. Unpaid salary is not marked PAID without verified bank evidence. No overtime rates or payroll are created automatically.",
   };
 }
 export async function officeWorktimeAction(input:
@@ -166,11 +188,20 @@ export async function officeWorktimeAction(input:
   let rpcName: string;
   let params: Record<string, unknown>;
   switch (input.action) {
-    case "SUBMIT":
+    case "SUBMIT": {
+      const start = Date.parse(input.startAt);
+      const end = Date.parse(input.endAt);
+      if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end || end > Date.now() + 60_000) {
+        throw new OfficeWorktimeError(400, "Work evidence must describe a completed, non-future interval");
+      }
+      if (input.sourceKind === "HISTORICAL_CORRECTION" && start < Date.parse("2026-07-31T18:30:00Z")) {
+        throw new OfficeWorktimeError(400, "Historical attendance entry starts on 1 August 2026 (IST)");
+      }
       rpcName = "office_worktime_submit";
       params = { p_actor: user, p_employee: input.employeeId || user, p_attendance: input.sessionId || null, p_start: input.startAt, p_end: input.endAt,
         p_breaks: input.breaks, p_source_kind: input.sourceKind, p_source_reference: input.sourceReference, p_reason: input.reason };
       break;
+    }
     case "DECIDE":
       if (!actor.identity.roles.some(role => role === "OWNER" || role === "DIRECTOR") || !await can(actor, "people.update")) throw new OfficeWorktimeError(403, "Director People approval required");
       rpcName = "office_worktime_decide";
