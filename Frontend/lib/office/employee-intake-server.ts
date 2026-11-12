@@ -62,7 +62,7 @@ async function log(current: Actor, employeeId: string, event: string, metadata: 
 export async function employeeIntakeOverview(employeeId?: string) {
   const current = await actor(), id=employeeId || current.identity.userId;
   if (id !== current.identity.userId) await reviewer(current,id,"people.update");
-  const [profile, reference, employment, identity] = await Promise.all([
+  const [profile, reference, employment, identity, employeeMail] = await Promise.all([
     current.admin.from("office_employee_intake_profiles").select(
       "legal_name,preferred_name,contact_phone,date_of_birth,current_address,education,emergency_contacts,prior_experience,tax_declarations,certificates,bank_account_last4,bank_ifsc,bank_account_holder,bank_verified_at,bank_verification_evidence,photo_storage_reference,signature_evidence_reference,policy_acknowledged_at,status,submitted_at,reviewed_by,reviewed_at,review_note,revision"
     ).eq("employee_user_id",id).maybeSingle(),
@@ -71,6 +71,11 @@ export async function employeeIntakeOverview(employeeId?: string) {
       .eq("identity_user_id",id).order("created_at",{ascending:false}).limit(1),
     current.admin.from("office_identity_users").select("display_name,job_title,primary_department,status")
       .eq("user_id",id).maybeSingle(),
+    // A provider acceptance is not proof of inbox delivery. Do not turn an
+    // unavailable outbox into a fabricated successful message.
+    current.admin.from("office_employee_mail_outbox").select("status,submitted_at")
+      .eq("employee_user_id",id).eq("kind","EMPLOYEE_ID_ISSUED")
+      .order("created_at",{ascending:false}).limit(1),
   ]);
   for(const x of [profile,reference,employment,identity])check(x.error,"Employee intake record is unavailable");
   if(!identity.data)throw new EmployeeIntakeError(404,"Employee identity does not exist");
@@ -80,6 +85,9 @@ export async function employeeIntakeOverview(employeeId?: string) {
     profile:profile.data || null,
     permanent_employee_id:reference.data?.reference_code || null,
     issued_at:reference.data?.issued_at || null,
+    employee_mail_status:employeeMail.error ? "UNAVAILABLE" :
+      employeeMail.data?.[0]?.status || (reference.data?.reference_code ? "UNKNOWN" : "NOT_QUEUED"),
+    employee_mail_submitted_at:employeeMail.error ? null : employeeMail.data?.[0]?.submitted_at || null,
     bank_encryption_available:(() => {
       const key=process.env.OFFICE_EMPLOYEE_DATA_ENCRYPTION_KEY?.trim();
       return Boolean(key&&Buffer.from(key,"base64").length===32);
