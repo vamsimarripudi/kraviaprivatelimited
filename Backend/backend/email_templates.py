@@ -230,6 +230,70 @@ def office_invitation_template(*, recipient_name: str, registration_url: str, ex
     )
 
 
+
+def office_password_recovery_template(*, recipient_name: str, recovery_url: str, expiry_minutes: int) -> TransactionalEmail:
+    """Send only the registered Office account holder a private password-reset link."""
+    name = recipient_name.strip() or "Colleague"
+    if len(name) > 160:
+        raise ValueError("Invalid recovery recipient")
+    parsed = urlsplit(recovery_url)
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname not in {"kraviaprivatelimited.com", "www.kraviaprivatelimited.com"}
+        or parsed.username or parsed.password or parsed.port is not None
+        or parsed.path != "/office/reset-password"
+        or not re.fullmatch(r"token=[A-Za-z0-9._~-]{64,4096}", parsed.query)
+        or parsed.fragment
+    ):
+        raise ValueError("Invalid Office recovery URL")
+    if not 1 <= expiry_minutes <= 10080:
+        raise ValueError("Invalid recovery expiry")
+    safe_url = escape(recovery_url, quote=True)
+    safe_name = escape(name)
+    html_content = (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1"></head>'
+        '<body style="margin:0;background:#f3f5f8;color:#172235;font-family:Arial,sans-serif">'
+        '<main style="max-width:560px;margin:26px auto;padding:30px;background:#fff;'
+        'border:1px solid #d7dfea;border-radius:18px">'
+        '<p style="font:700 11px/18px Arial,sans-serif;color:#1559ce;letter-spacing:1.3px">'
+        'KRAVIA PRIVATE LIMITED</p>'
+        '<h1 style="font:700 25px/33px Arial,sans-serif;color:#172235">'
+        'Reset your Office password</h1>'
+        f'<p style="font:15px/24px Arial,sans-serif">Hello {safe_name},</p>'
+        '<p style="font:14px/24px Arial,sans-serif;color:#495467">'
+        'An authorised Office access administrator requested a password reset for your account. '
+        'Use this secure link to choose a new password. This does not grant new workspace permissions.</p>'
+        f'<a href="{safe_url}" style="display:inline-block;background:#1559ce;color:#fff;'
+        'text-decoration:none;font:700 15px/22px Arial,sans-serif;padding:14px 22px;'
+        'border-radius:10px">Create a new password</a>'
+        f'<p style="font:13px/21px Arial,sans-serif;color:#515d70">'
+        f'This private link expires in {expiry_minutes} minutes and stops working after a successful reset. '
+        'Other signed-in Office sessions were revoked when this link was issued.</p>'
+        '<p style="font:12px/19px Arial,sans-serif;color:#515d70;word-break:break-all">'
+        'If the button is blocked, paste this URL into your browser: '
+        f'<a href="{safe_url}" style="color:#1559ce">{safe_url}</a></p>'
+        '<p style="font:12px/19px Arial,sans-serif;color:#515d70">'
+        'If you did not expect this request, contact your Office administrator. '
+        'Never share this link, your password or a one-time code.</p>'
+        '</main></body></html>'
+    )
+    text_content = (
+        f"Hello {name},\n\n"
+        "An authorised KRAVIA Office administrator requested a password reset for your account.\n"
+        f"Create a new password: {recovery_url}\n\n"
+        f"This link expires in {expiry_minutes} minutes and stops working after a successful reset.\n"
+        "Other active Office sessions were revoked. No permissions were changed.\n"
+        "If you did not expect this request, contact your Office administrator.\n"
+        "Never share this link, your password or a one-time code."
+    )
+    return TransactionalEmail(
+        subject="Reset your KRAVIA Office password",
+        html_content=html_content,
+        text_content=text_content,
+    )
+
+
 def office_workspace_ready_template(*, recipient_name: str) -> TransactionalEmail:
     """Sent once after Founder activation, not on page visits or existing accounts."""
     name = (recipient_name.strip() or "Colleague")[:160]

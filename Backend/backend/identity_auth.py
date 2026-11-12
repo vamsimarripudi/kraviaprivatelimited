@@ -53,6 +53,7 @@ from .email_delivery import (
     send_office_device_approval,
     send_office_email_verification_code,
     send_office_invitation_email,
+    send_office_password_recovery_email,
     send_office_workspace_ready_email,
 )
 
@@ -3645,12 +3646,39 @@ def build_identity_router() -> APIRouter:
             },
         )
         db.commit()
+        # Email delivery is attempted only after the authorised mutation commits.
+        # Unknown provider outcomes must not be blindly retried.
+        delivery = "ACCEPTED"
+        message_id = None
+        try:
+            message_id = send_office_password_recovery_email(
+                recipient_email=target.email,
+                recipient_name=target.display_name or "Colleague",
+                recovery_url=f"https://kraviaprivatelimited.com/office/reset-password?token={recovery_token}",
+                expiry_minutes=max(1, (RECOVERY_TTL_SECONDS + 59) // 60),
+                delivery_id=f"office-password-recovery-{user_id}-{hashlib.sha256(recovery_token.encode()).hexdigest()[:24]}",
+            )
+        except EmailDeliveryUnavailable:
+            delivery = "UNAVAILABLE"
+        except EmailDeliveryRejected:
+            delivery = "REJECTED"
+        except EmailDeliveryUnknown:
+            delivery = "UNKNOWN"
+        _event(
+            db, f"PASSWORD_RECOVERY_EMAIL_{delivery}", request,
+            user_id=user_id, session_id=actor["session_id"],
+            metadata={
+                "issued_by": actor["user_id"],
+                "delivery_status": delivery,
+                "provider_message_id": message_id if delivery == "ACCEPTED" else None,
+            },
+        )
+        db.commit()
         return {
             "issued": True,
             "target_user_id": user_id,
             "expires_in": RECOVERY_TTL_SECONDS,
-            "recovery_token": recovery_token,
-            "recovery_path": f"/office/reset-password?token={recovery_token}",
+            "email_delivery": delivery,
             "revoked_sessions": len(active_sessions),
         }
 

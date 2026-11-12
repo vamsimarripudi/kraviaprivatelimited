@@ -56,7 +56,7 @@ describe("KRAVIA Office responsive mega navigation and compact access", () => {
     expect(accessCss).toContain(".roleTag");
     expect(access).toContain("inviteDisclosure");
     expect(access).toContain("userDisclosure");
-    expect(access).toContain("Roles · Team · MFA · Review");
+    expect(access).toContain("Roles · Team · Password reset · MFA · Review");
   });
   it("limits live People session reads to non-secret fields", () => {
     expect(sessionRead).toContain("on public.office_auth_sessions_v2 to service_role");

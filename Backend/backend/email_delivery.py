@@ -21,6 +21,7 @@ from .email_templates import (
     office_device_approval_template,
     office_email_verification_template,
     office_invitation_template,
+    office_password_recovery_template,
     office_workspace_ready_template,
     public_form_follow_up_template,
     public_form_receipt_template,
@@ -226,6 +227,24 @@ def send_office_invitation_email(
         delivery_id=delivery_id,
         tags=["kravia-office-auth", "invitation"],
     )
+
+
+def send_office_password_recovery_email(
+    *, recipient_email: str, recipient_name: str,
+    recovery_url: str, expiry_minutes: int, delivery_id: str,
+) -> str | None:
+    """Send a reset link to the registered address after an explicit admin action."""
+    return _send_transactional_email(
+        recipient_email=recipient_email,
+        template=office_password_recovery_template(
+            recipient_name=recipient_name,
+            recovery_url=recovery_url,
+            expiry_minutes=expiry_minutes,
+        ),
+        delivery_id=delivery_id,
+        tags=["kravia-office-auth", "password-recovery"],
+    )
+
 
 def send_office_workspace_ready_email(
     *, recipient_email: str, recipient_name: str, delivery_id: str,

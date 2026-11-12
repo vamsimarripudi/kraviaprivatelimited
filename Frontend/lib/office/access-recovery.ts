@@ -246,8 +246,7 @@ export async function issueOfficePasswordRecovery(input: { targetUserId: string;
     issued: true;
     target_user_id: string;
     expires_in: number;
-    recovery_token: string;
-    recovery_path: string;
+    email_delivery: "ACCEPTED" | "UNAVAILABLE" | "REJECTED" | "UNKNOWN";
     revoked_sessions: number;
   }>(
     accessToken,
@@ -267,6 +266,7 @@ export async function issueOfficePasswordRecovery(input: { targetUserId: string;
       provider: "KRAVIA_FIRST_PARTY",
       expires_in: result.expires_in,
       revoked_sessions: result.revoked_sessions,
+      email_delivery: result.email_delivery,
     },
   });
 
@@ -274,7 +274,7 @@ export async function issueOfficePasswordRecovery(input: { targetUserId: string;
     issued: true as const,
     target_user_id: result.target_user_id,
     expires_in: result.expires_in,
-    recovery_url: result.recovery_path,
+    email_delivery: result.email_delivery,
     revoked_sessions: result.revoked_sessions,
   };
 }

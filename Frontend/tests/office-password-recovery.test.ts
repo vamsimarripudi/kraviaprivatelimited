@@ -27,7 +27,7 @@ describe("KRAVIA Office password and recovery controls", () => {
     expect(securitySettings).toContain("Change password");
   });
 
-  it("supports provider-free single-use administrator recovery links", () => {
+  it("emails administrator-issued recovery links to the registered Office account without exposing them", () => {
     expect(backendAuth).toContain('@router.post("/users/{user_id}/recovery-link")');
     expect(backendAuth).toContain('"purpose": "password_recovery"');
     expect(backendAuth).toContain('"pwdv": _password_version(user)');
@@ -35,8 +35,16 @@ describe("KRAVIA Office password and recovery controls", () => {
     expect(backendAuth).toContain("OWNER recovery requires the protected break-glass procedure");
     expect(adminRecoveryRoute).toContain("officeMutationIsSameOrigin");
     expect(adminRecoveryRoute).toContain("issueOfficePasswordRecovery");
-    expect(accessPanel).toContain("Issue recovery link");
-    expect(accessPanel).toContain("Private recovery link");
+    expect(accessPanel).toContain("Email password reset");
+    expect(accessPanel).toContain("Reset email submitted");
+    expect(accessPanel).not.toContain("Private recovery link");
+    expect(backendAuth).toContain("send_office_password_recovery_email");
+    expect(backendAuth).toContain('"email_delivery": delivery');
+    expect(backendAuth).toContain("PASSWORD_RECOVERY_EMAIL_");
+    const accessRecovery = readFileSync(new URL("../lib/office/access-recovery.ts", import.meta.url), "utf8");
+    expect(accessRecovery).toContain("email_delivery: result.email_delivery");
+    expect(accessRecovery).not.toContain("recovery_url: result.recovery_path");
+    expect(accessRecovery).not.toContain("recovery_token: string");
   });
 
   it("provides a separate Founder break-glass recovery path", () => {

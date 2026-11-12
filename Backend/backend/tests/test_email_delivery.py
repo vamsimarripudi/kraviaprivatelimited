@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from backend import email_delivery
-from backend.email_templates import kravia_welcome_template, office_device_approval_template, office_email_verification_template, office_invitation_template, office_workspace_ready_template, public_form_follow_up_template, public_form_receipt_template, public_intake_internal_notification_template
+from backend.email_templates import kravia_welcome_template, office_device_approval_template, office_email_verification_template, office_invitation_template, office_password_recovery_template, office_workspace_ready_template, public_form_follow_up_template, public_form_receipt_template, public_intake_internal_notification_template
 
 
 class FakeResponse:
@@ -73,6 +73,45 @@ def test_device_approval_template_names_the_device_without_creating_a_session():
     assert "company-provided app" in template.text_content
     assert "original device" in template.text_content
     assert "access_token" not in template.html_content
+
+
+
+def test_password_recovery_email_is_to_registered_mailbox_only(monkeypatch):
+    url = "https://kraviaprivatelimited.com/office/reset-password?token=" + "a" * 80
+    template = office_password_recovery_template(
+        recipient_name="Example <Member>",
+        recovery_url=url,
+        expiry_minutes=30,
+    )
+    assert template.subject == "Reset your KRAVIA Office password"
+    assert "Create a new password" in template.html_content
+    assert "&lt;Member&gt;" in template.html_content
+    assert url in template.text_content
+    with pytest.raises(ValueError, match="Invalid Office recovery URL"):
+        office_password_recovery_template(
+            recipient_name="Example Member",
+            recovery_url="https://attacker.example/office/reset-password?token=" + "a" * 80,
+            expiry_minutes=30,
+        )
+
+    FakeClient.calls = []
+    FakeClient.response = FakeResponse(201, {"messageId": "mail-reset-1"})
+    monkeypatch.setenv("BREVO_API_KEY", "test-only-secret")
+    monkeypatch.delenv("BREVO_SENDER_EMAIL", raising=False)
+    monkeypatch.setattr(email_delivery.httpx, "Client", FakeClient)
+    result = email_delivery.send_office_password_recovery_email(
+        recipient_email="registered@example.test",
+        recipient_name="Registered Employee",
+        recovery_url=url,
+        expiry_minutes=30,
+        delivery_id="office-recovery-test-request-1",
+    )
+    assert result == "mail-reset-1"
+    payload = FakeClient.calls[0]["json"]
+    assert payload["to"] == [{"email": "registered@example.test"}]
+    assert payload["sender"]["email"] == "hello@kraviaprivatelimited.com"
+    assert payload["tags"][-1] == "password-recovery"
+    assert payload["headers"]["Idempotency-Key"] == "office-recovery-test-request-1"
 
 
 def test_public_form_receipt_has_kravia_header_footer_and_no_request_body():
