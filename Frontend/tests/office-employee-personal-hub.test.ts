@@ -7,6 +7,11 @@ const worktime = readFileSync(new URL("../lib/office/worktime-payroll-server.ts"
 const roles = readFileSync(new URL("../lib/office/role-package-server.ts", import.meta.url), "utf8");
 
 describe("KRAVIA personal employee profile", () => {
+  it("renders the verified employee-specific title, not a shared Founder fallback",()=>{
+    expect(profile).toContain('roles?.employee?.job_title || "Role pending assignment"');
+    expect(profile).not.toContain('"Executive · AI Full-Stack Developer"');
+  });
+
   it("reads only real approved evidence from existing authenticated employee endpoints", () => {
     expect(profile).toContain('fetchPrivate<Roles>("/api/office-role-packages")');
     expect(profile).toContain('fetchPrivate<Worktime>("/api/office-worktime")');

@@ -76,12 +76,10 @@ export function OfficeEmployeeSummary() {
   }, [refresh]);
 
   const latest = roles?.applications?.[0];
-  const registeredTitle = latest?.snapshot.primary_position_code.replaceAll("_", " ") ||
-    (roles?.employee?.job_title || "Role pending assignment");
-  // Staff display preference does not rewrite any statutory Founder or OWNER records.
-  const title = roles?.employee?.job_title === "Founder" &&
-    roles.employee.primary_department === "EXECUTIVE" && !latest ?
-    "Executive · AI Full-Stack Developer" : registeredTitle;
+  // Display the real governed position/title. Never assign a personal
+  // designation to other Founder or executive identities by inference.
+  const title = latest?.snapshot.primary_position_code.replaceAll("_", " ") ||
+    roles?.employee?.job_title || "Role pending assignment";
   const department = roles?.employee?.primary_department || "Unassigned";
   const approvedTasks = roles?.tasks?.filter(item => item.status === "VERIFIED").length ?? 0;
   const requiredTasks = roles?.tasks?.filter(item => item.required).length ?? 0;
