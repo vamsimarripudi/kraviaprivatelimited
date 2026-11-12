@@ -113,6 +113,7 @@ export function OfficeWorkspaceShell({
   const [mobileNav, setMobileNav] = useState(false);
   const [megaExpanded, setMegaExpanded] = useState(true);
   const [pickedCategory, setPickedCategory] = useState<string | null>(null);
+  const [pickedSubgroup, setPickedSubgroup] = useState<string | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>("light");
   const moreRef = useRef<HTMLDivElement>(null);
@@ -134,6 +135,8 @@ export function OfficeWorkspaceShell({
   const selectedCategory = pickedCategory && categories.includes(pickedCategory) ? pickedCategory : currentCategory;
   const links = entries.filter(([slug,value]) => categoryOf(workspace,slug,value) === selectedCategory);
   const subgroups = [...new Set(links.map(([,value]) => value.group))];
+  const currentSubgroup = selectedCategory === currentCategory && item ? item.group : subgroups[0];
+  const expandedSubgroup = pickedSubgroup ?? currentSubgroup;
   const commands = useMemo(() => navigationCommands(workspace,entries), [entries,workspace]);
   const prefetchedRoutes = useMemo(() => entries.map(([slug]) => definition.basePath + "/" + slug),
     [entries,definition.basePath]);
@@ -158,7 +161,7 @@ export function OfficeWorkspaceShell({
   }, []);
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
-      setPickedCategory(null); setMobileNav(false); setMoreOpen(false);
+      setPickedCategory(null); setPickedSubgroup(null); setMobileNav(false); setMoreOpen(false);
     });
     return () => window.cancelAnimationFrame(frame);
   }, [pathname]);
@@ -217,7 +220,7 @@ export function OfficeWorkspaceShell({
               data-active={selectedCategory === name}
               onClick={() => {
                 if (selectedCategory === name && megaExpanded) setMegaExpanded(false);
-                else { setPickedCategory(name); setMegaExpanded(true); }
+                else { setPickedCategory(name); setPickedSubgroup(null); setMegaExpanded(true); }
               }}>
               <CategoryIcon name={name}/><span>{name}</span>
             </button>)}
@@ -251,8 +254,12 @@ export function OfficeWorkspaceShell({
               onClick={() => setMobileNav(false)}><X size={18}/></button>
           </div>
           <nav id={navId} className="office-category-links" aria-label={definition.label + " navigation"}>
-            {subgroups.map(group => <details className="office-mega-subgroup" key={selectedCategory + ":" + group} open>
-              <summary><ChevronDown size={15}/>{group}</summary>
+            {subgroups.map(group => <details className="office-mega-subgroup" key={selectedCategory + ":" + group}
+              open={expandedSubgroup === group}>
+              <summary onClick={(event) => {
+                event.preventDefault();
+                setPickedSubgroup(expandedSubgroup === group ? "__CLOSED__" : group);
+              }}><ChevronDown size={15}/>{group}</summary>
               <div className="office-mega-link-list">
                 {links.filter(([,value]) => value.group === group).map(([slug,value]) => {
                   const Icon = iconBySlug[slug] ?? Folders;
@@ -265,8 +272,11 @@ export function OfficeWorkspaceShell({
             </details>)}
             {workspace === "office" && identity.roles.includes("OWNER") &&
               selectedCategory === "Administration" ?
-              <details className="office-mega-subgroup">
-                <summary><ChevronDown size={15}/>Public content</summary>
+              <details className="office-mega-subgroup" open={expandedSubgroup === "Public content"}>
+                <summary onClick={(event) => {
+                  event.preventDefault();
+                  setPickedSubgroup(expandedSubgroup === "Public content" ? "__CLOSED__" : "Public content");
+                }}><ChevronDown size={15}/>Public content</summary>
                 <div className="office-mega-link-list">
                   <OfficeNavLink href="/office/resource-publishing"><Folders size={16}/>Resource publishing</OfficeNavLink>
                   <OfficeNavLink href="/office/newsletters"><FileText size={16}/>Newsletter approvals</OfficeNavLink>
