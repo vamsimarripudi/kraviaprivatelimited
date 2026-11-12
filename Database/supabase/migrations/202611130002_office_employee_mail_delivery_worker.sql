@@ -132,8 +132,8 @@ BEGIN
       FROM candidates c WHERE c.id=o.id
       RETURNING o.id,o.claim_token,o.recipient_email,o.reference_code,o.employee_user_id
   ), recorded AS (
-    INSERT INTO public.office_employee_mail_delivery_events(outbox_id,event_type)
-      SELECT c.id,'CLAIMED' FROM claimed c RETURNING outbox_id
+    INSERT INTO public.office_employee_mail_delivery_events AS events(outbox_id,event_type)
+      SELECT c.id,'CLAIMED' FROM claimed c RETURNING events.outbox_id
   )
   SELECT c.id,c.claim_token,c.recipient_email,c.reference_code,
     coalesce(nullif(pg_catalog.btrim(u.display_name),''),'Colleague')
