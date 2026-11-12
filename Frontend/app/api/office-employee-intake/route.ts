@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { officeMutationIsSameOrigin } from "@/lib/office/request-security";
 import {
-  EmployeeIntakeError, employeeIntakeOverview, saveEmployeeIntake,
+  EmployeeIntakeError, employeeIntakeOverview, employeeIntakeDirectory, saveEmployeeIntake,
   submitEmployeeIntake, reviewEmployeeIntake, verifyEmployeeBank, issuePermanentEmployeeId,
 } from "@/lib/office/employee-intake-server";
 
@@ -51,7 +51,12 @@ function failure(error: unknown) {
     "Verified employee onboarding is temporarily unavailable"},{status,headers:noCache});
 }
 export async function GET(request: Request) {
-  const employee = new URL(request.url).searchParams.get("employee");
+  const params = new URL(request.url).searchParams;
+  if(params.get("directory")==="1"){
+    try{return NextResponse.json(await employeeIntakeDirectory(),{headers:noCache});}
+    catch(error){return failure(error);}
+  }
+  const employee = params.get("employee");
   if (employee && !uuid.safeParse(employee).success)
     return NextResponse.json({detail:"Invalid employee identifier"},{status:400,headers:noCache});
   try {
