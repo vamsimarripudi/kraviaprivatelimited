@@ -1,9 +1,12 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createElement } from "react";
+import { render } from "@react-email/render";
 
 import { PLACEHOLDERS, renderTemplateManifest } from "../templates/kravia.js";
 import { OFFICE_LIFECYCLE_DISPATCH_ENABLED, validateOfficeLifecycleCatalog } from "../templates/office-lifecycle-catalog.js";
+import { KraviaEmailShell, KraviaEmailHero, KraviaOtpCode, KraviaEmailActionButton } from "../templates/kravia-email-components.js";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const target = resolve(scriptDirectory, "..", "..", "Backend", "backend", "generated_email_templates.json");
@@ -11,6 +14,30 @@ const check = process.argv.includes("--check");
 
 validateOfficeLifecycleCatalog();
 if (OFFICE_LIFECYCLE_DISPATCH_ENABLED !== false) throw new Error("Employee lifecycle send gate must remain disabled until signed event-to-template approval");
+const renderedEmail = await render(createElement(KraviaEmailShell, {
+  preview:"KRAVIA Office verification",
+  children:createElement(KraviaEmailHero,{
+    eyebrow:"SECURITY",
+    title:"Email preview",
+    children:createElement(KraviaOtpCode,{code:"123456"}),
+  }),
+}));
+if (!renderedEmail.includes("kravia-header-lockup-v2.png") ||
+    !renderedEmail.includes("123456") && !renderedEmail.includes(">1</td>") ||
+    /<script\\b|javascript:/i.test(renderedEmail)) {
+  throw new Error("Corporate React Email preview is unsafe or missing required content");
+}
+let externalLinkRejected = false;
+try {
+  await render(createElement(KraviaEmailActionButton, {
+    href:"https://untrusted.example.net/office/dashboard",
+    children:"Unsafe link",
+  }));
+} catch {
+  externalLinkRejected = true;
+}
+if (!externalLinkRejected) throw new Error("Office email CTA must reject external origins");
+
 
 const requiredTokens = {
   office_sign_in_code: [PLACEHOLDERS.code, PLACEHOLDERS.expiryMinutes],
