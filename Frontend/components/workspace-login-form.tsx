@@ -705,12 +705,12 @@ export function WorkspaceLoginForm({
   }
 
   return (
-    <form className={styles.form} onSubmit={signIn} noValidate>
+    <form className={styles.form} onSubmit={signIn} noValidate data-office-login-release="2026-11-12-email-otp-choice">
       <div className={styles.icon}><KeyRound /></div>
       <SecurityJourney phase={phase} error={Boolean(status) && statusTone === "error"} />
       <p className={styles.eyebrow}>{workspace === "finance" ? "KRAVIA FINANCE · OFFICIAL ACCESS" : "KRAVIA OFFICE · OFFICIAL ACCESS"}</p>
       <h2>Sign in to KRAVIA {workspace === "finance" ? "Finance" : "Office"}</h2>
-      <p className={styles.intro}>Private workspace for authorised KRAVIA personnel.</p>
+      <p className={styles.intro}>Enter your password first, then use KRAVIA Authenticator or corporate email OTP if enabled for your account.</p>
 
       {configurationRequired ? <p className={styles.alert}>Internal identity service is not active on this deployment.</p> : null}
       {reason === "mfa_required" ? <p className={styles.alert}>Complete multi-factor verification before opening this workspace.</p> : null}
