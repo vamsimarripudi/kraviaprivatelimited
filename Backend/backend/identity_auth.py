@@ -681,6 +681,7 @@ def _qr_scanner_context(
         db,
         require_aal2=True,
         required_purpose=AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE,
+        allow_pending_workspace=True,
     )
     if not _known_browser_device(
         db,
@@ -1078,6 +1079,16 @@ def _identity_metadata(db: Session, user_id: str) -> dict[str, Any]:
     return {"department": row.get("primary_department"), "authorization_version": version}
 
 
+def _workspace_approval_required() -> bool:
+    """Enforce Founder activation in production; legacy local test setup may opt out."""
+    default = "true" if os.getenv("APP_ENV", "").strip().lower() == "production" else "false"
+    return os.getenv("OFFICE_WORKSPACE_APPROVAL_REQUIRED", default).strip().lower() in {"1", "true", "yes"}
+
+
+def _workspace_status(user: OfficeAuthUser) -> str:
+    return str(user.workspace_status or "ACTIVE").upper()
+
+
 def _safe_identity(db: Session, user: OfficeAuthUser, aal: str) -> dict[str, Any]:
     roles = _active_roles(db, user.id)
     is_play_reviewer = _active_play_reviewer_access(db, user) is not None
@@ -1088,6 +1099,7 @@ def _safe_identity(db: Session, user: OfficeAuthUser, aal: str) -> dict[str, Any
         "display_name": user.display_name,
         "roles": roles,
         "access_status": _identity_status(db, user),
+        "workspace_status": _workspace_status(user),
         "department": metadata["department"],
         "authorization_version": metadata["authorization_version"],
         "aal": aal,
@@ -1245,6 +1257,7 @@ def authenticate_office_access(
     require_aal2: bool = False,
     required_purpose: Literal["OFFICE", "AUTHENTICATOR_ACTIVATION"] = OFFICE_SESSION_PURPOSE,
     allowed_purposes: frozenset[str] | None = None,
+    allow_pending_workspace: bool = False,
 ) -> dict[str, Any]:
     claims = _decode_access(token)
     user_id = str(claims.get("sub") or "")
@@ -1315,6 +1328,9 @@ def authenticate_office_access(
         raise HTTPException(status_code=403, detail="KRAVIA Office access is not active")
     if not roles and not review_access:
         raise HTTPException(status_code=403, detail="No KRAVIA Office role is assigned")
+    if _workspace_approval_required() and not allow_pending_workspace and not review_access:
+        if _workspace_status(user) != "ACTIVE":
+            raise HTTPException(status_code=403, detail="KRAVIA Office workspace activation is pending")
 
     # Do not write last_seen_at on every business API request. Session activity is
     # already captured by the dedicated auth/session heartbeat paths; avoiding a
@@ -1591,7 +1607,7 @@ def build_identity_router() -> APIRouter:
         Sender authentication, delivery uncertainty, cooldown and attempts
         follow the existing Brevo-backed OTP boundary.
         """
-        ctx = authenticate_office_access(_bearer_token(authorization), db)
+        ctx = authenticate_office_access(_bearer_token(authorization), db, allow_pending_workspace=True)
         user = db.get(OfficeAuthUser, ctx["user_id"])
         if ctx["aal"] != "aal1" or not user or not _invited_member_email_otp_allowed(db, user):
             raise HTTPException(status_code=403, detail="Email verification is not available for this Office account")
@@ -1684,7 +1700,7 @@ def build_identity_router() -> APIRouter:
         db: Session = Depends(get_db),
     ):
         """One-time verification upgrades only the original password session."""
-        ctx = authenticate_office_access(_bearer_token(authorization), db)
+        ctx = authenticate_office_access(_bearer_token(authorization), db, allow_pending_workspace=True)
         user = db.get(OfficeAuthUser, ctx["user_id"])
         if ctx["aal"] != "aal1" or not user or not _invited_member_email_otp_allowed(db, user):
             raise HTTPException(status_code=403, detail="Email verification is not available for this Office account")
@@ -2081,7 +2097,7 @@ def build_identity_router() -> APIRouter:
         it has no browser proof and can only be accepted by the same user's
         already trusted Authenticator phone.
         """
-        context = authenticate_office_access(_bearer_token(authorization), db, require_aal2=False)
+        context = authenticate_office_access(_bearer_token(authorization), db, require_aal2=False, allow_pending_workspace=True)
         session = db.get(OfficeAuthSession, context["session_id"])
         user = db.get(OfficeAuthUser, context["user_id"])
         if not session or not user or session.purpose != OFFICE_SESSION_PURPOSE or session.aal != "aal1":
@@ -2347,6 +2363,7 @@ def build_identity_router() -> APIRouter:
             db,
             require_aal2=True,
             required_purpose=AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE,
+        allow_pending_workspace=True,
         )
         user = db.execute(
             select(OfficeAuthUser).where(OfficeAuthUser.id == context["user_id"]).with_for_update()
@@ -2434,7 +2451,7 @@ def build_identity_router() -> APIRouter:
     ):
         # Retained as an empty compatibility response for older Office clients.
         # Cross-account phone approvals are deliberately unavailable.
-        authenticate_office_access(_bearer_token(authorization), db, require_aal2=True)
+        authenticate_office_access(_bearer_token(authorization), db, require_aal2=True, allow_pending_workspace=True)
         return {"activation_requests": []}
 
     @router.post("/authenticator/activation-requests/{activation_id}/approve")
@@ -2559,7 +2576,7 @@ def build_identity_router() -> APIRouter:
         db: Session = Depends(get_db),
     ):
         token = _bearer_token(authorization)
-        context = authenticate_office_access(token, db, require_aal2=False)
+        context = authenticate_office_access(token, db, require_aal2=False, allow_pending_workspace=True)
         user = db.get(OfficeAuthUser, context["user_id"])
         session = db.get(OfficeAuthSession, context["session_id"])
         if not user or not session:
@@ -2573,7 +2590,7 @@ def build_identity_router() -> APIRouter:
         db: Session = Depends(get_db),
     ):
         token = _bearer_token(authorization)
-        context = authenticate_office_access(token, db, require_aal2=True)
+        context = authenticate_office_access(token, db, require_aal2=True, allow_pending_workspace=True)
         sessions = list(
             db.execute(
                 select(OfficeAuthSession)
@@ -2600,7 +2617,7 @@ def build_identity_router() -> APIRouter:
         db: Session = Depends(get_db),
     ):
         token = _bearer_token(authorization)
-        context = authenticate_office_access(token, db, require_aal2=True)
+        context = authenticate_office_access(token, db, require_aal2=True, allow_pending_workspace=True)
         try:
             normalized_session_id = str(uuid.UUID(session_id))
         except ValueError as exc:
@@ -2642,7 +2659,7 @@ def build_identity_router() -> APIRouter:
         db: Session = Depends(get_db),
     ):
         token = _bearer_token(authorization)
-        context = authenticate_office_access(token, db, require_aal2=True)
+        context = authenticate_office_access(token, db, require_aal2=True, allow_pending_workspace=True)
         user = db.get(OfficeAuthUser, context["user_id"])
         if not user:
             raise HTTPException(status_code=401, detail="Office identity is unavailable")
@@ -2774,6 +2791,7 @@ def build_identity_router() -> APIRouter:
                 OFFICE_SESSION_PURPOSE,
                 AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE,
             }),
+            allow_pending_workspace=True,
         )
         session = db.get(OfficeAuthSession, context["session_id"])
         if session:
@@ -2805,7 +2823,7 @@ def build_identity_router() -> APIRouter:
         db: Session = Depends(get_db),
     ):
         token = _bearer_token(authorization)
-        context = authenticate_office_access(token, db, require_aal2=True)
+        context = authenticate_office_access(token, db, require_aal2=True, allow_pending_workspace=True)
         try:
             device_id = str(uuid.UUID(payload.device_id))
         except ValueError as exc:
@@ -2861,7 +2879,7 @@ def build_identity_router() -> APIRouter:
         db: Session = Depends(get_db),
     ):
         token = _bearer_token(authorization)
-        context = authenticate_office_access(token, db, require_aal2=False)
+        context = authenticate_office_access(token, db, require_aal2=False, allow_pending_workspace=True)
         user = db.get(OfficeAuthUser, context["user_id"])
         session = db.get(OfficeAuthSession, context["session_id"])
         if not user or not session or not user.mfa_secret_ciphertext:
@@ -3158,6 +3176,7 @@ def build_identity_router() -> APIRouter:
             db,
             require_aal2=True,
             required_purpose=AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE,
+        allow_pending_workspace=True,
         )
         approval = _device_approval_from_proof(payload, db)
         now = _now()
@@ -3363,6 +3382,7 @@ def build_identity_router() -> APIRouter:
             display_name=payload.display_name.strip(),
             password_hash=PASSWORD_HASHER.hash(payload.password),
             status="ACTIVE",
+            workspace_status="PENDING" if _workspace_approval_required() else "ACTIVE",
         )
         db.add(user)
         # Persist the auth user before its dependent role rows for the same reason
@@ -3421,6 +3441,65 @@ def build_identity_router() -> APIRouter:
                 status_code=403,
                 detail="ADMIN cannot manage OWNER, DIRECTOR or ADMIN identities",
             )
+
+    @router.post("/workspace-activation/request")
+    def request_workspace_activation(
+        request: Request,
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ):
+        actor = authenticate_office_access(
+            _bearer_token(authorization), db,
+            require_aal2=True, allow_pending_workspace=True,
+        )
+        user = db.execute(select(OfficeAuthUser)
+                          .where(OfficeAuthUser.id == actor["user_id"])
+                          .with_for_update()).scalar_one_or_none()
+        if not user or user.founder_slot == FOUNDER_SLOT:
+            raise HTTPException(status_code=403, detail="Workspace activation request is unavailable")
+        if _workspace_status(user) not in {"PENDING", "REQUESTED"}:
+            raise HTTPException(status_code=409, detail="Workspace is not awaiting activation")
+        if _workspace_status(user) == "PENDING":
+            user.workspace_status = "REQUESTED"
+            _event(db, "WORKSPACE_ACTIVATION_REQUESTED", request,
+                   user_id=user.id, session_id=actor["session_id"])
+            db.commit()
+        return {"workspace_status": "REQUESTED", "requested": True}
+
+    @router.post("/workspace-activation/{user_id}/approve")
+    def approve_workspace_activation(
+        user_id: str,
+        request: Request,
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ):
+        actor = authenticate_office_access(_bearer_token(authorization), db, require_aal2=True)
+        if "OWNER" not in actor["roles"]:
+            raise HTTPException(status_code=403, detail="Only the Founder can unlock a workspace")
+        user = db.execute(select(OfficeAuthUser)
+                          .where(OfficeAuthUser.id == user_id)
+                          .with_for_update()).scalar_one_or_none()
+        if not user or user.founder_slot == FOUNDER_SLOT or user.status != "ACTIVE":
+            raise HTTPException(status_code=404, detail="Eligible employee account not found")
+        if _workspace_status(user) != "REQUESTED":
+            raise HTTPException(status_code=409, detail="Employee has not requested workspace activation")
+        if not _active_roles(db, user.id):
+            raise HTTPException(status_code=409, detail="Assign an Office role before activation")
+        if _control_plane_present(db):
+            profile = db.execute(text("""
+                select 1 from office_user_access_profiles
+                where user_id=cast(:user_id as uuid) and status='ACTIVE'
+                  and (expires_at is null or expires_at>current_timestamp)
+                limit 1
+            """), {"user_id": user.id}).first()
+            if not profile:
+                raise HTTPException(status_code=409, detail="Assign an active scoped access profile before unlocking")
+        user.workspace_status = "ACTIVE"
+        _event(db, "WORKSPACE_ACTIVATED", request, user_id=user.id,
+               session_id=actor["session_id"],
+               metadata={"approved_by": actor["user_id"]})
+        db.commit()
+        return {"activated": True, "workspace_status": "ACTIVE", "user_id": user.id}
 
     @router.post("/founder/recovery-link")
     def issue_founder_break_glass_recovery(

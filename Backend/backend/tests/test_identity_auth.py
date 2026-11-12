@@ -1465,3 +1465,75 @@ def test_stale_aal1_token_cannot_mutate_mfa_after_promotion(tmp_path, monkeypatc
         assert state[2] == 0
     finally:
         engine.dispose()
+
+def test_workspace_activation_requires_request_and_founder_approval(tmp_path, monkeypatch):
+    """An invited employee may complete authentication but not business authorization."""
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        owner = aal2_founder(client)
+        monkeypatch.setenv("OFFICE_WORKSPACE_APPROVAL_REQUIRED", "true")
+        staff = aal2_invited_user(
+            client, owner["access_token"],
+            email="pending-office@example.test",
+            display_name="Pending Member",
+            roles=["MEMBER", "OPERATIONS"],
+            password="Pending-Member1!",
+        )
+        headers = {"Authorization": f"Bearer {staff['access_token']}"}
+        assert staff["workspace_status"] == "PENDING"
+        # Identity/session endpoints remain usable during processing.
+        session = client.get("/api/v1/auth/session", headers=headers)
+        assert session.status_code == 200, session.text
+        assert session.json()["workspace_status"] == "PENDING"
+        # The authoritative authentication guard denies business operations.
+        from fastapi import HTTPException
+        from backend import auth_models
+        from sqlalchemy.orm import Session
+        with Session(engine) as db:
+            try:
+                identity_auth.authenticate_office_access(staff["access_token"], db, require_aal2=True)
+                assert False, "Pending employee must not enter an operational workspace"
+            except HTTPException as exc:
+                assert exc.status_code == 403
+        requested = client.post("/api/v1/auth/workspace-activation/request", headers=headers)
+        assert requested.status_code == 200, requested.text
+        assert requested.json()["workspace_status"] == "REQUESTED"
+        denied = client.post(
+            f"/api/v1/auth/workspace-activation/{staff['user_id']}/approve", headers=headers,
+        )
+        assert denied.status_code == 403
+        approved = client.post(
+            f"/api/v1/auth/workspace-activation/{staff['user_id']}/approve",
+            headers={"Authorization": f"Bearer {owner['access_token']}"},
+        )
+        assert approved.status_code == 200, approved.text
+        after = client.get("/api/v1/auth/session", headers=headers)
+        assert after.status_code == 200
+        assert after.json()["workspace_status"] == "ACTIVE"
+    finally:
+        engine.dispose()
+
+
+def test_reissued_invitation_invalidates_the_old_token(tmp_path, monkeypatch):
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        owner = aal2_founder(client)
+        headers = {"Authorization": f"Bearer {owner['access_token']}"}
+        created = client.post("/api/v1/auth/invitations", headers=headers, json={
+            "email": "reissue-member@example.test", "display_name": "Reissue Member",
+            "roles": ["MEMBER"], "department": "OPERATIONS",
+            "reason": "Controlled invitation regeneration verification",
+        })
+        assert created.status_code == 201, created.text
+        replacement = client.post(
+            f"/api/v1/auth/invitations/{created.json()['invitation_id']}/reissue",
+            headers=headers,
+        )
+        assert replacement.status_code == 201, replacement.text
+        old_status = client.get("/api/v1/auth/invitation", params={"token": created.json()["registration_token"]})
+        assert old_status.status_code == 404
+        new_token = replacement.json()["registration_path"].split("invite=", 1)[1]
+        new_status = client.get("/api/v1/auth/invitation", params={"token": new_token})
+        assert new_status.status_code == 200
+    finally:
+        engine.dispose()

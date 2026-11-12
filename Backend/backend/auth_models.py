@@ -12,6 +12,7 @@ class OfficeAuthUser(Base):
     display_name = Column(String(160), nullable=False)
     password_hash = Column(String(512), nullable=False)
     status = Column(String(24), nullable=False, default="ACTIVE")
+    workspace_status = Column(String(24), nullable=False, default="ACTIVE", server_default="ACTIVE")
     founder_slot = Column(String(32), nullable=True, unique=True)
     mfa_secret_ciphertext = Column(Text, nullable=True)
     mfa_verified_at = Column(DateTime(timezone=True), nullable=True)
