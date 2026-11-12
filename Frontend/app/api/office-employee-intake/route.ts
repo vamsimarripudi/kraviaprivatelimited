@@ -23,7 +23,27 @@ const education = z.array(z.object({
   institution: z.string().trim().min(2).max(180),
   year: z.number().int().min(1950).max(2100).optional(),
   course: z.string().trim().max(180).optional(),
+  specialisation: z.string().trim().max(160).optional(),
+  start_date: z.string().date().optional(),
+  end_date: z.string().date().optional(),
+  completion_date: z.string().date().optional(),
 }).strict()).max(24);
+const emergencyContact = z.array(z.object({
+  name: z.string().trim().min(2).max(160),
+  relation: z.string().trim().min(2).max(80),
+  phone: z.string().trim().min(6).max(32),
+}).strict()).max(4);
+const priorExperience = z.array(z.object({
+  organisation: z.string().trim().min(2).max(180),
+  position: z.string().trim().min(2).max(160),
+  started_at: z.string().date().optional(),
+  ended_at: z.string().date().optional(),
+}).strict()).max(15);
+const taxDeclarations = z.object({
+  tax_residency: z.enum(["INDIA","OTHER","UNDECLARED"]).optional(),
+  regime_preference: z.enum(["OLD","NEW","UNDECLARED"]).optional(),
+  pf_declaration_submitted: z.boolean().optional(),
+}).strict();
 const schema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("SAVE"),
@@ -33,6 +53,9 @@ const schema = z.discriminatedUnion("action", [
     date_of_birth: z.string().date().optional(),
     current_address: address,
     education,
+    emergency_contacts: emergencyContact.default([]),
+    prior_experience: priorExperience.default([]),
+    tax_declarations: taxDeclarations.default({}),
     bank_account: z.string().trim().min(8).max(28).optional(),
     bank_account_holder: z.string().trim().max(160).optional(),
     bank_ifsc: z.string().trim().max(11).optional(),
