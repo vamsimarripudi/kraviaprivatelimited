@@ -10,6 +10,7 @@ const signOut = read("components/workspace-sign-out-button.tsx");
 const access = read("components/access-governance-panel.tsx");
 const accessCss = read("components/access-governance-panel.module.css");
 const workforce = read("lib/office/workforce-admin-server.ts");
+const sessionRead = read("../Database/supabase/migrations/202611120001_workforce_session_status_read.sql");
 const settings = read("components/office-settings-hub.tsx");
 
 describe("KRAVIA Office responsive mega navigation and compact access", () => {
@@ -57,6 +58,12 @@ describe("KRAVIA Office responsive mega navigation and compact access", () => {
     expect(access).toContain("userDisclosure");
     expect(access).toContain("Roles · Team · MFA · Review");
   });
+  it("limits live People session reads to non-secret fields", () => {
+    expect(sessionRead).toContain("on public.office_auth_sessions_v2 to service_role");
+    expect(sessionRead).toContain("user_id, status, aal, created_at, last_seen_at, expires_at, revoked_at");
+    expect(sessionRead).not.toContain("grant select on public.office_auth_sessions_v2");
+  });
+
   it("uses actual canonical job-assignment dates, fixing a production 500", () => {
     expect(workforce).toContain("status,start_date,end_date,updated_at");
     expect(workforce).not.toContain("status,started_at,ended_at,updated_at");
