@@ -96,7 +96,7 @@ export function KraviaEmailFooter() {
 export function KraviaEmailActionButton({ href, children }: { href: string; children: ReactNode }) {
   const safeHref = validateOfficeEmailUrl(href);
   return <table role="presentation" cellPadding={0} cellSpacing={0} style={{borderCollapse:"separate",margin:"19px 0"}}>
-    <tbody><tr><td bgcolor={BLUE} style={{borderRadius:10,backgroundColor:BLUE}}>
+    <tbody><tr><td style={{borderRadius:10,backgroundColor:BLUE}}>
       <a className="kravia-mail-action" href={safeHref} style={{display:"inline-block",minHeight:42,padding:"12px 20px",fontFamily:FONT,fontSize:14,lineHeight:"22px",fontWeight:700,color:"#FFFFFF",textDecoration:"none"}}>{children}</a>
     </td></tr></tbody>
   </table>;
