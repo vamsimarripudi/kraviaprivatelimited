@@ -130,7 +130,8 @@ export function monthlyFlexibleWorktime(input: {
     const regularDay = weekday >= 1 && weekday <= 5;
     // Weekend work is recorded, not an automatically required six-hour day.
     const required = regularDay && date >= WORKTIME_DAILY_ENFORCEMENT_START ? DAILY_TARGET_MINUTES : 0;
-    const candidate = regularDay ? Math.max(0, total - DAILY_TARGET_MINUTES) : 0;
+    // Optional weekend work is also an OT candidate, never an automatic paid premium.
+    const candidate = regularDay ? Math.max(0, total - DAILY_TARGET_MINUTES) : total;
     const status: WorktimeDay["status"] = required === 0
       ? date < WORKTIME_DAILY_ENFORCEMENT_START ? "HISTORICAL" : "NON_WORKDAY"
       : total >= required ? "TARGET_MET" : total > 0 ? "IN_PROGRESS" : "NOT_RECORDED";
