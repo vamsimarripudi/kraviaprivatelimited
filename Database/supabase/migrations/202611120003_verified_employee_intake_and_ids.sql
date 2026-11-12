@@ -15,6 +15,8 @@ create table if not exists public.office_employee_intake_profiles (
   bank_account_last4 text check(bank_account_last4 is null or bank_account_last4 ~ '^[0-9]{4}$'),
   bank_ifsc text check(bank_ifsc is null or bank_ifsc ~ '^[A-Z]{4}0[A-Z0-9]{6}$'),
   bank_account_holder text check(bank_account_holder is null or length(bank_account_holder) between 2 and 160),
+  bank_verified_by uuid references public.office_identity_users(user_id) on delete restrict,
+  bank_verified_at timestamptz,
   photo_storage_reference text check(photo_storage_reference is null or length(photo_storage_reference)<=300),
   signature_evidence_reference text check(signature_evidence_reference is null or length(signature_evidence_reference)<=450),
   policy_acknowledged_at timestamptz,
@@ -44,7 +46,7 @@ create table if not exists public.office_employee_intake_events (
   actor_user_id uuid not null references public.office_identity_users(user_id) on delete restrict,
   event_type text not null check(event_type in (
     'PROFILE_DRAFT_SAVED','PROFILE_SUBMITTED','PROFILE_RETURNED','PROFILE_VERIFIED',
-    'PHOTO_SCANNED','CERTIFICATE_SCANNED','REFERENCE_ID_ISSUED')),
+    'PHOTO_SCANNED','CERTIFICATE_SCANNED','BANK_DETAILS_VERIFIED','REFERENCE_ID_ISSUED')),
   metadata jsonb not null default '{}'::jsonb check(jsonb_typeof(metadata)='object'),
   created_at timestamptz not null default now()
 );
