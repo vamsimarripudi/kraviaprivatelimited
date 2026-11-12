@@ -19,6 +19,19 @@ CREATE TABLE IF NOT EXISTS public.office_employee_mail_delivery_policy (
     approved_by IS NOT NULL AND approved_at IS NOT NULL AND effective_from IS NOT NULL
   ))
 );
+CREATE TABLE IF NOT EXISTS public.office_employee_mail_policy_events (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  kind text NOT NULL CHECK(kind='EMPLOYEE_ID_ISSUED'),
+  approved_by uuid NOT NULL REFERENCES public.office_identity_users(user_id) ON DELETE RESTRICT,
+  enabled boolean NOT NULL,
+  effective_from timestamptz,
+  reason text NOT NULL CHECK (length(reason) BETWEEN 12 AND 500),
+  recorded_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.office_employee_mail_policy_events ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.office_employee_mail_policy_events FROM PUBLIC,anon,authenticated;
+GRANT SELECT ON public.office_employee_mail_policy_events TO service_role;
+
 INSERT INTO public.office_employee_mail_delivery_policy(key,enabled)
 VALUES('EMPLOYEE_ID_ISSUED',false) ON CONFLICT(key) DO NOTHING;
 ALTER TABLE public.office_employee_mail_delivery_policy ENABLE ROW LEVEL SECURITY;
@@ -67,6 +80,13 @@ BEGIN
         effective_from=CASE WHEN p_enabled THEN p_effective_from ELSE NULL END
     WHERE key='EMPLOYEE_ID_ISSUED';
   IF NOT FOUND THEN RAISE EXCEPTION 'Corporate delivery policy is missing'; END IF;
+  INSERT INTO public.office_employee_mail_policy_events(
+    kind,approved_by,enabled,effective_from,reason
+  ) VALUES(
+    'EMPLOYEE_ID_ISSUED',p_actor,p_enabled,
+    CASE WHEN p_enabled THEN p_effective_from ELSE NULL END,
+    pg_catalog.btrim(p_reason)
+  );
   RETURN true;
 END;
 $kravia_policy$;

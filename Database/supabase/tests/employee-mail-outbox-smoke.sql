@@ -79,6 +79,9 @@ BEGIN
  THEN RAISE EXCEPTION 'Stale mail claim was not quarantined as UNKNOWN'; END IF;
  IF (SELECT count(*) FROM public.office_employee_mail_outbox WHERE status='SENT')<>1
  THEN RAISE EXCEPTION 'Accepted provider notification was not idempotent'; END IF;
+ IF (SELECT count(*) FROM public.office_employee_mail_policy_events
+     WHERE enabled=true AND reason='Synthetic isolated worker integration test approval')<>1
+ THEN RAISE EXCEPTION 'Recorded corporate approval reason was lost'; END IF;
  IF (SELECT count(*) FROM public.office_employee_mail_delivery_events
      WHERE event_type='STALE_CLAIM_UNKNOWN')<>1
  THEN RAISE EXCEPTION 'Stale-claim audit record missing'; END IF;

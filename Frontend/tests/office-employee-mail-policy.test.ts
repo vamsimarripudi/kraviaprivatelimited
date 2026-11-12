@@ -24,6 +24,7 @@ describe("KRAVIA Office authorised employee notification delivery",()=>{
     expect(sql).toContain("status='UNKNOWN'");
     expect(sql).toContain("FOR UPDATE OF o SKIP LOCKED");
     expect(sql).toContain("p.status='VERIFIED'");
+    expect(sql).toContain("office_employee_mail_policy_events");
     expect(sql).toContain("e.status='ACTIVE'");
     expect(sql).toContain("pg_catalog.lower(a.email)=pg_catalog.lower(o.recipient_email)");
     expect(sql).toContain("TO kravia_office_backend");
