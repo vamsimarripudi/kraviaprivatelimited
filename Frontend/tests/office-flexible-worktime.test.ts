@@ -78,6 +78,13 @@ describe("KRAVIA flexible six-hour day and 30-hour week", () => {
     expect(day.potential_overtime_minutes).toBe(120);
     expect(result.message).toContain("not approved or paid");
   });
+  it("tracks optional weekend hours as unapproved OT candidates, not six-hour requirements", () => {
+    const weekend = report("2026-11", [session("sat", "2026-11-21", "13:00", "16:00")]);
+    const saturday = weekend.day_records.find(d => d.date === "2026-11-21")!;
+    expect(saturday.daily_target_minutes).toBe(0);
+    expect(saturday.weekend_minutes).toBe(180);
+    expect(saturday.potential_overtime_minutes).toBe(180);
+  });
   it("does not declare cross-month boundary weeks short without the adjacent month", () => {
     const result = report("2026-11", [session("boundary", "2026-11-30")]);
     const week = result.weeks.find(w => w.monday === "2026-11-30");
