@@ -5,11 +5,16 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { BadgeCheck, BookOpen, CheckCircle2, ChevronRight, CircleAlert, FileText, IdCard, ImagePlus, Save, ShieldCheck, Upload, UserRound, Wallet } from "lucide-react";
 import styles from "./office-employee-intake.module.css";
 
-type Education={qualification:string;institution:string;year?:number;course?:string};
+type Education={qualification:string;institution:string;year?:number;course?:string;specialisation?:string;
+  start_date?:string;end_date?:string;completion_date?:string};
+type EmergencyContact={name:string;relation:string;phone:string};
+type PriorExperience={organisation:string;position:string;started_at?:string;ended_at?:string};
+type TaxDeclarations={tax_residency?:"INDIA"|"OTHER"|"UNDECLARED";regime_preference?:"OLD"|"NEW"|"UNDECLARED";pf_declaration_submitted?:boolean};
 type Address={street?:string;city?:string;state?:string;postal_code?:string;country?:string};
 type Profile={
   legal_name?:string|null;preferred_name?:string|null;contact_phone?:string|null;date_of_birth?:string|null;
   current_address?:Address;education?:Education[];
+  emergency_contacts?:EmergencyContact[];prior_experience?:PriorExperience[];tax_declarations?:TaxDeclarations;
   certificates?:Array<{label?:string;storage_reference?:string;review_status?:string}>;
   bank_account_last4?:string|null;bank_ifsc?:string|null;bank_account_holder?:string|null;bank_verified_at?:string|null;
   photo_storage_reference?:string|null;signature_evidence_reference?:string|null;policy_acknowledged_at?:string|null;
@@ -25,13 +30,16 @@ type Overview={
 type Person={user_id:string;display_name:string;department:string};
 type Draft={
   legal_name:string;preferred_name:string;contact_phone:string;date_of_birth:string;
-  current_address:Address;education:Education[];bank_account:string;bank_account_holder:string;bank_ifsc:string;
+  current_address:Address;education:Education[];emergency_contacts:EmergencyContact[];prior_experience:PriorExperience[];
+  tax_declarations:TaxDeclarations;bank_account:string;bank_account_holder:string;bank_ifsc:string;
   signature_evidence_reference:string;policy_acknowledged:boolean;
 };
 const initial:Draft={
   legal_name:"",preferred_name:"",contact_phone:"",date_of_birth:"",
   current_address:{street:"",city:"",state:"",postal_code:"",country:"India"},
   education:[{qualification:"",institution:"",course:""}],
+  emergency_contacts:[],prior_experience:[],
+  tax_declarations:{tax_residency:"UNDECLARED",regime_preference:"UNDECLARED",pf_declaration_submitted:false},
   bank_account:"",bank_account_holder:"",bank_ifsc:"",signature_evidence_reference:"",policy_acknowledged:false,
 };
 async function api<T>(url:string,init?:RequestInit):Promise<T>{
@@ -48,6 +56,9 @@ function fromProfile(profile:Profile|null,identity:Overview["identity"]):Draft{
     date_of_birth:profile?.date_of_birth||"",
     current_address:profile?.current_address||initial.current_address,
     education:profile?.education?.length?profile.education:initial.education,
+    emergency_contacts:profile?.emergency_contacts||[],
+    prior_experience:profile?.prior_experience||[],
+    tax_declarations:profile?.tax_declarations||initial.tax_declarations,
     bank_account:"",
     bank_account_holder:profile?.bank_account_holder||"",
     bank_ifsc:profile?.bank_ifsc||"",
