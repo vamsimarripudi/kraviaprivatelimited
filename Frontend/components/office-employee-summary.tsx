@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import { BadgeCheck, CalendarClock, ChevronRight, CircleAlert, ClipboardCheck, FileDown, IdCard, ShieldCheck, Timer, Wallet } from "lucide-react";
 import styles from "./office-employee-summary.module.css";
@@ -17,6 +18,7 @@ type Roles = {
   tasks: Array<{ required: boolean; status: string; label: string }>;
   functional_positions: Array<{ position_code: string; department_code: string; responsibilities: string[] }>;
 };
+type EmployeeIntake = { profile:{photo_storage_reference?:string|null}|null;permanent_employee_id:string|null };
 type Worktime = {
   month: string;
   approved_monthly_gross_minor?: number | null;
@@ -44,6 +46,7 @@ function money(minor: number, currency: string) {
 export function OfficeEmployeeSummary() {
   const [roles, setRoles] = useState<Roles>();
   const [worktime, setWorktime] = useState<Worktime>();
+  const [intake, setIntake] = useState<EmployeeIntake>();
   const [errors, setErrors] = useState<string[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -52,6 +55,7 @@ export function OfficeEmployeeSummary() {
     const answers = await Promise.allSettled([
       fetchPrivate<Roles>("/api/office-role-packages"),
       fetchPrivate<Worktime>("/api/office-worktime"),
+      fetchPrivate<EmployeeIntake>("/api/office-employee-intake"),
     ]);
     if (signal?.aborted) return;
     const failures: string[] = [];
@@ -59,6 +63,8 @@ export function OfficeEmployeeSummary() {
     else failures.push("Role and employment records: " + (answers[0].reason instanceof Error ? answers[0].reason.message : "Unavailable"));
     if (answers[1].status === "fulfilled") setWorktime(answers[1].value);
     else failures.push("Attendance and payroll evidence: " + (answers[1].reason instanceof Error ? answers[1].reason.message : "Unavailable"));
+    if(answers[2].status==="fulfilled")setIntake(answers[2].value);
+    // Existing role and worktime remain useful even if intake is not yet configured.
     setErrors(failures);
     setRefreshing(false);
   }, []);
@@ -70,8 +76,12 @@ export function OfficeEmployeeSummary() {
   }, [refresh]);
 
   const latest = roles?.applications?.[0];
-  const title = latest?.snapshot.primary_position_code.replaceAll("_", " ") ||
+  const registeredTitle = latest?.snapshot.primary_position_code.replaceAll("_", " ") ||
     (roles?.employee?.job_title || "Role pending assignment");
+  // Staff display preference does not rewrite any statutory Founder or OWNER records.
+  const title = roles?.employee?.job_title === "Founder" &&
+    roles.employee.primary_department === "EXECUTIVE" && !latest ?
+    "Executive · AI Full-Stack Developer" : registeredTitle;
   const department = roles?.employee?.primary_department || "Unassigned";
   const approvedTasks = roles?.tasks?.filter(item => item.status === "VERIFIED").length ?? 0;
   const requiredTasks = roles?.tasks?.filter(item => item.required).length ?? 0;
@@ -80,12 +90,15 @@ export function OfficeEmployeeSummary() {
 
   return <section className={styles.shell} aria-label="My verified employee profile">
     <header className={styles.header}>
-      <div className={styles.avatar} aria-hidden="true">{initials}</div>
+      {intake?.profile?.photo_storage_reference ?
+        <Image unoptimized className={styles.avatar} width={48} height={48} alt="Verified employee profile photo"
+          src="/api/office-employee-intake/photo" /> :
+        <div className={styles.avatar} aria-hidden="true">{initials}</div>}
       <div className={styles.identity}>
         <small>MY KRAVIA OFFICE PROFILE</small>
         <h2>{roles?.employee?.display_name || "Employee profile"}</h2>
         <p>{department} · {title}</p>
-        <span><IdCard size={14} aria-hidden="true"/>{roles?.employment?.employment_code || "Employment verification pending"}</span>
+        <span><IdCard size={14} aria-hidden="true"/>{intake?.permanent_employee_id || roles?.employment?.employment_code || "Employment verification pending"}</span>
       </div>
       <button type="button" className={styles.refresh} onClick={() => void refresh()}
         disabled={refreshing} aria-label="Refresh employee profile">Refresh</button>
