@@ -105,8 +105,8 @@ export async function getOfficeRecruitmentOverview() {
   const [requisitions, identities, positions, departments] = await Promise.all([
     requisitionQuery,
     read.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").eq("status", "ACTIVE").order("display_name"),
-    read.admin.from("office_position_catalog").select("code,label,department_code,is_manager,status").eq("status", "ACTIVE").order("department_code").order("label"),
-    read.admin.from("office_department_catalog").select("code,label,status").eq("status", "ACTIVE").order("label"),
+    read.admin.from("office_position_catalog").select("code,label,family,is_manager,active").eq("active", true).order("family").order("label"),
+    read.admin.from("office_department_catalog").select("code,label,active").eq("active", true).order("label"),
   ]);
   assert(requisitions.error || identities.error || positions.error || departments.error, "Recruitment reference data is temporarily unavailable");
 
