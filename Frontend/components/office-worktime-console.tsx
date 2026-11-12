@@ -26,7 +26,7 @@ type Snapshot = {
   claims: Claim[]; policies: Policy[]; approved_policy: Policy | null; attendance_targets: WorktimeTargets;
   payroll_periods: Array<{ id: string; period_code: string; starts_on: string; ends_on: string; status: string }>;
   preview: Premium | null; salary_slips: Slip[];
-  capabilities: { self: boolean; review_worktime: boolean; prepare_payroll: boolean };
+  capabilities: { self: boolean; review_worktime: boolean; propose_policy: boolean; prepare_payroll: boolean };
   notice: string;
 };
 function money(minor?: number) { return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format((minor || 0) / 100); }
@@ -166,7 +166,7 @@ export function OfficeWorktimeConsole() {
             </div>) : <p className={styles.empty}>No time claims recorded for this employee and month. Historical work must be documented and independently reviewed.</p>}
           </article>
           <article className={styles.panel}>
-            <div className={styles.heading}><h3>Work policy & premiums</h3>{data.capabilities.review_worktime ? <button type="button" onClick={() => { setDraft({ effectiveFrom: month + "-01" }); setMode(mode === "POLICY" ? null : "POLICY"); }}>Propose policy</button> : null}</div>
+            <div className={styles.heading}><h3>Work policy & premiums</h3>{data.capabilities.propose_policy ? <button type="button" onClick={() => { setDraft({ effectiveFrom: month + "-01" }); setMode(mode === "POLICY" ? null : "POLICY"); }}>Propose policy</button> : null}</div>
             <p>{data.approved_policy ? "Approved policy effective " + data.approved_policy.effective_from + " · " + data.approved_policy.authority_reference :
               "No approved worktime premium policy. Salary premiums must not be issued without signed authority."}</p>
             {data.preview ? <div className={styles.metrics}>
