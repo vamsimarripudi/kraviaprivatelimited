@@ -6,6 +6,8 @@ import { render } from "@react-email/render";
 
 import { PLACEHOLDERS, renderTemplateManifest } from "../templates/kravia.js";
 import { OFFICE_LIFECYCLE_DISPATCH_ENABLED, validateOfficeLifecycleCatalog } from "../templates/office-lifecycle-catalog.js";
+import { OFFICE_LIFECYCLE_COPY } from "../templates/office-lifecycle-copy.js";
+import { availableOfficeLifecycleEventCodes, renderOfficeLifecyclePreview } from "../templates/office-lifecycle-renderer.js";
 import { KraviaEmailShell, KraviaEmailHero, KraviaOtpCode, KraviaEmailActionButton } from "../templates/kravia-email-components.js";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
@@ -14,6 +16,31 @@ const check = process.argv.includes("--check");
 
 validateOfficeLifecycleCatalog();
 if (OFFICE_LIFECYCLE_DISPATCH_ENABLED !== false) throw new Error("Employee lifecycle send gate must remain disabled until signed event-to-template approval");
+const lifecycleIds = availableOfficeLifecycleEventCodes();
+if (lifecycleIds.length !== 81 || Object.keys(OFFICE_LIFECYCLE_COPY).length !== 81) {
+  throw new Error("All 81 lifecycle events must have distinct notification copy");
+}
+for (const id of lifecycleIds) {
+  const message = await renderOfficeLifecyclePreview({
+    id, recipientName:"Synthetic CI Employee", payPeriod:"November 2026",
+    officeUrl:"https://www.kraviaprivatelimited.com/office/dashboard",
+    eventReference:"CI-TEST-EVENT",
+  });
+  if (!message.previewOnly || !message.html.includes("CI-TEST-EVENT") ||
+      !message.text.includes("Synthetic CI Employee") ||
+      /\{\{|<script\b|javascript:/i.test(message.html + message.subject)) {
+    throw new Error("Unsafe or incomplete lifecycle notification preview for " + id);
+  }
+}
+let lifecycleUrlRejected = false;
+try {
+  await renderOfficeLifecyclePreview({
+    id:"ONB-09", recipientName:"Synthetic CI Employee",
+    officeUrl:"https://unsafe.example.com/office/dashboard",
+  });
+} catch { lifecycleUrlRejected = true; }
+if (!lifecycleUrlRejected) throw new Error("Lifecycle preview allows untrusted external URLs");
+
 const renderedEmail = await render(createElement(KraviaEmailShell, {
   preview:"KRAVIA Office verification",
   children:createElement(KraviaEmailHero,{
