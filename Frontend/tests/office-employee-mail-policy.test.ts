@@ -35,7 +35,7 @@ describe("KRAVIA Office authorised employee notification delivery",()=>{
     expect(settings).toContain('identity.roles.includes("OWNER")');
     expect(settings).toContain('<OfficeEmployeeMailControls/>');
     expect(controls).toContain("I have verified the Brevo worker configuration");
-    expect(controls).toContain("No historical messages are dispatched");
+    expect(controls).toContain("Activation does not send prior or historical notices");
     expect(controls).toContain('method:"POST"');
     expect(controls).not.toContain("api.brevo.com");
     expect(controls).not.toContain("send_office");
