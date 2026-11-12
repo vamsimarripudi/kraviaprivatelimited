@@ -389,3 +389,27 @@
 /* Top-right tools share a stable row on desktop and mobile. */
 .kravia-office .office-modern .office-topbar-tools{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex:none;min-width:0}
 @media(max-width:620px){.kravia-office .office-modern .office-topbar-tools{gap:5px}}
+
+
+/* Role-specific focus dashboard. Keep the large operational modules accessible
+ * in a disclosure instead of rendering multiple forced full-width cards. */
+.kravia-office .office-modern .office-briefing-compact{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 16px!important;margin-bottom:8px!important;min-height:0!important}
+.kravia-office .office-modern .office-briefing-compact h2{font-size:clamp(17px,2.3vw,25px)!important;line-height:1.25;margin:4px 0!important}
+.kravia-office .office-modern .office-briefing-compact p:not(.eyebrow){font-size:11px!important;line-height:1.5!important}
+.kravia-office .office-modern .office-briefing-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.kravia-office .office-modern .office-briefing-actions a{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--off-next-line,#dce6df);border-radius:9px;font-size:11px;text-decoration:none;color:var(--off-next-ink,#17251f);background:var(--off-next-panel,#fff)}
+.kravia-office .office-modern .office-briefing-actions svg{width:13px}
+.kravia-office .office-modern .office-dashboard-extras{margin:11px clamp(12px,2vw,25px)!important;border:1px solid var(--off-next-line,#dce6df);border-radius:14px;background:var(--off-next-panel,#fff);color:var(--off-next-ink,#17251f)}
+.kravia-office .office-modern .office-dashboard-extras>summary{list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;font-size:12px;font-weight:700}
+.kravia-office .office-modern .office-dashboard-extras>summary::-webkit-details-marker{display:none}
+.kravia-office .office-modern .office-dashboard-extras>summary span{font-size:10px;font-weight:450;color:var(--off-next-muted,#63736b)}
+.kravia-office .office-modern .office-dashboard-extras>summary:after{content:"+";font-size:16px;color:var(--off-next-muted,#63736b)}
+.kravia-office .office-modern .office-dashboard-extras[open]>summary:after{content:"−"}
+.kravia-office .office-modern .office-dashboard-extras-content{display:grid;gap:10px;padding:0 7px 10px}
+.kravia-office .office-modern .office-dashboard-quick-links{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:7px;padding:0 12px 14px}
+.kravia-office .office-modern .office-dashboard-quick-link{display:flex;align-items:center;gap:8px;min-height:40px;padding:9px 11px;border:1px solid var(--off-next-line,#dce6df);border-radius:10px;color:var(--off-next-ink,#17251f);background:var(--off-next-canvas,#f6f8f7);text-decoration:none;font-size:11px}
+.kravia-office .office-modern .office-dashboard-quick-link svg{width:15px;height:15px;flex:none}
+.kravia-office .office-modern .office-dashboard-quick-link>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kravia-office .office-modern .office-dashboard-quick-link:hover{border-color:var(--off-next-accent,#205c46)}
+@media(max-width:780px){.kravia-office .office-modern .office-briefing-compact{align-items:flex-start;flex-direction:column}.kravia-office .office-modern .office-briefing-actions{justify-content:flex-start}.kravia-office .office-modern .office-dashboard-quick-links{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.kravia-office .office-modern .office-dashboard-quick-links{grid-template-columns:1fr}.kravia-office .office-modern .office-dashboard-extras>summary span{display:none}}
