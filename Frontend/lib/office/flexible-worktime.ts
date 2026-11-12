@@ -28,6 +28,7 @@ export type WorktimeDay = {
 export type WorktimeWeek = {
   monday: string; through: string; tracked_minutes: number; target_minutes: number;
   remaining_minutes: number; potential_overtime_minutes: number;
+  completed_weekdays: number; required_weekdays: number;
   weekend_minutes: number; status: "TARGET_MET" | "IN_PROGRESS" | "HISTORICAL";
 };
 export type WorktimeTargets = {
@@ -145,7 +146,9 @@ export function monthlyFlexibleWorktime(input: {
     grouped.set(monday, [...(grouped.get(monday) ?? []), day]);
   }
   const weeks = [...grouped.entries()].map(([monday, days]): WorktimeWeek => {
-    const tracked = days.filter(d => d.weekday >= 1 && d.weekday <= 5).reduce((sum, day) => sum + day.total_minutes, 0);
+    const weekdays = days.filter(d => d.weekday >= 1 && d.weekday <= 5);
+    const tracked = weekdays.reduce((sum, day) => sum + day.total_minutes, 0);
+    const completedWeekdays = weekdays.filter(day => day.total_minutes >= DAILY_TARGET_MINUTES).length;
     // A month-only read cannot judge weeks whose other weekdays fall in another month.
     const completeMonthWeek = monday >= first && addDays(monday, 4) <= until;
     const target = completeMonthWeek && monday >= WORKTIME_DAILY_ENFORCEMENT_START ? WEEKLY_TARGET_MINUTES : 0;
@@ -153,8 +156,9 @@ export function monthlyFlexibleWorktime(input: {
       monday, through: addDays(monday, 6), tracked_minutes: tracked,
       target_minutes: target, remaining_minutes: Math.max(0, target - tracked),
       potential_overtime_minutes: days.reduce((sum, d) => sum + d.potential_overtime_minutes, 0),
+      completed_weekdays: completedWeekdays, required_weekdays: 5,
       weekend_minutes: days.reduce((sum, d) => sum + d.weekend_minutes, 0),
-      status: target === 0 ? "HISTORICAL" : tracked >= target ? "TARGET_MET" : "IN_PROGRESS",
+      status: target === 0 ? "HISTORICAL" : tracked >= target && completedWeekdays === 5 ? "TARGET_MET" : "IN_PROGRESS",
     };
   });
   const thisWeek = weekMonday(today);
