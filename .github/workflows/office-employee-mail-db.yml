@@ -1,0 +1,46 @@
+name: KRAVIA Office corporate employee mail outbox PostgreSQL integration
+on:
+  pull_request:
+    paths:
+      - 'Database/supabase/migrations/202611130002_office_employee_mail_delivery_worker.sql'
+      - 'Database/supabase/tests/employee-mail-outbox-*.sql'
+      - '.github/workflows/office-employee-mail-db.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres:
+    name: Employee ID outbox policy, claims and idempotence
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: kravia_employee_mail_ci
+          POSTGRES_PASSWORD: ci-office-mail-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kravia_employee_mail_ci"
+          --health-interval 3s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Validate private approval, worker-only RPC and no automatic provider retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg() {
+            docker run --rm --network host               -v "$PWD:/repo:ro" --workdir /repo               --env PGPASSWORD=ci-office-mail-only postgres:17               psql --host 127.0.0.1 --username postgres --dbname kravia_employee_mail_ci                 --set ON_ERROR_STOP=1 "$@"
+          }
+          pg -f Database/supabase/tests/employee-mail-outbox-fixture.sql
+          pg -f Database/supabase/migrations/202611130002_office_employee_mail_delivery_worker.sql
+          pg -f Database/supabase/migrations/202611130002_office_employee_mail_delivery_worker.sql
+          result="$(pg --tuples-only --no-align -f Database/supabase/tests/employee-mail-outbox-smoke.sql)"
+          echo "$result"
+          test "$(printf '%s\n' "$result" | tail -n 1)" = "EMPLOYEE_MAIL_DELIVERY_VERIFIED"
