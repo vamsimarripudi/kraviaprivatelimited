@@ -50,7 +50,8 @@ describe("KRAVIA Office Experience 4.0 foundation", () => {
     const finance = read("app/finance/layout.tsx");
     expect(finance).toContain('import "../office/office-platform.css"');
     expect(finance).toContain('import "../office/office-experience-4.css"');
-    expect(finance).toContain('<div className="kravia-office">{children}</div>');
+    expect(finance).toContain('<OfficeAppearanceRoot>{children}</OfficeAppearanceRoot>');
+    expect(read("components/office-appearance-root.tsx")).toContain('className="kravia-office"');
   });
 
   it("uses one accessible high-impact decision dialog for owner operations", () => {
