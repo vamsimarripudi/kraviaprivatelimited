@@ -145,14 +145,22 @@ export function OfficeWorkspaceShell({
     && capabilityCanAccessSection(switchWorkspace,"dashboard",identity.roles,permissions);
 
   useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(themeKey);
-      setTheme(stored === "dark" || stored === "light" ? stored
-        : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    } catch { setTheme("light"); }
+    // Defer localStorage hydration to a frame; the SSR shell starts in light
+    // mode and avoids cascading setState in a synchronous React effect.
+    const frame = window.requestAnimationFrame(() => {
+      try {
+        const stored = window.localStorage.getItem(themeKey);
+        setTheme(stored === "dark" || stored === "light" ? stored
+          : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      } catch { setTheme("light"); }
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, []);
   useEffect(() => {
-    setPickedCategory(null); setMobileNav(false); setMoreOpen(false);
+    const frame = window.requestAnimationFrame(() => {
+      setPickedCategory(null); setMobileNav(false); setMoreOpen(false);
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [pathname]);
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
