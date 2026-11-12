@@ -1,7 +1,7 @@
 -- Explicit policy starts disabled and cannot dispatch existing events.
 INSERT INTO public.office_employee_mail_outbox(employee_user_id,recipient_email,kind,reference_code,status)
-VALUES('a0000000-0000-4000-8000-000000000002',
- 'synthetic.employee@kraviaprivatelimited.com','EMPLOYEE_ID_ISSUED','KRV-E26-0123456789ABCDEF','PENDING');
+VALUES('a0000000-0000-4000-8000-000000000004',
+ 'synthetic.historical@kraviaprivatelimited.com','EMPLOYEE_ID_ISSUED','KRV-E26-AAAABBBBCCCCDDDD','PENDING');
 DO $check$
 BEGIN
  IF (SELECT enabled FROM public.office_employee_mail_delivery_policy WHERE key='EMPLOYEE_ID_ISSUED')
