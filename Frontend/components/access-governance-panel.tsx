@@ -239,6 +239,13 @@ function UserCard({ user, state, owner, currentUserId, pending, mutate }: {
   const lifecycleReady = user.status === "ACTIVE" || user.status === "SUSPENDED";
   const manageable = lifecycleReady && !roles.includes("OWNER") && (owner || (user.user_id !== currentUserId && !privileged));
   const roleOptions = state.role_catalog.filter((item) => item.role !== "OWNER" && (owner || item.assignable_by_admin));
+  const assignedToOthers = new Map<OfficeRole,string>();
+  for (const person of state.users) {
+    if (person.status !== "ACTIVE" || person.user_id === user.user_id || activeRoles(person).includes("OWNER")) continue;
+    for (const otherRole of activeRoles(person)) {
+      if (otherRole !== "MEMBER") assignedToOthers.set(otherRole,person.display_name || person.email || "Office employee");
+    }
+  }
   const [role, setRole] = useState<OfficeRole>(roleOptions[0]?.role ?? "MEMBER");
   const [department, setDepartment] = useState(user.department ?? state.departments[0]?.code ?? "OPERATIONS");
   const [reason, setReason] = useState("");
@@ -288,28 +295,28 @@ function UserCard({ user, state, owner, currentUserId, pending, mutate }: {
     <div className={styles.userHead}><div><b>{user.display_name || user.email || "Office identity"}</b><span>{user.job_title || user.email}</span><small>{user.department ?? "No department"} · authz v{user.authorization_version}</small></div><em data-status={user.status}>{user.status}</em></div>
     <div className={styles.badges}>{user.roles.map((grant) => <span key={grant.role} data-expired={!grant.active}>{grant.role}{grant.expires_at ? ` · until ${formatDate(grant.expires_at)}` : ""}</span>)}</div>
     <div className={styles.userMeta}><span>Last sign-in <b>{formatDate(user.last_sign_in_at)}</b></span><span>Access review due <b>{formatDate(user.access_review_due_at)}</b></span></div>
-    {manageable ? <div className={styles.controls}>
-      <label>Role<select value={role} onChange={(event) => setRole(event.target.value as OfficeRole)}>{roleOptions.map((option) => <option key={option.role} value={option.role}>{option.label}</option>)}</select></label>
+    {manageable ? <details className={styles.userDisclosure}><summary>Manage access <span>Roles · Team · MFA · Review</span></summary><div className={styles.controls}>
+      <label>Role<select value={role} onChange={(event) => setRole(event.target.value as OfficeRole)}>{roleOptions.map((option) => <option key={option.role} value={option.role} disabled={Boolean(assignedToOthers.get(option.role))}>{option.label}{assignedToOthers.get(option.role) ? " · Assigned to " + assignedToOthers.get(option.role) : ""}</option>)}</select></label>
       <label>Optional role expiry<input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></label>
       <label>Department<select value={department} onChange={(event) => setDepartment(event.target.value)}>{state.departments.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}</select></label>
       <label className={styles.reason}>Reason / review note<input maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} /></label>
       <div className={styles.actions}>
-        <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/role", { target_user_id: user.user_id, role, action: "GRANT", expires_at: expiresAt ? new Date(expiresAt).toISOString() : undefined, reason }, `${role} granted.`)}>Grant role</button>
-        <button type="button" disabled={pending || !reasonReady || !roles.includes(role)} onClick={() => void post("/api/office-access/role", { target_user_id: user.user_id, role, action: "REVOKE", reason }, `${role} revoked.`)}>Revoke role</button>
-        <button type="button" disabled={pending || !reasonReady || department === user.department} onClick={() => void post("/api/office-access/department", { target_user_id: user.user_id, department, reason }, `Department changed to ${department}.`)}>Change department</button>
-        {user.status === "ACTIVE" ? <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/status", { target_user_id: user.user_id, status: "SUSPENDED", reason }, "Identity suspended.")}>Suspend</button> : <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/status", { target_user_id: user.user_id, status: "ACTIVE", reason }, "Identity reactivated.")}>Reactivate</button>}
-        <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/status", { target_user_id: user.user_id, status: "REVOKED", reason }, "Identity revoked.")}>Revoke access</button>
-        <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/mfa-reset", { target_user_id: user.user_id, reason }, "Authenticator factors reset; the user must enroll MFA again.")}>Reset MFA</button>
+        <button type="button" disabled={pending || !reasonReady || roles.includes(role) || Boolean(assignedToOthers.get(role))} onClick={() => void post("/api/office-access/role", { target_user_id: user.user_id, role, action: "GRANT", expires_at: expiresAt ? new Date(expiresAt).toISOString() : undefined, reason }, `${role} granted.`)}><UserPlus size={14}/>Grant</button>
+        <button type="button" disabled={pending || !reasonReady || !roles.includes(role)} onClick={() => void post("/api/office-access/role", { target_user_id: user.user_id, role, action: "REVOKE", reason }, `${role} revoked.`)}><ShieldAlert size={14}/>Revoke</button>
+        <button type="button" disabled={pending || !reasonReady || department === user.department} onClick={() => void post("/api/office-access/department", { target_user_id: user.user_id, department, reason }, `Department changed to ${department}.`)}><UsersRound size={14}/>Department</button>
+        {user.status === "ACTIVE" ? <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/status", { target_user_id: user.user_id, status: "SUSPENDED", reason }, "Identity suspended.")}><ShieldAlert size={14}/>Suspend</button> : <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/status", { target_user_id: user.user_id, status: "ACTIVE", reason }, "Identity reactivated.")}><CheckCircle2 size={14}/>Reactivate</button>}
+        <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/status", { target_user_id: user.user_id, status: "REVOKED", reason }, "Identity revoked.")}><ShieldAlert size={14}/>Remove</button>
+        <button type="button" disabled={pending || !reasonReady} onClick={() => void post("/api/office-access/mfa-reset", { target_user_id: user.user_id, reason }, "Authenticator factors reset; the user must enroll MFA again.")}><RefreshCw size={14}/>Reset MFA</button>
         <button type="button" disabled={pending || recoveryBusy || !reasonReady} onClick={() => void issueRecovery()}>{recoveryBusy ? "Issuing…" : "Issue recovery link"}</button>
-        <button type="button" disabled={pending || user.user_id === currentUserId} onClick={() => void post("/api/office-access/review", { target_user_id: user.user_id, decision: "APPROVED", notes: reason || undefined }, "Access review approved.")}>Approve review</button>
-        <button type="button" disabled={pending || user.user_id === currentUserId} onClick={() => void post("/api/office-access/review", { target_user_id: user.user_id, decision: "CHANGES_REQUIRED", notes: reason || undefined }, "Access review marked for changes.")}>Review changes</button>
+        <button type="button" disabled={pending || user.user_id === currentUserId} onClick={() => void post("/api/office-access/review", { target_user_id: user.user_id, decision: "APPROVED", notes: reason || undefined }, "Access review approved.")}><CheckCircle2 size={14}/>Approve</button>
+        <button type="button" disabled={pending || user.user_id === currentUserId} onClick={() => void post("/api/office-access/review", { target_user_id: user.user_id, decision: "CHANGES_REQUIRED", notes: reason || undefined }, "Access review marked for changes.")}><ShieldAlert size={14}/>Changes</button>
       </div>
       {recoveryError ? <p className={styles.recoveryError}>{recoveryError}</p> : null}
       {recoveryUrl ? <div className={styles.privateLink}>
         <div><Link2 /><span><b>Private recovery link</b><small>Single-use. Issuing it revoked the user’s active sessions. Send it only to the intended person.</small></span></div>
         <div className={styles.privateLinkRow}><input readOnly value={new URL(recoveryUrl, "https://www.kraviaprivatelimited.com").toString()} aria-label="Private password recovery URL" /><button type="button" onClick={() => void copyRecoveryLink()}><Copy />{recoveryCopied ? "Copied" : "Copy link"}</button></div>
       </div> : null}
-    </div> : <p className={styles.protected}>{user.status === "INVITED" ? "Pending invitation — no workspace access exists yet. Manage this identity through the invitation ledger until acceptance." : user.status === "REVOKED" ? "Revoked identity — ordinary role and lifecycle administration is permanently closed. Re-entry requires a new controlled onboarding decision." : roles.includes("OWNER") ? "Protected OWNER identity — ordinary administration cannot suspend, revoke, reset MFA or transfer this authority." : "This privileged identity is outside your delegated administration boundary."}</p>}
+    </div></details> : <p className={styles.protected}>{user.status === "INVITED" ? "Pending invitation — no workspace access exists yet. Manage this identity through the invitation ledger until acceptance." : user.status === "REVOKED" ? "Revoked identity — ordinary role and lifecycle administration is permanently closed. Re-entry requires a new controlled onboarding decision." : roles.includes("OWNER") ? "Protected OWNER identity — ordinary administration cannot suspend, revoke, reset MFA or transfer this authority." : "This privileged identity is outside your delegated administration boundary."}</p>}
   </article>;
 }
 
