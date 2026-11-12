@@ -1,0 +1,41 @@
+import { test, expect } from "@playwright/test";
+
+/**
+ * Black-box security checks run against the development Office server with no
+ * real session or employee credentials. They must not create HR documents,
+ * employee IDs or messages. Real protected workflow verification needs
+ * separately approved authenticated test identities after release.
+ */
+test("anonymous visitors cannot read private employee intake or photos", async ({ request }) => {
+  for (const url of ["/api/office-employee-intake", "/api/office-employee-intake?directory=1", "/api/office-employee-intake/photo"]) {
+    const response = await request.get(url);
+    expect([401,403], url).toContain(response.status());
+    expect(response.headers()["cache-control"], url).toContain("no-store");
+    const body = await response.text();
+    expect(body, url).not.toContain("bank_account_ciphertext");
+    expect(body, url).not.toContain("office_employee_reference_ids");
+  }
+});
+
+test("cross-origin requests cannot mutate employee intake or submit documents", async ({ request }) => {
+  const maliciousOrigin = { Origin:"https://untrusted.example.invalid" };
+  const mutation = await request.post("/api/office-employee-intake", {
+    headers:maliciousOrigin,
+    data:{action:"SUBMIT"},
+  });
+  expect(mutation.status()).toBe(403);
+  expect(mutation.headers()["cache-control"]).toContain("no-store");
+  const upload = await request.post("/api/office-employee-intake/upload", {
+    headers:maliciousOrigin,
+    multipart:{kind:"PHOTO", file:{name:"test.png",mimeType:"image/png",buffer:Buffer.from("not-a-photo")}},
+  });
+  expect(upload.status()).toBe(403);
+  expect(upload.headers()["cache-control"]).toContain("no-store");
+});
+
+test("anonymous visitors cannot access private employee salary slips", async ({ request }) => {
+  const url = "/api/office-salary-slips/00000000-0000-4000-8000-000000000001/pdf";
+  const response = await request.get(url);
+  expect([401,403,404], "salary download should never return salary data").toContain(response.status());
+  expect(response.status()).not.toBe(200);
+});
