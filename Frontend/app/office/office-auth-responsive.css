@@ -1,0 +1,405 @@
+/*
+ * KRAVIA Office / Finance: responsive authentication frame.
+ * Imported after the previous Office layers, scoped to the sign-in / MFA / QR
+ * layout only. Uses the existing official PNG unchanged as its source asset:
+ * the dark version is a CSS high-contrast rendering of the same brand mark.
+ */
+.kravia-office [data-office-auth-layout] {
+  width: 100% !important;
+  min-height: 100dvh !important;
+  height: auto !important;
+  overflow: visible !important;
+  background: var(--office-ui-canvas) !important;
+  color: var(--office-ui-ink) !important;
+  font-family: var(--font-sans, Inter, "Segoe UI", Arial, sans-serif) !important;
+  line-height: 1.5;
+}
+
+.kravia-office [data-office-auth-layout] [data-office-auth-mobile-header] {
+  min-width: 0;
+}
+.kravia-office [data-office-auth-layout] [data-office-logo-variant="dark"] {
+  display: none;
+}
+.kravia-office[data-office-theme="dark"] [data-office-auth-layout] [data-office-logo-variant="light"] {
+  display: none;
+}
+.kravia-office[data-office-theme="dark"] [data-office-auth-layout] [data-office-logo-variant="dark"] {
+  display: inline-flex;
+}
+
+/* The marketing-side panel remains navy/black in both themes. Its original
+ * navy K logo needs an explicit white rendering for a dark background. */
+.kravia-office [data-office-auth-layout] > section:first-child .brand-logo img {
+  filter: brightness(0) invert(1) !important;
+}
+.kravia-office [data-office-auth-layout] > section:first-child .brand-logo,
+.kravia-office [data-office-auth-layout] > section:first-child .brand-logo-copy {
+  color: #fff !important;
+}
+.kravia-office [data-office-auth-layout] > section:first-child .brand-logo-copy :is(b,small) {
+  color: #fff !important;
+}
+.kravia-office [data-office-auth-layout] > section:first-child .brand-logo-inverse {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+/* Mobile/tablet logo variants: unchanged official K asset, with sufficient
+ * foreground contrast in either appearance. */
+.kravia-office [data-office-auth-mobile-header] [data-office-logo-variant] .brand-logo,
+.kravia-office [data-office-auth-mobile-header] [data-office-logo-variant] .brand-logo-copy {
+  color: var(--office-ui-ink) !important;
+}
+.kravia-office[data-office-theme="dark"] [data-office-auth-mobile-header] [data-office-logo-variant="dark"] .brand-logo img {
+  filter: brightness(0) invert(1) !important;
+}
+.kravia-office[data-office-theme="dark"] [data-office-auth-mobile-header] [data-office-logo-variant="dark"] .brand-logo-copy :is(b,small) {
+  color: #fff !important;
+}
+.kravia-office[data-office-theme="light"] [data-office-auth-mobile-header] [data-office-logo-variant="light"] .brand-logo img {
+  filter: none !important;
+}
+
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] {
+  width: min(100%, 570px) !important;
+  max-width: 100% !important;
+  max-height: none !important;
+  border: 1px solid var(--office-ui-line) !important;
+  background: var(--office-ui-surface) !important;
+  color: var(--office-ui-ink) !important;
+  box-shadow: var(--office-ui-shadow) !important;
+  border-radius: 20px !important;
+  backdrop-filter: none !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] :is(h1,h2,h3) {
+  color: var(--office-ui-ink) !important;
+  font-family: var(--font-sans, Inter, "Segoe UI", Arial, sans-serif) !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] [class*="journeyStep"] b,
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] [class*="field"] {
+  color: var(--office-ui-ink) !important;
+}
+
+/* The old progress bar used amber dots and green text; the same blue/red
+ * semantics are now used throughout the identity journey. */
+.kravia-office [data-office-auth-layout] [class*="journey"] {
+  border-color: var(--office-ui-line) !important;
+}
+.kravia-office [data-office-auth-layout] [class*="journeyDot"] {
+  background: var(--office-ui-accent) !important;
+}
+.kravia-office [data-office-auth-layout] [data-state="upcoming"] [class*="journeyDot"] {
+  background: var(--office-ui-soft) !important;
+}
+.kravia-office [data-office-auth-layout] [data-state="error"] [class*="journeyDot"] {
+  background: var(--office-ui-danger) !important;
+}
+.kravia-office [data-office-auth-layout] [data-state="error"] b {
+  color: var(--office-ui-danger) !important;
+}
+
+/* Distinctly branded but accessible fields and actions. All controls stay
+ * reachable when iOS zooms or the on-screen keyboard shrinks the viewport. */
+.kravia-office [data-office-auth-layout] [class*="field"] :where(input,select,textarea) {
+  min-height: 50px !important;
+  font-size: 16px !important; /* prevents iOS focus zoom */
+  background: var(--office-ui-control) !important;
+  color: var(--office-ui-ink) !important;
+  border: 1px solid var(--office-ui-line) !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] :where(input,textarea,select)::placeholder {
+  color: var(--office-ui-soft) !important;
+  opacity: 1 !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] :where(input,textarea,select):focus-visible {
+  outline: 2px solid var(--office-ui-accent) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px var(--office-ui-ring) !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] button[class*="primary"] {
+  min-height: 49px !important;
+  background: #1559ce !important;
+  color: #fff !important;
+  border: 1px solid #1559ce !important;
+  border-radius: 11px !important;
+  font-size: clamp(14px, 1.1vw, 16px) !important;
+  font-weight: 710 !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] button[class*="secondary"] {
+  background: var(--office-ui-surface-alt) !important;
+  color: var(--office-ui-ink) !important;
+  border: 1px solid var(--office-ui-line) !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] [class*="links"] a {
+  color: var(--office-ui-accent) !important;
+  font-weight: 700 !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] [class*="note"] {
+  color: var(--office-ui-muted) !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] [class*="eye"] {
+  color: var(--office-ui-muted) !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] :where([class*="qrPanel"],[class*="timer"],[class*="status"]) {
+  background: var(--office-ui-surface-alt) !important;
+  color: var(--office-ui-ink) !important;
+  border-color: var(--office-ui-line) !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] [class*="timerRing"] {
+  background: conic-gradient(var(--office-ui-accent) var(--timer-progress),var(--office-ui-line) 0) !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] [class*="timerRing"]::before {
+  background: var(--office-ui-surface-alt) !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] [class*="timerRing"] span,
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] [class*="timer"] p {
+  color: var(--office-ui-ink) !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] [data-tone="error"] {
+  color: var(--office-ui-danger) !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] [data-tone="success"] {
+  color: var(--office-ui-accent) !important;
+}
+
+/* Large screens: full-height two-column experience. Form is vertically centred
+ * while narrower or shorter desktops retain natural document scrolling. */
+@media (min-width: 981px) {
+  .kravia-office [data-office-auth-layout] {
+    display: grid !important;
+    grid-template-columns: minmax(0,1fr) minmax(440px,.95fr) !important;
+    align-items: stretch;
+  }
+  .kravia-office [data-office-auth-layout] > section:first-child {
+    display: flex !important;
+    min-height: 100dvh;
+    padding: clamp(24px,3.6vw,64px) !important;
+  }
+  .kravia-office [data-office-auth-layout] > section:last-child {
+    display: flex !important;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 100dvh !important;
+    height: auto !important;
+    padding: clamp(20px,3vw,48px) !important;
+    justify-content: center !important;
+    overflow: visible !important;
+  }
+  .kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] {
+    width: min(100%, 580px) !important;
+    margin: 0 !important;
+    padding: clamp(26px,3vw,40px) !important;
+  }
+}
+
+/* Tablets and all phone sizes: full-viewport integrated form without unused
+ * dark space. The card takes the spare height instead of shrinking to its text.
+ * Very small devices and virtual keyboards scroll the document naturally. */
+@media (max-width: 980px) {
+  .kravia-office [data-office-auth-layout] {
+    display: block !important;
+    min-height: 100dvh !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .kravia-office [data-office-auth-layout] > section:first-child {
+    display: none !important;
+  }
+  .kravia-office [data-office-auth-layout] > section:last-child {
+    box-sizing: border-box;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100%;
+    height: auto !important;
+    min-height: 100dvh !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding:
+      max(14px, env(safe-area-inset-top,0px))
+      clamp(12px,4.3vw,36px)
+      max(14px, env(safe-area-inset-bottom,0px)) !important;
+    justify-content: stretch !important;
+    align-items: center;
+    background: var(--office-ui-canvas) !important;
+  }
+  .kravia-office [data-office-auth-layout] [data-office-auth-mobile-header] {
+    position: static !important;
+    display: flex !important;
+    flex: 0 0 auto;
+    width: min(100%,650px);
+    min-height: 58px;
+    align-items: center;
+    justify-content: space-between;
+    gap: clamp(8px,2.7vw,18px);
+    margin: 0 0 clamp(12px,2dvh,24px) !important;
+    color: var(--office-ui-ink) !important;
+  }
+  .kravia-office [data-office-auth-layout] [data-office-auth-mobile-header] [class*="mobileLogoVariants"] {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+  }
+  .kravia-office [data-office-auth-layout] [data-office-auth-mobile-header] .brand-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    color: var(--office-ui-ink) !important;
+    min-width: 0;
+    white-space: nowrap;
+  }
+  .kravia-office [data-office-auth-layout] [data-office-auth-mobile-header] .brand-logo img {
+    display: block;
+    width: clamp(35px,7vw,48px) !important;
+    height: clamp(36px,7.1vw,49px) !important;
+    object-fit: contain;
+    flex: none;
+  }
+  .kravia-office [data-office-auth-layout] [data-office-auth-mobile-header] .brand-logo-copy {
+    color: var(--office-ui-ink) !important;
+    gap: 3px;
+  }
+  .kravia-office [data-office-auth-layout] [data-office-auth-mobile-header] .brand-logo-copy b {
+    font-size: clamp(10px,2.9vw,15px) !important;
+    font-weight: 790 !important;
+    line-height: 1.05 !important;
+    letter-spacing: .09em !important;
+  }
+  .kravia-office [data-office-auth-layout] [data-office-auth-mobile-header] .brand-logo-copy small {
+    font-size: clamp(7px,1.7vw,10px) !important;
+    line-height: 1.13 !important;
+    letter-spacing: .08em !important;
+  }
+  .kravia-office [data-office-auth-layout] [data-office-auth-mobile-header] > b {
+    font-size: clamp(9px,2vw,11px) !important;
+    max-width: 36%;
+    white-space: normal !important;
+    line-height: 1.3;
+    color: var(--office-ui-muted) !important;
+    font-weight: 700;
+    text-align: right;
+    letter-spacing: .06em;
+  }
+  .kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    flex: 1 0 auto !important;
+    min-height: clamp(490px, calc(100dvh - 150px), 850px) !important;
+    max-height: none !important;
+    width: min(100%,650px) !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: clamp(19px,4.4vw,36px) !important;
+    border-radius: clamp(16px,3vw,22px) !important;
+  }
+  .kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] > :first-child {
+    width: 100%;
+    min-width: 0;
+  }
+  .kravia-office [data-office-auth-layout] [class*="formSide"] [class*="copyright"] {
+    position: static !important;
+    flex: 0 0 auto;
+    margin: clamp(10px,2dvh,20px) 0 0 !important;
+    text-align: center !important;
+    color: var(--office-ui-muted) !important;
+    font-size: clamp(9px,1.85vw,11px) !important;
+    letter-spacing: .07em !important;
+  }
+}
+@media (max-width: 480px) {
+  .kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] {
+    min-height: max(505px, calc(100dvh - 118px)) !important;
+  }
+}
+@media (max-width: 980px) and (max-height: 650px) {
+  .kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] {
+    min-height: 0 !important;
+    flex: 1 0 auto !important;
+  }
+  .kravia-office [data-office-auth-layout] [class*="formSide"] [class*="copyright"] {
+    display: block !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] {
+    animation: none !important;
+  }
+}
+
+
+/* Content distribution in the first-factor form is responsive without
+ * shrinking the label and text sizes. On tall phones, form fields fill the
+ * available panel height; on short phones, all actions remain scrollable. */
+.kravia-office [data-office-auth-layout] [data-office-login-release] {
+  display: flex !important;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  color: var(--office-ui-ink) !important;
+  gap: clamp(11px,1.75dvh,22px);
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="form"] [class*="eyebrow"] {
+  color: var(--office-ui-accent) !important;
+  font-size: clamp(10px,2vw,12px) !important;
+  font-weight: 750 !important;
+  letter-spacing: .12em !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="form"] [class*="intro"] {
+  font-size: clamp(13px,2.8vw,16px) !important;
+  line-height: 1.52 !important;
+  color: var(--office-ui-muted) !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="form"] h2 {
+  font-size: clamp(23px,4.25vw,34px) !important;
+  font-weight: 730 !important;
+  letter-spacing: -.045em !important;
+  line-height: 1.14 !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="form"] [class*="field"] {
+  gap: 8px !important;
+  font-size: clamp(13px,2.4vw,15px) !important;
+  color: var(--office-ui-ink) !important;
+  font-weight: 680 !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="form"] [class*="note"] {
+  font-size: clamp(11px,2.35vw,13px) !important;
+  line-height: 1.52 !important;
+  color: var(--office-ui-muted) !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="form"] [class*="links"] {
+  flex-wrap: wrap;
+  gap: 10px !important;
+  font-size: clamp(12px,2.5vw,15px) !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="form"] [class*="status"][data-tone="error"] {
+  border-color: var(--office-ui-danger) !important;
+}
+@media (max-width:980px) and (min-height:700px) {
+  .kravia-office [data-office-auth-layout] [data-office-login-release] {
+    flex: 1 1 auto;
+    justify-content: space-evenly;
+  }
+}
+@media (max-width:375px) {
+  .kravia-office [data-office-auth-layout] [data-office-auth-mobile-header] > b {
+    font-size: 9px !important;
+    max-width: 32%;
+  }
+  .kravia-office [data-office-auth-layout] [data-office-auth-mobile-header] .brand-logo {
+    gap: 5px;
+  }
+}
+
+/* Desktop's ambient brand decoration can extend a few pixels past the grid.
+ * Clip horizontally at the authentication frame only, retaining document
+ * vertical scrolling for landscape, zoom and mobile on-screen keyboards. */
+.kravia-office [data-office-auth-layout] {
+  max-width: 100% !important;
+  overflow-x: clip !important;
+  overflow-y: visible !important;
+}
+.kravia-office [data-office-auth-layout] > section {
+  min-width: 0;
+}
