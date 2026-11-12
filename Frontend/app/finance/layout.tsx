@@ -4,6 +4,7 @@ import "../office/office-platform.css";
 import "../office/office-experience-4.css";
 import "../office/office-shell-next.css";
 import "../office/office-design-system.css";
+import "../office/office-auth-responsive.css";
 import { OfficeAppearanceRoot } from "@/components/office-appearance-root";
 
 export const metadata: Metadata = {

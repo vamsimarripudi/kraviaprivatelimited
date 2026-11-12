@@ -327,3 +327,67 @@
     animation: none !important;
   }
 }
+
+
+/* Content distribution in the first-factor form is responsive without
+ * shrinking the label and text sizes. On tall phones, form fields fill the
+ * available panel height; on short phones, all actions remain scrollable. */
+.kravia-office [data-office-auth-layout] [data-office-login-release] {
+  display: flex !important;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  color: var(--office-ui-ink) !important;
+  gap: clamp(11px,1.75dvh,22px);
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="form"] [class*="eyebrow"] {
+  color: var(--office-ui-accent) !important;
+  font-size: clamp(10px,2vw,12px) !important;
+  font-weight: 750 !important;
+  letter-spacing: .12em !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="form"] [class*="intro"] {
+  font-size: clamp(13px,2.8vw,16px) !important;
+  line-height: 1.52 !important;
+  color: var(--office-ui-muted) !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="form"] h2 {
+  font-size: clamp(23px,4.25vw,34px) !important;
+  font-weight: 730 !important;
+  letter-spacing: -.045em !important;
+  line-height: 1.14 !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="form"] [class*="field"] {
+  gap: 8px !important;
+  font-size: clamp(13px,2.4vw,15px) !important;
+  color: var(--office-ui-ink) !important;
+  font-weight: 680 !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="form"] [class*="note"] {
+  font-size: clamp(11px,2.35vw,13px) !important;
+  line-height: 1.52 !important;
+  color: var(--office-ui-muted) !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="form"] [class*="links"] {
+  flex-wrap: wrap;
+  gap: 10px !important;
+  font-size: clamp(12px,2.5vw,15px) !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] [class*="form"] [class*="status"][data-tone="error"] {
+  border-color: var(--office-ui-danger) !important;
+}
+@media (max-width:980px) and (min-height:700px) {
+  .kravia-office [data-office-auth-layout] [data-office-login-release] {
+    flex: 1 1 auto;
+    justify-content: space-evenly;
+  }
+}
+@media (max-width:375px) {
+  .kravia-office [data-office-auth-layout] [data-office-auth-mobile-header] > b {
+    font-size: 9px !important;
+    max-width: 32%;
+  }
+  .kravia-office [data-office-auth-layout] [data-office-auth-mobile-header] .brand-logo {
+    gap: 5px;
+  }
+}
