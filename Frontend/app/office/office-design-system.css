@@ -427,3 +427,44 @@
     animation: none !important;
   }
 }
+
+
+/* One selected-state vocabulary for all department and finance submodules. */
+.kravia-office .office-modern .office-main :where(
+  button[data-active="true"],button[aria-selected="true"],button[aria-pressed="true"],
+  a[aria-current="page"]
+) {
+  background: var(--office-ui-accent) !important;
+  border-color: var(--office-ui-accent) !important;
+  color: #fff !important;
+}
+.kravia-office .office-modern .office-main :where(
+  button[data-active="true"],button[aria-selected="true"],button[aria-pressed="true"],
+  a[aria-current="page"]
+) :is(svg,span,small) {
+  color: #fff !important;
+}
+.kravia-office .office-modern .office-main :where(
+  [class*="sectionIntro"],[class*="cardTitle"],[class*="sectionHead"]
+) svg {
+  color: var(--office-ui-accent) !important;
+}
+.kravia-office .office-modern .office-main :where(
+  [class*="avatar"],[class*="Avatar"]
+) {
+  background: #1559ce !important;
+  color: #fff !important;
+}
+.kravia-office .office-modern[data-ui-theme="light"] .office-main :where(
+  [class*="hero"],[class*="Hero"],
+  [class*="panel"],[class*="Panel"],
+  [class*="card"],[class*="Card"],
+  [class*="tableWrap"],[class*="toolbar"],[class*="state"]
+) {
+  background-color: var(--office-ui-surface) !important;
+}
+.kravia-office .office-modern[data-ui-theme="light"] .office-main :where(
+  [class*="sectionIntro"],[class*="notice"],[class*="hint"]
+) {
+  border-color: var(--office-ui-line) !important;
+}

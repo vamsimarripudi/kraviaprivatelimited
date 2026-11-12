@@ -29,5 +29,7 @@ describe("KRAVIA shared Office & Finance visual system", () => {
     expect(css).toContain("min-height: 54px");
     expect(css).toContain("font-size: 16px !important");
     expect(css).toContain("[role=\"dialog\"]");
+    expect(css).toContain('button[data-active="true"]');
+    expect(css).toContain('data-ui-theme="light"] .office-main');
   });
 });
