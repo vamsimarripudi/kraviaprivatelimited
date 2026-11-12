@@ -17,6 +17,10 @@ describe("KRAVIA Office authorised employee notification delivery",()=>{
     expect(endpoint).toContain('p_effective_from:parsed.data.enabled?new Date().toISOString():null');
     expect(endpoint).not.toContain("BREVO_API_KEY");
     expect(endpoint).not.toContain("send_office");
+    expect(endpoint).toContain('count:"exact",head:true');
+    expect(endpoint).toContain('typeof item?.count === "number" ? item.count : null');
+    expect(controls).toContain('function displayCount(value:number|null|undefined)');
+    expect(controls).toContain('Provider accepted');
   });
   it("never treats a disabled policy, old employee ID or unknown mail as successful",()=>{
     expect(sql).toContain("VALUES('EMPLOYEE_ID_ISSUED',false)");
