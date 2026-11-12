@@ -87,3 +87,10 @@
   .controls .actions{grid-template-columns:repeat(2,minmax(0,1fr))!important}
   .inviteDisclosure>summary span{display:none}
 }
+
+.ownershipHint{display:flex;align-items:flex-start;gap:8px;
+  padding:9px 11px;border:1px solid rgba(38,97,70,.2);
+  border-radius:11px;background:rgba(38,97,70,.055);
+  font-size:.72rem;line-height:1.5;color:inherit}
+.ownershipHint>svg{width:16px;height:16px;flex:none;margin-top:2px}
+.ownershipHint a{color:#196b46;font-weight:730;text-decoration:underline;text-underline-offset:2px}
