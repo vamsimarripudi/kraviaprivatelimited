@@ -3690,18 +3690,27 @@ def build_identity_router() -> APIRouter:
             used_by=invited_user_id,
         )
         db.add(invite)
-        _mirror_invitation(
-            db,
-            invite_id=invite_id,
-            email=payload.email,
-            display_name=invite.display_name,
-            job_title=invite.job_title,
-            department=invite.department,
-            roles=payload.roles,
-            requested_by=actor["user_id"],
-            invited_user_id=invited_user_id,
-            expires_at=expires_at,
-        )
+        try:
+            _mirror_invitation(
+                db,
+                invite_id=invite_id,
+                email=payload.email,
+                display_name=invite.display_name,
+                job_title=invite.job_title,
+                department=invite.department,
+                roles=payload.roles,
+                requested_by=actor["user_id"],
+                invited_user_id=invited_user_id,
+                expires_at=expires_at,
+            )
+        except IntegrityError as exc:
+            # A stale control-plane CHECK must not become a 500 with SQL and
+            # recipient details in application logs. Nothing has been committed.
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail="Invitation roles or department are not accepted by the Office database. Contact the Founder to review the access configuration.",
+            ) from None
         _event(
             db,
             "INVITATION_CREATED",
@@ -3826,13 +3835,21 @@ def build_identity_router() -> APIRouter:
             used_by=invited_user_id,
         )
         db.add(replacement)
-        _mirror_invitation(
-            db, invite_id=new_id, email=replacement.email,
-            display_name=replacement.display_name, job_title=replacement.job_title,
-            department=replacement.department, roles=roles,
-            requested_by=actor["user_id"], invited_user_id=invited_user_id,
-            expires_at=replacement.expires_at,
-        )
+        try:
+            _mirror_invitation(
+                db, invite_id=new_id, email=replacement.email,
+                display_name=replacement.display_name, job_title=replacement.job_title,
+                department=replacement.department, roles=roles,
+                requested_by=actor["user_id"], invited_user_id=invited_user_id,
+                expires_at=replacement.expires_at,
+            )
+        except IntegrityError:
+            # Keep the original invitation intact when atomic replacement fails.
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail="Replacement roles or department are not accepted by the Office database.",
+            ) from None
         _event(db, "INVITATION_REISSUED", request, user_id=actor["user_id"],
                session_id=actor["session_id"],
                metadata={"previous_invitation_id": previous.id, "invitation_id": new_id})

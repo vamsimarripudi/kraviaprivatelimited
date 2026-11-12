@@ -40,5 +40,6 @@ describe("KRAVIA Office invitation lifecycle", () => {
     expect(backendAuth).toContain("office_user_roles");
     expect(backendAuth).toContain("office_access_invitations");
     expect(backendAuth).toContain("_mirror_identity");
+    expect(backendAuth).toContain("Invitation roles or department are not accepted by the Office database");
   });
 });

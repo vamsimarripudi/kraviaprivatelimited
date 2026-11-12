@@ -1537,3 +1537,63 @@ def test_reissued_invitation_invalidates_the_old_token(tmp_path, monkeypatch):
         assert new_status.status_code == 200
     finally:
         engine.dispose()
+
+def test_invitation_email_is_triggered_only_by_an_explicit_invite_or_reissue(tmp_path, monkeypatch):
+    """Never send during browsing, login or account provisioning without an invite action."""
+    sent = []
+    monkeypatch.setattr(identity_auth, "send_office_invitation_email", lambda **kwargs: sent.append(kwargs) or "mock-provider-id")
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        owner = aal2_founder(client)
+        assert sent == []
+        # Session and readiness activity must not send invitation emails.
+        assert client.get("/api/v1/auth/session", headers={
+            "Authorization": f"Bearer {owner['access_token']}"
+        }).status_code == 200
+        assert sent == []
+        invited = client.post("/api/v1/auth/invitations", headers={
+            "Authorization": f"Bearer {owner['access_token']}"
+        }, json={
+            "email": "invitation-explicit@example.test", "display_name": "Invite Test",
+            "department": "PEOPLE", "roles": ["MEMBER", "HR"],
+            "reason": "Explicit Founder invitation test only",
+        })
+        assert invited.status_code == 201, invited.text
+        assert invited.json()["email_delivery"] == "ACCEPTED"
+        assert len(sent) == 1
+        assert sent[0]["recipient_email"] == "invitation-explicit@example.test"
+        assert "/office/register?invite=" in sent[0]["registration_url"]
+        replacement = client.post(
+            f"/api/v1/auth/invitations/{invited.json()['invitation_id']}/reissue",
+            headers={"Authorization": f"Bearer {owner['access_token']}"},
+        )
+        assert replacement.status_code == 201, replacement.text
+        assert len(sent) == 2
+    finally:
+        engine.dispose()
+
+
+def test_invitation_check_constraint_returns_safe_error_and_does_not_send(tmp_path, monkeypatch):
+    from sqlalchemy.exc import IntegrityError
+
+    sent = []
+    monkeypatch.setattr(identity_auth, "send_office_invitation_email", lambda **kwargs: sent.append(kwargs))
+    client, engine = make_client(tmp_path, monkeypatch)
+    try:
+        owner = aal2_founder(client)
+        def reject_mirror(*_args, **_kwargs):
+            raise IntegrityError("insert into office_access_invitations", {}, RuntimeError("restricted check"))
+        monkeypatch.setattr(identity_auth, "_mirror_invitation", reject_mirror)
+        denied = client.post("/api/v1/auth/invitations", headers={
+            "Authorization": f"Bearer {owner['access_token']}"
+        }, json={
+            "email": "denied-mirror@example.test", "display_name": "Restricted Invite",
+            "department": "EXECUTIVE", "roles": ["DIRECTOR", "FINANCE", "HR", "MEMBER"],
+            "reason": "Controlled database compatibility failure",
+        })
+        assert denied.status_code == 409, denied.text
+        assert "Office database" in denied.json()["detail"]
+        assert "insert into" not in denied.text
+        assert sent == []
+    finally:
+        engine.dispose()
