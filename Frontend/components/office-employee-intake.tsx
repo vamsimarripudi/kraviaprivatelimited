@@ -107,7 +107,7 @@ export function OfficeEmployeeIntake({view="self"}:{view?:"self"|"hr"}){
   }
   function save(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
-    void post({action:"SAVE",...draft,education:draft.education.filter(e=>e.qualification||e.institution)},"Private employee draft saved.");
+    void post({action:"SAVE",...draft,date_of_birth:draft.date_of_birth||undefined,bank_account:draft.bank_account||undefined,education:draft.education.filter(e=>e.qualification||e.institution)},"Private employee draft saved.");
   }
   async function upload(kind:"PHOTO"|"CERTIFICATE"){
     const file=kind==="PHOTO"?photoFile:certificateFile;
