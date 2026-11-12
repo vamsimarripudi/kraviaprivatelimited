@@ -45,6 +45,21 @@ describe("KRAVIA verified private employee onboarding",()=>{
     expect(schema).toContain("employment_id uuid not null unique");
     expect(server).toContain('randomBytes(8).toString("hex").toUpperCase()');
   });
+  it("has valid SQL function delimiters and a pinned security-definer search path",()=>{
+    expect(schema).toContain("set search_path='' as $kravia_employee_ref$");
+    expect(schema).toContain("$kravia_employee_ref$;");
+    expect(schema).not.toContain("as $\\ndeclare");
+    expect(schema).toContain("public.office_employee_reference_issue");
+  });
+  it("rejects stale browser drafts, late file uploads and overwritten Finance reviews",()=>{
+    expect(server).not.toContain('.upsert(data,{onConflict:"employee_user_id"})');
+    expect(server).toContain('.eq("revision",old.data.revision)');
+    expect(server).toContain('bankChanged?{bank_verified_by:null');
+    expect(server).toContain('"Bank details changed before Finance verification');
+    expect(server).toContain('"Onboarding state changed; reload before submitting');
+    expect(files).toContain('.eq("revision",old.data.revision)');
+    expect(files).toContain("revision:old.data.revision+1");
+  });
   it("keeps HR reviewer data scoped, with separate profile and recruiting access",()=>{
     expect(intakeApi).toContain('params.get("directory")==="1"');
     expect(server).toContain("employeeIntakeDirectory");
