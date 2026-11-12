@@ -13,6 +13,7 @@ import { OfficeNavLink } from "@/components/office-nav-link";
 import { OfficePrefetchRoutes } from "@/components/office-prefetch-routes";
 import { OfficePresenceControl } from "@/components/office-presence-control";
 import { OfficeCommandPalette } from "@/components/office-command-palette";
+import { OfficeIntelligencePeek } from "@/components/office-intelligence-peek";
 import { WorkspaceSignOutButton } from "@/components/workspace-sign-out-button";
 import { OfficeWorkspaceProvider } from "@/components/office-workspace-context";
 import { OfficeAmbientField } from "@/components/office-experience-ambient";
@@ -315,6 +316,9 @@ export function OfficeWorkspaceShell({
             <ChevronRight size={14} aria-hidden="true"/>
             <strong aria-current="page">{item?.title ?? section}</strong>
           </nav>
+          <div className="office-topbar-tools">
+            {workspace === "office" && identity.roles.some(role => role === "OWNER" || role === "DIRECTOR") ?
+              <OfficeIntelligencePeek key={pathname}/> : null}
           <div className="office-more-wrapper" ref={moreRef}>
             <button type="button" className="office-more-button"
               aria-label="More workspace tools" aria-expanded={moreOpen}
@@ -337,6 +341,7 @@ export function OfficeWorkspaceShell({
                 </button>
               </div>
             </div>
+          </div>
           </div>
         </header>
         {item ? <div className="office-notice office-compact-notice" title={item.description}>
