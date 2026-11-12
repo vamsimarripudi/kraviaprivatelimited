@@ -23,6 +23,7 @@ export type OfficeIdentity = {
   displayName?: string;
   roles: OfficeRole[];
   accessStatus: string;
+  workspaceStatus: "PENDING" | "REQUESTED" | "ACTIVE";
   department?: OfficeDepartment;
   authzVersion: number;
   aal: "aal1" | "aal2";
@@ -97,6 +98,7 @@ type FirstPartyAuthResponse = {
   display_name?: string;
   roles: string[];
   access_status: string;
+  workspace_status?: string;
   department?: string | null;
   authorization_version?: number;
   aal: "aal1" | "aal2";
@@ -176,6 +178,8 @@ function toIdentity(payload: FirstPartyAuthResponse): OfficeIdentity {
     displayName: payload.display_name,
     roles,
     accessStatus: payload.access_status,
+    workspaceStatus: payload.workspace_status === "PENDING" || payload.workspace_status === "REQUESTED"
+      ? payload.workspace_status : "ACTIVE",
     department: isOfficeDepartment(departmentCandidate) ? departmentCandidate : undefined,
     authzVersion: typeof payload.authorization_version === "number" ? payload.authorization_version : 1,
     aal: payload.aal === "aal2" ? "aal2" : "aal1",

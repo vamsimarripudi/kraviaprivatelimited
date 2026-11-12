@@ -16,6 +16,7 @@ type AccessUser = {
   email?: string | null;
   last_sign_in_at?: string | null;
   status: AccessStatus;
+  workspace_status?: "PENDING" | "REQUESTED" | "ACTIVE";
   display_name?: string | null;
   job_title?: string | null;
   department?: string | null;
@@ -328,7 +329,7 @@ function UserCard({ user, state, owner, currentUserId, pending, mutate }: {
   }
 
   return <article className={styles.user}>
-    <div className={styles.userHead}><div><b>{user.display_name || user.email || "Office identity"}</b><span>{user.job_title || user.email}</span><small>{user.department ?? "No department"} · authz v{user.authorization_version}</small></div><em data-status={user.status}>{user.status}</em></div>
+    <div className={styles.userHead}><div><b>{user.display_name || user.email || "Office identity"}</b><span>{user.job_title || user.email}</span><small>{user.department ?? "No department"} · Workspace: {user.workspace_status ?? "ACTIVE"} · authz v{user.authorization_version}</small></div><em data-status={user.status}>{user.status}</em></div>
     <div className={styles.badges}>{user.roles.map((grant) => <span key={grant.role} data-expired={!grant.active}>{grant.role}{grant.expires_at ? ` · until ${formatDate(grant.expires_at)}` : ""}</span>)}</div>
     <div className={styles.userMeta}><span>Last sign-in <b>{formatDate(user.last_sign_in_at)}</b></span><span>Access review due <b>{formatDate(user.access_review_due_at)}</b></span></div>
     {manageable ? <details className={styles.userDisclosure}><summary>Manage access <span>Roles · Team · MFA · Review</span></summary><div className={styles.controls}>
@@ -337,6 +338,10 @@ function UserCard({ user, state, owner, currentUserId, pending, mutate }: {
       <label>Department<select value={department} onChange={(event) => setDepartment(event.target.value)}>{state.departments.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}</select></label>
       <label className={styles.reason}>Reason / review note<input maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} /></label>
       <div className={styles.actions}>
+        {owner && user.workspace_status === "REQUESTED" ? <button type="button" disabled={pending}
+          onClick={() => void post("/api/office-access/workspace-activation", { target_user_id: user.user_id }, "Workspace activated after Founder approval.")}>
+          <CheckCircle2 size={14}/>Activate workspace
+        </button> : null}
         <button type="button" disabled={pending || !reasonReady || roles.includes(role)} onClick={() => void post("/api/office-access/role", { target_user_id: user.user_id, role, action: "GRANT", expires_at: expiresAt ? new Date(expiresAt).toISOString() : undefined, reason }, `${role} granted.`)}><UserPlus size={14}/>Grant</button>
         <button type="button" disabled={pending || !reasonReady || !roles.includes(role)} onClick={() => void post("/api/office-access/role", { target_user_id: user.user_id, role, action: "REVOKE", reason }, `${role} revoked.`)}><ShieldAlert size={14}/>Revoke</button>
         <button type="button" disabled={pending || !reasonReady || department === user.department} onClick={() => void post("/api/office-access/department", { target_user_id: user.user_id, department, reason }, `Department changed to ${department}.`)}><UsersRound size={14}/>Department</button>

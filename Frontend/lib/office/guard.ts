@@ -16,6 +16,7 @@ export async function requireWorkspaceIdentity(workspace: WorkspaceKind, nextPat
   if (!context) redirect(loginUrl(workspace, nextPath));
   if (!officeIdentityIsProvisioned(context.identity)) redirect(loginUrl(workspace, nextPath, "access_not_active"));
   if (context.identity.aal !== "aal2") redirect(loginUrl(workspace, nextPath, "mfa_required"));
+  if (context.identity.workspaceStatus !== "ACTIVE") redirect("/office/processing");
   if (!roleCanAccessWorkspace(workspace, context.identity.roles)) {
     const preferred = preferredWorkspace(context.identity.roles);
     if (preferred && preferred !== workspace) redirect(`/${preferred}`);
