@@ -65,6 +65,7 @@ export function OfficeEmployeeIntake({view="self"}:{view?:"self"|"hr"}){
   const [error,setError]=useState("");
   const [notice,setNotice]=useState("");
   const [reason,setReason]=useState("");
+  const [bankEvidence,setBankEvidence]=useState("");
   const [certificateLabel,setCertificateLabel]=useState("");
   const [certificateFile,setCertificateFile]=useState<File|null>(null);
   const [photoFile,setPhotoFile]=useState<File|null>(null);
@@ -234,9 +235,13 @@ export function OfficeEmployeeIntake({view="self"}:{view?:"self"|"hr"}){
         <p>All actions are audited. Review signed appointment evidence, actual Finance verification and effective employment dates before issuing a permanent ID.</p>
         <label>Decision reason / evidence<input minLength={12} maxLength={1000} value={reason}
           onChange={e=>setReason(e.target.value)}/></label>
+        <label>Independent Finance bank-verification evidence reference
+          <input value={bankEvidence} minLength={8} maxLength={400} placeholder="Verified Finance record reference"
+            onChange={e=>setBankEvidence(e.target.value)}/>
+        </label>
         <div className={styles.row}>
-          <button disabled={busy||reason.trim().length<12||!profile?.bank_account_last4||Boolean(profile.bank_verified_at)}
-            onClick={()=>void post({action:"VERIFY_BANK",employee_id:state.employee_user_id,evidence_reference:reason,reason},
+          <button disabled={busy||reason.trim().length<12||bankEvidence.trim().length<8||!profile?.bank_account_last4||Boolean(profile.bank_verified_at)}
+            onClick={()=>void post({action:"VERIFY_BANK",employee_id:state.employee_user_id,evidence_reference:bankEvidence,reason},
               "Bank details marked independently reviewed.",state.employee_user_id)}><Wallet size={16}/> Verify bank (Finance)</button>
           <button disabled={busy||reason.trim().length<12||profile?.status!=="SUBMITTED"}
             onClick={()=>void post({action:"REVIEW",employee_id:state.employee_user_id,decision:"RETURN",reason},
