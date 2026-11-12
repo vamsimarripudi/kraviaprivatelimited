@@ -37,7 +37,8 @@ describe("KRAVIA HR Manager effective-date access and evidence-based worktime", 
     expect(worktimeUi).toContain("Break must be inside the actual shift");
     expect(worktimeUi).toContain("Do not enter a six-hour default");
     expect(worktime).toContain('people.update');
-    expect(worktime).toContain("Worktime cannot be self-approved");
+    const reviewPolicy = read("../Database/supabase/migrations/202611100002_worktime_salary_evidence.sql");
+    expect(reviewPolicy).toContain("Worktime cannot be self-approved");
   });
   it("does not automatically grant salary, weekend bonuses or overtime compensation", () => {
     expect(worktimeUi).toContain("Potential overtime");
