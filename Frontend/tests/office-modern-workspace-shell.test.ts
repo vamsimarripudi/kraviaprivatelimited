@@ -51,7 +51,7 @@ describe("KRAVIA Office responsive mega navigation and compact access", () => {
     expect(access).toContain("Assigned · ");
     expect(access).toContain('data-assigned={Boolean(assigned)}');
     expect(access).toContain("disabled={pending || Boolean(assigned)}");
-    expect(access).toContain("otherAssignments" === "assignedToOthers" ? "otherAssignments" : "assignedToOthers");
+    expect(access).toContain("assignedToOthers");
     expect(accessCss).toContain(".roleTag");
     expect(access).toContain("inviteDisclosure");
     expect(access).toContain("userDisclosure");
