@@ -17,3 +17,23 @@
 @keyframes ox4-workhub-enter{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}@keyframes ox4-drawer{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}@keyframes ox4-modal{from{opacity:0;transform:translateY(16px) scale(.985)}to{opacity:1;transform:none}}
 @media(max-width:620px){.hero{border-radius:22px}.drawer{margin:0;width:100%;height:auto;max-height:90dvh;align-self:flex-end;border-radius:24px 24px 0 0}.drawerBackdrop{align-items:flex-end}.decisionModal{border-radius:22px}.metrics article:hover,.actionList>button:hover,.compactRows>button:hover{transform:none}}
 @media(prefers-reduced-motion:reduce){.hero,.drawer,.decisionModal{animation:none}.metrics article,.actionList>button,.compactRows>button,.primary,.submit,.approve{transition:none}}
+
+
+/* KRAVIA Office focus layout: secondary panels are expandable, not oversized. */
+.hub[data-mode="dashboard"]{gap:12px}
+.compactHero{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 16px;border:1px solid var(--off-next-line,#dce6df);border-radius:15px;background:var(--off-next-panel,#fff);color:var(--off-next-ink,#17251f)}
+.compactHero>div{min-width:0}.compactHero p{margin:0 0 5px;font-size:10px;font-weight:750;letter-spacing:.12em;color:var(--off-next-muted,#63736b)}.compactHero h2{margin:0;font-size:clamp(17px,2vw,23px);letter-spacing:-.035em;line-height:1.2}.compactHero span{font-size:11px;color:var(--off-next-muted,#63736b)}
+.iconFirst{flex:none;display:flex;align-items:center;justify-content:center;gap:7px;width:38px;height:38px;min-width:38px;overflow:hidden;border:1px solid var(--off-next-line,#dce6df);border-radius:11px;background:var(--off-next-ink,#17251f);color:var(--off-next-panel,#fff);cursor:pointer;transition:width .2s ease,background .2s ease}
+.iconFirst svg{flex:none}.iconFirst span{max-width:0;opacity:0;white-space:nowrap;overflow:hidden;font-size:12px;color:inherit;transition:max-width .2s,opacity .2s}
+@media(hover:hover){.iconFirst:is(:hover,:focus-visible){width:142px}.iconFirst:is(:hover,:focus-visible) span{max-width:110px;opacity:1}}
+.hub[data-mode="dashboard"] .metrics{gap:8px}.hub[data-mode="dashboard"] .metrics article{padding:11px 13px;border-radius:12px;box-shadow:none}.hub[data-mode="dashboard"] .metrics strong{font-size:1.25rem}.hub[data-mode="dashboard"] .metrics small{font-size:10px}
+.hub[data-mode="dashboard"] .dashboardGrid{gap:10px}
+.compactPanel{padding:12px 14px;border:1px solid var(--off-next-line,#dce6df);border-radius:13px;background:var(--off-next-panel,#fff);color:var(--off-next-ink,#17251f);min-width:0}
+.compactPanel>summary{display:block;cursor:pointer;list-style:none}.compactPanel>summary::-webkit-details-marker{display:none}
+.compactPanel>summary .panelHeader{margin:0;align-items:center}.compactPanel>summary .panelHeader h3{font-size:14px;margin-top:3px}
+.compactPanel>summary .panelHeader:after{content:"+";font-size:17px;font-weight:500;color:var(--off-next-muted,#63736b)}
+.compactPanel[open]>summary .panelHeader:after{content:"−"}
+.compactPanel>summary .panelHeader>span{font-size:10px}
+.compactPanel>.actionList,.compactPanel>.compactRows,.compactPanel>.devices,.compactPanel>.notificationList{padding-top:11px}
+@media(max-width:740px){.compactHero{padding:11px 12px}.compactHero>div>span{display:none}.hub[data-mode="dashboard"] .dashboardGrid{grid-template-columns:1fr}.hub[data-mode="dashboard"] .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.hub[data-mode="dashboard"] .metrics article{padding:9px 10px}.iconFirst{width:38px}.compactPanel{padding:12px}}
+@media(prefers-reduced-motion:reduce){.iconFirst,.iconFirst span{transition:none}}

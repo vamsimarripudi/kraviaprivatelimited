@@ -233,7 +233,6 @@ function WorkspaceDashboard({ workspace, section, identity, permissions }: { wor
   const basePath = workspaceDefinitions[workspace].basePath;
   const runtime = runtimeModuleSpec(workspace, section);
   const onlyShellRoles = identity.roles.every((role) => role === "ADMIN" || role === "MEMBER");
-  const executive = identity.roles.some((role) => role === "OWNER" || role === "DIRECTOR");
   const identityName = identity.displayName?.trim() || identity.email?.split("@")[0]?.split(/[._-]/)[0] || "there";
   const firstName = identityName.split(/\s+/)[0].replace(/^./, (letter) => letter.toUpperCase());
   const greeting = new Intl.DateTimeFormat("en-IN", { hour: "numeric", hourCycle: "h23", timeZone: "Asia/Kolkata" }).format(new Date());
@@ -241,18 +240,25 @@ function WorkspaceDashboard({ workspace, section, identity, permissions }: { wor
 
   return <>
     {workspace === "office" ? <>
-      <section className="office-briefing" aria-labelledby="office-briefing-title">
+      <section className="office-briefing office-briefing-compact" aria-labelledby="office-briefing-title">
         <div>
           <p className="eyebrow">{new Intl.DateTimeFormat("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" }).format(new Date())}</p>
           <h2 id="office-briefing-title">{greetingLabel}, {firstName}.</h2>
-          <p>Start with the work that needs your authority. Every decision keeps its context, evidence and accountable next step together.</p>
+          <p>One focused place for your assigned work, priorities, attendance and decisions.</p>
         </div>
-        <p className="office-briefing-principle">Disciplined decisions,<br />a stronger tomorrow.</p>
+        <div className="office-briefing-actions"><OfficeNavLink href="/office/my-role">My profile <ArrowRight size={15}/></OfficeNavLink><OfficeNavLink href="/office/worktime">Earnings & payslips <ArrowRight size={15}/></OfficeNavLink></div>
       </section>
-      {executive ? <OfficeIntelligenceBrief compact /> : null}<OfficeWorkHub identity={identity} mode="dashboard" /><OfficeCompanyInbox compact /><OfficeActivityTimeline />
+      <OfficeWorkHub identity={identity} mode="dashboard" />
+      <details className="office-dashboard-extras">
+        <summary>More work context <span>Company inbox · Recent activity</span></summary>
+        <div className="office-dashboard-extras-content"><OfficeCompanyInbox compact /><OfficeActivityTimeline /></div>
+      </details>
     </> : <section className="workspace-hero-panel"><div><p className="eyebrow">VERIFIED AAL2 SESSION</p><h2>Finance work without mixing ownership, tax and treasury.</h2></div><ShieldCheck aria-hidden="true" /></section>}
-    {runtime && !onlyShellRoles ? <WorkspaceRuntimePanel title={workspace === "finance" ? "Finance overview" : "Office overview"} spec={runtime} /> : null}
-    <div className="office-dashboard-grid workspace-module-grid">{sections.map(([slug, sectionItem]) => <OfficeNavLink href={`${basePath}/${slug}`} key={slug} className="workspace-module-card"><div className="workspace-module-card-head"><NavIcon group={sectionItem.group} /><p className="eyebrow">{sectionItem.group}</p></div><h2>{sectionItem.title}</h2><span>{sectionItem.description}</span><b>Open <ArrowRight aria-hidden="true" /></b></OfficeNavLink>)}</div>
+    <details className="office-dashboard-extras office-dashboard-resources">
+      <summary>Explore your other workspaces <span>Role-specific tools and records</span></summary>
+      {runtime && !onlyShellRoles ? <WorkspaceRuntimePanel title={workspace === "finance" ? "Finance overview" : "Office overview"} spec={runtime} /> : null}
+      <nav className="office-dashboard-quick-links" aria-label="Available workspaces">{sections.map(([slug, sectionItem]) => <OfficeNavLink href={`${basePath}/${slug}`} key={slug} className="office-dashboard-quick-link"><NavIcon group={sectionItem.group} /><span>{sectionItem.title}</span><ArrowRight aria-hidden="true" /></OfficeNavLink>)}</nav>
+    </details>
   </>;
 }
 

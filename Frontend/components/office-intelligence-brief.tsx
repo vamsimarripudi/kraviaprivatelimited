@@ -12,6 +12,8 @@ type Brief = {
   mode: string;
   disclaimer: string;
   guardrail: string;
+  data_quality?: { degraded: boolean; unavailable_sources: string[] };
+  unavailable_metrics?: string[];
   metrics: {
     active_tasks: number;
     overdue_tasks: number;
@@ -73,10 +75,15 @@ export function OfficeIntelligenceBrief({ compact = false }: { compact?: boolean
   if (!brief) return <section className={styles.state}><LoaderCircle className="spin" /><div><h2>Building company brief</h2><p>Reading current Office records without inferring missing facts.</p></div></section>;
 
   const visibleAttention = compact ? brief.attention.slice(0, 4) : brief.attention;
+  const displayCount = (key: string, value: number) => brief.unavailable_metrics?.includes(key) ? "—" : value.toLocaleString("en-IN");
+  const displayMoney = (key: string, value: MoneyBucket[]) => brief.unavailable_metrics?.includes(key) ? "—" : moneySummary(value);
   return <section className={styles.shell} data-compact={compact}>
     <header className={styles.hero}><div className={styles.mark}><BrainCircuit /></div><div><p>KRAVIA INTELLIGENCE</p><h2>{compact ? "What needs executive attention now." : "A read-first company brief from canonical records."}</h2><span>{brief.disclaimer}</span></div><div className={styles.mode}><Sparkles /><span>Deterministic V1</span><small>No autonomous writes</small></div></header>
 
-    <div className={styles.metrics}><article><span>Pending approvals</span><strong>{brief.metrics.pending_approval_steps}</strong><small>{brief.metrics.overdue_tasks} overdue tasks</small></article><article><span>Incidents</span><strong>{brief.metrics.active_incidents}</strong><small>{brief.metrics.critical_incidents} SEV1/SEV2</small></article><article><span>Open pipeline</span><strong>{brief.metrics.open_opportunities}</strong><small>{moneySummary(brief.metrics.pipeline_by_currency)} visible value</small></article><article><span>Receivables</span><strong>{moneySummary(brief.metrics.receivables_by_currency)}</strong><small>{brief.metrics.invoices_with_balance} invoices with balance</small></article><article><span>Compliance due</span><strong>{brief.metrics.compliance_due_30d}</strong><small>{brief.metrics.contracts_expiring_60d} contracts within 60 days</small></article><article><span>Company services</span><strong>{brief.metrics.engineering_services}</strong><small>{brief.metrics.engineering_services_not_active} not marked active</small></article></div>
+    {brief.data_quality?.degraded ? <div role="status" className={styles.warning}>
+      Some sources are unavailable: {brief.data_quality.unavailable_sources.join(", ")}. Missing figures are shown as unknown, never zero.
+    </div> : null}
+    <div className={styles.metrics}><article><span>Pending approvals</span><strong>{displayCount("pending_approval_steps", brief.metrics.pending_approval_steps)}</strong><small>{displayCount("overdue_tasks", brief.metrics.overdue_tasks)} overdue tasks</small></article><article><span>Incidents</span><strong>{displayCount("active_incidents", brief.metrics.active_incidents)}</strong><small>{displayCount("critical_incidents", brief.metrics.critical_incidents)} SEV1/SEV2</small></article><article><span>Open pipeline</span><strong>{displayCount("open_opportunities", brief.metrics.open_opportunities)}</strong><small>{displayMoney("pipeline_by_currency", brief.metrics.pipeline_by_currency)} visible value</small></article><article><span>Receivables</span><strong>{displayMoney("receivables_by_currency", brief.metrics.receivables_by_currency)}</strong><small>{displayCount("invoices_with_balance", brief.metrics.invoices_with_balance)} invoices with balance</small></article><article><span>Compliance due</span><strong>{displayCount("compliance_due_30d", brief.metrics.compliance_due_30d)}</strong><small>{displayCount("contracts_expiring_60d", brief.metrics.contracts_expiring_60d)} contracts within 60 days</small></article><article><span>Company services</span><strong>{displayCount("engineering_services", brief.metrics.engineering_services)}</strong><small>{displayCount("engineering_services_not_active", brief.metrics.engineering_services_not_active)} not marked active</small></article></div>
 
     <div className={styles.attention}>{visibleAttention.map((item) => <Link href={item.href} className={styles.item} key={item.key} data-severity={item.severity}><div className={styles.icon}>{icon(item.severity)}</div><div><span>{item.area} · {item.severity}</span><b>{item.title}</b><p>{item.detail}</p></div><ArrowRight /></Link>)}</div>
     {!compact ? <div className={styles.state}><ShieldAlert /><div><h2>Execution guardrail</h2><p>{brief.guardrail}</p></div></div> : null}
