@@ -320,3 +320,58 @@
 @media(prefers-reduced-motion:reduce){
   .kravia-office .office-modern *{animation-duration:.01ms!important;transition-duration:.01ms!important}
 }
+
+
+/* Floating Office rail — intentional content overlay, never a layout-expanding sidebar. */
+@media (min-width:901px) {
+  .kravia-office .office-v2.office-modern.office-floating-rail,
+  .kravia-office .office-v2.office-modern.office-floating-rail[data-menu-expanded="false"] {
+    display:block!important;
+    padding-left:85px!important;
+    min-height:100dvh!important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail>.office-mega-aside {
+    position:fixed!important;
+    inset:12px auto 12px 12px!important;
+    width:290px!important;
+    height:calc(100dvh - 24px)!important;
+    min-height:0!important;
+    max-height:calc(100dvh - 24px)!important;
+    border:1px solid rgba(255,255,255,.13)!important;
+    border-radius:18px!important;
+    box-shadow:0 20px 44px rgba(9,33,23,.22)!important;
+    transition:width .18s ease,box-shadow .18s ease;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail>.office-mega-aside[data-menu-expanded="false"] {
+    width:62px!important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail>.office-main {
+    width:100%!important;
+    min-width:0!important;
+    padding:0!important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail .office-topbar-compact {
+    position:sticky!important;
+    top:9px!important;
+    margin:9px 12px 0!important;
+    min-height:44px!important;
+    height:44px!important;
+    padding:5px 12px!important;
+    border:1px solid var(--off-next-line)!important;
+    border-radius:12px!important;
+    box-shadow:0 5px 20px rgba(12,36,26,.045)!important;
+  }
+}
+/* Compact information banners; unavailable intelligence has no blank header footprint. */
+.kravia-office .office-modern.office-floating-rail .office-compact-notice { display:none!important; }
+.kravia-office .office-modern :is(
+  .office-rail-category-list,.office-category-links,.office-main,.office-mega-panel,
+  .office-more-card,.office-icon-rail
+) { scrollbar-width:none; }
+.kravia-office .office-modern :is(
+  .office-rail-category-list,.office-category-links,.office-main,.office-mega-panel,
+  .office-more-card,.office-icon-rail
+)::-webkit-scrollbar { width:0;height:0;display:none; }
+@media (max-width:900px) {
+  .kravia-office .office-v2.office-modern.office-floating-rail { padding-left:0!important; }
+}

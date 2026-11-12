@@ -12,6 +12,11 @@ export type OfficeNavigationCommand = {
 // still authorized by the server-side permission engine in the domain handler.
 // Keep this vocabulary synchronized with office_permission_catalog.
 const requirements: Record<string, readonly string[]> = {
+  "office:manager": ["people.workforce_plan.read", "people.performance.read", "portfolio.team.manage", "hiring.onboarding.manage"],
+  "office:department-ownership": ["access.profile.assign", "portfolio.team.manage", "operations.asset.manage"],
+  "office:role-packages": ["access.profile.assign", "hiring.onboarding.manage", "people.workforce_plan.manage"],
+  "office:intelligence": ["strategy.read", "governance.risk.read", "audit.read"],
+  "office:readiness": ["audit.read", "security.overview.read"],
   "office:decisions": ["governance.risk.read", "governance.risk.manage", "governance.risk.review", "governance.decision.read", "governance.decision.record", "governance.change.read", "governance.change.manage", "governance.change.review"],
   "office:strategy": ["strategy.read", "strategy.manage", "strategy.review", "strategy.progress.update"],
   "office:crm": ["sales.crm.read", "sales.crm.write"],
@@ -72,7 +77,7 @@ const requirements: Record<string, readonly string[]> = {
   "finance:audit": ["finance.read", "audit.read"],
 };
 
-const directorReservedSections = new Set(["intelligence", "governance", "readiness"]);
+// Director title alone never substitutes for a scoped permission assignment.
 
 export function requiredCapabilities(workspace: WorkspaceKind, section: string) {
   return requirements[`${workspace}:${section}`] ?? [];
@@ -85,7 +90,6 @@ export function capabilityCanAccessSection(
   permissions: readonly string[],
 ) {
   if (roles.includes("OWNER")) return true;
-  if (workspace === "office" && roles.includes("DIRECTOR") && directorReservedSections.has(section)) return true;
   const required = requiredCapabilities(workspace, section);
   if (!required.length) return true;
   const granted = new Set(permissions);

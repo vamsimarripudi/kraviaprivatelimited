@@ -74,6 +74,17 @@ const iconBySlug: Record<string, typeof LayoutDashboard> = {
   access:ShieldCheck,"role-packages":Users,"department-ownership":ShieldCheck,
 };
 
+// The protected Founder navigation is intentionally an oversight + technology
+// view, not an invitation to execute every other department's operations.
+// Backend permissions still control every API operation and can be delegated.
+const founderNavigation = new Set([
+  "dashboard", "my-role", "notifications", "tasks", "calendar", "requests",
+  "approvals", "worktime", "manager", "department-ownership", "role-packages",
+  "decisions", "strategy", "intelligence", "products", "portfolio", "engineering",
+  "quality", "ai", "integrations", "domains", "security", "devices", "it",
+  "data", "readiness", "access", "audit", "settings",
+]);
+
 type Entry = [string, WorkspaceSection];
 type Theme = "light" | "dark";
 const themeKey = "kravia.office.appearance";
@@ -111,7 +122,7 @@ export function OfficeWorkspaceShell({
 }) {
   const pathname = usePathname();
   const [mobileNav, setMobileNav] = useState(false);
-  const [megaExpanded, setMegaExpanded] = useState(true);
+  const [megaExpanded, setMegaExpanded] = useState(false);
   const [pickedCategory, setPickedCategory] = useState<string | null>(null);
   const [pickedSubgroup, setPickedSubgroup] = useState<string | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -124,7 +135,8 @@ export function OfficeWorkspaceShell({
 
   const entries = useMemo(() => sectionEntries(workspace).filter(([slug,value]) =>
     roleCanAccessSection(value, identity.roles) &&
-    capabilityCanAccessSection(workspace, slug, identity.roles, permissions)),
+    capabilityCanAccessSection(workspace, slug, identity.roles, permissions) &&
+    (workspace !== "office" || !identity.roles.includes("OWNER") || founderNavigation.has(slug))),
     [workspace, identity.roles, permissions]);
   const categories = useMemo(() => {
     const order = workspace === "office" ? categoryOrder : financeOrder;
@@ -203,7 +215,7 @@ export function OfficeWorkspaceShell({
 
   const navId = workspace + "-workspace-mega-navigation";
   return <OfficeWorkspaceProvider identity={identity} permissions={permissions}>
-    <main className={"office office-v2 office-v4 office-modern workspace-shell workspace-" + workspace}
+    <main className={"office office-v2 office-v4 office-modern office-floating-rail workspace-shell workspace-" + workspace}
       data-ui-theme={theme} data-menu-expanded={megaExpanded}>
       <OfficeAmbientField variant="workspace" />
       <a className="office-skip-link" href="#office-main-content">Skip to main content</a>

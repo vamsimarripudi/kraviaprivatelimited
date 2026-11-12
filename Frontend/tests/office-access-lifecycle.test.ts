@@ -22,7 +22,7 @@ describe("KRAVIA Office invitation lifecycle", () => {
     expect(accessAdmin).toContain("registration_url");
     expect(accessPanel).toContain("Private registration link");
     expect(accessPanel).toContain("copyInviteLink");
-    expect(accessPanel).toContain("send it only to the intended person");
+    expect(accessPanel).toContain("The Office backend attempts email delivery automatically.");
     expect(backendAuth).toContain("registration_token");
     expect(backendAuth).toContain('invite.status = "ACCEPTED"');
   });

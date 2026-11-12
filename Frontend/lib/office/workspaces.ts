@@ -87,7 +87,7 @@ export const officeSections = {
   custody: { title: "Secure custody", eyebrow: "ORIGINALS · DSC · RESTRICTED MEDIA", description: "Physical-original and restricted-token custody, checkout, return evidence and independent verification without storing PINs, private keys or token secrets.", roles: officeWorkspaceRoles, group: "Assure" },
   readiness: { title: "Readiness", eyebrow: "PRODUCTION CONTROL", description: "Verified configuration and evidence only; never a fabricated compliance score.", roles: executive, group: "Assure" },
   audit: { title: "Audit trail", eyebrow: "APPEND-ORIENTED EVIDENCE", description: "Office control-plane events plus canonical runtime audit evidence, with runtime cryptographic chain verification kept explicitly source-scoped.", roles: ["OWNER", "DIRECTOR", "CS", "LEGAL", "AUDITOR"], group: "Assure" },
-  settings: { title: "Office settings", eyebrow: "IDENTITY & CONTROL", description: "Workspace identity, MFA posture and controlled Office configuration.", roles: ["OWNER", "DIRECTOR", "ADMIN", "MEMBER"], group: "Assure" },
+  settings: { title: "Office settings", eyebrow: "IDENTITY & CONTROL", description: "Personal identity, MFA posture and permission-scoped Office configuration.", roles: everyAdmittedRole, group: "Assure" },
 } as const satisfies Record<string, WorkspaceSection>;
 
 export const financeSections = {
