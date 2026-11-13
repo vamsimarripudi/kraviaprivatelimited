@@ -332,7 +332,7 @@
       "baseline": "New",
       "priority": "P2",
       "subject": "Your first-week check-in at KRAVIA",
-      "body": "A first-week onboarding check-in has been recorded for your verified start date. Review any open questions with your reporting manager."
+      "body": "Seven calendar days have passed since your verified KRAVIA employment start date. Review your first-week questions and any pending onboarding tasks with your reporting manager."
     },
     "ONB-12": {
       "id": "ONB-12",
@@ -342,7 +342,7 @@
       "baseline": "New",
       "priority": "P2",
       "subject": "Your first-month check-in at KRAVIA",
-      "body": "A first-month onboarding check-in has been recorded for your verified start date. Review development needs and outstanding onboarding evidence."
+      "body": "Thirty calendar days have passed since your verified KRAVIA employment start date. Review your first-month progress, development needs and outstanding onboarding evidence with your reporting manager."
     },
     "ROLE-01": {
       "id": "ROLE-01",
