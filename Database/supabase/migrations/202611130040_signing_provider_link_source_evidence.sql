@@ -51,6 +51,8 @@ BEGIN
     WHEN delivery.metadata->>'link_expires_at'
      ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
     THEN (delivery.metadata->>'link_expires_at')::timestamptz>pg_catalog.now()
+      AND (delivery.metadata->>'link_expires_at')::timestamptz
+           <=delivery.created_at+interval '30 days'
     ELSE false END
     AND delivery.destination_masked IS NOT NULL
     AND char_length(btrim(delivery.destination_masked))>=3
@@ -97,6 +99,8 @@ BEGIN
     WHEN delivery.metadata->>'link_expires_at'
      ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
     THEN (delivery.metadata->>'link_expires_at')::timestamptz>pg_catalog.now()
+      AND (delivery.metadata->>'link_expires_at')::timestamptz
+           <=delivery.created_at+interval '30 days'
     ELSE false END
    AND delivery.destination_masked IS NOT NULL
    AND char_length(btrim(delivery.destination_masked))>=3
