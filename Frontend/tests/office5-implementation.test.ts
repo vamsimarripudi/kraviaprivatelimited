@@ -43,7 +43,8 @@ describe("KRAVIA Office 5.0 source-backed implementation guardrails", () => {
    expect(vault).toContain("getOfficeRegistrationOverview()");
    expect(vault).toContain("getOfficeDocumentStudioOverview()");
    expect(vault).toContain("notFound()");
-   expect(vault).toContain("/api/office-documents?download=");
+   expect(vault).toContain("requireOfficeVaultRecord(");
+   expect(vault).toContain("/api/office-vault/documents/");
    expect(vault).not.toMatch(/password|private.key|recovery.phrase|bank.pin/i);
  });
  it("provides keyboard-first responsive Office and Finance navigation",()=>{

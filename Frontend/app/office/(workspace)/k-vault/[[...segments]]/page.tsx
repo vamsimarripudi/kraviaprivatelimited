@@ -7,10 +7,7 @@ import { getOfficeDocumentStudioOverview } from "@/lib/office/document-studio-se
 import { getSecureCustodyOverview } from "@/lib/office/custody-server";
 import { InternalWorkspaceScreen } from "@/components/internal-workspace-screen";
 import { OfficeVaultAccessCenter } from "@/components/office-vault-access-center";
-import { requireOfficeVaultRecord, getOfficeVaultGrantedResources } from "@/lib/office/vault-access-server";
-import { OfficeRegistrationRegistry } from "@/components/office-registration-registry";
-import { OfficeDocumentStudio } from "@/components/office-document-studio";
-import { OfficeSecureCustody } from "@/components/office-secure-custody";
+import { requireOfficeVaultRecord, getOfficeVaultGrantedResources, OfficeVaultAccessError } from "@/lib/office/vault-access-server";
 import { vaultCategories, type VaultCategory } from "@/lib/office/vault-categories";
 import styles from "@/components/office-vault.module.css";
 
@@ -133,7 +130,12 @@ export default async function VaultPages({params}:Props){
    content=<InternalWorkspaceScreen workspace="office" section="settings"/>;
  } else if(segments.length===2&&segments[0]==="records"){
    if(!visible("registrations")||!/^[0-9a-f-]{36}$/i.test(segments[1])) notFound();
-   await requireOfficeVaultRecord({category:"registrations",recordId:segments[1],action:"READ"});
+   try {
+     await requireOfficeVaultRecord({category:"registrations",recordId:segments[1],action:"READ"});
+   } catch(error) {
+     if(!(error instanceof OfficeVaultAccessError) || error.status!==404) throw error;
+     await requireOfficeVaultRecord({category:"identity",recordId:segments[1],action:"READ"});
+   }
    const records=await getOfficeRegistrationOverview();
    const record=records.registrations.find(row=>row.id===segments[1]);
    if(!record) notFound();
