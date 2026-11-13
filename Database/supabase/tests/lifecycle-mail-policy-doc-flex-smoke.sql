@@ -2,10 +2,10 @@
 BEGIN;
 DO $before$
 BEGIN
- IF (SELECT count(*) FROM public.office_lifecycle_mail_policy WHERE source_ready)<>57
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_policy WHERE source_ready)<>55
    OR EXISTS(SELECT 1 FROM public.office_lifecycle_mail_policy WHERE enabled)
    OR EXISTS(SELECT 1 FROM public.office_lifecycle_mail_outbox) THEN
-  RAISE EXCEPTION 'Policy/doc release expects 57 mapped, zero enabled and empty outbox';
+  RAISE EXCEPTION 'Policy/doc release expects 55 mapped, zero enabled and empty outbox';
  END IF;
  IF pg_catalog.has_function_privilege('anon','public.office_lifecycle_flex_evidence_valid(uuid)','EXECUTE')
    OR pg_catalog.has_function_privilege('authenticated','public.office_lifecycle_flex_evidence_valid(uuid)','EXECUTE') THEN
@@ -90,7 +90,8 @@ UPDATE public.office_document_instances
  SET status='DELIVERED',delivered_at=pg_catalog.now()
  WHERE id='b0000000-0000-4000-8000-000000000096';
 
--- New immutable issue with a genuinely different signed-off payroll snapshot.
+-- Distinct approved payroll calculation versions; production explicitly
+-- prohibits issuing two payslips for the same payroll result.
 INSERT INTO public.office_salary_payslip_issues(
  id,payroll_result_id,employee_user_id,issued_by,snapshot_sha256,issued_at
 ) VALUES(
@@ -99,9 +100,30 @@ INSERT INTO public.office_salary_payslip_issues(
  'a0000000-0000-4000-8000-000000000002',
  'a0000000-0000-4000-8000-000000000001',
  repeat('a',64),pg_catalog.now()-interval '3 days'
-),(
+);
+INSERT INTO public.office_payroll_results(
+ id,period_id,employment_id,employee_user_id,status,net_pay_minor,calculation_version
+) VALUES(
+ 'f0000000-0000-4000-8000-000000000039',
+ 'f0000000-0000-4000-8000-000000000001',
+ 'f0000000-0000-4000-8000-000000000003',
+ 'a0000000-0000-4000-8000-000000000002','LOCKED',52000,2
+);
+INSERT INTO public.office_payroll_adjustments(
+ id,period_id,employment_id,employee_user_id,status,created_by,approved_by,approved_at
+) VALUES(
+ 'f0000000-0000-4000-8000-000000000040',
+ 'f0000000-0000-4000-8000-000000000001',
+ 'f0000000-0000-4000-8000-000000000003',
+ 'a0000000-0000-4000-8000-000000000002','APPROVED',
+ 'a0000000-0000-4000-8000-000000000002',
+ 'a0000000-0000-4000-8000-000000000001',pg_catalog.now()
+);
+INSERT INTO public.office_salary_payslip_issues(
+ id,payroll_result_id,employee_user_id,issued_by,snapshot_sha256,issued_at
+) VALUES(
  'b0000000-0000-4000-8000-000000000099',
- 'f0000000-0000-4000-8000-000000000002',
+ 'f0000000-0000-4000-8000-000000000039',
  'a0000000-0000-4000-8000-000000000002',
  'a0000000-0000-4000-8000-000000000001',
  repeat('b',64),pg_catalog.now()
