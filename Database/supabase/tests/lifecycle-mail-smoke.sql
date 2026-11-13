@@ -259,7 +259,10 @@ RESET ROLE;
 DO $claim$
 BEGIN
  IF (SELECT count(*) FROM pg_temp.ci_claims)<>26 THEN
-   RAISE EXCEPTION 'Suspended identity must not receive an employee notification';
+   RAISE EXCEPTION 'Employee lifecycle claim count mismatch: observed %, still pending codes %, total pending %',
+      (SELECT count(*) FROM pg_temp.ci_claims),
+      (SELECT pg_catalog.string_agg(event_code,',') FROM public.office_lifecycle_mail_outbox WHERE status='PENDING'),
+      (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE status='PENDING');
  END IF;
  IF (SELECT count(*) FROM pg_temp.ci_claims WHERE event_code='PAY-08' AND pay_period='2026-11')<>1 THEN
    RAISE EXCEPTION 'Real payroll period missing from independently verified paid-salary claim';
