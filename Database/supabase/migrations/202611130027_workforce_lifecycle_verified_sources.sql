@@ -168,12 +168,12 @@ AS $net$
 DECLARE
  v_total numeric;
 BEGIN
- SELECT pg_catalog.greatest(
+ SELECT GREATEST(
    0,
    extract(epoch FROM (c.work_ends_at-c.work_starts_at))/60
    - COALESCE((
      SELECT pg_catalog.sum(
-       pg_catalog.greatest(0,extract(epoch FROM
+       GREATEST(0,extract(epoch FROM
          ((b->>'endAt')::timestamptz-(b->>'startAt')::timestamptz))/60)
      )
      FROM jsonb_array_elements(c.breaks) AS b
