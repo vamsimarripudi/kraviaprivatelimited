@@ -3,6 +3,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { requireOfficeAdminEnvironment } from "@/lib/env/office";
 import { getOfficeSessionContext, officeIdentityIsProvisioned, type OfficeIdentity } from "@/lib/office/auth-server";
 import { currentOfficeTrustedDeviceId } from "@/lib/office/device-binding-server";
+import { officeAccessProfileIsEffective } from "@/lib/office/access-profile-effective";
 
 export const officeScopeTypes = ["COMPANY", "DEPARTMENT", "TEAM", "PRODUCT", "PROJECT", "REPOSITORY", "COST_CENTER", "OWN"] as const;
 export type OfficeScopeType = (typeof officeScopeTypes)[number];
@@ -130,10 +131,7 @@ export async function resolveOfficePermission(
     }, deviceId);
   }
 
-  const activeProfiles = (profileResult.data ?? []).filter((row) => {
-    const effectiveAt = typeof row.effective_from === "string" ? Date.parse(row.effective_from) : 0;
-    return active(row.expires_at) && Number.isFinite(effectiveAt) && effectiveAt <= Date.now();
-  });
+  const activeProfiles = (profileResult.data ?? []).filter((row) => officeAccessProfileIsEffective(row));
   if (!activeProfiles.length) return { allowed: false, permission: permissionCode, reason: "No active access profile grants this permission" };
   const profileCodes = activeProfiles.map((row) => row.profile_code);
   const mappingResult = await admin.from("office_access_profile_permissions").select("profile_code,permission_code,effect,default_scope_type").in("profile_code", profileCodes).eq("permission_code", permissionCode).eq("effect", "ALLOW");

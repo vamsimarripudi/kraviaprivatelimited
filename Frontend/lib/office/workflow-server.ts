@@ -1,6 +1,7 @@
 import "server-only";
 import { createOfficeServiceClient, OfficePermissionError } from "@/lib/office/permission-engine";
 import { getOfficeSessionContext, officeIdentityIsProvisioned } from "@/lib/office/auth-server";
+import { officeAccessProfileIsEffective } from "@/lib/office/access-profile-effective";
 
 export class OfficeWorkflowError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -29,7 +30,7 @@ export async function getOfficeWorkOverview() {
   const { admin, identity } = await requireWorkflowActor();
   const [job, profiles, requestTypes, myRequests, notifications, devices, reports] = await Promise.all([
     admin.from("office_job_assignments").select("user_id,position_code,department_code,reports_to_user_id,team_key,product_key,employment_type,status").eq("user_id", identity.userId).maybeSingle(),
-    admin.from("office_user_access_profiles").select("id,profile_code,scope_type,scope_key,status,expires_at").eq("user_id", identity.userId).eq("status", "ACTIVE").order("created_at", { ascending: true }),
+    admin.from("office_user_access_profiles").select("id,profile_code,scope_type,scope_key,status,expires_at,effective_from").eq("user_id", identity.userId).eq("status", "ACTIVE").order("created_at", { ascending: true }),
     admin.from("office_request_type_catalog").select("code,label,module,description,default_priority,default_due_hours,high_risk").eq("active", true).order("module", { ascending: true }).order("label", { ascending: true }),
     admin.from("office_requests").select("id,request_type_code,requester_user_id,requester_department,target_user_id,resource_type,resource_key,title,description,payload,priority,status,current_step_order,due_at,submitted_at,completed_at,created_at,updated_at").eq("requester_user_id", identity.userId).order("created_at", { ascending: false }).limit(100),
     admin.from("office_notifications").select("id,request_id,kind,title,body,status,created_at,read_at").eq("user_id", identity.userId).order("created_at", { ascending: false }).limit(40),
@@ -96,7 +97,7 @@ export async function getOfficeWorkOverview() {
       authorization_version: identity.authzVersion,
     },
     job: job.data ?? null,
-    profiles: profiles.data ?? [],
+    profiles: (profiles.data ?? []).filter((row) => officeAccessProfileIsEffective(row)),
     request_types: requestTypes.data ?? [],
     requests: myRequestRows.map((request) => ({ ...request, steps: stepsByRequest.get(request.id) ?? [] })),
     approvals: (approvalSteps ?? []).map((step) => ({ step, request: approvalByRequest.get(step.request_id) ?? null })),

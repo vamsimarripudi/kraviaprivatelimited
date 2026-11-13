@@ -2,6 +2,7 @@ import "server-only";
 
 import { createOfficeServiceClient, OfficePermissionError, requireOfficeActor } from "@/lib/office/permission-engine";
 import type { OfficeIdentity } from "@/lib/office/auth-server";
+import { officeAccessProfileIsEffective } from "@/lib/office/access-profile-effective";
 
 export class OfficeCapabilityError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -95,7 +96,7 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
   const [profilesResult, overridesResult] = await Promise.all([
     admin
       .from("office_user_access_profiles")
-      .select("profile_code,scope_type,scope_key,status,expires_at")
+      .select("profile_code,scope_type,scope_key,status,expires_at,effective_from")
       .eq("user_id", identity.userId)
       .eq("status", "ACTIVE"),
     admin
@@ -105,7 +106,7 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
   ]);
   if (profilesResult.error || overridesResult.error) throw new OfficeCapabilityError(503, "Authorization assignments are temporarily unavailable");
 
-  const profiles = (profilesResult.data ?? []).filter((row) => active(row.expires_at));
+  const profiles = (profilesResult.data ?? []).filter((row) => officeAccessProfileIsEffective(row));
   const profileCodes = Array.from(new Set(profiles.map((row) => String(row.profile_code))));
   const mappingsResult = profileCodes.length
     ? await admin
