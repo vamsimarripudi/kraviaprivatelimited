@@ -12,6 +12,11 @@ on:
       - "Frontend/components/office-work-hub*"
       - "Frontend/components/office-master-data*"
       - "Frontend/components/office-manual-hub*"
+      - "Frontend/components/office-document-studio.tsx"
+      - "Frontend/lib/office/document-studio-server.ts"
+      - "Frontend/app/api/office-documents/**"
+      - "Frontend/app/api/office-exit-governance/**"
+      - "Database/supabase/tests/office-external-notices-smoke.sql"
       - "Frontend/components/office-workspace-shell.tsx"
       - "Frontend/components/internal-workspace-screen.tsx"
       - "Frontend/lib/office/manual*"
@@ -35,6 +40,11 @@ on:
       - "Frontend/components/office-work-hub*"
       - "Frontend/components/office-master-data*"
       - "Frontend/components/office-manual-hub*"
+      - "Frontend/components/office-document-studio.tsx"
+      - "Frontend/lib/office/document-studio-server.ts"
+      - "Frontend/app/api/office-documents/**"
+      - "Frontend/app/api/office-exit-governance/**"
+      - "Database/supabase/tests/office-external-notices-smoke.sql"
       - "Frontend/components/office-workspace-shell.tsx"
       - "Frontend/components/internal-workspace-screen.tsx"
       - "Frontend/lib/office/manual*"
@@ -87,7 +97,7 @@ jobs:
         working-directory: Testing/playwright
         env:
           CI: "1"
-        run: npx playwright test tests/office-surface-integrity.spec.mjs tests/office-theme.spec.mjs tests/office-manual.spec.mjs --project=mobile-webkit
+        run: npx playwright test tests/office-surface-integrity.spec.mjs tests/office-theme.spec.mjs tests/office-manual.spec.mjs tests/office-signing-review-boundary.spec.mjs --project=mobile-webkit
 
       - name: Upload failure evidence
         if: failure()

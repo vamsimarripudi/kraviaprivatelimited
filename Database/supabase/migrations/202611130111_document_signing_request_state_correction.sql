@@ -22,7 +22,7 @@ DECLARE
 BEGIN
  SELECT * INTO d FROM public.office_document_instances WHERE id=p_instance FOR UPDATE;
  IF d.id IS NULL OR
-  (v_signing AND d.status<>'RENDERED') OR
+  (v_signing AND d.status NOT IN('RENDERED','SIGNING')) OR
   (NOT v_signing AND d.status NOT IN('RENDERED','SIGNED','DELIVERED')) THEN
   RAISE EXCEPTION 'A rendered or signed document in the correct state is required';
  END IF;
@@ -39,6 +39,21 @@ BEGIN
  IF v_channel NOT IN('EMAIL','SMS','SECURE_LINK','IN_APP','ESIGN','OTHER')
  OR v_event='' OR pg_catalog.jsonb_typeof(v_metadata)<>'object'
  THEN RAISE EXCEPTION 'Valid delivery channel, event and metadata required'; END IF;
+
+ IF v_signing AND d.status='SIGNING' AND EXISTS(
+    SELECT 1 FROM public.office_document_delivery_events prior
+    LEFT JOIN public.office_signing_issuance_reviews review
+      ON review.delivery_event_id=prior.id
+    WHERE prior.document_instance_id=d.id
+      AND prior.channel='ESIGN'
+      AND prior.event_type='SIGNING_LINK_ISSUED'
+      AND COALESCE(review.status,'PENDING') NOT IN('REJECTED','REVOKED')
+      AND CASE
+        WHEN prior.metadata->>'link_expires_at'
+          ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
+        THEN (prior.metadata->>'link_expires_at')::timestamptz>pg_catalog.now()
+        ELSE true END
+ ) THEN RAISE EXCEPTION 'Existing unexpired signing request must not be reissued'; END IF;
 
  IF v_signing THEN
    SELECT template_code INTO v_template FROM public.office_document_templates
