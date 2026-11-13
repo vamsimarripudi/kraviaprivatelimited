@@ -5,7 +5,7 @@ import { createElement } from "react";
 import { render } from "@react-email/render";
 
 import { PLACEHOLDERS, renderTemplateManifest } from "../templates/kravia.js";
-import { OFFICE_LIFECYCLE_DISPATCH_ENABLED, validateOfficeLifecycleCatalog } from "../templates/office-lifecycle-catalog.js";
+import { OFFICE_LIFECYCLE_CATALOG, OFFICE_LIFECYCLE_DISPATCH_ENABLED, validateOfficeLifecycleCatalog } from "../templates/office-lifecycle-catalog.js";
 import { OFFICE_LIFECYCLE_COPY } from "../templates/office-lifecycle-copy.js";
 import { availableOfficeLifecycleEventCodes, renderOfficeLifecyclePreview } from "../templates/office-lifecycle-renderer.js";
 import { KraviaEmailShell, KraviaEmailHero, KraviaOtpCode, KraviaEmailActionButton } from "../templates/kravia-email-components.js";
@@ -119,3 +119,33 @@ if (check) {
 } else {
   process.stdout.write("React Email manifest is already current.\n");
 }
+
+/** Versioned backend data for all 81 lifecycle templates. This artifact
+ * contains approved *copy*, not an event handler or permission to send. */
+const lifecycleTarget = resolve(scriptDirectory, "..", "..", "Backend", "backend", "generated_office_lifecycle_templates.json");
+const lifecycleManifest = {
+  format: 1,
+  generatedBy: "EmailTemplates/scripts/build-manifest.ts",
+  total: 81,
+  dispatchEnabled: false,
+  templates: Object.fromEntries(OFFICE_LIFECYCLE_CATALOG.map(entry => [
+    entry.id,
+    {...entry, body: OFFICE_LIFECYCLE_COPY[entry.id]},
+  ])),
+};
+const lifecycleSerialized = JSON.stringify(lifecycleManifest, null, 2) + "\n";
+let lifecycleExisting: string | undefined;
+try { lifecycleExisting = await readFile(lifecycleTarget, "utf8"); }
+catch (error: unknown) {
+  if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") throw error;
+}
+if (check) {
+  if (lifecycleExisting !== lifecycleSerialized) {
+    throw new Error("81-event Office lifecycle artifact is stale. Rebuild EmailTemplates before releasing.");
+  }
+  process.stdout.write("All 81 server-side lifecycle definitions match their canonical React catalog.\n");
+} else if (lifecycleExisting !== lifecycleSerialized) {
+  await writeFile(lifecycleTarget, lifecycleSerialized, "utf8");
+  process.stdout.write("Wrote Office lifecycle data manifest.\n");
+}
+
