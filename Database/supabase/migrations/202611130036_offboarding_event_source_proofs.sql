@@ -46,7 +46,7 @@ BEGIN
      JOIN public.office_employment_registry employment
        ON employment.identity_user_id=req.target_user_id
      WHERE event.id=v.source_event_id
-       AND event.event_type='APPROVED'
+       AND event.event_type='REQUEST_APPROVED'
        AND event.to_status='APPROVED'
        AND req.id=v.request_id
        AND req.request_type_code='EMPLOYEE_OFFBOARDING'
@@ -100,7 +100,7 @@ DECLARE
  v_code text;
  v_version integer;
 BEGIN
- IF NEW.event_type='APPROVED' AND NEW.to_status='APPROVED' THEN
+ IF NEW.event_type='REQUEST_APPROVED' AND NEW.to_status='APPROVED' THEN
   v_code:='EXIT-02';
  ELSIF NEW.event_type='FULFILLED'
    AND NEW.to_status='FULFILLED' AND NEW.from_status='APPROVED'
