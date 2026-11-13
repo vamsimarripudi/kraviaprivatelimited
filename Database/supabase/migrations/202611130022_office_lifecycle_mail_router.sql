@@ -445,7 +445,7 @@ BEGIN
         AND result.status='LOCKED' AND result.net_pay_minor>0
         AND period.status IN ('APPROVED','PAYMENT_PREPARED','CLOSED')
         AND nullif(pg_catalog.btrim(period.period_code),'') IS NOT NULL
-        AND (SELECT pg_catalog.coalesce(pg_catalog.sum(credit.amount_minor),0)
+        AND (SELECT coalesce(pg_catalog.sum(credit.amount_minor),0)
              FROM public.office_salary_settlement_evidence credit
              WHERE credit.payroll_result_id=result.id AND credit.status='VERIFIED')
             =result.net_pay_minor;
@@ -575,7 +575,7 @@ BEGIN
     WHERE id=v_result.period_id AND status IN ('APPROVED','PAYMENT_PREPARED','CLOSED')
       AND nullif(pg_catalog.btrim(period_code),'') IS NOT NULL;
   IF NOT FOUND THEN RETURN NEW; END IF;
-  SELECT pg_catalog.coalesce(pg_catalog.sum(s.amount_minor),0) INTO v_paid
+  SELECT coalesce(pg_catalog.sum(s.amount_minor),0) INTO v_paid
     FROM public.office_salary_settlement_evidence s
     WHERE s.payroll_result_id=NEW.payroll_result_id AND s.status='VERIFIED';
   IF v_paid=v_result.net_pay_minor
@@ -757,7 +757,7 @@ BEGIN
               AND result.status='LOCKED' AND result.net_pay_minor>0
               AND period.status IN ('APPROVED','PAYMENT_PREPARED','CLOSED')
               AND nullif(pg_catalog.btrim(period.period_code),'') IS NOT NULL
-              AND (SELECT pg_catalog.coalesce(pg_catalog.sum(v.amount_minor),0)
+              AND (SELECT coalesce(pg_catalog.sum(v.amount_minor),0)
                    FROM public.office_salary_settlement_evidence v
                    WHERE v.payroll_result_id=result.id AND v.status='VERIFIED')
                   =result.net_pay_minor))
