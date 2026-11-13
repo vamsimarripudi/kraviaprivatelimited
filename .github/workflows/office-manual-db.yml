@@ -10,7 +10,7 @@ permissions:
   contents: read
 jobs:
   postgres:
-    name: Office manuals: isolated PostgreSQL 17 RLS and audit
+    name: "Office manuals: isolated PostgreSQL 17 RLS and audit"
     runs-on: ubuntu-latest
     timeout-minutes: 12
     services:
