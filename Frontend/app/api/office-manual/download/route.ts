@@ -11,7 +11,9 @@ export async function GET(){
     const pdf=renderOfficeManualPdf({
       edition:hub.edition,common:hub.common,roles:hub.roles,routes:hub.routes,
     });
-    return new Response(pdf,{
+    const body = new Uint8Array(pdf.byteLength);
+    body.set(pdf);
+    return new Response(body.buffer,{
       status:200,headers:{
         "Content-Type":"application/pdf",
         "Content-Disposition":'attachment; filename="KRAVIA-Office-My-User-Manual.pdf"',
