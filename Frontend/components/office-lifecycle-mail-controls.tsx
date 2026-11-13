@@ -6,7 +6,7 @@ import styles from "./office-lifecycle-mail-controls.module.css";
 
 type Policy={
   event_code:string;priority:"P0"|"P1"|"P2";
-  source_ready:boolean;enabled:boolean;
+  source_ready:boolean;enabled:boolean;delivery_channel:"OUTBOX"|"CANDIDATE_OUTBOX"|"FIRST_PARTY_AUTH";
   intent:string;subject:string;trigger_description:string;recipient_description:string;
   approved_at:string|null;effective_from:string|null;
 };
@@ -52,7 +52,7 @@ export function OfficeLifecycleMailControls(){
 
   const matching=data?.policies.filter(row=>row.event_code.startsWith(category+"-"))||[];
   const active=data?.policies.find(row=>row.event_code===selected);
-  const canToggle=Boolean(active&&
+  const canToggle=Boolean(active&&active.delivery_channel!=="FIRST_PARTY_AUTH"&&
     (active.enabled || (active.source_ready&&approved)) && reason.trim().length>=12 && !busy);
 
   async function update(){
@@ -101,7 +101,7 @@ export function OfficeLifecycleMailControls(){
     <select id="office-lifecycle-event" value={selected}
       onChange={event=>{setSelected(event.target.value);setApproved(false);setError("");setNotice("");}}>
       {matching.map(p=><option key={p.event_code} value={p.event_code}>
-        {p.event_code} · {p.source_ready?"Mapped source":"Source not implemented"}
+        {p.event_code} · {p.delivery_channel==="FIRST_PARTY_AUTH"?"Dedicated authentication email":p.source_ready?"Mapped source":"Source not implemented"}
       </option>)}
     </select>
     {active?<div className={styles.summary}>
@@ -114,12 +114,17 @@ export function OfficeLifecycleMailControls(){
       <div><span>Priority</span><strong>{active.priority}</strong></div>
       <div><span>Committed source adapter</span>
         <strong>{active.source_ready?"Available":"Not yet implemented"}</strong></div>
-      <div><span>Owner dispatch policy</span><strong>{active.enabled?"Enabled":"Disabled"}</strong></div>
+      <div><span>Delivery channel</span><strong>{active.delivery_channel==="FIRST_PARTY_AUTH"?"Dedicated authentication":active.delivery_channel==="CANDIDATE_OUTBOX"?"Restricted candidate outbox":"Internal Office outbox"}</strong></div>
+      <div><span>Owner dispatch policy</span><strong>{active.delivery_channel==="FIRST_PARTY_AUTH"?"Handled by authentication flow":active.enabled?"Enabled":"Disabled"}</strong></div>
       <div><span>Last approval</span><strong>{active.approved_at?
         new Date(active.approved_at).toLocaleString("en-IN"):"None"}</strong></div>
       <div><span>Effective from</span><strong>{active.effective_from?
         new Date(active.effective_from).toLocaleString("en-IN"):"Not activated"}</strong></div>
     </div>:null}
+    {active?.delivery_channel==="FIRST_PARTY_AUTH"?<p className={styles.explanation}>
+      This event is already handled by the dedicated Office authentication security flow.
+      It cannot be enabled or resent through generic lifecycle mail.
+    </p>:null}
     {active&&!active.source_ready?
       <p className={styles.blocked}><LockKeyhole size={17}/>
         This event is intentionally blocked. Its real, independently verifiable source and recipient
@@ -136,7 +141,7 @@ export function OfficeLifecycleMailControls(){
     <textarea id="office-lifecycle-reason" maxLength={500} rows={3} value={reason}
       placeholder="Record the independent review and the reason for this specific event"
       onChange={event=>setReason(event.target.value)}/>
-    {active&&!active.enabled&&active.source_ready?<label className={styles.confirm}>
+    {active&&!active.enabled&&active.source_ready&&active.delivery_channel!=="FIRST_PARTY_AUTH"?<label className={styles.confirm}>
       <input type="checkbox" checked={approved} onChange={event=>setApproved(event.target.checked)}/>
       I verified this event recipient, source data, and Brevo worker configuration.
       No earlier or unverified event will be resent.
@@ -146,7 +151,9 @@ export function OfficeLifecycleMailControls(){
       {busy?"Recording documented decision…" : active?.enabled
         ? "Suspend this lifecycle notification" : "Approve only this verified event"}
     </button>
-    <p className={styles.explanation}>This dashboard records policy decisions only.
+    <p className={styles.explanation}>External candidate events have a separate opt-in, Owner-attested
+      recipient evidence boundary. Direct authentication events are not toggleable here.
+      This dashboard records policy decisions only.
       It does not provide a manual send function and does not confer any payroll, signature or
       access rights.</p>
     </> : <p className={styles.explanation}>Lifecycle policy not loaded.
