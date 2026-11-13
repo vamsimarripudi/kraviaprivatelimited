@@ -268,7 +268,8 @@ CREATE TRIGGER office_candidate_mail_on_recruitment_event
 -- strictly bounded age; no message at all without independent consent.
 CREATE OR REPLACE FUNCTION public.office_candidate_mail_claim(p_limit integer DEFAULT 10)
 RETURNS TABLE(outbox_id uuid,claim_token uuid,event_code text,
- recipient_email text,recipient_name text,source_reference text)
+ recipient_email text,recipient_name text,source_reference text,
+ interview_time timestamptz)
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
 AS $claim$
 BEGIN
@@ -325,10 +326,16 @@ BEGIN
    SELECT id,'CLAIMED' FROM claimed RETURNING outbox_id
  )
  SELECT q.id,q.claim_token,q.event_code,c.email,c.full_name,
-   (c.candidate_code||':'||q.source_event_id::text)
+   (c.candidate_code||':'||q.source_event_id::text),
+   CASE q.event_code
+     WHEN 'HIRE-02' THEN (e.metadata->>'scheduled_start')::timestamptz
+     WHEN 'HIRE-03' THEN (e.metadata->>'new_start')::timestamptz
+     ELSE NULL::timestamptz
+   END
  FROM claimed q
  JOIN logged l ON l.outbox_id=q.id
- JOIN public.office_candidates c ON c.id=q.candidate_id;
+ JOIN public.office_candidates c ON c.id=q.candidate_id
+ JOIN public.office_recruitment_events e ON e.id=q.source_event_id;
 END;$claim$;
 
 CREATE OR REPLACE FUNCTION public.office_candidate_mail_finish(
