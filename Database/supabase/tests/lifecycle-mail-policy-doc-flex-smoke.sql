@@ -2,10 +2,10 @@
 BEGIN;
 DO $before$
 BEGIN
- IF (SELECT count(*) FROM public.office_lifecycle_mail_policy WHERE source_ready)<>55
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_policy WHERE source_ready)<>57
    OR EXISTS(SELECT 1 FROM public.office_lifecycle_mail_policy WHERE enabled)
    OR EXISTS(SELECT 1 FROM public.office_lifecycle_mail_outbox) THEN
-  RAISE EXCEPTION 'Policy/doc release expects 55 mapped, zero enabled and empty outbox';
+  RAISE EXCEPTION 'Policy/doc release expects 57 mapped, zero enabled and empty outbox';
  END IF;
  IF pg_catalog.has_function_privilege('anon','public.office_lifecycle_flex_evidence_valid(uuid)','EXECUTE')
    OR pg_catalog.has_function_privilege('authenticated','public.office_lifecycle_flex_evidence_valid(uuid)','EXECUTE') THEN
