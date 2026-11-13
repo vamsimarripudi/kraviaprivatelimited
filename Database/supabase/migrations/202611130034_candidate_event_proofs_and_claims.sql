@@ -179,8 +179,8 @@ BEGIN
      RETURN ev.event_type=CASE WHEN p_code='HIRE-02'
        THEN 'INTERVIEW_SCHEDULED' ELSE 'INTERVIEW_RESCHEDULED' END
        AND i.status='SCHEDULED' AND i.scheduled_start>pg_catalog.now()
-       AND (p_code='HIRE-02' OR i.scheduled_start::text IS NOT DISTINCT FROM
-         (ev.metadata->>'scheduled_start')::timestamptz::text);
+       AND (ev.metadata ? 'scheduled_start'
+         AND i.scheduled_start=(ev.metadata->>'scheduled_start')::timestamptz);
    END IF;
  ELSIF p_code IN('HIRE-05','HIRE-06') THEN
    SELECT * INTO d FROM public.office_candidate_document_requests
@@ -330,7 +330,7 @@ BEGIN
    (c.candidate_code||':'||q.source_event_id::text),
    CASE q.event_code
      WHEN 'HIRE-02' THEN (e.metadata->>'scheduled_start')::timestamptz
-     WHEN 'HIRE-03' THEN (e.metadata->>'new_start')::timestamptz
+     WHEN 'HIRE-03' THEN (e.metadata->>'scheduled_start')::timestamptz
      ELSE NULL::timestamptz
    END
  FROM claimed q
