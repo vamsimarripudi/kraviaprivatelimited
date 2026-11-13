@@ -85,8 +85,11 @@ export function OfficePresenceControl() {
   // can still shift their fixed containing block on mobile browsers.
   // Mount directly under Office main, outside the overflow-hidden header.
   useEffect(() => {
-    const target = document.querySelector<HTMLElement>(".kravia-office .office-modern .office-main");
-    if (target) setPortalTarget(target);
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.querySelector<HTMLElement>(".kravia-office .office-modern .office-main");
+      if (target) setPortalTarget(target);
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   function openDialog() {
