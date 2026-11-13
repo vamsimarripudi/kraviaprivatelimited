@@ -1,0 +1,46 @@
+name: KRAVIA Office lifecycle notification routing PostgreSQL integration
+on:
+  pull_request:
+    paths:
+      - 'Database/supabase/migrations/202611130022_office_lifecycle_mail_router.sql'
+      - 'Database/supabase/tests/lifecycle-mail-*.sql'
+      - '.github/workflows/office-lifecycle-mail-db.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres:
+    name: Verify 81 policies, canonical event routing and private claim idempotence
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: kravia_lifecycle_ci
+          POSTGRES_PASSWORD: ci-lifecycle-postgres-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kravia_lifecycle_ci"
+          --health-interval 3s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Rehearse Office lifecycle migration in isolated PostgreSQL 17
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg() {
+            docker run --rm --network host               -v "$PWD:/repo:ro" --workdir /repo               --env PGPASSWORD=ci-lifecycle-postgres-only postgres:17               psql --host 127.0.0.1 --username postgres --dbname kravia_lifecycle_ci                 --set ON_ERROR_STOP=1 "$@"
+          }
+          pg -f Database/supabase/tests/lifecycle-mail-fixture.sql
+          pg -f Database/supabase/migrations/202611130022_office_lifecycle_mail_router.sql
+          pg -f Database/supabase/migrations/202611130022_office_lifecycle_mail_router.sql
+          output="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-smoke.sql)"
+          echo "$output"
+          test "$(printf '%s\n' "$output" | tail -n 1)" = "LIFECYCLE_MAIL_ROUTES_VERIFIED"
