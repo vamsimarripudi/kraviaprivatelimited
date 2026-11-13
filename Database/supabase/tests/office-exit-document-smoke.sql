@@ -47,7 +47,7 @@ INSERT INTO public.office_document_delivery_events(
 ) VALUES(
  'aaaaaaaa-cccc-4aaa-8aaa-aaaaaaaaaaaa',
  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
- 'SECURE_LINK','synthetic-delivery-reference','DOCUMENT_DELIVERED');
+ 'SECURE_LINK','synthetic-delivery-reference','DELIVERED');
 INSERT INTO public.office_document_engine_events(
  document_instance_id,event_type,metadata
 ) VALUES(
@@ -82,7 +82,7 @@ INSERT INTO public.office_document_delivery_events(
 ) VALUES(
  'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
  'cccccccc-cccc-4ccc-8ccc-cccccccccccc','SECURE_LINK',
- 'synthetic-provider-document-delivered','DOCUMENT_DELIVERED');
+ 'synthetic-provider-document-delivered','DELIVERED');
 INSERT INTO public.office_document_engine_events(
  document_instance_id,event_type,metadata
 ) VALUES(
