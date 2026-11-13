@@ -29,6 +29,12 @@ _CODES = frozenset({
     "ONB-04", "EXIT-02", "EXIT-04", "EXIT-05",
     "EXIT-06", "EXIT-07", "EXIT-08",
 })
+_SOURCE = {
+    "ONB-04": "ONBOARDING_SIGNING",
+    "EXIT-02": "EXIT_NOTIFICATION", "EXIT-04": "EXIT_NOTIFICATION",
+    "EXIT-05": "EXIT_SETTLEMENT", "EXIT-06": "EXIT_SETTLEMENT",
+    "EXIT-07": "EXIT_DOCUMENT", "EXIT-08": "EXIT_COMPLETION",
+}
 _REF = re.compile(
     r"^(?:ONBOARDING_SIGNING|EXIT_NOTIFICATION|EXIT_SETTLEMENT|"
     r"EXIT_DOCUMENT|EXIT_COMPLETION):[1-9][0-9]{0,17}$"
@@ -74,6 +80,7 @@ def validate_external_claim(row: Any) -> ExternalNoticeClaim:
             or not 1 <= len(name) <= 160
             or any(ord(ch) < 32 or ord(ch) == 127 for ch in name)
             or not _REF.fullmatch(reference)
+            or not reference.startswith(_SOURCE.get(code, "INVALID") + ":")
             or (code == "ONB-04" and domain != "kraviaprivatelimited.com")
             or (code.startswith("EXIT-") and domain == "kraviaprivatelimited.com")):
         raise RuntimeError("Unverified external lifecycle notice claim")
