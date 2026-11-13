@@ -1,5 +1,5 @@
 import { manualRoles } from "@/lib/office/manuals";
-import { OFFICE_MANUAL_COMMON_FULL_TEXT, OFFICE_MANUAL_ROLES_FULL_TEXT } from "@/lib/office/manual-full-text";
+import { OFFICE_MANUAL_COMMON_FULL_TEXT, OFFICE_MANUAL_ROLES_FULL_TEXT, OFFICE_MANUAL_ATLAS_FULL_TEXT } from "@/lib/office/manual-full-text";
 
 /** Source-complete handbook content, maintained separately in Frontend/manual-content. */
 export function getDetailedCommonManual():string {
@@ -19,3 +19,6 @@ export function getDetailedRoleManual(id:string):string {
   if(index<0)throw new Error("Unknown assigned employee role guide");
   return roleSections[index];
 }
+
+/** Audited all-route atlas. Only exposed in authorised Owner and administrator views. */
+export function getCompleteOfficeRouteAtlas():string {return OFFICE_MANUAL_ATLAS_FULL_TEXT;}
