@@ -9,6 +9,8 @@ on:
       - 'Database/supabase/migrations/202611130026_auth_device_decision_atomicity.sql'
       - 'Database/supabase/migrations/202611130027_workforce_lifecycle_verified_sources.sql'
       - 'Database/supabase/migrations/202611130028_scheduled_lifecycle_verified_sources.sql'
+      - 'Database/supabase/migrations/202611130029_policy_documents_flex_sources.sql'
+      - 'Database/supabase/tests/lifecycle-mail-policy-doc-flex-smoke.sql'
       - 'Database/supabase/tests/lifecycle-mail-reminder-sources-smoke.sql'
       - 'Database/supabase/tests/lifecycle-mail-workforce-evidence-smoke.sql'
       - 'Database/supabase/tests/lifecycle-mail-device-atomicity-smoke.sql'
@@ -60,6 +62,8 @@ jobs:
           pg -f Database/supabase/tests/lifecycle-mail-workforce-evidence-smoke.sql
           pg -f Database/supabase/migrations/202611130028_scheduled_lifecycle_verified_sources.sql
           pg -f Database/supabase/tests/lifecycle-mail-reminder-sources-smoke.sql
+          pg -f Database/supabase/migrations/202611130029_policy_documents_flex_sources.sql
+          pg -f Database/supabase/tests/lifecycle-mail-policy-doc-flex-smoke.sql
           output="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-smoke.sql)"
           echo "$output"
           test "$(printf '%s\n' "$output" | tail -n 1)" = "LIFECYCLE_MAIL_ROUTES_VERIFIED"
@@ -80,6 +84,8 @@ jobs:
           pg -f Database/supabase/tests/lifecycle-mail-workforce-evidence-smoke.sql
           pg -f Database/supabase/migrations/202611130028_scheduled_lifecycle_verified_sources.sql
           pg -f Database/supabase/tests/lifecycle-mail-reminder-sources-smoke.sql
+          pg -f Database/supabase/migrations/202611130029_policy_documents_flex_sources.sql
+          pg -f Database/supabase/tests/lifecycle-mail-policy-doc-flex-smoke.sql
           upgraded_output="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-smoke.sql)"
           echo "$upgraded_output"
           printf '%s\n' "$upgraded_output" | grep -Fxq 'LIFECYCLE_MAIL_ROUTES_VERIFIED'
