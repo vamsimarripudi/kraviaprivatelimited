@@ -940,10 +940,10 @@ DECLARE
 BEGIN
  IF TG_TABLE_NAME='office_policy_versions' THEN
    IF NEW.status<>'PUBLISHED'
-     OR (TG_OP='UPDATE' AND OLD.status='PUBLISHED')
      OR NEW.published_by IS NULL OR NEW.published_at IS NULL THEN
       RETURN NEW;
    END IF;
+   IF TG_OP='UPDATE' AND OLD.status='PUBLISHED' THEN RETURN NEW; END IF;
    SELECT * INTO v_policy FROM public.office_policies
    WHERE id=NEW.policy_id AND status='PUBLISHED'
      AND current_version=NEW.version;
