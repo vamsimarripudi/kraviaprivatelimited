@@ -211,6 +211,25 @@ export async function createCandidate(input: { requisitionId: string; name: stri
   return { candidate_id: data };
 }
 
+export async function authorizeCandidateContact(input: {
+  candidateId: string;
+  basis: "SIGNED_APPLICATION" | "CANDIDATE_EMAIL_REPLY" | "SECURE_CONTACT_CONFIRMATION";
+  evidenceReference: string;
+}) {
+  const current = await permission("hiring.candidate.manage");
+  if (!current.identity.roles.includes("OWNER")) {
+    throw new OfficeRecruitmentError(403, "Owner authority is required for external candidate communications");
+  }
+  const { error } = await current.admin.rpc("office_candidate_contact_authorize", {
+    p_actor: current.identity.userId,
+    p_candidate: input.candidateId,
+    p_basis: input.basis,
+    p_evidence: input.evidenceReference.trim(),
+  });
+  if (error) throw new OfficeRecruitmentError(400, error.message ?? "Candidate contact could not be authorized");
+  return { candidate_id: input.candidateId, contact_authorized: true, delivery_enabled: false };
+}
+
 export async function transitionCandidate(input: { candidateId: string; status: string; note?: string }) {
   const current = await permission("hiring.candidate.manage");
   const { data, error } = await current.admin.rpc("office_candidate_transition", { p_actor: current.identity.userId, p_candidate: input.candidateId, p_status: input.status, p_note: input.note?.trim() || null });
