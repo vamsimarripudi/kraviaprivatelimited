@@ -1,0 +1,48 @@
+name: KRAVIA Office forward-only lifecycle schema reconciliation
+on:
+  pull_request:
+    paths:
+      - 'Database/supabase/migrations/202611130023_office_lifecycle_forward_reconciliation.sql'
+      - 'Database/supabase/tests/lifecycle-reconcile-*.sql'
+      - '.github/workflows/office-lifecycle-reconcile-db.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres:
+    name: Rehearse production 15-route drift to 27-route canonical without messages
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: kravia_lifecycle_reconcile_ci
+          POSTGRES_PASSWORD: ci-reconcile-postgres-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kravia_lifecycle_reconcile_ci"
+          --health-interval 3s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify production compatibility, idempotency, least privilege and no sends
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg() {
+            docker run --rm --network host               -v "$PWD:/repo:ro" --workdir /repo               --env PGPASSWORD=ci-reconcile-postgres-only postgres:17               psql --host 127.0.0.1 --username postgres                 --dbname kravia_lifecycle_reconcile_ci --set ON_ERROR_STOP=1 "$@"
+          }
+          pg -f Database/supabase/tests/lifecycle-mail-fixture.sql
+          pg -f Database/supabase/migrations/202611130022_office_lifecycle_mail_router.sql
+          pg -f Database/supabase/tests/lifecycle-reconcile-legacy-fixture.sql
+          pg -f Database/supabase/migrations/202611130023_office_lifecycle_forward_reconciliation.sql
+          pg -f Database/supabase/migrations/202611130023_office_lifecycle_forward_reconciliation.sql
+          output="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-reconcile-smoke.sql)"
+          echo "$output"
+          test "$(printf '%s\n' "$output" | tail -n 1)" = "LIFECYCLE_FORWARD_RECONCILED"
