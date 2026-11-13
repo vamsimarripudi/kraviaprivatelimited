@@ -10,6 +10,8 @@ export async function GET(){
     const hub=await getOfficeManualHub();
     const pdf=renderOfficeManualPdf({
       edition:hub.edition,common:hub.common,roles:hub.roles,routes:hub.routes,
+      fullCommon:hub.full_documents.COMMON,
+      fullRoles:hub.roles.map(role=>hub.full_documents["ROLE:"+role.id.toUpperCase()]??""),
     });
     const body = new Uint8Array(pdf.byteLength);
     body.set(pdf);
