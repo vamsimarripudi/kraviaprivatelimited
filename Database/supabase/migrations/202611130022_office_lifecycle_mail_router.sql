@@ -41,7 +41,7 @@ VALUES
   ('HIRE-08','P0',false,'Approved offer available','Your KRAVIA offer letter is ready','Approved document signed/published with candidate access','Candidate'),
   ('HIRE-09','P0',false,'Offer accepted','KRAVIA offer acceptance confirmed','Acceptance is actually recorded and verified','Candidate and approved hiring owner'),
   ('HIRE-10','P1',false,'Offer declined, withdrawn or expired','Update on your KRAVIA offer','Canonical status recorded','Candidate as appropriate; hiring owner'),
-  ('ONB-01','P0',false,'Welcome aboard','Welcome aboard KRAVIA, {{employee_first_name}}','Active employee identity + accepted employment + director-approved joining','Employee'),
+  ('ONB-01','P0',true,'Welcome aboard','Welcome aboard KRAVIA, {{employee_first_name}}','Active employee identity + accepted employment + director-approved joining','Employee'),
   ('ONB-02','P0',true,'Private onboarding checklist','Your KRAVIA joining checklist','Onboarding workflow starts, assigned tasks exist','Employee'),
   ('ONB-03','P0',false,'Appointment letter ready','Your KRAVIA appointment letter is available','Signed approved appointment document stored','Employee'),
   ('ONB-04','P0',false,'E-sign requested','Signature requested: KRAVIA appointment documents','Document requires signature; permitted signing link issued','Signatory'),
@@ -298,6 +298,22 @@ BEGIN
   IF TG_TABLE_NAME='office_employee_intake_events' THEN
     IF NEW.event_type IN ('PROFILE_SUBMITTED','PROFILE_RETURNED') THEN
       PERFORM public.office_lifecycle_mail_enqueue('ONB-05',TG_TABLE_NAME,NEW.id,NEW.employee_user_id);
+    ELSIF NEW.event_type='REFERENCE_ID_ISSUED' AND NEW.actor_user_id IS NOT NULL
+        AND NEW.actor_user_id IS DISTINCT FROM NEW.employee_user_id THEN
+      IF EXISTS(SELECT 1 FROM public.office_employee_reference_ids reference
+        WHERE reference.employee_user_id=NEW.employee_user_id
+          AND reference.issued_by=NEW.actor_user_id
+          AND reference.issued_at IS NOT NULL)
+        AND EXISTS(SELECT 1 FROM public.office_employee_intake_profiles profile
+          WHERE profile.employee_user_id=NEW.employee_user_id
+            AND profile.status='VERIFIED')
+        AND EXISTS(SELECT 1 FROM public.office_employment_registry employment
+          WHERE employment.identity_user_id=NEW.employee_user_id
+            AND employment.status='ACTIVE'
+            AND employment.relationship_type='EMPLOYEE'
+            AND employment.start_date<=CURRENT_DATE) THEN
+        PERFORM public.office_lifecycle_mail_enqueue('ONB-01',TG_TABLE_NAME,NEW.id,NEW.employee_user_id);
+      END IF;
     END IF;
   ELSIF TG_TABLE_NAME='office_role_package_events' THEN
     IF NEW.event_type='PACKAGE_APPLIED' AND NEW.target_user_id IS NOT NULL THEN
@@ -706,8 +722,23 @@ BEGIN
         (o.source_table='office_employee_intake_events'
           AND EXISTS(SELECT 1 FROM public.office_employee_intake_events ev
             WHERE ev.id=o.source_id AND ev.employee_user_id=o.recipient_user_id
-              AND o.event_code='ONB-05'
-              AND ev.event_type IN ('PROFILE_SUBMITTED','PROFILE_RETURNED')))
+              AND ((o.event_code='ONB-05'
+                AND ev.event_type IN ('PROFILE_SUBMITTED','PROFILE_RETURNED'))
+                OR (o.event_code='ONB-01' AND ev.event_type='REFERENCE_ID_ISSUED'
+                  AND ev.actor_user_id IS NOT NULL
+                  AND ev.actor_user_id IS DISTINCT FROM ev.employee_user_id
+                  AND EXISTS(SELECT 1 FROM public.office_employee_reference_ids reference
+                    WHERE reference.employee_user_id=o.recipient_user_id
+                      AND reference.issued_by=ev.actor_user_id
+                      AND reference.issued_at IS NOT NULL)
+                  AND EXISTS(SELECT 1 FROM public.office_employee_intake_profiles profile
+                    WHERE profile.employee_user_id=o.recipient_user_id
+                      AND profile.status='VERIFIED')
+                  AND EXISTS(SELECT 1 FROM public.office_employment_registry employment
+                    WHERE employment.identity_user_id=o.recipient_user_id
+                      AND employment.status='ACTIVE'
+                      AND employment.relationship_type='EMPLOYEE'
+                      AND employment.start_date<=CURRENT_DATE)))))
         OR (o.source_table='office_role_package_events'
           AND EXISTS(SELECT 1 FROM public.office_role_package_events ev
             WHERE ev.id=o.source_id AND ev.target_user_id=o.recipient_user_id
