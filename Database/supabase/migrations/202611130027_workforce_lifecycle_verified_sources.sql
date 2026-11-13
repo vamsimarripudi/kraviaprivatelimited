@@ -99,6 +99,7 @@ DECLARE
  v_code text;
  v_employee uuid;
  v_manager uuid;
+ v_source_uuid uuid;
 BEGIN
  IF TG_TABLE_NAME='office_access_reviews' THEN
    IF TG_OP<>'INSERT' OR NEW.status<>'PENDING'
@@ -113,6 +114,7 @@ BEGIN
        owner.owner_user_id,'people.update','COMPANY',NULL,NULL);
    v_code:='ROLE-07';
    v_employee:=NEW.user_id;
+   v_source_uuid:=NEW.id;
  ELSIF TG_TABLE_NAME='office_job_assignments' THEN
    IF TG_OP<>'UPDATE'
       OR NEW.reports_to_user_id IS NULL
@@ -128,6 +130,7 @@ BEGIN
    v_employee:=NEW.user_id;
    v_manager:=NEW.reports_to_user_id;
    v_code:='ROLE-03';
+   v_source_uuid:=NEW.user_id;
  ELSE
    RETURN NEW;
  END IF;
@@ -139,7 +142,7 @@ BEGIN
    event_code,source_uuid,recipient_user_id,employee_user_id,
    expected_manager_user_id
  ) VALUES(v_code,
-   CASE WHEN v_code='ROLE-07' THEN NEW.id ELSE NEW.user_id END,
+   v_source_uuid,
    v_recipient,v_employee,v_manager)
  RETURNING id INTO v_proof;
  PERFORM public.office_lifecycle_mail_enqueue(
@@ -167,13 +170,13 @@ DECLARE
 BEGIN
  SELECT pg_catalog.greatest(
    0,
-   pg_catalog.extract(epoch FROM (c.work_ends_at-c.work_starts_at))/60
+   extract(epoch FROM (c.work_ends_at-c.work_starts_at))/60
    - COALESCE((
      SELECT pg_catalog.sum(
-       pg_catalog.greatest(0,pg_catalog.extract(epoch FROM
+       pg_catalog.greatest(0,extract(epoch FROM
          ((b->>'endAt')::timestamptz-(b->>'startAt')::timestamptz))/60)
      )
-     FROM pg_catalog.jsonb_array_elements(c.breaks) AS b
+     FROM jsonb_array_elements(c.breaks) AS b
    ),0)
  ) INTO v_total
  FROM public.office_worktime_review_cases c
