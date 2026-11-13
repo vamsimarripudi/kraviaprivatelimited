@@ -41,3 +41,17 @@ test("anonymous visitors cannot access private employee salary slips", async ({ 
   expect([401,403,404,503], "salary download must not expose private data").toContain(response.status());
   expect(response.status()).not.toBe(200);
 });
+
+test("anonymous browsers cannot inspect or enable corporate lifecycle mail", async ({ request }) => {
+  const read = await request.get("/api/office-lifecycle-mail-policy");
+  expect([401,403,503]).toContain(read.status());
+  expect(read.status()).not.toBe(200);
+  expect(read.headers()["cache-control"]).toContain("no-store");
+
+  const attack = await request.post("/api/office-lifecycle-mail-policy", {
+    headers:{Origin:"https://untrusted.example.invalid"},
+    data:{event_code:"ONB-05",enabled:true,reason:"Untrusted source cannot approve"},
+  });
+  expect(attack.status()).toBe(403);
+  expect(attack.headers()["cache-control"]).toContain("no-store");
+});
