@@ -1,0 +1,27 @@
+.vault{display:grid;gap:16px;margin:16px clamp(12px,2vw,24px) 30px;color:var(--office-ui-ink);min-width:0}
+.header{display:flex;align-items:start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.header>div{min-width:0}.header h1{margin:0;font-size:clamp(24px,2.7vw,31px)!important}
+.header p{margin:8px 0 0;max-width:720px;line-height:1.55;color:var(--office-ui-muted)}
+.header .eyebrow{margin:0 0 5px;font-size:11px;font-weight:700;letter-spacing:.13em;color:var(--office-ui-accent)}
+.header>a,.sourceCard a,.record>a{display:inline-flex;gap:8px;align-items:center;min-height:44px;padding:10px 14px;border:1px solid var(--office-ui-line);border-radius:11px;color:var(--office-ui-accent);text-decoration:none}
+.nav{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:9px 0;border-block:1px solid var(--office-ui-line)}
+.nav a{display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;border-radius:10px;color:var(--office-ui-ink);text-decoration:none}
+.nav a:hover,.nav a[aria-current="page"]{background:var(--office-ui-surface-alt);color:var(--office-ui-accent)}
+.categories{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,265px),1fr));gap:12px}
+.category{display:flex;gap:12px;align-items:start;min-width:0;padding:18px;border:1px solid var(--office-ui-line);border-radius:16px;text-decoration:none;background:var(--office-ui-surface);color:var(--office-ui-ink)}
+.category:hover{border-color:var(--office-ui-accent)}.category>svg{color:var(--office-ui-accent);flex:none}
+.category span{display:grid;gap:6px;min-width:0;flex:1}.category strong{font-size:15px}
+.category small{font-size:12px;line-height:1.5;color:var(--office-ui-muted)}
+.sourceCard,.record,.restricted{border:1px solid var(--office-ui-line);background:var(--office-ui-surface);border-radius:16px;padding:24px;min-width:0}
+.sourceCard{display:flex;gap:16px}.sourceCard>svg{color:var(--office-ui-accent);flex:none}
+.sourceCard h2,.record h2,.restricted h2{margin:0 0 10px;font-size:20px!important}
+.sourceCard p,.record p,.restricted p{line-height:1.6;color:var(--office-ui-muted)}
+.restricted{text-align:center;display:grid;justify-items:center;gap:10px;max-width:650px}
+.restricted>a{color:var(--office-ui-accent)}
+.record dl{display:grid;grid-template-columns:minmax(120px,180px) minmax(0,1fr);gap:10px;padding:16px;border:1px solid var(--office-ui-line);border-radius:12px}
+.record dt{color:var(--office-ui-muted)}.record dd{min-width:0;margin:0;overflow-wrap:anywhere}
+.record ul{display:grid;gap:8px;margin:0 0 20px;padding-left:25px}
+.record li{overflow-wrap:anywhere}.record li a{color:var(--office-ui-accent)}
+.footnote{display:flex;align-items:center;gap:8px;line-height:1.55;color:var(--office-ui-muted);font-size:12px}
+.footnote svg{flex:none}
+@media(max-width:767px){.vault{margin:10px 12px 20px}.sourceCard{padding:16px}.record{padding:16px}.record dl{grid-template-columns:1fr;gap:4px}.record dd{margin-bottom:9px}.nav{overflow-x:auto;flex-wrap:nowrap}.nav a{flex:none;white-space:nowrap}}
