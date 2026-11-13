@@ -9,6 +9,8 @@ on:
       - 'Database/supabase/migrations/202611130039_offboarding_completion_source_evidence.sql'
       - 'Database/supabase/migrations/202611130040_signing_provider_link_source_evidence.sql'
       - 'Database/supabase/migrations/202611130041_external_lifecycle_notice_private_outbox.sql'
+      - 'Database/supabase/migrations/202611130042_document_signing_request_state_correction.sql'
+      - 'Database/supabase/tests/office-signing-state-smoke.sql'
       - 'Database/supabase/tests/office-external-notices-*.sql'
       - 'Database/supabase/tests/office-exit-contact-*.sql'
       - '.github/workflows/office-exit-contact-db.yml'
@@ -79,4 +81,8 @@ jobs:
           delivery_result="$(pg --tuples-only --no-align \
             -f Database/supabase/tests/office-external-notices-smoke.sql | tail -n 1)"
           test "$delivery_result" = "EXTERNAL_LIFECYCLE_81_SOURCE_AND_RECIPIENT_GATES_VERIFIED"
-          echo "81 policy sources, seven restricted external notice routes, revoked-consent denial, no live mail."
+          pg -f Database/supabase/migrations/202611130042_document_signing_request_state_correction.sql
+          signing_state="$(pg --tuples-only --no-align \
+            -f Database/supabase/tests/office-signing-state-smoke.sql | tail -n 1)"
+          test "$signing_state" = "SIGNING_LINK_PRESERVES_SIGNATURE_STATE_VERIFIED"
+          echo "81 source pathways and signable HR document state verified with zero production mail."
