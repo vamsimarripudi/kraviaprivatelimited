@@ -54,13 +54,13 @@ VALUES
   ('ONB-11','P2',false,'First-week check-in','Your first-week check-in at KRAVIA','7th calendar day after actual joining, if employed','Employee and manager'),
   ('ONB-12','P2',false,'First-month check-in','Your first-month check-in at KRAVIA','30th day after actual joining, if employed','Employee and manager'),
   ('ROLE-01','P0',true,'Position or functional duty assigned','Your KRAVIA responsibilities have been updated','Canonical role package applied / job changed','Employee'),
-  ('ROLE-02','P0',false,'Permission granted or revoked','KRAVIA Office access permissions changed','Verified access-profile or scoped permission change','Employee'),
+  ('ROLE-02','P0',true,'Permission granted or revoked','KRAVIA Office access permissions changed','Verified access-profile or scoped permission change','Employee'),
   ('ROLE-03','P1',false,'Reporting line changed','Your reporting structure at KRAVIA','Approved manager mapping changed','Employee, old/new manager where appropriate'),
   ('ROLE-04','P1',true,'Department handover proposed','Department ownership transfer awaiting acceptance','Governed transfer proposal committed','Proposed receiving head'),
   ('ROLE-05','P0',true,'Department handover accepted','Department ownership transfer completed','Receiving head accepts; former owner write rights checked','New head and former head'),
   ('ROLE-06','P1',true,'Transfer rejected or expired','KRAVIA department transfer update','Governed transfer status recorded','Requester and recipient'),
   ('ROLE-07','P1',false,'Privileged access review requested','Access review required — KRAVIA Office','Access-review record created','Independent authorised reviewer'),
-  ('ROLE-08','P1',false,'Access review decision','KRAVIA access review decision','Approved or changes-required decision committed','Employee and access owner'),
+  ('ROLE-08','P1',true,'Access review decision','KRAVIA access review decision','Approved or changes-required decision committed','Employee and access owner'),
   ('ROLE-09','P1',true,'Package version assigned','Your KRAVIA role package has been updated','New role-package version applied to employee','Employee'),
   ('TIME-01','P1',false,'Work schedule assigned or revised','Your KRAVIA work schedule','Approved work schedule/version effective','Employee'),
   ('TIME-02','P2',false,'Missing attendance reminder','Please review your KRAVIA attendance','Scheduled reminder; no approved/open check-in by cutoff','Employee'),
@@ -124,7 +124,8 @@ CREATE TABLE IF NOT EXISTS public.office_lifecycle_mail_outbox(
   source_table text NOT NULL CHECK(source_table IN (
     'office_employee_intake_events','office_role_package_events',
     'office_worktime_events','office_department_transfer_events','office_auth_events',
-    'office_people_development_events','office_payroll_events','office_task_events'
+    'office_people_development_events','office_payroll_events','office_task_events',
+    'office_access_audit'
   )),
   source_id bigint NOT NULL CHECK(source_id>0),
   recipient_user_id uuid NOT NULL REFERENCES public.office_identity_users(user_id) ON DELETE RESTRICT,
@@ -323,6 +324,16 @@ BEGIN
         PERFORM public.office_lifecycle_mail_enqueue('PAY-06',TG_TABLE_NAME,NEW.id,v_recipient);
       END IF;
     END IF;
+  ELSIF TG_TABLE_NAME='office_access_audit' THEN
+    IF NEW.target_user_id IS NOT NULL AND NEW.action IN ('ROLE_GRANTED','ROLE_REVOKED') THEN
+      PERFORM public.office_lifecycle_mail_enqueue('ROLE-02',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
+    ELSIF NEW.target_user_id IS NOT NULL
+        AND NEW.action IN ('ACCESS_REVIEW_APPROVED','ACCESS_REVIEW_CHANGES_REQUIRED') THEN
+      PERFORM public.office_lifecycle_mail_enqueue('ROLE-08',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
+      IF NEW.actor_user_id IS NOT NULL AND NEW.actor_user_id IS DISTINCT FROM NEW.target_user_id THEN
+        PERFORM public.office_lifecycle_mail_enqueue('ROLE-08',TG_TABLE_NAME,NEW.id,NEW.actor_user_id);
+      END IF;
+    END IF;
   ELSIF TG_TABLE_NAME='office_auth_events' THEN
     IF NEW.event_type='SESSION_REVOKED' THEN
       PERFORM public.office_lifecycle_mail_enqueue('AUTH-11',TG_TABLE_NAME,NEW.id,NEW.user_id);
@@ -358,6 +369,9 @@ CREATE TRIGGER office_lifecycle_mail_on_payroll AFTER INSERT ON public.office_pa
   FOR EACH ROW EXECUTE FUNCTION public.office_lifecycle_mail_source_trigger();
 DROP TRIGGER IF EXISTS office_lifecycle_mail_on_task ON public.office_task_events;
 CREATE TRIGGER office_lifecycle_mail_on_task AFTER INSERT ON public.office_task_events
+  FOR EACH ROW EXECUTE FUNCTION public.office_lifecycle_mail_source_trigger();
+DROP TRIGGER IF EXISTS office_lifecycle_mail_on_access_audit ON public.office_access_audit;
+CREATE TRIGGER office_lifecycle_mail_on_access_audit AFTER INSERT ON public.office_access_audit
   FOR EACH ROW EXECUTE FUNCTION public.office_lifecycle_mail_source_trigger();
 
 -- A payslip is eligible only once its immutable issue is actually inserted.
@@ -492,6 +506,15 @@ BEGIN
               AND result.status='LOCKED'
               AND period.status IN ('APPROVED','PAYMENT_PREPARED')
               AND nullif(pg_catalog.btrim(period.period_code),'') IS NOT NULL))
+        OR (o.source_table='office_access_audit'
+          AND EXISTS(SELECT 1 FROM public.office_access_audit ev WHERE ev.id=o.source_id
+            AND ((o.event_code='ROLE-02'
+              AND ev.action IN ('ROLE_GRANTED','ROLE_REVOKED')
+              AND ev.target_user_id=o.recipient_user_id)
+            OR (o.event_code='ROLE-08'
+              AND ev.action IN ('ACCESS_REVIEW_APPROVED','ACCESS_REVIEW_CHANGES_REQUIRED')
+              AND ev.target_user_id IS NOT NULL
+              AND o.recipient_user_id IN (ev.target_user_id,ev.actor_user_id)))))
         OR (o.source_table='office_auth_events' AND o.event_code='AUTH-11'
           AND EXISTS(SELECT 1 FROM public.office_auth_events ev
             WHERE ev.id=o.source_id AND ev.user_id=o.recipient_user_id

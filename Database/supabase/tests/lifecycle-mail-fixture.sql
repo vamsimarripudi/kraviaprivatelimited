@@ -31,6 +31,10 @@ CREATE TABLE public.office_department_transfer_events(
 CREATE TABLE public.office_auth_events(
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,user_id uuid NOT NULL,event_type text NOT NULL
 );
+CREATE TABLE public.office_access_audit(
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,actor_user_id uuid,
+  target_user_id uuid,action text NOT NULL
+);
 CREATE TABLE public.office_training_assignments(
   id uuid PRIMARY KEY,user_id uuid NOT NULL,status text NOT NULL
 );
