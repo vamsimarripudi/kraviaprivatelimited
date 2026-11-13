@@ -28,7 +28,9 @@ INSERT INTO public.office_document_delivery_events(
  'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
  'ESIGN','***@example.com',NULL,'SIGNING_LINK_ISSUED',
- '{"link_expires_at":"2099-11-30T12:00:00Z"}'::jsonb
+ pg_catalog.jsonb_build_object('link_expires_at',
+   pg_catalog.to_char((pg_catalog.now()+interval '7 days') AT TIME ZONE 'UTC',
+    'YYYY-MM-DD"T"HH24:MI:SS"Z"'))
 );
 INSERT INTO public.office_document_engine_events(
  document_instance_id,event_type,metadata
@@ -51,7 +53,9 @@ INSERT INTO public.office_document_delivery_events(
  'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
  'ESIGN','***@example.com','synthetic-esign-provider-proof-2026',
- 'SIGNING_LINK_ISSUED','{"link_expires_at":"2099-11-30T12:00:00Z"}'::jsonb
+ 'SIGNING_LINK_ISSUED',pg_catalog.jsonb_build_object('link_expires_at',
+   pg_catalog.to_char((pg_catalog.now()+interval '7 days') AT TIME ZONE 'UTC',
+    'YYYY-MM-DD"T"HH24:MI:SS"Z"'))
 );
 INSERT INTO public.office_document_engine_events(
  document_instance_id,event_type,metadata
