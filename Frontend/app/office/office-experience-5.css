@@ -326,3 +326,24 @@
     animation-duration: .01ms !important; transition-duration: .01ms !important;
   }
 }
+
+/* Finance sign-in retains the explicit AAL2 badge and source-owned control
+   statement that existing mobile browser tests and employees rely upon. */
+.kravia-office .office5-finance-assurance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+  color: var(--office-ui-ink);
+  font-size: 12px;
+  font-weight: 650;
+}
+.kravia-office .office5-finance-assurance span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  border-radius: 9px;
+  padding: 5px 10px;
+  border: 1px solid var(--office-ui-line);
+  background: var(--office-ui-surface-alt);
+}

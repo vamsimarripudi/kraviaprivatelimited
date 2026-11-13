@@ -10,6 +10,9 @@ export default async function FinanceLogin({ searchParams }: Props) {
   return (
     <OfficeAuthLayout eyebrow="FINANCE / RESTRICTED" title="KRAVIA Finance"
       description="A controlled Finance and Tax workspace. Your roles, session assurance and action-specific permissions continue to be verified by KRAVIA Office.">
+      <div className="office5-finance-assurance" aria-label="Finance access controls">
+        <span>Role scoped</span><span>AAL2 required</span><span>Evidence first</span>
+      </div>
       <WorkspaceLoginForm workspace="finance" nextPath={nextPath}
         configurationRequired={!getOfficeRuntimeOrigin()} reason={reason} />
     </OfficeAuthLayout>
