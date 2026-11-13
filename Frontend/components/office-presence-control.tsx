@@ -218,6 +218,7 @@ export function OfficePresenceControl() {
       className={styles.panel}
       data-office-presence-dialog="true"
       aria-labelledby="office-presence-heading"
+      aria-modal="true"
       onClose={finishDialogClose}
       onCancel={(event) => { event.preventDefault(); closeDialog(); }}
       onMouseDown={(event) => {
