@@ -140,14 +140,17 @@ export function roleCanAccessWorkspace(workspace: WorkspaceKind, roles: readonly
 }
 
 export function preferredWorkspace(roles: readonly OfficeRole[]): WorkspaceKind | null {
-  if (roles.length === 1 && roles[0] === "ADMIN") return "office";
-  if (roles.some((role) => ["FINANCE", "CA", "AUDITOR"].includes(role))) return "finance";
-  if (roles.some((role) => ["OWNER", "DIRECTOR", "ADMIN", "MEMBER", "CS", "LEGAL", "HR", "OPERATIONS", "PRODUCT_ADMIN"].includes(role))) return "office";
+  // Most multi-role leaders also carry FINANCE. Their default landing must be
+  // the personal Office shell, not a Finance dashboard requiring finance.read.
+  // Workspace membership never grants access to individual protected modules.
+  if (roles.some((role) => (officeWorkspaceRoles as readonly OfficeRole[]).includes(role))) return "office";
+  if (roles.some((role) => (financeCore as readonly OfficeRole[]).includes(role))) return "finance";
   return null;
 }
 
 export function preferredLandingPath(roles: readonly OfficeRole[]) {
-  if (roles.length === 1 && roles[0] === "ADMIN") return "/office/access";
   const workspace = preferredWorkspace(roles);
-  return workspace === "finance" ? "/finance/dashboard" : workspace === "office" ? "/office/dashboard" : "/office/login";
+  // Finance-only joiners may not have finance.read yet. Open self-service,
+  // which is separately authorized, until an approved profile takes effect.
+  return workspace === "finance" ? "/finance/my-role" : workspace === "office" ? "/office/dashboard" : "/office/login";
 }
