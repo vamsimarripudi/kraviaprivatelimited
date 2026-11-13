@@ -15,7 +15,7 @@ INSERT INTO public.office_document_instances(
  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','KR-DOC-00000003',
  'f1000000-0000-4000-8000-000000000002',
  'EMPLOYEE','33333333-3333-4333-8333-333333333333',
- 'DELIVERED',
+ 'SIGNING',
  '22222222-2222-4222-8222-222222222222',
  '11111111-1111-4111-8111-111111111111',now(),NULL
 );
@@ -23,11 +23,12 @@ INSERT INTO public.office_document_instances(
 -- an issued signing link.
 INSERT INTO public.office_document_delivery_events(
  id,document_instance_id,channel,destination_masked,
- provider_reference,event_type
+ provider_reference,event_type,metadata
 ) VALUES(
  'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
- 'ESIGN','***@example.com',NULL,'SIGNING_LINK_ISSUED'
+ 'ESIGN','***@example.com',NULL,'SIGNING_LINK_ISSUED',
+ '{"link_expires_at":"2099-11-30T12:00:00Z"}'::jsonb
 );
 INSERT INTO public.office_document_engine_events(
  document_instance_id,event_type,metadata
@@ -45,12 +46,12 @@ END $rejected$;
 -- masked address may be recorded without creating or leaking the link.
 INSERT INTO public.office_document_delivery_events(
  id,document_instance_id,channel,destination_masked,
- provider_reference,event_type
+ provider_reference,event_type,metadata
 ) VALUES(
  'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
  'ESIGN','***@example.com','synthetic-esign-provider-proof-2026',
- 'SIGNING_LINK_ISSUED'
+ 'SIGNING_LINK_ISSUED','{"link_expires_at":"2099-11-30T12:00:00Z"}'::jsonb
 );
 INSERT INTO public.office_document_engine_events(
  document_instance_id,event_type,metadata
