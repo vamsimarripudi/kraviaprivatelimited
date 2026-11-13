@@ -146,6 +146,16 @@ def test_verified_partial_wage_claim_requires_real_pay_period():
         mail._validate_claim(dict(claim,pay_period=None))
 
 
+def test_overdue_wage_reminder_requires_an_immutable_period():
+    claim = dict(_synthetic_claim()[0],
+        event_code="PAY-10",
+        source_reference="office_lifecycle_aux_proofs:92",
+        pay_period="2026-11")
+    assert mail._validate_claim(claim).pay_period=="2026-11"
+    with pytest.raises(RuntimeError):
+        mail._validate_claim(dict(claim,pay_period=None))
+
+
 def test_private_immutable_source_references_are_accepted_and_arbitrary_tables_rejected():
     from backend import office_lifecycle_mail_worker as worker
 
