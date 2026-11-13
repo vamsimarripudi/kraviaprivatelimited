@@ -83,6 +83,7 @@ CREATE TABLE public.office_document_instances(
  subject_type text NOT NULL,
  subject_reference text NOT NULL,
  status text NOT NULL,
+ created_by uuid REFERENCES public.office_identity_users(user_id),
  approved_by uuid REFERENCES public.office_identity_users(user_id),
  approved_at timestamptz,
  signed_at timestamptz
@@ -90,7 +91,8 @@ CREATE TABLE public.office_document_instances(
 CREATE TABLE public.office_document_delivery_events(
  id uuid PRIMARY KEY,
  document_instance_id uuid NOT NULL REFERENCES public.office_document_instances(id),
- channel text NOT NULL,provider_reference text,event_type text NOT NULL
+ channel text NOT NULL,destination_masked text,
+ provider_reference text,event_type text NOT NULL
 );
 CREATE TABLE public.office_document_signature_evidence(
  id uuid PRIMARY KEY,
