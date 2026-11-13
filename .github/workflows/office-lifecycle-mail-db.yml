@@ -7,6 +7,8 @@ on:
       - 'Database/supabase/migrations/202611130024_reconcile_office_lifecycle_additional_routes.sql'
       - 'Database/supabase/migrations/202611130025_auth_asset_lifecycle_sources.sql'
       - 'Database/supabase/migrations/202611130026_auth_device_decision_atomicity.sql'
+      - 'Database/supabase/migrations/202611130027_workforce_lifecycle_verified_sources.sql'
+      - 'Database/supabase/tests/lifecycle-mail-workforce-evidence-smoke.sql'
       - 'Database/supabase/tests/lifecycle-mail-device-atomicity-smoke.sql'
       - 'Database/supabase/tests/lifecycle-mail-auth-asset-smoke.sql'
       - 'Database/supabase/tests/lifecycle-mail-*.sql'
@@ -52,6 +54,8 @@ jobs:
           pg -f Database/supabase/migrations/202611130026_auth_device_decision_atomicity.sql
           pg -f Database/supabase/tests/lifecycle-mail-device-atomicity-smoke.sql
           pg -f Database/supabase/tests/lifecycle-mail-auth-asset-smoke.sql
+          pg -f Database/supabase/migrations/202611130027_workforce_lifecycle_verified_sources.sql
+          pg -f Database/supabase/tests/lifecycle-mail-workforce-evidence-smoke.sql
           output="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-smoke.sql)"
           echo "$output"
           test "$(printf '%s\n' "$output" | tail -n 1)" = "LIFECYCLE_MAIL_ROUTES_VERIFIED"
@@ -68,6 +72,8 @@ jobs:
           pg -f Database/supabase/migrations/202611130026_auth_device_decision_atomicity.sql
           pg -f Database/supabase/tests/lifecycle-mail-device-atomicity-smoke.sql
           pg -f Database/supabase/tests/lifecycle-mail-auth-asset-smoke.sql
+          pg -f Database/supabase/migrations/202611130027_workforce_lifecycle_verified_sources.sql
+          pg -f Database/supabase/tests/lifecycle-mail-workforce-evidence-smoke.sql
           upgraded_output="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-smoke.sql)"
           echo "$upgraded_output"
           printf '%s\n' "$upgraded_output" | grep -Fxq 'LIFECYCLE_MAIL_ROUTES_VERIFIED'
