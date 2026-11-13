@@ -62,7 +62,7 @@ INSERT INTO public.office_document_delivery_events(
  id,document_instance_id,channel,provider_reference,event_type
 ) VALUES('aaaaaaaa-cccc-4aaa-8aaa-aaaaaaaaaaaa',
  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','SECURE_LINK',
- 'synthetic-signed-exit-document-provider-reference','DOCUMENT_DELIVERED');
+ 'synthetic-signed-exit-document-provider-reference','DELIVERED');
 INSERT INTO public.office_document_engine_events(
  document_instance_id,event_type,metadata
 ) VALUES('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
