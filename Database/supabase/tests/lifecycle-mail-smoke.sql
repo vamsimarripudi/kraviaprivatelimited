@@ -7,7 +7,7 @@ BEGIN
   IF EXISTS(SELECT 1 FROM public.office_lifecycle_mail_policy WHERE enabled) THEN
     RAISE EXCEPTION 'Office lifecycle mail migration unexpectedly enabled delivery';
   END IF;
-  IF (SELECT count(*) FROM public.office_lifecycle_mail_policy WHERE source_ready)<>65 THEN
+  IF (SELECT count(*) FROM public.office_lifecycle_mail_policy WHERE source_ready)<>74 THEN
     RAISE EXCEPTION 'Source-ready events must be accurately distinguished from unmapped events';
   END IF;
   IF pg_catalog.has_table_privilege('anon','public.office_lifecycle_mail_outbox','SELECT') OR
@@ -35,7 +35,7 @@ DECLARE refused boolean:=false;
 BEGIN
   BEGIN
     PERFORM public.office_lifecycle_mail_policy_set(
-      'a0000000-0000-4000-8000-000000000001','HIRE-01',true,
+      'a0000000-0000-4000-8000-000000000001','ONB-04',true,
       pg_catalog.now(),'Synthetic, strictly isolated candidate event approval');
   EXCEPTION WHEN others THEN refused:=true;
   END;
