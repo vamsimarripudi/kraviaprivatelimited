@@ -6,6 +6,7 @@ import { Bell, Fingerprint, MailCheck, Moon, ShieldCheck, Sun, UserRound, Users,
 import type { OfficeIdentity } from "@/lib/office/auth-server";
 import { OfficeSecuritySettings } from "@/components/office-security-settings";
 import { OfficeEmployeeMailControls } from "@/components/office-employee-mail-controls";
+import { OfficeLifecycleMailControls } from "@/components/office-lifecycle-mail-controls";
 import styles from "./office-settings-hub.module.css";
 
 type View = "account" | "appearance" | "security" | "communications";
@@ -90,6 +91,9 @@ export function OfficeSettingsHub({ identity }: { identity: OfficeIdentity }) {
 
     {view === "security" ? <OfficeSecuritySettings identity={identity}/> : null}
     {view === "communications" && identity.roles.includes("OWNER") ?
-      <OfficeEmployeeMailControls/> : null}
+      <div style={{display:"grid",gap:16,minWidth:0}}>
+        <OfficeEmployeeMailControls/>
+        <OfficeLifecycleMailControls/>
+      </div> : null}
   </section>;
 }
