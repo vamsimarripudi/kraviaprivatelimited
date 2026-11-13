@@ -3,7 +3,9 @@ on:
   pull_request:
     paths:
       - 'Database/supabase/migrations/202611130032_candidate_lifecycle_delivery.sql'
+      - 'Database/supabase/migrations/202611130033_classify_first_party_auth_mail.sql'
       - 'Database/supabase/tests/candidate-lifecycle-delivery-*.sql'
+      - 'Database/supabase/tests/candidate-auth-delivery-classification-smoke.sql'
       - 'Backend/backend/office_candidate_lifecycle_mail_worker.py'
       - 'Backend/backend/tests/test_office_candidate_lifecycle_mail_worker.py'
       - 'Frontend/tests/office-candidate-external-delivery.test.ts'
@@ -49,4 +51,8 @@ jobs:
           result="$(pg --tuples-only --no-align \
             -f Database/supabase/tests/candidate-lifecycle-delivery-smoke.sql | tail -n 1)"
           test "$result" = "CANDIDATE_LIFECYCLE_PRIVATE_DELIVERY_VERIFIED"
+          pg -f Database/supabase/migrations/202611130033_classify_first_party_auth_mail.sql
+          classified="$(pg --tuples-only --no-align \
+            -f Database/supabase/tests/candidate-auth-delivery-classification-smoke.sql | tail -n 1)"
+          test "$classified" = "CANDIDATE_AND_AUTH_CHANNELS_VERIFIED"
           echo "Owner-attested source, event proof, recipient binding, and unknown-outcome safety passed."
