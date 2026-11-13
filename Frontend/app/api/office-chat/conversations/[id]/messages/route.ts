@@ -5,7 +5,7 @@ import { getOfficeChatMessages, OfficeChatError, sendOfficeChatMessage, markOffi
 export const dynamic = "force-dynamic";
 type Context = { params: Promise<{ id: string }> };
 const uuid = z.string().uuid();
-const message = z.object({ body: z.string().trim().min(1).max(4000), client_nonce: uuid }).strict();
+const message = z.object({ body: z.string().trim().min(1).max(4000), client_nonce: uuid, mention_user_ids: z.array(uuid).max(10).default([]) }).strict();
 function failure(error: unknown) {
   return NextResponse.json({ detail: error instanceof OfficeChatError ? error.message : "Message service unavailable" },
     { status: error instanceof OfficeChatError ? error.status : 500, headers: { "Cache-Control": "no-store" } });
@@ -22,7 +22,7 @@ export async function POST(request: Request, { params }: Context) {
   if (!uuid.safeParse(id).success) return NextResponse.json({ detail: "Not found" }, { status: 404 });
   const parsed = message.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ detail: "Invalid message" }, { status: 400, headers: { "Cache-Control": "no-store" } });
-  try { return NextResponse.json(await sendOfficeChatMessage(id,parsed.data.body,parsed.data.client_nonce),
+  try { return NextResponse.json(await sendOfficeChatMessage(id,parsed.data.body,parsed.data.client_nonce,parsed.data.mention_user_ids),
     { status: 201, headers: { "Cache-Control": "no-store" } }); }
   catch (error) { return failure(error); }
 }

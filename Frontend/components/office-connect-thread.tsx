@@ -5,7 +5,7 @@ import {ArrowLeft,Send,ShieldCheck} from "lucide-react";
 import {OfficeConnectMessageActions} from "@/components/office-connect-message-actions";
 import styles from "./office-connect-thread.module.css";
 type Message={id:string;sender_user_id:string;sender_name:string;body:string;created_at:string;parent_message_id?:string|null};
-type Response={conversation_id:string;messages:Message[]};
+type Response={actor_user_id:string;conversation_id:string;messages:Message[]};
 export function OfficeConnectThread({id}:{id:string}){
  const [data,setData]=useState<Response>();
  const [error,setError]=useState("");
@@ -52,7 +52,7 @@ export function OfficeConnectThread({id}:{id:string}){
     <div><strong>{message.sender_name}</strong><time dateTime={message.created_at}>
      {new Date(message.created_at).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"})}
     </time></div><p>{message.body}</p>
-    <OfficeConnectMessageActions id={message.id} body={message.body} own={false} onDone={()=>setRetry(v=>v+1)}/>
+    <OfficeConnectMessageActions id={message.id} body={message.body} own={message.sender_user_id===data.actor_user_id} onDone={()=>setRetry(v=>v+1)}/>
    </article>)}
   </div>:null}
   {data?<form className={styles.composer} onSubmit={submit}>

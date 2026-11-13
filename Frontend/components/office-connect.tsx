@@ -9,6 +9,7 @@ import { OfficeConnectMessageActions } from "@/components/office-connect-message
 type Conversation = { id: string; kind: string; title: string; updated_at: string };
 type Message = { id: string; sender_user_id: string; sender_name: string; body: string; created_at: string; edited_at?: string | null };
 type ListResponse = { actor_user_id: string; conversations: Conversation[] };
+type Member={user_id:string;display_name:string};
 type MessageResponse = { actor_user_id: string; messages: Message[] };
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
@@ -30,6 +31,9 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
   const [draft, setDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sendStatus, setSendStatus] = useState("");
+  const [members,setMembers] = useState<Member[]>([]);
+  const [pickedMentions,setPickedMentions] = useState<string[]>([]);
+  const [mentionPicker,setMentionPicker] = useState(false);
   const nonce = useRef<string | null>(null);
   const activeId = initialConversationId;
   const selected = conversations.find(row => row.id === activeId);
@@ -54,6 +58,15 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
   }, [reloadCount]);
 
   useEffect(() => {
+    if(!activeId)return;
+    let live=true;
+    void json<{members:Member[]}>("/api/office-chat/conversations/"+encodeURIComponent(activeId)+"/members")
+      .then(data=>{if(live)setMembers(data.members.filter(m=>m.user_id!==actor));})
+      .catch(()=>{if(live)setMembers([]);});
+    return()=>{live=false;};
+  },[activeId,actor]);
+
+  useEffect(() => {
     if (!activeId) return;
     let live = true;
     const load = async () => {
@@ -63,6 +76,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
         setMessages(response.messages);
         setActor(response.actor_user_id);
         setMessageError("");
+        void fetch("/api/office-chat/conversations/"+encodeURIComponent(activeId)+"/messages",{method:"PATCH",credentials:"same-origin"});
       } catch (error) {
         if (live) { setMessages([]); setMessageError(error instanceof Error ? error.message : "Unable to load messages"); }
       } finally {
@@ -83,10 +97,10 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
     try {
       await json<{ message_id: string }>("/api/office-chat/conversations/" + encodeURIComponent(activeId) + "/messages", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: draft.trim(), client_nonce: nonce.current }),
+        body: JSON.stringify({ body: draft.trim(), client_nonce: nonce.current, mention_user_ids:pickedMentions }),
       });
       nonce.current = null;
-      setDraft("");
+      setDraft("");setPickedMentions([]);setMentionPicker(false);
       setSendStatus("Message stored in the private conversation");
       setReloadCount(value => value + 1);
     } catch (error) {
@@ -156,6 +170,20 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
               onKeyDown={event => { if ((event.ctrlKey || event.metaKey) && event.key === "Enter") event.currentTarget.form?.requestSubmit(); }}/>
               <button type="submit" disabled={!draft.trim() || submitting || !!messageError}><Send size={16}/> {submitting ? "Sending…" : "Send"}</button>
             </div>
+            <div className={styles.mentionControls}>
+              <button type="button" aria-expanded={mentionPicker} aria-controls="office-chat-mention-picker"
+               onClick={()=>setMentionPicker(v=>!v)} disabled={submitting}>@ Mention participant</button>
+              {pickedMentions.length?<small>{pickedMentions.length} verified mention(s) selected</small>:null}
+            </div>
+            {mentionPicker?<div id="office-chat-mention-picker" className={styles.mentionPicker} role="group" aria-label="Current conversation participants">
+              {members.length?members.map(person=><button key={person.user_id} type="button"
+               disabled={pickedMentions.includes(person.user_id)}
+               onClick={()=>{
+                setPickedMentions(prev=>[...prev,person.user_id]);
+                setDraft(prev=>prev.trimEnd()+(prev.trim()?" ":"")+"@"+person.display_name+" ");
+                setMentionPicker(false);nonce.current=null;
+               }}>{person.display_name}</button>):<span>No other current active members</span>}
+            </div>:null}
             {sendStatus ? <p role="status" className={styles.sendStatus}>{sendStatus}</p> : null}
             <small>A stored message is not a formal approval or instruction to execute an action.</small>
           </form>

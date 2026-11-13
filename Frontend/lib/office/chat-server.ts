@@ -122,12 +122,12 @@ export async function getOfficeChatMessages(conversationId: string) {
     })) };
 }
 
-export async function sendOfficeChatMessage(conversationId: string, body: string, nonce: string) {
+export async function sendOfficeChatMessage(conversationId: string, body: string, nonce: string, mentions: readonly string[] = []) {
   const current = await actor();
   await ownMembership(current, conversationId);
-  const result = await current.admin.rpc("office_chat_send_message", {
+  const result = await current.admin.rpc(mentions.length?"office_chat_send_with_mentions":"office_chat_send_message", {
     p_actor: current.identity.userId, p_conversation: conversationId,
-    p_body: body, p_nonce: nonce,
+    p_body: body, p_nonce: nonce,...(mentions.length?{p_mentions:[...mentions]}:{}),
   });
   if (result.error || typeof result.data !== "string") {
     throw new OfficeChatError(503, "The message was not confirmed. Retry safely using the same draft.");
@@ -300,4 +300,19 @@ export async function markOfficeChatMentionRead(messageId:string){
   p_actor:current.identity.userId,p_message:messageId});
  if(result.error||result.data!==true)throw new OfficeChatError(409,"Mention read state not confirmed");
  return {read:true};
+}
+
+
+export async function getOfficeChatMembers(conversationId:string){
+ const current=await actor();
+ await ownMembership(current,conversationId);
+ const {data:members,error}=await current.admin.from("office_chat_memberships")
+  .select("user_id").eq("conversation_id",conversationId).eq("status","ACTIVE").limit(100);
+ if(error)throw internalFailure("Current conversation members unavailable");
+ const ids=(members??[]).map(row=>String(row.user_id));
+ if(!ids.length)return {members:[]};
+ const people=await current.admin.from("office_identity_users")
+  .select("user_id,display_name").in("user_id",ids).eq("status","ACTIVE").limit(100);
+ if(people.error)throw internalFailure("Current conversation members unavailable");
+ return {members:people.data??[]};
 }
