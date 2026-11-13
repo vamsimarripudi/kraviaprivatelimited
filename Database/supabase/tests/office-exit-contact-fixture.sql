@@ -16,6 +16,7 @@ CREATE TABLE public.office_user_roles(
 CREATE TABLE public.office_employment_registry(
  identity_user_id uuid NOT NULL REFERENCES public.office_identity_users(user_id),
  relationship_type text NOT NULL,
+ status text NOT NULL DEFAULT 'ACTIVE',
  end_date date
 );
 CREATE OR REPLACE FUNCTION public.office_effective_permission(
@@ -101,4 +102,13 @@ CREATE TABLE public.office_document_engine_events(
  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
  document_instance_id uuid NOT NULL REFERENCES public.office_document_instances(id),
  event_type text NOT NULL,metadata jsonb NOT NULL DEFAULT '{}'::jsonb
+);
+
+
+CREATE TABLE public.office_asset_lifecycle(
+ asset_id varchar PRIMARY KEY,
+ custodian_user_id uuid REFERENCES public.office_identity_users(user_id),
+ lifecycle_status text NOT NULL,
+ security_wipe_required boolean NOT NULL DEFAULT false,
+ wipe_verified_by uuid REFERENCES public.office_identity_users(user_id)
 );
