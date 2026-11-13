@@ -7,7 +7,8 @@ const settings = readFileSync(new URL("../components/office-settings-hub.tsx",im
 const schema = readFileSync(new URL("../../Database/supabase/migrations/202611130022_office_lifecycle_mail_router.sql",import.meta.url),"utf8");
 const forward = readFileSync(new URL("../../Database/supabase/migrations/202611130024_reconcile_office_lifecycle_additional_routes.sql",import.meta.url),"utf8");
 // The recorded 022 migration is immutable; test the effective 022 + 024 schema.
-const effectiveSchema = schema + "\n" + forward;
+const nextSources = readFileSync(new URL("../../Database/supabase/migrations/202611130025_auth_asset_lifecycle_sources.sql",import.meta.url),"utf8");
+const effectiveSchema = schema + "\n" + forward + "\n" + nextSources;
 const worker = readFileSync(new URL("../../Backend/backend/office_lifecycle_mail_worker.py",import.meta.url),"utf8");
 const manifest = JSON.parse(readFileSync(new URL("../../Backend/backend/generated_office_lifecycle_templates.json",import.meta.url),"utf8"));
 
@@ -57,6 +58,13 @@ describe("KRAVIA Office governed 81-event lifecycle notification delivery",()=>{
     expect(effectiveSchema).toContain("ONB-10");
     expect(effectiveSchema).toContain("ONB-01");
     expect(forward).toContain("source_ready)<>33");
+    expect(nextSources).toContain("source_ready)<>37");
+    expect(nextSources).toContain("office_auth_events_v2");
+    expect(nextSources).toContain("office_asset_events");
+    expect(nextSources).toContain("office_login_device_approvals");
+    expect(nextSources).toContain("ONB-07");
+    expect(nextSources).toContain("AUTH-09");
+
     expect(forward).toContain("BANK_SALARY_PARTIAL_VERIFIED");
     expect(schema).not.toContain("END IF;\n  ELSIF v_paid");
     expect(forward).not.toContain("END IF;\n  ELSIF v_paid");
