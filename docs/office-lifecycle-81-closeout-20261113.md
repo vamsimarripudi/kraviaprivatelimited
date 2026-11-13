@@ -1,33 +1,44 @@
-# KRAVIA Office lifecycle mail — 81-route closeout ledger (2026-11-13)
+# KRAVIA Office: 81-event notification implementation and final-release ledger
 
-## Current source evidence (not production activation)
-- `main`: 59/81 source-ready as of commit `86806c876c5483c18e68c51749e8b2fa7297e60e` (migration 030).
-- Draft PR #145: 74/81 in isolated, synthetic PostgreSQL rehearsals (migrations 031–034).
-- Authentication transactional ownership: `AUTH-01/02/03/05/06/08` are not deliverable by the generic lifecycle dispatcher; existing credential flows and the separate opt-in invitation notice path must not duplicate sends.
-- Candidate notices: nine `HIRE-` sources have a separate consent-verified, address-bound private outbox and worker; default delivery flags OFF.
-- Draft PR #148: forward migrations 035–039 add private two-person former-employee contact evidence and source proofs for `EXIT-02/04/05/06/07/08`. Evidence alone **does not** mark these codes ready, enqueue mail, or authorize a provider request.
-- `ONB-04`: a real signatory-access path and scoped, expiring signing link are still unimplemented.
+Updated: 13 November 2026. This is a **source-verified development report**, not a production or real-provider delivery certificate.
 
-## Exact 7 outstanding policy routes
+## Coverage
 
-| Code | Required source proof | Required recipient/delivery control | State |
-| --- | --- | --- | --- |
-| ONB-04 | Approved appointment document, genuinely issued signing request, valid signing session/URL, actual signatory | Authenticated or independently verified signatory, bounded link lifetime, no token disclosure | BLOCKED |
-| EXIT-02 | Approved exit request, verified departure acknowledgement and last working date | Independent, current, unexpired former-employee contact consent | SOURCE EVIDENCE IN #148; DELIVERY BLOCKED |
-| EXIT-04 | Immutable access-revoked event plus identity/session revocation proof | Independent former-employee consent; never use revoked corporate mailbox | SOURCE EVIDENCE IN #148; DELIVERY BLOCKED |
-| EXIT-05 | Real offboarding settlement case and locked payroll result | Verified, current alternate address and private external worker | SOURCE EVIDENCE IN #148; DELIVERY BLOCKED |
-| EXIT-06 | Independently approved settlement with bank-verified credits equal to full net amount | Verified, current alternate address and private external worker | SOURCE EVIDENCE IN #148; DELIVERY BLOCKED |
-| EXIT-07 | Approved, signed and delivered relieving/experience document bound to real employee exit | Consent-bound secure document access; no unprotected attachment/link | SOURCE EVIDENCE IN #148; DELIVERY BLOCKED |
-| EXIT-08 | Independent final completion after asset, access, payroll, and signed-document reconciliation | Current consent, private worker and source claim revalidation | SOURCE EVIDENCE IN #148; DELIVERY BLOCKED |
+| Environment | Verified source mappings | Dispatch |
+| --- | ---: | --- |
+| Current production/main baseline (migration 030) | 59 of 81 | All new lifecycle policies disabled |
+| Prior developer PR #145 (migrations 031–034) | 74 of 81 | Disabled |
+| Consolidated draft PR #150 (migrations 031–042) | **81 of 81** | **Disabled by default** |
 
-## Non-negotiable implementation and release checks
+All 81 lifecycle event codes have an owned source route in the consolidated development branch. This means **not** that 81 messages have been sent, nor that every external eSign and HR business prerequisite is configured. Source readiness, operational readiness, policy activation, provider submission and inbox delivery are distinct states.
 
-1. Combine forward-only migrations in exact recorded order; never rewrite applied migrations 022–030, and never replay old sends. Verify actual production schema before any migration.
-2. For every remaining event, validate immutable source event, active approval authority, current recipient, consent scope/version, and idempotency **at claim time**, not just when a record is created.
-3. Offboarded employees must never be emailed through disabled KRAVIA corporate accounts; do not infer personal addresses. A separately authorized delivery worker must treat provider-unknown outcomes as terminal until manual reconciliation.
-4. Use synthetic data for fresh-install and legacy-forward PostgreSQL 17 tests, plus frontend/backend security and browser tests. Keep cross-branch overlaps and migration history conflict-free.
-5. The seven-route source-gap assertions in `Database/supabase/tests/lifecycle-mail-smoke.sql` are intentionally fail-closed. Change them only once real evidence and independent delivery security tests for each event have passed.
-6. All notification policies and worker flags remain OFF until explicit Owner activation, with no emails sent by schema migrations or CI.
-7. **No interim Vercel production deploy.** Finalize code, green checks, secure migrations, conflict-free main integration, actual Vercel team access and build quota, then perform the one authorized production deploy.
+## Final seven implementations
 
-This ledger records source readiness, not successful production delivery. A count of 81/81 must never be reported from documentation alone.
+| Event | Source of truth | Recipient and worker |
+| --- | --- | --- |
+| ONB-04 | Approved HR_APPOINTMENT document with actual ESIGN provider reference, recorded expiry and SIGNING state | Active corporate account; separate gated external worker; no signing tokens emailed |
+| EXIT-02 | Approved employee offboarding request and recorded employment departure date | Independently verified explicit former-employee personal email consent |
+| EXIT-04 | Completed revocation of identity, active sessions and workforce access | Same consent-bound former-employee worker, never disabled Office mailbox |
+| EXIT-05 | Case opened using locked payroll and approved offboarding | Same consent-bound external worker |
+| EXIT-06 | Independent Owner case verification and full independently verified bank credits | Same consent-bound external worker |
+| EXIT-07 | Approved and signed HR_RELIEVING/HR_EXPERIENCE document with verified PDF and actual delivery evidence | No unsecured attachments; separate verified consent |
+| EXIT-08 | Independent Owner final completion after payroll, asset, access, employment and document checks | Same consent-bound external worker |
+
+Migration 041 assigns these seven codes EXTERNAL_NOTICE_WORKER ownership and marks their proof mappings ready. Its private outbox is restricted to the server worker, validates each proof source/recipient and consent at claim and again before delivery, uses idempotent source identity, and quarantines uncertain Brevo responses instead of retrying. Migration 042 fixes the real Document Studio SIGNING state: provider-issued links no longer incorrectly mark the document as DELIVERED. Existing credential senders remain isolated and cannot be duplicated through generic lifecycle mail. Candidate notifications use a separate verified-consent worker.
+
+## Owner and HR operational controls
+
+- Workforce Lifecycle includes a governed Exit Governance panel for genuine employee contact evidence, independent Owner review/rejection, revocation, settlement case creation, independently reconciled Owner verification and final exit signoff. It refuses actions when prerequisites are absent.
+- Document Studio includes provider-issued HR eSign request recording (not fake signing URL generation), bounded expiry and existing signed-PDF malware scan pipeline.
+- Owner's Lifecycle Mail governance shows the correct internal / candidate / external worker and separate private outcome counts. Owner must explicitly enable individual policies; two runtime dispatch flags are independently required for external notices.
+- No migration or test contacts employees, generates signatures, pays salaries, transfers money, changes existing production employee status or sends mail.
+
+## CI and deployment decision
+
+- CI proves source mapping and controlled data flows using disposable PostgreSQL 17, backend and frontend tests, Office browser E2E and search/secret gates. A workflow check must be green at the **latest exact head SHA**; prior success does not prove later commits.
+- **Do not merge/deploy this branch just to raise a count.** Execute forward-only migrations after a read-only production schema preflight and verify all policies disabled, current outbox empty, and source contracts match. Never rewrite migrations already recorded in production.
+- Real consent documents, genuine bank evidence, official HR document templates (HR_APPOINTMENT, HR_RELIEVING, HR_EXPERIENCE) and a configured actual signing provider are real-world prerequisites. Do not invent them. No link or employee personal email is inferred.
+- Product acceptance must exercise one genuine AAL2 signatory and leaver workflow with permissions, independent approvals, mobile screens, provider response handling, revocation, and no-repeat behavior. Do this before enabling any notifications.
+- Respect the owner's one-final-Vercel-release directive. Actual kravia1 Vercel build permission and rate-limit status must be verified before the one final production deployment. The earlier Vercel build-limit signal is an external release blocker, not an excuse to bypass checks.
+
+**Engineering completion:** development-source mappings 81/81, pending latest holistic CI and secure operational release acceptance. **Production activation:** not performed. **Real mail delivered:** none through these migrations. **Production deployment:** not performed.
