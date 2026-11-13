@@ -165,7 +165,7 @@ describe("KRAVIA Office governed 81-event lifecycle notification delivery",()=>{
     expect(transactionalAuth).toContain("office_lifecycle_mail_prevent_duplicate_auth_dispatch");
     expect(transactionalAuth).toContain("source_ready)<>63");
     expect(endpoint).toContain('ownership.data.delivery_owner==="FIRST_PARTY_AUTH"');
-    expect(controls).toContain("existing authenticated KRAVIA Office transactional sender");
+    expect(controls).toContain("This security email already uses the authenticated KRAVIA Office transactional sender.");
     expect(controls).toContain('active.delivery_owner==="LIFECYCLE_WORKER"');
     expect(transactionalAuth).not.toContain("INSERT INTO public.office_lifecycle_mail_outbox");
   });
