@@ -47,10 +47,10 @@ jobs:
           pg -f Database/supabase/migrations/202611130023_reconcile_office_lifecycle_mail_sources.sql
           pg -f Database/supabase/migrations/202611130024_reconcile_office_lifecycle_additional_routes.sql
           pg -f Database/supabase/migrations/202611130025_auth_asset_lifecycle_sources.sql
+          pg -f Database/supabase/tests/lifecycle-mail-auth-asset-smoke.sql
           output="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-smoke.sql)"
           echo "$output"
           test "$(printf '%s\n' "$output" | tail -n 1)" = "LIFECYCLE_MAIL_ROUTES_VERIFIED"
-          pg -f Database/supabase/tests/lifecycle-mail-auth-asset-smoke.sql
 
           # Separate phase in the same DISPOSABLE database: reconstruct the
           # immutable legacy 6-column claim schema and apply ONLY the new
@@ -61,8 +61,8 @@ jobs:
           pg -f Database/supabase/migrations/202611130023_reconcile_office_lifecycle_mail_sources.sql
           pg -f Database/supabase/migrations/202611130024_reconcile_office_lifecycle_additional_routes.sql
           pg -f Database/supabase/migrations/202611130025_auth_asset_lifecycle_sources.sql
+          pg -f Database/supabase/tests/lifecycle-mail-auth-asset-smoke.sql
           upgraded_output="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-smoke.sql)"
           echo "$upgraded_output"
           printf '%s\n' "$upgraded_output" | grep -Fxq 'LIFECYCLE_MAIL_ROUTES_VERIFIED'
-          pg -f Database/supabase/tests/lifecycle-mail-auth-asset-smoke.sql
           echo 'Fresh and legacy-forward upgrade rehearsals passed with zero live mail dispatch.'
