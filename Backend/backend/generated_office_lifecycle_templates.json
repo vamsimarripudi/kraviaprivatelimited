@@ -1,0 +1,818 @@
+{
+  "format": 1,
+  "generatedBy": "EmailTemplates/scripts/build-manifest.ts",
+  "total": 81,
+  "dispatchEnabled": false,
+  "templates": {
+    "AUTH-01": {
+      "id": "AUTH-01",
+      "intent": "Office invitation",
+      "triggerProposal": "Approved invite created",
+      "recipientProposal": "Invitee",
+      "baseline": "Existing",
+      "priority": "P0",
+      "subject": "You are invited to KRAVIA Office",
+      "body": "Your authorised KRAVIA Office invitation was issued. Use its existing secure registration flow; an invitation does not activate employment."
+    },
+    "AUTH-02": {
+      "id": "AUTH-02",
+      "intent": "Invitation reminder",
+      "triggerProposal": "Still PENDING near expiry; one opt-in reminder",
+      "recipientProposal": "Invitee",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Reminder: Your KRAVIA Office invitation expires soon",
+      "body": "An issued Office invitation is awaiting registration and is approaching its recorded expiry. Use only the original verified invitation link."
+    },
+    "AUTH-03": {
+      "id": "AUTH-03",
+      "intent": "Invitation expired",
+      "triggerProposal": "Invite moved to EXPIRED",
+      "recipientProposal": "Invitee and authorised inviter",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Your KRAVIA Office invitation has expired",
+      "body": "The previously issued Office invitation has expired. Request a fresh invitation from an authorised access administrator; the expired link cannot be used."
+    },
+    "AUTH-04": {
+      "id": "AUTH-04",
+      "intent": "Registration accepted",
+      "triggerProposal": "Registration completed, identity ACTIVE",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "Your KRAVIA Office account is registered",
+      "body": "Your Office account registration was recorded. Any employee onboarding, role entitlement or active employment remains subject to separate verification."
+    },
+    "AUTH-05": {
+      "id": "AUTH-05",
+      "intent": "Corporate email sign-in code",
+      "triggerProposal": "Password session requests email OTP, eligible account only",
+      "recipientProposal": "Account holder",
+      "baseline": "Existing",
+      "priority": "P0",
+      "subject": "Your KRAVIA Office verification code",
+      "body": "A verification challenge was requested for your eligible account. Use the protected sign-in flow; never share a code by email or message."
+    },
+    "AUTH-06": {
+      "id": "AUTH-06",
+      "intent": "New device approval",
+      "triggerProposal": "Unrecognised device requires independent decision",
+      "recipientProposal": "Authorised reviewer",
+      "baseline": "Existing",
+      "priority": "P0",
+      "subject": "Review a new KRAVIA Office device sign-in",
+      "body": "An unrecognised device access request requires review. Verify the device and context in your private Office security workspace before approving."
+    },
+    "AUTH-07": {
+      "id": "AUTH-07",
+      "intent": "Device approved or declined",
+      "triggerProposal": "Review decision recorded",
+      "recipientProposal": "Account holder",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "KRAVIA Office device review update",
+      "body": "A decision was recorded for a device access request. Review the recorded decision and current trusted devices in Office Settings."
+    },
+    "AUTH-08": {
+      "id": "AUTH-08",
+      "intent": "Password reset link issued",
+      "triggerProposal": "Explicit authorised recovery or verified self-service request",
+      "recipientProposal": "Account holder",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "Reset your KRAVIA Office password",
+      "body": "An authorised password recovery action was recorded. Follow only the private recovery link issued through the verified Office channel."
+    },
+    "AUTH-09": {
+      "id": "AUTH-09",
+      "intent": "Password changed",
+      "triggerProposal": "Confirmed password update",
+      "recipientProposal": "Account holder",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "Your KRAVIA Office password was changed",
+      "body": "Your Office account password-change event was recorded. Review active sessions and report an unexpected change to your security administrator."
+    },
+    "AUTH-10": {
+      "id": "AUTH-10",
+      "intent": "Suspicious sign-in or account lock",
+      "triggerProposal": "Verified security event",
+      "recipientProposal": "Account holder and security reviewer",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Security alert for your KRAVIA Office account",
+      "body": "A security monitoring event needs attention. Inspect the verified alert and account sessions before taking any action."
+    },
+    "AUTH-11": {
+      "id": "AUTH-11",
+      "intent": "Sessions revoked / access suspended",
+      "triggerProposal": "Authorised revocation committed",
+      "recipientProposal": "Affected employee",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "KRAVIA Office access status updated",
+      "body": "A committed change to your Office access or sessions was recorded. Contact your authorised administrator if the change was unexpected."
+    },
+    "AUTH-12": {
+      "id": "AUTH-12",
+      "intent": "Authenticator enrollment / factor change",
+      "triggerProposal": "Verified MFA enrollment or approved factor reset",
+      "recipientProposal": "Account holder",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Your KRAVIA Office sign-in protection changed",
+      "body": "Your Office authenticator or MFA configuration changed following an authorised action. Review your approved sign-in methods and trusted devices."
+    },
+    "HIRE-01": {
+      "id": "HIRE-01",
+      "intent": "Application received",
+      "triggerProposal": "Application recorded by recruitment system",
+      "recipientProposal": "Candidate",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Application received — KRAVIA",
+      "body": "Your application has been recorded in KRAVIA's recruitment system. Further review and any employment decision remain subject to the hiring process."
+    },
+    "HIRE-02": {
+      "id": "HIRE-02",
+      "intent": "Interview scheduled",
+      "triggerProposal": "Interview record scheduled/approved",
+      "recipientProposal": "Candidate and interviewers",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Interview details — KRAVIA",
+      "body": "An interview appointment was confirmed in the recruitment record. Consult the verified schedule and instructions provided by the hiring team."
+    },
+    "HIRE-03": {
+      "id": "HIRE-03",
+      "intent": "Interview rescheduled",
+      "triggerProposal": "Confirmed revised interview time",
+      "recipientProposal": "Candidate and interviewers",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Updated interview schedule — KRAVIA",
+      "body": "A previously confirmed interview has a newly recorded schedule. Use the updated verified details rather than the superseded appointment."
+    },
+    "HIRE-04": {
+      "id": "HIRE-04",
+      "intent": "Interview cancelled",
+      "triggerProposal": "Interview cancellation recorded",
+      "recipientProposal": "Candidate and interviewers",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Update to your KRAVIA interview",
+      "body": "A scheduled interview has been cancelled. Review any follow-up instructions from the authorised hiring team."
+    },
+    "HIRE-05": {
+      "id": "HIRE-05",
+      "intent": "Recruitment documents requested",
+      "triggerProposal": "Approved document request created",
+      "recipientProposal": "Candidate",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "Document request for your KRAVIA application",
+      "body": "Additional application documents have been formally requested. Submit only the specifically requested items through the approved private channel."
+    },
+    "HIRE-06": {
+      "id": "HIRE-06",
+      "intent": "Recruitment document needs correction",
+      "triggerProposal": "Document reviewer rejects or requests new evidence",
+      "recipientProposal": "Candidate",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Action required: Your KRAVIA document",
+      "body": "A submitted recruitment document needs correction or replacement. Review the authorised reviewer comments and resubmission requirements."
+    },
+    "HIRE-07": {
+      "id": "HIRE-07",
+      "intent": "Offer awaiting director approval",
+      "triggerProposal": "Offer enters governed review state",
+      "recipientProposal": "Authorised director/reviewer",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "Approval required: KRAVIA offer",
+      "body": "A proposed offer awaits independent director or delegated approval. This notification does not represent an approved employment offer."
+    },
+    "HIRE-08": {
+      "id": "HIRE-08",
+      "intent": "Approved offer available",
+      "triggerProposal": "Approved document signed/published with candidate access",
+      "recipientProposal": "Candidate",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "Your KRAVIA offer letter is ready",
+      "body": "Your approved offer document is available through the authorised recruitment document route. Review the verified offer before accepting."
+    },
+    "HIRE-09": {
+      "id": "HIRE-09",
+      "intent": "Offer accepted",
+      "triggerProposal": "Acceptance is actually recorded and verified",
+      "recipientProposal": "Candidate and approved hiring owner",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "KRAVIA offer acceptance confirmed",
+      "body": "Your offer response has been recorded and verified in the recruitment system. Joining arrangements are governed separately."
+    },
+    "HIRE-10": {
+      "id": "HIRE-10",
+      "intent": "Offer declined, withdrawn or expired",
+      "triggerProposal": "Canonical status recorded",
+      "recipientProposal": "Candidate as appropriate; hiring owner",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Update on your KRAVIA offer",
+      "body": "A recorded offer status has changed. Review the authorised decision; this message does not create or terminate employment on its own."
+    },
+    "ONB-01": {
+      "id": "ONB-01",
+      "intent": "Welcome aboard",
+      "triggerProposal": "Active employee identity + accepted employment + director-approved joining",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "Welcome aboard KRAVIA, {{employee_first_name}}",
+      "body": "Your approved joining arrangements are now recorded. Review the position, effective date, responsibilities and required onboarding steps privately."
+    },
+    "ONB-02": {
+      "id": "ONB-02",
+      "intent": "Private onboarding checklist",
+      "triggerProposal": "Onboarding workflow starts, assigned tasks exist",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "Your KRAVIA joining checklist",
+      "body": "Your employment onboarding checklist contains outstanding required items. Review each task and submit the supporting evidence through Office."
+    },
+    "ONB-03": {
+      "id": "ONB-03",
+      "intent": "Appointment letter ready",
+      "triggerProposal": "Signed approved appointment document stored",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "Your KRAVIA appointment letter is available",
+      "body": "An approved appointment document has been signed and made available in the private document vault. View it using your authorised Office access."
+    },
+    "ONB-04": {
+      "id": "ONB-04",
+      "intent": "E-sign requested",
+      "triggerProposal": "Document requires signature; permitted signing link issued",
+      "recipientProposal": "Signatory",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "Signature requested: KRAVIA appointment documents",
+      "body": "An authorised electronic-signature request is awaiting your action. Use only the approved signing workflow; a typed name alone is not a completed signature."
+    },
+    "ONB-05": {
+      "id": "ONB-05",
+      "intent": "Evidence submitted / returned",
+      "triggerProposal": "Checklist evidence reaches reviewer or is returned",
+      "recipientProposal": "Employee or authorised reviewer",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "KRAVIA onboarding document review update",
+      "body": "Your onboarding evidence reached a new documented review state. Check reviewer comments and any requested resubmission."
+    },
+    "ONB-06": {
+      "id": "ONB-06",
+      "intent": "First-day instructions",
+      "triggerProposal": "Actual joining date and work arrangement confirmed",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "Your first day at KRAVIA",
+      "body": "Your verified joining date and work arrangement are available. Review the published first-day instructions in your private workspace."
+    },
+    "ONB-07": {
+      "id": "ONB-07",
+      "intent": "Equipment and account readiness",
+      "triggerProposal": "Verified device/asset assignment or provisioning change",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Your KRAVIA work setup is ready",
+      "body": "An assigned work device or application account has a recorded readiness update. Check the authorised asset assignment before relying on access."
+    },
+    "ONB-08": {
+      "id": "ONB-08",
+      "intent": "Policy acknowledgement requested",
+      "triggerProposal": "Versioned policy assigned in Office",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "Please acknowledge your KRAVIA policies",
+      "body": "A current version of a company policy requires acknowledgement. Review the published policy version and record the acknowledgement in Office."
+    },
+    "ONB-09": {
+      "id": "ONB-09",
+      "intent": "Assigned responsibilities available",
+      "triggerProposal": "Role package actually applied and scoped permissions verified",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "Your KRAVIA roles and responsibilities",
+      "body": "Your approved job responsibilities and assigned access scope are available in KRAVIA Office. Review outstanding role acknowledgements."
+    },
+    "ONB-10": {
+      "id": "ONB-10",
+      "intent": "Onboarding complete",
+      "triggerProposal": "All required checklist items verified and governance approved",
+      "recipientProposal": "Employee and hiring manager",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "KRAVIA onboarding completed",
+      "body": "All required onboarding steps have received the necessary independent verification. Review your employment and access status in Office."
+    },
+    "ONB-11": {
+      "id": "ONB-11",
+      "intent": "First-week check-in",
+      "triggerProposal": "7th calendar day after actual joining, if employed",
+      "recipientProposal": "Employee and manager",
+      "baseline": "New",
+      "priority": "P2",
+      "subject": "Your first-week check-in at KRAVIA",
+      "body": "A first-week onboarding check-in has been recorded for your verified start date. Review any open questions with your reporting manager."
+    },
+    "ONB-12": {
+      "id": "ONB-12",
+      "intent": "First-month check-in",
+      "triggerProposal": "30th day after actual joining, if employed",
+      "recipientProposal": "Employee and manager",
+      "baseline": "New",
+      "priority": "P2",
+      "subject": "Your first-month check-in at KRAVIA",
+      "body": "A first-month onboarding check-in has been recorded for your verified start date. Review development needs and outstanding onboarding evidence."
+    },
+    "ROLE-01": {
+      "id": "ROLE-01",
+      "intent": "Position or functional duty assigned",
+      "triggerProposal": "Canonical role package applied / job changed",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "Your KRAVIA responsibilities have been updated",
+      "body": "A governed functional responsibility or position assignment was recorded. Review its effective scope and acknowledgements; statutory appointments remain separate."
+    },
+    "ROLE-02": {
+      "id": "ROLE-02",
+      "intent": "Permission granted or revoked",
+      "triggerProposal": "Verified access-profile or scoped permission change",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "KRAVIA Office access permissions changed",
+      "body": "Your scoped Office permissions have changed through the authorised access process. Check what is now available or restricted."
+    },
+    "ROLE-03": {
+      "id": "ROLE-03",
+      "intent": "Reporting line changed",
+      "triggerProposal": "Approved manager mapping changed",
+      "recipientProposal": "Employee, old/new manager where appropriate",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Your reporting structure at KRAVIA",
+      "body": "An approved change to your reporting relationship is on record. Review the new reporting manager and any pending handover responsibilities."
+    },
+    "ROLE-04": {
+      "id": "ROLE-04",
+      "intent": "Department handover proposed",
+      "triggerProposal": "Governed transfer proposal committed",
+      "recipientProposal": "Proposed receiving head",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Department ownership transfer awaiting acceptance",
+      "body": "A department ownership handover has been proposed and is awaiting the receiving head's formal acceptance. No transfer is effective yet."
+    },
+    "ROLE-05": {
+      "id": "ROLE-05",
+      "intent": "Department handover accepted",
+      "triggerProposal": "Receiving head accepts; former owner write rights checked",
+      "recipientProposal": "New head and former head",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "Department ownership transfer completed",
+      "body": "The receiving head accepted an approved department handover. Operational mutation authority must now follow the new owner and the former owner is read-only where permitted."
+    },
+    "ROLE-06": {
+      "id": "ROLE-06",
+      "intent": "Transfer rejected or expired",
+      "triggerProposal": "Governed transfer status recorded",
+      "recipientProposal": "Requester and recipient",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "KRAVIA department transfer update",
+      "body": "A requested department ownership transfer was rejected or expired. The previous valid ownership authority remains in force."
+    },
+    "ROLE-07": {
+      "id": "ROLE-07",
+      "intent": "Privileged access review requested",
+      "triggerProposal": "Access-review record created",
+      "recipientProposal": "Independent authorised reviewer",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Access review required — KRAVIA Office",
+      "body": "An independent review of privileged Office access is required. Use the assigned access-review workflow and supporting evidence."
+    },
+    "ROLE-08": {
+      "id": "ROLE-08",
+      "intent": "Access review decision",
+      "triggerProposal": "Approved or changes-required decision committed",
+      "recipientProposal": "Employee and access owner",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "KRAVIA access review decision",
+      "body": "A governed access-review decision is available. Review any permission changes, acknowledgement requirements or follow-up actions."
+    },
+    "ROLE-09": {
+      "id": "ROLE-09",
+      "intent": "Package version assigned",
+      "triggerProposal": "New role-package version applied to employee",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Your KRAVIA role package has been updated",
+      "body": "A new approved role-package version was applied to your Office identity. Review its responsibilities and scoped access."
+    },
+    "TIME-01": {
+      "id": "TIME-01",
+      "intent": "Work schedule assigned or revised",
+      "triggerProposal": "Approved work schedule/version effective",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Your KRAVIA work schedule",
+      "body": "An approved work schedule or effective-dated shift policy was updated. Check the current contractual working pattern and any requested acknowledgement."
+    },
+    "TIME-02": {
+      "id": "TIME-02",
+      "intent": "Missing attendance reminder",
+      "triggerProposal": "Scheduled reminder; no approved/open check-in by cutoff",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P2",
+      "subject": "Please review your KRAVIA attendance",
+      "body": "A recorded attendance day may need your review. Check actual check-in and check-out evidence; browser activity is not payable attendance."
+    },
+    "TIME-03": {
+      "id": "TIME-03",
+      "intent": "Attendance correction submitted",
+      "triggerProposal": "Verified correction awaiting separate reviewer",
+      "recipientProposal": "Independent authorised reviewer",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Attendance correction awaiting review",
+      "body": "An attendance correction request was submitted for independent review. No correction is payable until verified and approved."
+    },
+    "TIME-04": {
+      "id": "TIME-04",
+      "intent": "Attendance correction decision",
+      "triggerProposal": "Approved or rejected correction committed",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Your attendance correction was reviewed",
+      "body": "An independent reviewer recorded a decision on your attendance correction. Review the supporting evidence and revised worktime totals."
+    },
+    "TIME-05": {
+      "id": "TIME-05",
+      "intent": "Overtime review requested",
+      "triggerProposal": "Weekday/weekend/night extra work evidence submitted",
+      "recipientProposal": "Independent authorised reviewer",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Overtime request awaiting review",
+      "body": "An overtime evidence request needs independent review under the effective-dated policy. Requested hours are not yet approved."
+    },
+    "TIME-06": {
+      "id": "TIME-06",
+      "intent": "Overtime approved / rejected",
+      "triggerProposal": "Recorded reviewer decision, approved policy in force",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Your KRAVIA overtime request was reviewed",
+      "body": "An independent overtime decision has been recorded. Only verified approved minutes and the effective policy can affect earnings."
+    },
+    "TIME-07": {
+      "id": "TIME-07",
+      "intent": "Flex Day eligible",
+      "triggerProposal": "Five distinct approved six-hour weekdays, approved Flex policy",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Your KRAVIA Flex Day eligibility",
+      "body": "Your approved worktime evidence may qualify for a Flex Day under the current five-day policy. Eligibility is not the same as leave approval."
+    },
+    "TIME-08": {
+      "id": "TIME-08",
+      "intent": "Flex Day request decision",
+      "triggerProposal": "Independent decision committed",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Your KRAVIA Flex Day request update",
+      "body": "Your Flex Day request received an authorised decision. Review the actual leave credit and remaining balance in Office."
+    },
+    "TIME-09": {
+      "id": "TIME-09",
+      "intent": "Leave request / decision",
+      "triggerProposal": "Real request or reviewer decision recorded",
+      "recipientProposal": "Approver or employee",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "KRAVIA leave request update",
+      "body": "A leave request or independent decision was recorded. Confirm the approved dates and schedule implications in your private calendar."
+    },
+    "TIME-10": {
+      "id": "TIME-10",
+      "intent": "Payroll attendance cutoff",
+      "triggerProposal": "Upcoming verified period cutoff",
+      "recipientProposal": "Employee and permitted approver",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Attendance review closes soon",
+      "body": "The worktime review cutoff for an actual payroll period is approaching. Review any missing or disputed attendance evidence."
+    },
+    "PAY-01": {
+      "id": "PAY-01",
+      "intent": "Compensation draft for review",
+      "triggerProposal": "Effective-dated compensation proposal submitted",
+      "recipientProposal": "Independent reviewer/director",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "Compensation proposal requires approval",
+      "body": "A compensation proposal awaits independent approval. Draft pay figures must not be treated as your approved salary."
+    },
+    "PAY-02": {
+      "id": "PAY-02",
+      "intent": "Compensation approved / rejected",
+      "triggerProposal": "Governed final decision committed",
+      "recipientProposal": "Affected employee",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "Your KRAVIA compensation record was updated",
+      "body": "A compensation decision was recorded against the effective-dated salary policy. Review the verified terms in your private payroll records."
+    },
+    "PAY-03": {
+      "id": "PAY-03",
+      "intent": "Payroll period opened",
+      "triggerProposal": "Actual period created",
+      "recipientProposal": "Finance preparer",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "KRAVIA payroll period is open",
+      "body": "An actual payroll period has been opened for preparation. Figures remain provisional until the required validations and approvals."
+    },
+    "PAY-04": {
+      "id": "PAY-04",
+      "intent": "Payroll review required",
+      "triggerProposal": "Locked review request sent to independent approver",
+      "recipientProposal": "Payroll reviewer/director",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "KRAVIA payroll approval required",
+      "body": "A payroll calculation needs independent review. Verify attendance, rate-policy effective dates and lawful deductions before approving."
+    },
+    "PAY-05": {
+      "id": "PAY-05",
+      "intent": "Payroll approved",
+      "triggerProposal": "All required approvals completed and results locked",
+      "recipientProposal": "Finance preparer",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "KRAVIA payroll run approved",
+      "body": "An approved payroll run was locked by the authorised reviewers. Bank settlement remains a separate verification step."
+    },
+    "PAY-06": {
+      "id": "PAY-06",
+      "intent": "Salary slip issued",
+      "triggerProposal": "Immutable approved payroll payslip exists",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "Your KRAVIA payslip for {{pay_period}} is ready",
+      "body": "An immutable approved payslip is available for the specified payroll period. Issuing a slip does not confirm a bank credit."
+    },
+    "PAY-07": {
+      "id": "PAY-07",
+      "intent": "Payment batch prepared",
+      "triggerProposal": "Batch only PREPARED; not bank-confirmed",
+      "recipientProposal": "Finance preparer/reviewer",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "KRAVIA salary batch prepared — not yet paid",
+      "body": "A payroll payment batch has been prepared but not bank-verified. Do not classify these wages as paid."
+    },
+    "PAY-08": {
+      "id": "PAY-08",
+      "intent": "Salary credit verified",
+      "triggerProposal": "Independent bank settlement verification covers full net salary",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "KRAVIA salary payment confirmed — {{pay_period}}",
+      "body": "A salary payment has been independently confirmed by bank settlement evidence. Review the verified payment classification in Office."
+    },
+    "PAY-09": {
+      "id": "PAY-09",
+      "intent": "Partial payment / balance outstanding",
+      "triggerProposal": "Verified credit is less than net; remaining amount owed",
+      "recipientProposal": "Employee and authorised Finance",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "Important: Outstanding KRAVIA salary balance",
+      "body": "A verified partial salary credit leaves an outstanding wage balance. The remaining amount remains payable and should be reviewed in the private payroll ledger."
+    },
+    "PAY-10": {
+      "id": "PAY-10",
+      "intent": "Unpaid salary overdue",
+      "triggerProposal": "Pay date passed with independently unverified balance",
+      "recipientProposal": "Employee and escalation approver",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "Salary payment follow-up for {{pay_period}}",
+      "body": "The recorded wage due date has passed with an outstanding or unverified balance. The unpaid claim remains recorded pending independent settlement."
+    },
+    "PAY-11": {
+      "id": "PAY-11",
+      "intent": "Corrected payslip issued",
+      "triggerProposal": "New approved correction/adjustment and new immutable issue",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Updated KRAVIA payslip available",
+      "body": "An approved correction to an immutable payslip has been issued. Review the new issue and its documented adjustment history."
+    },
+    "PAY-12": {
+      "id": "PAY-12",
+      "intent": "Annual wage or statutory statement ready",
+      "triggerProposal": "Approved statement exists in private Office vault",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P2",
+      "subject": "Your annual KRAVIA payroll statement is available",
+      "body": "Your approved annual wage or statutory payroll statement is available in the private Office document vault."
+    },
+    "DEV-01": {
+      "id": "DEV-01",
+      "intent": "Training assigned",
+      "triggerProposal": "Governed training assignment recorded",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Training assigned in KRAVIA Office",
+      "body": "An approved training programme has been assigned to your role. Review the learning objectives, schedule and required evidence."
+    },
+    "DEV-02": {
+      "id": "DEV-02",
+      "intent": "Training due reminder",
+      "triggerProposal": "Approved due date approaching and incomplete",
+      "recipientProposal": "Employee and assigned lead",
+      "baseline": "New",
+      "priority": "P2",
+      "subject": "KRAVIA training due soon",
+      "body": "An assigned training activity is approaching its recorded due date and remains incomplete. Review the requirement or request an extension."
+    },
+    "DEV-03": {
+      "id": "DEV-03",
+      "intent": "Training evidence accepted / rejected",
+      "triggerProposal": "Reviewer records result",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P2",
+      "subject": "Training completion review update",
+      "body": "Your submitted training evidence received an independent reviewer decision. Check any required correction or completion state."
+    },
+    "DEV-04": {
+      "id": "DEV-04",
+      "intent": "Performance review scheduled",
+      "triggerProposal": "Governed review record created",
+      "recipientProposal": "Employee and reviewer",
+      "baseline": "New",
+      "priority": "P2",
+      "subject": "Your KRAVIA performance review",
+      "body": "A governed performance or development review was scheduled. Review the meeting details and reviewer assignment."
+    },
+    "DEV-05": {
+      "id": "DEV-05",
+      "intent": "Review outcome available",
+      "triggerProposal": "Review finalised and released to employee",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P2",
+      "subject": "Your KRAVIA development review is ready",
+      "body": "A finalised authorised development-review outcome is available in your private records. This notice does not disclose confidential findings."
+    },
+    "DEV-06": {
+      "id": "DEV-06",
+      "intent": "Development plan assigned",
+      "triggerProposal": "Approved development plan published",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P2",
+      "subject": "Your KRAVIA development plan",
+      "body": "An approved development plan was published. Review its agreed milestones, responsible reviewer and due dates."
+    },
+    "DEV-07": {
+      "id": "DEV-07",
+      "intent": "Task or approval assigned",
+      "triggerProposal": "Authorised Office request/task assigned",
+      "recipientProposal": "Assignee",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Action assigned in KRAVIA Office",
+      "body": "An authorised task or approval was assigned to you. Check the task ledger and confirm whether you have decision authority."
+    },
+    "DEV-08": {
+      "id": "DEV-08",
+      "intent": "Controlled policy/document published",
+      "triggerProposal": "Versioned document released to recipient's scope",
+      "recipientProposal": "Eligible staff",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "KRAVIA policy or document update",
+      "body": "A versioned policy or document was released to your permitted scope. Read the current version and complete required acknowledgements."
+    },
+    "EXIT-01": {
+      "id": "EXIT-01",
+      "intent": "Exit workflow initiated",
+      "triggerProposal": "Approved departure/offboarding request started",
+      "recipientProposal": "Authorised director/people reviewer",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "KRAVIA employee offboarding review",
+      "body": "A governed employee departure case has been initiated for authorised review. No end-of-employment date is inferred from a draft request."
+    },
+    "EXIT-02": {
+      "id": "EXIT-02",
+      "intent": "Exit acknowledged",
+      "triggerProposal": "Confirmed notice and final-day details recorded",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Your KRAVIA exit process",
+      "body": "Your confirmed departure arrangements and effective dates were recorded. Review outstanding company, asset and employment obligations."
+    },
+    "EXIT-03": {
+      "id": "EXIT-03",
+      "intent": "Asset return requested",
+      "triggerProposal": "Assets actually registered to employee",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "KRAVIA equipment return checklist",
+      "body": "A registered company asset is due for return through the verified custody process. Follow the formal handover record."
+    },
+    "EXIT-04": {
+      "id": "EXIT-04",
+      "intent": "Office access withdrawn",
+      "triggerProposal": "Governed access revocation committed",
+      "recipientProposal": "Employee and Security",
+      "baseline": "New",
+      "priority": "P0",
+      "subject": "KRAVIA Office access removed",
+      "body": "Your Office sessions and entitlements were revoked under an authorised employment process. Request permitted post-employment records through the designated secure channel."
+    },
+    "EXIT-05": {
+      "id": "EXIT-05",
+      "intent": "Final settlement under review",
+      "triggerProposal": "Payroll settlement case created",
+      "recipientProposal": "Employee and authorised Finance",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "KRAVIA final settlement under review",
+      "body": "Your final employment settlement is being independently reviewed. Unverified calculations or prepared payment batches do not establish payment."
+    },
+    "EXIT-06": {
+      "id": "EXIT-06",
+      "intent": "Final settlement verified",
+      "triggerProposal": "Independent bank credits fully reconciled",
+      "recipientProposal": "Employee",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "KRAVIA final settlement confirmed",
+      "body": "Independent bank evidence confirms the final settlement specified by the authorised payroll record. Retain the verified settlement reference."
+    },
+    "EXIT-07": {
+      "id": "EXIT-07",
+      "intent": "Relieving/experience document available",
+      "triggerProposal": "Signed, approved document stored",
+      "recipientProposal": "Former employee",
+      "baseline": "New",
+      "priority": "P1",
+      "subject": "Your KRAVIA employment document is ready",
+      "body": "An approved and signed employment document is available for authorised retrieval. Use the secure post-employment evidence process if Office access ended."
+    },
+    "EXIT-08": {
+      "id": "EXIT-08",
+      "intent": "Offboarding completed",
+      "triggerProposal": "People, assets and access steps complete",
+      "recipientProposal": "Employee, authorised director",
+      "baseline": "New",
+      "priority": "P2",
+      "subject": "KRAVIA exit process completed",
+      "body": "Your documented offboarding checklist is complete following authorised reviews. Any outstanding lawful wage or document claim remains enforceable."
+    }
+  }
+}
