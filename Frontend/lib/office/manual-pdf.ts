@@ -8,7 +8,7 @@ import { type ManualRole } from "@/lib/office/manuals";
 
 type Chapter = {title:string;steps:readonly string[]};
 type Route = {href:string;title:string;description:string};
-type Pack = {edition:string;common:readonly Chapter[];roles:readonly ManualRole[];routes:readonly Route[]};
+type Pack = {edition:string;common:readonly Chapter[];roles:readonly ManualRole[];routes:readonly Route[];fullCommon?:string;fullRoles?:readonly string[]};
 type Line = {text:string;kind:"title"|"sub"|"heading"|"body"};
 const clean=(value:string)=>value.normalize("NFKD")
   .replace(/[\u2010-\u2015\u2212]/g,"-").replace(/[\u2018\u2019]/g,"'")
@@ -26,6 +26,10 @@ function wrap(value:string,limit:number):string[]{
   if(current)lines.push(current);
   return lines.length?lines:[""];
 }
+function stripMarkup(input:string){
+  return input.replace(/\\*\\*/g,"").replaceAll(String.fromCharCode(96),"")
+    .replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g,"$1 ($2)");
+}
 function buildLines(pack:Pack):Line[]{
   const out:Line[]=[];
   const put=(kind:Line["kind"],v:string,wrapLength=94)=>{
@@ -35,12 +39,33 @@ function buildLines(pack:Pack):Line[]{
   put("sub","Edition "+pack.edition+" | Common guide + assigned role guidance",85);
   put("sub","This guide provides directions only. It does not grant authority, prove payment or replace a signed appointment.",94);
   out.push({kind:"body",text:" "});
-  pack.common.forEach(chapter=>{
+  if(pack.fullCommon){
+    put("heading","COMMON EMPLOYEE MANUAL - COMPLETE PUBLISHED EDITION",70);
+    for(const raw of pack.fullCommon.split("\n")){
+      const line=raw.trim();
+      if(!line || line==="---"){out.push({kind:"body",text:" "});continue;}
+      if(/^\\|[\\s|:\\-]+\\|?$/.test(line))continue;
+      if(line.startsWith("#"))put("heading",stripMarkup(line.replace(/^#+\\s*/,"")),70);
+      else put("body",stripMarkup(line).replace(/^>\\s?/,"").replace(/^\\|/,""),90);
+    }
+  } else pack.common.forEach(chapter=>{
     put("heading",chapter.title,68);
     chapter.steps.forEach((step,index)=>put("body",String(index+1)+". "+step));
     out.push({kind:"body",text:" "});
   });
-  pack.roles.forEach(role=>{
+  pack.roles.forEach((role,roleIndex)=>{
+    if(pack.fullRoles?.[roleIndex]){
+      put("heading","ROLE GUIDE - "+role.name.toUpperCase(),72);
+      for(const raw of pack.fullRoles[roleIndex].split("\n")){
+        const line=raw.trim();
+        if(!line || line==="---"){out.push({kind:"body",text:" "});continue;}
+        if(/^\\|[\\s|:\\-]+\\|?$/.test(line))continue;
+        if(line.startsWith("#"))put("heading",stripMarkup(line.replace(/^#+\\s*/,"")),70);
+        else put("body",stripMarkup(line).replace(/^>\\s?/,"").replace(/^\\|/,""),90);
+      }
+      out.push({kind:"body",text:" "});
+      return;
+    }
     put("heading","ROLE GUIDE: "+role.name.toUpperCase(),72);
     put("body",role.purpose);
     put("sub","First access");role.firstDay.forEach((step,i)=>put("body",(i+1)+". "+step));
