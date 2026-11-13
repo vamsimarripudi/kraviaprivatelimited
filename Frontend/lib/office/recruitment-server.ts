@@ -228,6 +228,28 @@ export async function scheduleInterview(input: { candidateId: string; stage: str
   return { interview_id: data };
 }
 
+export async function changeInterview(input: {
+  interviewId: string;
+  decision: "RESCHEDULE" | "CANCEL";
+  startsAt?: string;
+  endsAt?: string;
+  reason: string;
+}) {
+  const current = await permission("hiring.interview.manage");
+  const { data, error } = await current.admin.rpc("office_interview_change", {
+    p_actor: current.identity.userId,
+    p_interview: input.interviewId,
+    p_action: input.decision,
+    p_start: input.startsAt ?? null,
+    p_end: input.endsAt ?? null,
+    p_reason: input.reason.trim(),
+  });
+  if (error || (data !== "RESCHEDULED" && data !== "CANCELLED")) {
+    throw new OfficeRecruitmentError(400, error?.message ?? "Unable to change interview");
+  }
+  return { interview_status: data };
+}
+
 export async function submitInterviewFeedback(input: { interviewId: string; outcome: string; evidence: string; strengths?: string; concerns?: string }) {
   const current = await permission("hiring.interview.manage");
   const { data, error } = await current.admin.rpc("office_interview_feedback_submit", {
