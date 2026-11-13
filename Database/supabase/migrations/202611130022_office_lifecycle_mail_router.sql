@@ -689,7 +689,6 @@ BEGIN
       'BANK_SALARY_CREDIT_VERIFIED',
       pg_catalog.jsonb_build_object('settlement_id',NEW.id)
     );
-  END IF;
   ELSIF v_paid>0 AND v_paid<v_result.net_pay_minor
      AND EXISTS(SELECT 1 FROM public.office_lifecycle_mail_policy
        WHERE event_code='PAY-09' AND enabled AND source_ready

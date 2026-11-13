@@ -56,6 +56,8 @@ describe("KRAVIA Office governed 81-event lifecycle notification delivery",()=>{
     expect(schema).toContain("ONB-01");
     expect(forward).toContain("Expected exactly 31 audited source routes");
     expect(forward).toContain("BANK_SALARY_PARTIAL_VERIFIED");
+    expect(schema).not.toContain("END IF;\n  ELSIF v_paid");
+    expect(forward).not.toContain("END IF;\n  ELSIF v_paid");
     expect(forward).toContain("office_lifecycle_mail_on_recruitment");
     expect(forward).toContain("Existing employee notification ledger requires manual reconciliation");
     expect(forward).not.toContain("SET enabled=true");
