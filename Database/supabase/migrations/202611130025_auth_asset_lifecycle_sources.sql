@@ -52,7 +52,8 @@ DECLARE
 BEGIN
   v_code:=CASE NEW.event_type
    WHEN 'INVITATION_ACCEPTED' THEN 'AUTH-04'
-   WHEN 'DEVICE_APPROVAL_COMPLETED' THEN 'AUTH-07'
+   WHEN 'DEVICE_APPROVAL_APPROVED' THEN 'AUTH-07'
+   WHEN 'DEVICE_APPROVAL_DECLINED' THEN 'AUTH-07'
    WHEN 'PASSWORD_RECOVERY_COMPLETED' THEN 'AUTH-09'
    ELSE NULL END;
   IF v_code IS NULL OR NEW.user_id IS NULL THEN RETURN NEW; END IF;
@@ -68,8 +69,14 @@ BEGIN
       SELECT 1 FROM public.office_login_device_approvals approval
       WHERE approval.session_id=NEW.session_id
         AND approval.user_id=NEW.user_id
-        AND approval.status='TRUSTED'
-        AND approval.consumed_at IS NOT NULL
+        AND (
+          (NEW.event_type='DEVICE_APPROVAL_APPROVED'
+            AND approval.status IN ('APPROVED','TRUSTED')
+            AND approval.approved_at IS NOT NULL)
+          OR (NEW.event_type='DEVICE_APPROVAL_DECLINED'
+            AND approval.status='DECLINED'
+            AND approval.declined_at IS NOT NULL)
+        )
     ) THEN RETURN NEW; END IF;
   INSERT INTO public.office_lifecycle_auth_signals(auth_event_id,event_code,recipient_user_id)
   VALUES(NEW.id,v_code,v_recipient)
@@ -465,13 +472,20 @@ BEGIN
               AND (
                 (signal.event_code='AUTH-04' AND ev.event_type='INVITATION_ACCEPTED')
                 OR (signal.event_code='AUTH-09' AND ev.event_type='PASSWORD_RECOVERY_COMPLETED')
-                OR (signal.event_code='AUTH-07' AND ev.event_type='DEVICE_APPROVAL_COMPLETED'
+                OR (signal.event_code='AUTH-07'
+                  AND ev.event_type IN ('DEVICE_APPROVAL_APPROVED','DEVICE_APPROVAL_DECLINED')
                   AND EXISTS (
                     SELECT 1 FROM public.office_login_device_approvals approval
                     WHERE approval.session_id=ev.session_id
                       AND approval.user_id=ev.user_id
-                      AND approval.status='TRUSTED'
-                      AND approval.consumed_at IS NOT NULL
+                      AND (
+                        (ev.event_type='DEVICE_APPROVAL_APPROVED'
+                          AND approval.status IN ('APPROVED','TRUSTED')
+                          AND approval.approved_at IS NOT NULL)
+                        OR (ev.event_type='DEVICE_APPROVAL_DECLINED'
+                          AND approval.status='DECLINED'
+                          AND approval.declined_at IS NOT NULL)
+                      )
                   ))
               )
           ))
