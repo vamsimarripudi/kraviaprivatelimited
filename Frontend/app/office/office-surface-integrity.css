@@ -38,6 +38,13 @@
   color: var(--office-ui-ink, #f7f8fb) !important;
   border-color: var(--office-ui-line, #353945) !important;
 }
+/* Legacy metric labels often hard-code #69706b, which fails contrast on dark
+   surfaces. Use the theme's stronger muted tone for normal-size text. */
+.kravia-office .office-v2.office-modern[data-ui-theme="dark"] .office-main :where([class*="_metrics__"]) > article :where(span,small,dt) {
+  color: var(--office-ui-muted, #c2c6d0) !important;
+  opacity: 1 !important;
+}
+
 /* In light mode, don't force dark-theme foregrounds onto white cards. */
 .kravia-office .office-v2.office-modern[data-ui-theme="light"] .office-main :where(
   [class*="_card__"], [class*="_panel__"],
