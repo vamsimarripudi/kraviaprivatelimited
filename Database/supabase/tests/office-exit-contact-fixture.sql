@@ -59,3 +59,18 @@ CREATE TABLE public.office_auth_sessions(
  user_id uuid REFERENCES public.office_identity_users(user_id),
  status text NOT NULL
 );
+
+
+CREATE TABLE public.office_payroll_results(
+ id uuid PRIMARY KEY,
+ employee_user_id uuid NOT NULL REFERENCES public.office_identity_users(user_id),
+ status text NOT NULL,currency text NOT NULL,
+ net_pay_minor bigint NOT NULL
+);
+CREATE TABLE public.office_salary_settlement_evidence(
+ id uuid PRIMARY KEY,
+ payroll_result_id uuid NOT NULL REFERENCES public.office_payroll_results(id),
+ amount_minor bigint NOT NULL, currency text NOT NULL,
+ status text NOT NULL, submitted_by uuid NOT NULL,
+ verified_by uuid, verified_at timestamptz
+);
