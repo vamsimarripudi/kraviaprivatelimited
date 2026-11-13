@@ -123,6 +123,8 @@ def _reserve_batch(limit: int, now: datetime) -> list[dict[str, str]]:
         ).scalars().all()
 
         for invite in candidates:
+            if len(claimed) >= limit:
+                break
             if not _corp(invite.email):
                 continue
             if _aware(invite.expires_at) <= now:
@@ -138,6 +140,8 @@ def _reserve_batch(limit: int, now: datetime) -> list[dict[str, str]]:
                 if inviter and inviter.status == "ACTIVE" and _corp(inviter.email):
                     people.append(("INVITER", inviter.email, inviter.display_name))
                 for recipient_kind, email, name in people:
+                    if len(claimed) >= limit:
+                        break
                     row = _reservation(
                         db, invite, kind="EXPIRED", recipient_kind=recipient_kind,
                         recipient_email=email, recipient_name=name, now=now,
@@ -159,7 +163,7 @@ def _reserve_batch(limit: int, now: datetime) -> list[dict[str, str]]:
                         "kind": row.kind, "recipient_kind": row.recipient_kind,
                     })
         db.commit()  # Required before any provider submission.
-    return claimed[:limit]
+    return claimed
 
 
 def _verify_claim(claim: dict[str, str], now: datetime) -> dict[str, object] | None:
