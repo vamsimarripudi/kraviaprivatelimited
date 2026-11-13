@@ -4,14 +4,57 @@ import { ArrowRight, FileLock2, FolderClosed, LockKeyhole, ShieldCheck } from "l
 import { getOfficeVaultAccess } from "@/lib/office/vault-server";
 import { getOfficeRegistrationOverview } from "@/lib/office/registration-server";
 import { getOfficeDocumentStudioOverview } from "@/lib/office/document-studio-server";
+import { getSecureCustodyOverview } from "@/lib/office/custody-server";
 import { InternalWorkspaceScreen } from "@/components/internal-workspace-screen";
 import { OfficeVaultAccessCenter } from "@/components/office-vault-access-center";
-import { requireOfficeVaultRecord } from "@/lib/office/vault-access-server";
+import { requireOfficeVaultRecord, getOfficeVaultGrantedResources } from "@/lib/office/vault-access-server";
 import { OfficeRegistrationRegistry } from "@/components/office-registration-registry";
 import { OfficeDocumentStudio } from "@/components/office-document-studio";
 import { OfficeSecureCustody } from "@/components/office-secure-custody";
 import { vaultCategories, type VaultCategory } from "@/lib/office/vault-categories";
 import styles from "@/components/office-vault.module.css";
+
+
+function AccessEmpty({category}:{category:string}){
+ return <div className={styles.sourceCard}><LockKeyhole size={24}/>
+  <div><h2>No granted {category} records</h2>
+   <p>Only active explicitly granted records are listed. The category being visible does not reveal individual record existence.</p>
+   <Link href="/office/k-vault/requests">Request scoped access <ArrowRight size={16}/></Link>
+  </div></div>;
+}
+async function RegisteredRecords({category}:{category:"identity"|"registrations"}){
+ const grants=await getOfficeVaultGrantedResources(category);
+ if(!grants.length)return <AccessEmpty category="registration"/>;
+ const data=await getOfficeRegistrationOverview();
+ const allowed=data.registrations.filter(row=>grants.includes(null)||grants.includes(row.id));
+ if(!allowed.length)return <AccessEmpty category="registration"/>;
+ return <div className={styles.categories}>{allowed.map(row=><Link className={styles.category}
+   href={"/office/k-vault/records/"+row.id} key={row.id}><ShieldCheck size={20}/>
+   <span><strong>{row.title}</strong><small>{row.registration_type} · {row.identifier_masked} · {row.status}</small></span>
+   <ArrowRight size={16}/></Link>)}</div>;
+}
+async function GrantedDocuments(){
+ const grants=await getOfficeVaultGrantedResources("documents");
+ if(!grants.length)return <AccessEmpty category="document"/>;
+ const data=await getOfficeDocumentStudioOverview();
+ const docs=data.instances.filter(row=>grants.includes(null)||grants.includes(row.id));
+ if(!docs.length)return <AccessEmpty category="document"/>;
+ return <div className={styles.categories}>{docs.map(row=><Link className={styles.category}
+  href={"/office/k-vault/documents/"+row.id} key={row.id}><FileLock2 size={20}/>
+  <span><strong>{row.title}</strong><small>{row.document_code} · {row.classification} · {row.status}</small></span>
+  <ArrowRight size={16}/></Link>)}</div>;
+}
+async function GrantedCustody(){
+ const grants=await getOfficeVaultGrantedResources("custody");
+ if(!grants.length)return <AccessEmpty category="custody"/>;
+ const data=await getSecureCustodyOverview();
+ const records=data.items.filter(row=>grants.includes(null)||grants.includes(row.id));
+ if(!records.length)return <AccessEmpty category="custody"/>;
+ return <div className={styles.categories}>{records.map(row=><article className={styles.category} key={row.id}>
+  <LockKeyhole size={20}/><span><strong>{row.title}</strong>
+   <small>{row.custody_code} · {row.item_type} · {row.status} · Custody source is authoritative</small></span>
+ </article>)}</div>;
+}
 
 export const dynamic="force-dynamic";
 type Props={params:Promise<{segments?:string[]}>};
@@ -51,7 +94,7 @@ export default async function VaultPages({params}:Props){
  } else if(route==="company"){
    title="Company Master";subtitle="Verified company registration references, masked identifiers and independent review evidence.";
    if(!visible("identity")) notFound();
-   content=<OfficeRegistrationRegistry/>;
+   content=<RegisteredRecords category="identity"/>;
  } else if(route.startsWith("categories/") && segments.length===2){
    const category=visible(segments[1]);
    if(!category) notFound();
@@ -62,13 +105,13 @@ export default async function VaultPages({params}:Props){
        <Link href={category.sourceHref}>{category.sourceLabel} <ArrowRight size={16}/></Link>
      </div>
    </div>;
-   if(category.slug==="registrations"||category.slug==="identity")content=<OfficeRegistrationRegistry/>;
-   if(category.slug==="documents")content=<OfficeDocumentStudio/>;
-   if(category.slug==="custody")content=<OfficeSecureCustody/>;
+   if(category.slug==="registrations"||category.slug==="identity")content=<RegisteredRecords category={category.slug}/>;
+   if(category.slug==="documents")content=<GrantedDocuments/>;
+   if(category.slug==="custody")content=<GrantedCustody/>;
  } else if(route==="documents"){
    title="Documents";subtitle="Canonical documents, version history and source-controlled evidence.";
    if(!visible("documents")) notFound();
-   content=<OfficeDocumentStudio/>;
+   content=<GrantedDocuments/>;
  } else if(route==="requests"){
    title="My access requests";subtitle="Only canonical Office requests can authorize a grant.";
    content=<OfficeVaultAccessCenter/>;
@@ -90,10 +133,10 @@ export default async function VaultPages({params}:Props){
    content=<InternalWorkspaceScreen workspace="office" section="settings"/>;
  } else if(segments.length===2&&segments[0]==="records"){
    if(!visible("registrations")||!/^[0-9a-f-]{36}$/i.test(segments[1])) notFound();
+   await requireOfficeVaultRecord({category:"registrations",recordId:segments[1],action:"READ"});
    const records=await getOfficeRegistrationOverview();
    const record=records.registrations.find(row=>row.id===segments[1]);
    if(!record) notFound();
-   await requireOfficeVaultRecord({category:"registrations",recordId:segments[1],action:"READ"});
    title="Registration record";subtitle="A read-only projection from the source registration registry.";
    const history=records.events.filter(item=>item.registration_id===record.id);
    content=<article className={styles.record}>
@@ -107,10 +150,10 @@ export default async function VaultPages({params}:Props){
    </article>;
  } else if(segments.length===2&&segments[0]==="documents"){
    if(!visible("documents")||!/^[0-9a-f-]{36}$/i.test(segments[1])) notFound();
+   await requireOfficeVaultRecord({category:"documents",recordId:segments[1],action:"READ"});
    const records=await getOfficeDocumentStudioOverview();
    const document=records.instances.find(row=>row.id===segments[1]);
    if(!document) notFound();
-   await requireOfficeVaultRecord({category:"documents",recordId:segments[1],action:"READ"});
    title="Document reference";subtitle="Verified metadata and authorized output links from Document Studio.";
    const renders=records.renders.filter(row=>row.document_instance_id===document.id&&row.status==="COMPLETED");
    content=<article className={styles.record}>

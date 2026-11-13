@@ -122,11 +122,9 @@ export async function requireOfficeVaultRecord(input:{category:string;recordId:s
  if(!Object.hasOwn(sourceReadPermissions,input.category)||
    !sourceReadPermissions[input.category]?.length)
   throw new OfficeVaultAccessError(404,"Resource unavailable");
- if(!await Promise.any(sourceReadPermissions[input.category].map(async code=>await permitted(current,code))).catch(()=>false)){
-  // Keep this authorization independent of record-level grants.
-  const decisions=await Promise.all(sourceReadPermissions[input.category].map(code=>permitted(current,code)));
-  if(!decisions.some(Boolean))throw new OfficeVaultAccessError(404,"Resource unavailable");
- }
+ // A Vault grant is additive, never an alternative to current source authority.
+ const sourceDecisions=await Promise.all(sourceReadPermissions[input.category].map(code=>permitted(current,code)));
+ if(!sourceDecisions.some(Boolean))throw new OfficeVaultAccessError(404,"Resource unavailable");
  const {data,error}=await current.admin.from("office_vault_access_grants").select(
   "id,category_slug,resource_id,action,expires_at,revoked_at"
  ).eq("grantee_user_id",current.identity.userId).eq("category_slug",input.category)
@@ -142,4 +140,20 @@ export async function requireOfficeVaultRecord(input:{category:string;recordId:s
  });
  if(auditError)throw new OfficeVaultAccessError(503,"Sensitive access cannot proceed without an audit record");
  return {actor:current.identity.userId,grantId:grant.id};
+}
+
+
+export async function getOfficeVaultGrantedResources(category:string){
+ const current=await actor();
+ if(!Object.hasOwn(sourceReadPermissions,category))
+  throw new OfficeVaultAccessError(404,"Resource unavailable");
+ const candidatePermissions=sourceReadPermissions[category]??[];
+ const decisions=await Promise.all(candidatePermissions.map(code=>permitted(current,code)));
+ if(!decisions.some(Boolean))throw new OfficeVaultAccessError(404,"Resource unavailable");
+ const {data,error}=await current.admin.from("office_vault_access_grants")
+   .select("resource_id,action,expires_at").eq("grantee_user_id",current.identity.userId)
+   .eq("category_slug",category).is("revoked_at",null)
+   .gt("expires_at",new Date().toISOString()).limit(500);
+ if(error)throw new OfficeVaultAccessError(503,"Vault access grants temporarily unavailable");
+ return (data??[]).filter(row=>["READ","PREVIEW","DOWNLOAD"].includes(row.action)).map(row=>row.resource_id);
 }
