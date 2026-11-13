@@ -85,6 +85,7 @@ QR_SIGNIN_REVIEW_TTL_SECONDS = int(os.getenv("OFFICE_QR_SIGNIN_REVIEW_TTL_SECOND
 CANONICAL_PUBLIC_WEB_ORIGIN = "https://www.kraviaprivatelimited.com"
 OFFICE_SESSION_PURPOSE = "OFFICE"
 AUTHENTICATOR_ACTIVATION_SESSION_PURPOSE = "AUTHENTICATOR_ACTIVATION"
+OFFICE_WEB_EMAIL_OTP_SESSION_SECONDS = 12 * 60 * 60
 
 OFFICE_ROLES = {
     "OWNER",
@@ -458,6 +459,18 @@ def _invited_member_email_otp_allowed(db: Session, user: OfficeAuthUser) -> bool
             OfficeAuthInvite.used_by == user.id,
             OfficeAuthInvite.status == "ACCEPTED",
             OfficeAuthInvite.email == user.email,
+        ).limit(1)
+    ).first() is not None
+
+
+def _invited_email_verification_session(db: Session, session: OfficeAuthSession) -> bool:
+    """Validate the session-specific immutable browser email-OTP verification event."""
+    if session.purpose != OFFICE_SESSION_PURPOSE or session.aal != "aal2":
+        return False
+    return db.execute(
+        select(OfficeAuthEvent.id).where(
+            OfficeAuthEvent.session_id == session.id,
+            OfficeAuthEvent.event_type == "OFFICE_INVITE_EMAIL_OTP_VERIFIED",
         ).limit(1)
     ).first() is not None
 
@@ -1330,6 +1343,13 @@ def authenticate_office_access(
         raise HTTPException(status_code=403, detail="KRAVIA Office access is not active")
     if not roles and not review_access:
         raise HTTPException(status_code=403, detail="No KRAVIA Office role is assigned")
+    if _invited_email_verification_session(db, session):
+        # Preserve the current explicitly approved account-specific mailbox
+        # rules; invalidate elevated sessions when that authority is revoked.
+        if not _invited_member_email_otp_allowed(db, user):
+            raise HTTPException(status_code=403, detail="This account requires KRAVIA Authenticator")
+        if _aware(session.created_at) + timedelta(seconds=OFFICE_WEB_EMAIL_OTP_SESSION_SECONDS) <= now:
+            raise HTTPException(status_code=401, detail="Email-verified Office session expired. Sign in again")
     if _workspace_approval_required() and not allow_pending_workspace and not review_access:
         if _workspace_status(user) != "ACTIVE":
             raise HTTPException(status_code=403, detail="KRAVIA Office workspace activation is pending")
@@ -1750,6 +1770,10 @@ def build_identity_router() -> APIRouter:
         session.aal = "aal2"
         session.mfa_failed_attempts = 0
         session.last_seen_at = now
+        session.expires_at = min(
+            _aware(session.expires_at),
+            now + timedelta(seconds=OFFICE_WEB_EMAIL_OTP_SESSION_SECONDS),
+        )
         _event(db, "OFFICE_INVITE_EMAIL_OTP_VERIFIED", request,
                user_id=user.id, session_id=session.id,
                metadata={"factor": "password_plus_invited_mailbox"})
@@ -1873,7 +1897,8 @@ def build_identity_router() -> APIRouter:
             .where(OfficeEmailOtpChallenge.id == challenge_id)
             .with_for_update()
         ).scalar_one_or_none()
-        if not challenge or not hmac.compare_digest(challenge.challenge_token_hash, _hash_token(payload.challenge_token)):
+        if (not challenge or challenge.channel not in {"authenticator_mobile", "play_reviewer_mobile"}
+                or not hmac.compare_digest(challenge.challenge_token_hash, _hash_token(payload.challenge_token))):
             raise HTTPException(status_code=404, detail="Email verification request was not found")
         user = db.get(OfficeAuthUser, challenge.user_id)
         if not user:
@@ -1964,7 +1989,8 @@ def build_identity_router() -> APIRouter:
             .where(OfficeEmailOtpChallenge.id == challenge_id)
             .with_for_update()
         ).scalar_one_or_none()
-        if not challenge or not hmac.compare_digest(challenge.challenge_token_hash, _hash_token(payload.challenge_token)):
+        if (not challenge or challenge.channel not in {"authenticator_mobile", "play_reviewer_mobile"}
+                or not hmac.compare_digest(challenge.challenge_token_hash, _hash_token(payload.challenge_token))):
             raise HTTPException(status_code=404, detail="Email verification request was not found")
         user = db.get(OfficeAuthUser, challenge.user_id)
         if not user:
@@ -2768,6 +2794,12 @@ def build_identity_router() -> APIRouter:
             or not _has_active_login_authority(db, user, now=now)
         ):
             raise HTTPException(status_code=403, detail="KRAVIA Office access is not active")
+
+        if _invited_email_verification_session(db, session):
+            if not _invited_member_email_otp_allowed(db, user):
+                raise HTTPException(status_code=403, detail="This account requires KRAVIA Authenticator")
+            if _aware(session.created_at) + timedelta(seconds=OFFICE_WEB_EMAIL_OTP_SESSION_SECONDS) <= now:
+                raise HTTPException(status_code=401, detail="Email-verified Office session expired. Sign in again")
 
         replacement = secrets.token_urlsafe(48)
         session.refresh_token_hash = _hash_token(replacement)
