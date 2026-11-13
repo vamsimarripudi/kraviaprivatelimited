@@ -114,7 +114,8 @@ CREATE TABLE public.office_document_delivery_events(
  actor_user_id uuid REFERENCES public.office_identity_users(user_id),
  channel text NOT NULL,destination_masked text,
  provider_reference text,event_type text NOT NULL,
- metadata jsonb NOT NULL DEFAULT '{}'::jsonb
+ metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+ created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE public.office_document_signature_evidence(
  id uuid PRIMARY KEY,
