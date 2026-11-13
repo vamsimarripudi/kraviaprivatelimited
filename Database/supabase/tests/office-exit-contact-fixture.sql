@@ -74,3 +74,31 @@ CREATE TABLE public.office_salary_settlement_evidence(
  status text NOT NULL, submitted_by uuid NOT NULL,
  verified_by uuid, verified_at timestamptz
 );
+
+
+CREATE TABLE public.office_document_instances(
+ id uuid PRIMARY KEY,
+ document_code text NOT NULL,
+ subject_type text NOT NULL,
+ subject_reference text NOT NULL,
+ status text NOT NULL,
+ approved_by uuid REFERENCES public.office_identity_users(user_id),
+ approved_at timestamptz,
+ signed_at timestamptz
+);
+CREATE TABLE public.office_document_delivery_events(
+ id uuid PRIMARY KEY,
+ document_instance_id uuid NOT NULL REFERENCES public.office_document_instances(id),
+ channel text NOT NULL,provider_reference text,event_type text NOT NULL
+);
+CREATE TABLE public.office_document_signature_evidence(
+ id uuid PRIMARY KEY,
+ document_instance_id uuid NOT NULL REFERENCES public.office_document_instances(id),
+ status text NOT NULL,signed_at timestamptz,
+ signed_sha256 text NOT NULL
+);
+CREATE TABLE public.office_document_engine_events(
+ id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ document_instance_id uuid NOT NULL REFERENCES public.office_document_instances(id),
+ event_type text NOT NULL,metadata jsonb NOT NULL DEFAULT '{}'::jsonb
+);
