@@ -1,0 +1,21 @@
+.shell{display:grid;gap:14px;color:var(--office-ui-ink);min-width:0}
+.heading{display:flex;gap:14px;flex-wrap:wrap;justify-content:space-between;align-items:start}
+.heading h2{margin:3px 0;font-size:20px!important}.heading p{margin:0;font-size:11px;color:var(--office-ui-accent);letter-spacing:.1em}
+.heading span,.panel p,.form p,.footer{color:var(--office-ui-muted);line-height:1.6;font-size:12px}
+.heading>button,.form button,.buttons button,.rows button,.error button{display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:9px 13px;background:var(--office-ui-surface);color:var(--office-ui-ink);border:1px solid var(--office-ui-line);border-radius:10px;cursor:pointer;font:inherit}
+.form>button[type=submit],.buttons button:last-child{background:var(--office-ui-accent);color:#fff;border-color:transparent;justify-self:start}
+.form button:disabled,.rows button:disabled{opacity:.6;cursor:not-allowed}
+.form,.panel{display:grid;gap:12px;border:1px solid var(--office-ui-line);border-radius:16px;padding:20px;background:var(--office-ui-surface);min-width:0}
+.form h3,.panel h3{margin:0;font-size:17px!important}.form label{display:grid;gap:7px;font-size:12px;font-weight:700}
+.form :is(input,select,textarea){box-sizing:border-box;width:100%;min-width:0;padding:10px;min-height:44px;border:1px solid var(--office-ui-line);border-radius:10px;color:var(--office-ui-ink);background:var(--office-ui-surface);font:inherit;font-size:14px}
+.form small{font-size:11px;color:var(--office-ui-muted);line-height:1.5}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.rows{display:grid;gap:8px}.rows article{display:flex;align-items:start;gap:10px;border:1px solid var(--office-ui-line);border-radius:12px;padding:13px;min-width:0}
+.rows article>svg{flex:none;color:var(--office-ui-accent)}
+.rows article>div{min-width:0;flex:1;display:grid;gap:6px}.rows strong{font-size:13px;overflow-wrap:anywhere}.rows span,.rows small{font-size:11px;color:var(--office-ui-muted);overflow-wrap:anywhere}
+.rows article p{white-space:pre-wrap;overflow-wrap:anywhere}
+.buttons{display:flex;gap:8px;flex-wrap:wrap}.notice,.error{display:flex;align-items:center;gap:10px;padding:12px;border-radius:12px;border:1px solid var(--office-ui-line);color:var(--office-ui-ink)}
+.notice svg{color:var(--office-ui-accent)}.error{border-color:var(--office-ui-danger);color:var(--office-ui-danger);flex-wrap:wrap}.error button{margin-left:auto}
+.footer{display:flex;align-items:center;flex-wrap:wrap;gap:6px}.footer svg{color:var(--office-ui-accent);flex:none}
+.footer a{color:var(--office-ui-accent);display:inline-flex;align-items:center;gap:4px;min-height:44px}
+@media(max-width:767px){.two{grid-template-columns:1fr}.panel,.form{padding:15px}}

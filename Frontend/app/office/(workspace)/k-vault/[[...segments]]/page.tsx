@@ -5,6 +5,8 @@ import { getOfficeVaultAccess } from "@/lib/office/vault-server";
 import { getOfficeRegistrationOverview } from "@/lib/office/registration-server";
 import { getOfficeDocumentStudioOverview } from "@/lib/office/document-studio-server";
 import { InternalWorkspaceScreen } from "@/components/internal-workspace-screen";
+import { OfficeVaultAccessCenter } from "@/components/office-vault-access-center";
+import { requireOfficeVaultRecord } from "@/lib/office/vault-access-server";
 import { OfficeRegistrationRegistry } from "@/components/office-registration-registry";
 import { OfficeDocumentStudio } from "@/components/office-document-studio";
 import { OfficeSecureCustody } from "@/components/office-secure-custody";
@@ -69,16 +71,15 @@ export default async function VaultPages({params}:Props){
    content=<OfficeDocumentStudio/>;
  } else if(route==="requests"){
    title="My access requests";subtitle="Only canonical Office requests can authorize a grant.";
-   content=<InternalWorkspaceScreen workspace="office" section="requests"/>;
+   content=<OfficeVaultAccessCenter/>;
  } else if(route==="access"){
    title="Access administration";subtitle="An administrator's title alone never grants unrestricted document access.";
    if(!allowed.includes("access.profile.assign")) notFound();
-   content=<InternalWorkspaceScreen workspace="office" section="access"/>;
+   content=<OfficeVaultAccessCenter reviewOnly/>;
  } else if(route==="reviews"){
    title="Verification reviews";subtitle="Evidence review is separate from data entry and access approval.";
-   if(allowed.includes("registration.review") && visible("registrations")) content=<OfficeRegistrationRegistry/>;
-   else if(allowed.includes("document.instance.review") && visible("documents")) content=<OfficeDocumentStudio/>;
-   else notFound();
+   if(!allowed.includes("access.profile.assign")) notFound();
+   content=<OfficeVaultAccessCenter reviewOnly/>;
  } else if(route==="activity"){
    title="Audit activity";subtitle="Authorized source-system events. No cross-employee private message enumeration.";
    if(!allowed.includes("audit.read")&&!allowed.includes("access.audit.read")) notFound();
@@ -92,6 +93,7 @@ export default async function VaultPages({params}:Props){
    const records=await getOfficeRegistrationOverview();
    const record=records.registrations.find(row=>row.id===segments[1]);
    if(!record) notFound();
+   await requireOfficeVaultRecord({category:"registrations",recordId:segments[1],action:"READ"});
    title="Registration record";subtitle="A read-only projection from the source registration registry.";
    const history=records.events.filter(item=>item.registration_id===record.id);
    content=<article className={styles.record}>
@@ -108,6 +110,7 @@ export default async function VaultPages({params}:Props){
    const records=await getOfficeDocumentStudioOverview();
    const document=records.instances.find(row=>row.id===segments[1]);
    if(!document) notFound();
+   await requireOfficeVaultRecord({category:"documents",recordId:segments[1],action:"READ"});
    title="Document reference";subtitle="Verified metadata and authorized output links from Document Studio.";
    const renders=records.renders.filter(row=>row.document_instance_id===document.id&&row.status==="COMPLETED");
    content=<article className={styles.record}>
@@ -116,7 +119,7 @@ export default async function VaultPages({params}:Props){
      <dt>Status</dt><dd>{document.status}</dd><dt>Recorded</dt><dd>{document.created_at}</dd></dl>
      <h3>Available authorized outputs</h3>
      {renders.length?<ul>{renders.map(render=><li key={render.id}>
-       <a href={"/api/office-documents?download="+render.id}>{render.output_format} · secure download</a>
+       <a href={"/api/office-vault/documents/"+render.id+"/download"}>{render.output_format} · permission-checked download</a>
      </li>)}</ul>:<p>No verified output is currently available.</p>}
      <p>Files are retrieved through the canonical document service, which rechecks download permissions and integrity.</p>
      <Link href="/office/documents">Open Document Studio <ArrowRight size={16}/></Link>
