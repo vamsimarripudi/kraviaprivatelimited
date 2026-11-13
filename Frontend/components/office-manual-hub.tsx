@@ -18,6 +18,7 @@ type ResponsePayload = {
   edition:string;actor:{display_name:string;roles:string[];department:string|null};
   manuals:AssignedManual[];roles:Guide[];common:Chapter[];routes:Route[];outstanding:number;disclaimer:string;
   full_documents:Record<string,string>;
+  full_atlas:string|null;
 };
 type Tab = "overview"|"reading"|"routes"|"help";
 const labels:Record<ManualState,string>={
@@ -197,6 +198,10 @@ export function OfficeManualHub(){
     {tab==="routes"?<div className={styles.body}>
       <div className={styles.sectionHeading}><h3>Find a screen</h3><p>Only sections allowed by your current role and capability assignments are listed. Routes can change after access review.</p></div>
       <label className={styles.search}><Search size={18}/><input value={filter} onChange={event=>setFilter(event.target.value)} placeholder="Search by task, screen name or route" aria-label="Search my Office routes"/></label>
+      {data.full_atlas?<details className={styles.atlasDisclosure}><summary>Owner reference: complete 75-route atlas and directions</summary>
+        <p>The original source-audited navigation reference includes other departments. It does not bypass any access policy or attest production deployment.</p>
+        <DetailedManual markdown={data.full_atlas}/>
+      </details>:null}
       <div className={styles.routeList}>{filteredRoutes.map(route=><Link key={route.href} className={styles.routeRow} href={route.href}>
         <span><b>{route.title}</b><small>{route.description}</small><code>{route.href}</code></span><ChevronRight size={18}/></Link>)}
         {!filteredRoutes.length?<p>No permitted screen matches that search. Request access only through an authorized workflow.</p>:null}
