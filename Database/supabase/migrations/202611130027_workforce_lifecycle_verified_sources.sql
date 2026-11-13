@@ -222,6 +222,12 @@ BEGIN
    IF NEW.event_type='SUBMITTED' THEN
      SELECT owner.owner_user_id INTO v_recipient
      FROM public.office_worktime_review_cases claim
+     JOIN public.office_attendance_sessions attendance
+       ON attendance.id=claim.attendance_session_id
+       AND attendance.user_id=claim.employee_user_id
+       AND attendance.status='CLOSED'
+       AND attendance.check_in_at<=claim.work_starts_at
+       AND attendance.check_out_at>=claim.work_ends_at
      JOIN public.office_department_ownership owner ON owner.department_code='PEOPLE'
      JOIN public.office_identity_users reviewer
        ON reviewer.user_id=owner.owner_user_id AND reviewer.status='ACTIVE'
@@ -237,6 +243,12 @@ BEGIN
    ELSIF NEW.event_type IN ('APPROVED','REJECTED') THEN
      SELECT claim.employee_user_id INTO v_recipient
      FROM public.office_worktime_review_cases claim
+     JOIN public.office_attendance_sessions attendance
+       ON attendance.id=claim.attendance_session_id
+       AND attendance.user_id=claim.employee_user_id
+       AND attendance.status='CLOSED'
+       AND attendance.check_in_at<=claim.work_starts_at
+       AND attendance.check_out_at>=claim.work_ends_at
      WHERE claim.id=NEW.case_id
        AND claim.status=NEW.event_type
        AND claim.reviewed_by=NEW.actor_user_id
@@ -685,6 +697,12 @@ BEGIN
           AND EXISTS (
             SELECT 1 FROM public.office_worktime_events ev
             JOIN public.office_worktime_review_cases claim ON claim.id=ev.case_id
+            JOIN public.office_attendance_sessions attendance
+              ON attendance.id=claim.attendance_session_id
+              AND attendance.user_id=claim.employee_user_id
+              AND attendance.status='CLOSED'
+              AND attendance.check_in_at<=claim.work_starts_at
+              AND attendance.check_out_at>=claim.work_ends_at
             JOIN public.office_department_ownership owner
               ON owner.department_code='PEOPLE'
             JOIN public.office_identity_users reviewer
@@ -704,6 +722,12 @@ BEGIN
           AND EXISTS (
             SELECT 1 FROM public.office_worktime_events ev
             JOIN public.office_worktime_review_cases claim ON claim.id=ev.case_id
+            JOIN public.office_attendance_sessions attendance
+              ON attendance.id=claim.attendance_session_id
+              AND attendance.user_id=claim.employee_user_id
+              AND attendance.status='CLOSED'
+              AND attendance.check_in_at<=claim.work_starts_at
+              AND attendance.check_out_at>=claim.work_ends_at
             WHERE ev.id=o.source_id AND ev.event_type IN ('APPROVED','REJECTED')
               AND claim.employee_user_id=o.recipient_user_id
               AND claim.status=ev.event_type
