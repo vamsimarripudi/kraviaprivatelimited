@@ -29,6 +29,7 @@ from .models import WorkerHeartbeat
 from .office_employee_mail_worker import process_employee_mail_outbox
 from .office_lifecycle_mail_worker import process_office_lifecycle_mail_outbox
 from .office_invitation_notice_worker import process_invitation_notices
+from .office_candidate_mail_worker import process_candidate_mail_outbox
 from .services import now_utc
 
 WORKER_LOCK_KEY = 5_821_841_907_269_011_847
@@ -269,6 +270,17 @@ def run_iteration(
                 _log("lifecycle_mail_worker_error", error_type=type(lifecycle_error).__name__)
             # Dedicated direct-invitation notices: separate from the generic
             # lifecycle outbox and disabled until Owner opt-in + worker flag.
+            # External candidate communications require a second explicit
+            # dispatcher opt-in plus independently verified candidate consent.
+            # No worker claim or network I/O occurs with the default flags.
+            try:
+                response["candidate_mail"] = process_candidate_mail_outbox(min(batch, 25))
+            except Exception as candidate_error:
+                response["candidate_mail"] = {
+                    "status": "NEEDS_RECONCILIATION",
+                    "error_type": type(candidate_error).__name__,
+                }
+                _log("candidate_mail_worker_error", error_type=type(candidate_error).__name__)
             try:
                 response["invitation_notices"] = process_invitation_notices(min(batch, 25))
             except Exception as invitation_error:
