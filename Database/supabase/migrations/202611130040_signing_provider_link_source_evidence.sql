@@ -39,7 +39,6 @@ BEGIN
   JOIN public.office_identity_users employee
     ON employee.user_id=p.employee_user_id
   JOIN public.office_document_templates template ON template.id=document.template_id
-  JOIN public.office_document_templates template ON template.id=document.template_id
   WHERE event.id=p.source_engine_event_id
     AND event.event_type='DOCUMENT_DELIVERED'
     AND event.metadata->>'delivery_event_id'=delivery.id::text
