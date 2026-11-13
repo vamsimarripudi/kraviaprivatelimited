@@ -77,9 +77,18 @@ CREATE TABLE public.office_salary_settlement_evidence(
 );
 
 
+CREATE TABLE public.office_document_templates(
+ id uuid PRIMARY KEY, template_code text NOT NULL UNIQUE
+);
+INSERT INTO public.office_document_templates(id,template_code) VALUES
+ ('f1000000-0000-4000-8000-000000000001','HR_RELIEVING'),
+ ('f1000000-0000-4000-8000-000000000002','HR_APPOINTMENT'),
+ ('f1000000-0000-4000-8000-000000000003','HR_POLICY'),
+ ('f1000000-0000-4000-8000-000000000004','HR_EXPERIENCE');
 CREATE TABLE public.office_document_instances(
  id uuid PRIMARY KEY,
  document_code text NOT NULL,
+ template_id uuid NOT NULL REFERENCES public.office_document_templates(id),
  subject_type text NOT NULL,
  subject_reference text NOT NULL,
  status text NOT NULL,
