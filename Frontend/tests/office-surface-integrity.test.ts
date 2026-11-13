@@ -25,8 +25,9 @@ describe("KRAVIA Office shared UI integrity audit", () => {
     const hardcodedLightCount = components.reduce((sum, name) => sum + (
       read("components/" + name).match(/background(?:-color)?\s*:\s*(?:#(?:fff|ffffff)\b|rgba\(\s*255\s*,\s*255\s*,\s*255\b)/gi) ?? []
     ).length, 0);
-    // Keep the compatibility guard until these legacy hard-coded colours are migrated.
-    expect(hardcodedLightCount).toBeGreaterThan(150);
+    // Baseline from the full 82-module audit: 534 hard-coded light-background rules.
+    // No new module may increase this debt without a deliberate audit update.
+    expect(hardcodedLightCount).toBeLessThanOrEqual(534);
   });
 
   it("loads one scoped and ordered guard after legacy Office themes and contrast repairs", () => {
