@@ -174,7 +174,7 @@ export function InternalWorkspaceScreen({ workspace, section }: Props) {
           : workspace === "finance" && section === "ownership" ? <OfficeOwnershipWorkspace canStage={!financeReadOnly && (identity.roles.includes("OWNER") || identity.roles.includes("DIRECTOR"))} canDecide={!financeReadOnly && (identity.roles.includes("OWNER") || identity.roles.includes("DIRECTOR"))} canPost={!financeReadOnly && (identity.roles.includes("OWNER") || identity.roles.includes("DIRECTOR"))} />
           : workspace === "finance" && section === "compliance" ? <OfficeFinancialAssurance mode="compliance" canManageCompliance={!financeReadOnly && (identity.roles.some((role) => role === "OWNER" || role === "DIRECTOR" || role === "CA"))} canManageInspections={!financeReadOnly && (identity.roles.some((role) => role === "OWNER" || role === "DIRECTOR" || role === "FINANCE" || role === "CA"))} canVerifyChain={false} />
           : workspace === "finance" && section === "audit" ? <OfficeFinancialAssurance mode="audit" canManageCompliance={!financeReadOnly && (false)} canManageInspections={!financeReadOnly && (identity.roles.some((role) => role === "OWNER" || role === "DIRECTOR" || role === "FINANCE" || role === "CA"))} canVerifyChain={identity.roles.some((role) => role === "OWNER" || role === "DIRECTOR" || role === "AUDITOR")} />
-          : workspace === "office" && section === "worktime" ? <OfficeWorktimeConsole />
+          : (workspace === "office" || workspace === "finance") && section === "worktime" ? <OfficeWorktimeConsole />
           : section === "payroll" ? <OfficePayrollConsole />
           : section === "budget" ? <OfficeBudgetWorkspace />
           : workspace === "office" && section === "assets" ? <OfficeAssetLifecycle />
