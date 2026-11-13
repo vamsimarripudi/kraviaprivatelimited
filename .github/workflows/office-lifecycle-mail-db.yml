@@ -10,6 +10,8 @@ on:
       - 'Database/supabase/migrations/202611130027_workforce_lifecycle_verified_sources.sql'
       - 'Database/supabase/migrations/202611130028_scheduled_lifecycle_verified_sources.sql'
       - 'Database/supabase/migrations/202611130029_policy_documents_flex_sources.sql'
+      - 'Database/supabase/migrations/202611130030_workday_attendance_offboarding_notifications.sql'
+      - 'Database/supabase/tests/lifecycle-mail-workday-exit-smoke.sql'
       - 'Database/supabase/tests/lifecycle-mail-policy-doc-flex-smoke.sql'
       - 'Database/supabase/tests/lifecycle-mail-reminder-sources-smoke.sql'
       - 'Database/supabase/tests/lifecycle-mail-workforce-evidence-smoke.sql'
@@ -64,6 +66,8 @@ jobs:
           pg -f Database/supabase/tests/lifecycle-mail-reminder-sources-smoke.sql
           pg -f Database/supabase/migrations/202611130029_policy_documents_flex_sources.sql
           pg -f Database/supabase/tests/lifecycle-mail-policy-doc-flex-smoke.sql
+          pg -f Database/supabase/migrations/202611130030_workday_attendance_offboarding_notifications.sql
+          pg -f Database/supabase/tests/lifecycle-mail-workday-exit-smoke.sql
           output="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-smoke.sql)"
           echo "$output"
           test "$(printf '%s\n' "$output" | tail -n 1)" = "LIFECYCLE_MAIL_ROUTES_VERIFIED"
@@ -86,6 +90,8 @@ jobs:
           pg -f Database/supabase/tests/lifecycle-mail-reminder-sources-smoke.sql
           pg -f Database/supabase/migrations/202611130029_policy_documents_flex_sources.sql
           pg -f Database/supabase/tests/lifecycle-mail-policy-doc-flex-smoke.sql
+          pg -f Database/supabase/migrations/202611130030_workday_attendance_offboarding_notifications.sql
+          pg -f Database/supabase/tests/lifecycle-mail-workday-exit-smoke.sql
           upgraded_output="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-smoke.sql)"
           echo "$upgraded_output"
           printf '%s\n' "$upgraded_output" | grep -Fxq 'LIFECYCLE_MAIL_ROUTES_VERIFIED'
