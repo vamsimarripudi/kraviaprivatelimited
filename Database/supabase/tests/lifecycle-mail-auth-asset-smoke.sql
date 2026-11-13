@@ -29,6 +29,8 @@ VALUES('synthetic_asset_01','a0000000-0000-4000-8000-000000000002','ASSIGNED');
 
 -- Simulate explicit Owner activation solely inside a rolled-back fixture.
 UPDATE public.office_lifecycle_mail_policy SET enabled=true,
+  approved_by='a0000000-0000-4000-8000-000000000001'::uuid,
+  approved_at=pg_catalog.now()-interval '1 minute',
   effective_from=pg_catalog.now()-interval '1 minute'
 WHERE event_code IN ('AUTH-04','AUTH-07','AUTH-09','ONB-07');
 
