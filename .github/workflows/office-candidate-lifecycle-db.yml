@@ -1,0 +1,52 @@
+name: KRAVIA Office candidate mail isolated PostgreSQL
+on:
+  pull_request:
+    paths:
+      - 'Database/supabase/migrations/202611130032_candidate_lifecycle_delivery.sql'
+      - 'Database/supabase/tests/candidate-lifecycle-delivery-*.sql'
+      - 'Backend/backend/office_candidate_lifecycle_mail_worker.py'
+      - 'Backend/backend/tests/test_office_candidate_lifecycle_mail_worker.py'
+      - 'Frontend/tests/office-candidate-external-delivery.test.ts'
+      - '.github/workflows/office-candidate-lifecycle-db.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: kravia_candidate_ci
+          POSTGRES_PASSWORD: isolated-candidate-fixture-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kravia_candidate_ci"
+          --health-interval 3s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify candidate source authorization, private claim and idempotent delivery
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg() {
+            docker run --rm --network host \
+              -v "$PWD:/repo:ro" --workdir /repo \
+              --env PGPASSWORD=isolated-candidate-fixture-only \
+              postgres:17 psql --host 127.0.0.1 --username postgres \
+              --dbname kravia_candidate_ci --set ON_ERROR_STOP=1 "$@"
+          }
+          pg -f Database/supabase/tests/candidate-lifecycle-delivery-fixture.sql
+          pg -f Database/supabase/migrations/202611130032_candidate_lifecycle_delivery.sql
+          result="$(pg --tuples-only --no-align \
+            -f Database/supabase/tests/candidate-lifecycle-delivery-smoke.sql | tail -n 1)"
+          test "$result" = "CANDIDATE_LIFECYCLE_PRIVATE_DELIVERY_VERIFIED"
+          echo "Owner-attested source, event proof, recipient binding, and unknown-outcome safety passed."
