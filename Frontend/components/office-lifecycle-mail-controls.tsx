@@ -131,7 +131,7 @@ export function OfficeLifecycleMailControls(){
       onChange={event=>setReason(event.target.value)}/>
     {active&&!active.enabled&&active.source_ready?<label className={styles.confirm}>
       <input type="checkbox" checked={approved} onChange={event=>setApproved(event.target.checked)}/>
-      I verified this specific event's recipient, source data, and Brevo worker configuration.
+      I verified this event recipient, source data, and Brevo worker configuration.
       No earlier or unverified event will be resent.
     </label>:null}
     <button type="button" className={styles.primary} disabled={!canToggle}
