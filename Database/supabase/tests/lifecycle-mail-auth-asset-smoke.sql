@@ -19,10 +19,13 @@ $check$;
 
 -- A real provider action is the only allowed signal; a session start is not.
 INSERT INTO public.office_login_device_approvals(
- id,user_id,session_id,status,consumed_at
+ id,user_id,session_id,status,approved_at,declined_at,consumed_at
 ) VALUES(
  'synthetic_approval_01','a0000000-0000-4000-8000-000000000002',
- 'synthetic_device_session_01','TRUSTED',pg_catalog.now()
+ 'synthetic_device_session_01','APPROVED',pg_catalog.now(),NULL,NULL
+),(
+ 'synthetic_declined_01','a0000000-0000-4000-8000-000000000002',
+ 'synthetic_device_session_declined','DECLINED',NULL,pg_catalog.now(),NULL
 );
 INSERT INTO public.office_asset_lifecycle(asset_id,custodian_user_id,lifecycle_status)
 VALUES('synthetic_asset_01','a0000000-0000-4000-8000-000000000002','ASSIGNED');
@@ -38,10 +41,12 @@ INSERT INTO public.office_auth_events_v2(id,user_id,session_id,event_type,metada
 VALUES
  ('synthetic_registration_01','a0000000-0000-4000-8000-000000000002',NULL,'INVITATION_ACCEPTED','{}'),
  ('synthetic_password_reset_01','a0000000-0000-4000-8000-000000000002',NULL,'PASSWORD_RECOVERY_COMPLETED','{}'),
- ('synthetic_device_01','a0000000-0000-4000-8000-000000000002','synthetic_device_session_01','DEVICE_APPROVAL_COMPLETED','{}'),
+ ('synthetic_device_01','a0000000-0000-4000-8000-000000000002','synthetic_device_session_01','DEVICE_APPROVAL_APPROVED','{}'),
+ ('synthetic_device_declined','a0000000-0000-4000-8000-000000000002','synthetic_device_session_declined','DEVICE_APPROVAL_DECLINED','{}'),
+ ('synthetic_device_completed_duplicate','a0000000-0000-4000-8000-000000000002','synthetic_device_session_01','DEVICE_APPROVAL_COMPLETED','{}'),
  ('synthetic_login_ignored','a0000000-0000-4000-8000-000000000002',NULL,'LOGIN_SUCCESS','{}'),
  ('synthetic_dormant_ignored','a0000000-0000-4000-8000-000000000004',NULL,'INVITATION_ACCEPTED','{}'),
- ('synthetic_untrusted_device','a0000000-0000-4000-8000-000000000002','no_trusted_approval','DEVICE_APPROVAL_COMPLETED','{}');
+ ('synthetic_untrusted_device','a0000000-0000-4000-8000-000000000002','no_trusted_approval','DEVICE_APPROVAL_APPROVED','{}');
 INSERT INTO public.office_asset_events(
  asset_id,actor_user_id,event_type,new_status,metadata
 ) VALUES(
@@ -53,9 +58,9 @@ DO $first$
 DECLARE n integer;
 BEGIN
  SELECT count(*) INTO n FROM public.office_lifecycle_auth_signals;
- IF n<>3 THEN RAISE EXCEPTION 'Expected three authentic first-party auth signals, got %',n; END IF;
+ IF n<>4 THEN RAISE EXCEPTION 'Expected four authentic first-party auth signals, got %',n; END IF;
  SELECT count(*) INTO n FROM public.office_lifecycle_mail_outbox;
- IF n<>4 THEN RAISE EXCEPTION 'Expected four authenticated, idempotent outbound intents, got %',n; END IF;
+ IF n<>5 THEN RAISE EXCEPTION 'Expected five authenticated, idempotent outbound intents, got %',n; END IF;
  IF EXISTS(
   SELECT 1 FROM public.office_lifecycle_mail_outbox
   WHERE recipient_user_id IS DISTINCT FROM
@@ -67,7 +72,7 @@ BEGIN
   (SELECT id FROM public.office_lifecycle_auth_signals WHERE event_code='AUTH-09'),
   'a0000000-0000-4000-8000-000000000002'::uuid
  );
- IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox)<>4 THEN
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox)<>5 THEN
    RAISE EXCEPTION 'Duplicate source emitted duplicate mail';
  END IF;
 END;
@@ -77,8 +82,8 @@ CREATE TEMP TABLE synthetic_claims AS
  SELECT * FROM public.office_lifecycle_mail_claim(25);
 DO $second$
 BEGIN
- IF (SELECT count(*) FROM pg_temp.synthetic_claims)<>4 THEN
-  RAISE EXCEPTION 'Expected four verified claims, got %',
+ IF (SELECT count(*) FROM pg_temp.synthetic_claims)<>5 THEN
+  RAISE EXCEPTION 'Expected five verified claims, got %',
     (SELECT count(*) FROM pg_temp.synthetic_claims);
  END IF;
  IF (SELECT count(DISTINCT event_code) FROM pg_temp.synthetic_claims)<>4 THEN
