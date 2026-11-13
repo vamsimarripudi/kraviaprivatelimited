@@ -102,7 +102,7 @@
           "purchase_value": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -245,7 +245,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -559,8 +559,8 @@
           "notice_days": {
             "anyOf": [
               {
-                "maximum": 3650.0,
-                "minimum": 0.0,
+                "maximum": 3650,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -591,7 +591,7 @@
           "value": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -650,7 +650,7 @@
           "taxable_value": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1132,7 +1132,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1314,7 +1314,7 @@
           "max_call": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1370,19 +1370,6 @@
         "title": "GstinVerifyRequest",
         "type": "object"
       },
-      "HTTPValidationError": {
-        "properties": {
-          "detail": {
-            "items": {
-              "$ref": "#/components/schemas/ValidationError"
-            },
-            "title": "Detail",
-            "type": "array"
-          }
-        },
-        "title": "HTTPValidationError",
-        "type": "object"
-      },
       "HoldCreate": {
         "properties": {
           "reason": {
@@ -1415,6 +1402,19 @@
           "reason"
         ],
         "title": "HoldCreate",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
         "type": "object"
       },
       "InspectionCreate": {
@@ -1579,6 +1579,11 @@
             ],
             "title": "Job Title"
           },
+          "notice_opt_in": {
+            "default": false,
+            "title": "Notice Opt In",
+            "type": "boolean"
+          },
           "reason": {
             "maxLength": 500,
             "minLength": 3,
@@ -1601,6 +1606,54 @@
           "reason"
         ],
         "title": "InviteCreatePayload",
+        "type": "object"
+      },
+      "InvitedWebEmailOtpVerifyPayload": {
+        "properties": {
+          "challenge_id": {
+            "maxLength": 36,
+            "minLength": 36,
+            "title": "Challenge Id",
+            "type": "string"
+          },
+          "challenge_token": {
+            "maxLength": 256,
+            "minLength": 32,
+            "title": "Challenge Token",
+            "type": "string"
+          },
+          "code": {
+            "pattern": "^[0-9]{6}$",
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "challenge_token",
+          "challenge_id",
+          "code"
+        ],
+        "title": "InvitedWebEmailOtpVerifyPayload",
+        "type": "object"
+      },
+      "InviteNoticeOptInPayload": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 12,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled",
+          "reason"
+        ],
+        "title": "InviteNoticeOptInPayload",
         "type": "object"
       },
       "InviteRegisterPayload": {
@@ -1632,34 +1685,6 @@
         "title": "InviteRegisterPayload",
         "type": "object"
       },
-      "InvitedWebEmailOtpVerifyPayload": {
-        "properties": {
-          "challenge_id": {
-            "maxLength": 36,
-            "minLength": 36,
-            "title": "Challenge Id",
-            "type": "string"
-          },
-          "challenge_token": {
-            "maxLength": 256,
-            "minLength": 32,
-            "title": "Challenge Token",
-            "type": "string"
-          },
-          "code": {
-            "pattern": "^[0-9]{6}$",
-            "title": "Code",
-            "type": "string"
-          }
-        },
-        "required": [
-          "challenge_token",
-          "challenge_id",
-          "code"
-        ],
-        "title": "InvitedWebEmailOtpVerifyPayload",
-        "type": "object"
-      },
       "InvoiceCreate": {
         "properties": {
           "customer_id": {
@@ -1675,7 +1700,7 @@
           "discount": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1700,8 +1725,8 @@
           "gst_rate": {
             "anyOf": [
               {
-                "maximum": 100.0,
-                "minimum": 0.0,
+                "maximum": 100,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1732,7 +1757,7 @@
           "qty": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1757,7 +1782,7 @@
           "taxable_value": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -1782,7 +1807,7 @@
           "cess": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1796,7 +1821,7 @@
           "cgst": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1816,7 +1841,7 @@
           "igst": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1836,7 +1861,7 @@
           "sgst": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1907,7 +1932,7 @@
           "max_amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -2161,7 +2186,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -2207,7 +2232,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -2320,8 +2345,8 @@
           "gst_rate": {
             "anyOf": [
               {
-                "maximum": 100.0,
-                "minimum": 0.0,
+                "maximum": 100,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -2343,7 +2368,7 @@
           "price": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -2451,8 +2476,8 @@
           "gst_rate": {
             "anyOf": [
               {
-                "maximum": 100.0,
-                "minimum": 0.0,
+                "maximum": 100,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -2717,7 +2742,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -2853,8 +2878,8 @@
             "type": "string"
           },
           "retention_days": {
-            "maximum": 36500.0,
-            "minimum": 30.0,
+            "maximum": 36500,
+            "minimum": 30,
             "title": "Retention Days",
             "type": "integer"
           }
@@ -2941,7 +2966,7 @@
           "fee": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -2955,7 +2980,7 @@
           "gross": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -2968,7 +2993,7 @@
           "net": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -2989,7 +3014,7 @@
           "tax_on_fee": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -3095,7 +3120,7 @@
       "ShareClassCreate": {
         "properties": {
           "authorised_shares": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Authorised Shares",
             "type": "integer"
           },
@@ -3107,7 +3132,7 @@
           "face_value": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -3136,7 +3161,7 @@
           },
           "voting_rights_per_share": {
             "default": 1,
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Voting Rights Per Share",
             "type": "integer"
           }
@@ -3148,58 +3173,6 @@
           "authorised_shares"
         ],
         "title": "ShareClassCreate",
-        "type": "object"
-      },
-      "ShareTransferCreate": {
-        "properties": {
-          "from_shareholder_id": {
-            "title": "From Shareholder Id",
-            "type": "string"
-          },
-          "instrument_date": {
-            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-            "title": "Instrument Date",
-            "type": "string"
-          },
-          "note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Note"
-          },
-          "quantity": {
-            "exclusiveMinimum": 0.0,
-            "title": "Quantity",
-            "type": "integer"
-          },
-          "share_class_id": {
-            "title": "Share Class Id",
-            "type": "string"
-          },
-          "source_document_ref": {
-            "minLength": 2,
-            "title": "Source Document Ref",
-            "type": "string"
-          },
-          "to_shareholder_id": {
-            "title": "To Shareholder Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "from_shareholder_id",
-          "to_shareholder_id",
-          "share_class_id",
-          "quantity",
-          "instrument_date",
-          "source_document_ref"
-        ],
-        "title": "ShareTransferCreate",
         "type": "object"
       },
       "ShareholderCreate": {
@@ -3257,6 +3230,58 @@
           "legal_name"
         ],
         "title": "ShareholderCreate",
+        "type": "object"
+      },
+      "ShareTransferCreate": {
+        "properties": {
+          "from_shareholder_id": {
+            "title": "From Shareholder Id",
+            "type": "string"
+          },
+          "instrument_date": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "title": "Instrument Date",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "quantity": {
+            "exclusiveMinimum": 0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "share_class_id": {
+            "title": "Share Class Id",
+            "type": "string"
+          },
+          "source_document_ref": {
+            "minLength": 2,
+            "title": "Source Document Ref",
+            "type": "string"
+          },
+          "to_shareholder_id": {
+            "title": "To Shareholder Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from_shareholder_id",
+          "to_shareholder_id",
+          "share_class_id",
+          "quantity",
+          "instrument_date",
+          "source_document_ref"
+        ],
+        "title": "ShareTransferCreate",
         "type": "object"
       },
       "SignInPayload": {
@@ -5681,6 +5706,108 @@
         ]
       }
     },
+    "/api/v1/auth/device-approvals/{approval_id}/action": {
+      "post": {
+        "description": "Record an account-owner email decision; this endpoint never issues a session.",
+        "operationId": "decide_device_approval_api_v1_auth_device_approvals__approval_id__action_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "approval_id",
+            "required": true,
+            "schema": {
+              "title": "Approval Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceApprovalActionPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decide Device Approval",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/device-approvals/{approval_id}/review": {
+      "post": {
+        "description": "Show the account owner the exact request before an explicit choice.\n\nPossession of the single-use mailbox token is required.  This endpoint\nnever approves, declines or creates an authenticated Office session.\nIt may atomically terminalize an already-expired pending request.",
+        "operationId": "review_device_approval_api_v1_auth_device_approvals__approval_id__review_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "approval_id",
+            "required": true,
+            "schema": {
+              "title": "Approval Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceApprovalReviewPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Device Approval",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
     "/api/v1/auth/device-approvals/complete": {
       "post": {
         "description": "Redeem an approved request only in the browser that started it.",
@@ -5814,108 +5941,6 @@
           }
         },
         "summary": "Device Approval Status",
-        "tags": [
-          "identity"
-        ]
-      }
-    },
-    "/api/v1/auth/device-approvals/{approval_id}/action": {
-      "post": {
-        "description": "Record an account-owner email decision; this endpoint never issues a session.",
-        "operationId": "decide_device_approval_api_v1_auth_device_approvals__approval_id__action_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "approval_id",
-            "required": true,
-            "schema": {
-              "title": "Approval Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DeviceApprovalActionPayload"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Decide Device Approval",
-        "tags": [
-          "identity"
-        ]
-      }
-    },
-    "/api/v1/auth/device-approvals/{approval_id}/review": {
-      "post": {
-        "description": "Show the account owner the exact request before an explicit choice.\n\nPossession of the single-use mailbox token is required.  This endpoint\nnever approves, declines or creates an authenticated Office session.\nIt may atomically terminalize an already-expired pending request.",
-        "operationId": "review_device_approval_api_v1_auth_device_approvals__approval_id__review_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "approval_id",
-            "required": true,
-            "schema": {
-              "title": "Approval Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DeviceApprovalReviewPayload"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Review Device Approval",
         "tags": [
           "identity"
         ]
@@ -6306,6 +6331,72 @@
           }
         },
         "summary": "Create Invitation",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/invitations/{invitation_id}/notice-opt-in": {
+      "post": {
+        "operationId": "set_invitation_notice_opt_in_api_v1_auth_invitations__invitation_id__notice_opt_in_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invitation_id",
+            "required": true,
+            "schema": {
+              "title": "Invitation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteNoticeOptInPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Invitation Notice Opt In",
         "tags": [
           "identity"
         ]
@@ -7439,53 +7530,6 @@
         ]
       }
     },
-    "/api/v1/auth/workspace-activation/request": {
-      "post": {
-        "operationId": "request_workspace_activation_api_v1_auth_workspace_activation_request_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Request Workspace Activation",
-        "tags": [
-          "identity"
-        ]
-      }
-    },
     "/api/v1/auth/workspace-activation/{user_id}/approve": {
       "post": {
         "operationId": "approve_workspace_activation_api_v1_auth_workspace_activation__user_id__approve_post",
@@ -7537,6 +7581,53 @@
           }
         },
         "summary": "Approve Workspace Activation",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/workspace-activation/request": {
+      "post": {
+        "operationId": "request_workspace_activation_api_v1_auth_workspace_activation_request_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Workspace Activation",
         "tags": [
           "identity"
         ]
@@ -10472,206 +10563,6 @@
         "summary": "Outbox"
       }
     },
-    "/api/v1/files/readiness": {
-      "get": {
-        "operationId": "readiness_api_v1_files_readiness_get",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-kravia-office-key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Kravia-Office-Key"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-office-actor",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Office-Actor"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-office-role",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Office-Role"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Readiness",
-        "tags": [
-          "files"
-        ]
-      }
-    },
-    "/api/v1/files/upload": {
-      "post": {
-        "operationId": "upload_api_v1_files_upload_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-kravia-office-key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Kravia-Office-Key"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-office-actor",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Office-Actor"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-office-role",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Office-Role"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "$ref": "#/components/schemas/Body_upload_api_v1_files_upload_post"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "202": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Upload",
-        "tags": [
-          "files"
-        ]
-      }
-    },
     "/api/v1/files/{file_id}": {
       "get": {
         "operationId": "status_api_v1_files__file_id__get",
@@ -10875,6 +10766,206 @@
           }
         },
         "summary": "Download Url",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/api/v1/files/readiness": {
+      "get": {
+        "operationId": "readiness_api_v1_files_readiness_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-kravia-office-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Kravia-Office-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Readiness",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/api/v1/files/upload": {
+      "post": {
+        "operationId": "upload_api_v1_files_upload_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-kravia-office-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Kravia-Office-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_api_v1_files_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload",
         "tags": [
           "files"
         ]
@@ -12325,101 +12416,6 @@
         ]
       }
     },
-    "/api/v1/finance/payment-instructions/run-due": {
-      "post": {
-        "operationId": "run_due_api_v1_finance_payment_instructions_run_due_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-kravia-office-key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Kravia-Office-Key"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-office-actor",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Office-Actor"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-office-role",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Office-Role"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Run Due",
-        "tags": [
-          "finance-ownership"
-        ]
-      }
-    },
     "/api/v1/finance/payment-instructions/{instruction_id}/approve": {
       "post": {
         "operationId": "approve_instruction_api_v1_finance_payment_instructions__instruction_id__approve_post",
@@ -12623,6 +12619,101 @@
           }
         },
         "summary": "Execute Instruction",
+        "tags": [
+          "finance-ownership"
+        ]
+      }
+    },
+    "/api/v1/finance/payment-instructions/run-due": {
+      "post": {
+        "operationId": "run_due_api_v1_finance_payment_instructions_run_due_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-kravia-office-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Kravia-Office-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Due",
         "tags": [
           "finance-ownership"
         ]
@@ -20797,111 +20888,6 @@
         ]
       }
     },
-    "/api/v1/tax/gst/returns/build": {
-      "post": {
-        "operationId": "build_return_api_v1_tax_gst_returns_build_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-kravia-office-key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Kravia-Office-Key"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-office-actor",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Office-Actor"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-office-role",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Office-Role"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ReturnBuildRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Build Return",
-        "tags": [
-          "GST Compliance"
-        ]
-      }
-    },
     "/api/v1/tax/gst/returns/{return_id}/filing-evidence": {
       "post": {
         "operationId": "record_filing_evidence_api_v1_tax_gst_returns__return_id__filing_evidence_post",
@@ -21125,6 +21111,111 @@
           }
         },
         "summary": "Review Return",
+        "tags": [
+          "GST Compliance"
+        ]
+      }
+    },
+    "/api/v1/tax/gst/returns/build": {
+      "post": {
+        "operationId": "build_return_api_v1_tax_gst_returns_build_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-kravia-office-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Kravia-Office-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-office-role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Office-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReturnBuildRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Build Return",
         "tags": [
           "GST Compliance"
         ]
