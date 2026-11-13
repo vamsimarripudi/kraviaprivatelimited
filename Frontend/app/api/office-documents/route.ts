@@ -14,6 +14,7 @@ import {
   publishDocumentClauseVersion,
   publishDocumentTemplateVersion,
   recordOfficeDocumentDelivery,
+  reviewOfficeSigningIssuance,
   queueOfficeSignedDocumentEvidence,
   renderOfficeDocument,
   submitDocumentInstance,
@@ -40,6 +41,14 @@ const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("SUBMIT_INSTANCE"), instance_id: uuid }),
   z.object({ action: z.literal("SYNC_INSTANCE"), instance_id: uuid }),
   z.object({ action: z.literal("RENDER"), instance_id: uuid, output_format: output }),
+  z.object({ action: z.literal("REVIEW_SIGNING_ISSUANCE"),
+    delivery_event_id: uuid, approved: z.boolean(),
+    evidence_reference: z.string().trim().min(12).max(500),
+    reason: z.string().trim().min(12).max(500),
+  }).strict(),
+  z.object({ action: z.literal("REVOKE_SIGNING_ISSUANCE"),
+    delivery_event_id: uuid, reason: z.string().trim().min(12).max(500),
+  }).strict(),
   z.object({
     action: z.literal("RECORD_DELIVERY"),
     instance_id: uuid,
@@ -116,6 +125,15 @@ export async function POST(request: Request) {
       case "SUBMIT_INSTANCE": result = await submitDocumentInstance(input.instance_id); break;
       case "SYNC_INSTANCE": result = await syncDocumentInstanceApproval(input.instance_id); break;
       case "RENDER": result = await renderOfficeDocument(input.instance_id, input.output_format); break;
+      case "REVIEW_SIGNING_ISSUANCE": result = await reviewOfficeSigningIssuance({
+        deliveryEventId: input.delivery_event_id,
+        mode: "REVIEW", approved: input.approved,
+        evidenceReference: input.evidence_reference, reason: input.reason,
+      }); break;
+      case "REVOKE_SIGNING_ISSUANCE": result = await reviewOfficeSigningIssuance({
+        deliveryEventId: input.delivery_event_id,
+        mode: "REVOKE", reason: input.reason,
+      }); break;
       case "RECORD_DELIVERY": result = await recordOfficeDocumentDelivery({
         instanceId: input.instance_id,
         renderId: input.render_id,
