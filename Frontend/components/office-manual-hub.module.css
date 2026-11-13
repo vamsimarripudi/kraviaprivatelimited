@@ -44,3 +44,10 @@
 .detailedDocument .manualWhitespace{min-height:8px}
 :global([data-ui-theme=dark]) .readerMode button[data-active=true]{background:#1a3653;color:#d8edff;border-color:#3b5d89}
 :global([data-ui-theme=dark]) .detailedDocument blockquote{background:rgba(61,130,195,.1)}
+
+
+.atlasDisclosure{border:1px solid var(--office-border,#d8e1eb);border-radius:15px;padding:14px 16px;background:var(--office-surface,#fff)}
+.atlasDisclosure summary{font-weight:750;font-size:13px;cursor:pointer}
+.atlasDisclosure>p{font-size:12px;line-height:1.55;color:var(--manual-muted);margin:12px 0}
+.atlasDisclosure .detailedDocument{max-height:65vh;overflow:auto;padding-right:8px}
+:global([data-ui-theme=dark]) .atlasDisclosure{background:#101319;border-color:#37404b}
