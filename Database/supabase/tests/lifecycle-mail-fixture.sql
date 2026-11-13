@@ -48,7 +48,18 @@ CREATE TABLE public.office_compensation_versions(
 );
 CREATE TABLE public.office_payroll_events(
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,compensation_version_id uuid,
+  period_id uuid,employment_id uuid,actor_user_id uuid,
   event_type text NOT NULL,metadata jsonb NOT NULL DEFAULT '{}'::jsonb
+);
+CREATE TABLE public.office_payroll_periods(
+  id uuid PRIMARY KEY,period_code text NOT NULL,status text NOT NULL
+);
+CREATE TABLE public.office_payroll_results(
+  id uuid PRIMARY KEY,period_id uuid,employment_id uuid,employee_user_id uuid,status text NOT NULL
+);
+CREATE TABLE public.office_salary_payslip_issues(
+  id uuid PRIMARY KEY,payroll_result_id uuid,employee_user_id uuid,issued_by uuid,
+  snapshot_sha256 text,issued_at timestamptz
 );
 CREATE TABLE public.office_tasks(
   id uuid PRIMARY KEY,assigned_user_id uuid,status text NOT NULL
@@ -87,3 +98,9 @@ INSERT INTO public.office_compensation_versions(id,employee_user_id,status,appro
 
 INSERT INTO public.office_tasks(id,assigned_user_id,status) VALUES(
  'e0000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000002','OPEN');
+
+INSERT INTO public.office_payroll_periods(id,period_code,status) VALUES(
+ 'f0000000-0000-4000-8000-000000000001','2026-11','APPROVED');
+INSERT INTO public.office_payroll_results(id,period_id,employment_id,employee_user_id,status) VALUES(
+ 'f0000000-0000-4000-8000-000000000002','f0000000-0000-4000-8000-000000000001',
+ 'f0000000-0000-4000-8000-000000000003','a0000000-0000-4000-8000-000000000002','LOCKED');

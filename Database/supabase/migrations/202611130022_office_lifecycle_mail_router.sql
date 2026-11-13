@@ -77,7 +77,7 @@ VALUES
   ('PAY-03','P1',false,'Payroll period opened','KRAVIA payroll period is open','Actual period created','Finance preparer'),
   ('PAY-04','P0',false,'Payroll review required','KRAVIA payroll approval required','Locked review request sent to independent approver','Payroll reviewer/director'),
   ('PAY-05','P0',false,'Payroll approved','KRAVIA payroll run approved','All required approvals completed and results locked','Finance preparer'),
-  ('PAY-06','P0',false,'Salary slip issued','Your KRAVIA payslip for {{pay_period}} is ready','Immutable approved payroll payslip exists','Employee'),
+  ('PAY-06','P0',true,'Salary slip issued','Your KRAVIA payslip for {{pay_period}} is ready','Immutable approved payroll payslip exists','Employee'),
   ('PAY-07','P1',false,'Payment batch prepared','KRAVIA salary batch prepared — not yet paid','Batch only PREPARED; not bank-confirmed','Finance preparer/reviewer'),
   ('PAY-08','P0',false,'Salary credit verified','KRAVIA salary payment confirmed — {{pay_period}}','Independent bank settlement verification covers full net salary','Employee'),
   ('PAY-09','P0',false,'Partial payment / balance outstanding','Important: Outstanding KRAVIA salary balance','Verified credit is less than net; remaining amount owed','Employee and authorised Finance'),
@@ -305,6 +305,23 @@ BEGIN
       IF v_recipient IS NOT NULL THEN
         PERFORM public.office_lifecycle_mail_enqueue('PAY-02',TG_TABLE_NAME,NEW.id,v_recipient);
       END IF;
+    ELSIF NEW.event_type='PAYSLIP_ISSUED' AND NEW.metadata->>'payslip_issue_id' IS NOT NULL THEN
+      SELECT issue.employee_user_id INTO v_recipient
+      FROM public.office_salary_payslip_issues issue
+      JOIN public.office_payroll_results result ON result.id=issue.payroll_result_id
+      JOIN public.office_payroll_periods period ON period.id=result.period_id
+      WHERE issue.id::text=NEW.metadata->>'payslip_issue_id'
+        AND issue.snapshot_sha256 IS NOT NULL
+        AND issue.issued_at IS NOT NULL
+        AND issue.issued_by=NEW.actor_user_id
+        AND NEW.period_id=result.period_id
+        AND NEW.employment_id=result.employment_id
+        AND result.status='LOCKED'
+        AND period.status IN ('APPROVED','PAYMENT_PREPARED')
+        AND period.period_code IS NOT NULL;
+      IF v_recipient IS NOT NULL THEN
+        PERFORM public.office_lifecycle_mail_enqueue('PAY-06',TG_TABLE_NAME,NEW.id,v_recipient);
+      END IF;
     END IF;
   ELSIF TG_TABLE_NAME='office_auth_events' THEN
     IF NEW.event_type='SESSION_REVOKED' THEN
@@ -343,12 +360,40 @@ DROP TRIGGER IF EXISTS office_lifecycle_mail_on_task ON public.office_task_event
 CREATE TRIGGER office_lifecycle_mail_on_task AFTER INSERT ON public.office_task_events
   FOR EACH ROW EXECUTE FUNCTION public.office_lifecycle_mail_source_trigger();
 
+-- A payslip is eligible only once its immutable issue is actually inserted.
+-- This trigger writes a canonical audit event only while its specific Owner
+-- policy is enabled; it never sends a mail itself or marks wages as paid.
+CREATE OR REPLACE FUNCTION public.office_lifecycle_mail_payslip_source()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
+AS $issue$
+BEGIN
+  IF EXISTS(SELECT 1 FROM public.office_lifecycle_mail_policy
+    WHERE event_code='PAY-06' AND source_ready AND enabled AND
+      effective_from IS NOT NULL AND effective_from<=pg_catalog.now()) THEN
+    INSERT INTO public.office_payroll_events(actor_user_id,period_id,employment_id,event_type,metadata)
+      SELECT NEW.issued_by,r.period_id,r.employment_id,'PAYSLIP_ISSUED',
+        pg_catalog.jsonb_build_object('payslip_issue_id',NEW.id)
+      FROM public.office_payroll_results r
+      JOIN public.office_payroll_periods p ON p.id=r.period_id
+      WHERE r.id=NEW.payroll_result_id AND r.employee_user_id=NEW.employee_user_id
+        AND r.status='LOCKED' AND p.status IN ('APPROVED','PAYMENT_PREPARED')
+        AND NEW.issued_at IS NOT NULL AND NEW.snapshot_sha256 IS NOT NULL;
+  END IF;
+  RETURN NEW;
+END;
+$issue$;
+REVOKE ALL ON FUNCTION public.office_lifecycle_mail_payslip_source()
+  FROM PUBLIC,anon,authenticated,service_role,kravia_office_backend;
+DROP TRIGGER IF EXISTS office_lifecycle_mail_on_payslip ON public.office_salary_payslip_issues;
+CREATE TRIGGER office_lifecycle_mail_on_payslip AFTER INSERT ON public.office_salary_payslip_issues
+  FOR EACH ROW EXECUTE FUNCTION public.office_lifecycle_mail_payslip_source();
+
 -- Restricted backend claims, following an atomic database commit before
 -- provider I/O. An unacknowledged claim is quarantined, never automatically resent.
 CREATE OR REPLACE FUNCTION public.office_lifecycle_mail_claim(p_limit integer DEFAULT 10)
 RETURNS TABLE(
   outbox_id uuid,claim_token uuid,event_code text,recipient_email text,
-  recipient_name text,source_reference text
+  recipient_name text,source_reference text,pay_period text
 )
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
 AS $claim$
@@ -433,6 +478,20 @@ BEGIN
               AND cv.status='APPROVED' AND cv.approved_by IS NOT NULL AND cv.approved_at IS NOT NULL
               AND ev.event_type='COMPENSATION_APPROVAL_SYNCED'
               AND ev.metadata->>'compensation_status'='APPROVED'))
+        OR (o.source_table='office_payroll_events' AND o.event_code='PAY-06'
+          AND EXISTS(SELECT 1 FROM public.office_payroll_events ev
+            JOIN public.office_salary_payslip_issues issue
+              ON issue.id::text=ev.metadata->>'payslip_issue_id'
+            JOIN public.office_payroll_results result ON result.id=issue.payroll_result_id
+            JOIN public.office_payroll_periods period ON period.id=result.period_id
+            WHERE ev.id=o.source_id AND ev.event_type='PAYSLIP_ISSUED'
+              AND issue.employee_user_id=o.recipient_user_id
+              AND ev.actor_user_id=issue.issued_by
+              AND issue.snapshot_sha256 IS NOT NULL AND issue.issued_at IS NOT NULL
+              AND ev.period_id=result.period_id AND ev.employment_id=result.employment_id
+              AND result.status='LOCKED'
+              AND period.status IN ('APPROVED','PAYMENT_PREPARED')
+              AND nullif(pg_catalog.btrim(period.period_code),'') IS NOT NULL))
         OR (o.source_table='office_auth_events' AND o.event_code='AUTH-11'
           AND EXISTS(SELECT 1 FROM public.office_auth_events ev
             WHERE ev.id=o.source_id AND ev.user_id=o.recipient_user_id
@@ -452,7 +511,15 @@ BEGIN
   )
   SELECT c.id,c.claim_token,c.event_code,a.email,
     coalesce(nullif(pg_catalog.btrim(i.display_name),''),'Colleague'),
-    (c.source_table||':'||c.source_id::text)
+    (c.source_table||':'||c.source_id::text),
+    CASE WHEN c.event_code='PAY-06' THEN (
+      SELECT period.period_code FROM public.office_payroll_events ev
+        JOIN public.office_salary_payslip_issues issue
+          ON issue.id::text=ev.metadata->>'payslip_issue_id'
+        JOIN public.office_payroll_results result ON result.id=issue.payroll_result_id
+        JOIN public.office_payroll_periods period ON period.id=result.period_id
+      WHERE ev.id=c.source_id AND ev.event_type='PAYSLIP_ISSUED' LIMIT 1
+    ) ELSE NULL END
     FROM claimed c JOIN logged l ON l.outbox_id=c.id
     JOIN public.office_identity_users i ON i.user_id=c.recipient_user_id
     JOIN public.office_auth_users a ON a.id=c.recipient_user_id::text;

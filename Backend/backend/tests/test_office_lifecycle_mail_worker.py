@@ -54,6 +54,7 @@ def _synthetic_claim():
         "recipient_email":"synthetic.staff@kraviaprivatelimited.com",
         "recipient_name":"Synthetic Staff",
         "source_reference":"office_employee_intake_events:401",
+        "pay_period":None,
     }]
 
 
@@ -114,3 +115,12 @@ def test_worker_rejects_unverified_recipient_and_event_claims(changed):
     candidate=dict(_synthetic_claim()[0],**changed)
     with pytest.raises(RuntimeError):
         mail._validate_claim(candidate)
+
+
+def test_locked_salary_slip_claim_requires_real_payroll_period():
+    claim=dict(_synthetic_claim()[0],event_code="PAY-06",
+               source_reference="office_payroll_events:42",pay_period="2026-11")
+    result=mail._validate_claim(claim)
+    assert result.pay_period=="2026-11"
+    with pytest.raises(RuntimeError):
+        mail._validate_claim(dict(claim,pay_period=None))

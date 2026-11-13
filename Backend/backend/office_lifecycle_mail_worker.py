@@ -38,6 +38,7 @@ class OfficeLifecycleClaim:
     recipient_email: str
     recipient_name: str
     source_reference: str
+    pay_period: str | None = None
 
 
 def _enabled() -> bool:
@@ -57,6 +58,13 @@ def _validate_claim(row: Any) -> OfficeLifecycleClaim:
     email = str(data["recipient_email"]).strip().lower()
     name = str(data["recipient_name"]).strip()
     reference = str(data["source_reference"])
+    pay_period = data.get("pay_period")
+    if code == "PAY-06":
+        if (not isinstance(pay_period, str) or not 1 <= len(pay_period.strip()) <= 40
+                or any(ord(ch) < 32 for ch in pay_period)):
+            raise RuntimeError("Immutable payroll period evidence is missing")
+    else:
+        pay_period = None
     if (not EVENT_CODE.fullmatch(code)
             or not REFERENCE.fullmatch(reference)
             or not email.endswith("@kraviaprivatelimited.com")
@@ -64,7 +72,7 @@ def _validate_claim(row: Any) -> OfficeLifecycleClaim:
             or not 1 <= len(name) <= 160
             or any(ord(c) < 32 for c in name)):
         raise RuntimeError("Canonical Office lifecycle claim is invalid")
-    return OfficeLifecycleClaim(outbox, token, code, email, name, reference)
+    return OfficeLifecycleClaim(outbox, token, code, email, name, reference, pay_period)
 
 
 def process_office_lifecycle_mail_outbox(limit: int = 10) -> dict[str, Any]:
@@ -77,7 +85,7 @@ def process_office_lifecycle_mail_outbox(limit: int = 10) -> dict[str, Any]:
     with SessionLocal() as db:
         rows = db.execute(
             text("select outbox_id,claim_token,event_code,recipient_email,"
-                 "recipient_name,source_reference from public.office_lifecycle_mail_claim(:p_limit)"),
+                 "recipient_name,source_reference,pay_period from public.office_lifecycle_mail_claim(:p_limit)"),
             {"p_limit": maximum},
         ).mappings().all()
         claims = [_validate_claim(row) for row in rows]
@@ -94,6 +102,7 @@ def process_office_lifecycle_mail_outbox(limit: int = 10) -> dict[str, Any]:
                 event_code=claim.event_code,
                 event_reference=claim.source_reference,
                 delivery_id=str(claim.outbox_id),
+                pay_period=claim.pay_period,
             )
             outcome = "SENT"  # Provider accepted, not recipient inbox confirmation
         except EmailDeliveryRejected:

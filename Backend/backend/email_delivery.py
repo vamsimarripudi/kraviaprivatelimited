@@ -235,6 +235,7 @@ def send_office_invitation_email(
 def send_office_lifecycle_notification(
     *, recipient_email: str, recipient_name: str,
     event_code: str, event_reference: str, delivery_id: str,
+    pay_period: str | None = None,
 ) -> str | None:
     """Submit a previously claimed canonical lifecycle notification.
 
@@ -247,6 +248,7 @@ def send_office_lifecycle_notification(
             event_code=event_code,
             recipient_name=recipient_name,
             event_reference=event_reference,
+            pay_period=pay_period,
             office_url="https://www.kraviaprivatelimited.com/office/dashboard",
         ),
         delivery_id=delivery_id,
