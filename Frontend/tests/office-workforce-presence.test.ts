@@ -59,6 +59,41 @@ describe("KRAVIA Office workforce presence and attendance", () => {
     expect(workforceSql).toContain("client_event_id uuid not null unique");
   });
 
+  it("renders workforce controls in a centered native modal, never in a clipped topbar popup", () => {
+    const modalCss = readFileSync(new URL("../components/office-presence-control.module.css", import.meta.url), "utf8");
+    expect(presenceControl).toContain('ref={dialogRef}');
+    expect(presenceControl).toContain("dialogRef.current.showModal()");
+    expect(presenceControl).toContain("dialogRef.current.close()");
+    expect(presenceControl).toContain('aria-modal="true"');
+    expect(presenceControl).toContain('aria-label="Close workforce status"');
+    expect(presenceControl).toContain('data-office-presence-actions="true"');
+    expect(presenceControl).toContain('ref={triggerRef}');
+    expect(presenceControl).toContain("triggerRef.current?.focus()");
+    expect(presenceControl).toContain('onCancel={(event)');
+    expect(presenceControl).not.toContain('return <details className={styles.control}>');
+    expect(modalCss).toContain("position: fixed !important");
+    expect(modalCss).toContain("inset: 0 !important");
+    expect(modalCss).toContain("100dvh");
+    expect(modalCss).toContain(".panel::backdrop");
+    expect(modalCss).toContain("max-height: min(52dvh, 350px)");
+    expect(modalCss).toContain("@media (max-width: 620px)");
+    expect(modalCss).not.toContain(".panel{position:absolute");
+  });
+
+  it("keeps all status and attendance transitions explicit and server-authorised", () => {
+    expect(presenceControl).toContain('method: "PATCH"');
+    expect(presenceControl).toContain('"/api/office-presence"');
+    expect(presenceControl).toContain('"/api/office-attendance"');
+    for (const action of ["CHECK_IN", "CHECK_OUT", "BREAK_START", "BREAK_END"]) {
+      expect(presenceControl).toContain('"' + action + '"');
+    }
+    expect(presenceControl).toContain("officeAvailabilityOptions.map");
+    expect(presenceControl).toContain("expiryIso(expiry)");
+    expect(presenceControl).toContain("client_event_id: crypto.randomUUID()");
+    expect(presenceControl).toContain("Browser activity is never treated as payroll time");
+    expect(presenceControl).not.toContain("attendance(\"CHECK_IN\")\n  }, []");
+  });
+
   it("renders the approved status vocabulary and real attendance controls in the Office top bar", () => {
     expect(presenceControl).toContain("MY STATUS");
     expect(presenceControl).toContain("Check in");
