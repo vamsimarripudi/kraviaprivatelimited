@@ -24,7 +24,7 @@ describe("KRAVIA Office lifecycle and single-release invariants",()=>{
     expect(worker).toContain('PROVIDER_NOT_CONFIGURED');
   });
   it("never represents unmapped notifications as working event sources",()=>{
-    const mapped=[...migration.matchAll(/\\('([A-Z]+-\\d{2})','P[0-2]',true,/g)].map(match=>match[1]);
+    const mapped=[...migration.matchAll(/\('([A-Z]+-\d{2})','P[0-2]',true,/g)].map(match=>match[1]);
     expect(mapped.length).toBeGreaterThanOrEqual(27);
     expect(mapped.length).toBeLessThanOrEqual(81);
     expect(new Set(mapped).size).toBe(mapped.length);
