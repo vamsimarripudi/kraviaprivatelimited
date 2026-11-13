@@ -1,0 +1,49 @@
+name: KRAVIA Office handbook PostgreSQL integration
+on:
+  pull_request:
+    paths:
+      - "Database/supabase/migrations/202611130031_office_manual_acknowledgements.sql"
+      - "Database/supabase/tests/office-manual-*.sql"
+      - ".github/workflows/office-manual-db.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres:
+    name: Office manuals: isolated PostgreSQL 17 RLS and audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: kravia_manual_ci
+          POSTGRES_PASSWORD: ci-manual-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kravia_manual_ci"
+          --health-interval 3s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Rehearse private manual receipt migration and audit receipts
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg() {
+            docker run --rm --network host \
+              -v "$PWD:/repo:ro" --workdir /repo \
+              --env PGPASSWORD=ci-manual-only postgres:17 \
+              psql --host 127.0.0.1 --username postgres \
+                --dbname kravia_manual_ci --set ON_ERROR_STOP=1 "$@"
+          }
+          pg -f Database/supabase/tests/office-manual-fixture.sql
+          pg -f Database/supabase/migrations/202611130031_office_manual_acknowledgements.sql
+          output="$(pg --tuples-only --no-align -f Database/supabase/tests/office-manual-smoke.sql)"
+          echo "$output"
+          test "$(printf '%s\n' "$output" | tail -n 1)" = "OFFICE_MANUAL_POSTGRES_VERIFIED"
