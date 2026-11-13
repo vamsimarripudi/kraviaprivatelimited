@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
    backend requests. They test the real module CSS at phone/tablet/desktop sizes. */
 const root = resolve(fileURLToPath(new URL(".", import.meta.url)), "../../..");
 const read = (path) => readFileSync(resolve(root, path), "utf8");
+const officeThemes = read("Frontend/app/office/office-experience-4.css")
+  + read("Frontend/app/office/office-design-system.css");
 const presenceCss = read("Frontend/components/office-presence-control.module.css");
 const integrityCss = read("Frontend/app/office/office-surface-integrity.css");
 const contrastCss = read("Frontend/app/office/office-mobile-contrast.css");
@@ -21,7 +23,7 @@ const shell = (theme, style, body) => [
   "<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>",
   "<style>html,body{margin:0;padding:0;}",
   style,
-  "</style></head><body><div class='kravia-office'><main class='office-v2 office-modern' data-ui-theme='",
+  "</style></head><body><div class='kravia-office'><main class='office-v2 office-v4 office-modern' data-ui-theme='",
   theme,
   "' style='",
   tokens(theme),
@@ -65,7 +67,7 @@ test("native workforce modal stays centered and usable beyond sticky header on e
       { width: 844, height: 390 }, { width: 1440, height: 900 },
     ]) {
       await page.setViewportSize(viewport);
-      await page.setContent(shell(theme, presenceCss + integrityCss, body));
+      await page.setContent(shell(theme, officeThemes + presenceCss + integrityCss, body));
       await page.locator("#presence-trigger").focus();
       await page.evaluate(() => document.getElementById("presence-dialog").showModal());
       const geometry = await page.locator("#presence-dialog").evaluate(el => {
@@ -79,6 +81,11 @@ test("native workforce modal stays centered and usable beyond sticky header on e
           pageOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
         };
       });
+      const colors = await page.locator("#presence-dialog").evaluate(el => ({
+        background: getComputedStyle(el).backgroundColor,
+        foreground: getComputedStyle(el).color,
+      }));
+      expect(ratio(colors.foreground, colors.background), JSON.stringify({theme,viewport,colors})).toBeGreaterThanOrEqual(4.5);
       expect(geometry.modal, JSON.stringify({theme,viewport,geometry})).toBe(true);
       expect(geometry.fixed).toBe("fixed");
       expect(geometry.cx, JSON.stringify({theme,viewport})).toBeGreaterThan(geometry.vw / 2 - 5);
@@ -115,7 +122,7 @@ test("legacy office cards and candidate form retain readable contrast in both th
 
   for (const theme of ["light", "dark"]) {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.setContent(shell(theme, style, body));
+    await page.setContent(shell(theme, officeThemes + style, body));
     const values = await page.evaluate(() => {
       const info = (selector) => {
         const node = document.querySelector(selector);
