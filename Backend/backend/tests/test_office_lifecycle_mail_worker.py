@@ -28,6 +28,8 @@ class _Session:
     def execute(self, statement, params):
         statement = str(statement)
         self.factory.queries.append((statement,dict(params)))
+        if "office_lifecycle_schedule_due" in statement:
+            return _Rows([])
         if "office_lifecycle_mail_claim" in statement:
             return _Rows(self.factory.claims)
         if "office_lifecycle_mail_finish" in statement:
@@ -84,7 +86,7 @@ def test_claim_commit_precedes_provider_and_unknown_is_not_retried(
     deliveries=[]
 
     def fake_send(**kwargs):
-        assert db.commits==1, "Provider submission must start after a committed claim"
+        assert db.commits==2, "Provider submission must start after committed scheduler and claim transactions"
         deliveries.append(kwargs)
         if isinstance(provider_result,Exception):
             raise provider_result
@@ -96,12 +98,14 @@ def test_claim_commit_precedes_provider_and_unknown_is_not_retried(
     assert result["claimed"]==1
     assert result[count_field]==1
     assert result["finalization_failures"]==0
-    assert db.commits==2
+    assert db.commits==3
     assert len(deliveries)==1
     assert deliveries[0]["delivery_id"]=="11000000-0000-4000-8000-000000000001"
     assert deliveries[0]["event_code"]=="ONB-05"
-    assert len(db.queries)==2
-    assert db.queries[1][1]["outcome"]==outcome
+    assert len(db.queries)==3
+    assert "office_lifecycle_schedule_due" in db.queries[0][0]
+    assert "office_lifecycle_mail_claim" in db.queries[1][0]
+    assert db.queries[2][1]["outcome"]==outcome
     assert "synthetic.staff@" not in str(result)
 
 
@@ -148,7 +152,7 @@ def test_private_immutable_source_references_are_accepted_and_arbitrary_tables_r
     for table in (
         "office_auth_events", "office_worktime_events", "office_asset_events",
         "office_access_audit", "office_lifecycle_auth_signals",
-        "office_lifecycle_aux_proofs",
+        "office_lifecycle_aux_proofs", "office_lifecycle_scheduled_proofs",
     ):
         assert worker.REFERENCE.fullmatch(f"{table}:123"), table
 
@@ -157,3 +161,19 @@ def test_private_immutable_source_references_are_accepted_and_arbitrary_tables_r
         "public.office_access_audit", "office_lifecycle_aux_proofs;DROP TABLE",
     ):
         assert worker.REFERENCE.fullmatch(f"{table}:123") is None, table
+
+def test_scheduled_payroll_alert_requires_verified_period():
+    claim = dict(_synthetic_claim()[0], event_code="PAY-10",
+                 source_reference="office_lifecycle_scheduled_proofs:21", pay_period="2026-11")
+    assert mail._validate_claim(claim).pay_period=="2026-11"
+    with pytest.raises(RuntimeError):
+        mail._validate_claim(dict(claim,pay_period=None))
+
+
+def test_disabled_dispatch_never_polls_schedule(monkeypatch):
+    monkeypatch.setenv("KRAVIA_LIFECYCLE_MAIL_DISPATCH_ENABLED","false")
+    monkeypatch.setenv("BREVO_API_KEY","synthetic-ci-key")
+    called=[]
+    monkeypatch.setattr(mail,"SessionLocal",lambda: called.append("called"))
+    assert mail.process_office_lifecycle_mail_outbox()["status"]=="DISABLED"
+    assert called==[]
