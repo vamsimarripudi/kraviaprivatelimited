@@ -9,7 +9,7 @@ test("first-access guide renders without login and does not leak employee manual
   const response = await page.goto("/office/quick-start");
   expect(response?.status()).toBe(200);
 
-  await expect(page.getByRole("heading", { name: "Your first day in KRAVIA Office" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "First access: six steps" })).toBeVisible();
   await expect(page.getByText("Confirm your private invitation")).toBeVisible();
   await expect(page.getByText("Read your assigned handbook")).toBeVisible();
 
