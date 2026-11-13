@@ -7,6 +7,12 @@ describe("public corporate recognition content", () => {
     const source = readFileSync(resolve(process.cwd(), "components/corporate-recognitions.tsx"), "utf8");
     const registry = readFileSync(resolve(process.cwd(), "lib/corporate/public-registrations.ts"), "utf8");
     expect(source).toContain("getPublicCorporateRegistrations");
+    expect(source).toContain("nvidiaInceptionMembership");
+    expect(source).toContain("STARTUP PROGRAM MEMBERSHIP");
+    expect(source).toContain("NVIDIA Inception Program member badge");
+    expect(source).toContain("unoptimized");
+    expect(registry).not.toContain("NVIDIA"); // Membership is not a government registration.
+
     expect(source.toLowerCase()).toContain("access-controlled corporate office");
     expect(registry).toContain("corporateIdentity");
     expect(registry).toContain("corporateIdentity.dpiit.statusLabel");

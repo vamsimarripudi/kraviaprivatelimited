@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import styles from "./public-access.module.css";
 import { OfficeDecisionDialog } from "./office-decision-dialog";
+import { nvidiaInceptionNewsletterDraft } from "@/lib/corporate/program-memberships";
 
 type Campaign={
  id:string;subject:string;body_text:string;
@@ -45,6 +46,16 @@ export function PublicNewsletterManager(){
    if(!response.ok)throw Error(result.error||"Request failed.");
    return result;
  }
+ function loadInceptionDraft(){
+   if(subject.trim()||body.trim()){
+     setMessage("Clear the current subject and message before loading the NVIDIA Inception draft; nothing was overwritten.");
+     return;
+   }
+   setSubject(nvidiaInceptionNewsletterDraft.subject);
+   setBody(nvidiaInceptionNewsletterDraft.body);
+   setError("");
+   setMessage("NVIDIA Inception announcement loaded for review. No newsletter has been saved, approved or sent.");
+ }
  async function draft(event:FormEvent<HTMLFormElement>){
    event.preventDefault();setBusy(true);setError("");setMessage("");
    try{
@@ -81,6 +92,8 @@ export function PublicNewsletterManager(){
    </section>
    <section className={styles.panel} aria-label="Prepare a newsletter draft">
      <h2>Prepare the next issue</h2>
+     <button type="button" className={styles.button+" "+styles.ghost} disabled={busy} onClick={loadInceptionDraft}>Load NVIDIA Inception announcement</button>
+     <p className={styles.notice}>This uses the approved membership wording. Review the message, then save a private draft; no recipients are contacted automatically.</p>
      <form onSubmit={e=>void draft(e)}>
        <label className={styles.field}>Subject
          <input value={subject} onChange={e=>setSubject(e.target.value)} required
