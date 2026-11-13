@@ -278,7 +278,7 @@ BEGIN
     AND EXISTS(SELECT 1 FROM public.office_lifecycle_mail_policy p
       WHERE p.event_code=o.event_code AND p.source_ready AND p.enabled AND p.effective_from<=now())
     AND public.office_candidate_lifecycle_source_valid(o)
-  ORDER BY o.created_at,o.id FOR UPDATE OF o SKIP LOCKED LIMIT p_limit
+  ORDER BY o.created_at,o.id LIMIT p_limit FOR UPDATE OF o SKIP LOCKED
  LOOP
   UPDATE public.office_candidate_lifecycle_outbox o
     SET status='SENDING',claim_token=gen_random_uuid(),claimed_at=now()
