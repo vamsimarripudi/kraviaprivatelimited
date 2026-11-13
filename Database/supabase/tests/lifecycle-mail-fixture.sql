@@ -35,7 +35,8 @@ CREATE TABLE public.office_training_assignments(
   id uuid PRIMARY KEY,user_id uuid NOT NULL,status text NOT NULL
 );
 CREATE TABLE public.office_performance_reviews(
-  id uuid PRIMARY KEY,user_id uuid NOT NULL,status text NOT NULL,finalized_by uuid
+  id uuid PRIMARY KEY,user_id uuid NOT NULL,status text NOT NULL,finalized_by uuid,
+  reviewer_user_id uuid,development_plan text
 );
 CREATE TABLE public.office_people_development_events(
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,target_user_id uuid,
@@ -48,6 +49,13 @@ CREATE TABLE public.office_compensation_versions(
 CREATE TABLE public.office_payroll_events(
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,compensation_version_id uuid,
   event_type text NOT NULL,metadata jsonb NOT NULL DEFAULT '{}'::jsonb
+);
+CREATE TABLE public.office_tasks(
+  id uuid PRIMARY KEY,assigned_user_id uuid,status text NOT NULL
+);
+CREATE TABLE public.office_task_events(
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,task_id uuid NOT NULL,
+  event_type text NOT NULL
 );
 INSERT INTO public.office_identity_users(user_id,display_name,status) VALUES
   ('a0000000-0000-4000-8000-000000000001','Synthetic CI Owner','ACTIVE'),
@@ -68,9 +76,14 @@ VALUES('c0000000-0000-4000-8000-000000000001','ENGINEERING',
   'a0000000-0000-4000-8000-000000000002','a0000000-0000-4000-8000-000000000003','ACCEPTED');
 INSERT INTO public.office_training_assignments(id,user_id,status) VALUES(
  'd0000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000002','ASSIGNED');
-INSERT INTO public.office_performance_reviews(id,user_id,status,finalized_by) VALUES(
- 'd0000000-0000-4000-8000-000000000002','a0000000-0000-4000-8000-000000000002',
- 'FINAL','a0000000-0000-4000-8000-000000000003');
+INSERT INTO public.office_performance_reviews(id,user_id,status,finalized_by,reviewer_user_id,development_plan)
+VALUES('d0000000-0000-4000-8000-000000000002','a0000000-0000-4000-8000-000000000002',
+ 'FINAL','a0000000-0000-4000-8000-000000000003','a0000000-0000-4000-8000-000000000003','Synthetic development plan'),
+ ('d0000000-0000-4000-8000-000000000004','a0000000-0000-4000-8000-000000000002',
+ 'DRAFT',NULL,'a0000000-0000-4000-8000-000000000003',NULL);
 INSERT INTO public.office_compensation_versions(id,employee_user_id,status,approved_by,approved_at) VALUES(
  'd0000000-0000-4000-8000-000000000003','a0000000-0000-4000-8000-000000000002',
  'APPROVED','a0000000-0000-4000-8000-000000000001',pg_catalog.now());
+
+INSERT INTO public.office_tasks(id,assigned_user_id,status) VALUES(
+ 'e0000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000002','OPEN');

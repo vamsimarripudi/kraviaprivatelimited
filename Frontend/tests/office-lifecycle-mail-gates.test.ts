@@ -36,6 +36,10 @@ describe("KRAVIA Office governed 81-event lifecycle notification delivery",()=>{
     expect(schema).toContain("COMPENSATION_APPROVAL_SYNCED");
     expect(schema).toContain("PERFORMANCE_UPDATED");
     expect(schema).toContain("TRAINING_ASSIGNED");
+    expect(schema).toContain("office_task_events");
+    expect(schema).toContain("PERFORMANCE_CREATED");
+    expect(schema).toContain("development_plan");
+    expect(schema).toContain("DEV-07");
     expect(schema).toContain("FOR UPDATE OF o SKIP LOCKED");
     expect(schema).toContain("STALE_UNKNOWN");
     expect(schema).toContain("office_lifecycle_mail_policy_history");

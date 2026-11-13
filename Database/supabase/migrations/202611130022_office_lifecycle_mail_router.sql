@@ -87,10 +87,10 @@ VALUES
   ('DEV-01','P1',true,'Training assigned','Training assigned in KRAVIA Office','Governed training assignment recorded','Employee'),
   ('DEV-02','P2',false,'Training due reminder','KRAVIA training due soon','Approved due date approaching and incomplete','Employee and assigned lead'),
   ('DEV-03','P2',false,'Training evidence accepted / rejected','Training completion review update','Reviewer records result','Employee'),
-  ('DEV-04','P2',false,'Performance review scheduled','Your KRAVIA performance review','Governed review record created','Employee and reviewer'),
+  ('DEV-04','P2',true,'Performance review scheduled','Your KRAVIA performance review','Governed review record created','Employee and reviewer'),
   ('DEV-05','P2',true,'Review outcome available','Your KRAVIA development review is ready','Review finalised and released to employee','Employee'),
-  ('DEV-06','P2',false,'Development plan assigned','Your KRAVIA development plan','Approved development plan published','Employee'),
-  ('DEV-07','P1',false,'Task or approval assigned','Action assigned in KRAVIA Office','Authorised Office request/task assigned','Assignee'),
+  ('DEV-06','P2',true,'Development plan assigned','Your KRAVIA development plan','Approved development plan published','Employee'),
+  ('DEV-07','P1',true,'Task or approval assigned','Action assigned in KRAVIA Office','Authorised Office request/task assigned','Assignee'),
   ('DEV-08','P1',false,'Controlled policy/document published','KRAVIA policy or document update','Versioned document released to recipient''s scope','Eligible staff'),
   ('EXIT-01','P1',false,'Exit workflow initiated','KRAVIA employee offboarding review','Approved departure/offboarding request started','Authorised director/people reviewer'),
   ('EXIT-02','P1',false,'Exit acknowledged','Your KRAVIA exit process','Confirmed notice and final-day details recorded','Employee'),
@@ -124,7 +124,7 @@ CREATE TABLE IF NOT EXISTS public.office_lifecycle_mail_outbox(
   source_table text NOT NULL CHECK(source_table IN (
     'office_employee_intake_events','office_role_package_events',
     'office_worktime_events','office_department_transfer_events','office_auth_events',
-    'office_people_development_events','office_payroll_events'
+    'office_people_development_events','office_payroll_events','office_task_events'
   )),
   source_id bigint NOT NULL CHECK(source_id>0),
   recipient_user_id uuid NOT NULL REFERENCES public.office_identity_users(user_id) ON DELETE RESTRICT,
@@ -222,6 +222,7 @@ AS $source$
 DECLARE v_recipient uuid;
 DECLARE v_from uuid;
 DECLARE v_to uuid;
+DECLARE v_reviewer uuid;
 BEGIN
   IF TG_TABLE_NAME='office_employee_intake_events' THEN
     IF NEW.event_type IN ('PROFILE_SUBMITTED','PROFILE_RETURNED') THEN
@@ -264,12 +265,33 @@ BEGIN
   ELSIF TG_TABLE_NAME='office_people_development_events' THEN
     IF NEW.event_type='TRAINING_ASSIGNED' AND NEW.training_assignment_id IS NOT NULL THEN
       PERFORM public.office_lifecycle_mail_enqueue('DEV-01',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
+    ELSIF NEW.event_type='PERFORMANCE_CREATED' AND NEW.performance_review_id IS NOT NULL THEN
+      SELECT r.reviewer_user_id INTO v_reviewer FROM public.office_performance_reviews r
+      WHERE r.id=NEW.performance_review_id AND r.user_id=NEW.target_user_id
+        AND r.reviewer_user_id IS DISTINCT FROM NEW.target_user_id;
+      IF v_reviewer IS NOT NULL THEN
+        PERFORM public.office_lifecycle_mail_enqueue('DEV-04',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
+        PERFORM public.office_lifecycle_mail_enqueue('DEV-04',TG_TABLE_NAME,NEW.id,v_reviewer);
+      END IF;
     ELSIF NEW.event_type='PERFORMANCE_UPDATED' AND NEW.new_status='FINAL'
         AND NEW.performance_review_id IS NOT NULL THEN
       IF EXISTS(SELECT 1 FROM public.office_performance_reviews r
         WHERE r.id=NEW.performance_review_id AND r.user_id=NEW.target_user_id
           AND r.status='FINAL' AND r.finalized_by IS NOT NULL) THEN
         PERFORM public.office_lifecycle_mail_enqueue('DEV-05',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
+        IF EXISTS(SELECT 1 FROM public.office_performance_reviews r
+          WHERE r.id=NEW.performance_review_id AND r.user_id=NEW.target_user_id
+            AND r.status='FINAL' AND nullif(pg_catalog.btrim(r.development_plan),'') IS NOT NULL) THEN
+          PERFORM public.office_lifecycle_mail_enqueue('DEV-06',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
+        END IF;
+      END IF;
+    END IF;
+  ELSIF TG_TABLE_NAME='office_task_events' THEN
+    IF NEW.event_type='CREATED' THEN
+      SELECT t.assigned_user_id INTO v_recipient FROM public.office_tasks t
+      WHERE t.id=NEW.task_id AND t.status NOT IN ('CANCELLED','COMPLETED');
+      IF v_recipient IS NOT NULL THEN
+        PERFORM public.office_lifecycle_mail_enqueue('DEV-07',TG_TABLE_NAME,NEW.id,v_recipient);
       END IF;
     END IF;
   ELSIF TG_TABLE_NAME='office_payroll_events' THEN
@@ -316,6 +338,9 @@ CREATE TRIGGER office_lifecycle_mail_on_development AFTER INSERT ON public.offic
   FOR EACH ROW EXECUTE FUNCTION public.office_lifecycle_mail_source_trigger();
 DROP TRIGGER IF EXISTS office_lifecycle_mail_on_payroll ON public.office_payroll_events;
 CREATE TRIGGER office_lifecycle_mail_on_payroll AFTER INSERT ON public.office_payroll_events
+  FOR EACH ROW EXECUTE FUNCTION public.office_lifecycle_mail_source_trigger();
+DROP TRIGGER IF EXISTS office_lifecycle_mail_on_task ON public.office_task_events;
+CREATE TRIGGER office_lifecycle_mail_on_task AFTER INSERT ON public.office_task_events
   FOR EACH ROW EXECUTE FUNCTION public.office_lifecycle_mail_source_trigger();
 
 -- Restricted backend claims, following an atomic database commit before
@@ -379,14 +404,27 @@ BEGIN
                 OR (o.event_code='ROLE-06' AND ev.event_type='CANCELLED'))))
         OR (o.source_table='office_people_development_events'
           AND EXISTS(SELECT 1 FROM public.office_people_development_events ev
-            WHERE ev.id=o.source_id AND ev.target_user_id=o.recipient_user_id
-              AND ((o.event_code='DEV-01'
+            WHERE ev.id=o.source_id
+              AND ((o.event_code='DEV-01' AND ev.target_user_id=o.recipient_user_id
                 AND ev.event_type='TRAINING_ASSIGNED' AND ev.training_assignment_id IS NOT NULL)
-                OR (o.event_code='DEV-05' AND ev.event_type='PERFORMANCE_UPDATED'
-                  AND ev.new_status='FINAL' AND EXISTS(
-                    SELECT 1 FROM public.office_performance_reviews pr
-                      WHERE pr.id=ev.performance_review_id AND pr.user_id=o.recipient_user_id
-                        AND pr.status='FINAL' AND pr.finalized_by IS NOT NULL)))))
+                OR (o.event_code='DEV-04' AND ev.event_type='PERFORMANCE_CREATED'
+                  AND EXISTS(SELECT 1 FROM public.office_performance_reviews pr
+                    WHERE pr.id=ev.performance_review_id AND pr.user_id=ev.target_user_id
+                      AND pr.reviewer_user_id IS DISTINCT FROM pr.user_id
+                      AND o.recipient_user_id IN (pr.user_id,pr.reviewer_user_id)))
+                OR (o.event_code IN ('DEV-05','DEV-06') AND ev.target_user_id=o.recipient_user_id
+                  AND ev.event_type='PERFORMANCE_UPDATED' AND ev.new_status='FINAL'
+                  AND EXISTS(SELECT 1 FROM public.office_performance_reviews pr
+                    WHERE pr.id=ev.performance_review_id AND pr.user_id=o.recipient_user_id
+                      AND pr.status='FINAL' AND pr.finalized_by IS NOT NULL
+                      AND (o.event_code='DEV-05' OR
+                        nullif(pg_catalog.btrim(pr.development_plan),'') IS NOT NULL))))))
+        OR (o.source_table='office_task_events' AND o.event_code='DEV-07'
+          AND EXISTS(SELECT 1 FROM public.office_task_events ev
+            JOIN public.office_tasks task ON task.id=ev.task_id
+            WHERE ev.id=o.source_id AND ev.event_type='CREATED'
+              AND task.assigned_user_id=o.recipient_user_id
+              AND task.status NOT IN ('CANCELLED','COMPLETED')))
         OR (o.source_table='office_payroll_events' AND o.event_code='PAY-02'
           AND EXISTS(SELECT 1 FROM public.office_payroll_events ev
             JOIN public.office_compensation_versions cv ON cv.id=ev.compensation_version_id

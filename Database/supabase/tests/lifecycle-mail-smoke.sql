@@ -7,7 +7,7 @@ BEGIN
   IF EXISTS(SELECT 1 FROM public.office_lifecycle_mail_policy WHERE enabled) THEN
     RAISE EXCEPTION 'Office lifecycle mail migration unexpectedly enabled delivery';
   END IF;
-  IF (SELECT count(*) FROM public.office_lifecycle_mail_policy WHERE source_ready)<>12 THEN
+  IF (SELECT count(*) FROM public.office_lifecycle_mail_policy WHERE source_ready)<>15 THEN
     RAISE EXCEPTION 'Source-ready events must be accurately distinguished from unmapped events';
   END IF;
   IF pg_catalog.has_table_privilege('anon','public.office_lifecycle_mail_outbox','SELECT') OR
@@ -67,6 +67,15 @@ SELECT public.office_lifecycle_mail_policy_set(
 SELECT public.office_lifecycle_mail_policy_set(
  'a0000000-0000-4000-8000-000000000001','PAY-02',true,
  pg_catalog.now(),'Synthetic independently approved compensation change');
+SELECT public.office_lifecycle_mail_policy_set(
+ 'a0000000-0000-4000-8000-000000000001','DEV-04',true,
+ pg_catalog.now(),'Synthetic approved performance scheduling event');
+SELECT public.office_lifecycle_mail_policy_set(
+ 'a0000000-0000-4000-8000-000000000001','DEV-06',true,
+ pg_catalog.now(),'Synthetic finalised personal development plan event');
+SELECT public.office_lifecycle_mail_policy_set(
+ 'a0000000-0000-4000-8000-000000000001','DEV-07',true,
+ pg_catalog.now(),'Synthetic approved assigned Office task notification');
 
 INSERT INTO public.office_employee_intake_events(employee_user_id,event_type)
 VALUES
@@ -92,11 +101,17 @@ INSERT INTO public.office_payroll_events(
   compensation_version_id,event_type,metadata)
 VALUES('d0000000-0000-4000-8000-000000000003',
  'COMPENSATION_APPROVAL_SYNCED','{"compensation_status":"APPROVED"}'::jsonb);
+INSERT INTO public.office_people_development_events(
+  target_user_id,performance_review_id,event_type,new_status)
+VALUES('a0000000-0000-4000-8000-000000000002',
+ 'd0000000-0000-4000-8000-000000000004','PERFORMANCE_CREATED','DRAFT');
+INSERT INTO public.office_task_events(task_id,event_type)
+VALUES('e0000000-0000-4000-8000-000000000001','CREATED');
 
 DO $prove$
 BEGIN
-  IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox)<>10 THEN
-    RAISE EXCEPTION 'Expected exactly 7 grounded, committed lifecycle mail records';
+  IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox)<>14 THEN
+    RAISE EXCEPTION 'Expected fourteen grounded, committed lifecycle mail records';
   END IF;
   IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE event_code='ROLE-05')<>2 THEN
     RAISE EXCEPTION 'Handover did not notify both actual department parties';
@@ -116,11 +131,11 @@ RESET ROLE;
 
 DO $claim$
 BEGIN
- IF (SELECT count(*) FROM pg_temp.ci_claims)<>9 THEN
+ IF (SELECT count(*) FROM pg_temp.ci_claims)<>13 THEN
    RAISE EXCEPTION 'Suspended identity must not receive an employee notification';
  END IF;
- IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE status='SENDING')<>9 THEN
-   RAISE EXCEPTION 'Nine verified notifications were not claimed atomically';
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE status='SENDING')<>13 THEN
+   RAISE EXCEPTION 'Thirteen verified notifications were not claimed atomically';
  END IF;
  IF pg_catalog.has_function_privilege('anon','public.office_lifecycle_mail_finish(uuid,uuid,text,text)','EXECUTE') THEN
    RAISE EXCEPTION 'Browser role can finalize provider status';
@@ -154,10 +169,10 @@ SELECT count(*) AS safe_claims_after_timeout FROM public.office_lifecycle_mail_c
 RESET ROLE;
 DO $verify$
 BEGIN
- IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE status='UNKNOWN')<>8 THEN
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE status='UNKNOWN')<>12 THEN
    RAISE EXCEPTION 'Stale submission was not quarantined rather than retried';
  END IF;
- IF (SELECT count(*) FROM public.office_lifecycle_mail_events WHERE event_type='STALE_UNKNOWN')<>8 THEN
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_events WHERE event_type='STALE_UNKNOWN')<>12 THEN
    RAISE EXCEPTION 'Stale lifecycle mail events lack audit evidence';
  END IF;
  IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE status='SENT')<>1 THEN
