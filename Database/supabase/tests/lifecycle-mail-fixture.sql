@@ -293,7 +293,8 @@ CREATE TABLE public.office_auth_events_v2(
 );
 CREATE TABLE public.office_login_device_approvals(
  id varchar PRIMARY KEY,
- user_id varchar,session_id varchar,status varchar,consumed_at timestamptz
+ user_id varchar,session_id varchar,status varchar,
+ approved_at timestamptz,declined_at timestamptz,consumed_at timestamptz
 );
 CREATE TABLE public.office_asset_lifecycle(
  asset_id varchar PRIMARY KEY,custodian_user_id uuid,lifecycle_status text
