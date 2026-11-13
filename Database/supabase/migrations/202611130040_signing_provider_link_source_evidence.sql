@@ -38,6 +38,7 @@ BEGIN
     ON delivery.id=p.delivery_event_id
   JOIN public.office_identity_users employee
     ON employee.user_id=p.employee_user_id
+  JOIN public.office_document_templates template ON template.id=document.template_id
   WHERE event.id=p.source_engine_event_id
     AND event.event_type='DOCUMENT_DELIVERED'
     AND event.metadata->>'delivery_event_id'=delivery.id::text
@@ -49,7 +50,7 @@ BEGIN
     AND delivery.destination_masked IS NOT NULL
     AND char_length(btrim(delivery.destination_masked))>=3
     AND document.id=p.document_instance_id
-    AND document.document_code LIKE 'HR_%'
+    AND template.template_code='HR_APPOINTMENT'
     AND document.subject_type='EMPLOYEE'
     AND document.subject_reference=employee.user_id::text
     AND document.status='DELIVERED'
@@ -78,6 +79,7 @@ BEGIN
  FROM public.office_document_delivery_events delivery
  JOIN public.office_document_instances document
    ON document.id=delivery.document_instance_id
+ JOIN public.office_document_templates template ON template.id=document.template_id
  JOIN public.office_identity_users employee
    ON employee.user_id::text=document.subject_reference
  WHERE delivery.id::text=NEW.metadata->>'delivery_event_id'
@@ -88,7 +90,7 @@ BEGIN
    AND char_length(btrim(delivery.provider_reference))>=8
    AND delivery.destination_masked IS NOT NULL
    AND char_length(btrim(delivery.destination_masked))>=3
-   AND document.document_code LIKE 'HR_%'
+   AND template.template_code='HR_APPOINTMENT'
    AND document.subject_type='EMPLOYEE'
    AND document.status='DELIVERED'
    AND document.signed_at IS NULL
