@@ -15,6 +15,8 @@ from time import perf_counter
 
 import httpx
 
+from .office_lifecycle_templates import render_office_lifecycle_notice
+
 from .email_templates import (
     TransactionalEmail,
     kravia_welcome_template,
@@ -227,6 +229,28 @@ def send_office_invitation_email(
         ),
         delivery_id=delivery_id,
         tags=["kravia-office-auth", "invitation"],
+    )
+
+
+def send_office_lifecycle_notification(
+    *, recipient_email: str, recipient_name: str,
+    event_code: str, event_reference: str, delivery_id: str,
+) -> str | None:
+    """Submit a previously claimed canonical lifecycle notification.
+
+    This does not select a recipient or approve the event; the restricted
+    PostgreSQL worker must commit its claim before calling this function.
+    """
+    return _send_transactional_email(
+        recipient_email=recipient_email,
+        template=render_office_lifecycle_notice(
+            event_code=event_code,
+            recipient_name=recipient_name,
+            event_reference=event_reference,
+            office_url="https://www.kraviaprivatelimited.com/office/dashboard",
+        ),
+        delivery_id=delivery_id,
+        tags=["kravia-office-lifecycle", event_code.lower()],
     )
 
 
