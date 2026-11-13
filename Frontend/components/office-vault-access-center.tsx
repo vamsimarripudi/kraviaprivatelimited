@@ -112,6 +112,9 @@ export function OfficeVaultAccessCenter({reviewOnly=false}:{reviewOnly?:boolean}
        <span>{r.status} · Submitted {pretty(r.created_at)}</span>
        <span>{r.resource_id?"Specific source record":"Category scope"} · Until {pretty(r.requested_until)}</span>
        {r.review_note?<small>Reviewer note: {r.review_note}</small>:null}
+       {r.status==="PENDING"?<button type="button" disabled={busy} onClick={()=>void submit({
+        action:"WITHDRAW",request_id:r.id
+       },"Pending request withdrawn")}>Withdraw pending request</button>:null}
        </div></article>)}
     </div>}</section>:null}
   {!reviewOnly&&data?<section className={styles.panel}><h3>My current grants · {data.my_grants.filter(g=>!g.revoked_at&&new Date(g.expires_at).getTime()>Date.now()).length}</h3>

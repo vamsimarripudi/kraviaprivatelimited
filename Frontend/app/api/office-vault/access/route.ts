@@ -3,7 +3,7 @@ import { z } from "zod";
 import { officeMutationIsSameOrigin } from "@/lib/office/request-security";
 import {
  OfficeVaultAccessError,getOfficeVaultAccessCenter,requestOfficeVaultAccess,
- reviewOfficeVaultAccess,revokeOfficeVaultAccess,
+ reviewOfficeVaultAccess,revokeOfficeVaultAccess,withdrawOfficeVaultAccess,
 } from "@/lib/office/vault-access-server";
 export const dynamic="force-dynamic";
 const uuid=z.string().uuid();
@@ -13,6 +13,7 @@ const mutation=z.discriminatedUnion("action",[
   justification:z.string().trim().min(15).max(500),until:z.string().datetime({offset:true})}).strict(),
  z.object({action:z.literal("REVIEW"),request_id:uuid,approve:z.boolean(),note:z.string().trim().max(2000)}).strict(),
  z.object({action:z.literal("REVOKE"),grant_id:uuid,reason:z.string().trim().min(10).max(2000)}).strict(),
+ z.object({action:z.literal("WITHDRAW"),request_id:uuid}).strict(),
 ]);
 function failure(e:unknown){
  return NextResponse.json({detail:e instanceof OfficeVaultAccessError?e.message:"Vault operation failed"},
@@ -35,6 +36,7 @@ export async function POST(request:Request){
   if(p.action==="REVIEW")return NextResponse.json(await reviewOfficeVaultAccess({
    requestId:p.request_id,approve:p.approve,note:p.note
   }),{headers:{"Cache-Control":"no-store"}});
+  if(p.action==="WITHDRAW")return NextResponse.json(await withdrawOfficeVaultAccess(p.request_id),{headers:{"Cache-Control":"no-store"}});
   return NextResponse.json(await revokeOfficeVaultAccess({grantId:p.grant_id,reason:p.reason}),
    {headers:{"Cache-Control":"no-store"}});
  }catch(e){return failure(e);}

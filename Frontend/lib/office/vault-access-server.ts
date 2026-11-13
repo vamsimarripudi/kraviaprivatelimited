@@ -157,3 +157,13 @@ export async function getOfficeVaultGrantedResources(category:string){
  if(error)throw new OfficeVaultAccessError(503,"Vault access grants temporarily unavailable");
  return (data??[]).filter(row=>["READ","PREVIEW","DOWNLOAD"].includes(row.action)).map(row=>row.resource_id);
 }
+
+
+export async function withdrawOfficeVaultAccess(requestId:string){
+ const current=await actor();
+ const {data,error}=await current.admin.rpc("office_vault_withdraw_access",{
+  p_actor:current.identity.userId,p_request:requestId,
+ });
+ if(error||data!==true)throw new OfficeVaultAccessError(409,"Withdrawal was not confirmed");
+ return {withdrawn:true};
+}
