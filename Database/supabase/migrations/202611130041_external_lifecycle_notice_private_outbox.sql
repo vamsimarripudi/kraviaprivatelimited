@@ -239,7 +239,7 @@ BEGIN
   RETURNING q.id
  ) INSERT INTO public.office_external_notice_events(outbox_id,event_type)
    SELECT id,'STALE_UNKNOWN' FROM stale
-   ON CONFLICT(outbox_id,event_type) DO NOTHING;
+   ON CONFLICT DO NOTHING;
 
  WITH rejected AS (
   UPDATE public.office_external_notice_outbox q
@@ -256,7 +256,7 @@ BEGIN
   RETURNING q.id
  ) INSERT INTO public.office_external_notice_events(outbox_id,event_type)
    SELECT id,'SKIPPED' FROM rejected
-   ON CONFLICT(outbox_id,event_type) DO NOTHING;
+   ON CONFLICT DO NOTHING;
 
  RETURN QUERY WITH eligible AS (
   SELECT q.id
