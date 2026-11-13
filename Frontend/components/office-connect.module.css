@@ -1,0 +1,56 @@
+.connect,.directory{margin:16px clamp(12px,2vw,24px) 24px;display:grid;gap:16px;min-width:0;color:var(--office-ui-ink)}
+.header{display:flex;gap:16px;justify-content:space-between;align-items:start;flex-wrap:wrap}
+.eyebrow{margin:0 0 6px;font-size:11px;font-weight:740;letter-spacing:.14em;color:var(--office-ui-accent)}
+.header h1,.directory h1{font-size:clamp(23px,3vw,30px)!important;margin:0 0 8px}
+.header p,.directory>p{margin:0;color:var(--office-ui-muted);line-height:1.6;max-width:740px}
+.headerActions{display:flex;align-items:center;gap:8px}
+.headerActions a,.headerActions button,.back,.quick a,.welcome a,.people button,.searchForm button,.error button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:9px 12px;border:1px solid var(--office-ui-line);border-radius:10px;background:var(--office-ui-surface);color:var(--office-ui-ink);font:inherit;text-decoration:none;cursor:pointer}
+.headerActions a,.searchForm button,.people button,.welcome a{background:var(--office-ui-accent);color:#fff;border-color:transparent}
+.grid{display:grid;grid-template-columns:minmax(225px,304px) minmax(0,1fr);gap:16px;min-height:480px;max-height:min(760px,calc(100dvh - 210px))}
+.sidebar,.body{border:1px solid var(--office-ui-line);border-radius:16px;background:var(--office-ui-surface);min-width:0;min-height:0}
+.sidebar{display:flex;flex-direction:column;overflow:hidden}
+.sideHeading{display:flex;align-items:center;justify-content:space-between;padding:18px;border-bottom:1px solid var(--office-ui-line)}
+.sideHeading h2{margin:0;font-size:15px!important}
+.sideHeading span{font-variant-numeric:tabular-nums;color:var(--office-ui-muted)}
+.conversations{overflow-y:auto;display:grid;align-content:start;min-height:0}
+.conversations a{display:flex;align-items:center;gap:10px;padding:13px 12px;min-height:64px;border-bottom:1px solid var(--office-ui-line);color:var(--office-ui-ink);text-decoration:none}
+.conversations a:hover,.conversations a[aria-current="page"]{background:var(--office-ui-surface-alt)}
+.conversations a>svg{flex:none;color:var(--office-ui-muted)}
+.avatar{display:grid;place-items:center;width:36px;height:36px;min-width:36px;border-radius:11px;color:var(--office-ui-accent);background:var(--office-ui-surface-alt);font-weight:700}
+.conversationName{display:grid;gap:3px;min-width:0;flex:1}
+.conversationName strong,.conversationName small{white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.conversationName small,.people small{color:var(--office-ui-muted);font-size:12px}
+.body{display:flex;flex-direction:column;overflow:hidden}
+.welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:35px 24px;flex:1}
+.welcome h2{margin:0;font-size:19px!important}
+.welcome p{margin:0;max-width:420px;color:var(--office-ui-muted);line-height:1.6}
+.quick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:16px;border-top:1px solid var(--office-ui-line)}
+.quick a{justify-content:flex-start;font-size:12px;padding:12px;min-width:0}
+.quick a svg:last-child{margin-left:auto;flex:none}
+.threadHeader{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 16px;border-bottom:1px solid var(--office-ui-line)}
+.threadHeader span{color:var(--office-ui-muted);font-size:11px}
+.back{width:max-content;text-decoration:none}
+.timeline{flex:1;min-height:0;padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+.message{align-self:flex-start;max-width:min(86%,540px);padding:12px 14px;border:1px solid var(--office-ui-line);border-radius:15px;background:var(--office-ui-surface-alt);overflow-wrap:anywhere}
+.message[data-own="true"]{align-self:flex-end;background:var(--office-ui-surface);border-color:var(--office-ui-accent)}
+.message strong{font-size:12px}.message p{white-space:pre-wrap;margin:5px 0 8px;line-height:1.55}
+.message time{font-size:10px;color:var(--office-ui-muted)}
+.composer{display:grid;gap:7px;padding:14px 16px;border-top:1px solid var(--office-ui-line)}
+.composer label,.searchForm label{font-size:12px;font-weight:700}
+.composer>div,.searchForm>div{display:flex;gap:10px;align-items:stretch}
+.composer textarea,.searchForm input{flex:1;min-width:0;min-height:44px;resize:vertical;border:1px solid var(--office-ui-line);border-radius:10px;padding:10px 12px;color:var(--office-ui-ink);background:var(--office-ui-surface)}
+.composer button{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;align-self:flex-end;padding:10px 14px;border:0;border-radius:10px;background:var(--office-ui-accent);color:white;font-weight:700;cursor:pointer}
+.composer button:disabled,.people button:disabled{opacity:.55;cursor:not-allowed}
+.composer small,.sendStatus{margin:0;font-size:11px;color:var(--office-ui-muted)}
+.error{padding:14px;border:1px solid var(--office-ui-danger);border-radius:12px;color:var(--office-ui-danger);margin:12px}
+.error p{margin:0 0 10px}.skeleton,.empty{padding:22px;color:var(--office-ui-muted);text-align:center}
+.empty a{color:var(--office-ui-accent)}
+.directory{padding:12px 0}
+.searchForm{display:grid;gap:8px;max-width:600px}
+.people{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:12px}
+.people article{display:flex;align-items:center;gap:10px;min-width:0;padding:14px;border:1px solid var(--office-ui-line);border-radius:16px}
+.people article>div{display:grid;gap:4px;flex:1;min-width:0}
+.people strong,.people small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:1023px){.grid{grid-template-columns:minmax(190px,245px) minmax(0,1fr)}.quick{grid-template-columns:1fr}}
+@media(max-width:767px){.connect,.directory{margin:10px 12px 20px}.grid{display:flex;flex-direction:column;min-height:0;max-height:none;gap:12px}.sidebar{max-height:230px;min-height:90px}.body{min-height:350px;max-height:calc(100dvh - 320px)}.connect:has(.composer) .sidebar{display:none}.connect:has(.composer) .body{height:calc(100dvh - 235px);max-height:none}.threadHeader{flex-wrap:wrap}.threadHeader span{font-size:10px}.composer textarea{font-size:16px}.headerActions{width:100%;justify-content:space-between}.people{grid-template-columns:1fr}}
+@media(max-width:380px){.people article{flex-wrap:wrap}.headerActions a{flex:1}}
