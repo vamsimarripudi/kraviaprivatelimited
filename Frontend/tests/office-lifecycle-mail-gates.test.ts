@@ -10,7 +10,8 @@ const forward = readFileSync(new URL("../../Database/supabase/migrations/2026111
 const nextSources = readFileSync(new URL("../../Database/supabase/migrations/202611130025_auth_asset_lifecycle_sources.sql",import.meta.url),"utf8");
 const deviceAtomicity = readFileSync(new URL("../../Database/supabase/migrations/202611130026_auth_device_decision_atomicity.sql",import.meta.url),"utf8");
 const workforce = readFileSync(new URL("../../Database/supabase/migrations/202611130027_workforce_lifecycle_verified_sources.sql",import.meta.url),"utf8");
-const effectiveSchema = schema + "\n" + forward + "\n" + nextSources + "\n" + deviceAtomicity + "\n" + workforce;
+const scheduled = readFileSync(new URL("../../Database/supabase/migrations/202611130028_scheduled_lifecycle_verified_sources.sql",import.meta.url),"utf8");
+const effectiveSchema = schema + "\n" + forward + "\n" + nextSources + "\n" + deviceAtomicity + "\n" + workforce + "\n" + scheduled;
 const worker = readFileSync(new URL("../../Backend/backend/office_lifecycle_mail_worker.py",import.meta.url),"utf8");
 const manifest = JSON.parse(readFileSync(new URL("../../Backend/backend/generated_office_lifecycle_templates.json",import.meta.url),"utf8"));
 
@@ -76,6 +77,13 @@ describe("KRAVIA Office governed 81-event lifecycle notification delivery",()=>{
     expect(workforce).toContain("office_access_reviews");
     expect(workforce).toContain("office_effective_permission");
     expect(workforce).not.toContain("SET enabled=true");
+    expect(scheduled).toContain("source_ready)<>49");
+    expect(scheduled).toContain("office_lifecycle_reminder_tick");
+    for(const code of ["DEV-02","ONB-06","ONB-11","ONB-12","PAY-10","TIME-10"]){
+      expect(scheduled).toContain(code);
+    }
+    expect(scheduled).toContain("status='VERIFIED'");
+    expect(scheduled).not.toContain("SET enabled=true");
     expect(nextSources).toContain("approval.status IN (\'APPROVED\',\'TRUSTED\')");
 
     expect(forward).toContain("BANK_SALARY_PARTIAL_VERIFIED");

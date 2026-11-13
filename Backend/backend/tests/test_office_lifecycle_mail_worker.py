@@ -28,6 +28,8 @@ class _Session:
     def execute(self, statement, params):
         statement = str(statement)
         self.factory.queries.append((statement,dict(params)))
+        if "office_lifecycle_reminder_tick" in statement:
+            return _Rows([])
         if "office_lifecycle_mail_claim" in statement:
             return _Rows(self.factory.claims)
         if "office_lifecycle_mail_finish" in statement:
@@ -100,8 +102,10 @@ def test_claim_commit_precedes_provider_and_unknown_is_not_retried(
     assert len(deliveries)==1
     assert deliveries[0]["delivery_id"]=="11000000-0000-4000-8000-000000000001"
     assert deliveries[0]["event_code"]=="ONB-05"
-    assert len(db.queries)==2
-    assert db.queries[1][1]["outcome"]==outcome
+    assert len(db.queries)==3
+    assert "office_lifecycle_reminder_tick" in db.queries[0][0]
+    assert "office_lifecycle_mail_claim" in db.queries[1][0]
+    assert db.queries[2][1]["outcome"]==outcome
     assert "synthetic.staff@" not in str(result)
 
 
@@ -142,6 +146,16 @@ def test_verified_partial_wage_claim_requires_real_pay_period():
         mail._validate_claim(dict(claim,pay_period=None))
 
 
+def test_overdue_wage_reminder_requires_an_immutable_period():
+    claim = dict(_synthetic_claim()[0],
+        event_code="PAY-10",
+        source_reference="office_lifecycle_aux_proofs:92",
+        pay_period="2026-11")
+    assert mail._validate_claim(claim).pay_period=="2026-11"
+    with pytest.raises(RuntimeError):
+        mail._validate_claim(dict(claim,pay_period=None))
+
+
 def test_private_immutable_source_references_are_accepted_and_arbitrary_tables_rejected():
     from backend import office_lifecycle_mail_worker as worker
 
@@ -157,3 +171,12 @@ def test_private_immutable_source_references_are_accepted_and_arbitrary_tables_r
         "public.office_access_audit", "office_lifecycle_aux_proofs;DROP TABLE",
     ):
         assert worker.REFERENCE.fullmatch(f"{table}:123") is None, table
+
+
+def test_invalid_scheduled_source_tick_cannot_bypass_global_dispatch_flag(monkeypatch):
+    monkeypatch.setenv("KRAVIA_LIFECYCLE_MAIL_DISPATCH_ENABLED","false")
+    monkeypatch.setenv("BREVO_API_KEY","synthetic-ci-not-used")
+    calls=_Factory(_synthetic_claim())
+    monkeypatch.setattr(mail,"SessionLocal",calls)
+    assert mail.process_office_lifecycle_mail_outbox()["status"]=="DISABLED"
+    assert calls.queries==[]
