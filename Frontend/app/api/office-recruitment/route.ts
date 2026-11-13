@@ -76,10 +76,6 @@ const schema = z.discriminatedUnion("action", [
     starts_at: z.string().datetime({ offset: true }).optional(),
     ends_at: z.string().datetime({ offset: true }).optional(),
     reason: z.string().trim().min(8).max(1000),
-  }).superRefine((value, context) => {
-    if (value.decision === "RESCHEDULE" && !value.starts_at) {
-      context.addIssue({ code: "custom", message: "New interview time required" });
-    }
   }),
   z.object({
     action: z.literal("SUBMIT_FEEDBACK"),
