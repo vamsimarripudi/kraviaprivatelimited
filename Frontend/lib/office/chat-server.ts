@@ -24,6 +24,13 @@ async function actor(): Promise<OfficeChatActor> {
 }
 const internalFailure = (message: string) => new OfficeChatError(503, message);
 
+export async function requireOfficeChatConversation(id:string){
+ const current=await actor();
+ await ownMembership(current,id);
+ return current;
+}
+
+
 async function ownMembership(current: OfficeChatActor, id: string) {
   const { data, error } = await current.admin.from("office_chat_memberships")
     .select("conversation_id").eq("conversation_id", id)
@@ -127,20 +134,31 @@ export async function getOfficeChatMessages(conversationId: string) {
     : { data: [], error: null };
   if (people.error) throw internalFailure("Message author context is unavailable");
   const names = new Map((people.data ?? []).map(row => [String(row.user_id), String(row.display_name ?? "Employee")]));
+  const ids=rows.map(row=>String(row.id));
+  const fileResult=ids.length?await current.admin.from("office_chat_attachment_objects")
+    .select("id,message_id,original_filename,detected_mime_type,byte_size")
+    .in("message_id",ids).eq("conversation_id",conversationId).eq("status","CLEAN")
+    .limit(200):{data:[],error:null};
+  if(fileResult.error)throw internalFailure("Message attachments unavailable");
   return { actor_user_id: current.identity.userId,
     messages: rows.map(row => ({
       id: row.id, sender_user_id: row.sender_user_id,
       sender_name: names.get(String(row.sender_user_id)) ?? "Employee",
       body: row.body, created_at: row.created_at, edited_at: row.edited_at,
+      attachments:(fileResult.data??[]).filter(file=>file.message_id===row.id).map(file=>({id:file.id,name:file.original_filename,mime:file.detected_mime_type,size:file.byte_size})),
     })) };
 }
 
-export async function sendOfficeChatMessage(conversationId: string, body: string, nonce: string, mentions: readonly string[] = []) {
+export async function sendOfficeChatMessage(conversationId: string, body: string, nonce: string, mentions: readonly string[] = [], attachments: readonly string[] = []) {
   const current = await actor();
   await ownMembership(current, conversationId);
-  const result = await current.admin.rpc(mentions.length?"office_chat_send_with_mentions":"office_chat_send_message", {
+  const method=attachments.length?"office_chat_send_attachment_message":
+    mentions.length?"office_chat_send_with_mentions":"office_chat_send_message";
+  const result = await current.admin.rpc(method, {
     p_actor: current.identity.userId, p_conversation: conversationId,
-    p_body: body, p_nonce: nonce,...(mentions.length?{p_mentions:[...mentions]}:{}),
+    p_body: body, p_nonce: nonce,
+    ...(mentions.length||attachments.length?{p_mentions:[...mentions]}:{}),
+    ...(attachments.length?{p_attachments:[...attachments]}:{}),
   });
   if (result.error || typeof result.data !== "string") {
     throw new OfficeChatError(503, "The message was not confirmed. Retry safely using the same draft.");
