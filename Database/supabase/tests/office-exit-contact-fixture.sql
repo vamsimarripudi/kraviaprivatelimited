@@ -101,7 +101,8 @@ CREATE TABLE public.office_document_delivery_events(
  id uuid PRIMARY KEY,
  document_instance_id uuid NOT NULL REFERENCES public.office_document_instances(id),
  channel text NOT NULL,destination_masked text,
- provider_reference text,event_type text NOT NULL
+ provider_reference text,event_type text NOT NULL,
+ metadata jsonb NOT NULL DEFAULT '{}'::jsonb
 );
 CREATE TABLE public.office_document_signature_evidence(
  id uuid PRIMARY KEY,
