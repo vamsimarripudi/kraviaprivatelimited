@@ -362,8 +362,61 @@ BEGIN
  RETURN false;
 END;
 $verify$;
--- AUTH-10 is already implemented and rate-limited by recorded migration 028.
--- Preserve that audited function and its claim checks without redefining it.
+CREATE OR REPLACE FUNCTION public.office_lifecycle_auth_v2_source()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
+AS $auth$
+DECLARE
+ v_code text;
+ v_recipient uuid;
+ v_source bigint;
+BEGIN
+  v_code:=CASE NEW.event_type
+   WHEN 'INVITATION_ACCEPTED' THEN 'AUTH-04'
+   WHEN 'DEVICE_APPROVAL_APPROVED' THEN 'AUTH-07'
+   WHEN 'DEVICE_APPROVAL_DECLINED' THEN 'AUTH-07'
+   WHEN 'PASSWORD_RECOVERY_COMPLETED' THEN 'AUTH-09'
+   WHEN 'LOGIN_BLOCKED' THEN 'AUTH-10'
+   ELSE NULL END;
+  IF v_code IS NULL OR NEW.user_id IS NULL THEN RETURN NEW; END IF;
+  SELECT identity.user_id INTO v_recipient
+  FROM public.office_identity_users identity
+  JOIN public.office_auth_users account ON account.id=identity.user_id::text
+  WHERE identity.user_id::text=NEW.user_id
+    AND identity.status='ACTIVE' AND account.status='ACTIVE'
+    AND pg_catalog.lower(account.email) LIKE '%@kraviaprivatelimited.com';
+  IF v_recipient IS NULL THEN RETURN NEW; END IF;
+  -- The evidence row may flush before the device-approval UPDATE in the
+  -- same first-party transaction. Record the immutable event atomically now,
+  -- and verify the committed, independently approved decision when the
+  -- private worker claims the message (the claim function retains that check).
+  IF v_code='AUTH-10' THEN
+    -- Genuine temporary account locks only, max one source event per six
+    -- hours per corporate identity to prevent attacker-triggered mail floods.
+    IF NEW.metadata_json::jsonb->>'reason' IS DISTINCT FROM 'temporary_lock'
+      OR NOT EXISTS(
+        SELECT 1 FROM public.office_auth_users account
+        WHERE account.id=NEW.user_id AND account.status='ACTIVE'
+          AND account.locked_until>NEW.created_at
+      )
+      OR EXISTS(
+        SELECT 1 FROM public.office_lifecycle_auth_signals prior
+        WHERE prior.event_code='AUTH-10'
+          AND prior.recipient_user_id=v_recipient
+          AND prior.created_at>NEW.created_at-interval '6 hours'
+      ) THEN RETURN NEW; END IF;
+  END IF;
+  INSERT INTO public.office_lifecycle_auth_signals(auth_event_id,event_code,recipient_user_id)
+  VALUES(NEW.id,v_code,v_recipient)
+  ON CONFLICT(auth_event_id) DO NOTHING
+  RETURNING id INTO v_source;
+  IF v_source IS NOT NULL THEN
+    PERFORM public.office_lifecycle_mail_enqueue(
+      v_code,'office_lifecycle_auth_signals',v_source,v_recipient
+    );
+  END IF;
+  RETURN NEW;
+END;
+$auth$;
 
 CREATE OR REPLACE FUNCTION public.office_lifecycle_mail_claim(p_limit integer DEFAULT 10)
 RETURNS TABLE(
@@ -1058,7 +1111,7 @@ BEGIN
          AND p.effective_from<=NEW.earned_week_monday) THEN
        RETURN NEW;
    END IF;
-   FOR v_code IN SELECT 'TIME-09'::text
+   FOR v_code IN SELECT code FROM (VALUES('TIME-07'::text),('TIME-09'::text)) routes(code)
    LOOP
       IF v_code='TIME-07' THEN
         v_recipient:=NEW.employee_user_id;
