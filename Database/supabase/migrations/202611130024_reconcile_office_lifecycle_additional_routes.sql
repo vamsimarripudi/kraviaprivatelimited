@@ -36,12 +36,12 @@ ALTER TABLE public.office_lifecycle_mail_outbox
  ));
 
 UPDATE public.office_lifecycle_mail_policy SET source_ready=true
- WHERE event_code IN('PAY-09','ONB-10','ONB-01','HIRE-07')
+ WHERE event_code IN('PAY-09','ONB-10','ONB-01','HIRE-07','PAY-01','PAY-04')
    AND source_ready=false AND enabled=false;
 
 DO $postcheck$
 BEGIN
- IF (SELECT count(*) FROM public.office_lifecycle_mail_policy WHERE source_ready)<>31
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_policy WHERE source_ready)<>33
    OR EXISTS(SELECT 1 FROM public.office_lifecycle_mail_policy WHERE enabled) THEN
    RAISE EXCEPTION 'Expected exactly 31 audited source routes, all disabled';
  END IF;
@@ -227,7 +227,55 @@ BEGIN
       END IF;
     END IF;
   ELSIF TG_TABLE_NAME='office_payroll_events' THEN
-    IF NEW.event_type='COMPENSATION_APPROVAL_SYNCED'
+    IF NEW.event_type='COMPENSATION_SUBMITTED'
+        AND NEW.compensation_version_id IS NOT NULL
+        AND NEW.metadata->>'approval_request_id' IS NOT NULL THEN
+      SELECT step.assigned_user_id INTO v_recipient
+        FROM public.office_compensation_versions cv
+        JOIN public.office_requests request ON request.id=cv.approval_request_id
+        JOIN public.office_request_steps step
+          ON step.request_id=request.id AND step.step_order=request.current_step_order
+        JOIN public.office_identity_users reviewer ON reviewer.user_id=step.assigned_user_id
+      WHERE cv.id=NEW.compensation_version_id
+        AND cv.status='PENDING_APPROVAL'
+        AND cv.created_by=NEW.actor_user_id
+        AND reviewer.status='ACTIVE'
+        AND request.request_type_code='COMPENSATION_CHANGE'
+        AND request.id::text=NEW.metadata->>'approval_request_id'
+        AND request.status IN ('PENDING','IN_REVIEW')
+        AND step.status='PENDING' AND step.required_permission='payroll.compensation.review'
+        AND step.assigned_user_id IS DISTINCT FROM cv.employee_user_id
+        AND step.assigned_user_id IS DISTINCT FROM cv.created_by
+        AND public.office_effective_permission(
+          step.assigned_user_id,'payroll.compensation.review','COMPANY',NULL,NULL);
+      IF v_recipient IS NOT NULL THEN
+        PERFORM public.office_lifecycle_mail_enqueue('PAY-01',TG_TABLE_NAME,NEW.id,v_recipient);
+      END IF;
+    ELSIF NEW.event_type='PAYROLL_SUBMITTED'
+        AND NEW.period_id IS NOT NULL
+        AND NEW.metadata->>'approval_request_id' IS NOT NULL THEN
+      SELECT step.assigned_user_id INTO v_recipient
+        FROM public.office_payroll_periods period
+        JOIN public.office_requests request ON request.id=period.approval_request_id
+        JOIN public.office_request_steps step
+          ON step.request_id=request.id AND step.step_order=request.current_step_order
+        JOIN public.office_identity_users reviewer ON reviewer.user_id=step.assigned_user_id
+      WHERE period.id=NEW.period_id
+        AND period.status='PENDING_REVIEW'
+        AND period.created_by=NEW.actor_user_id
+        AND reviewer.status='ACTIVE'
+        AND request.request_type_code='PAYROLL_RUN_APPROVAL'
+        AND request.id::text=NEW.metadata->>'approval_request_id'
+        AND request.status IN ('PENDING','IN_REVIEW')
+        AND step.status='PENDING'
+        AND step.required_permission='payroll.run.review'
+        AND step.assigned_user_id IS DISTINCT FROM period.created_by
+        AND public.office_effective_permission(
+          step.assigned_user_id,'payroll.run.review','COMPANY',NULL,NULL);
+      IF v_recipient IS NOT NULL THEN
+        PERFORM public.office_lifecycle_mail_enqueue('PAY-04',TG_TABLE_NAME,NEW.id,v_recipient);
+      END IF;
+    ELSIF NEW.event_type='COMPENSATION_APPROVAL_SYNCED'
         AND NEW.compensation_version_id IS NOT NULL
         AND NEW.metadata->>'compensation_status'='APPROVED' THEN
       SELECT c.employee_user_id INTO v_recipient
@@ -573,6 +621,45 @@ BEGIN
             WHERE ev.id=o.source_id AND ev.event_type='CREATED'
               AND task.assigned_user_id=o.recipient_user_id
               AND task.status NOT IN ('CANCELLED','COMPLETED')))
+        OR (o.source_table='office_payroll_events' AND o.event_code='PAY-01'
+          AND EXISTS(SELECT 1 FROM public.office_payroll_events ev
+            JOIN public.office_compensation_versions cv ON cv.id=ev.compensation_version_id
+            JOIN public.office_requests request ON request.id=cv.approval_request_id
+            JOIN public.office_request_steps step ON step.request_id=request.id
+                AND step.step_order=request.current_step_order
+            JOIN public.office_identity_users reviewer ON reviewer.user_id=step.assigned_user_id
+            WHERE ev.id=o.source_id AND ev.event_type='COMPENSATION_SUBMITTED'
+              AND ev.metadata->>'approval_request_id'=request.id::text
+              AND cv.status='PENDING_APPROVAL' AND cv.created_by=ev.actor_user_id
+              AND request.request_type_code='COMPENSATION_CHANGE'
+              AND request.status IN ('PENDING','IN_REVIEW')
+              AND step.status='PENDING'
+              AND step.required_permission='payroll.compensation.review'
+              AND reviewer.status='ACTIVE'
+              AND step.assigned_user_id=o.recipient_user_id
+              AND step.assigned_user_id IS DISTINCT FROM cv.created_by
+              AND step.assigned_user_id IS DISTINCT FROM cv.employee_user_id
+              AND public.office_effective_permission(
+                o.recipient_user_id,'payroll.compensation.review','COMPANY',NULL,NULL)))
+        OR (o.source_table='office_payroll_events' AND o.event_code='PAY-04'
+          AND EXISTS(SELECT 1 FROM public.office_payroll_events ev
+            JOIN public.office_payroll_periods period ON period.id=ev.period_id
+            JOIN public.office_requests request ON request.id=period.approval_request_id
+            JOIN public.office_request_steps step ON step.request_id=request.id
+                AND step.step_order=request.current_step_order
+            JOIN public.office_identity_users reviewer ON reviewer.user_id=step.assigned_user_id
+            WHERE ev.id=o.source_id AND ev.event_type='PAYROLL_SUBMITTED'
+              AND ev.metadata->>'approval_request_id'=request.id::text
+              AND period.status='PENDING_REVIEW'
+              AND period.created_by=ev.actor_user_id
+              AND request.request_type_code='PAYROLL_RUN_APPROVAL'
+              AND request.status IN ('PENDING','IN_REVIEW')
+              AND step.status='PENDING' AND step.required_permission='payroll.run.review'
+              AND reviewer.status='ACTIVE'
+              AND step.assigned_user_id=o.recipient_user_id
+              AND step.assigned_user_id IS DISTINCT FROM period.created_by
+              AND public.office_effective_permission(
+                o.recipient_user_id,'payroll.run.review','COMPANY',NULL,NULL)))
         OR (o.source_table='office_payroll_events' AND o.event_code='PAY-02'
           AND EXISTS(SELECT 1 FROM public.office_payroll_events ev
             JOIN public.office_compensation_versions cv ON cv.id=ev.compensation_version_id

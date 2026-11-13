@@ -65,6 +65,10 @@ describe("KRAVIA Office governed 81-event lifecycle notification delivery",()=>{
     expect(schema).toContain("OFFER_SUBMITTED");
     expect(schema).toContain("hiring.offer.review");
     expect(schema).toContain("office_recruitment_events");
+    expect(schema).toContain("COMPENSATION_SUBMITTED");
+    expect(schema).toContain("PAYROLL_SUBMITTED");
+    expect(schema).toContain("payroll.compensation.review");
+    expect(schema).toContain("payroll.run.review");
     expect(schema).toContain("reference.issued_by");
     expect(schema).toContain("office_employee_reference_ids");
     expect(schema).toContain("task.status<>'VERIFIED'");

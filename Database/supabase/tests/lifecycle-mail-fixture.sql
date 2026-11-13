@@ -52,7 +52,7 @@ CREATE OR REPLACE FUNCTION public.office_effective_permission(
  p_user_id uuid,p_permission text,p_scope_type text,p_scope_key text,p_owner_user_id uuid
 ) RETURNS boolean LANGUAGE sql STABLE AS $fixture_permission$
   SELECT p_user_id='a0000000-0000-4000-8000-000000000003'::uuid
-    AND p_permission IN ('people.update','hiring.offer.review');
+    AND p_permission IN ('people.update','hiring.offer.review','payroll.compensation.review','payroll.run.review');
 $fixture_permission$;
 CREATE TABLE public.office_worktime_events(
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,case_id uuid,actor_user_id uuid,event_type text NOT NULL
@@ -102,7 +102,7 @@ CREATE TABLE public.office_people_development_events(
 );
 CREATE TABLE public.office_compensation_versions(
   id uuid PRIMARY KEY,employee_user_id uuid NOT NULL,status text NOT NULL,
-  approved_by uuid,approved_at timestamptz
+  approved_by uuid,approved_at timestamptz,approval_request_id uuid,created_by uuid
 );
 CREATE TABLE public.office_payroll_events(
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,compensation_version_id uuid,
@@ -111,7 +111,7 @@ CREATE TABLE public.office_payroll_events(
 );
 CREATE TABLE public.office_payroll_periods(
   id uuid PRIMARY KEY,period_code text NOT NULL,status text NOT NULL,
-  created_by uuid,approved_by uuid,approved_at timestamptz
+  created_by uuid,approved_by uuid,approved_at timestamptz,approval_request_id uuid
 );
 CREATE TABLE public.office_salary_payment_batches(
   id uuid PRIMARY KEY,period_id uuid,prepared_by uuid,status text NOT NULL
@@ -215,6 +215,28 @@ VALUES('c0000000-0000-4000-8000-000000000012','c0000000-0000-4000-8000-000000000
 INSERT INTO public.office_offer_proposals(id,created_by,approval_request_id,status)
 VALUES('c0000000-0000-4000-8000-000000000013','a0000000-0000-4000-8000-000000000002',
   'c0000000-0000-4000-8000-000000000011','PENDING_APPROVAL');
+INSERT INTO public.office_requests(id,request_type_code,current_step_order,status)
+VALUES
+ ('c0000000-0000-4000-8000-000000000021','COMPENSATION_CHANGE',1,'IN_REVIEW'),
+ ('c0000000-0000-4000-8000-000000000022','PAYROLL_RUN_APPROVAL',1,'IN_REVIEW');
+INSERT INTO public.office_request_steps(
+ id,request_id,step_order,assigned_user_id,status,required_permission
+) VALUES
+ ('c0000000-0000-4000-8000-000000000023',
+  'c0000000-0000-4000-8000-000000000021',1,
+  'a0000000-0000-4000-8000-000000000003','PENDING','payroll.compensation.review'),
+ ('c0000000-0000-4000-8000-000000000024',
+  'c0000000-0000-4000-8000-000000000022',1,
+  'a0000000-0000-4000-8000-000000000003','PENDING','payroll.run.review');
+INSERT INTO public.office_compensation_versions(id,employee_user_id,status,created_by,approval_request_id)
+VALUES('d0000000-0000-4000-8000-000000000006',
+ 'a0000000-0000-4000-8000-000000000002','PENDING_APPROVAL',
+ 'a0000000-0000-4000-8000-000000000002',
+ 'c0000000-0000-4000-8000-000000000021');
+INSERT INTO public.office_payroll_periods(id,period_code,status,created_by,approval_request_id)
+VALUES('f0000000-0000-4000-8000-000000000016','2026-10','PENDING_REVIEW',
+ 'a0000000-0000-4000-8000-000000000002',
+ 'c0000000-0000-4000-8000-000000000022');
 
 INSERT INTO public.office_worktime_policy_versions(id,employee_user_id,status,proposed_by,authority_reference)
 VALUES('b0000000-0000-4000-8000-000000000006',
