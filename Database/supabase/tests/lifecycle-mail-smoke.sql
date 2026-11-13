@@ -10,6 +10,24 @@ BEGIN
   IF (SELECT count(*) FROM public.office_lifecycle_mail_policy WHERE source_ready)<>74 THEN
     RAISE EXCEPTION 'Source-ready events must be accurately distinguished from unmapped events';
   END IF;
+  -- Exactly seven still-unmapped events must remain unready until their
+  -- independently evidenced signing / former-employee delivery paths exist.
+  -- A count-only check could miss an unsafe substitution of one event for another.
+  IF (SELECT array_agg(event_code ORDER BY event_code)
+      FROM public.office_lifecycle_mail_policy WHERE NOT source_ready)
+     IS DISTINCT FROM ARRAY[
+       'EXIT-02','EXIT-04','EXIT-05','EXIT-06','EXIT-07','EXIT-08','ONB-04'
+     ]::text[] THEN
+    RAISE EXCEPTION 'Exactly seven still-unmapped events must remain blocked';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.office_lifecycle_mail_policy
+     WHERE event_code IN (
+       'EXIT-02','EXIT-04','EXIT-05','EXIT-06','EXIT-07','EXIT-08','ONB-04'
+     ) AND (source_ready OR enabled OR delivery_owner <> 'LIFECYCLE_WORKER')
+  ) THEN
+    RAISE EXCEPTION 'Unverified signing or former-employee route was activated';
+  END IF;
   IF pg_catalog.has_table_privilege('anon','public.office_lifecycle_mail_outbox','SELECT') OR
      pg_catalog.has_table_privilege('authenticated','public.office_lifecycle_mail_policy','SELECT') OR
      pg_catalog.has_function_privilege('service_role','public.office_lifecycle_mail_claim(integer)','EXECUTE') THEN
