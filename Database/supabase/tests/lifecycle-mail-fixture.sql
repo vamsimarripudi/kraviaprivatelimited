@@ -319,7 +319,13 @@ ALTER TABLE public.office_employment_registry
   ADD COLUMN end_date date;
 ALTER TABLE public.office_access_audit
   ADD COLUMN reason text;
+CREATE TABLE public.office_attendance_sessions(
+ id uuid PRIMARY KEY,user_id uuid NOT NULL,
+ check_in_at timestamptz NOT NULL,check_out_at timestamptz,
+ status text NOT NULL
+);
 ALTER TABLE public.office_worktime_review_cases
+  ADD COLUMN attendance_session_id uuid,
   ADD COLUMN work_starts_at timestamptz,
   ADD COLUMN work_ends_at timestamptz,
   ADD COLUMN breaks jsonb NOT NULL DEFAULT '[]'::jsonb,
