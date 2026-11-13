@@ -58,7 +58,7 @@ BEGIN
    IF v_expiry<=pg_catalog.now()
       OR v_expiry>pg_catalog.now()+INTERVAL '30 days'
    THEN RAISE EXCEPTION 'Provider signing link expiry out of bounds'; END IF;
- ELSIF v_event='SIGNING_LINK_ISSUED' OR v_channel='ESIGN' THEN
+ ELSIF v_channel='ESIGN' AND d.status<>'SIGNED' THEN
    RAISE EXCEPTION 'eSign issuance must use approved signing request transition';
  END IF;
 
