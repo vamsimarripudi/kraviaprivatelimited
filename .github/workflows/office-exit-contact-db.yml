@@ -8,6 +8,8 @@ on:
       - 'Database/supabase/migrations/202611130038_signed_exit_document_source_evidence.sql'
       - 'Database/supabase/migrations/202611130039_offboarding_completion_source_evidence.sql'
       - 'Database/supabase/migrations/202611130040_signing_provider_link_source_evidence.sql'
+      - 'Database/supabase/migrations/202611130041_external_lifecycle_notice_private_outbox.sql'
+      - 'Database/supabase/tests/office-external-notices-*.sql'
       - 'Database/supabase/tests/office-exit-contact-*.sql'
       - '.github/workflows/office-exit-contact-db.yml'
   workflow_dispatch:
@@ -72,4 +74,9 @@ jobs:
           signing_result="$(pg --tuples-only --no-align \
             -f Database/supabase/tests/office-signing-provider-source-smoke.sql | tail -n 1)"
           test "$signing_result" = "ONBOARDING_SIGNING_PROVIDER_PROOF_VERIFIED"
-          echo "Six exit source proofs and one provider-issued signing link proof validated; zero mail or production writes."
+          pg -f Database/supabase/tests/office-external-notices-policy-fixture.sql
+          pg -f Database/supabase/migrations/202611130041_external_lifecycle_notice_private_outbox.sql
+          delivery_result="$(pg --tuples-only --no-align \
+            -f Database/supabase/tests/office-external-notices-smoke.sql | tail -n 1)"
+          test "$delivery_result" = "EXTERNAL_LIFECYCLE_81_SOURCE_AND_RECIPIENT_GATES_VERIFIED"
+          echo "81 policy sources, seven restricted external notice routes, revoked-consent denial, no live mail."
