@@ -86,7 +86,6 @@ BEGIN
  JOIN public.office_document_instances document
    ON document.id=delivery.document_instance_id
  JOIN public.office_document_templates template ON template.id=document.template_id
- JOIN public.office_document_templates template ON template.id=document.template_id
  JOIN public.office_identity_users employee
    ON employee.user_id::text=document.subject_reference
  WHERE delivery.id::text=NEW.metadata->>'delivery_event_id'
