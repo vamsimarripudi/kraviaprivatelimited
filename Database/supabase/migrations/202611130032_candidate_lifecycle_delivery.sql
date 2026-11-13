@@ -246,7 +246,7 @@ REVOKE ALL ON FUNCTION public.office_candidate_lifecycle_source_valid(public.off
 CREATE OR REPLACE FUNCTION public.office_candidate_lifecycle_claim(p_limit integer)
 RETURNS TABLE(
  outbox_id uuid,claim_token uuid,event_code text,recipient_email text,
- recipient_name text,source_reference text
+ recipient_name text,source_reference text,scheduled_at timestamptz
 )
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
 AS $claim$
@@ -264,8 +264,7 @@ BEGIN
       WHERE authority.candidate_id=o.candidate_id
         AND authority.recipient_email=o.recipient_email
         AND candidate.email=o.recipient_email
-        AND authority.revoked_at IS NULL AND authority.expires_at>now()
-        AND candidate.status<>'WITHDRAWN' OR false)
+        AND authority.revoked_at IS NULL AND authority.expires_at>now())
     AND EXISTS(SELECT 1 FROM public.office_lifecycle_mail_policy p
       WHERE p.event_code=o.event_code AND p.source_ready AND p.enabled AND p.effective_from<=now())
     AND public.office_candidate_lifecycle_source_valid(o)
@@ -275,8 +274,15 @@ BEGIN
     SET status='SENDING',claim_token=gen_random_uuid(),claimed_at=now()
   WHERE o.id=v.id RETURNING o.* INTO v;
   RETURN QUERY SELECT v.id,v.claim_token,v.event_code,v.recipient_email,
-    c.full_name,'office_recruitment_events:'||v.source_event_id::text
-    FROM public.office_candidates c WHERE c.id=v.candidate_id;
+    c.full_name,'office_recruitment_events:'||v.source_event_id::text,
+    CASE
+      WHEN v.event_code='HIRE-02' THEN (e.metadata->>'scheduled_start')::timestamptz
+      WHEN v.event_code='HIRE-03' THEN (e.metadata->>'new_start')::timestamptz
+      ELSE NULL::timestamptz
+    END
+    FROM public.office_candidates c
+    JOIN public.office_recruitment_events e ON e.id=v.source_event_id
+    WHERE c.id=v.candidate_id;
  END LOOP;
 END $claim$;
 REVOKE ALL ON FUNCTION public.office_candidate_lifecycle_claim(integer)
