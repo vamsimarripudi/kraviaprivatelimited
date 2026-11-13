@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
-import { BadgeCheck, CalendarClock, ChevronRight, CircleAlert, ClipboardCheck, FileDown, IdCard, RefreshCw, ShieldCheck, Timer, Wallet } from "lucide-react";
+import { BadgeCheck, BookOpen, CalendarClock, ChevronRight, CircleAlert, ClipboardCheck, FileDown, IdCard, RefreshCw, ShieldCheck, Timer, Wallet } from "lucide-react";
 import { HoverActionButton } from "./office-hover-action-button";
 import styles from "./office-employee-summary.module.css";
 
@@ -45,6 +46,8 @@ function money(minor: number, currency: string) {
 /** All data comes from the logged-in employee's existing governed services.
  * Missing approvals are not shown as salary credits, actual work or a payslip. */
 export function OfficeEmployeeSummary() {
+  const pathname = usePathname();
+  const financeOnly = pathname.startsWith("/finance/");
   const [roles, setRoles] = useState<Roles>();
   const [worktime, setWorktime] = useState<Worktime>();
   const [intake, setIntake] = useState<EmployeeIntake>();
@@ -151,8 +154,10 @@ export function OfficeEmployeeSummary() {
       </details>
     </div>
     <nav className={styles.shortcuts} aria-label="Personal records">
-      <Link href="/office/worktime"><CalendarClock size={16}/> Detailed attendance & salary <ChevronRight size={15}/></Link>
-      <Link href="/office/settings"><ShieldCheck size={16}/> My account & security <ChevronRight size={15}/></Link>
+      {financeOnly ? <Link href="/finance/worktime"><CalendarClock size={16}/> Detailed attendance & salary <ChevronRight size={15}/></Link>
+        : <Link href="/office/worktime"><CalendarClock size={16}/> Detailed attendance & salary <ChevronRight size={15}/></Link>}
+      <Link href={financeOnly ? "/finance/info" : "/office/info"}><BookOpen size={16}/> My role & common manuals <ChevronRight size={15}/></Link>
+      <Link href={financeOnly ? "/finance/settings" : "/office/settings"}><ShieldCheck size={16}/> My account & security <ChevronRight size={15}/></Link>
     </nav>
   </section>;
 }
