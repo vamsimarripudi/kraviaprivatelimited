@@ -45,6 +45,7 @@ BEGIN
   JOIN public.office_document_instances instance ON instance.id=e.document_instance_id
   JOIN public.office_document_delivery_events delivered
     ON delivered.id::text=e.metadata->>'delivery_event_id'
+  JOIN public.office_document_templates template ON template.id=instance.template_id
   JOIN public.office_identity_users employee
     ON employee.user_id=p.employee_user_id
   WHERE e.id=p.source_engine_event_id
@@ -52,7 +53,7 @@ BEGIN
     AND instance.id=p.document_instance_id
     AND instance.subject_type='EMPLOYEE'
     AND instance.subject_reference=employee.user_id::text
-    AND instance.document_code IN('HR_RELIEVING','HR_EXPERIENCE')
+    AND template.template_code IN('HR_RELIEVING','HR_EXPERIENCE')
     AND instance.status='DELIVERED'
     AND instance.approved_by IS NOT NULL AND instance.approved_at IS NOT NULL
     AND instance.signed_at IS NOT NULL
@@ -99,9 +100,10 @@ BEGIN
    ON delivered.id::text=NEW.metadata->>'delivery_event_id'
  JOIN public.office_employment_registry employment
    ON employment.identity_user_id=employee.user_id
+ JOIN public.office_document_templates template ON template.id=instance.template_id
  WHERE instance.id=NEW.document_instance_id
    AND instance.subject_type='EMPLOYEE'
-   AND instance.document_code IN('HR_RELIEVING','HR_EXPERIENCE')
+   AND template.template_code IN('HR_RELIEVING','HR_EXPERIENCE')
    AND instance.status='DELIVERED'
    AND instance.approved_by IS NOT NULL AND instance.approved_at IS NOT NULL
    AND instance.signed_at IS NOT NULL
