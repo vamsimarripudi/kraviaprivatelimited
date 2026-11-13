@@ -98,7 +98,9 @@ CREATE TABLE public.office_document_instances(
  created_by uuid REFERENCES public.office_identity_users(user_id),
  approved_by uuid REFERENCES public.office_identity_users(user_id),
  approved_at timestamptz,
- signed_at timestamptz
+ signed_at timestamptz,
+ delivered_at timestamptz,
+ updated_at timestamptz
 );
 CREATE TABLE public.office_document_renders(
  id uuid PRIMARY KEY,
