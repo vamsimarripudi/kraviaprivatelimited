@@ -5,7 +5,7 @@ const file = (path: string) => readFileSync(new URL("../" + path, import.meta.ur
 const api = file("app/api/office-exit-governance/route.ts");
 const screen = file("components/office-exit-governance.tsx");
 const workforce = file("components/office-workforce-lifecycle.tsx");
-const sql = file("../Database/supabase/migrations/202611130035_governed_offboarding_contact_evidence.sql");
+const sql = file("../Database/supabase/migrations/202611130104_governed_offboarding_contact_evidence.sql");
 const worker = file("../Backend/backend/office_external_notice_worker.py");
 
 describe("KRAVIA Office audited leaver actions", () => {

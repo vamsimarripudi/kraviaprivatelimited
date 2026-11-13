@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
-  BriefcaseBusiness, Building2, CalendarDays, ChevronDown, ChevronRight,
+  BookOpen, BriefcaseBusiness, Building2, CalendarDays, ChevronDown, ChevronRight,
   ClipboardCheck, Cog, FileText, Folders, GitBranch, Landmark,
   LayoutDashboard, Menu, Moon, MoreHorizontal, PanelLeftClose,
   PanelLeftOpen, Scale, Settings, ShieldCheck, Sun, Users, Wallet, X,
@@ -35,7 +35,7 @@ const iconByCategory = {
 } as const;
 
 const officeCategoryBySlug: Record<string, string> = {
-  dashboard:"My work", "my-role":"My work", notifications:"My work",
+  dashboard:"My work", "my-role":"My work", info:"My work", notifications:"My work",
   tasks:"My work",calendar:"My work",requests:"My work",approvals:"My work",
   manager:"People",recruitment:"People",people:"People",emergency:"People",
   development:"People",worktime:"People",
@@ -65,7 +65,7 @@ const financeCategory: Record<string,string> = {
   Books:"Books",Payables:"Payables",Evidence:"Evidence","Corporate Finance":"Treasury",
 };
 const iconBySlug: Record<string, typeof LayoutDashboard> = {
-  dashboard:LayoutDashboard,"my-role":Users,notifications:ShieldCheck,
+  dashboard:LayoutDashboard,"my-role":Users,info:BookOpen,notifications:ShieldCheck,
   tasks:ClipboardCheck,calendar:CalendarDays,requests:FileText,approvals:ShieldCheck,
   manager:Users,people:Users,recruitment:Users,development:Users,
   emergency:ShieldCheck,worktime:CalendarDays,payroll:Wallet,budget:Wallet,
@@ -128,6 +128,7 @@ export function OfficeWorkspaceShell({
   const [pickedSubgroup, setPickedSubgroup] = useState<string | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>("light");
+  const [manualOutstanding, setManualOutstanding] = useState<number|null>(null);
   const moreRef = useRef<HTMLDivElement>(null);
   const definition = workspaceDefinitions[workspace];
   const sections = workspace === "finance" ? financeSections : officeSections;
@@ -160,6 +161,24 @@ export function OfficeWorkspaceShell({
     && roleCanAccessSection(switchDashboard,identity.roles)
     && capabilityCanAccessSection(switchWorkspace,"dashboard",identity.roles,permissions);
 
+  useEffect(() => {
+    let current = true;
+    const sync = async () => {
+      try {
+        const response = await fetch("/api/office-manual", { cache: "no-store", credentials: "same-origin" });
+        if (!response.ok) return;
+        const result = await response.json() as {outstanding?:number};
+        if (current && typeof result.outstanding === "number") setManualOutstanding(result.outstanding);
+      } catch { /* Handbook is optional during database deployment. */ }
+    };
+    const onChange = (event:Event) => {
+      const value = (event as CustomEvent<number>).detail;
+      if (typeof value === "number") setManualOutstanding(value);
+    };
+    window.addEventListener("kravia-office-manual-state", onChange);
+    void sync();
+    return () => { current = false; window.removeEventListener("kravia-office-manual-state", onChange); };
+  }, []);
   useEffect(() => {
     // Defer localStorage hydration to a frame; the SSR shell starts in light
     // mode and avoids cascading setState in a synchronous React effect.
@@ -280,6 +299,7 @@ export function OfficeWorkspaceShell({
                   const Icon = iconBySlug[slug] ?? Folders;
                   return <OfficeNavLink key={slug} href={definition.basePath + "/" + slug}>
                     <Icon size={16} aria-hidden="true"/><span>{value.title}</span>
+                    {slug === "info" && manualOutstanding !== null && manualOutstanding > 0 ? <small className="office-manual-sidebar-status" aria-label={manualOutstanding + " manuals pending"}>{manualOutstanding} pending</small> : null}
                     <ChevronRight size={12} aria-hidden="true"/>
                   </OfficeNavLink>;
                 })}

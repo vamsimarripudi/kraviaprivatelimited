@@ -7,8 +7,8 @@ Updated: 13 November 2026. This is a **source-verified development report**, not
 | Environment | Verified source mappings | Dispatch |
 | --- | ---: | --- |
 | Current production/main baseline (migration 030) | 59 of 81 | All new lifecycle policies disabled |
-| Prior developer PR #145 (migrations 031–034) | 74 of 81 | Disabled |
-| Consolidated draft PR #150 (migrations 031–042) | **81 of 81** | **Disabled by default** |
+| Prior developer PR #145 (migrations 100–103) | 74 of 81 | Disabled |
+| Consolidated draft PR #150 (migrations 100–111) | **81 of 81** | **Disabled by default** |
 
 All 81 lifecycle event codes have an owned source route in the consolidated development branch. This means **not** that 81 messages have been sent, nor that every external eSign and HR business prerequisite is configured. Source readiness, operational readiness, policy activation, provider submission and inbox delivery are distinct states.
 
@@ -24,7 +24,7 @@ All 81 lifecycle event codes have an owned source route in the consolidated deve
 | EXIT-07 | Approved and signed HR_RELIEVING/HR_EXPERIENCE document with verified PDF and actual delivery evidence | No unsecured attachments; separate verified consent |
 | EXIT-08 | Independent Owner final completion after payroll, asset, access, employment and document checks | Same consent-bound external worker |
 
-Migration 041 assigns these seven codes EXTERNAL_NOTICE_WORKER ownership and marks their proof mappings ready. Its private outbox is restricted to the server worker, validates each proof source/recipient and consent at claim and again before delivery, uses idempotent source identity, and quarantines uncertain Brevo responses instead of retrying. Migration 042 fixes the real Document Studio SIGNING state: provider-issued links no longer incorrectly mark the document as DELIVERED. Existing credential senders remain isolated and cannot be duplicated through generic lifecycle mail. Candidate notifications use a separate verified-consent worker.
+Migration 110 assigns these seven codes EXTERNAL_NOTICE_WORKER ownership and marks their proof mappings ready. Its private outbox is restricted to the server worker, validates each proof source/recipient and consent at claim and again before delivery, uses idempotent source identity, and quarantines uncertain Brevo responses instead of retrying. Migration 111 fixes the real Document Studio SIGNING state: provider-issued links no longer incorrectly mark the document as DELIVERED. Existing credential senders remain isolated and cannot be duplicated through generic lifecycle mail. Candidate notifications use a separate verified-consent worker.
 
 ## Owner and HR operational controls
 

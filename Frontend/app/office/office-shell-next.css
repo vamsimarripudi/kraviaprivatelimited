@@ -421,3 +421,9 @@
 .kravia-office .office-modern .office-employee-full-record>summary:after{content:"+";font-size:18px;color:var(--off-next-muted,#63736b)}
 .kravia-office .office-modern .office-employee-full-record[open]>summary:after{content:"−"}
 .kravia-office .office-modern .office-employee-full-record>section{padding:0 12px 12px}
+
+
+/* Info & Help: unobtrusive state on the existing floating navigation rail. */
+.office-manual-sidebar-status{display:inline-flex;align-items:center;justify-content:center;font-size:10px;line-height:1.25;padding:4px 7px;border-radius:999px;margin-left:auto;white-space:nowrap;background:#edf4fe;color:#235b91;border:1px solid #bbd3ec;font-weight:750}
+[data-ui-theme="dark"] .office-manual-sidebar-status{background:#172a44;color:#d3e7ff;border-color:#3b567a}
+@media(max-width:480px){.office-manual-sidebar-status{font-size:9px;padding:4px 6px}}

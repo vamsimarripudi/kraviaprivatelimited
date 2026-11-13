@@ -9,9 +9,9 @@ const exitPanel = read("components/office-exit-governance.tsx");
 const studio = read("components/office-document-studio.tsx");
 const ownerPolicy = read("app/api/office-lifecycle-mail-policy/route.ts");
 const externalWorker = read("../Backend/backend/office_external_notice_worker.py");
-const signingState = read("../Database/supabase/migrations/202611130042_document_signing_request_state_correction.sql");
-const signingProof = read("../Database/supabase/migrations/202611130040_signing_provider_link_source_evidence.sql");
-const sourceMapping = read("../Database/supabase/migrations/202611130041_external_lifecycle_notice_private_outbox.sql");
+const signingState = read("../Database/supabase/migrations/202611130111_document_signing_request_state_correction.sql");
+const signingProof = read("../Database/supabase/migrations/202611130109_signing_provider_link_source_evidence.sql");
+const sourceMapping = read("../Database/supabase/migrations/202611130110_external_lifecycle_notice_private_outbox.sql");
 
 describe("KRAVIA Office external signing and offboarding audit gates", () => {
   it("never presents local record-entry as actual third-party eSign issuance", () => {

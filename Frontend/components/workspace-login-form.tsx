@@ -761,6 +761,7 @@ export function WorkspaceLoginForm({
 
       <div className={styles.links}>
         <Link href="/office/authenticator">Get Authenticator</Link>
+        <Link href="/office/quick-start">First access guide</Link>
         <Link href="/office/recover">Recover access</Link>
         {registrationOpen ? <Link href="/office/register">Founder registration</Link> : null}
       </div>
