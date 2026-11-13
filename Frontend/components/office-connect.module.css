@@ -69,3 +69,11 @@
 .mentionControls button:hover,.mentionPicker button:hover{color:var(--office-ui-accent)}.mentionControls small{color:var(--office-ui-muted);font-size:11px}
 .mentionPicker{display:grid;gap:4px;max-height:200px;overflow:auto;padding:10px;border:1px solid var(--office-ui-line);border-radius:12px}
 .mentionPicker button{text-align:left;justify-content:flex-start}.mentionPicker span{color:var(--office-ui-muted)}
+
+.attachmentControls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.attachmentControls label{display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:9px 12px;border:1px solid var(--office-ui-line);border-radius:10px;cursor:pointer}
+.attachmentControls input{max-width:170px;font-size:12px}.attachmentControls small{font-size:11px;color:var(--office-ui-muted)}
+.selectedFiles{display:grid;gap:8px;max-height:350px;overflow-y:auto;padding:8px;border:1px solid var(--office-ui-line);border-radius:12px}
+.selectedFiles>p{color:var(--office-ui-muted);font-size:11px}.selectedFiles>button{width:max-content;min-height:44px;border:1px solid var(--office-ui-line);border-radius:10px;background:transparent;color:var(--office-ui-ink);padding:9px 12px;cursor:pointer}
+.messageFiles{display:grid;gap:7px;padding:10px 0}.messageFiles a{display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:9px 12px;border:1px solid var(--office-ui-line);border-radius:10px;color:var(--office-ui-accent);text-decoration:none;font-size:11px;overflow-wrap:anywhere}
+@media(max-width:767px){.attachmentControls input{max-width:100%;width:100%}}

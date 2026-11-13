@@ -2,13 +2,16 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, ClipboardCheck, MessageSquareText, RefreshCw, Search, Send, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, ClipboardCheck, MessageSquareText, RefreshCw, Search, Send, ShieldCheck, Paperclip } from "lucide-react";
 import styles from "./office-connect.module.css";
 import { OfficeConnectMessageActions } from "@/components/office-connect-message-actions";
+import { Office5FileCard, type Office5FileStatus } from "@/components/office5-primitives";
 import { useOfficeWorkspace } from "@/components/office-workspace-context";
 
 type Conversation = { id: string; kind: string; title: string; updated_at: string };
-type Message = { id: string; sender_user_id: string; sender_name: string; body: string; created_at: string; edited_at?: string | null };
+type Message = { id: string; sender_user_id: string; sender_name: string; body: string; created_at: string; edited_at?: string | null;
+ attachments?: {id:string;name:string;mime:string;size:number}[] };
+type SelectedFile={id?:string;key:string;name:string;status:Office5FileStatus;message?:string};
 type ListResponse = { actor_user_id: string; conversations: Conversation[] };
 type Member={user_id:string;display_name:string};
 type MessageResponse = { actor_user_id: string; messages: Message[] };
@@ -33,6 +36,8 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
   const [draft, setDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sendStatus, setSendStatus] = useState("");
+  const [selectedFiles,setSelectedFiles] = useState<SelectedFile[]>([]);
+  const [fileLoading,setFileLoading] = useState(false);
   const [members,setMembers] = useState<Member[]>([]);
   const [pickedMentions,setPickedMentions] = useState<string[]>([]);
   const [mentionPicker,setMentionPicker] = useState(false);
@@ -90,19 +95,69 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
     return () => { live = false; window.clearInterval(interval); };
   }, [activeId, reloadCount]);
 
+
+  async function uploadFile(file:File) {
+    if(!activeId)return;
+    const key=window.crypto.randomUUID();
+    const entry:SelectedFile={key,name:file.name,status:"selected"};
+    setSelectedFiles(prev=>[...prev,entry]);
+    if(file.size<1||file.size>10_485_760){
+      setSelectedFiles(prev=>prev.map(f=>f.key===key?{...f,status:"blocked",message:"File must be 1 byte–10 MiB"}:f));
+      return;
+    }
+    setFileLoading(true);
+    setSelectedFiles(prev=>prev.map(f=>f.key===key?{...f,status:"uploading"}:f));
+    try{
+      const form=new FormData();
+      form.set("conversation_id",activeId);
+      form.set("file",file);
+      const response=await fetch("/api/office-chat/attachments/prepare",{
+        method:"POST",credentials:"same-origin",body:form,
+      });
+      const body=await response.json().catch(()=>({})) as {attachment_id?:string;status?:string;detail?:string};
+      if(!response.ok)throw new Error(body.detail??"Private file upload not confirmed");
+      setSelectedFiles(prev=>prev.map(f=>f.key===key?{
+        ...f,id:body.attachment_id,status:body.status==="CLEAN"?"available":"unknown",
+        message:body.status==="CLEAN"?"Malware scanner confirmed clean":body.detail??"Scan pending; download blocked",
+      }:f));
+    }catch(e){
+      setSelectedFiles(prev=>prev.map(f=>f.key===key?{
+        ...f,status:"failed",message:e instanceof Error?e.message:"Upload failed",
+      }:f));
+    }finally{setFileLoading(false);}
+  }
+
+  async function retryAttachment(id:string){
+    setSelectedFiles(prev=>prev.map(f=>f.id===id?{...f,status:"scanning"}:f));
+    try{
+      const response=await fetch("/api/office-chat/attachments/"+id+"/retry",{
+        method:"POST",credentials:"same-origin",
+      });
+      const body=await response.json().catch(()=>({})) as {status?:string;detail?:string};
+      if(!response.ok)throw new Error(body.detail??"Scanner did not verify the file");
+      setSelectedFiles(prev=>prev.map(f=>f.id===id?{
+        ...f,status:body.status==="CLEAN"?"available":"unknown",message:body.detail??"Private scan verified",
+      }:f));
+    }catch(e){
+      setSelectedFiles(prev=>prev.map(f=>f.id===id?{
+        ...f,status:"unknown",message:e instanceof Error?e.message:"Scan remains unconfirmed",
+      }:f));
+    }
+  }
+
   async function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!activeId || !draft.trim() || submitting) return;
+    if (!activeId || !draft.trim() || submitting || fileLoading || selectedFiles.some(file=>file.status!=="available")) return;
     setSubmitting(true);
     setSendStatus("");
     nonce.current ??= window.crypto.randomUUID();
     try {
       await json<{ message_id: string }>("/api/office-chat/conversations/" + encodeURIComponent(activeId) + "/messages", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: draft.trim(), client_nonce: nonce.current, mention_user_ids:pickedMentions }),
+        body: JSON.stringify({ body: draft.trim(), client_nonce: nonce.current, mention_user_ids:pickedMentions, attachment_ids:selectedFiles.map(f=>f.id).filter(Boolean) }),
       });
       nonce.current = null;
-      setDraft("");setPickedMentions([]);setMentionPicker(false);
+      setDraft("");setPickedMentions([]);setMentionPicker(false);setSelectedFiles([]);
       setSendStatus("Message stored in the private conversation");
       setReloadCount(value => value + 1);
     } catch (error) {
@@ -162,6 +217,11 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
               <strong>{message.sender_user_id === actor ? "You" : message.sender_name}</strong>
               <p>{message.body}</p>
               <time dateTime={message.created_at}>{new Date(message.created_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</time>
+              {message.attachments?.length?<div className={styles.messageFiles} aria-label="Scanned shared attachments">
+                {message.attachments.map(file=><a key={file.id}
+                  href={"/api/office-chat/attachments/"+file.id+"/download"}><Paperclip size={14}/>
+                  {file.name} · {Math.ceil(file.size/1024)} KiB</a>)}
+              </div>:null}
               <OfficeConnectMessageActions id={message.id} body={message.body}
                 own={message.sender_user_id===actor} onDone={()=>setReloadCount(v=>v+1)}/>
             </article>)}
@@ -172,8 +232,23 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
               placeholder="Write a message for verified participants…" disabled={submitting || !!messageError}
               onChange={event => { nonce.current = null; setDraft(event.target.value); setSendStatus(""); }}
               onKeyDown={event => { if ((event.ctrlKey || event.metaKey) && event.key === "Enter") event.currentTarget.form?.requestSubmit(); }}/>
-              <button type="submit" disabled={!draft.trim() || submitting || !!messageError}><Send size={16}/> {submitting ? "Sending…" : "Send"}</button>
+              <button type="submit" disabled={!draft.trim() || submitting || fileLoading || selectedFiles.some(file=>file.status!=="available") || !!messageError}><Send size={16}/> {submitting ? "Sending…" : "Send"}</button>
             </div>
+            <div className={styles.attachmentControls}>
+              <label htmlFor="office-chat-file"><Paperclip size={16}/> Attach scanned file</label>
+              <input id="office-chat-file" type="file" accept="application/pdf,image/jpeg,image/png,image/webp"
+                disabled={fileLoading||submitting||selectedFiles.length>=5} onChange={e=>{
+                  const file=e.target.files?.[0];e.target.value="";if(file)void uploadFile(file);
+                }}/>
+              <small>PDF/JPEG/PNG/WebP · Max 10 MiB · 5 attachments</small>
+            </div>
+            {selectedFiles.length?<div className={styles.selectedFiles} aria-label="Attachment status">
+              {selectedFiles.map(file=><Office5FileCard key={file.key} name={file.name} status={file.status}
+               reason={file.message} onRetry={file.id?()=>void retryAttachment(file.id!):undefined}
+               onCancel={()=>setSelectedFiles(prev=>prev.filter(f=>f.key!==file.key))}/>)}
+              <p>Files are not shared until their scan is clean and your message is confirmed by the server.</p>
+              <button type="button" onClick={()=>setSelectedFiles([])} disabled={submitting}>Clear selected files</button>
+            </div>:null}
             <div className={styles.mentionControls}>
               <button type="button" aria-expanded={mentionPicker} aria-controls="office-chat-mention-picker"
                onClick={()=>setMentionPicker(v=>!v)} disabled={submitting}>@ Mention participant</button>
