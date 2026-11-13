@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'Database/supabase/migrations/202611130022_office_lifecycle_mail_router.sql'
+      - 'Database/supabase/migrations/202611130023_reconcile_office_lifecycle_mail_sources.sql'
       - 'Database/supabase/tests/lifecycle-mail-*.sql'
       - '.github/workflows/office-lifecycle-mail-db.yml'
   workflow_dispatch:
@@ -44,3 +45,15 @@ jobs:
           output="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-smoke.sql)"
           echo "$output"
           test "$(printf '%s\n' "$output" | tail -n 1)" = "LIFECYCLE_MAIL_ROUTES_VERIFIED"
+
+          # Separate phase in the same DISPOSABLE database: reconstruct the
+          # immutable legacy 6-column claim schema and apply ONLY the new
+          # forward migration, never re-running the recorded production SQL.
+          pg -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT USAGE ON SCHEMA public TO PUBLIC;'
+          pg -f Database/supabase/tests/lifecycle-mail-fixture.sql
+          pg -f Database/supabase/tests/lifecycle-mail-legacy-release-snapshot.sql
+          pg -f Database/supabase/migrations/202611130023_reconcile_office_lifecycle_mail_sources.sql
+          upgraded_output="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-smoke.sql)"
+          echo "$upgraded_output"
+          printf '%s\n' "$upgraded_output" | grep -Fxq 'LIFECYCLE_MAIL_ROUTES_VERIFIED'
+          echo 'Fresh and legacy-forward upgrade rehearsals passed with zero live mail dispatch.'
