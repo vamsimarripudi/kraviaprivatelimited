@@ -180,3 +180,57 @@ body:has(.nav-wrap) main.compact-public-editorial > .newsroom-shell .newsroom-li
     min-height: 17rem;
   }
 }
+/* NVIDIA Inception company-membership evidence: reuse KRAVIA's existing
+   typography and recognition colours, without modifying the official SVG. */
+body:has(.nav-wrap) .inception-recognition {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(13rem, .75fr);
+  align-items: center;
+  gap: clamp(1.5rem, 4vw, 3.5rem);
+  padding: clamp(1.75rem, 3.6vw, 3rem) 0;
+  border-bottom: 1px solid var(--line);
+}
+body:has(.nav-wrap) .inception-recognition h3 {
+  margin: .65rem 0 1rem;
+  color: var(--ink);
+  font: 500 clamp(1.6rem, 2.5vw, 2.5rem)/1.1 var(--serif);
+  letter-spacing: -.045em;
+}
+body:has(.nav-wrap) .inception-recognition p:not(.eyebrow) {
+  max-width: 58ch;
+  color: var(--ink-2);
+  font-size: .95rem;
+  line-height: 1.65;
+}
+body:has(.nav-wrap) .inception-recognition img {
+  display: block;
+  width: min(100%, 19rem);
+  height: auto;
+  justify-self: end;
+}
+body:has(.nav-wrap) .inception-recognition a {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  min-height: 44px;
+  color: var(--ink);
+  font-size: .84rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: .25em;
+}
+body:has(.nav-wrap) .inception-recognition a svg { width: .95rem; height: .95rem; }
+body:has(.nav-wrap) .inception-recognition a:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+@media (max-width: 700px) {
+  body:has(.nav-wrap) .inception-recognition {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.1rem;
+  }
+  body:has(.nav-wrap) .inception-recognition img {
+    justify-self: start;
+    width: min(100%, 17rem);
+  }
+}
