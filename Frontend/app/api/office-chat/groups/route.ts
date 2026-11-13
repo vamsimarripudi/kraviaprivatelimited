@@ -7,9 +7,9 @@ const schema=z.object({
  members:z.array(z.string().uuid()).min(1).max(29).refine(list=>new Set(list).size===list.length,"Distinct members required"),
 }).strict();
 export async function POST(request:Request){
- if(!officeMutationIsSameOrigin(request))return NextResponse.json({detail:"Cross-origin operation is forbidden"},{status:403});
+ if(!officeMutationIsSameOrigin(request))return NextResponse.json({detail:"Cross-origin operation is forbidden"},{status:403,headers:{"Cache-Control":"no-store"}});
  const parsed=schema.safeParse(await request.json().catch(()=>null));
- if(!parsed.success)return NextResponse.json({detail:"Invalid group or membership"},{status:400});
+ if(!parsed.success)return NextResponse.json({detail:"Invalid group or membership"},{status:400,headers:{"Cache-Control":"no-store"}});
  try{return NextResponse.json(await createOfficeChatGroup(parsed.data.title,parsed.data.members),
    {status:201,headers:{"Cache-Control":"no-store"}});}
  catch(error){return NextResponse.json({detail:error instanceof OfficeChatError?error.message:"Group creation failed"},

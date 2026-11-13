@@ -99,6 +99,15 @@ jobs:
           CI: "1"
         run: npx playwright test tests/office-surface-integrity.spec.mjs tests/office-theme.spec.mjs tests/office-manual.spec.mjs tests/office-signing-review-boundary.spec.mjs --project=mobile-webkit
 
+      - name: Upload Office 5.0 responsive sign-in screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kravia-office5-auth-responsive-screens
+          path: Testing/playwright/test-results/**/office5-*.png
+          if-no-files-found: ignore
+          retention-days: 10
+
       - name: Upload failure evidence
         if: failure()
         uses: actions/upload-artifact@v4

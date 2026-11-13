@@ -17,17 +17,17 @@ export async function GET(_: Request, { params }: Context) {
   catch (error) { return failure(error); }
 }
 export async function POST(request: Request, { params }: Context) {
-  if (!officeMutationIsSameOrigin(request)) return NextResponse.json({ detail: "Cross-origin requests are forbidden" }, { status: 403 });
+  if (!officeMutationIsSameOrigin(request)) return NextResponse.json({ detail: "Cross-origin requests are forbidden" }, { status: 403, headers: { "Cache-Control": "no-store" } });
   const { id } = await params;
   if (!uuid.safeParse(id).success) return NextResponse.json({ detail: "Not found" }, { status: 404 });
   const parsed = message.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ detail: "Invalid message" }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ detail: "Invalid message" }, { status: 400, headers: { "Cache-Control": "no-store" } });
   try { return NextResponse.json(await sendOfficeChatMessage(id,parsed.data.body,parsed.data.client_nonce),
     { status: 201, headers: { "Cache-Control": "no-store" } }); }
   catch (error) { return failure(error); }
 }
 export async function PATCH(request: Request, { params }: Context) {
-  if (!officeMutationIsSameOrigin(request)) return NextResponse.json({ detail: "Cross-origin requests are forbidden" }, { status: 403 });
+  if (!officeMutationIsSameOrigin(request)) return NextResponse.json({ detail: "Cross-origin requests are forbidden" }, { status: 403, headers: { "Cache-Control": "no-store" } });
   const { id } = await params;
   if (!uuid.safeParse(id).success) return NextResponse.json({ detail: "Not found" }, { status: 404 });
   try { return NextResponse.json(await markOfficeChatRead(id), { headers: { "Cache-Control": "no-store" } }); }

@@ -14,9 +14,9 @@ export async function GET() {
   catch (error) { return failure(error); }
 }
 export async function POST(request: Request) {
-  if (!officeMutationIsSameOrigin(request)) return NextResponse.json({ detail: "Cross-origin requests are forbidden" }, { status: 403 });
+  if (!officeMutationIsSameOrigin(request)) return NextResponse.json({ detail: "Cross-origin requests are forbidden" }, { status: 403, headers: { "Cache-Control": "no-store" } });
   const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ detail: "Invalid recipient" }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ detail: "Invalid recipient" }, { status: 400, headers: { "Cache-Control": "no-store" } });
   try { return NextResponse.json(await startOfficeChatDm(parsed.data.recipient_user_id),
     { status: 201, headers: { "Cache-Control": "no-store" } }); }
   catch (error) { return failure(error); }
