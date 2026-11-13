@@ -11,6 +11,12 @@ on:
       - "Frontend/components/office-recruitment-workspace*"
       - "Frontend/components/office-work-hub*"
       - "Frontend/components/office-master-data*"
+      - "Frontend/components/office-manual-hub*"
+      - "Frontend/components/office-workspace-shell.tsx"
+      - "Frontend/components/internal-workspace-screen.tsx"
+      - "Frontend/lib/office/manual*"
+      - "Frontend/app/api/office-manual/**"
+      - "Frontend/app/office/quick-start/**"
       - "Frontend/app/office/layout.tsx"
       - "Frontend/app/finance/layout.tsx"
       - "Frontend/components/office-appearance-root.tsx"
@@ -28,6 +34,12 @@ on:
       - "Frontend/components/office-recruitment-workspace*"
       - "Frontend/components/office-work-hub*"
       - "Frontend/components/office-master-data*"
+      - "Frontend/components/office-manual-hub*"
+      - "Frontend/components/office-workspace-shell.tsx"
+      - "Frontend/components/internal-workspace-screen.tsx"
+      - "Frontend/lib/office/manual*"
+      - "Frontend/app/api/office-manual/**"
+      - "Frontend/app/office/quick-start/**"
       - "Frontend/next.config.ts"
       - "Frontend/tests/office-auth-cache-policy.test.ts"
       - ".github/workflows/office-e2e.yml"
@@ -75,7 +87,7 @@ jobs:
         working-directory: Testing/playwright
         env:
           CI: "1"
-        run: npx playwright test tests/office-surface-integrity.spec.mjs tests/office-theme.spec.mjs --project=mobile-webkit
+        run: npx playwright test tests/office-surface-integrity.spec.mjs tests/office-theme.spec.mjs tests/office-manual.spec.mjs --project=mobile-webkit
 
       - name: Upload failure evidence
         if: failure()
