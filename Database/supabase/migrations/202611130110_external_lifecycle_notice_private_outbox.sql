@@ -341,3 +341,193 @@ END $postcheck$;
 
 COMMENT ON TABLE public.office_external_notice_outbox IS
  'Seven source-verified Office events; separately consented recipients. No send without explicit Owner policy and two environment opt-ins. UNKNOWN is never retried.';
+
+
+-- A typed reference manually entered by HR is NOT independently verified
+-- provider issuance. No ONB-04 message can be claimed until an active Owner,
+-- different from the request recorder and document creator, checks the real
+-- provider record and records the evidence. This gate is intentionally
+-- vendor-neutral until an approved provider adapter is connected.
+CREATE TABLE public.office_signing_issuance_reviews (
+ delivery_event_id uuid PRIMARY KEY
+  REFERENCES public.office_document_delivery_events(id) ON DELETE RESTRICT,
+ signing_proof_id bigint NOT NULL UNIQUE
+  REFERENCES public.office_onboarding_signing_proofs(id) ON DELETE RESTRICT,
+ reviewed_by uuid NOT NULL
+  REFERENCES public.office_identity_users(user_id) ON DELETE RESTRICT,
+ status text NOT NULL CHECK(status IN('VERIFIED','REJECTED','REVOKED')),
+ evidence_reference text NOT NULL
+  CHECK(char_length(btrim(evidence_reference)) BETWEEN 12 AND 500),
+ review_reason text NOT NULL
+  CHECK(char_length(btrim(review_reason)) BETWEEN 12 AND 500),
+ reviewed_at timestamptz NOT NULL DEFAULT pg_catalog.now(),
+ revoked_by uuid REFERENCES public.office_identity_users(user_id),
+ revoked_at timestamptz,
+ revoke_reason text,
+ CHECK((status='REVOKED')=(revoked_at IS NOT NULL))
+);
+ALTER TABLE public.office_signing_issuance_reviews ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.office_signing_issuance_reviews
+ FROM PUBLIC,anon,authenticated,service_role,kravia_office_backend;
+GRANT SELECT ON TABLE public.office_signing_issuance_reviews TO service_role;
+
+CREATE TABLE public.office_signing_issuance_review_events (
+ id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ delivery_event_id uuid NOT NULL
+  REFERENCES public.office_document_delivery_events(id) ON DELETE RESTRICT,
+ actor_user_id uuid NOT NULL
+  REFERENCES public.office_identity_users(user_id) ON DELETE RESTRICT,
+ event_type text NOT NULL CHECK(event_type IN('VERIFIED','REJECTED','REVOKED')),
+ reason text NOT NULL CHECK(char_length(btrim(reason)) BETWEEN 12 AND 500),
+ happened_at timestamptz NOT NULL DEFAULT pg_catalog.now(),
+ UNIQUE(delivery_event_id,event_type)
+);
+ALTER TABLE public.office_signing_issuance_review_events ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.office_signing_issuance_review_events
+ FROM PUBLIC,anon,authenticated,service_role,kravia_office_backend;
+GRANT SELECT ON TABLE public.office_signing_issuance_review_events TO service_role;
+
+-- Keep the immutable original document/provider checks, but require separate
+-- attestation at EVERY claim, including after Owner review and after revocation.
+ALTER FUNCTION public.office_onboarding_signing_source_valid(bigint)
+ RENAME TO office_onboarding_signing_domain_evidence_valid;
+CREATE OR REPLACE FUNCTION public.office_onboarding_signing_source_valid(
+ p_id bigint
+) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=''
+AS $verified$
+ SELECT public.office_onboarding_signing_domain_evidence_valid(p_id)
+ AND EXISTS (
+  SELECT 1 FROM public.office_signing_issuance_reviews review
+  JOIN public.office_onboarding_signing_proofs proof
+    ON proof.id=review.signing_proof_id
+  JOIN public.office_document_delivery_events delivery
+    ON delivery.id=review.delivery_event_id
+  JOIN public.office_document_instances document
+    ON document.id=proof.document_instance_id
+  WHERE proof.id=p_id
+    AND proof.delivery_event_id=delivery.id
+    AND review.status='VERIFIED'
+    AND review.revoked_at IS NULL
+    AND review.reviewed_at IS NOT NULL
+    AND review.reviewed_by IS DISTINCT FROM delivery.actor_user_id
+    AND review.reviewed_by IS DISTINCT FROM document.created_by
+    AND review.reviewed_by IS DISTINCT FROM proof.employee_user_id
+ );
+$verified$;
+REVOKE ALL ON FUNCTION public.office_onboarding_signing_source_valid(bigint)
+ FROM PUBLIC,anon,authenticated,kravia_office_backend;
+GRANT EXECUTE ON FUNCTION public.office_onboarding_signing_source_valid(bigint)
+ TO service_role;
+
+CREATE OR REPLACE FUNCTION public.office_signing_issuance_review(
+ p_actor uuid,p_delivery uuid,p_approve boolean,p_evidence text,p_reason text
+) RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
+AS $review$
+DECLARE
+ v_delivery public.office_document_delivery_events%rowtype;
+ v_proof public.office_onboarding_signing_proofs%rowtype;
+ v_document public.office_document_instances%rowtype;
+ v_evidence text:=btrim(coalesce(p_evidence,''));
+ v_reason text:=btrim(coalesce(p_reason,''));
+BEGIN
+ IF p_approve IS NULL
+ OR char_length(v_evidence) NOT BETWEEN 12 AND 500
+ OR char_length(v_reason) NOT BETWEEN 12 AND 500
+ OR NOT EXISTS (
+   SELECT 1 FROM public.office_identity_users actor
+   JOIN public.office_user_roles role ON role.user_id=actor.user_id
+   WHERE actor.user_id=p_actor AND actor.status='ACTIVE'
+     AND role.role='OWNER'
+     AND (role.expires_at IS NULL OR role.expires_at>pg_catalog.now())
+ )
+ THEN RAISE EXCEPTION 'Independent current Owner verification and source reference required'; END IF;
+
+ SELECT * INTO v_delivery FROM public.office_document_delivery_events
+ WHERE id=p_delivery FOR UPDATE;
+ SELECT * INTO v_proof FROM public.office_onboarding_signing_proofs
+ WHERE delivery_event_id=p_delivery;
+ SELECT * INTO v_document FROM public.office_document_instances
+ WHERE id=v_proof.document_instance_id;
+ IF v_delivery.id IS NULL OR v_proof.id IS NULL OR v_document.id IS NULL
+ OR v_delivery.actor_user_id IS NULL
+ OR p_actor IS NOT DISTINCT FROM v_delivery.actor_user_id
+ OR p_actor IS NOT DISTINCT FROM v_document.created_by
+ OR p_actor IS NOT DISTINCT FROM v_proof.employee_user_id
+ OR v_document.status<>'SIGNING'
+ OR NOT public.office_onboarding_signing_domain_evidence_valid(v_proof.id)
+ OR EXISTS (
+   SELECT 1 FROM public.office_signing_issuance_reviews
+   WHERE delivery_event_id=p_delivery
+ ) THEN RAISE EXCEPTION 'Independent current provider source cannot be attested'; END IF;
+
+ INSERT INTO public.office_signing_issuance_reviews(
+   delivery_event_id,signing_proof_id,reviewed_by,status,evidence_reference,review_reason
+ ) VALUES(
+   p_delivery,v_proof.id,p_actor,
+   CASE WHEN p_approve THEN 'VERIFIED' ELSE 'REJECTED' END,
+   v_evidence,v_reason
+ );
+ INSERT INTO public.office_signing_issuance_review_events(
+   delivery_event_id,actor_user_id,event_type,reason
+ ) VALUES(
+   p_delivery,p_actor,CASE WHEN p_approve THEN 'VERIFIED' ELSE 'REJECTED' END,
+   v_reason
+ );
+
+ IF p_approve
+   AND public.office_external_notice_source_valid(
+     'ONB-04','ONBOARDING_SIGNING',v_proof.id,v_proof.employee_user_id)
+   AND public.office_external_notice_recipient(
+     'ONB-04',v_proof.employee_user_id,NULL) IS NOT NULL
+   AND EXISTS(
+    SELECT 1 FROM public.office_lifecycle_mail_policy policy
+    WHERE policy.event_code='ONB-04' AND policy.enabled AND policy.source_ready
+      AND policy.delivery_owner='EXTERNAL_NOTICE_WORKER'
+      AND policy.effective_from<=pg_catalog.now()
+   ) THEN
+   INSERT INTO public.office_external_notice_outbox(
+     event_code,source_kind,source_proof_id,recipient_user_id,contact_version
+   ) VALUES('ONB-04','ONBOARDING_SIGNING',v_proof.id,v_proof.employee_user_id,NULL)
+   ON CONFLICT(event_code,source_kind,source_proof_id,recipient_user_id) DO NOTHING;
+ END IF;
+ RETURN true;
+END $review$;
+REVOKE ALL ON FUNCTION public.office_signing_issuance_review(uuid,uuid,boolean,text,text)
+ FROM PUBLIC,anon,authenticated,kravia_office_backend;
+GRANT EXECUTE ON FUNCTION public.office_signing_issuance_review(uuid,uuid,boolean,text,text)
+ TO service_role;
+
+CREATE OR REPLACE FUNCTION public.office_signing_issuance_revoke(
+ p_actor uuid,p_delivery uuid,p_reason text
+) RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
+AS $revoke$
+DECLARE v_reason text:=btrim(coalesce(p_reason,''));v_id uuid;
+BEGIN
+ IF char_length(v_reason) NOT BETWEEN 12 AND 500
+ OR NOT EXISTS(
+  SELECT 1 FROM public.office_identity_users actor
+  JOIN public.office_user_roles role ON role.user_id=actor.user_id
+  WHERE actor.user_id=p_actor AND actor.status='ACTIVE' AND role.role='OWNER'
+    AND (role.expires_at IS NULL OR role.expires_at>pg_catalog.now())
+ ) THEN RAISE EXCEPTION 'Current Owner revocation evidence required'; END IF;
+ UPDATE public.office_signing_issuance_reviews
+ SET status='REVOKED',revoked_by=p_actor,revoked_at=pg_catalog.now(),
+     revoke_reason=v_reason
+ WHERE delivery_event_id=p_delivery AND status='VERIFIED'
+ RETURNING delivery_event_id INTO v_id;
+ IF v_id IS NULL THEN RAISE EXCEPTION 'No active provider attestation to revoke'; END IF;
+ INSERT INTO public.office_signing_issuance_review_events(
+  delivery_event_id,actor_user_id,event_type,reason
+ ) VALUES(p_delivery,p_actor,'REVOKED',v_reason);
+ RETURN true;
+END $revoke$;
+REVOKE ALL ON FUNCTION public.office_signing_issuance_revoke(uuid,uuid,text)
+ FROM PUBLIC,anon,authenticated,kravia_office_backend;
+GRANT EXECUTE ON FUNCTION public.office_signing_issuance_revoke(uuid,uuid,text)
+ TO service_role;
+
+COMMENT ON TABLE public.office_signing_issuance_reviews IS
+ 'Independent Owner attestation of a genuine signing request recorded in the provider console. Does not issue a provider link and never bypasses private Office mail policy.';

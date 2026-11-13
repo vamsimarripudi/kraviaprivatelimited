@@ -36,10 +36,11 @@ INSERT INTO public.office_document_instances(
  '11111111-1111-4111-8111-111111111111',now(),NULL
 );
 INSERT INTO public.office_document_delivery_events(
- id,document_instance_id,channel,destination_masked,provider_reference,event_type,metadata
+ id,document_instance_id,actor_user_id,channel,destination_masked,provider_reference,event_type,metadata
 ) VALUES(
  'a2222222-2222-4222-8222-222222222222',
- 'a1111111-1111-4111-8111-111111111111','ESIGN',
+ 'a1111111-1111-4111-8111-111111111111',
+ '22222222-2222-4222-8222-222222222222','ESIGN',
  's***@kraviaprivatelimited.com','synthetic-provider-ref-1711','SIGNING_LINK_ISSUED',
  pg_catalog.jsonb_build_object('link_expires_at',
   pg_catalog.to_char((pg_catalog.now()+interval '7 days') AT TIME ZONE 'UTC',
@@ -55,10 +56,35 @@ INSERT INTO public.office_document_engine_events(
 DO $sign$
 BEGIN
  IF (SELECT count(*) FROM public.office_onboarding_signing_proofs)<>1
- OR (SELECT count(*) FROM public.office_external_notice_outbox
-  WHERE event_code='ONB-04' AND status='PENDING')<>1
- THEN RAISE EXCEPTION 'Authentic signatory event did not produce an idempotent private notice'; END IF;
+ OR EXISTS(SELECT 1 FROM public.office_external_notice_outbox
+  WHERE event_code='ONB-04')
+ THEN RAISE EXCEPTION 'Unreviewed provider reference incorrectly authorised a notice'; END IF;
 END $sign$;
+DO $self_review$
+DECLARE refused boolean:=false;
+BEGIN
+ BEGIN
+   PERFORM public.office_signing_issuance_review(
+    '22222222-2222-4222-8222-222222222222',
+    'a2222222-2222-4222-8222-222222222222',
+    true,'synthetic-provider-console-evidence','Self-review is forbidden for signing issuance');
+ EXCEPTION WHEN others THEN refused:=true;
+ END;
+ IF NOT refused THEN RAISE EXCEPTION 'Recording HR was allowed to self-verify provider evidence'; END IF;
+END $self_review$;
+
+SELECT public.office_signing_issuance_review(
+ '11111111-1111-4111-8111-111111111111',
+ 'a2222222-2222-4222-8222-222222222222',
+ true,'synthetic-provider-console-evidence',
+ 'Independent Owner reviewed the actual provider issuance record'
+);
+DO $reviewed$
+BEGIN
+ IF (SELECT count(*) FROM public.office_external_notice_outbox
+  WHERE event_code='ONB-04' AND status='PENDING')<>1
+ THEN RAISE EXCEPTION 'Reviewed signing request was not enqueued exactly once'; END IF;
+END $reviewed$;
 
 CREATE TEMP TABLE sign_claims AS SELECT * FROM public.office_external_notice_claim(5);
 DO $sign_claim$
