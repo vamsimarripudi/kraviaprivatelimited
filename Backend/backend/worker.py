@@ -28,6 +28,7 @@ from .file_security import (
 from .models import WorkerHeartbeat
 from .office_employee_mail_worker import process_employee_mail_outbox
 from .office_lifecycle_mail_worker import process_office_lifecycle_mail_outbox
+from .office_candidate_lifecycle_mail_worker import process_candidate_lifecycle_mail_outbox
 from .services import now_utc
 
 WORKER_LOCK_KEY = 5_821_841_907_269_011_847
@@ -266,6 +267,16 @@ def run_iteration(
                     "error_type": type(lifecycle_error).__name__,
                 }
                 _log("lifecycle_mail_worker_error", error_type=type(lifecycle_error).__name__)
+            # Separate external recruitment boundary; both worker flags and
+            # documented Owner contact authority must be present. Default off.
+            try:
+                response["candidate_mail"] = process_candidate_lifecycle_mail_outbox(min(batch, 25))
+            except Exception as candidate_error:
+                response["candidate_mail"] = {
+                    "status": "NEEDS_RECONCILIATION",
+                    "error_type": type(candidate_error).__name__,
+                }
+                _log("candidate_mail_worker_error", error_type=type(candidate_error).__name__)
             return response
         except Exception as exc:
             duration_ms = max(0, round((time.monotonic() - started) * 1000))
