@@ -189,6 +189,13 @@ BEGIN
  SELECT * INTO e FROM public.office_recruitment_events
   WHERE id=p_outbox.source_event_id AND candidate_id=p_outbox.candidate_id;
  IF e.id IS NULL THEN RETURN false; END IF;
+ IF p_outbox.event_code IN ('HIRE-02','HIRE-03','HIRE-04','HIRE-05','HIRE-06')
+   AND NOT EXISTS(SELECT 1 FROM public.office_candidates candidate
+     WHERE candidate.id=e.candidate_id
+       AND candidate.status IN ('APPLIED','SCREENING','INTERVIEW','SELECTED',
+                                'OFFER_PENDING','OFFERED')) THEN
+   RETURN false; -- a stale hiring instruction is never sent after closure
+ END IF;
  IF p_outbox.event_code='HIRE-01' THEN
    RETURN e.event_type='CANDIDATE_CREATED';
  ELSIF p_outbox.event_code IN('HIRE-02','HIRE-03','HIRE-04') THEN
@@ -226,6 +233,9 @@ BEGIN
      AND EXISTS(
        SELECT 1 FROM public.office_offer_proposals offer
        WHERE offer.id=e.offer_id AND offer.candidate_id=e.candidate_id
+         AND EXISTS(SELECT 1 FROM public.office_candidates candidate
+           WHERE candidate.id=e.candidate_id
+             AND candidate.status IN ('ONBOARDING','HIRED'))
          AND offer.accepted_at IS NOT NULL
          AND offer.status IN('ONBOARDING','HIRED')
          AND offer.approved_by IS NOT NULL AND offer.approved_at IS NOT NULL
