@@ -102,7 +102,7 @@
           "purchase_value": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -245,7 +245,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": 0.0,
                 "type": "number"
               },
               {
@@ -559,8 +559,8 @@
           "notice_days": {
             "anyOf": [
               {
-                "maximum": 3650,
-                "minimum": 0,
+                "maximum": 3650.0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -591,7 +591,7 @@
           "value": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -650,7 +650,7 @@
           "taxable_value": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": 0.0,
                 "type": "number"
               },
               {
@@ -1132,7 +1132,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": 0.0,
                 "type": "number"
               },
               {
@@ -1314,7 +1314,7 @@
           "max_call": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": 0.0,
                 "type": "number"
               },
               {
@@ -1700,7 +1700,7 @@
           "discount": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -1725,8 +1725,8 @@
           "gst_rate": {
             "anyOf": [
               {
-                "maximum": 100,
-                "minimum": 0,
+                "maximum": 100.0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -1757,7 +1757,7 @@
           "qty": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": 0.0,
                 "type": "number"
               },
               {
@@ -1782,7 +1782,7 @@
           "taxable_value": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": 0.0,
                 "type": "number"
               },
               {
@@ -1807,7 +1807,7 @@
           "cess": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -1821,7 +1821,7 @@
           "cgst": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -1841,7 +1841,7 @@
           "igst": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -1861,7 +1861,7 @@
           "sgst": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -1932,7 +1932,7 @@
           "max_amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": 0.0,
                 "type": "number"
               },
               {
@@ -2186,7 +2186,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": 0.0,
                 "type": "number"
               },
               {
@@ -2232,7 +2232,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": 0.0,
                 "type": "number"
               },
               {
@@ -2345,8 +2345,8 @@
           "gst_rate": {
             "anyOf": [
               {
-                "maximum": 100,
-                "minimum": 0,
+                "maximum": 100.0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -2368,7 +2368,7 @@
           "price": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -2476,8 +2476,8 @@
           "gst_rate": {
             "anyOf": [
               {
-                "maximum": 100,
-                "minimum": 0,
+                "maximum": 100.0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -2742,7 +2742,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": 0.0,
                 "type": "number"
               },
               {
@@ -2878,8 +2878,8 @@
             "type": "string"
           },
           "retention_days": {
-            "maximum": 36500,
-            "minimum": 30,
+            "maximum": 36500.0,
+            "minimum": 30.0,
             "title": "Retention Days",
             "type": "integer"
           }
@@ -2966,7 +2966,7 @@
           "fee": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -2980,7 +2980,7 @@
           "gross": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -2993,7 +2993,7 @@
           "net": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -3014,7 +3014,7 @@
           "tax_on_fee": {
             "anyOf": [
               {
-                "minimum": 0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -3120,7 +3120,7 @@
       "ShareClassCreate": {
         "properties": {
           "authorised_shares": {
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Authorised Shares",
             "type": "integer"
           },
@@ -3132,7 +3132,7 @@
           "face_value": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": 0.0,
                 "type": "number"
               },
               {
@@ -3161,7 +3161,7 @@
           },
           "voting_rights_per_share": {
             "default": 1,
-            "minimum": 0,
+            "minimum": 0.0,
             "title": "Voting Rights Per Share",
             "type": "integer"
           }
@@ -3198,7 +3198,7 @@
             "title": "Note"
           },
           "quantity": {
-            "exclusiveMinimum": 0,
+            "exclusiveMinimum": 0.0,
             "title": "Quantity",
             "type": "integer"
           },
