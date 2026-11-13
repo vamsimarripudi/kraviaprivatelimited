@@ -128,8 +128,8 @@ BEGIN
      'a0000000-0000-4000-8000-000000000002',
      'a0000000-0000-4000-8000-000000000002',
      'APPROVED','HISTORICAL_CORRECTION',
-     (monday+idx)::timestamp+'09:00:00'::time AT TIME ZONE 'Asia/Kolkata',
-     (monday+idx)::timestamp+'15:00:00'::time AT TIME ZONE 'Asia/Kolkata',
+     ((monday+idx)::date + time '09:00') AT TIME ZONE 'Asia/Kolkata',
+     ((monday+idx)::date + time '15:00') AT TIME ZONE 'Asia/Kolkata',
      '[]'::jsonb,
      'a0000000-0000-4000-8000-000000000003',
      pg_catalog.now()
