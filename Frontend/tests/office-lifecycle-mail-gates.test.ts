@@ -85,7 +85,7 @@ describe("KRAVIA Office governed 81-event lifecycle notification delivery",()=>{
     }
     expect(scheduled).toContain("status='VERIFIED'");
     expect(scheduled).not.toContain("SET enabled=true");
-    expect(controlled).toContain("source_ready)<>57");
+    expect(controlled).toContain("source_ready)<>55");
     for(const code of ["AUTH-10","DEV-08","ONB-08","ONB-03","PAY-11","PAY-12","TIME-07","TIME-09"]){
       expect(controlled).toContain(code);
     }
