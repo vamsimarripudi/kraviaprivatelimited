@@ -3,6 +3,7 @@ import { z } from "zod";
 import { officeMutationIsSameOrigin } from "@/lib/office/request-security";
 import {
   attachOfferDocument,
+  authorizeCandidateContact,
   changeInterview,
   createCandidate,
   createHiringRequisition,
@@ -52,6 +53,12 @@ const schema = z.discriminatedUnion("action", [
     location: optionalText(300),
     source_channel: optionalText(80),
     source_reference: optionalText(1000),
+  }),
+  z.object({
+    action: z.literal("AUTHORIZE_CANDIDATE_CONTACT"),
+    candidate_id: uuid,
+    basis: z.enum(["SIGNED_APPLICATION","CANDIDATE_EMAIL_REPLY","SECURE_CONTACT_CONFIRMATION"]),
+    evidence_reference: z.string().trim().min(12).max(1000),
   }),
   z.object({
     action: z.literal("TRANSITION_CANDIDATE"),
@@ -154,6 +161,7 @@ export async function POST(request: Request) {
       case "CREATE_CANDIDATE":
         result = await createCandidate({ requisitionId: input.requisition_id, name: input.name, email: input.email, phone: input.phone, location: input.location, sourceChannel: input.source_channel, sourceReference: input.source_reference });
         break;
+      case "AUTHORIZE_CANDIDATE_CONTACT": result = await authorizeCandidateContact({ candidateId: input.candidate_id, basis: input.basis, evidenceReference: input.evidence_reference }); break;
       case "TRANSITION_CANDIDATE": result = await transitionCandidate({ candidateId: input.candidate_id, status: input.status, note: input.note }); break;
       case "SCHEDULE_INTERVIEW": result = await scheduleInterview({ candidateId: input.candidate_id, stage: input.stage, title: input.title, interviewerUserId: input.interviewer_user_id, startsAt: input.starts_at, endsAt: input.ends_at, location: input.location }); break;
       case "CHANGE_INTERVIEW": result = await changeInterview({ interviewId: input.interview_id, decision: input.decision, startsAt: input.starts_at, endsAt: input.ends_at, reason: input.reason }); break;
