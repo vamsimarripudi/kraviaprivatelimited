@@ -98,7 +98,7 @@ export function capabilityCanAccessSection(
 ) {
   if (roles.includes("OWNER")) return true;
   const required = requiredCapabilities(workspace, section);
-  if (!required.length) return (workspace === "office" && personalOfficeSections.has(section)) || (workspace === "finance" && ["my-role","info"].includes(section));
+  if (!required.length) return (workspace === "office" && personalOfficeSections.has(section)) || (workspace === "finance" && ["my-role","info","worktime"].includes(section));
   const granted = new Set(permissions);
   return required.some((permission) => granted.has(permission));
 }
