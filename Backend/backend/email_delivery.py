@@ -14,6 +14,7 @@ from threading import Lock
 from time import perf_counter
 
 import httpx
+from html import escape
 
 from .office_lifecycle_templates import render_office_lifecycle_notice
 
@@ -253,6 +254,71 @@ def send_office_lifecycle_notification(
         ),
         delivery_id=delivery_id,
         tags=["kravia-office-lifecycle", event_code.lower()],
+    )
+
+
+_CANDIDATE_EVENT_MESSAGES = {
+    "HIRE-01": ("Application recorded", "We have recorded your application with the KRAVIA recruitment team."),
+    "HIRE-02": ("Interview scheduled", "Your interview has been scheduled by the KRAVIA hiring team."),
+    "HIRE-03": ("Interview rescheduled", "The KRAVIA hiring team has changed the time of your scheduled interview."),
+    "HIRE-04": ("Interview cancelled", "The KRAVIA hiring team has cancelled the previously scheduled interview."),
+    "HIRE-05": ("Hiring documents requested", "KRAVIA has recorded a request for hiring documents. Confirm secure submission instructions with the recruiting team."),
+    "HIRE-06": ("Document review update", "A submitted hiring document needs correction or replacement. Contact KRAVIA through the original recruiting channel."),
+    "HIRE-09": ("Offer acceptance recorded", "KRAVIA has recorded your offer acceptance evidence as part of your onboarding process."),
+    "HIRE-10": ("Application status updated", "The KRAVIA hiring team has recorded an update to your application status."),
+}
+
+
+def send_office_candidate_lifecycle_notification(
+    *, recipient_email: str, recipient_name: str, event_code: str,
+    event_reference: str, delivery_id: str, interview_time: str | None = None,
+) -> str | None:
+    """Provider submission of a governed external candidate claim only.
+
+    Do not include candidate documents, private access links, salary details,
+    meeting credentials, or unrestricted dashboard sign-in URLs in this email.
+    """
+    if event_code not in _CANDIDATE_EVENT_MESSAGES:
+        raise EmailDeliveryRejected("Unsupported external recruitment event")
+    title, summary = _CANDIDATE_EVENT_MESSAGES[event_code]
+    if event_code in {"HIRE-02", "HIRE-03"}:
+        if not interview_time or len(interview_time) > 90:
+            raise EmailDeliveryRejected("Verified interview schedule is required")
+        summary += " Confirmed time: " + interview_time + "."
+    safe_name = escape(recipient_name, quote=True)
+    safe_summary = escape(summary, quote=True)
+    safe_ref = escape(event_reference, quote=True)
+    safe_title = escape(title, quote=True)
+    plain = (
+        f"Hello {recipient_name},\n\n{summary}\n\n"
+        "For questions or secure document access, reply to your existing KRAVIA "
+        "recruitment contact or write to hello@kraviaprivatelimited.com.\n\n"
+        f"Recruitment event reference: {event_reference}\n\n"
+        "This is an operational hiring notice, not an offer of employment or "
+        "a change to approved compensation.\n\nKRAVIA PRIVATE LIMITED"
+    )
+    html = (
+        '<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;'
+        'color:#1b1b1b;line-height:1.6">'
+        '<p style="font-weight:bold;letter-spacing:.08em">KRAVIA PRIVATE LIMITED</p>'
+        f'<h2 style="font-size:20px">{safe_title}</h2>'
+        f'<p>Hello {safe_name},</p><p>{safe_summary}</p>'
+        '<p>For questions or secure document access, contact your existing '
+        'KRAVIA recruitment representative or write to '
+        '<a href="mailto:hello@kraviaprivatelimited.com">hello@kraviaprivatelimited.com</a>.</p>'
+        f'<p style="font-size:12px;color:#666">Event reference: {safe_ref}</p>'
+        '<p style="font-size:12px;color:#666">This operational notice does not '
+        'change an offer or approved compensation.</p></div>'
+    )
+    return _send_transactional_email(
+        recipient_email=recipient_email,
+        template=TransactionalEmail(
+            subject=f"KRAVIA recruitment · {title}",
+            html_content=html,
+            text_content=plain,
+        ),
+        delivery_id=delivery_id,
+        tags=["kravia-recruitment-candidate", event_code.lower()],
     )
 
 
