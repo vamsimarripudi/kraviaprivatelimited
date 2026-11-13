@@ -26,21 +26,34 @@ function failure(error:unknown){
 }
 async function readPolicies(actor:Awaited<ReturnType<typeof owner>>){
   const result=await actor.admin.from("office_lifecycle_mail_policy")
-    .select("event_code,priority,source_ready,enabled,approved_at,effective_from,intent,subject,trigger_description,recipient_description")
+    .select("event_code,priority,source_ready,delivery_owner,enabled,approved_at,effective_from,intent,subject,trigger_description,recipient_description")
     .order("event_code");
   if(result.error||!result.data||result.data.length!==81)
     throw new Error("Office lifecycle registry is incomplete or unavailable");
-  const states=["PENDING","SENDING","SENT","REJECTED","UNKNOWN"] as const;
-  const counts=await Promise.all(states.map(status=>actor.admin.from("office_lifecycle_mail_outbox")
-    .select("id",{count:"exact",head:true}).eq("status",status)));
+  const states=["PENDING","SENDING","SENT","REJECTED","UNKNOWN","SKIPPED"] as const;
+  const sources={
+    internal:"office_lifecycle_mail_outbox",
+    candidate:"office_candidate_mail_outbox",
+    external:"office_external_notice_outbox",
+  } as const;
+  const results=await Promise.all(Object.entries(sources).map(async ([label,table])=>[
+    label,
+    await Promise.all(states.map(status=>actor.admin.from(table)
+      .select("id",{count:"exact",head:true}).eq("status",status))),
+  ] as const));
+  const counts_by_source=Object.fromEntries(results.map(([label,values])=>[
+    label,Object.fromEntries(states.map((status,i)=>[
+      status,!values[i]?.error&&typeof values[i]?.count==="number"?values[i].count:null,
+    ])),
+  ]));
   return {
     policies:result.data,
     total:81,
     source_ready:result.data.filter(row=>row.source_ready===true).length,
     enabled:result.data.filter(row=>row.enabled===true).length,
-    count_by_status:Object.fromEntries(states.map((status,i)=>[status,
-      !counts[i]?.error && typeof counts[i]?.count==="number"?counts[i].count:null])),
-    notice:"Only committed, source-verified employee events can be enabled. All 81 copies exist but unmapped event sources remain blocked. Provider acceptance does not prove inbox delivery.",
+    count_by_status:counts_by_source.internal,
+    counts_by_source,
+    notice:"Covered source pathways are not activated emails. Credential notifications remain owned by first-party authentication; external candidate and former-employee/signing notices have separate consent and worker gates. Provider acceptance never proves inbox delivery.",
   };
 }
 export async function GET(){
@@ -55,6 +68,12 @@ export async function POST(request:Request){
     return NextResponse.json({detail:"Invalid documented lifecycle-policy decision"},{status:400,headers});
   try{
     const current=await owner();
+    const ownership=await current.admin.from("office_lifecycle_mail_policy")
+      .select("delivery_owner").eq("event_code",parsed.data.event_code).single();
+    if(ownership.error||!ownership.data)
+      return NextResponse.json({detail:"The lifecycle delivery owner could not be verified"},{status:503,headers});
+    if(parsed.data.enabled&&ownership.data.delivery_owner==="FIRST_PARTY_AUTH")
+      return NextResponse.json({detail:"This security email is already delivered by the authenticated Office workflow; enabling lifecycle delivery would duplicate it"},{status:409,headers});
     const result=await current.admin.rpc("office_lifecycle_mail_policy_set",{
       p_actor:current.identity.userId,
       p_event:parsed.data.event_code,

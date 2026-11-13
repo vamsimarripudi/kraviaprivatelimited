@@ -34,9 +34,9 @@ type AccessState = {
   invitations: Invitation[];
   audit: AuditRow[];
 };
-type InviteDraft = { email: string; display_name: string; job_title: string; department: string; roles: OfficeRole[]; reason: string };
+type InviteDraft = { email: string; display_name: string; job_title: string; department: string; roles: OfficeRole[]; reason: string; notice_opt_in: boolean };
 
-const emptyInvite: InviteDraft = { email: "", display_name: "", job_title: "", department: "", roles: [], reason: "" };
+const emptyInvite: InviteDraft = { email: "", display_name: "", job_title: "", department: "", roles: [], reason: "", notice_opt_in: false };
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { ...init, credentials: "same-origin", cache: "no-store" });
@@ -150,6 +150,7 @@ export function AccessGovernancePanel({ identity }: { identity: OfficeIdentity }
           department: invite.department,
           roles: invite.roles,
           reason: invite.reason,
+          notice_opt_in: invite.notice_opt_in,
         }),
       });
       await reload();
@@ -247,6 +248,9 @@ export function AccessGovernancePanel({ identity }: { identity: OfficeIdentity }
           </label>;
         })}</fieldset>
         <label className={styles.reason}>Business reason<textarea required minLength={3} maxLength={500} rows={3} value={invite.reason} onChange={(event) => setInvite({ ...invite, reason: event.target.value })} /></label>
+        <label><input type="checkbox" checked={invite.notice_opt_in}
+          onChange={(event) => setInvite({ ...invite, notice_opt_in: event.target.checked })}/>
+          Send one optional reminder before expiry and a tokenless expiry notice if registration is not completed. No emails are sent unless the separately controlled invitation-notice worker is enabled.</label>
         <button type="submit" disabled={pending}>{pending ? <LoaderCircle className="spin" /> : <UserPlus />} Issue invite</button>
       </form></details>
     </section>

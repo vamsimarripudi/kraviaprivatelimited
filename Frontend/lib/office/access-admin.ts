@@ -196,6 +196,7 @@ export async function inviteOfficeUser(input: {
   department: OfficeDepartment;
   roles: OfficeRole[];
   reason: string;
+  noticeOptIn?: boolean;
   origin: string;
 }) {
   const { admin, actor, accessToken } = await requireAccessAdministrator();
@@ -223,6 +224,7 @@ export async function inviteOfficeUser(input: {
         department: input.department,
         roles: input.roles,
         reason: input.reason,
+        notice_opt_in: input.noticeOptIn === true,
       }),
       cache: "no-store",
       redirect: "manual",

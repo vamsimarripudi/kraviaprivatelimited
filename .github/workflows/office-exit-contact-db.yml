@@ -1,0 +1,88 @@
+name: KRAVIA Office exit contact evidence PostgreSQL
+on:
+  pull_request:
+    paths:
+      - 'Database/supabase/migrations/202611130104_governed_offboarding_contact_evidence.sql'
+      - 'Database/supabase/migrations/202611130105_offboarding_event_source_proofs.sql'
+      - 'Database/supabase/migrations/202611130106_offboarding_settlement_source_evidence.sql'
+      - 'Database/supabase/migrations/202611130107_signed_exit_document_source_evidence.sql'
+      - 'Database/supabase/migrations/202611130108_offboarding_completion_source_evidence.sql'
+      - 'Database/supabase/migrations/202611130109_signing_provider_link_source_evidence.sql'
+      - 'Database/supabase/migrations/202611130110_external_lifecycle_notice_private_outbox.sql'
+      - 'Database/supabase/migrations/202611130111_document_signing_request_state_correction.sql'
+      - 'Database/supabase/tests/office-signing-state-smoke.sql'
+      - 'Database/supabase/tests/office-external-notices-*.sql'
+      - 'Database/supabase/tests/office-exit-contact-*.sql'
+      - '.github/workflows/office-exit-contact-db.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: office_exit_contact_ci
+          POSTGRES_PASSWORD: synthetic-exit-fixture-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d office_exit_contact_ci"
+          --health-interval 3s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify restricted, independent, consented former employee contact
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg() {
+            docker run --rm --network host \
+              -v "$PWD:/repo:ro" --workdir /repo \
+              --env PGPASSWORD=synthetic-exit-fixture-only \
+              postgres:17 \
+              psql --host 127.0.0.1 --username postgres \
+              --dbname office_exit_contact_ci --set ON_ERROR_STOP=1 "$@"
+          }
+          pg -f Database/supabase/tests/office-exit-contact-fixture.sql
+          pg -f Database/supabase/migrations/202611130104_governed_offboarding_contact_evidence.sql
+          result="$(pg --tuples-only --no-align \
+            -f Database/supabase/tests/office-exit-contact-smoke.sql | tail -n 1)"
+          test "$result" = "OFFICE_EXIT_CONTACT_EVIDENCE_VERIFIED"
+          pg -f Database/supabase/migrations/202611130105_offboarding_event_source_proofs.sql
+          source_result="$(pg --tuples-only --no-align \
+            -f Database/supabase/tests/office-exit-source-smoke.sql | tail -n 1)"
+          test "$source_result" = "OFFICE_EXIT_SOURCE_PROOFS_VERIFIED"
+          pg -f Database/supabase/migrations/202611130106_offboarding_settlement_source_evidence.sql
+          settlement_result="$(pg --tuples-only --no-align \
+            -f Database/supabase/tests/office-exit-settlement-smoke.sql | tail -n 1)"
+          test "$settlement_result" = "OFFICE_EXIT_SETTLEMENT_EVIDENCE_VERIFIED"
+          pg -f Database/supabase/migrations/202611130107_signed_exit_document_source_evidence.sql
+          document_result="$(pg --tuples-only --no-align \
+            -f Database/supabase/tests/office-exit-document-smoke.sql | tail -n 1)"
+          test "$document_result" = "OFFICE_EXIT_DOCUMENT_EVIDENCE_VERIFIED"
+          pg -f Database/supabase/migrations/202611130108_offboarding_completion_source_evidence.sql
+          completion_result="$(pg --tuples-only --no-align \
+            -f Database/supabase/tests/office-exit-completion-smoke.sql | tail -n 1)"
+          test "$completion_result" = "OFFICE_EXIT_COMPLETION_EVIDENCE_VERIFIED"
+          pg -f Database/supabase/migrations/202611130109_signing_provider_link_source_evidence.sql
+          signing_result="$(pg --tuples-only --no-align \
+            -f Database/supabase/tests/office-signing-provider-source-smoke.sql | tail -n 1)"
+          test "$signing_result" = "ONBOARDING_SIGNING_PROVIDER_PROOF_VERIFIED"
+          pg -f Database/supabase/tests/office-external-notices-policy-fixture.sql
+          pg -f Database/supabase/migrations/202611130110_external_lifecycle_notice_private_outbox.sql
+          delivery_result="$(pg --tuples-only --no-align \
+            -f Database/supabase/tests/office-external-notices-smoke.sql | tail -n 1)"
+          test "$delivery_result" = "EXTERNAL_LIFECYCLE_81_SOURCE_AND_RECIPIENT_GATES_VERIFIED"
+          pg -f Database/supabase/migrations/202611130111_document_signing_request_state_correction.sql
+          signing_state="$(pg --tuples-only --no-align \
+            -f Database/supabase/tests/office-signing-state-smoke.sql | tail -n 1)"
+          test "$signing_state" = "SIGNING_LINK_PRESERVES_SIGNATURE_STATE_VERIFIED"
+          echo "81 source pathways and signable HR document state verified with zero production mail."

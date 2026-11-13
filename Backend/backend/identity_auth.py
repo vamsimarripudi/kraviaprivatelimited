@@ -225,6 +225,7 @@ class InviteCreatePayload(BaseModel):
     department: str | None = Field(default=None, max_length=64)
     roles: list[str] = Field(min_length=1, max_length=6)
     reason: str = Field(min_length=3, max_length=500)
+    notice_opt_in: bool = False
 
     @field_validator("email")
     @classmethod
@@ -240,6 +241,11 @@ class InviteCreatePayload(BaseModel):
         if "AUDITOR" in normalized and any(role in normalized for role in {"DIRECTOR", "ADMIN", "FINANCE"}):
             raise ValueError("AUDITOR cannot be combined with privileged or finance-execution roles")
         return normalized
+
+
+class InviteNoticeOptInPayload(BaseModel):
+    enabled: bool
+    reason: str = Field(min_length=12, max_length=500)
 
 
 class InviteRegisterPayload(BaseModel):
@@ -3780,6 +3786,7 @@ def build_identity_router() -> APIRouter:
             created_by=actor["user_id"],
             expires_at=expires_at,
             used_by=invited_user_id,
+            notice_opt_in=payload.notice_opt_in,
         )
         db.add(invite)
         try:
@@ -3809,7 +3816,8 @@ def build_identity_router() -> APIRouter:
             request,
             user_id=actor["user_id"],
             session_id=actor["session_id"],
-            metadata={"invitation_id": invite_id, "target_email": payload.email, "roles": payload.roles},
+            metadata={"invitation_id": invite_id, "target_email": payload.email, "roles": payload.roles,
+                      "notice_opt_in": payload.notice_opt_in},
         )
         db.commit()
         email_delivery = _deliver_invitation(invite, raw_token, request, actor, db)
@@ -3824,6 +3832,35 @@ def build_identity_router() -> APIRouter:
             "registration_token": raw_token,
             "registration_path": f"/office/register?invite={raw_token}",
         }
+
+    @router.post("/invitations/{invitation_id}/notice-opt-in")
+    def set_invitation_notice_opt_in(
+        invitation_id: str,
+        payload: InviteNoticeOptInPayload,
+        request: Request,
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ):
+        actor = _invite_actor(authorization, db)
+        invite = db.execute(
+            select(OfficeAuthInvite).where(OfficeAuthInvite.id == invitation_id)
+            .with_for_update()
+        ).scalar_one_or_none()
+        if not invite or invite.status != "PENDING" or invite.revoked_at or _aware(invite.expires_at) <= _now():
+            raise HTTPException(status_code=409, detail="Only a live invitation can change notice preferences")
+        try:
+            target_roles = json.loads(invite.roles_json or "[]")
+        except (TypeError, json.JSONDecodeError):
+            raise HTTPException(status_code=409, detail="Invitation roles cannot be verified") from None
+        _require_delegated_identity_authority(actor, set(target_roles))
+        invite.notice_opt_in = payload.enabled
+        _event(db, "INVITATION_NOTICE_OPT_IN_CHANGED", request,
+               user_id=actor["user_id"], session_id=actor["session_id"],
+               metadata={"invitation_id": invite.id, "enabled": payload.enabled,
+                         "reason": payload.reason.strip()})
+        db.commit()
+        return {"invitation_id": invite.id, "notice_opt_in": invite.notice_opt_in,
+                "delivery_enabled": False}
 
     @router.post("/invitations/{invitation_id}/revoke")
     def revoke_invitation(
@@ -3925,6 +3962,7 @@ def build_identity_router() -> APIRouter:
             roles_json=json.dumps(roles), status="PENDING",
             created_by=actor["user_id"], expires_at=now + timedelta(seconds=INVITE_TTL_SECONDS),
             used_by=invited_user_id,
+            notice_opt_in=previous.notice_opt_in,
         )
         db.add(replacement)
         try:
