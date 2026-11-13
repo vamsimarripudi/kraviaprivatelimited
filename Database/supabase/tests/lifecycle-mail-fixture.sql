@@ -401,3 +401,7 @@ CREATE TABLE public.office_payroll_adjustments(
  period_id uuid NOT NULL,employment_id uuid NOT NULL,employee_user_id uuid NOT NULL,
  status text NOT NULL,created_by uuid,approved_by uuid,approved_at timestamptz
 );
+
+-- Production identity V2 auth events carry the immutable insertion timestamp.
+ALTER TABLE public.office_auth_events_v2
+ ADD COLUMN created_at timestamptz NOT NULL DEFAULT pg_catalog.now();
