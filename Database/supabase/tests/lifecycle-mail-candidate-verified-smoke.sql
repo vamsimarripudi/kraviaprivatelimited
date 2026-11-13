@@ -78,6 +78,23 @@ SELECT public.office_candidate_mail_consent_decide(
  'a0000000-0000-4000-8000-000000000003',
  'e1000000-0000-4000-8000-000000000002',
  true,'Separate authorised reviewer checked external candidate consent');
+-- Consent is attached to the exact candidate-provided mailbox. A later
+-- address edit may not inherit the old candidate's verified authorization.
+UPDATE public.office_candidates SET email='changed@example.test'
+ WHERE id='e1000000-0000-4000-8000-000000000002';
+SET ROLE kravia_office_backend;
+SELECT count(*) FROM public.office_candidate_mail_claim(5);
+RESET ROLE;
+DO $changed_address$
+BEGIN
+ IF EXISTS(SELECT 1 FROM public.office_candidate_mail_outbox
+     WHERE status='SENDING') THEN
+   RAISE EXCEPTION 'Changed candidate email inherited a different mailbox consent';
+ END IF;
+END;$changed_address$;
+UPDATE public.office_candidates SET email='candidate@example.test'
+ WHERE id='e1000000-0000-4000-8000-000000000002';
+
 
 SET ROLE kravia_office_backend;
 CREATE TEMP TABLE applicant_claims AS
