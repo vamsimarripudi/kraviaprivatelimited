@@ -5,6 +5,7 @@ import { requireOfficeActor } from "@/lib/office/permission-engine";
 import { capabilityCanAccessSection } from "@/lib/office/workspace-capabilities";
 import { officeSections, financeSections, roleCanAccessSection, roleCanAccessWorkspace, type OfficeRole } from "@/lib/office/workspaces";
 import { OFFICE_MANUAL_VERSION, commonManual, manualKey, manualRoles, resolveManualRoleIds } from "@/lib/office/manuals";
+import { getDetailedCommonManual, getDetailedRoleManual } from "@/lib/office/manual-full-reader";
 
 export class OfficeManualError extends Error {
   constructor(public readonly status:number,message:string){super(message);this.name="OfficeManualError"}
@@ -76,6 +77,10 @@ export async function getOfficeManualHub() {
     edition:OFFICE_MANUAL_VERSION,
     actor:{display_name:identity.displayName??"",roles:identity.roles,department:identity.department??null},
     manuals,roles,common:commonManual,routes,
+    full_documents: Object.fromEntries([
+      ["COMMON",getDetailedCommonManual()],
+      ...ids.map(id=>[manualKey(id),getDetailedRoleManual(id)]),
+    ]),
     outstanding:manuals.filter(m=>m.status!=="ACKNOWLEDGED").length,
     disclaimer:"Guide receipts record employee reading acknowledgements only; they do not grant authority, establish employment, create signatures, approve payroll or verify statutory compliance.",
   };
