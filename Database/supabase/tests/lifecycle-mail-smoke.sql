@@ -204,6 +204,18 @@ UPDATE public.office_salary_settlement_evidence SET
   verified_at=pg_catalog.now()
 WHERE id='f0000000-0000-4000-8000-000000000009';
 
+-- A verified but partial credit is not evidence of fully paid salary.
+UPDATE public.office_salary_settlement_evidence SET
+  status='VERIFIED',verified_by='a0000000-0000-4000-8000-000000000001',
+  verified_at=pg_catalog.now()
+WHERE id='f0000000-0000-4000-8000-000000000011';
+-- An employee's own approval is not independent bank evidence.
+UPDATE public.office_salary_settlement_evidence SET
+  status='VERIFIED',verified_by='a0000000-0000-4000-8000-000000000002',
+  verified_at=pg_catalog.now()
+WHERE id='f0000000-0000-4000-8000-000000000015';
+
+
 DO $prove$
 BEGIN
   IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox)<>27 THEN
@@ -212,7 +224,10 @@ BEGIN
  IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE event_code='PAY-06')<>1 THEN
    RAISE EXCEPTION 'Immutable approved payslip did not create one private notice';
  END IF;
-  IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE event_code='PAY-08')<>1 THEN
+  IF (SELECT count(*) FROM public.office_payroll_events WHERE event_type='BANK_SALARY_CREDIT_VERIFIED')<>1 THEN
+  RAISE EXCEPTION 'Partial or self-reviewed settlements fabricated paid-salary audit evidence';
+ END IF;
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE event_code='PAY-08')<>1 THEN
    RAISE EXCEPTION 'Salary paid notice requires independently verified full net bank credit';
  END IF;
  IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE event_code='TIME-01')<>1

@@ -185,3 +185,28 @@ INSERT INTO public.office_salary_settlement_evidence(
  'f0000000-0000-4000-8000-000000000002',50000,'INR','PENDING',
  'a0000000-0000-4000-8000-000000000003',pg_catalog.now(),
  'Synthetic-private-bank-verification-evidence','****1234');
+
+-- These separate payroll results must never be classified as bank-paid.
+INSERT INTO public.office_payroll_results(
+  id,period_id,employment_id,employee_user_id,status,net_pay_minor
+) VALUES
+ ('f0000000-0000-4000-8000-000000000010',
+ 'f0000000-0000-4000-8000-000000000001',
+ 'f0000000-0000-4000-8000-000000000013',
+ 'a0000000-0000-4000-8000-000000000002','LOCKED',75000),
+ ('f0000000-0000-4000-8000-000000000012',
+ 'f0000000-0000-4000-8000-000000000001',
+ 'f0000000-0000-4000-8000-000000000014',
+ 'a0000000-0000-4000-8000-000000000002','LOCKED',60000);
+INSERT INTO public.office_salary_settlement_evidence(
+  id,payroll_result_id,amount_minor,currency,status,submitted_by,credited_at,
+  evidence_reference,masked_bank_reference
+) VALUES
+ ('f0000000-0000-4000-8000-000000000011',
+ 'f0000000-0000-4000-8000-000000000010',50000,'INR','PENDING',
+ 'a0000000-0000-4000-8000-000000000003',pg_catalog.now(),
+ 'Synthetic-partial-bank-verification','****5678'),
+ ('f0000000-0000-4000-8000-000000000015',
+ 'f0000000-0000-4000-8000-000000000012',60000,'INR','PENDING',
+ 'a0000000-0000-4000-8000-000000000003',pg_catalog.now(),
+ 'Synthetic-self-reviewed-bank-credit','****9012');
