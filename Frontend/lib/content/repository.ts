@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { publishedLegalPolicyRecords } from "@/lib/legal/published-policy-pack";
+import { nvidiaInceptionNewsroomRecord } from "@/lib/corporate/program-memberships";
 import { publicContentPath } from "./seo";
 import type { ContentStatus, PublicContentRecord, PublicContentType } from "./types";
 
@@ -13,11 +14,16 @@ type PublicContentRow = {
 };
 type PublicationRow = { snapshot: unknown; published_at: string; version: number };
 
-function withPublishedLegalRelease(records: readonly PublicContentRecord[], type?: PublicContentType) {
-  const fallback = type && type !== "POLICY" ? [] : publishedLegalPolicyRecords;
+function withOwnerApprovedPublicReleases(records: readonly PublicContentRecord[], type?: PublicContentType) {
+  // These specific, source-controlled releases were explicitly approved by the
+  // company owner. Ordinary drafts still require the governed review workflow.
+  const fallback: PublicContentRecord[] = [
+    ...(type && type !== "POLICY" ? [] : publishedLegalPolicyRecords),
+    ...(type && type !== "NEWS" ? [] : [nvidiaInceptionNewsroomRecord]),
+  ];
   const byPath = new Map(fallback.map((record) => [publicContentPath(record), record]));
-  // A later governed snapshot from the database supersedes the v1 release for
-  // its canonical route without making a private revision public.
+  // A later governed public snapshot supersedes the static release for the
+  // same canonical route without exposing private revisions.
   for (const record of records) byPath.set(publicContentPath(record), record);
   return [...byPath.values()]
     .filter((record) => !type || record.type === type)
@@ -61,14 +67,14 @@ async function listLegacyPublishedContent(type?: PublicContentType) {
  */
 export const listPublishedContent = cache(async (type?: PublicContentType) => {
   const supabase = await createClient();
-  if (!supabase) return withPublishedLegalRelease([], type);
+  if (!supabase) return withOwnerApprovedPublicReleases([], type);
   const { data, error } = await supabase.from("content_publications").select("snapshot,published_at,version").eq("state", "PUBLISHED").order("published_at", { ascending: false });
-  if (error || !data) return withPublishedLegalRelease(await listLegacyPublishedContent(type), type);
+  if (error || !data) return withOwnerApprovedPublicReleases(await listLegacyPublishedContent(type), type);
   const records = (data as PublicationRow[])
     .map((publication) => asPublicContentRow(publication.snapshot, publication.published_at, publication.version))
     .filter((row): row is PublicContentRow => row !== null)
     .map(mapRow);
-  return withPublishedLegalRelease(records, type);
+  return withOwnerApprovedPublicReleases(records, type);
 });
 
 export const getPublishedContentByPath = cache(async (type: PublicContentType, slug: string) => {

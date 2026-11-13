@@ -234,3 +234,64 @@ body:has(.nav-wrap) .inception-recognition a:focus-visible {
     width: min(100%, 17rem);
   }
 }
+/* Exact official NVIDIA Inception badge in the existing editorial article grid. */
+body:has(.nav-wrap) .article-inception-badge {
+  display: grid;
+  justify-items: center;
+  gap: .75rem;
+  width: min(100%, 46rem);
+  margin: 2rem auto 0;
+  padding: clamp(1rem, 2.8vw, 2rem);
+  border: 1px solid var(--line);
+  background: var(--mist);
+}
+body:has(.nav-wrap) .article-inception-badge img {
+  display: block;
+  max-width: min(100%, 31rem);
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+body:has(.nav-wrap) .article-inception-badge figcaption {
+  max-width: 56ch;
+  margin: 0;
+  color: var(--ink-2);
+  font-size: .8rem;
+  line-height: 1.6;
+  text-align: center;
+}
+body:has(.nav-wrap) .article-inception-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .7rem 1.5rem;
+  padding-block: 1.5rem 0;
+}
+body:has(.nav-wrap) .article-inception-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  min-height: 44px;
+  color: var(--ink);
+  font-size: .85rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: .25em;
+}
+body:has(.nav-wrap) .article-inception-links a svg {
+  width: .95rem;
+  height: .95rem;
+}
+body:has(.nav-wrap) .article-inception-links a:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+@media (max-width: 700px) {
+  body:has(.nav-wrap) .article-inception-badge {
+    margin-top: 1.25rem;
+    padding: 1rem;
+  }
+  body:has(.nav-wrap) .article-inception-links {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
