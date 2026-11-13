@@ -27,7 +27,7 @@ from .email_delivery import (
 
 logger = logging.getLogger(__name__)
 EVENT_CODE = re.compile(r"^(AUTH|HIRE|ONB|ROLE|TIME|PAY|DEV|EXIT)-[0-9]{2}$")
-REFERENCE = re.compile(r"^(?:office_[a-z_]+_events|office_access_audit|office_lifecycle_auth_signals|office_lifecycle_aux_proofs):[0-9]{1,18}$")
+REFERENCE = re.compile(r"^(?:office_[a-z_]+_events|office_access_audit|office_lifecycle_auth_signals|office_lifecycle_aux_proofs|office_lifecycle_scheduled_proofs):[0-9]{1,18}$")
 
 
 @dataclass(frozen=True)
@@ -59,7 +59,7 @@ def _validate_claim(row: Any) -> OfficeLifecycleClaim:
     name = str(data["recipient_name"]).strip()
     reference = str(data["source_reference"])
     pay_period = data.get("pay_period")
-    if code in ("PAY-06", "PAY-08", "PAY-09"):
+    if code in ("PAY-06", "PAY-08", "PAY-09", "PAY-10"):
         if (not isinstance(pay_period, str) or not 1 <= len(pay_period.strip()) <= 40
                 or any(ord(ch) < 32 for ch in pay_period)):
             raise RuntimeError("Immutable payroll period evidence is missing")
@@ -83,6 +83,14 @@ def process_office_lifecycle_mail_outbox(limit: int = 10) -> dict[str, Any]:
         return {"status": "PROVIDER_NOT_CONFIGURED", "claimed": 0}
     maximum = max(1, min(int(limit), 25))
     with SessionLocal() as db:
+        # The database scheduler derives only current, owner-enabled,
+        # source-backed reminders. Commit its idempotent intents before
+        # claiming any message or invoking an external provider.
+        db.execute(
+            text("select public.office_lifecycle_schedule_due(:p_limit)"),
+            {"p_limit": maximum},
+        )
+        db.commit()
         rows = db.execute(
             text("select outbox_id,claim_token,event_code,recipient_email,"
                  "recipient_name,source_reference,pay_period from public.office_lifecycle_mail_claim(:p_limit)"),
