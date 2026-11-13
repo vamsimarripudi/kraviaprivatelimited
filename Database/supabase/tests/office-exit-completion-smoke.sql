@@ -47,10 +47,11 @@ SELECT public.office_exit_settlement_verify(
 -- Signed and independently verified relieving document was delivered, rather
 -- than just drafted or marked ready without a signature.
 INSERT INTO public.office_document_instances(
- id,document_code,subject_type,subject_reference,status,
+ id,document_code,template_id,subject_type,subject_reference,status,
  approved_by,approved_at,signed_at
 ) VALUES(
- 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','HR_RELIEVING','EMPLOYEE',
+ 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','KR-DOC-00000004',
+ 'f1000000-0000-4000-8000-000000000001','EMPLOYEE',
  '33333333-3333-4333-8333-333333333333',
  'DELIVERED','11111111-1111-4111-8111-111111111111',now(),now());
 INSERT INTO public.office_document_signature_evidence(
