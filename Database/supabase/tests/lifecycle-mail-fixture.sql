@@ -334,3 +334,18 @@ ALTER TABLE public.office_worktime_review_cases
   ADD COLUMN reviewed_at timestamptz;
 ALTER TABLE public.office_worktime_policy_versions
   ADD COLUMN effective_from date;
+
+
+-- Disposable reminder scheduler source columns and canonical employment IDs.
+ALTER TABLE public.office_training_assignments
+ ADD COLUMN due_on date;
+ALTER TABLE public.office_employment_registry
+ ADD COLUMN employment_id uuid UNIQUE;
+UPDATE public.office_employment_registry SET
+ employment_id='f0000000-0000-4000-8000-000000000081'
+ WHERE identity_user_id='a0000000-0000-4000-8000-000000000002';
+ALTER TABLE public.office_job_assignments
+ ADD COLUMN start_date date NOT NULL DEFAULT CURRENT_DATE-60;
+ALTER TABLE public.office_payroll_periods
+ ADD COLUMN pay_date date,
+ ADD COLUMN attendance_cutoff_at timestamptz;
