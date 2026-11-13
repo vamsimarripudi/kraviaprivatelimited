@@ -12,6 +12,7 @@ const deviceAtomicity = readFileSync(new URL("../../Database/supabase/migrations
 const workforce = readFileSync(new URL("../../Database/supabase/migrations/202611130027_workforce_lifecycle_verified_sources.sql",import.meta.url),"utf8");
 const scheduled = readFileSync(new URL("../../Database/supabase/migrations/202611130028_scheduled_lifecycle_verified_sources.sql",import.meta.url),"utf8");
 const controlled = readFileSync(new URL("../../Database/supabase/migrations/202611130029_policy_documents_flex_sources.sql",import.meta.url),"utf8");
+const workdayExit = readFileSync(new URL("../../Database/supabase/migrations/202611130030_workday_attendance_offboarding_notifications.sql",import.meta.url),"utf8");
 const effectiveSchema = schema + "\n" + forward + "\n" + nextSources + "\n" + deviceAtomicity + "\n" + workforce + "\n" + scheduled + "\n" + controlled;
 const worker = readFileSync(new URL("../../Backend/backend/office_lifecycle_mail_worker.py",import.meta.url),"utf8");
 const manifest = JSON.parse(readFileSync(new URL("../../Backend/backend/generated_office_lifecycle_templates.json",import.meta.url),"utf8"));
@@ -86,6 +87,14 @@ describe("KRAVIA Office governed 81-event lifecycle notification delivery",()=>{
     expect(scheduled).toContain("status='VERIFIED'");
     expect(scheduled).not.toContain("SET enabled=true");
     expect(controlled).toContain("source_ready)<>57");
+    expect(workdayExit).toContain("source_ready)<>59");
+    expect(workdayExit).toContain("office_lifecycle_attendance_reminder_sources");
+    expect(workdayExit).toContain("office_lifecycle_approved_offboarding_source");
+    expect(workdayExit).toContain("'TIME-02'");
+    expect(workdayExit).toContain("'EXIT-01'");
+    expect(workdayExit).toContain("office_attendance_sessions");
+    expect(workdayExit).toContain("office_flex_day_requests");
+    expect(workdayExit).toContain("REQUEST_APPROVED");
     for(const code of ["AUTH-10","DEV-08","ONB-08","ONB-03","PAY-11","PAY-12","TIME-07","TIME-09"]){
       expect(controlled).toContain(code);
     }
