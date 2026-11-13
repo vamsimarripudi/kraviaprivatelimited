@@ -31,7 +31,7 @@ async function decode<T>(response:Response):Promise<T> {
 }
 function statusLabel(state:ManualState){return labels[state];}
 function displayLine(value:string){
-  return value.replace(/\*\*/g,"").replace(/\\`/g,"")
+  return value.replace(/\*\*/g,"").replaceAll(String.fromCharCode(96),"")
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g,"$1 ($2)");
 }
 function DetailedManual({markdown}:{markdown:string}){
