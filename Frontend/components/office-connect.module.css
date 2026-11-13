@@ -54,3 +54,13 @@
 @media(max-width:1023px){.grid{grid-template-columns:minmax(190px,245px) minmax(0,1fr)}.quick{grid-template-columns:1fr}}
 @media(max-width:767px){.connect,.directory{margin:10px 12px 20px}.grid{display:flex;flex-direction:column;min-height:0;max-height:none;gap:12px}.sidebar{max-height:230px;min-height:90px}.body{min-height:350px;max-height:calc(100dvh - 320px)}.connect:has(.composer) .sidebar{display:none}.connect:has(.composer) .body{height:calc(100dvh - 235px);max-height:none}.threadHeader{flex-wrap:wrap}.threadHeader span{font-size:10px}.composer textarea{font-size:16px}.headerActions{width:100%;justify-content:space-between}.people{grid-template-columns:1fr}}
 @media(max-width:380px){.people article{flex-wrap:wrap}.headerActions a{flex:1}}
+.groupForm{display:grid;gap:10px;max-width:660px;padding:20px;border:1px solid var(--office-ui-line);border-radius:16px}
+.groupForm>label,.groupForm legend{font-weight:700;font-size:13px}
+.groupForm>input{width:100%;min-height:44px;padding:10px;border:1px solid var(--office-ui-line);border-radius:10px;color:var(--office-ui-ink);background:var(--office-ui-surface)}
+.groupForm fieldset{border:1px solid var(--office-ui-line);border-radius:12px;padding:12px;min-width:0}
+.groupPeople{display:grid;gap:7px;max-height:400px;overflow-y:auto}
+.groupPeople label{display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px;border:1px solid var(--office-ui-line);min-height:44px}
+.groupPeople label span{display:grid;gap:3px}
+.groupPeople label small{color:var(--office-ui-muted)}
+.groupForm>button{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:max-content;min-height:44px;padding:10px 14px;border:0;border-radius:10px;background:var(--office-ui-accent);color:white;cursor:pointer}
+.groupForm>button:disabled{opacity:.55;cursor:not-allowed}

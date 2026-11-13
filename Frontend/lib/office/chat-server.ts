@@ -144,3 +144,26 @@ export async function markOfficeChatRead(conversationId: string) {
   if (error || data !== true) throw internalFailure("Read receipt could not be confirmed");
   return { updated: true };
 }
+
+
+export async function createOfficeChatGroup(title: string, members: readonly string[]) {
+  const current = await actor();
+  const result = await current.admin.rpc("office_chat_create_group", {
+    p_actor: current.identity.userId,
+    p_title: title.trim(),
+    p_members: [...members],
+  });
+  if (result.error || typeof result.data !== "string") {
+    throw new OfficeChatError(400, "Could not create an authorized private group");
+  }
+  return { conversation_id: result.data };
+}
+export async function addOfficeChatGroupMember(conversationId: string, memberUserId: string) {
+  const current = await actor();
+  await ownMembership(current, conversationId);
+  const result = await current.admin.rpc("office_chat_add_group_member", {
+    p_actor: current.identity.userId,p_conversation:conversationId,p_member:memberUserId,
+  });
+  if (result.error || result.data !== true) throw new OfficeChatError(403, "Group membership change not authorized");
+  return { added: true };
+}

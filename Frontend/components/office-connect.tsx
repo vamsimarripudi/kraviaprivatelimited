@@ -102,6 +102,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
         <p>Employee-only conversations. Formal approvals, access grants and payments remain in their governed systems.</p></div>
       <div className={styles.headerActions}>
         <Link href="/office/chat/directory"><Search size={17} aria-hidden="true"/>Find employee</Link>
+        <Link href="/office/chat/groups/new"><MessageSquareText size={17} aria-hidden="true"/>Create group</Link>
         <button type="button" onClick={() => setReloadCount(v => v + 1)} aria-label="Refresh Connect" title="Refresh"><RefreshCw size={17}/></button>
       </div>
     </header>
@@ -114,7 +115,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
           ? <div className={styles.empty}><MessageSquareText size={22} aria-hidden="true"/><p>No conversations yet.</p><Link href="/office/chat/directory">Start a private conversation</Link></div>
           : null}
         <nav className={styles.conversations} aria-label="Conversation list">
-          {conversations.map(item => <Link key={item.id} href={"/office/chat/dm/" + item.id}
+          {conversations.map(item => <Link key={item.id} href={(item.kind === "GROUP" ? "/office/chat/groups/" : "/office/chat/dm/") + item.id}
             aria-current={item.id === activeId ? "page" : undefined}>
             <span className={styles.avatar} aria-hidden="true">{item.title.trim().charAt(0).toUpperCase() || "K"}</span>
             <span className={styles.conversationName}><strong>{item.title}</strong><small>{item.kind === "DM" ? "Private · members only" : item.kind}</small></span>
