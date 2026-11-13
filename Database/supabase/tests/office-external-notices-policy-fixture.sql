@@ -17,9 +17,6 @@ CREATE TABLE public.office_lifecycle_mail_policy(
  CHECK(delivery_owner IN('LIFECYCLE_WORKER','FIRST_PARTY_AUTH','CANDIDATE_WORKER')),
  effective_from timestamptz
 );
-ALTER TABLE public.office_lifecycle_mail_policy
-  RENAME CONSTRAINT office_lifecycle_mail_policy_delivery_owner_check
-  TO office_lifecycle_mail_policy_delivery_owner_check;
 CREATE TABLE public.office_lifecycle_mail_outbox(id uuid PRIMARY KEY);
 CREATE TABLE public.office_candidate_mail_outbox(id uuid PRIMARY KEY);
 
