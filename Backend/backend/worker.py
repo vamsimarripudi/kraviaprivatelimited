@@ -30,6 +30,7 @@ from .office_employee_mail_worker import process_employee_mail_outbox
 from .office_lifecycle_mail_worker import process_office_lifecycle_mail_outbox
 from .office_invitation_notice_worker import process_invitation_notices
 from .office_candidate_mail_worker import process_candidate_mail_outbox
+from .office_external_notice_worker import process_external_notice_outbox
 from .services import now_utc
 
 WORKER_LOCK_KEY = 5_821_841_907_269_011_847
@@ -281,6 +282,17 @@ def run_iteration(
                     "error_type": type(candidate_error).__name__,
                 }
                 _log("candidate_mail_worker_error", error_type=type(candidate_error).__name__)
+            # No notification is sent by default. Former-employee and eSign
+            # notices require a separate dispatch flag and current, independently
+            # verified recipient/source evidence at the private database claim.
+            try:
+                response["external_notices"] = process_external_notice_outbox(min(batch, 25))
+            except Exception as external_error:
+                response["external_notices"] = {
+                    "status": "NEEDS_RECONCILIATION",
+                    "error_type": type(external_error).__name__,
+                }
+                _log("external_notice_worker_error", error_type=type(external_error).__name__)
             try:
                 response["invitation_notices"] = process_invitation_notices(min(batch, 25))
             except Exception as invitation_error:
