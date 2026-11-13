@@ -9,7 +9,8 @@ const forward = readFileSync(new URL("../../Database/supabase/migrations/2026111
 // The recorded 022 migration is immutable; test the effective 022 + 024 schema.
 const nextSources = readFileSync(new URL("../../Database/supabase/migrations/202611130025_auth_asset_lifecycle_sources.sql",import.meta.url),"utf8");
 const deviceAtomicity = readFileSync(new URL("../../Database/supabase/migrations/202611130026_auth_device_decision_atomicity.sql",import.meta.url),"utf8");
-const effectiveSchema = schema + "\n" + forward + "\n" + nextSources;
+const workforce = readFileSync(new URL("../../Database/supabase/migrations/202611130027_workforce_lifecycle_verified_sources.sql",import.meta.url),"utf8");
+const effectiveSchema = schema + "\n" + forward + "\n" + nextSources + "\n" + deviceAtomicity + "\n" + workforce;
 const worker = readFileSync(new URL("../../Backend/backend/office_lifecycle_mail_worker.py",import.meta.url),"utf8");
 const manifest = JSON.parse(readFileSync(new URL("../../Backend/backend/generated_office_lifecycle_templates.json",import.meta.url),"utf8"));
 
@@ -67,6 +68,14 @@ describe("KRAVIA Office governed 81-event lifecycle notification delivery",()=>{
     expect(nextSources).toContain("AUTH-09");
     expect(deviceAtomicity).toContain("CREATE OR REPLACE FUNCTION public.office_lifecycle_auth_v2_source");
     expect(deviceAtomicity).not.toContain("IF v_code=\'AUTH-07\'");
+    expect(workforce).toContain("source_ready)<>43");
+    for(const code of ["AUTH-12","EXIT-03","TIME-05","TIME-06","ROLE-07","ROLE-03"]){
+      expect(workforce).toContain(code);
+    }
+    expect(workforce).toContain("office_attendance_sessions");
+    expect(workforce).toContain("office_access_reviews");
+    expect(workforce).toContain("office_effective_permission");
+    expect(workforce).not.toContain("SET enabled=true");
     expect(nextSources).toContain("approval.status IN (\'APPROVED\',\'TRUSTED\')");
 
     expect(forward).toContain("BANK_SALARY_PARTIAL_VERIFIED");

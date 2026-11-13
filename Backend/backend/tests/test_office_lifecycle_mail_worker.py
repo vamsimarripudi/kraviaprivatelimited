@@ -140,3 +140,20 @@ def test_verified_partial_wage_claim_requires_real_pay_period():
     assert mail._validate_claim(claim).pay_period == "2026-11"
     with pytest.raises(RuntimeError):
         mail._validate_claim(dict(claim,pay_period=None))
+
+
+def test_private_immutable_source_references_are_accepted_and_arbitrary_tables_rejected():
+    from backend import office_lifecycle_mail_worker as worker
+
+    for table in (
+        "office_auth_events", "office_worktime_events", "office_asset_events",
+        "office_access_audit", "office_lifecycle_auth_signals",
+        "office_lifecycle_aux_proofs",
+    ):
+        assert worker.REFERENCE.fullmatch(f"{table}:123"), table
+
+    for table in (
+        "office_identity_users", "office_auth_users", "office_lifecycle_mail_outbox",
+        "public.office_access_audit", "office_lifecycle_aux_proofs;DROP TABLE",
+    ):
+        assert worker.REFERENCE.fullmatch(f"{table}:123") is None, table

@@ -304,3 +304,33 @@ CREATE TABLE public.office_asset_events(
  asset_id varchar NOT NULL,actor_user_id uuid,event_type text NOT NULL,
  new_status text,metadata jsonb NOT NULL DEFAULT '{}'::jsonb
 );
+
+
+-- Additional synthetic, individually attributable HR/workforce sources.
+-- These rows are disposable CI fixtures, not production employee records.
+CREATE TABLE public.office_access_reviews(
+ id uuid PRIMARY KEY,user_id uuid NOT NULL,status text NOT NULL,due_at timestamptz
+);
+CREATE TABLE public.office_job_assignments(
+ user_id uuid PRIMARY KEY,reports_to_user_id uuid,status text NOT NULL,
+ updated_at timestamptz NOT NULL DEFAULT pg_catalog.now()
+);
+ALTER TABLE public.office_employment_registry
+  ADD COLUMN end_date date;
+ALTER TABLE public.office_access_audit
+  ADD COLUMN reason text;
+CREATE TABLE public.office_attendance_sessions(
+ id uuid PRIMARY KEY,user_id uuid NOT NULL,
+ check_in_at timestamptz NOT NULL,check_out_at timestamptz,
+ status text NOT NULL
+);
+ALTER TABLE public.office_worktime_review_cases
+  ADD COLUMN attendance_session_id uuid,
+  ADD COLUMN work_starts_at timestamptz,
+  ADD COLUMN work_ends_at timestamptz,
+  ADD COLUMN breaks jsonb NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN source_kind text NOT NULL DEFAULT 'RECORDED_SESSION',
+  ADD COLUMN reviewed_by uuid,
+  ADD COLUMN reviewed_at timestamptz;
+ALTER TABLE public.office_worktime_policy_versions
+  ADD COLUMN effective_from date;
