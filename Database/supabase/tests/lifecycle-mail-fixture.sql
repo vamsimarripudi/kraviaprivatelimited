@@ -47,14 +47,15 @@ CREATE TABLE public.office_access_audit(
   target_user_id uuid,action text NOT NULL
 );
 CREATE TABLE public.office_training_assignments(
-  id uuid PRIMARY KEY,user_id uuid NOT NULL,status text NOT NULL
+  id uuid PRIMARY KEY,user_id uuid NOT NULL,status text NOT NULL,
+  completion_evidence_reference text
 );
 CREATE TABLE public.office_performance_reviews(
   id uuid PRIMARY KEY,user_id uuid NOT NULL,status text NOT NULL,finalized_by uuid,
   reviewer_user_id uuid,development_plan text
 );
 CREATE TABLE public.office_people_development_events(
-  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,target_user_id uuid,
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,target_user_id uuid,actor_user_id uuid,
   training_assignment_id uuid,performance_review_id uuid,event_type text NOT NULL,new_status text
 );
 CREATE TABLE public.office_compensation_versions(
@@ -112,6 +113,9 @@ VALUES('c0000000-0000-4000-8000-000000000001','ENGINEERING',
   'a0000000-0000-4000-8000-000000000002','a0000000-0000-4000-8000-000000000003','ACCEPTED');
 INSERT INTO public.office_training_assignments(id,user_id,status) VALUES(
  'd0000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000002','ASSIGNED');
+INSERT INTO public.office_training_assignments(id,user_id,status,completion_evidence_reference)
+VALUES('d0000000-0000-4000-8000-000000000005',
+ 'a0000000-0000-4000-8000-000000000002','COMPLETED','synthetic-evidence-ci-05');
 INSERT INTO public.office_performance_reviews(id,user_id,status,finalized_by,reviewer_user_id,development_plan)
 VALUES('d0000000-0000-4000-8000-000000000002','a0000000-0000-4000-8000-000000000002',
  'FINAL','a0000000-0000-4000-8000-000000000003','a0000000-0000-4000-8000-000000000003','Synthetic development plan'),

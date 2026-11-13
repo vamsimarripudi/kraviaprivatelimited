@@ -86,7 +86,7 @@ VALUES
   ('PAY-12','P2',false,'Annual wage or statutory statement ready','Your annual KRAVIA payroll statement is available','Approved statement exists in private Office vault','Employee'),
   ('DEV-01','P1',true,'Training assigned','Training assigned in KRAVIA Office','Governed training assignment recorded','Employee'),
   ('DEV-02','P2',false,'Training due reminder','KRAVIA training due soon','Approved due date approaching and incomplete','Employee and assigned lead'),
-  ('DEV-03','P2',false,'Training evidence accepted / rejected','Training completion review update','Reviewer records result','Employee'),
+  ('DEV-03','P2',true,'Training evidence accepted / rejected','Training completion review update','Reviewer records result','Employee'),
   ('DEV-04','P2',true,'Performance review scheduled','Your KRAVIA performance review','Governed review record created','Employee and reviewer'),
   ('DEV-05','P2',true,'Review outcome available','Your KRAVIA development review is ready','Review finalised and released to employee','Employee'),
   ('DEV-06','P2',true,'Development plan assigned','Your KRAVIA development plan','Approved development plan published','Employee'),
@@ -284,6 +284,15 @@ BEGIN
   ELSIF TG_TABLE_NAME='office_people_development_events' THEN
     IF NEW.event_type='TRAINING_ASSIGNED' AND NEW.training_assignment_id IS NOT NULL THEN
       PERFORM public.office_lifecycle_mail_enqueue('DEV-01',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
+    ELSIF NEW.event_type='TRAINING_UPDATED' AND NEW.new_status='COMPLETED'
+        AND NEW.training_assignment_id IS NOT NULL
+        AND NEW.actor_user_id IS DISTINCT FROM NEW.target_user_id THEN
+      IF EXISTS(SELECT 1 FROM public.office_training_assignments a
+        WHERE a.id=NEW.training_assignment_id AND a.user_id=NEW.target_user_id
+          AND a.status='COMPLETED'
+          AND nullif(pg_catalog.btrim(a.completion_evidence_reference),'') IS NOT NULL) THEN
+        PERFORM public.office_lifecycle_mail_enqueue('DEV-03',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
+      END IF;
     ELSIF NEW.event_type='PERFORMANCE_CREATED' AND NEW.performance_review_id IS NOT NULL THEN
       SELECT r.reviewer_user_id INTO v_reviewer FROM public.office_performance_reviews r
       WHERE r.id=NEW.performance_review_id AND r.user_id=NEW.target_user_id
@@ -524,6 +533,13 @@ BEGIN
             WHERE ev.id=o.source_id
               AND ((o.event_code='DEV-01' AND ev.target_user_id=o.recipient_user_id
                 AND ev.event_type='TRAINING_ASSIGNED' AND ev.training_assignment_id IS NOT NULL)
+                OR (o.event_code='DEV-03' AND ev.target_user_id=o.recipient_user_id
+                  AND ev.event_type='TRAINING_UPDATED' AND ev.new_status='COMPLETED'
+                  AND ev.actor_user_id IS DISTINCT FROM ev.target_user_id
+                  AND EXISTS(SELECT 1 FROM public.office_training_assignments a
+                    WHERE a.id=ev.training_assignment_id AND a.user_id=o.recipient_user_id
+                      AND a.status='COMPLETED'
+                      AND nullif(pg_catalog.btrim(a.completion_evidence_reference),'') IS NOT NULL))
                 OR (o.event_code='DEV-04' AND ev.event_type='PERFORMANCE_CREATED'
                   AND EXISTS(SELECT 1 FROM public.office_performance_reviews pr
                     WHERE pr.id=ev.performance_review_id AND pr.user_id=ev.target_user_id
