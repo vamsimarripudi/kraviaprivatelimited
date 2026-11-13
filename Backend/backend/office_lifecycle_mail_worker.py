@@ -83,6 +83,12 @@ def process_office_lifecycle_mail_outbox(limit: int = 10) -> dict[str, Any]:
         return {"status": "PROVIDER_NOT_CONFIGURED", "claimed": 0}
     maximum = max(1, min(int(limit), 25))
     with SessionLocal() as db:
+        # Only while explicitly enabled: identify current, real due-date events
+        # before the private claim. The SQL tick is bounded and idempotent.
+        db.execute(
+            text("select public.office_lifecycle_reminder_tick(:p_limit)"),
+            {"p_limit": maximum},
+        )
         rows = db.execute(
             text("select outbox_id,claim_token,event_code,recipient_email,"
                  "recipient_name,source_reference,pay_period from public.office_lifecycle_mail_claim(:p_limit)"),
