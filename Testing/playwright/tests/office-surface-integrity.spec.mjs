@@ -102,8 +102,8 @@ test("native workforce modal stays centered and usable beyond sticky header on e
 test("legacy office cards and candidate form retain readable contrast in both themes", async ({ page }) => {
   const style = recruitmentCss + workCss + contrastCss + integrityCss;
   const body = [
-    "<div class='metrics office-work-hub_metrics__fixture' data-office-work-metrics='true'>",
-    "<article id='metric'><span id='metric-label'>My approvals</span><strong>2</strong></article></div>",
+    "<div class='hub office-work-hub_hub__fixture' data-office-work-hub='true'><div class='metrics office-work-hub_metrics__fixture' data-office-work-metrics='true'>",
+    "<article id='metric'><span id='metric-label'>My approvals</span><strong>2</strong></article></div></div>",
     "<article class='card office-crm_card__fixture' id='company-card'>",
     "<h3 id='card-label'>Company data</h3><p>Current approved records</p></article>",
     "<form class='dialog office-recruitment_dialog__fixture' role='dialog' aria-modal='true'",
@@ -132,13 +132,13 @@ test("legacy office cards and candidate form retain readable contrast in both th
         overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
       };
     });
-    for (const [foreground, surface] of [
-      [values.metricLabel.color, values.metric.background],
-      [values.cardLabel.color, values.card.background],
-      [values.label.color, values.form.background],
-      [values.input.color, values.input.background],
+    for (const [element, foreground, surface] of [
+      ["metric label", values.metricLabel.color, values.metric.background],
+      ["card heading", values.cardLabel.color, values.card.background],
+      ["candidate field label", values.label.color, values.form.background],
+      ["candidate input", values.input.color, values.input.background],
     ]) {
-      expect(ratio(foreground, surface), JSON.stringify({theme,foreground,surface})).toBeGreaterThanOrEqual(4.5);
+      expect(ratio(foreground, surface), JSON.stringify({theme,element,foreground,surface})).toBeGreaterThanOrEqual(4.5);
     }
     expect(values.formWidth).toBeLessThanOrEqual(390);
     expect(values.overflow).toBe(false);
