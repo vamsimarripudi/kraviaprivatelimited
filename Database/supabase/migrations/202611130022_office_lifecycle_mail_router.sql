@@ -42,7 +42,7 @@ VALUES
   ('HIRE-09','P0',false,'Offer accepted','KRAVIA offer acceptance confirmed','Acceptance is actually recorded and verified','Candidate and approved hiring owner'),
   ('HIRE-10','P1',false,'Offer declined, withdrawn or expired','Update on your KRAVIA offer','Canonical status recorded','Candidate as appropriate; hiring owner'),
   ('ONB-01','P0',false,'Welcome aboard','Welcome aboard KRAVIA, {{employee_first_name}}','Active employee identity + accepted employment + director-approved joining','Employee'),
-  ('ONB-02','P0',false,'Private onboarding checklist','Your KRAVIA joining checklist','Onboarding workflow starts, assigned tasks exist','Employee'),
+  ('ONB-02','P0',true,'Private onboarding checklist','Your KRAVIA joining checklist','Onboarding workflow starts, assigned tasks exist','Employee'),
   ('ONB-03','P0',false,'Appointment letter ready','Your KRAVIA appointment letter is available','Signed approved appointment document stored','Employee'),
   ('ONB-04','P0',false,'E-sign requested','Signature requested: KRAVIA appointment documents','Document requires signature; permitted signing link issued','Signatory'),
   ('ONB-05','P0',true,'Evidence submitted / returned','KRAVIA onboarding document review update','Checklist evidence reaches reviewer or is returned','Employee or authorised reviewer'),
@@ -231,6 +231,11 @@ BEGIN
     END IF;
   ELSIF TG_TABLE_NAME='office_role_package_events' THEN
     IF NEW.event_type='PACKAGE_APPLIED' AND NEW.target_user_id IS NOT NULL THEN
+      IF EXISTS(SELECT 1 FROM public.office_role_package_onboarding_tasks task
+           WHERE task.application_id=NEW.application_id
+             AND task.employee_user_id=NEW.target_user_id AND task.required) THEN
+        PERFORM public.office_lifecycle_mail_enqueue('ONB-02',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
+      END IF;
       PERFORM public.office_lifecycle_mail_enqueue('ONB-09',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
       PERFORM public.office_lifecycle_mail_enqueue('ROLE-01',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
       PERFORM public.office_lifecycle_mail_enqueue('ROLE-09',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
@@ -483,6 +488,10 @@ BEGIN
             WHERE ev.id=o.source_id AND ev.target_user_id=o.recipient_user_id
               AND ((o.event_code IN ('ONB-09','ROLE-01','ROLE-09')
                      AND ev.event_type='PACKAGE_APPLIED')
+                OR (o.event_code='ONB-02' AND ev.event_type='PACKAGE_APPLIED'
+                  AND EXISTS(SELECT 1 FROM public.office_role_package_onboarding_tasks task
+                    WHERE task.application_id=ev.application_id
+                      AND task.employee_user_id=ev.target_user_id AND task.required))
                 OR (o.event_code='ONB-05' AND ev.event_type='TASK_RETURNED'))))
         OR (o.source_table='office_worktime_events' AND o.event_code='TIME-03'
           AND EXISTS(SELECT 1 FROM public.office_worktime_events ev

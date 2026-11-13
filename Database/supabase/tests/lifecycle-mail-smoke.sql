@@ -7,7 +7,7 @@ BEGIN
   IF EXISTS(SELECT 1 FROM public.office_lifecycle_mail_policy WHERE enabled) THEN
     RAISE EXCEPTION 'Office lifecycle mail migration unexpectedly enabled delivery';
   END IF;
-  IF (SELECT count(*) FROM public.office_lifecycle_mail_policy WHERE source_ready)<>22 THEN
+  IF (SELECT count(*) FROM public.office_lifecycle_mail_policy WHERE source_ready)<>23 THEN
     RAISE EXCEPTION 'Source-ready events must be accurately distinguished from unmapped events';
   END IF;
   IF pg_catalog.has_table_privilege('anon','public.office_lifecycle_mail_outbox','SELECT') OR
@@ -97,13 +97,17 @@ SELECT public.office_lifecycle_mail_policy_set(
 SELECT public.office_lifecycle_mail_policy_set(
  'a0000000-0000-4000-8000-000000000001','TIME-03',true,
  pg_catalog.now(),'Synthetic independent People owner attendance correction review');
+SELECT public.office_lifecycle_mail_policy_set(
+ 'a0000000-0000-4000-8000-000000000001','ONB-02',true,
+ pg_catalog.now(),'Synthetic required role-package checklist assignment');
 
 INSERT INTO public.office_employee_intake_events(employee_user_id,event_type)
 VALUES
  ('a0000000-0000-4000-8000-000000000002','PROFILE_RETURNED'),
  ('a0000000-0000-4000-8000-000000000004','PROFILE_RETURNED');
-INSERT INTO public.office_role_package_events(target_user_id,event_type)
-VALUES('a0000000-0000-4000-8000-000000000002','PACKAGE_APPLIED');
+INSERT INTO public.office_role_package_events(target_user_id,application_id,event_type)
+VALUES('a0000000-0000-4000-8000-000000000002',
+ 'e0000000-0000-4000-8000-000000000008','PACKAGE_APPLIED');
 INSERT INTO public.office_worktime_events(case_id,event_type)
 VALUES('b0000000-0000-4000-8000-000000000002','APPROVED');
 INSERT INTO public.office_worktime_events(case_id,actor_user_id,event_type)
@@ -158,7 +162,7 @@ VALUES('a0000000-0000-4000-8000-000000000003',
 
 DO $prove$
 BEGIN
-  IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox)<>22 THEN
+  IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox)<>23 THEN
     RAISE EXCEPTION 'Expected twenty-two grounded, committed lifecycle mail records';
   END IF;
  IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE event_code='PAY-06')<>1 THEN
@@ -182,14 +186,14 @@ RESET ROLE;
 
 DO $claim$
 BEGIN
- IF (SELECT count(*) FROM pg_temp.ci_claims)<>21 THEN
+ IF (SELECT count(*) FROM pg_temp.ci_claims)<>22 THEN
    RAISE EXCEPTION 'Suspended identity must not receive an employee notification';
  END IF;
  IF (SELECT count(*) FROM pg_temp.ci_claims WHERE event_code='PAY-06' AND pay_period='2026-11')<>1 THEN
    RAISE EXCEPTION 'Verified payroll period missing from approved notice claim';
  END IF;
- IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE status='SENDING')<>21 THEN
-   RAISE EXCEPTION 'Twenty-one verified notifications were not claimed atomically';
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE status='SENDING')<>22 THEN
+   RAISE EXCEPTION 'Twenty-two verified notifications were not claimed atomically';
  END IF;
  IF pg_catalog.has_function_privilege('anon','public.office_lifecycle_mail_finish(uuid,uuid,text,text)','EXECUTE') THEN
    RAISE EXCEPTION 'Browser role can finalize provider status';
@@ -223,10 +227,10 @@ SELECT count(*) AS safe_claims_after_timeout FROM public.office_lifecycle_mail_c
 RESET ROLE;
 DO $verify$
 BEGIN
- IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE status='UNKNOWN')<>20 THEN
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE status='UNKNOWN')<>21 THEN
    RAISE EXCEPTION 'Stale submission was not quarantined rather than retried';
  END IF;
- IF (SELECT count(*) FROM public.office_lifecycle_mail_events WHERE event_type='STALE_UNKNOWN')<>20 THEN
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_events WHERE event_type='STALE_UNKNOWN')<>21 THEN
    RAISE EXCEPTION 'Stale lifecycle mail events lack audit evidence';
  END IF;
  IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE status='SENT')<>1 THEN

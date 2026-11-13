@@ -14,7 +14,10 @@ CREATE TABLE public.office_employee_intake_events(
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,employee_user_id uuid NOT NULL,event_type text NOT NULL
 );
 CREATE TABLE public.office_role_package_events(
-  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,target_user_id uuid,event_type text NOT NULL
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,target_user_id uuid,application_id uuid,event_type text NOT NULL
+);
+CREATE TABLE public.office_role_package_onboarding_tasks(
+  id uuid PRIMARY KEY,application_id uuid,employee_user_id uuid,required boolean NOT NULL,status text NOT NULL
 );
 CREATE TABLE public.office_worktime_review_cases(id uuid PRIMARY KEY,employee_user_id uuid NOT NULL,
  requested_by uuid,status text);
@@ -136,3 +139,8 @@ VALUES('f0000000-0000-4000-8000-000000000007',
 INSERT INTO public.office_payroll_results(id,period_id,employment_id,employee_user_id,status) VALUES(
  'f0000000-0000-4000-8000-000000000002','f0000000-0000-4000-8000-000000000001',
  'f0000000-0000-4000-8000-000000000003','a0000000-0000-4000-8000-000000000002','LOCKED');
+
+INSERT INTO public.office_role_package_onboarding_tasks(id,application_id,employee_user_id,required,status)
+VALUES('e0000000-0000-4000-8000-000000000009',
+ 'e0000000-0000-4000-8000-000000000008',
+ 'a0000000-0000-4000-8000-000000000002',true,'PENDING');
