@@ -1,0 +1,161 @@
+/* KRAVIA Office: isolate dark/light contrast for legacy Recruitment and
+ * My Work surfaces. The global design system remains the source of tokens.
+ * Load after the Office theme styles so that card and form surfaces cannot
+ * be styled for a different theme than their foreground text.
+ */
+.kravia-office .office-modern .office-main [data-office-work-hub] [data-office-work-metrics] > article {
+  background: var(--office-ui-surface, #fff) !important;
+  color: var(--office-ui-ink, #101827) !important;
+  border-color: var(--office-ui-line, #d1d8e1) !important;
+}
+.kravia-office .office-modern .office-main [data-office-work-hub] [data-office-work-metrics] :is(span, small) {
+  color: var(--office-ui-muted, #485467) !important;
+  opacity: 1 !important;
+}
+.kravia-office .office-modern .office-main [data-office-work-hub] [data-office-work-metrics] strong {
+  color: var(--office-ui-ink, #101827) !important;
+}
+.kravia-office .office-modern .office-main [data-office-work-hub] [data-office-work-hero],
+.kravia-office .office-modern .office-main [data-office-work-hub] [data-office-work-panel] {
+  background: var(--office-ui-surface, #fff) !important;
+  color: var(--office-ui-ink, #101827) !important;
+  border-color: var(--office-ui-line, #d1d8e1) !important;
+}
+.kravia-office .office-modern .office-main [data-office-work-hub] [data-office-work-hero] :is(h2, p) {
+  color: var(--office-ui-ink, #101827) !important;
+}
+.kravia-office .office-modern .office-main [data-office-work-hub] [data-office-work-hero] > div > p {
+  color: var(--office-ui-accent, #1559ce) !important;
+}
+.kravia-office .office-modern .office-main [data-office-work-hub] [data-office-work-hero] > div > span {
+  color: var(--office-ui-muted, #485467) !important;
+}
+.kravia-office .office-modern .office-main [data-office-work-hub] [data-office-new-request] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 44px !important;
+  width: 44px !important;
+  height: 44px !important;
+  background: #1559ce !important;
+  border-color: #1559ce !important;
+  color: #fff !important;
+}
+.kravia-office .office-modern .office-main [data-office-work-hub] [data-office-new-request] svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  color: #fff !important;
+  stroke: currentColor;
+}
+.kravia-office .office-modern .office-main [data-office-work-hub] [data-office-work-panel] > summary :is(h3, p, b) {
+  color: var(--office-ui-ink, #101827) !important;
+}
+.kravia-office .office-modern .office-main [data-office-work-hub] [data-office-work-panel] > summary :is([class*="panelHeader"] > span) {
+  background: var(--office-ui-surface-alt, #eef1f5) !important;
+  color: var(--office-ui-ink, #101827) !important;
+  border: 1px solid var(--office-ui-line, #d1d8e1) !important;
+}
+.kravia-office .office-modern .office-main [data-office-work-hub] [data-office-work-panel] > summary :is([class*="panelHeader"]::after) {
+  color: var(--office-ui-muted, #485467) !important;
+}
+
+/* The recruitment modal must not inherit white text on a pale card.
+ * Use the active Office theme tokens for its surface AND its form controls. */
+.kravia-office .office-modern .office-main [data-office-recruitment-backdrop] {
+  z-index: 1300 !important;
+  box-sizing: border-box;
+  padding: max(16px, env(safe-area-inset-top, 0px)) 16px max(16px, env(safe-area-inset-bottom, 0px));
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.kravia-office .office-modern .office-main [data-office-recruitment-dialog] {
+  box-sizing: border-box;
+  width: min(760px, 100%);
+  max-width: 100%;
+  max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--office-ui-surface, #fff) !important;
+  color: var(--office-ui-ink, #101827) !important;
+  border: 1px solid var(--office-ui-line, #d1d8e1) !important;
+  color-scheme: inherit;
+  -webkit-overflow-scrolling: touch;
+}
+.kravia-office .office-modern .office-main [data-office-recruitment-dialog] :is(header, h3, label, p, span, legend) {
+  color: var(--office-ui-ink, #101827) !important;
+}
+.kravia-office .office-modern .office-main [data-office-recruitment-dialog] header > div > p {
+  color: var(--office-ui-accent, #1559ce) !important;
+}
+.kravia-office .office-modern .office-main [data-office-recruitment-dialog] :is(input:not([type="checkbox"]), select, textarea) {
+  background: var(--office-ui-control, #fff) !important;
+  color: var(--office-ui-ink, #101827) !important;
+  border-color: var(--office-ui-line, #d1d8e1) !important;
+  min-height: 44px;
+  opacity: 1;
+}
+.kravia-office .office-modern .office-main [data-office-recruitment-dialog] :is(input, textarea)::placeholder {
+  color: var(--office-ui-soft, #667080) !important;
+  opacity: 1;
+}
+.kravia-office .office-modern .office-main [data-office-recruitment-dialog] select option {
+  background: var(--office-ui-control, #fff);
+  color: var(--office-ui-ink, #101827);
+}
+.kravia-office .office-modern .office-main [data-office-recruitment-dialog] header button,
+.kravia-office .office-modern .office-main [data-office-recruitment-dialog] footer button:not([type="submit"]) {
+  background: var(--office-ui-surface-alt, #eef1f5) !important;
+  color: var(--office-ui-ink, #101827) !important;
+  border: 1px solid var(--office-ui-line, #d1d8e1) !important;
+  min-width: 44px;
+  min-height: 44px;
+}
+.kravia-office .office-modern .office-main [data-office-recruitment-dialog] footer button[type="submit"] {
+  background: #1559ce !important;
+  color: #fff !important;
+  border-color: #1559ce !important;
+  min-height: 44px;
+}
+.kravia-office .office-modern .office-main [data-office-recruitment-dialog] :is(input, select, textarea, button):focus-visible {
+  outline: 2px solid var(--office-ui-accent, #1559ce) !important;
+  outline-offset: 2px;
+}
+@media (max-width: 760px) {
+  .kravia-office .office-modern .office-main [data-office-recruitment-backdrop] {
+    align-items: flex-start !important;
+    justify-content: center !important;
+    padding-inline: 12px !important;
+  }
+  .kravia-office .office-modern .office-main [data-office-recruitment-dialog] {
+    width: 100%;
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    padding: 16px;
+    border-radius: 16px !important;
+  }
+  .kravia-office .office-modern .office-main [data-office-recruitment-dialog] :is(input:not([type="checkbox"]), select, textarea) {
+    font-size: 16px !important; /* Prevents Safari auto-zoom on form focus. */
+  }
+  .kravia-office .office-modern .office-main [data-office-work-hub] [data-office-work-metrics] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .kravia-office .office-modern .office-main [data-office-work-hub] [data-office-work-metrics] > article {
+    min-width: 0;
+    padding: 12px !important;
+  }
+  .kravia-office .office-modern .office-main [data-office-work-hub] [data-office-work-panel] {
+    min-width: 0;
+  }
+}
+@media (max-width: 360px) {
+  .kravia-office .office-modern .office-main [data-office-work-hub] [data-office-work-metrics] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kravia-office .office-modern .office-main [data-office-work-hub] [data-office-new-request] {
+    transition: none !important;
+  }
+}
