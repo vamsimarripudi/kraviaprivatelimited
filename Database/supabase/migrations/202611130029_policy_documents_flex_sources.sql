@@ -34,6 +34,73 @@ WHERE event_code IN ('AUTH-10','DEV-08','ONB-08','ONB-03',
   'PAY-11','PAY-12','TIME-07','TIME-09')
   AND NOT source_ready AND NOT enabled;
 
+-- A Flex Day is earned only from five independently approved, distinct
+-- six-net-hour weekdays with a separately approved effective policy.
+-- Never infer eligibility from a manually submitted aggregate alone.
+CREATE OR REPLACE FUNCTION public.office_lifecycle_flex_evidence_valid(p_request uuid)
+RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=''
+AS $flex$
+DECLARE
+ v_request public.office_flex_day_requests%ROWTYPE;
+ v_policy public.office_worktime_policy_versions%ROWTYPE;
+ v_index integer;
+ v_start timestamptz;
+ v_end timestamptz;
+ v_day numeric;
+ v_week numeric:=0;
+BEGIN
+ SELECT * INTO v_request FROM public.office_flex_day_requests WHERE id=p_request;
+ IF NOT FOUND OR v_request.qualifying_work_minutes<1800
+    OR v_request.earned_week_monday IS NULL
+    OR extract(isodow FROM v_request.earned_week_monday)<>1 THEN
+   RETURN false;
+ END IF;
+ SELECT * INTO v_policy
+ FROM public.office_worktime_policy_versions p
+ WHERE p.employee_user_id=v_request.employee_user_id
+   AND p.status='APPROVED'
+   AND p.effective_from<=v_request.earned_week_monday
+   AND p.approved_by IS NOT NULL
+   AND p.approved_at IS NOT NULL
+   AND p.approved_by IS DISTINCT FROM p.proposed_by
+   AND p.approved_by IS DISTINCT FROM p.employee_user_id
+ ORDER BY p.effective_from DESC LIMIT 1;
+ IF NOT FOUND THEN RETURN false; END IF;
+ FOR v_index IN 0..4 LOOP
+   v_start:=(v_request.earned_week_monday+v_index)::timestamp
+      AT TIME ZONE 'Asia/Kolkata';
+   v_end:=(v_request.earned_week_monday+v_index+1)::timestamp
+      AT TIME ZONE 'Asia/Kolkata';
+   SELECT COALESCE(pg_catalog.sum(GREATEST(0,
+      GREATEST(0,extract(epoch FROM
+        LEAST(c.work_ends_at,v_end)-GREATEST(c.work_starts_at,v_start))/60)
+      - COALESCE((
+        SELECT pg_catalog.sum(GREATEST(0,extract(epoch FROM
+          LEAST((b->>'endAt')::timestamptz,v_end)
+          -GREATEST((b->>'startAt')::timestamptz,v_start))/60))
+        FROM jsonb_array_elements(c.breaks) AS b
+       ),0)
+    )),0) INTO v_day
+   FROM public.office_worktime_review_cases c
+   WHERE c.employee_user_id=v_request.employee_user_id
+     AND c.status='APPROVED'
+     AND c.reviewed_at IS NOT NULL
+     AND c.reviewed_by IS NOT NULL
+     AND c.reviewed_by IS DISTINCT FROM c.employee_user_id
+     AND c.reviewed_by IS DISTINCT FROM c.requested_by
+     AND c.work_starts_at<v_end AND c.work_ends_at>v_start;
+   IF v_day<v_policy.regular_daily_minutes THEN RETURN false; END IF;
+   v_week:=v_week+v_day;
+ END LOOP;
+ RETURN v_week>=v_policy.weekly_target_minutes
+   AND v_week>=1800;
+EXCEPTION WHEN others THEN
+ RETURN false;
+END;
+$flex$;
+REVOKE ALL ON FUNCTION public.office_lifecycle_flex_evidence_valid(uuid)
+ FROM PUBLIC,anon,authenticated,service_role,kravia_office_backend;
+
 CREATE OR REPLACE FUNCTION public.office_lifecycle_aux_proof_valid(
  p_proof public.office_lifecycle_aux_proofs
 ) RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=''
@@ -256,6 +323,7 @@ BEGIN
      WHERE request.id=p_proof.source_uuid
        AND request.employee_user_id=p_proof.employee_user_id
        AND request.qualifying_work_minutes>=1800
+       AND public.office_lifecycle_flex_evidence_valid(request.id)
        AND request.status IN ('PENDING','APPROVED')
        AND (
          (p_proof.event_code='TIME-07'
@@ -998,6 +1066,7 @@ BEGIN
  ELSIF TG_TABLE_NAME='office_flex_day_requests' THEN
    IF NEW.status<>'PENDING' OR NEW.qualifying_work_minutes<1800
      OR NEW.requested_by IS DISTINCT FROM NEW.employee_user_id
+     OR NOT public.office_lifecycle_flex_evidence_valid(NEW.id)
      OR NOT EXISTS(SELECT 1 FROM public.office_worktime_policy_versions p
        WHERE p.employee_user_id=NEW.employee_user_id
          AND p.status='APPROVED'
