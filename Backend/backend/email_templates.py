@@ -126,6 +126,7 @@ def _render(
 
 KRAVIA_OFFICE_LOGIN_URL = "https://kraviaprivatelimited.com/office/login"
 KRAVIA_OFFICE_AUTHENTICATOR_GUIDE_URL = "https://kraviaprivatelimited.com/office/authenticator"
+KRAVIA_OFFICE_QUICK_START_URL = "https://www.kraviaprivatelimited.com/office/quick-start"
 KRAVIA_AUTHENTICATOR_GOOGLE_PLAY_URL = (
     "https://play.google.com/store/apps/details?id=com.kraviaprivatelimited.authenticator"
 )
@@ -210,6 +211,10 @@ def office_invitation_template(*, recipient_name: str, registration_url: str, ex
         'If the invitation button is blocked, paste this link into your browser: '
         f'<a href="{safe_url}" style="color:#1559ce">{safe_url}</a></p>'
         + _office_app_download_html()
+        + '<p style="font:13px/21px Arial,sans-serif;color:#515d70">'
+        'Your first-access guide: <a href="' + KRAVIA_OFFICE_QUICK_START_URL + '" '
+        'style="color:#1559ce;text-decoration:underline">Read Office onboarding steps</a>. '
+        'Your private role handbook becomes available only after verified activation.</p>'
         + '<p style="font:12px/19px Arial,sans-serif;color:#515d70">'
         'KRAVIA will never ask you to share your password or one-time codes.</p>'
         '</main></body></html>'
@@ -220,6 +225,8 @@ def office_invitation_template(*, recipient_name: str, registration_url: str, ex
         f"This single-use invitation expires in {expiry_hours} hours.\n"
         "Your workspace remains locked until access approval.\n\n"
         f"{_office_app_download_text()}\n\n"
+        f"First-access guide: {KRAVIA_OFFICE_QUICK_START_URL}\n"
+        "After activation, open Info & Help in your Office sidebar for your private role manual.\n\n"
         "KRAVIA will never ask for your password or one-time code by email.\n"
         "If you did not expect this invitation, ignore this email."
     )
