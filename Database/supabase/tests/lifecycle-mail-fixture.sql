@@ -7,7 +7,7 @@ BEGIN
   IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='kravia_office_backend') THEN CREATE ROLE kravia_office_backend NOLOGIN; END IF;
 END;
 $roles$;
-CREATE TABLE public.office_identity_users(user_id uuid PRIMARY KEY,display_name text,status text NOT NULL);
+CREATE TABLE public.office_identity_users(user_id uuid PRIMARY KEY,display_name text,status text NOT NULL, primary_department text);
 CREATE TABLE public.office_user_roles(user_id uuid,role text,expires_at timestamptz);
 CREATE TABLE public.office_auth_users(id text PRIMARY KEY,email text NOT NULL,status text NOT NULL);
 CREATE TABLE public.office_employee_intake_events(
