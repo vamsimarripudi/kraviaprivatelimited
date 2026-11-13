@@ -25,6 +25,10 @@ ALTER TABLE public.office_lifecycle_mail_policy
 -- consent document/reference must be recorded, then independently verified.
 CREATE TABLE public.office_candidate_mail_consents(
  candidate_id uuid PRIMARY KEY REFERENCES public.office_candidates(id) ON DELETE RESTRICT,
+ recipient_email text NOT NULL
+  CHECK(recipient_email=pg_catalog.lower(pg_catalog.btrim(recipient_email))
+   AND pg_catalog.char_length(recipient_email) BETWEEN 5 AND 320
+   AND recipient_email ~* '^[^[:space:]@]+@[^[:space:]@]+[.][A-Za-z]{2,}$'),
  consent_reference text NOT NULL CHECK(length(btrim(consent_reference)) BETWEEN 12 AND 300),
  obtained_at timestamptz NOT NULL,
  recorded_by uuid NOT NULL REFERENCES public.office_identity_users(user_id) ON DELETE RESTRICT,
@@ -81,9 +85,9 @@ CREATE OR REPLACE FUNCTION public.office_candidate_mail_consent_record(
  p_actor uuid,p_candidate uuid,p_reference text,p_obtained_at timestamptz,p_reason text
 ) RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
 AS $record$
-DECLARE v_department text;
+DECLARE v_department text;v_email text;
 BEGIN
- SELECT requisition.department_code INTO v_department
+ SELECT requisition.department_code,candidate.email INTO v_department,v_email
  FROM public.office_candidates candidate
  JOIN public.office_hiring_requisitions requisition ON requisition.id=candidate.requisition_id
  WHERE candidate.id=p_candidate;
@@ -94,14 +98,17 @@ BEGIN
      public.office_effective_permission(p_actor,'hiring.candidate.manage','COMPANY',NULL,NULL)
      OR public.office_effective_permission(p_actor,'hiring.candidate.manage','DEPARTMENT',v_department,NULL))
  THEN RAISE EXCEPTION 'Active authorised hiring operator is required'; END IF;
+ IF v_email IS NULL OR v_email !~* '^[^[:space:]@]+@[^[:space:]@]+[.][A-Za-z]{2,}$'
+  THEN RAISE EXCEPTION 'An authentic candidate email is required'; END IF;
  IF length(btrim(coalesce(p_reference,''))) NOT BETWEEN 12 AND 300
   OR length(btrim(coalesce(p_reason,''))) NOT BETWEEN 12 AND 500
   OR p_obtained_at IS NULL OR p_obtained_at>pg_catalog.now()+interval '1 minute'
  THEN RAISE EXCEPTION 'Actual candidate email-consent evidence is required'; END IF;
  INSERT INTO public.office_candidate_mail_consents(
-  candidate_id,consent_reference,obtained_at,recorded_by,reason,status
- ) VALUES(p_candidate,btrim(p_reference),p_obtained_at,p_actor,btrim(p_reason),'PENDING')
+  candidate_id,recipient_email,consent_reference,obtained_at,recorded_by,reason,status
+ ) VALUES(p_candidate,lower(btrim(v_email)),btrim(p_reference),p_obtained_at,p_actor,btrim(p_reason),'PENDING')
  ON CONFLICT(candidate_id) DO UPDATE SET
+  recipient_email=excluded.recipient_email,
   consent_reference=excluded.consent_reference,obtained_at=excluded.obtained_at,
   recorded_by=excluded.recorded_by,recorded_at=pg_catalog.now(),
   verified_by=NULL,verified_at=NULL,status='PENDING',reason=excluded.reason,
@@ -114,15 +121,17 @@ CREATE OR REPLACE FUNCTION public.office_candidate_mail_consent_decide(
  p_actor uuid,p_candidate uuid,p_approve boolean,p_reason text
 ) RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
 AS $decide$
-DECLARE v_department text;v_record public.office_candidate_mail_consents%rowtype;
+DECLARE v_department text;v_email text;v_record public.office_candidate_mail_consents%rowtype;
 BEGIN
- SELECT requisition.department_code INTO v_department
+ SELECT requisition.department_code,candidate.email INTO v_department,v_email
  FROM public.office_candidates candidate
  JOIN public.office_hiring_requisitions requisition ON requisition.id=candidate.requisition_id
  WHERE candidate.id=p_candidate;
  SELECT * INTO v_record FROM public.office_candidate_mail_consents
  WHERE candidate_id=p_candidate FOR UPDATE;
- IF v_record.candidate_id IS NULL OR v_record.status<>'PENDING' OR v_record.recorded_by=p_actor
+ IF v_record.candidate_id IS NULL OR v_record.status<>'PENDING'
+    OR v_record.recipient_email IS DISTINCT FROM lower(btrim(v_email))
+    OR v_record.recorded_by=p_actor
    OR v_department IS NULL OR NOT EXISTS(
      SELECT 1 FROM public.office_identity_users WHERE user_id=p_actor AND status='ACTIVE')
    OR NOT (
