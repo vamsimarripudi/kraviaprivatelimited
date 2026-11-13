@@ -30,17 +30,30 @@ async function readPolicies(actor:Awaited<ReturnType<typeof owner>>){
     .order("event_code");
   if(result.error||!result.data||result.data.length!==81)
     throw new Error("Office lifecycle registry is incomplete or unavailable");
-  const states=["PENDING","SENDING","SENT","REJECTED","UNKNOWN"] as const;
-  const counts=await Promise.all(states.map(status=>actor.admin.from("office_lifecycle_mail_outbox")
-    .select("id",{count:"exact",head:true}).eq("status",status)));
+  const states=["PENDING","SENDING","SENT","REJECTED","UNKNOWN","SKIPPED"] as const;
+  const sources={
+    internal:"office_lifecycle_mail_outbox",
+    candidate:"office_candidate_mail_outbox",
+    external:"office_external_notice_outbox",
+  } as const;
+  const results=await Promise.all(Object.entries(sources).map(async ([label,table])=>[
+    label,
+    await Promise.all(states.map(status=>actor.admin.from(table)
+      .select("id",{count:"exact",head:true}).eq("status",status))),
+  ] as const));
+  const counts_by_source=Object.fromEntries(results.map(([label,values])=>[
+    label,Object.fromEntries(states.map((status,i)=>[
+      status,!values[i]?.error&&typeof values[i]?.count==="number"?values[i].count:null,
+    ])),
+  ]));
   return {
     policies:result.data,
     total:81,
     source_ready:result.data.filter(row=>row.source_ready===true).length,
     enabled:result.data.filter(row=>row.enabled===true).length,
-    count_by_status:Object.fromEntries(states.map((status,i)=>[status,
-      !counts[i]?.error && typeof counts[i]?.count==="number"?counts[i].count:null])),
-    notice:"Covered events include first-party credential emails that already use secure transactional delivery. Those cannot be enabled again in lifecycle mail. All other unmapped sources remain blocked; provider acceptance does not prove inbox delivery.",
+    count_by_status:counts_by_source.internal,
+    counts_by_source,
+    notice:"Covered source pathways are not activated emails. Credential notifications remain owned by first-party authentication; external candidate and former-employee/signing notices have separate consent and worker gates. Provider acceptance never proves inbox delivery.",
   };
 }
 export async function GET(){
