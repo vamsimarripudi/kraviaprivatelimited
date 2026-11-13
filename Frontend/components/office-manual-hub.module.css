@@ -26,3 +26,21 @@
 @media(max-width:800px){.hero{align-items:flex-start;flex-wrap:wrap;padding:18px}.heroAction{width:100%;flex-direction:row;align-items:center;justify-content:space-between}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.readerLayout{grid-template-columns:1fr}.readerAside{display:flex;flex-direction:row;overflow-x:auto}.readerAside h3{min-width:80px;flex:none}.readerAside button{min-width:145px}.readerHeader{flex-wrap:wrap}}
 @media(max-width:480px){.heroIcon{width:43px;height:43px}.heroCopy{flex-basis:calc(100% - 64px)}.stats>div{padding:13px}.stats strong{font-size:21px}.tabs button{padding:10px}.reader{padding:16px}.readerAside h3{display:none}.readerAside button{min-width:130px}.heroAction{flex-wrap:wrap}.download{width:100%}}
 @media(prefers-reduced-motion:reduce){.shell *{scroll-behavior:auto!important;transition:none!important}}
+
+
+/* Full original handbook reading view (route inventories and worked examples). */
+.readerMode{display:inline-flex;flex-wrap:wrap;gap:7px;margin:0 0 16px}
+.readerMode button{border:1px solid var(--office-border,#d8e0e7);background:transparent;border-radius:10px;padding:9px 12px;font-size:12px;font-weight:730;color:var(--manual-fg);cursor:pointer}
+.readerMode button[data-active=true]{background:#eaf2fe;border-color:#a9c9ef;color:#204b7a}
+.detailedDocument{font-family:Inter,ui-sans-serif,system-ui,sans-serif;line-height:1.68;font-size:13px;overflow-wrap:anywhere}
+.detailedDocument h3{font-size:20px;margin:18px 0 12px;line-height:1.32}
+.detailedDocument h4{font-size:16px;margin:19px 0 9px;line-height:1.4}
+.detailedDocument p{margin:5px 0;line-height:1.73}
+.detailedDocument hr{border:0;border-top:1px solid var(--office-border,#d5e0e7);margin:20px 0}
+.detailedDocument blockquote{margin:10px 0;padding:10px 12px;border-left:3px solid #347dc3;background:rgba(46,118,185,.055);border-radius:0 10px 10px 0;font-size:12px}
+.detailedDocument .manualListLine{padding:3px 0 3px 10px;border-left:2px solid #c0d4ea;max-width:86ch}
+.detailedDocument .manualBullet{padding:2px 0 2px 10px;max-width:86ch}
+.detailedDocument .manualTableLine{font-size:11px;padding:8px 10px;border-bottom:1px solid var(--office-border,#dbe5ed);font-family:ui-monospace,Menlo,Consolas,monospace;line-height:1.6;white-space:normal}
+.detailedDocument .manualWhitespace{min-height:8px}
+:global([data-ui-theme=dark]) .readerMode button[data-active=true]{background:#1a3653;color:#d8edff;border-color:#3b5d89}
+:global([data-ui-theme=dark]) .detailedDocument blockquote{background:rgba(61,130,195,.1)}
