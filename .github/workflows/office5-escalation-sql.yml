@@ -1,0 +1,49 @@
+name: Office 5.0 isolated IT escalation security
+
+on:
+  pull_request:
+    paths:
+      - "Database/supabase/migrations/202611140007_office_chat_it_escalations.sql"
+      - "Database/supabase/tests/office5_escalation_stub.sql"
+      - "Database/supabase/tests/office5_escalation_security.sql"
+      - ".github/workflows/office5-escalation-sql.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  escalation-postgres:
+    name: IT escalation authority / isolated Postgres 17
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: isolated-escalation-only
+          POSTGRES_DB: kravia_it_escalation_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kravia_it_escalation_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+      - name: Rehearse private escalation migration and rollback-only authority tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg() {
+            docker run --rm --network host --volume "$PWD:/repo:ro" --workdir /repo \
+              --env PGPASSWORD=isolated-escalation-only postgres:17 \
+              psql --host 127.0.0.1 --username postgres --dbname kravia_it_escalation_test \
+              --set ON_ERROR_STOP=1 "$@"
+          }
+          pg --file Database/supabase/tests/office5_escalation_stub.sql
+          pg --file Database/supabase/migrations/202611140007_office_chat_it_escalations.sql
+          pg --file Database/supabase/tests/office5_escalation_security.sql
+          counts="$(pg --tuples-only --no-align --command "select (select count(*) from public.office_chat_it_escalations),(select count(*) from public.office_chat_it_escalation_events),(select count(*) from public.office_it_service_tickets)")"
+          test "$counts" = "0|0|0"
