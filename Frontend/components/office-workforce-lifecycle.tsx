@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ArrowRight, CircleAlert, LoaderCircle, LogIn, LogOut, ShieldCheck, UserRoundCheck, UsersRound, X } from "lucide-react";
 import styles from "./office-workforce-lifecycle.module.css";
+import { OfficeExitGovernance } from "./office-exit-governance";
 
 type LifecycleRequest = {
   id: string;
@@ -153,6 +154,10 @@ export function OfficeWorkforceLifecycle() {
         <div className={styles.actions}>{canStartOnboarding ? <button type="button" onClick={() => { setAction({ person, kind: "ONBOARDING" }); setReason(""); }}><LogIn /> Start onboarding</button> : null}{canStartOffboarding ? <button type="button" onClick={() => { setAction({ person, kind: "OFFBOARDING" }); setReason(""); }}><LogOut /> Start offboarding</button> : null}{canExecute ? <button type="button" className={styles.danger} onClick={() => { setAction({ person, kind: "EXECUTE_OFFBOARDING" }); setReason(""); }}><ShieldCheck /> Revoke Office access</button> : null}</div>
       </article>;
     })}{!people.length ? <div className={styles.empty}><UsersRound /><b>No matching workforce records</b><span>No sample identities are created for presentation.</span></div> : null}</div>
+
+    {data.actor.roles.includes("OWNER") || data.people.some((person) => person.can_manage)
+      ? <OfficeExitGovernance people={data.people} actorId={data.actor.user_id} />
+      : null}
 
     {action ? <div className={styles.backdrop} role="presentation" onMouseDown={() => !busy && setAction(undefined)}><form className={styles.dialog} onSubmit={submit} onMouseDown={(event) => event.stopPropagation()}><header><div><p>{action.kind === "EXECUTE_OFFBOARDING" ? "CONTROLLED EXECUTION" : "GOVERNED REQUEST"}</p><h3>{title(action.kind)} · {action.person.display_name || "KRAVIA member"}</h3></div><button type="button" onClick={() => setAction(undefined)} aria-label="Close" disabled={busy}><X /></button></header><p>{action.kind === "EXECUTE_OFFBOARDING" ? "This revokes KRAVIA Office identity, active role grants, access profiles and registered devices after the approved request. It does not silently delete external provider accounts." : "This creates an approval workflow. It does not directly change employment, access or provider accounts."}</p><label>Business reason<textarea value={reason} onChange={(event) => setReason(event.target.value)} minLength={3} maxLength={1000} required placeholder="Reason, effective timing and any operational context" /></label><footer><button type="button" onClick={() => setAction(undefined)} disabled={busy}>Cancel</button><button type="submit" disabled={busy || reason.trim().length < 3}>{busy ? <LoaderCircle className={styles.spin} /> : <ShieldCheck />}{action.kind === "EXECUTE_OFFBOARDING" ? "Execute approved revocation" : "Create governed request"}</button></footer></form></div> : null}
   </section>;
