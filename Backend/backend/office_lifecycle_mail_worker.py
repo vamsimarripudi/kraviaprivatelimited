@@ -27,7 +27,7 @@ from .email_delivery import (
 
 logger = logging.getLogger(__name__)
 EVENT_CODE = re.compile(r"^(AUTH|HIRE|ONB|ROLE|TIME|PAY|DEV|EXIT)-[0-9]{2}$")
-REFERENCE = re.compile(r"^office_[a-z_]+_events:[0-9]{1,18}$")
+REFERENCE = re.compile(r"^(?:office_[a-z_]+_events|office_access_audit|office_lifecycle_auth_signals|office_lifecycle_aux_proofs):[0-9]{1,18}$")
 
 
 @dataclass(frozen=True)
