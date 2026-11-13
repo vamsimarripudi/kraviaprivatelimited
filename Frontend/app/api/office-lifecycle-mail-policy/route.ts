@@ -26,7 +26,7 @@ function failure(error:unknown){
 }
 async function readPolicies(actor:Awaited<ReturnType<typeof owner>>){
   const result=await actor.admin.from("office_lifecycle_mail_policy")
-    .select("event_code,priority,source_ready,enabled,approved_at,effective_from")
+    .select("event_code,priority,source_ready,enabled,approved_at,effective_from,intent,subject,trigger_description,recipient_description")
     .order("event_code");
   if(result.error||!result.data||result.data.length!==81)
     throw new Error("Office lifecycle registry is incomplete or unavailable");

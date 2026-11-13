@@ -7,6 +7,7 @@ import styles from "./office-lifecycle-mail-controls.module.css";
 type Policy={
   event_code:string;priority:"P0"|"P1"|"P2";
   source_ready:boolean;enabled:boolean;
+  intent:string;subject:string;trigger_description:string;recipient_description:string;
   approved_at:string|null;effective_from:string|null;
 };
 type Data={
@@ -103,6 +104,12 @@ export function OfficeLifecycleMailControls(){
         {p.event_code} · {p.source_ready?"Mapped source":"Source not implemented"}
       </option>)}
     </select>
+    {active?<div className={styles.summary}>
+      <strong>{active.intent}</strong>
+      <p>Subject: {active.subject}</p>
+      <small>Committed event requirement: {active.trigger_description}</small>
+      <small>Authorised recipient: {active.recipient_description}</small>
+    </div>:null}
     {active?<div className={styles.details}>
       <div><span>Priority</span><strong>{active.priority}</strong></div>
       <div><span>Committed source adapter</span>

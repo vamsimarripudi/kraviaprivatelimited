@@ -22,6 +22,10 @@ describe("KRAVIA Office governed 81-event lifecycle notification delivery",()=>{
   });
   it("separates 81 inventory entries from only verified canonical source bridges",()=>{
     expect(schema).toContain("source_ready boolean NOT NULL DEFAULT false");
+    expect(schema).toContain("intent text NOT NULL");
+    expect(schema).toContain("recipient_description text NOT NULL");
+    expect(endpoint).toContain("trigger_description,recipient_description");
+    expect(controls).toContain("Committed event requirement");
     expect(schema).toContain("enabled boolean NOT NULL DEFAULT false");
     expect(schema).toContain("IF p_enabled AND NOT v_ready THEN");
     expect(schema).toContain("office_employee_intake_events");
