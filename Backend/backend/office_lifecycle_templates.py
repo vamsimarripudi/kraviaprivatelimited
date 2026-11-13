@@ -127,6 +127,16 @@ def render_office_lifecycle_notice(
         'border-radius:8px;text-decoration:none">Review in private KRAVIA Office</a></td></tr>'
         if url else ""
     )
+    manual_url = _SITE + "/office/info" if event_code in {
+        "ONB-01", "ONB-02", "ONB-06", "ONB-09", "ONB-10", "ROLE-01", "ROLE-02"
+    } else None
+    manual_notice = (
+        '<tr><td style="padding:0 24px 18px"><p style="font:13px/21px Arial,sans-serif">'
+        'Your common and role-specific handbook is available after secure activation: '
+        '<a href="' + manual_url + '" style="color:#174ea6">Info &amp; Help</a>. '
+        'This link never grants access or certifies onboarding.</p></td></tr>'
+        if manual_url else ""
+    )
     html = (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
@@ -157,7 +167,7 @@ def render_office_lifecycle_notice(
         '<p style="font:700 11px/17px Arial,sans-serif;margin:0 0 7px">'
         'Office event reference</p><p style="font:13px/20px Consolas,monospace;'
         'overflow-wrap:anywhere;margin:0">' + safe_ref + '</p></td></tr></table></td></tr>'
-        + action +
+        + action + manual_notice +
         '<tr><td style="padding:4px 26px 22px;color:#485d73;'
         'font:12px/20px Arial,sans-serif">'
         'This notice does not independently certify employment, permissions,'
@@ -174,6 +184,7 @@ def render_office_lifecycle_notice(
         subject, "", f"Hello {name},", "", item["body"], "",
         "Office event reference: " + reference,
         *(["", "Review in private Office: " + url] if url else []),
+        *(["", "After secure activation, read and acknowledge your own manual: " + manual_url] if manual_url else []),
         "", "This notice does not certify salary payment, employment, access or signed records.",
         "KRAVIA PRIVATE LIMITED",
     ])
