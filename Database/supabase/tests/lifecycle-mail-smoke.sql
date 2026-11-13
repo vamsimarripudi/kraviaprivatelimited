@@ -251,6 +251,9 @@ $prove$;
 
 SET ROLE kravia_office_backend;
 CREATE TEMP TABLE ci_claims AS SELECT * FROM public.office_lifecycle_mail_claim(25);
+-- The private worker deliberately caps a single claim at 25; exhaust a
+-- second batch without duplicating any accepted provider submission.
+INSERT INTO ci_claims SELECT * FROM public.office_lifecycle_mail_claim(25);
 RESET ROLE;
 
 DO $claim$
