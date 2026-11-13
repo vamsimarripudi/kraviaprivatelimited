@@ -65,7 +65,10 @@ DECLARE
 BEGIN
  SELECT inserted INTO v_count FROM pg_temp.tick_results;
  IF v_count<>16 THEN
-  RAISE EXCEPTION 'Expected 16 verified due-date proofs, got %',v_count;
+  RAISE EXCEPTION 'Expected 16 verified due-date proofs, got %, distribution %',
+    v_count,(SELECT string_agg(event_code||':'||n::text,', ' ORDER BY event_code)
+      FROM (SELECT event_code,count(*) n FROM public.office_lifecycle_mail_outbox
+         GROUP BY event_code) buckets);
  END IF;
  IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox)<>16 THEN
   RAISE EXCEPTION 'Scheduled sources were not enqueued exactly once';
