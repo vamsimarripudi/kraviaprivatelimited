@@ -1,0 +1,54 @@
+name: KRAVIA Office governed interview changes PostgreSQL
+on:
+  pull_request:
+    paths:
+      - 'Database/supabase/migrations/202611130031_governed_interview_changes.sql'
+      - 'Database/supabase/tests/recruitment-interview-change-*.sql'
+      - 'Frontend/app/api/office-recruitment/route.ts'
+      - 'Frontend/components/office-recruitment-workspace.tsx'
+      - 'Frontend/lib/office/recruitment-server.ts'
+      - 'Frontend/tests/office-interview-change.test.ts'
+      - '.github/workflows/office-recruitment-interview-db.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: kravia_interview_ci
+          POSTGRES_PASSWORD: isolated-kravia-interview-test-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kravia_interview_ci"
+          --health-interval 3s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Run controlled interview change tests in disposable PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg() {
+            docker run --rm --network host \
+              -v "$PWD:/repo:ro" --workdir /repo \
+              --env PGPASSWORD=isolated-kravia-interview-test-only \
+              postgres:17 \
+              psql --host 127.0.0.1 --username postgres --dbname kravia_interview_ci \
+              --set ON_ERROR_STOP=1 "$@"
+          }
+          pg -f Database/supabase/tests/recruitment-interview-change-fixture.sql
+          pg -f Database/supabase/migrations/202611130031_governed_interview_changes.sql
+          result="$(pg --tuples-only --no-align \
+            -f Database/supabase/tests/recruitment-interview-change-smoke.sql | tail -n 1)"
+          test "$result" = "RECRUITMENT_INTERVIEW_CHANGE_VERIFIED"
+          echo "Permission, chronology and immutable recruitment evidence verified."
