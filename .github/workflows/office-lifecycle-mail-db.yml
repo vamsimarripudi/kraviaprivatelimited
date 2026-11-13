@@ -14,6 +14,9 @@ on:
       - 'Database/supabase/migrations/202611130031_existing_transactional_auth_delivery_ownership.sql'
       - 'Database/supabase/migrations/202611130032_opted_invitation_notice_sender_ownership.sql'
       - 'Database/supabase/tests/lifecycle-mail-opted-invite-notice-ownership-smoke.sql'
+      - 'Database/supabase/migrations/202611130033_candidate_notice_consent_and_outbox.sql'
+      - 'Database/supabase/migrations/202611130034_candidate_event_proofs_and_claims.sql'
+      - 'Database/supabase/tests/lifecycle-mail-candidate-verified-smoke.sql'
       - 'Database/supabase/tests/lifecycle-mail-existing-auth-ownership-smoke.sql'
       - 'Database/supabase/tests/lifecycle-mail-workday-exit-smoke.sql'
       - 'Database/supabase/tests/lifecycle-mail-policy-doc-flex-smoke.sql'
@@ -78,6 +81,10 @@ jobs:
           pg -f Database/supabase/migrations/202611130032_opted_invitation_notice_sender_ownership.sql
           invite_ownership="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-opted-invite-notice-ownership-smoke.sql)"
           test "$(printf '%s\n' "$invite_ownership" | tail -n 1)" = "INVITATION_NOTICE_OWNERSHIP_VERIFIED"
+          pg -f Database/supabase/migrations/202611130033_candidate_notice_consent_and_outbox.sql
+          pg -f Database/supabase/migrations/202611130034_candidate_event_proofs_and_claims.sql
+          candidate_verified="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-candidate-verified-smoke.sql)"
+          test "$(printf '%s\n' "$candidate_verified" | tail -n 1)" = "CANDIDATE_NINE_SOURCE_ROUTES_VERIFIED"
           output="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-smoke.sql)"
           echo "$output"
           test "$(printf '%s\n' "$output" | tail -n 1)" = "LIFECYCLE_MAIL_ROUTES_VERIFIED"
@@ -108,6 +115,10 @@ jobs:
           pg -f Database/supabase/migrations/202611130032_opted_invitation_notice_sender_ownership.sql
           upgrade_invite_ownership="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-opted-invite-notice-ownership-smoke.sql)"
           test "$(printf '%s\n' "$upgrade_invite_ownership" | tail -n 1)" = "INVITATION_NOTICE_OWNERSHIP_VERIFIED"
+          pg -f Database/supabase/migrations/202611130033_candidate_notice_consent_and_outbox.sql
+          pg -f Database/supabase/migrations/202611130034_candidate_event_proofs_and_claims.sql
+          candidate_verified="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-candidate-verified-smoke.sql)"
+          test "$(printf '%s\n' "$candidate_verified" | tail -n 1)" = "CANDIDATE_NINE_SOURCE_ROUTES_VERIFIED"
           upgraded_output="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-smoke.sql)"
           echo "$upgraded_output"
           printf '%s\n' "$upgraded_output" | grep -Fxq 'LIFECYCLE_MAIL_ROUTES_VERIFIED'
