@@ -6,6 +6,7 @@ on:
       - 'Database/supabase/migrations/202611130036_offboarding_event_source_proofs.sql'
       - 'Database/supabase/migrations/202611130037_offboarding_settlement_source_evidence.sql'
       - 'Database/supabase/migrations/202611130038_signed_exit_document_source_evidence.sql'
+      - 'Database/supabase/migrations/202611130039_offboarding_completion_source_evidence.sql'
       - 'Database/supabase/tests/office-exit-contact-*.sql'
       - '.github/workflows/office-exit-contact-db.yml'
   workflow_dispatch:
@@ -62,4 +63,8 @@ jobs:
           document_result="$(pg --tuples-only --no-align \
             -f Database/supabase/tests/office-exit-document-smoke.sql | tail -n 1)"
           test "$document_result" = "OFFICE_EXIT_DOCUMENT_EVIDENCE_VERIFIED"
-          echo "Contact, offboarding, locked-payroll and signed-document source evidence verified, no delivery."
+          pg -f Database/supabase/migrations/202611130039_offboarding_completion_source_evidence.sql
+          completion_result="$(pg --tuples-only --no-align \
+            -f Database/supabase/tests/office-exit-completion-smoke.sql | tail -n 1)"
+          test "$completion_result" = "OFFICE_EXIT_COMPLETION_EVIDENCE_VERIFIED"
+          echo "All six offboarding source-proof requirements tested with no external mail or production writes."
