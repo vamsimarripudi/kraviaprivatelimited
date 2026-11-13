@@ -16,7 +16,8 @@ describe("KRAVIA HR Manager effective-date access and evidence-based worktime", 
     expect(iamMigration).toContain("public.office_effective_permission");
     expect(iamMigration).toContain("grant execute on function public.office_effective_permission");
     expect(identity).toContain('select("profile_code,scope_type,scope_key,status,expires_at,effective_from")');
-    expect(identity).toContain('effectiveAt <= Date.now()');
+    expect(identity).toContain("officeAccessProfileIsEffective(row)");
+    expect(read("lib/office/access-profile-effective.ts")).toContain("startsAt > now");
     expect(identity).toContain("office_department_permission_verdict");
   });
   it("uses real check-in events rather than adding six hours merely for login", () => {
