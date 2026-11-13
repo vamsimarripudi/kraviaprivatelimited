@@ -166,7 +166,7 @@ export function OfficeLifecycleMailControls(){
       {busy?"Recording documented decision…" : active?.enabled
         ? "Suspend this lifecycle notification" : "Approve only this verified event"}
     </button>
-    <p className={styles.explanation}>This dashboard records policy decisions only. Counts above belong to the selected route's delivery worker; they do not represent inbox receipts.
+    <p className={styles.explanation}>This dashboard records policy decisions only. Counts above belong to the selected delivery worker; they do not represent inbox receipts.
       It does not provide a manual send function and does not confer any payroll, signature or
       access rights.</p>
     </> : <p className={styles.explanation}>Lifecycle policy not loaded.
