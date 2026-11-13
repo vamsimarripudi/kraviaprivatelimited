@@ -251,7 +251,7 @@ export function OfficePresenceControl() {
                     <button className={styles.primary} type="button" disabled={busy || !workMode || !attendanceAllowed} onClick={() => void attendance("CHECK_IN")}>Check in</button>
                     {!attendanceAllowed ? <small className={styles.blocked}>Your current employment status does not permit check-in.</small> : null}
                   </> : <>
-                    <button type="button" disabled={busy} onClick={() => void attendance(state.attendance.state === "ON_BREAK" ? "BREAK_END" : "BREAK_START")}>{state.attendance.state === "ON_BREAK" ? "End break" : "Start break"}</button>
+                    {state.attendance.state === "ON_BREAK" ? <button type="button" disabled={busy} onClick={() => void attendance("BREAK_END")}>End break</button> : <button type="button" disabled={busy} onClick={() => void attendance("BREAK_START")}>Start break</button>}
                     <button className={styles.danger} type="button" disabled={busy} onClick={() => void attendance("CHECK_OUT")}>Check out</button>
                   </>}
                 </div>
