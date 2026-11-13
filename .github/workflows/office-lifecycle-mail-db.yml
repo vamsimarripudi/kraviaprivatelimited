@@ -70,12 +70,12 @@ jobs:
           pg -f Database/supabase/tests/lifecycle-mail-policy-doc-flex-smoke.sql
           pg -f Database/supabase/migrations/202611130030_workday_attendance_offboarding_notifications.sql
           pg -f Database/supabase/tests/lifecycle-mail-workday-exit-smoke.sql
-          output="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-smoke.sql)"
-          echo "$output"
-          test "$(printf '%s\n' "$output" | tail -n 1)" = "LIFECYCLE_MAIL_ROUTES_VERIFIED"
           pg -f Database/supabase/migrations/202611130031_existing_transactional_auth_delivery_ownership.sql
           direct_ownership="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-existing-auth-ownership-smoke.sql)"
           test "$(printf '%s\n' "$direct_ownership" | tail -n 1)" = "DIRECT_CREDENTIAL_OWNERSHIP_VERIFIED"
+          output="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-smoke.sql)"
+          echo "$output"
+          test "$(printf '%s\n' "$output" | tail -n 1)" = "LIFECYCLE_MAIL_ROUTES_VERIFIED"
 
           # Separate phase in the same DISPOSABLE database: reconstruct the
           # immutable legacy 6-column claim schema and apply ONLY the new
@@ -97,10 +97,10 @@ jobs:
           pg -f Database/supabase/tests/lifecycle-mail-policy-doc-flex-smoke.sql
           pg -f Database/supabase/migrations/202611130030_workday_attendance_offboarding_notifications.sql
           pg -f Database/supabase/tests/lifecycle-mail-workday-exit-smoke.sql
-          upgraded_output="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-smoke.sql)"
-          echo "$upgraded_output"
-          printf '%s\n' "$upgraded_output" | grep -Fxq 'LIFECYCLE_MAIL_ROUTES_VERIFIED'
           pg -f Database/supabase/migrations/202611130031_existing_transactional_auth_delivery_ownership.sql
           upgrade_ownership="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-existing-auth-ownership-smoke.sql)"
           test "$(printf '%s\n' "$upgrade_ownership" | tail -n 1)" = "DIRECT_CREDENTIAL_OWNERSHIP_VERIFIED"
+          upgraded_output="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-smoke.sql)"
+          echo "$upgraded_output"
+          printf '%s\n' "$upgraded_output" | grep -Fxq 'LIFECYCLE_MAIL_ROUTES_VERIFIED'
           echo 'Fresh and legacy-forward upgrade rehearsals passed with zero live mail dispatch.'
