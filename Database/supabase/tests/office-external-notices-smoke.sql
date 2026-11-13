@@ -32,15 +32,16 @@ INSERT INTO public.office_document_instances(
  'a1111111-1111-4111-8111-111111111111','KR-DOC-00001711',
  'f1000000-0000-4000-8000-000000000002','EMPLOYEE',
  '33333333-3333-4333-8333-333333333333',
- 'DELIVERED','22222222-2222-4222-8222-222222222222',
+ 'SIGNING','22222222-2222-4222-8222-222222222222',
  '11111111-1111-4111-8111-111111111111',now(),NULL
 );
 INSERT INTO public.office_document_delivery_events(
- id,document_instance_id,channel,destination_masked,provider_reference,event_type
+ id,document_instance_id,channel,destination_masked,provider_reference,event_type,metadata
 ) VALUES(
  'a2222222-2222-4222-8222-222222222222',
  'a1111111-1111-4111-8111-111111111111','ESIGN',
- 's***@kraviaprivatelimited.com','synthetic-provider-ref-1711','SIGNING_LINK_ISSUED'
+ 's***@kraviaprivatelimited.com','synthetic-provider-ref-1711','SIGNING_LINK_ISSUED',
+ '{"link_expires_at":"2099-11-30T12:00:00Z"}'::jsonb
 );
 INSERT INTO public.office_document_engine_events(
  document_instance_id,event_type,metadata
