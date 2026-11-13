@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe,expect,it } from "vitest";
 import { OFFICE_MANUAL_VERSION, commonManual,manualRoles,manualKey,resolveManualRoleIds } from "../lib/office/manuals";
 import { renderOfficeManualPdf } from "../lib/office/manual-pdf";
+import { getDetailedCommonManual,getDetailedRoleManual } from "../lib/office/manual-full-reader";
 import { capabilityCanAccessSection } from "../lib/office/workspace-capabilities";
 import { financeSections,officeSections } from "../lib/office/workspaces";
 
@@ -65,6 +66,34 @@ describe("Office Info and Help: assignment, privacy and versioning",()=>{
     expect(ddl).toContain("if previous_status is distinct from next_status");
     expect(ddl).toContain("to service_role");
   });
+  it("serves the original full-length audited materials, not only short summaries",()=>{
+    const common=getDetailedCommonManual();
+    const founder=getDetailedRoleManual("founder-owner");
+    const trainee=getDetailedRoleManual("trainee");
+    expect(common.length).toBeGreaterThan(25000);
+    expect(founder.length).toBeGreaterThan(3000);
+    expect(founder).toContain("Worked example");
+    expect(trainee).toContain("End of day");
+    expect(()=>getDetailedRoleManual("another-employee-private-record")).toThrow();
+    const source=read("manual-content/role-guides-full.md");
+    expect((source.match(/^## Role guide · /gm)||[]).length).toBe(26);
+    expect(source).toContain(founder);
+    expect(source).toContain(trainee);
+  });
+  it("writes detailed original manual content into the personal PDF",()=>{
+    const pdf=renderOfficeManualPdf({edition:OFFICE_MANUAL_VERSION,
+      common:commonManual,roles:[manualRoles.find(role=>role.id==="trainee")!],
+      routes:[{href:"/office/tasks",title:"Company inbox",description:"Assigned tasks"}],
+      fullCommon:getDetailedCommonManual(),
+      fullRoles:[getDetailedRoleManual("trainee")],
+    });
+    const source=Buffer.from(pdf).toString("ascii");
+    expect(source).toContain("COMPLETE PUBLISHED EDITION");
+    expect(source).toContain("Worked example");
+    expect(source).toContain("PRIVATE EMPLOYEE USER MANUAL");
+    expect(source).toContain("%%EOF");
+  });
+
   it("generates a syntactically valid PDF envelope with current role and route info",()=>{
     const pdf=renderOfficeManualPdf({edition:OFFICE_MANUAL_VERSION,
       common:commonManual,roles:[manualRoles.find(role=>role.id==="trainee")!],
