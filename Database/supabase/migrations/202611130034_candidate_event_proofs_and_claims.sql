@@ -322,8 +322,9 @@ BEGIN
    FROM eligible e WHERE q.id=e.id
    RETURNING q.id,q.claim_token,q.event_code,q.candidate_id,q.source_event_id
  ), logged AS (
-   INSERT INTO public.office_candidate_mail_delivery_events(outbox_id,event_type)
-   SELECT id,'CLAIMED' FROM claimed RETURNING outbox_id
+   INSERT INTO public.office_candidate_mail_delivery_events AS delivery(outbox_id,event_type)
+   SELECT claimed.id,'CLAIMED' FROM claimed
+   RETURNING delivery.outbox_id AS logged_outbox_id
  )
  SELECT q.id,q.claim_token,q.event_code,c.email,c.full_name,
    (c.candidate_code||':'||q.source_event_id::text),
@@ -333,7 +334,7 @@ BEGIN
      ELSE NULL::timestamptz
    END
  FROM claimed q
- JOIN logged l ON l.outbox_id=q.id
+ JOIN logged l ON l.logged_outbox_id=q.id
  JOIN public.office_candidates c ON c.id=q.candidate_id
  JOIN public.office_recruitment_events e ON e.id=q.source_event_id;
 END;$claim$;
