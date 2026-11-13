@@ -297,6 +297,48 @@ def send_office_lifecycle_notification(
     )
 
 
+
+def send_office_external_lifecycle_notification(
+    *, recipient_email: str, recipient_name: str,
+    event_code: str, event_reference: str, delivery_id: str,
+) -> str | None:
+    """Mail a consent-gated event without exporting provider URLs or documents.
+
+    Caller must own a committed private outbox claim and have checked the
+    recipient immediately before submission. This function never chooses an
+    address, fabricates a signatory link, or certifies salary settlement.
+    """
+    allowed = {
+        "ONB-04", "EXIT-02", "EXIT-04", "EXIT-05",
+        "EXIT-06", "EXIT-07", "EXIT-08",
+    }
+    domain = recipient_email.strip().lower().rpartition("@")[2]
+    if event_code not in allowed:
+        raise EmailDeliveryRejected("Unsupported external lifecycle event")
+    if (event_code == "ONB-04" and domain != "kraviaprivatelimited.com") or (
+        event_code.startswith("EXIT-") and domain == "kraviaprivatelimited.com"
+    ):
+        raise EmailDeliveryRejected("External lifecycle recipient domain mismatch")
+
+    # A former employee cannot authenticate to the old corporate Office, so
+    # never include a dead login link or private document download URL. For
+    # active signatories, direct only to the authenticated Office workspace.
+    private_office = (
+        "https://www.kraviaprivatelimited.com/office/dashboard"
+        if event_code == "ONB-04" else None
+    )
+    return _send_transactional_email(
+        recipient_email=recipient_email,
+        template=render_office_lifecycle_notice(
+            event_code=event_code,
+            recipient_name=recipient_name,
+            event_reference=event_reference,
+            office_url=private_office,
+        ),
+        delivery_id=delivery_id,
+        tags=["kravia-office-external-notice", event_code.lower()],
+    )
+
 def send_office_employee_id_issued_email(
     *, recipient_email: str, recipient_name: str,
     employee_reference: str, delivery_id: str,
