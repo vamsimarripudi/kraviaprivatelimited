@@ -59,18 +59,20 @@ SET ROLE kravia_office_backend;
 CREATE TEMP TABLE tick_results AS
  SELECT public.office_lifecycle_reminder_tick(50) AS inserted;
 RESET ROLE;
+-- A shared line manager gets ONE TIME-10 cutoff reminder per payroll period,
+-- not one separate message for each team member.
 DO $verify$
 DECLARE
  v_count integer;
 BEGIN
  SELECT inserted INTO v_count FROM pg_temp.tick_results;
- IF v_count<>16 THEN
-  RAISE EXCEPTION 'Expected 16 verified due-date proofs, got %, distribution %',
+ IF v_count<>14 THEN
+  RAISE EXCEPTION 'Expected 14 verified due-date proofs, got %, distribution %',
     v_count,(SELECT string_agg(event_code||':'||n::text,', ' ORDER BY event_code)
       FROM (SELECT event_code,count(*) n FROM public.office_lifecycle_mail_outbox
          GROUP BY event_code) buckets);
  END IF;
- IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox)<>16 THEN
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox)<>14 THEN
   RAISE EXCEPTION 'Scheduled sources were not enqueued exactly once';
  END IF;
  IF (SELECT count(DISTINCT event_code) FROM public.office_lifecycle_mail_outbox)<>6 THEN
@@ -94,7 +96,7 @@ RESET ROLE;
 DO $claims$
 BEGIN
  IF (SELECT inserted FROM pg_temp.tick_again)<>0
-   OR (SELECT count(*) FROM pg_temp.reminder_claims)<>16 THEN
+   OR (SELECT count(*) FROM pg_temp.reminder_claims)<>14 THEN
   RAISE EXCEPTION 'Scheduled tick repeated a due-date event or claim validation failed';
  END IF;
  IF (SELECT count(*) FROM pg_temp.reminder_claims
