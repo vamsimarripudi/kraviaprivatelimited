@@ -58,9 +58,9 @@ DO $first$
 DECLARE n integer;
 BEGIN
  SELECT count(*) INTO n FROM public.office_lifecycle_auth_signals;
- IF n<>4 THEN RAISE EXCEPTION 'Expected four authentic first-party auth signals, got %',n; END IF;
+ IF n<>5 THEN RAISE EXCEPTION 'Expected five first-party auth signals including an unverified decision, got %',n; END IF;
  SELECT count(*) INTO n FROM public.office_lifecycle_mail_outbox;
- IF n<>5 THEN RAISE EXCEPTION 'Expected five authenticated, idempotent outbound intents, got %',n; END IF;
+ IF n<>6 THEN RAISE EXCEPTION 'Expected six immutable intents including one unverified decision, got %',n; END IF;
  IF EXISTS(
   SELECT 1 FROM public.office_lifecycle_mail_outbox
   WHERE recipient_user_id IS DISTINCT FROM
@@ -72,7 +72,7 @@ BEGIN
   (SELECT id FROM public.office_lifecycle_auth_signals WHERE event_code='AUTH-09'),
   'a0000000-0000-4000-8000-000000000002'::uuid
  );
- IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox)<>5 THEN
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox)<>6 THEN
    RAISE EXCEPTION 'Duplicate source emitted duplicate mail';
  END IF;
 END;
@@ -88,6 +88,10 @@ BEGIN
  END IF;
  IF (SELECT count(DISTINCT event_code) FROM pg_temp.synthetic_claims)<>4 THEN
   RAISE EXCEPTION 'Claimed event codes not distinct and complete';
+ END IF;
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox
+   WHERE status='PENDING' AND event_code='AUTH-07')<>1 THEN
+  RAISE EXCEPTION 'Unverified device evidence must remain pending and undelivered';
  END IF;
  IF EXISTS(SELECT 1 FROM pg_temp.synthetic_claims
     WHERE recipient_email<>'synthetic.staff@kraviaprivatelimited.com'
