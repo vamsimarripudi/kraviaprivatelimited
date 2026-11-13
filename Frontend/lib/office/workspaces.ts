@@ -94,6 +94,7 @@ export const officeSections = {
 export const financeSections = {
   dashboard: { title: "Finance overview", eyebrow: "KRAVIA FINANCE", description: "Finance, GST, accounting and reconciliation work for authorised finance professionals.", roles: financeCore, group: "Overview" },
   "my-role": { title: "My roles & onboarding", eyebrow: "PERSONAL FINANCE IDENTITY", description: "Private self-service employee evidence and role assignments for Finance-only staff.", roles: financeCore, group: "Overview" },
+  worktime: { title: "Attendance & salary slips", eyebrow: "PERSONAL FINANCE WORKTIME", description: "Self-only recorded attendance, corrected hours and verified salary slips for authorised Finance-only identities.", roles: financeCore, group: "Overview" },
   info: { title: "Info & Help", eyebrow: "FINANCE EMPLOYEE HANDBOOK", description: "Your common Office handbook, role-specific instructions and acknowledgement receipts.", roles: financeCore, group: "Overview" },
   customers: { title: "Customer master", eyebrow: "CANONICAL BILLING IDENTITY", description: "Canonical customer identities used by invoices, receipts, tax and reconciliation. Customer creation remains backend-authorised.", roles: financeCore, group: "Revenue" },
   billing: { title: "Billing", eyebrow: "INVOICING", description: "Issued invoices, customer balances, receipts and controlled commercial evidence.", roles: financeCore, group: "Revenue" },
