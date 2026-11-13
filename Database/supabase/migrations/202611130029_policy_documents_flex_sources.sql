@@ -30,8 +30,8 @@ ALTER TABLE public.office_lifecycle_auth_signals
  CHECK(event_code IN ('AUTH-04','AUTH-07','AUTH-09','AUTH-10'));
 
 UPDATE public.office_lifecycle_mail_policy SET source_ready=true
-WHERE event_code IN ('DEV-08','ONB-08','ONB-03',
-  'PAY-11','PAY-12','TIME-09')
+WHERE event_code IN ('AUTH-10','DEV-08','ONB-08','ONB-03',
+  'PAY-11','PAY-12','TIME-07','TIME-09')
   AND NOT source_ready AND NOT enabled;
 
 -- A Flex Day is earned only from five independently approved, distinct
