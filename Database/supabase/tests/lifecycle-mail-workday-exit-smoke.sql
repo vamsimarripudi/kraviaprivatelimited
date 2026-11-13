@@ -67,10 +67,13 @@ DELETE FROM public.office_attendance_sessions
 SELECT public.office_lifecycle_reminder_tick(25);
 SELECT public.office_lifecycle_reminder_tick(25);
 DO $reminder$
+DECLARE expected integer:=CASE WHEN extract(isodow FROM
+  (pg_catalog.now() AT TIME ZONE 'Asia/Kolkata')::date) BETWEEN 1 AND 5
+ THEN 1 ELSE 0 END;
 BEGIN
- IF (SELECT count(*) FROM public.office_lifecycle_attendance_reminder_sources)<>1
-    OR (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE event_code='TIME-02')<>1 THEN
-   RAISE EXCEPTION 'One neutral previous-workday reminder must be idempotent';
+ IF (SELECT count(*) FROM public.office_lifecycle_attendance_reminder_sources)<>expected
+    OR (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE event_code='TIME-02')<>expected THEN
+   RAISE EXCEPTION 'Neutral weekday reminder must be once-only, and silent on weekends';
  END IF;
 END;
 $reminder$;
@@ -107,20 +110,25 @@ CREATE TEMP TABLE verified_workday_exit_claims AS
  SELECT * FROM public.office_lifecycle_mail_claim(25);
 RESET ROLE;
 DO $claimed$
+DECLARE expected integer:=CASE WHEN extract(isodow FROM
+  (pg_catalog.now() AT TIME ZONE 'Asia/Kolkata')::date) BETWEEN 1 AND 5
+ THEN 2 ELSE 1 END;
 BEGIN
- IF (SELECT count(*) FROM pg_temp.verified_workday_exit_claims)<>2
-    OR (SELECT count(DISTINCT event_code) FROM pg_temp.verified_workday_exit_claims)<>2
-    OR NOT EXISTS(
-      SELECT 1 FROM pg_temp.verified_workday_exit_claims
-      WHERE event_code='TIME-02'
-        AND recipient_email='synthetic.staff@kraviaprivatelimited.com'
+ IF (SELECT count(*) FROM pg_temp.verified_workday_exit_claims)<>expected
+    OR (SELECT count(DISTINCT event_code) FROM pg_temp.verified_workday_exit_claims)<>expected
+    OR (
+      expected=2 AND NOT EXISTS(
+        SELECT 1 FROM pg_temp.verified_workday_exit_claims
+        WHERE event_code='TIME-02'
+          AND recipient_email='synthetic.staff@kraviaprivatelimited.com'
+      )
     )
     OR NOT EXISTS(
       SELECT 1 FROM pg_temp.verified_workday_exit_claims
       WHERE event_code='EXIT-01'
         AND recipient_email='synthetic.manager@kraviaprivatelimited.com'
     ) THEN
-   RAISE EXCEPTION 'Private worker did not claim exactly two independently verified recipients';
+   RAISE EXCEPTION 'Private worker did not claim only independently verified recipients';
  END IF;
 END;
 $claimed$;
