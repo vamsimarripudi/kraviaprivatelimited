@@ -6,13 +6,14 @@ import styles from "./office-lifecycle-mail-controls.module.css";
 
 type Policy={
   event_code:string;priority:"P0"|"P1"|"P2";
-  source_ready:boolean;enabled:boolean;delivery_owner:"LIFECYCLE_WORKER"|"FIRST_PARTY_AUTH"|"CANDIDATE_WORKER";
+  source_ready:boolean;enabled:boolean;delivery_owner:"LIFECYCLE_WORKER"|"FIRST_PARTY_AUTH"|"CANDIDATE_WORKER"|"EXTERNAL_NOTICE_WORKER";
   intent:string;subject:string;trigger_description:string;recipient_description:string;
   approved_at:string|null;effective_from:string|null;
 };
 type Data={
   policies:Policy[];total:number;source_ready:number;enabled:number;
   count_by_status?:Record<string,number|null>;
+  counts_by_source?:Record<string,Record<string,number|null>>;
   notice:string;
 };
 const categories=["AUTH","HIRE","ONB","ROLE","TIME","PAY","DEV","EXIT"] as const;
@@ -102,7 +103,7 @@ export function OfficeLifecycleMailControls(){
     <select id="office-lifecycle-event" value={selected}
       onChange={event=>{setSelected(event.target.value);setApproved(false);setError("");setNotice("");}}>
       {matching.map(p=><option key={p.event_code} value={p.event_code}>
-        {p.event_code} · {p.delivery_owner==="FIRST_PARTY_AUTH"?"Existing secure mail":p.source_ready?"Mapped source":"Source not implemented"}
+        {p.event_code} · {p.delivery_owner==="FIRST_PARTY_AUTH"?"Existing secure mail":p.source_ready?"Source verified, dispatch gated":"Source not implemented"}
       </option>)}
     </select>
     {active?<div className={styles.summary}>
@@ -114,8 +115,8 @@ export function OfficeLifecycleMailControls(){
     {active?<div className={styles.details}>
       <div><span>Priority</span><strong>{active.priority}</strong></div>
       <div><span>Committed source adapter</span>
-        <strong>{active.delivery_owner==="FIRST_PARTY_AUTH"?"Handled by first-party authentication":active.delivery_owner==="CANDIDATE_WORKER"?"Consent-verified candidate mail worker":active.source_ready?"Available":"Not yet implemented"}</strong></div>
-      <div><span>Delivery owner</span><strong>{active.delivery_owner==="FIRST_PARTY_AUTH"?"Existing authenticated email sender":active.delivery_owner==="CANDIDATE_WORKER"?"Consent-verified candidate worker":"Governed lifecycle worker"}</strong></div>
+        <strong>{active.delivery_owner==="FIRST_PARTY_AUTH"?"Handled by first-party authentication":active.delivery_owner==="CANDIDATE_WORKER"?"Consent-verified candidate mail worker":active.delivery_owner==="EXTERNAL_NOTICE_WORKER"?"Signing / former-staff proof + consent":active.source_ready?"Verified source pathway":"Not yet implemented"}</strong></div>
+      <div><span>Delivery owner</span><strong>{active.delivery_owner==="FIRST_PARTY_AUTH"?"Existing authenticated email sender":active.delivery_owner==="CANDIDATE_WORKER"?"Consent-verified candidate worker":active.delivery_owner==="EXTERNAL_NOTICE_WORKER"?"Separately gated external notice worker":"Governed lifecycle worker"}</strong></div>
        <div><span>Owner dispatch policy</span><strong>{active.enabled?"Enabled":"Disabled"}</strong></div>
       <div><span>Last approval</span><strong>{active.approved_at?
         new Date(active.approved_at).toLocaleString("en-IN"):"None"}</strong></div>
@@ -132,11 +133,23 @@ export function OfficeLifecycleMailControls(){
         This event is intentionally blocked. Its real, independently verifiable source and recipient
         must be integrated before the Owner can approve delivery.
       </p>:null}
+    {active?.delivery_owner==="EXTERNAL_NOTICE_WORKER"?<p className={styles.blocked}>
+      <LockKeyhole size={17}/>
+      External notices require valid independent consent or an issued provider signing request.
+      Enabling this policy does not enable its separately configured delivery worker.
+      No former employee will receive a message at a revoked corporate mailbox.
+    </p>:null}
     <div className={styles.counts} role="group" aria-label="Private provider outbox outcomes">
       {["PENDING","SENDING","SENT","REJECTED","UNKNOWN"].map(status=>
         <div key={status}><small>{status==="SENT"?"Provider accepted":status.toLowerCase()}</small>
-          <strong>{typeof data.count_by_status?.[status]==="number"?
-            Number(data.count_by_status?.[status]).toLocaleString("en-IN"):"Unknown"}</strong>
+          <strong>{typeof (data.counts_by_source?.[
+            active?.delivery_owner==="CANDIDATE_WORKER"?"candidate":
+            active?.delivery_owner==="EXTERNAL_NOTICE_WORKER"?"external":"internal"
+          ]?.[status]??data.count_by_status?.[status])==="number"?
+            Number(data.counts_by_source?.[
+              active?.delivery_owner==="CANDIDATE_WORKER"?"candidate":
+              active?.delivery_owner==="EXTERNAL_NOTICE_WORKER"?"external":"internal"
+            ]?.[status]??data.count_by_status?.[status]).toLocaleString("en-IN"):"Unknown"}</strong>
         </div>)}
     </div>
     <label className={styles.label} htmlFor="office-lifecycle-reason">Corporate approval or suspension reference</label>
@@ -153,7 +166,7 @@ export function OfficeLifecycleMailControls(){
       {busy?"Recording documented decision…" : active?.enabled
         ? "Suspend this lifecycle notification" : "Approve only this verified event"}
     </button>
-    <p className={styles.explanation}>This dashboard records policy decisions only.
+    <p className={styles.explanation}>This dashboard records policy decisions only. Counts above belong to the selected route's delivery worker; they do not represent inbox receipts.
       It does not provide a manual send function and does not confer any payroll, signature or
       access rights.</p>
     </> : <p className={styles.explanation}>Lifecycle policy not loaded.
