@@ -7,7 +7,7 @@ BEGIN
   IF EXISTS(SELECT 1 FROM public.office_lifecycle_mail_policy WHERE enabled) THEN
     RAISE EXCEPTION 'Office lifecycle mail migration unexpectedly enabled delivery';
   END IF;
-  IF (SELECT count(*) FROM public.office_lifecycle_mail_policy WHERE source_ready)<>30 THEN
+  IF (SELECT count(*) FROM public.office_lifecycle_mail_policy WHERE source_ready)<>31 THEN
     RAISE EXCEPTION 'Source-ready events must be accurately distinguished from unmapped events';
   END IF;
   IF pg_catalog.has_table_privilege('anon','public.office_lifecycle_mail_outbox','SELECT') OR
@@ -121,6 +121,9 @@ SELECT public.office_lifecycle_mail_policy_set(
 SELECT public.office_lifecycle_mail_policy_set(
  'a0000000-0000-4000-8000-000000000001','ONB-01',true,
  pg_catalog.now(),'Synthetic independently approved joining and immutable employee identity');
+SELECT public.office_lifecycle_mail_policy_set(
+ 'a0000000-0000-4000-8000-000000000001','HIRE-07',true,
+ pg_catalog.now(),'Independent internal review of a real pending employment offer');
 
 INSERT INTO public.office_employee_intake_events(employee_user_id,event_type)
 VALUES
@@ -136,6 +139,13 @@ VALUES('a0000000-0000-4000-8000-000000000002',
 INSERT INTO public.office_role_package_events(target_user_id,application_id,event_type)
 VALUES('a0000000-0000-4000-8000-000000000002',
  'e0000000-0000-4000-8000-000000000008','PACKAGE_APPLIED');
+INSERT INTO public.office_recruitment_events(
+  offer_id,actor_user_id,event_type,new_status,metadata)
+VALUES('c0000000-0000-4000-8000-000000000013',
+ 'a0000000-0000-4000-8000-000000000002',
+ 'OFFER_SUBMITTED','PENDING_APPROVAL',
+ '{"approval_request_id":"c0000000-0000-4000-8000-000000000011"}'::jsonb);
+-- Only the independently assigned corporate reviewer is a recipient.
 -- The last required task must be signed off independently before onboarding
 -- may be recorded as complete. This is not the same as the initial assignment.
 UPDATE public.office_role_package_onboarding_tasks SET
@@ -250,8 +260,8 @@ WHERE id='f0000000-0000-4000-8000-000000000015';
 
 DO $prove$
 BEGIN
-  IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox)<>30 THEN
-    RAISE EXCEPTION 'Expected thirty grounded, committed lifecycle mail records';
+  IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox)<>31 THEN
+    RAISE EXCEPTION 'Expected thirty-one grounded, committed lifecycle mail records';
   END IF;
  IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE event_code='PAY-06')<>1 THEN
    RAISE EXCEPTION 'Immutable approved payslip did not create one private notice';
@@ -261,6 +271,10 @@ BEGIN
  END IF;
  IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE event_code='PAY-08')<>1 THEN
    RAISE EXCEPTION 'Salary paid notice requires independently verified full net bank credit';
+ END IF;
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox
+   WHERE event_code='HIRE-07' AND recipient_user_id='a0000000-0000-4000-8000-000000000003')<>1 THEN
+   RAISE EXCEPTION 'Offer approval review must target one independently assigned internal reviewer';
  END IF;
  IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE event_code='ONB-01')<>1 THEN
    RAISE EXCEPTION 'Welcome aboard requires independently issued real employee reference and active joining';
@@ -302,7 +316,7 @@ RESET ROLE;
 
 DO $claim$
 BEGIN
- IF (SELECT count(*) FROM pg_temp.ci_claims)<>29 THEN
+ IF (SELECT count(*) FROM pg_temp.ci_claims)<>30 THEN
    RAISE EXCEPTION 'Employee lifecycle claim count mismatch: observed %, still pending codes %, total pending %',
       (SELECT count(*) FROM pg_temp.ci_claims),
       (SELECT pg_catalog.string_agg(event_code,',') FROM public.office_lifecycle_mail_outbox WHERE status='PENDING'),
@@ -317,7 +331,7 @@ BEGIN
  IF (SELECT count(*) FROM pg_temp.ci_claims WHERE event_code='PAY-06' AND pay_period='2026-11')<>1 THEN
    RAISE EXCEPTION 'Verified payroll period missing from approved notice claim';
  END IF;
- IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE status='SENDING')<>29 THEN
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE status='SENDING')<>30 THEN
    RAISE EXCEPTION 'Twenty-two verified notifications were not claimed atomically';
  END IF;
  IF pg_catalog.has_function_privilege('anon','public.office_lifecycle_mail_finish(uuid,uuid,text,text)','EXECUTE') THEN
@@ -352,10 +366,10 @@ SELECT count(*) AS safe_claims_after_timeout FROM public.office_lifecycle_mail_c
 RESET ROLE;
 DO $verify$
 BEGIN
- IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE status='UNKNOWN')<>28 THEN
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE status='UNKNOWN')<>29 THEN
    RAISE EXCEPTION 'Stale submission was not quarantined rather than retried';
  END IF;
- IF (SELECT count(*) FROM public.office_lifecycle_mail_events WHERE event_type='STALE_UNKNOWN')<>28 THEN
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_events WHERE event_type='STALE_UNKNOWN')<>29 THEN
    RAISE EXCEPTION 'Stale lifecycle mail events lack audit evidence';
  END IF;
  IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE status='SENT')<>1 THEN

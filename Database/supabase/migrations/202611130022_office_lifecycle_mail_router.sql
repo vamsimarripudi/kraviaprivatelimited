@@ -37,7 +37,7 @@ VALUES
   ('HIRE-04','P1',false,'Interview cancelled','Update to your KRAVIA interview','Interview cancellation recorded','Candidate and interviewers'),
   ('HIRE-05','P0',false,'Recruitment documents requested','Document request for your KRAVIA application','Approved document request created','Candidate'),
   ('HIRE-06','P1',false,'Recruitment document needs correction','Action required: Your KRAVIA document','Document reviewer rejects or requests new evidence','Candidate'),
-  ('HIRE-07','P0',false,'Offer awaiting director approval','Approval required: KRAVIA offer','Offer enters governed review state','Authorised director/reviewer'),
+  ('HIRE-07','P0',true,'Offer awaiting director approval','Approval required: KRAVIA offer','Offer enters governed review state','Authorised director/reviewer'),
   ('HIRE-08','P0',false,'Approved offer available','Your KRAVIA offer letter is ready','Approved document signed/published with candidate access','Candidate'),
   ('HIRE-09','P0',false,'Offer accepted','KRAVIA offer acceptance confirmed','Acceptance is actually recorded and verified','Candidate and approved hiring owner'),
   ('HIRE-10','P1',false,'Offer declined, withdrawn or expired','Update on your KRAVIA offer','Canonical status recorded','Candidate as appropriate; hiring owner'),
@@ -125,6 +125,7 @@ CREATE TABLE IF NOT EXISTS public.office_lifecycle_mail_outbox(
     'office_employee_intake_events','office_role_package_events',
     'office_worktime_events','office_department_transfer_events','office_auth_events',
     'office_people_development_events','office_payroll_events','office_task_events',
+    'office_recruitment_events',
     'office_access_audit','office_lifecycle_mail_decision_events'
   )),
   source_id bigint NOT NULL CHECK(source_id>0),
@@ -359,6 +360,30 @@ BEGIN
     ELSIF NEW.event_type='TASK_RETURNED' AND NEW.target_user_id IS NOT NULL THEN
       PERFORM public.office_lifecycle_mail_enqueue('ONB-05',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
     END IF;
+  ELSIF TG_TABLE_NAME='office_recruitment_events' THEN
+    IF NEW.event_type='OFFER_SUBMITTED' AND NEW.offer_id IS NOT NULL
+        AND NEW.new_status='PENDING_APPROVAL' THEN
+      SELECT step.assigned_user_id INTO v_recipient
+      FROM public.office_offer_proposals offer
+      JOIN public.office_requests request
+        ON request.id=offer.approval_request_id
+      JOIN public.office_request_steps step
+        ON step.request_id=request.id AND step.step_order=request.current_step_order
+      JOIN public.office_identity_users reviewer ON reviewer.user_id=step.assigned_user_id
+      WHERE offer.id=NEW.offer_id AND offer.status='PENDING_APPROVAL'
+        AND offer.created_by IS DISTINCT FROM step.assigned_user_id
+        AND step.assigned_user_id IS DISTINCT FROM NEW.actor_user_id
+        AND reviewer.status='ACTIVE'
+        AND request.request_type_code='EMPLOYMENT_OFFER_APPROVAL'
+        AND request.status IN ('PENDING','IN_REVIEW')
+        AND request.id::text=NEW.metadata->>'approval_request_id'
+        AND step.status='PENDING' AND step.required_permission='hiring.offer.review'
+        AND public.office_effective_permission(
+          step.assigned_user_id,'hiring.offer.review','COMPANY',NULL,NULL);
+      IF v_recipient IS NOT NULL THEN
+        PERFORM public.office_lifecycle_mail_enqueue('HIRE-07',TG_TABLE_NAME,NEW.id,v_recipient);
+      END IF;
+    END IF;
   ELSIF TG_TABLE_NAME='office_worktime_events' THEN
     IF NEW.event_type='SUBMITTED' THEN
       SELECT owner.owner_user_id INTO v_recipient
@@ -591,6 +616,9 @@ CREATE TRIGGER office_lifecycle_mail_on_task AFTER INSERT ON public.office_task_
 DROP TRIGGER IF EXISTS office_lifecycle_mail_on_access_audit ON public.office_access_audit;
 CREATE TRIGGER office_lifecycle_mail_on_access_audit AFTER INSERT ON public.office_access_audit
   FOR EACH ROW EXECUTE FUNCTION public.office_lifecycle_mail_source_trigger();
+DROP TRIGGER IF EXISTS office_lifecycle_mail_on_recruitment ON public.office_recruitment_events;
+CREATE TRIGGER office_lifecycle_mail_on_recruitment AFTER INSERT ON public.office_recruitment_events
+  FOR EACH ROW EXECUTE FUNCTION public.office_lifecycle_mail_source_trigger();
 
 -- A payslip is eligible only once its immutable issue is actually inserted.
 -- This trigger writes a canonical audit event only while its specific Owner
@@ -777,6 +805,26 @@ BEGIN
                       AND task.employee_user_id=o.recipient_user_id
                       AND task.required AND task.status<>'VERIFIED'))
                 OR (o.event_code='ONB-05' AND ev.event_type='TASK_RETURNED'))))
+        OR (o.source_table='office_recruitment_events' AND o.event_code='HIRE-07'
+          AND EXISTS(SELECT 1 FROM public.office_recruitment_events ev
+            JOIN public.office_offer_proposals offer ON offer.id=ev.offer_id
+            JOIN public.office_requests request ON request.id=offer.approval_request_id
+            JOIN public.office_request_steps step
+              ON step.request_id=request.id AND step.step_order=request.current_step_order
+            JOIN public.office_identity_users reviewer ON reviewer.user_id=step.assigned_user_id
+            WHERE ev.id=o.source_id AND ev.event_type='OFFER_SUBMITTED'
+              AND ev.new_status='PENDING_APPROVAL' AND offer.status='PENDING_APPROVAL'
+              AND ev.metadata->>'approval_request_id'=request.id::text
+              AND request.request_type_code='EMPLOYMENT_OFFER_APPROVAL'
+              AND request.status IN ('PENDING','IN_REVIEW')
+              AND step.assigned_user_id=o.recipient_user_id
+              AND step.status='PENDING'
+              AND step.required_permission='hiring.offer.review'
+              AND reviewer.status='ACTIVE'
+              AND step.assigned_user_id IS DISTINCT FROM offer.created_by
+              AND step.assigned_user_id IS DISTINCT FROM ev.actor_user_id
+              AND public.office_effective_permission(
+                step.assigned_user_id,'hiring.offer.review','COMPANY',NULL,NULL)))
         OR (o.source_table='office_worktime_events' AND o.event_code='TIME-03'
           AND EXISTS(SELECT 1 FROM public.office_worktime_events ev
             JOIN public.office_worktime_review_cases c ON c.id=ev.case_id
