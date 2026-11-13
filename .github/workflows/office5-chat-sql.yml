@@ -5,7 +5,9 @@ on:
     paths:
       - "Database/supabase/migrations/202611140001_office_chat_private_messages.sql"
       - "Database/supabase/migrations/202611140002_office_chat_private_groups.sql"
+      - "Database/supabase/migrations/202611140005_office_chat_threads_and_search.sql"
       - "Database/supabase/tests/office5_chat_security.sql"
+      - "Database/supabase/tests/office5_chat_extended_security.sql"
       - ".github/workflows/office5-chat-sql.yml"
   workflow_dispatch:
 
@@ -45,6 +47,8 @@ jobs:
           pg --command "create role anon nologin; create role authenticated nologin; create role service_role nologin; create extension if not exists pgcrypto; create table public.office_identity_users(user_id uuid primary key, status text not null);"
           pg --file Database/supabase/migrations/202611140001_office_chat_private_messages.sql
           pg --file Database/supabase/migrations/202611140002_office_chat_private_groups.sql
+          pg --file Database/supabase/migrations/202611140005_office_chat_threads_and_search.sql
           pg --file Database/supabase/tests/office5_chat_security.sql
+          pg --file Database/supabase/tests/office5_chat_extended_security.sql
           counts="$(pg --tuples-only --no-align --command "select (select count(*) from public.office_chat_conversations),(select count(*) from public.office_chat_messages)")"
           test "$counts" = "0|0"
