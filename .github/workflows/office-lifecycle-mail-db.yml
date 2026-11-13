@@ -49,7 +49,7 @@ jobs:
           # Separate phase in the same DISPOSABLE database: reconstruct the
           # immutable legacy 6-column claim schema and apply ONLY the new
           # forward migration, never re-running the recorded production SQL.
-          pg -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
+          pg -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT USAGE ON SCHEMA public TO PUBLIC;'
           pg -f Database/supabase/tests/lifecycle-mail-fixture.sql
           pg -f Database/supabase/tests/lifecycle-mail-legacy-release-snapshot.sql
           pg -f Database/supabase/migrations/202611130023_reconcile_office_lifecycle_mail_sources.sql
