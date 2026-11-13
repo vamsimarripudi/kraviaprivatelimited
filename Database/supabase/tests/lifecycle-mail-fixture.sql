@@ -388,3 +388,16 @@ CREATE TABLE public.office_document_signature_evidence(
  id uuid PRIMARY KEY,document_instance_id uuid NOT NULL,
  status text NOT NULL,signed_at timestamptz
 );
+
+
+-- Match production's immutable one-issue-per-calculation invariant and
+-- approved adjustment evidence for a new calculated result version.
+ALTER TABLE public.office_payroll_results
+ ADD COLUMN calculation_version integer NOT NULL DEFAULT 1;
+ALTER TABLE public.office_salary_payslip_issues
+ ADD CONSTRAINT ci_one_issue_per_calculation UNIQUE(payroll_result_id);
+CREATE TABLE public.office_payroll_adjustments(
+ id uuid PRIMARY KEY,
+ period_id uuid NOT NULL,employment_id uuid NOT NULL,employee_user_id uuid NOT NULL,
+ status text NOT NULL,created_by uuid,approved_by uuid,approved_at timestamptz
+);
