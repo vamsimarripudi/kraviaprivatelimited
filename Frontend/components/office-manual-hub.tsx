@@ -17,6 +17,7 @@ type Chapter = {id:string;title:string;steps:string[]};
 type ResponsePayload = {
   edition:string;actor:{display_name:string;roles:string[];department:string|null};
   manuals:AssignedManual[];roles:Guide[];common:Chapter[];routes:Route[];outstanding:number;disclaimer:string;
+  full_documents:Record<string,string>;
 };
 type Tab = "overview"|"reading"|"routes"|"help";
 const labels:Record<ManualState,string>={
@@ -29,6 +30,31 @@ async function decode<T>(response:Response):Promise<T> {
   return body as T;
 }
 function statusLabel(state:ManualState){return labels[state];}
+function displayLine(value:string){
+  return value.replace(/\*\*/g,"").replace(/\\`/g,"")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g,"$1 ($2)");
+}
+function DetailedManual({markdown}:{markdown:string}){
+  return <div className={styles.detailedDocument} aria-label="Full handbook text">
+    {markdown.split("\n").map((raw,index)=>{
+      const line=raw.trim();
+      if(!line)return <div key={index} className={styles.manualWhitespace}/>;
+      if(/^---+$/.test(line))return <hr key={index}/>;
+      if(line.startsWith("### "))return <h4 key={index}>{displayLine(line.slice(4))}</h4>;
+      if(line.startsWith("## "))return <h3 key={index}>{displayLine(line.slice(3))}</h3>;
+      if(line.startsWith("# "))return <h3 key={index}>{displayLine(line.slice(2))}</h3>;
+      if(line.startsWith(">"))return <blockquote key={index}>{displayLine(line.replace(/^>\s?/,""))}</blockquote>;
+      if(line.startsWith("|")){
+        if(/^\|[\s|:\-]+\|?$/.test(line))return null;
+        const cells=line.split("|").slice(1,-1).map(cell=>displayLine(cell.trim()));
+        return <p className={styles.manualTableLine} key={index}>{cells.join("  ·  ")}</p>;
+      }
+      if(/^\d+\.\s/.test(line))return <p className={styles.manualListLine} key={index}>{displayLine(line)}</p>;
+      if(/^[-*]\s/.test(line))return <p className={styles.manualBullet} key={index}>• {displayLine(line.slice(2))}</p>;
+      return <p className={styles.manualParagraph} key={index}>{displayLine(line)}</p>;
+    })}
+  </div>;
+}
 
 export function OfficeManualHub(){
   const [data,setData]=useState<ResponsePayload|null>(null);
@@ -36,6 +62,7 @@ export function OfficeManualHub(){
   const [notice,setNotice]=useState("");
   const [tab,setTab]=useState<Tab>("overview");
   const [opened,setOpened]=useState<string|null>(null);
+  const [readerMode,setReaderMode]=useState<"complete"|"summary">("complete");
   const [filter,setFilter]=useState("");
   const [agree,setAgree]=useState(false);
   const [busy,setBusy]=useState(false);
@@ -61,7 +88,7 @@ export function OfficeManualHub(){
     finally{setBusy(false);}
   }
   function openManual(manual:AssignedManual){
-    setOpened(manual.key);setTab("reading");setAgree(false);setNotice("");
+    setOpened(manual.key);setTab("reading");setReaderMode("complete");setAgree(false);setNotice("");
     if(manual.status!=="ACKNOWLEDGED")void mutate("OPEN",manual.key);
   }
 
@@ -132,6 +159,13 @@ export function OfficeManualHub(){
           {!current?<p>Choose a manual from the list to begin reading.</p>:<>
             <div className={styles.readerHeader}><div><p>EDITION {current.version}</p><h3>{current.title}</h3></div>
               <span className={styles.badge} data-status={current.status}>{statusLabel(current.status)}</span></div>
+            <div className={styles.readerMode} role="group" aria-label="Select reading depth">
+              <button type="button" data-active={readerMode==="complete"} onClick={()=>setReaderMode("complete")}>Complete manual</button>
+              <button type="button" data-active={readerMode==="summary"} onClick={()=>setReaderMode("summary")}>Quick summary</button>
+            </div>
+            {readerMode==="complete" && data.full_documents[current.key]
+              ? <DetailedManual markdown={data.full_documents[current.key]}/>
+              : <>
             {current.id==="common"?data.common.map(chapter=><section key={chapter.id} className={styles.chapter}>
               <h4>{chapter.title}</h4><ol>{chapter.steps.map((step,i)=><li key={i}>{step}</li>)}</ol>
             </section>):guide?<div className={styles.roleBody}>
@@ -144,6 +178,7 @@ export function OfficeManualHub(){
                 available?<Link href={url} key={name}><Check size={14}/>{available.title}<ArrowRight size={14}/></Link>:
                 <span key={name} className={styles.restricted}><LockKeyhole size={14}/>{name.replace("finance:","Finance / ").replaceAll("-"," ")} · Not assigned</span>)}</div>
             </div>:<p>Role manual is unavailable for this identity.</p>}
+                </>}
             <div className={styles.ack}>
               <h4>Confirm this version</h4>
               <p>Reading this handbook does not verify onboarding documents, approve a policy, or constitute a legally signed acknowledgement.</p>
