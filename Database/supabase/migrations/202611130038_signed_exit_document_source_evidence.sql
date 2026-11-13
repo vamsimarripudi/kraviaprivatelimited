@@ -58,7 +58,7 @@ BEGIN
     AND instance.approved_by IS NOT NULL AND instance.approved_at IS NOT NULL
     AND instance.signed_at IS NOT NULL
     AND delivered.document_instance_id=instance.id
-    AND delivered.event_type='DOCUMENT_DELIVERED'
+    AND delivered.event_type IN('DELIVERED','DOCUMENT_DELIVERED')
     AND delivered.channel IN('EMAIL','SECURE_LINK','IN_APP','ESIGN')
     AND delivered.provider_reference IS NOT NULL
     AND btrim(delivered.provider_reference)<>''
@@ -108,7 +108,7 @@ BEGIN
    AND instance.approved_by IS NOT NULL AND instance.approved_at IS NOT NULL
    AND instance.signed_at IS NOT NULL
    AND delivered.document_instance_id=instance.id
-   AND delivered.event_type='DOCUMENT_DELIVERED'
+   AND delivered.event_type IN('DELIVERED','DOCUMENT_DELIVERED')
    AND delivered.channel IN('EMAIL','SECURE_LINK','IN_APP','ESIGN')
    AND delivered.provider_reference IS NOT NULL
    AND btrim(delivered.provider_reference)<>''
