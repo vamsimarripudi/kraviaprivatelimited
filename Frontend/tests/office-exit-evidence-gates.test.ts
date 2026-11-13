@@ -22,6 +22,8 @@ describe("KRAVIA Office external signing and offboarding audit gates", () => {
     expect(studio).toContain("Issue this request in your verified eSign provider first.");
     expect(studio).toContain("KRAVIA does not fabricate signing links or email tokens.");
     expect(signingState).toContain("SET status='SIGNING'");
+    expect(signingState).toContain("Existing unexpired signing request must not be reissued");
+    expect(studio).toContain("Record renewed eSign request");
     expect(signingState).toContain("link_expires_at");
     expect(signingProof).toContain("template.template_code='HR_APPOINTMENT'");
     expect(signingProof).toContain("document.signed_at IS NULL");
