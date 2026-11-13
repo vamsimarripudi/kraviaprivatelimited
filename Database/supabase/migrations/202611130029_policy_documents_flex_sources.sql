@@ -30,8 +30,8 @@ ALTER TABLE public.office_lifecycle_auth_signals
  CHECK(event_code IN ('AUTH-04','AUTH-07','AUTH-09','AUTH-10'));
 
 UPDATE public.office_lifecycle_mail_policy SET source_ready=true
-WHERE event_code IN ('AUTH-10','DEV-08','ONB-08','ONB-03',
-  'PAY-11','PAY-12','TIME-07','TIME-09')
+WHERE event_code IN ('DEV-08','ONB-08','ONB-03',
+  'PAY-11','PAY-12','TIME-09')
   AND NOT source_ready AND NOT enabled;
 
 -- A Flex Day is earned only from five independently approved, distinct
@@ -307,10 +307,24 @@ BEGIN
        AND result.status='LOCKED'
        AND EXISTS(
          SELECT 1 FROM public.office_salary_payslip_issues earlier
-         WHERE earlier.payroll_result_id=issue.payroll_result_id
-           AND earlier.id<>issue.id
+         JOIN public.office_payroll_results previous
+           ON previous.id=earlier.payroll_result_id
+         WHERE previous.period_id=result.period_id
+           AND previous.employment_id=result.employment_id
+           AND previous.employee_user_id=result.employee_user_id
+           AND previous.calculation_version<result.calculation_version
            AND earlier.issued_at<issue.issued_at
            AND earlier.snapshot_sha256<>issue.snapshot_sha256
+       )
+       AND EXISTS(
+         SELECT 1 FROM public.office_payroll_adjustments adjustment
+         WHERE adjustment.period_id=result.period_id
+           AND adjustment.employment_id=result.employment_id
+           AND adjustment.employee_user_id=result.employee_user_id
+           AND adjustment.status='APPROVED'
+           AND adjustment.approved_by IS NOT NULL
+           AND adjustment.approved_at IS NOT NULL
+           AND adjustment.approved_by IS DISTINCT FROM adjustment.created_by
        )
    );
  ELSIF p_proof.event_code IN ('TIME-07','TIME-09') THEN
@@ -348,51 +362,9 @@ BEGIN
  RETURN false;
 END;
 $verify$;
-CREATE OR REPLACE FUNCTION public.office_lifecycle_auth_v2_source()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
-AS $auth$
-DECLARE
- v_code text;
- v_recipient uuid;
- v_source bigint;
-BEGIN
-  v_code:=CASE NEW.event_type
-   WHEN 'INVITATION_ACCEPTED' THEN 'AUTH-04'
-   WHEN 'DEVICE_APPROVAL_APPROVED' THEN 'AUTH-07'
-   WHEN 'DEVICE_APPROVAL_DECLINED' THEN 'AUTH-07'
-   WHEN 'PASSWORD_RECOVERY_COMPLETED' THEN 'AUTH-09'
-   WHEN 'LOGIN_BLOCKED' THEN 'AUTH-10'
-   ELSE NULL END;
-  IF v_code IS NULL OR NEW.user_id IS NULL THEN RETURN NEW; END IF;
-  SELECT identity.user_id INTO v_recipient
-  FROM public.office_identity_users identity
-  JOIN public.office_auth_users account ON account.id=identity.user_id::text
-  WHERE identity.user_id::text=NEW.user_id
-    AND identity.status='ACTIVE' AND account.status='ACTIVE'
-    AND pg_catalog.lower(account.email) LIKE '%@kraviaprivatelimited.com';
-  IF v_recipient IS NULL THEN RETURN NEW; END IF;
-  -- The evidence row may flush before the device-approval UPDATE in the
-  -- same first-party transaction. Record the immutable event atomically now,
-  -- and verify the committed, independently approved decision when the
-  -- private worker claims the message (the claim function retains that check).
-  IF v_code='AUTH-10' AND NOT EXISTS (
-    SELECT 1 FROM public.office_auth_users account
-    WHERE account.id=NEW.user_id
-      AND account.locked_until>pg_catalog.now()
-      AND NEW.metadata_json LIKE '%temporary_lock%'
-  ) THEN RETURN NEW; END IF;
-  INSERT INTO public.office_lifecycle_auth_signals(auth_event_id,event_code,recipient_user_id)
-  VALUES(NEW.id,v_code,v_recipient)
-  ON CONFLICT(auth_event_id) DO NOTHING
-  RETURNING id INTO v_source;
-  IF v_source IS NOT NULL THEN
-    PERFORM public.office_lifecycle_mail_enqueue(
-      v_code,'office_lifecycle_auth_signals',v_source,v_recipient
-    );
-  END IF;
-  RETURN NEW;
-END;
-$auth$;
+-- AUTH-10 is already implemented and rate-limited by recorded migration 028.
+-- Preserve that audited function and its claim checks without redefining it.
+
 CREATE OR REPLACE FUNCTION public.office_lifecycle_mail_claim(p_limit integer DEFAULT 10)
 RETURNS TABLE(
   outbox_id uuid,claim_token uuid,event_code text,recipient_email text,
@@ -734,11 +706,11 @@ BEGIN
                 (signal.event_code='AUTH-04' AND ev.event_type='INVITATION_ACCEPTED')
                 OR (signal.event_code='AUTH-09' AND ev.event_type='PASSWORD_RECOVERY_COMPLETED')
                 OR (signal.event_code='AUTH-10' AND ev.event_type='LOGIN_BLOCKED'
-                  AND ev.metadata_json LIKE '%temporary_lock%'
+                  AND ev.metadata_json::jsonb->>'reason'='temporary_lock'
                   AND EXISTS(
                     SELECT 1 FROM public.office_auth_users account
-                    WHERE account.id=ev.user_id
-                      AND account.locked_until>pg_catalog.now()
+                    WHERE account.id=ev.user_id AND account.status='ACTIVE'
+                      AND account.locked_until>ev.created_at
                   ))
                 OR (signal.event_code='AUTH-07'
                   AND ev.event_type IN ('DEVICE_APPROVAL_APPROVED','DEVICE_APPROVAL_DECLINED')
@@ -1048,9 +1020,22 @@ BEGIN
    WHERE result.id=NEW.payroll_result_id AND result.status='LOCKED'
      AND result.employee_user_id=NEW.employee_user_id
      AND EXISTS(SELECT 1 FROM public.office_salary_payslip_issues older
-       WHERE older.payroll_result_id=NEW.payroll_result_id
-         AND older.id<>NEW.id AND older.issued_at<NEW.issued_at
-         AND older.snapshot_sha256<>NEW.snapshot_sha256);
+       JOIN public.office_payroll_results previous
+         ON previous.id=older.payroll_result_id
+       WHERE previous.period_id=result.period_id
+         AND previous.employment_id=result.employment_id
+         AND previous.employee_user_id=result.employee_user_id
+         AND previous.calculation_version<result.calculation_version
+         AND older.issued_at<NEW.issued_at
+         AND older.snapshot_sha256<>NEW.snapshot_sha256)
+     AND EXISTS(SELECT 1 FROM public.office_payroll_adjustments adjustment
+       WHERE adjustment.period_id=result.period_id
+         AND adjustment.employment_id=result.employment_id
+         AND adjustment.employee_user_id=result.employee_user_id
+         AND adjustment.status='APPROVED'
+         AND adjustment.approved_by IS NOT NULL
+         AND adjustment.approved_at IS NOT NULL
+         AND adjustment.approved_by IS DISTINCT FROM adjustment.created_by);
    IF v_recipient IS NULL OR NOT EXISTS(
      SELECT 1 FROM public.office_lifecycle_mail_policy p
      WHERE p.event_code='PAY-11' AND p.enabled AND p.source_ready
@@ -1073,7 +1058,7 @@ BEGIN
          AND p.effective_from<=NEW.earned_week_monday) THEN
        RETURN NEW;
    END IF;
-   FOR v_code IN SELECT code FROM (VALUES('TIME-07'::text),('TIME-09'::text)) routes(code)
+   FOR v_code IN SELECT 'TIME-09'::text
    LOOP
       IF v_code='TIME-07' THEN
         v_recipient:=NEW.employee_user_id;
@@ -1135,10 +1120,10 @@ GRANT EXECUTE ON FUNCTION public.office_lifecycle_mail_claim(integer)
  TO kravia_office_backend;
 DO $postcheck$
 BEGIN
- IF (SELECT count(*) FROM public.office_lifecycle_mail_policy WHERE source_ready)<>57
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_policy WHERE source_ready)<>55
     OR EXISTS(SELECT 1 FROM public.office_lifecycle_mail_policy WHERE enabled)
     OR EXISTS(SELECT 1 FROM public.office_lifecycle_mail_outbox) THEN
-   RAISE EXCEPTION 'Expected 57 mapped policy/document and auth signals with sending disabled';
+   RAISE EXCEPTION 'Expected 55 mapped sources (6 additional policy/document routes) with sending disabled';
  END IF;
 END;
 $postcheck$;
