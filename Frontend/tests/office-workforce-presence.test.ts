@@ -69,6 +69,8 @@ describe("KRAVIA Office workforce presence and attendance", () => {
     expect(presenceControl).toContain('data-office-presence-actions="true"');
     expect(presenceControl).toContain('ref={triggerRef}');
     expect(presenceControl).toContain("triggerRef.current?.focus()");
+    expect(presenceControl).toContain('createPortal(<dialog');
+    expect(presenceControl).toContain('document.querySelector<HTMLElement>(".kravia-office .office-modern .office-main")');
     expect(presenceControl).toContain('onCancel={(event)');
     expect(presenceControl).not.toContain('return <details className={styles.control}>');
     expect(modalCss).toContain("position: fixed !important");
