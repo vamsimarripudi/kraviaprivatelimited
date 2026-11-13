@@ -268,3 +268,55 @@ def test_jaya_can_still_use_email_after_totp_enrollment(tmp_path, monkeypatch):
         assert sent.status_code == 201, sent.text
     finally:
         engine.dispose()
+
+def test_email_otp_session_is_bounded_and_cannot_be_used_as_native_authenticator(tmp_path, monkeypatch):
+    from datetime import datetime, timedelta, timezone
+    from sqlalchemy.orm import Session
+    from backend.auth_models import OfficeAuthSession
+
+    client, engine, _, _, registered = setup_member(tmp_path, monkeypatch)
+    try:
+        headers = {"Authorization": "Bearer " + registered["access_token"]}
+        sent = client.post("/api/v1/auth/office-invite-email-otp/request", headers=headers, json={})
+        assert sent.status_code == 201, sent.text
+        challenge = sent.json()
+        token = challenge["challenge_token"]
+        identifier = challenge["challenge_id"]
+        assert client.post(f"/api/v1/auth/email-otp/challenges/{identifier}/verify",
+            json={"challenge_token": token, "code": "482915"}).status_code == 404
+        assert client.post(f"/api/v1/auth/email-otp/challenges/{identifier}/resend",
+            json={"challenge_token": token}).status_code == 404
+
+        checked = client.post("/api/v1/auth/office-invite-email-otp/verify", headers=headers, json={
+            "challenge_id": identifier, "challenge_token": token, "code": "482915",
+        })
+        assert checked.status_code == 200, checked.text
+        assert client.get("/api/v1/auth/session", headers={"Authorization": "Bearer " + checked.json()["access_token"]}).status_code == 200
+        with Session(engine) as db:
+            user = db.query(identity_auth.OfficeAuthUser).filter_by(email="jaya@example.test").one()
+            session = db.query(OfficeAuthSession).filter_by(user_id=user.id, aal="aal2").order_by(OfficeAuthSession.created_at.desc()).first()
+            assert session
+            assert identity_auth._aware(session.expires_at) <= datetime.now(timezone.utc) + timedelta(hours=12, minutes=1)
+    finally:
+        engine.dispose()
+
+
+def test_email_otp_session_and_refresh_revalidate_exact_approved_account(tmp_path, monkeypatch):
+    client, engine, _, _, registered = setup_member(tmp_path, monkeypatch)
+    try:
+        headers = {"Authorization": "Bearer " + registered["access_token"]}
+        result = client.post("/api/v1/auth/office-invite-email-otp/request", headers=headers, json={})
+        assert result.status_code == 201, result.text
+        challenge = result.json()
+        completed = client.post("/api/v1/auth/office-invite-email-otp/verify", headers=headers, json={
+            "challenge_id": challenge["challenge_id"], "challenge_token": challenge["challenge_token"],
+            "code": "482915",
+        })
+        assert completed.status_code == 200, completed.text
+        verified_token = completed.json()["access_token"]
+        assert client.get("/api/v1/auth/session", headers={"Authorization": "Bearer " + verified_token}).status_code == 200
+        monkeypatch.setattr(identity_auth, "OFFICE_WEB_EMAIL_OTP_STAFF", "someone-else@example.test")
+        assert client.get("/api/v1/auth/session", headers={"Authorization": "Bearer " + verified_token}).status_code == 403
+        assert client.post("/api/v1/auth/refresh", json={"refresh_token": registered["refresh_token"]}).status_code == 403
+    finally:
+        engine.dispose()
