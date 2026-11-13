@@ -6,7 +6,7 @@ import styles from "./office-lifecycle-mail-controls.module.css";
 
 type Policy={
   event_code:string;priority:"P0"|"P1"|"P2";
-  source_ready:boolean;enabled:boolean;delivery_owner:"LIFECYCLE_WORKER"|"FIRST_PARTY_AUTH";
+  source_ready:boolean;enabled:boolean;delivery_owner:"LIFECYCLE_WORKER"|"FIRST_PARTY_AUTH"|"CANDIDATE_WORKER";
   intent:string;subject:string;trigger_description:string;recipient_description:string;
   approved_at:string|null;effective_from:string|null;
 };
@@ -53,7 +53,7 @@ export function OfficeLifecycleMailControls(){
   const matching=data?.policies.filter(row=>row.event_code.startsWith(category+"-"))||[];
   const active=data?.policies.find(row=>row.event_code===selected);
   const canToggle=Boolean(active&&
-    active.delivery_owner==="LIFECYCLE_WORKER" &&
+    active.delivery_owner!=="FIRST_PARTY_AUTH" &&
     (active.enabled || (active.source_ready&&approved)) && reason.trim().length>=12 && !busy);
 
   async function update(){
@@ -114,8 +114,8 @@ export function OfficeLifecycleMailControls(){
     {active?<div className={styles.details}>
       <div><span>Priority</span><strong>{active.priority}</strong></div>
       <div><span>Committed source adapter</span>
-        <strong>{active.delivery_owner==="FIRST_PARTY_AUTH"?"Handled by first-party authentication":active.source_ready?"Available":"Not yet implemented"}</strong></div>
-      <div><span>Delivery owner</span><strong>{active.delivery_owner==="FIRST_PARTY_AUTH"?"Existing authenticated email sender":"Governed lifecycle worker"}</strong></div>
+        <strong>{active.delivery_owner==="FIRST_PARTY_AUTH"?"Handled by first-party authentication":active.delivery_owner==="CANDIDATE_WORKER"?"Consent-verified candidate mail worker":active.source_ready?"Available":"Not yet implemented"}</strong></div>
+      <div><span>Delivery owner</span><strong>{active.delivery_owner==="FIRST_PARTY_AUTH"?"Existing authenticated email sender":active.delivery_owner==="CANDIDATE_WORKER"?"Consent-verified candidate worker":"Governed lifecycle worker"}</strong></div>
        <div><span>Owner dispatch policy</span><strong>{active.enabled?"Enabled":"Disabled"}</strong></div>
       <div><span>Last approval</span><strong>{active.approved_at?
         new Date(active.approved_at).toLocaleString("en-IN"):"None"}</strong></div>
@@ -143,7 +143,7 @@ export function OfficeLifecycleMailControls(){
     <textarea id="office-lifecycle-reason" maxLength={500} rows={3} value={reason}
       placeholder="Record the independent review and the reason for this specific event"
       onChange={event=>setReason(event.target.value)}/>
-    {active&&!active.enabled&&active.source_ready&&active.delivery_owner==="LIFECYCLE_WORKER"?<label className={styles.confirm}>
+    {active&&!active.enabled&&active.source_ready&&active.delivery_owner!=="FIRST_PARTY_AUTH"?<label className={styles.confirm}>
       <input type="checkbox" checked={approved} onChange={event=>setApproved(event.target.checked)}/>
       I verified this event recipient, source data, and Brevo worker configuration.
       No earlier or unverified event will be resent.
