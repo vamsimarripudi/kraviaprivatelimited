@@ -38,7 +38,7 @@ type Offer = {
 type DocumentRequest = { id: string; candidate_id: string; document_type: string; label: string; required: boolean; status: string; storage_reference?: string | null; source_reference?: string | null; sha256?: string | null; mime_type?: string | null; byte_size?: number | null; original_filename?: string | null; note?: string | null };
 type Approval = { id: string; status: string; current_step_order?: number | null };
 type Payload = {
-  actor: { user_id: string }; scope: { type?: string | null; key?: string | null }; capabilities: Capabilities;
+  actor: { user_id: string; roles: string[] }; scope: { type?: string | null; key?: string | null }; capabilities: Capabilities;
   identities: Person[]; positions: Position[]; departments: Department[]; requisitions: Requisition[]; candidates: Candidate[];
   interviews: Interview[]; feedback: Feedback[]; offers: Offer[]; documents: DocumentRequest[]; approvals: Approval[]; disclaimer: string;
 };
