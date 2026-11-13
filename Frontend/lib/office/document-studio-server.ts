@@ -82,6 +82,15 @@ export async function getOfficeDocumentStudioOverview() {
   ]);
   for (const result of [templates, versions, clauses, clauseVersions, instances, renders, signatures, deliveries, identities]) fail(result.error, "Document Studio data is temporarily unavailable");
 
+  // External signatory evidence is high-risk: only the current AAL2 Owner
+  // can read attestations, and no record is created by opening the dashboard.
+  const signingReviews = ownerOverride
+    ? await current.admin.from("office_signing_issuance_reviews")
+      .select("delivery_event_id,status,reviewed_by,reviewed_at,revoked_at")
+      .order("reviewed_at", { ascending: false }).limit(500)
+    : { data: [], error: null };
+  fail(signingReviews.error, "Signing issuance review state unavailable");
+
   const requestIds = (instances.data ?? []).map((row) => row.approval_request_id).filter((value): value is string => typeof value === "string" && Boolean(value));
   const approvals = requestIds.length ? await current.admin.from("office_requests").select("id,title,status,current_step_order,due_at,submitted_at,completed_at,updated_at").in("id", requestIds) : { data: [], error: null };
   fail(approvals.error, "Document approval state is temporarily unavailable");
@@ -114,6 +123,7 @@ export async function getOfficeDocumentStudioOverview() {
     renders: renders.data ?? [],
     signatures: signatures.data ?? [],
     deliveries: deliveries.data ?? [],
+    signing_reviews: signingReviews.data ?? [],
     identities: identities.data ?? [],
     approvals: approvals.data ?? [],
     disclaimer: "The canonical document is the published template version plus immutable input snapshot. PDF, DOCX, HTML and XLSX are rendered outputs and never replace historical source data.",
@@ -376,6 +386,39 @@ export async function downloadOfficeSignedDocument(signatureId: string) {
     filename: `${instanceResult.data.document_code}-signed.pdf`,
     sha256: digest,
   };
+}
+
+export async function reviewOfficeSigningIssuance(input: {
+  deliveryEventId: string;
+  mode: "REVIEW" | "REVOKE";
+  approved?: boolean;
+  evidenceReference?: string;
+  reason: string;
+}) {
+  const current = await actor();
+  if (!current.identity.roles.includes("OWNER")) {
+    throw new OfficeDocumentStudioError(403, "Independent Owner verification required");
+  }
+  const procedure = input.mode === "REVOKE"
+    ? "office_signing_issuance_revoke" : "office_signing_issuance_review";
+  const parameters = input.mode === "REVOKE"
+    ? {
+        p_actor: current.identity.userId,
+        p_delivery: input.deliveryEventId,
+        p_reason: input.reason,
+      }
+    : {
+        p_actor: current.identity.userId,
+        p_delivery: input.deliveryEventId,
+        p_approve: input.approved === true,
+        p_evidence: input.evidenceReference,
+        p_reason: input.reason,
+      };
+  const result = await current.admin.rpc(procedure, parameters);
+  if (result.error || result.data !== true) {
+    throw new OfficeDocumentStudioError(409, "Independent provider evidence or reviewer authority was not verified");
+  }
+  return { saved: true };
 }
 
 export async function recordOfficeDocumentDelivery(input: {
