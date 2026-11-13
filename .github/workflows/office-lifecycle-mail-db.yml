@@ -8,6 +8,8 @@ on:
       - 'Database/supabase/migrations/202611130025_auth_asset_lifecycle_sources.sql'
       - 'Database/supabase/migrations/202611130026_auth_device_decision_atomicity.sql'
       - 'Database/supabase/migrations/202611130027_workforce_lifecycle_verified_sources.sql'
+      - 'Database/supabase/migrations/202611130028_scheduled_lifecycle_verified_sources.sql'
+      - 'Database/supabase/tests/lifecycle-mail-scheduled-smoke.sql'
       - 'Database/supabase/tests/lifecycle-mail-workforce-evidence-smoke.sql'
       - 'Database/supabase/tests/lifecycle-mail-device-atomicity-smoke.sql'
       - 'Database/supabase/tests/lifecycle-mail-auth-asset-smoke.sql'
@@ -55,6 +57,8 @@ jobs:
           pg -f Database/supabase/tests/lifecycle-mail-device-atomicity-smoke.sql
           pg -f Database/supabase/tests/lifecycle-mail-auth-asset-smoke.sql
           pg -f Database/supabase/migrations/202611130027_workforce_lifecycle_verified_sources.sql
+          pg -f Database/supabase/migrations/202611130028_scheduled_lifecycle_verified_sources.sql
+          pg -f Database/supabase/tests/lifecycle-mail-scheduled-smoke.sql
           pg -f Database/supabase/tests/lifecycle-mail-workforce-evidence-smoke.sql
           output="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-smoke.sql)"
           echo "$output"
@@ -73,6 +77,8 @@ jobs:
           pg -f Database/supabase/tests/lifecycle-mail-device-atomicity-smoke.sql
           pg -f Database/supabase/tests/lifecycle-mail-auth-asset-smoke.sql
           pg -f Database/supabase/migrations/202611130027_workforce_lifecycle_verified_sources.sql
+          pg -f Database/supabase/migrations/202611130028_scheduled_lifecycle_verified_sources.sql
+          pg -f Database/supabase/tests/lifecycle-mail-scheduled-smoke.sql
           pg -f Database/supabase/tests/lifecycle-mail-workforce-evidence-smoke.sql
           upgraded_output="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-smoke.sql)"
           echo "$upgraded_output"
