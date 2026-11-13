@@ -62,14 +62,14 @@ VALUES
   ('ROLE-07','P1',false,'Privileged access review requested','Access review required — KRAVIA Office','Access-review record created','Independent authorised reviewer'),
   ('ROLE-08','P1',true,'Access review decision','KRAVIA access review decision','Approved or changes-required decision committed','Employee and access owner'),
   ('ROLE-09','P1',true,'Package version assigned','Your KRAVIA role package has been updated','New role-package version applied to employee','Employee'),
-  ('TIME-01','P1',false,'Work schedule assigned or revised','Your KRAVIA work schedule','Approved work schedule/version effective','Employee'),
+  ('TIME-01','P1',true,'Work schedule assigned or revised','Your KRAVIA work schedule','Approved work schedule/version effective','Employee'),
   ('TIME-02','P2',false,'Missing attendance reminder','Please review your KRAVIA attendance','Scheduled reminder; no approved/open check-in by cutoff','Employee'),
   ('TIME-03','P1',true,'Attendance correction submitted','Attendance correction awaiting review','Verified correction awaiting separate reviewer','Independent authorised reviewer'),
   ('TIME-04','P1',true,'Attendance correction decision','Your attendance correction was reviewed','Approved or rejected correction committed','Employee'),
   ('TIME-05','P1',false,'Overtime review requested','Overtime request awaiting review','Weekday/weekend/night extra work evidence submitted','Independent authorised reviewer'),
   ('TIME-06','P1',false,'Overtime approved / rejected','Your KRAVIA overtime request was reviewed','Recorded reviewer decision, approved policy in force','Employee'),
   ('TIME-07','P1',false,'Flex Day eligible','Your KRAVIA Flex Day eligibility','Five distinct approved six-hour weekdays, approved Flex policy','Employee'),
-  ('TIME-08','P1',false,'Flex Day request decision','Your KRAVIA Flex Day request update','Independent decision committed','Employee'),
+  ('TIME-08','P1',true,'Flex Day request decision','Your KRAVIA Flex Day request update','Independent decision committed','Employee'),
   ('TIME-09','P1',false,'Leave request / decision','KRAVIA leave request update','Real request or reviewer decision recorded','Approver or employee'),
   ('TIME-10','P1',false,'Payroll attendance cutoff','Attendance review closes soon','Upcoming verified period cutoff','Employee and permitted approver'),
   ('PAY-01','P0',false,'Compensation draft for review','Compensation proposal requires approval','Effective-dated compensation proposal submitted','Independent reviewer/director'),
@@ -125,7 +125,7 @@ CREATE TABLE IF NOT EXISTS public.office_lifecycle_mail_outbox(
     'office_employee_intake_events','office_role_package_events',
     'office_worktime_events','office_department_transfer_events','office_auth_events',
     'office_people_development_events','office_payroll_events','office_task_events',
-    'office_access_audit'
+    'office_access_audit','office_lifecycle_mail_decision_events'
   )),
   source_id bigint NOT NULL CHECK(source_id>0),
   recipient_user_id uuid NOT NULL REFERENCES public.office_identity_users(user_id) ON DELETE RESTRICT,
@@ -216,6 +216,76 @@ END;
 $enqueue$;
 REVOKE ALL ON FUNCTION public.office_lifecycle_mail_enqueue(text,text,bigint,uuid)
   FROM PUBLIC,anon,authenticated,service_role,kravia_office_backend;
+
+-- Dedicated immutable source evidence for effective-dated workforce decisions.
+-- This is populated ONLY by verified table triggers, not by web requests.
+CREATE TABLE IF NOT EXISTS public.office_lifecycle_mail_decision_events(
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  source_kind text NOT NULL CHECK(source_kind IN ('WORKTIME_POLICY','FLEX_DAY')),
+  source_uuid uuid NOT NULL,
+  recipient_user_id uuid NOT NULL REFERENCES public.office_identity_users(user_id) ON DELETE RESTRICT,
+  result_status text NOT NULL CHECK(result_status IN ('APPROVED','REJECTED')),
+  created_at timestamptz NOT NULL DEFAULT pg_catalog.now(),
+  UNIQUE(source_kind,source_uuid,result_status)
+);
+ALTER TABLE public.office_lifecycle_mail_decision_events ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.office_lifecycle_mail_decision_events
+  FROM PUBLIC,anon,authenticated,kravia_office_backend,service_role;
+GRANT SELECT ON public.office_lifecycle_mail_decision_events TO service_role;
+
+CREATE OR REPLACE FUNCTION public.office_lifecycle_mail_decision_source()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
+AS $decision$
+DECLARE v_id bigint;
+BEGIN
+  IF TG_TABLE_NAME='office_worktime_policy_versions' THEN
+    IF NEW.status='APPROVED' AND OLD.status IS DISTINCT FROM NEW.status
+       AND NEW.approved_by IS NOT NULL AND NEW.approved_at IS NOT NULL
+       AND NEW.approved_by IS DISTINCT FROM NEW.employee_user_id
+       AND NEW.approved_by IS DISTINCT FROM NEW.proposed_by
+       AND nullif(pg_catalog.btrim(NEW.authority_reference),'') IS NOT NULL THEN
+      INSERT INTO public.office_lifecycle_mail_decision_events
+        (source_kind,source_uuid,recipient_user_id,result_status)
+      VALUES('WORKTIME_POLICY',NEW.id,NEW.employee_user_id,'APPROVED')
+      ON CONFLICT(source_kind,source_uuid,result_status) DO NOTHING
+      RETURNING id INTO v_id;
+      IF v_id IS NOT NULL THEN
+        PERFORM public.office_lifecycle_mail_enqueue(
+          'TIME-01','office_lifecycle_mail_decision_events',v_id,NEW.employee_user_id);
+      END IF;
+    END IF;
+  ELSIF TG_TABLE_NAME='office_flex_day_requests' THEN
+    IF NEW.status IN ('APPROVED','REJECTED')
+       AND OLD.status IS DISTINCT FROM NEW.status
+       AND NEW.reviewed_by IS NOT NULL AND NEW.reviewed_at IS NOT NULL
+       AND NEW.reviewed_by IS DISTINCT FROM NEW.employee_user_id
+       AND NEW.reviewed_by IS DISTINCT FROM NEW.requested_by THEN
+      INSERT INTO public.office_lifecycle_mail_decision_events
+        (source_kind,source_uuid,recipient_user_id,result_status)
+      VALUES('FLEX_DAY',NEW.id,NEW.employee_user_id,NEW.status)
+      ON CONFLICT(source_kind,source_uuid,result_status) DO NOTHING
+      RETURNING id INTO v_id;
+      IF v_id IS NOT NULL THEN
+        PERFORM public.office_lifecycle_mail_enqueue(
+          'TIME-08','office_lifecycle_mail_decision_events',v_id,NEW.employee_user_id);
+      END IF;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$decision$;
+REVOKE ALL ON FUNCTION public.office_lifecycle_mail_decision_source()
+  FROM PUBLIC,anon,authenticated,kravia_office_backend,service_role;
+DROP TRIGGER IF EXISTS office_lifecycle_mail_on_policy_approval
+  ON public.office_worktime_policy_versions;
+CREATE TRIGGER office_lifecycle_mail_on_policy_approval
+  AFTER UPDATE OF status ON public.office_worktime_policy_versions
+  FOR EACH ROW EXECUTE FUNCTION public.office_lifecycle_mail_decision_source();
+DROP TRIGGER IF EXISTS office_lifecycle_mail_on_flex_decision
+  ON public.office_flex_day_requests;
+CREATE TRIGGER office_lifecycle_mail_on_flex_decision
+  AFTER UPDATE OF status ON public.office_flex_day_requests
+  FOR EACH ROW EXECUTE FUNCTION public.office_lifecycle_mail_decision_source();
 
 CREATE OR REPLACE FUNCTION public.office_lifecycle_mail_source_trigger()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
@@ -612,6 +682,27 @@ BEGIN
               AND ev.action IN ('ACCESS_REVIEW_APPROVED','ACCESS_REVIEW_CHANGES_REQUIRED')
               AND ev.target_user_id IS NOT NULL
               AND o.recipient_user_id IN (ev.target_user_id,ev.actor_user_id)))))
+        OR (o.source_table='office_lifecycle_mail_decision_events'
+          AND EXISTS(SELECT 1 FROM public.office_lifecycle_mail_decision_events d
+            WHERE d.id=o.source_id AND d.recipient_user_id=o.recipient_user_id
+              AND (
+                (o.event_code='TIME-01' AND d.source_kind='WORKTIME_POLICY'
+                  AND d.result_status='APPROVED'
+                  AND EXISTS(SELECT 1 FROM public.office_worktime_policy_versions p
+                    WHERE p.id=d.source_uuid AND p.employee_user_id=o.recipient_user_id
+                      AND p.status='APPROVED' AND p.approved_by IS NOT NULL
+                      AND p.approved_at IS NOT NULL
+                      AND p.approved_by IS DISTINCT FROM p.employee_user_id
+                      AND p.approved_by IS DISTINCT FROM p.proposed_by
+                      AND nullif(pg_catalog.btrim(p.authority_reference),'') IS NOT NULL))
+                OR (o.event_code='TIME-08' AND d.source_kind='FLEX_DAY'
+                  AND d.result_status IN ('APPROVED','REJECTED')
+                  AND EXISTS(SELECT 1 FROM public.office_flex_day_requests f
+                    WHERE f.id=d.source_uuid AND f.employee_user_id=o.recipient_user_id
+                      AND f.status=d.result_status
+                      AND f.reviewed_by IS NOT NULL AND f.reviewed_at IS NOT NULL
+                      AND f.reviewed_by IS DISTINCT FROM f.employee_user_id
+                      AND f.reviewed_by IS DISTINCT FROM f.requested_by)))))
         OR (o.source_table='office_auth_events' AND o.event_code='AUTH-11'
           AND EXISTS(SELECT 1 FROM public.office_auth_events ev
             WHERE ev.id=o.source_id AND ev.user_id=o.recipient_user_id

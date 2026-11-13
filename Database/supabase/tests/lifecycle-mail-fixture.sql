@@ -19,6 +19,15 @@ CREATE TABLE public.office_role_package_events(
 CREATE TABLE public.office_role_package_onboarding_tasks(
   id uuid PRIMARY KEY,application_id uuid,employee_user_id uuid,required boolean NOT NULL,status text NOT NULL
 );
+CREATE TABLE public.office_worktime_policy_versions(
+  id uuid PRIMARY KEY,employee_user_id uuid NOT NULL,status text NOT NULL,
+  proposed_by uuid,approved_by uuid,approved_at timestamptz,
+  authority_reference text
+);
+CREATE TABLE public.office_flex_day_requests(
+  id uuid PRIMARY KEY,employee_user_id uuid NOT NULL,status text NOT NULL,
+  requested_by uuid,reviewed_by uuid,reviewed_at timestamptz
+);
 CREATE TABLE public.office_worktime_review_cases(id uuid PRIMARY KEY,employee_user_id uuid NOT NULL,
  requested_by uuid,status text);
 CREATE TABLE public.office_department_ownership(department_code text PRIMARY KEY,owner_user_id uuid);
@@ -148,3 +157,15 @@ INSERT INTO public.office_role_package_onboarding_tasks(id,application_id,employ
 VALUES('e0000000-0000-4000-8000-000000000009',
  'e0000000-0000-4000-8000-000000000008',
  'a0000000-0000-4000-8000-000000000002',true,'PENDING');
+
+INSERT INTO public.office_worktime_policy_versions(id,employee_user_id,status,proposed_by,authority_reference)
+VALUES('b0000000-0000-4000-8000-000000000006',
+ 'a0000000-0000-4000-8000-000000000002','DRAFT',
+ 'a0000000-0000-4000-8000-000000000002','Synthetic-CI-Approved-Work-Policy');
+INSERT INTO public.office_flex_day_requests(id,employee_user_id,status,requested_by)
+VALUES('b0000000-0000-4000-8000-000000000007',
+ 'a0000000-0000-4000-8000-000000000002','PENDING',
+ 'a0000000-0000-4000-8000-000000000002'),
+ ('b0000000-0000-4000-8000-000000000008',
+ 'a0000000-0000-4000-8000-000000000002','PENDING',
+ 'a0000000-0000-4000-8000-000000000002');
