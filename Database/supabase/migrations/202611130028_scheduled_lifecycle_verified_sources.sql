@@ -45,6 +45,71 @@ UPDATE public.office_lifecycle_mail_policy SET source_ready=true
  WHERE event_code IN ('AUTH-10','DEV-02','ONB-11','ONB-12','PAY-10','TIME-07')
    AND source_ready=false AND enabled=false;
 
+-- Independently recompute actual weekday work from approved, break-adjusted
+-- evidence: five separate six-hour days, never compressed overtime.
+CREATE OR REPLACE FUNCTION public.office_lifecycle_flex_evidence_verified(p_request uuid)
+RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=''
+AS $flexproof$
+DECLARE
+ req public.office_flex_day_requests%ROWTYPE;
+ approved_policy public.office_worktime_policy_versions%ROWTYPE;
+ day_index integer;
+ day_start timestamptz;
+ day_finish timestamptz;
+ day_minutes numeric;
+ worked numeric:=0;
+BEGIN
+ SELECT * INTO req FROM public.office_flex_day_requests
+ WHERE id=p_request;
+ IF NOT FOUND OR req.status NOT IN ('PENDING','APPROVED')
+   OR req.requested_by IS DISTINCT FROM req.employee_user_id
+   OR req.qualifying_work_minutes<1800
+   OR req.earned_week_monday IS NULL
+   OR EXTRACT(ISODOW FROM req.earned_week_monday)<>1 THEN
+  RETURN false;
+ END IF;
+ SELECT * INTO approved_policy FROM public.office_worktime_policy_versions
+ WHERE employee_user_id=req.employee_user_id
+   AND status='APPROVED'
+   AND effective_from<=req.earned_week_monday
+   AND regular_daily_minutes=360 AND weekly_target_minutes=1800
+   AND approved_by IS NOT NULL AND approved_at IS NOT NULL
+   AND approved_by IS DISTINCT FROM employee_user_id
+   AND approved_by IS DISTINCT FROM proposed_by
+   AND NULLIF(btrim(authority_reference),'') IS NOT NULL
+ ORDER BY effective_from DESC LIMIT 1;
+ IF NOT FOUND THEN RETURN false; END IF;
+ FOR day_index IN 0..4 LOOP
+   day_start:=(req.earned_week_monday+day_index)::timestamp
+     AT TIME ZONE 'Asia/Kolkata';
+   day_finish:=(req.earned_week_monday+day_index+1)::timestamp
+     AT TIME ZONE 'Asia/Kolkata';
+   SELECT COALESCE(SUM(GREATEST(0,
+     GREATEST(0,EXTRACT(epoch FROM
+       LEAST(c.work_ends_at,day_finish)
+       - GREATEST(c.work_starts_at,day_start))/60)
+       - COALESCE((
+         SELECT SUM(GREATEST(0,EXTRACT(epoch FROM
+           LEAST((b->>'endAt')::timestamptz,day_finish)
+           - GREATEST((b->>'startAt')::timestamptz,day_start))/60))
+         FROM jsonb_array_elements(c.breaks) b
+       ),0)
+   )),0) INTO day_minutes
+   FROM public.office_worktime_review_cases c
+   WHERE c.employee_user_id=req.employee_user_id
+     AND c.status='APPROVED'
+     AND c.work_starts_at<day_finish AND c.work_ends_at>day_start;
+   IF day_minutes<360 THEN RETURN false; END IF;
+   worked:=worked+day_minutes;
+ END LOOP;
+ RETURN worked>=1800;
+EXCEPTION WHEN invalid_text_representation OR invalid_datetime_format THEN
+ RETURN false;
+END;
+$flexproof$;
+REVOKE ALL ON FUNCTION public.office_lifecycle_flex_evidence_verified(uuid)
+ FROM PUBLIC,anon,authenticated,service_role,kravia_office_backend;
+
 -- Canonical source rows, independently checked immediately before provider claim.
 CREATE OR REPLACE FUNCTION public.office_lifecycle_scheduled_proof_valid(
  p public.office_lifecycle_scheduled_proofs
@@ -53,26 +118,12 @@ AS $proof$
 DECLARE local_day date:=(p.created_at AT TIME ZONE 'Asia/Kolkata')::date;
 BEGIN
  IF p.event_code='TIME-07' THEN
-   RETURN EXISTS(
+   RETURN EXISTS (
      SELECT 1 FROM public.office_flex_day_requests request
      WHERE request.id=p.source_uuid
        AND request.employee_user_id=p.recipient_user_id
-       AND request.requested_by=request.employee_user_id
-       AND request.status IN ('PENDING','APPROVED')
-       AND request.qualifying_work_minutes>=1800
        AND request.earned_week_monday<=local_day
-       AND pg_catalog.extract(isodow FROM request.earned_week_monday)=1
-       AND EXISTS(
-         SELECT 1 FROM public.office_worktime_policy_versions policy
-         WHERE policy.employee_user_id=request.employee_user_id
-           AND policy.status='APPROVED'
-           AND policy.effective_from<=request.earned_week_monday
-           AND policy.regular_daily_minutes=360
-           AND policy.weekly_target_minutes=1800
-           AND policy.approved_by IS NOT NULL AND policy.approved_at IS NOT NULL
-           AND policy.approved_by IS DISTINCT FROM policy.employee_user_id
-           AND policy.approved_by IS DISTINCT FROM policy.proposed_by
-       )
+       AND public.office_lifecycle_flex_evidence_verified(request.id)
    );
  ELSIF p.event_code='DEV-02' THEN
    RETURN EXISTS(
@@ -159,16 +210,7 @@ BEGIN
  IF NEW.status NOT IN ('PENDING','APPROVED')
     OR NEW.qualifying_work_minutes<1800
     OR NEW.requested_by IS DISTINCT FROM NEW.employee_user_id
-    OR NOT EXISTS(
-      SELECT 1 FROM public.office_worktime_policy_versions policy
-      WHERE policy.employee_user_id=NEW.employee_user_id
-        AND policy.status='APPROVED'
-        AND policy.effective_from<=NEW.earned_week_monday
-        AND policy.regular_daily_minutes=360
-        AND policy.weekly_target_minutes=1800
-        AND policy.approved_by IS NOT NULL
-        AND policy.approved_at IS NOT NULL
-    )
+    OR NOT public.office_lifecycle_flex_evidence_verified(NEW.id)
     OR NOT EXISTS(
       SELECT 1 FROM public.office_lifecycle_mail_policy policy
       WHERE policy.event_code='TIME-07'
