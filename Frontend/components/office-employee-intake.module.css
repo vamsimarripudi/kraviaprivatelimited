@@ -42,3 +42,13 @@
 .disclaimer{display:flex;align-items:flex-start;gap:8px;font-size:10px;line-height:1.5;color:var(--off-next-muted,#62736b)}
 .disclaimer svg{flex:none}
 @media(max-width:620px){.shell{margin-left:10px;margin-right:10px}.summary{flex-wrap:wrap}.summary .status{margin-left:auto}.heading{padding:12px}.row{justify-content:flex-start}}
+
+/* Private intake dates, select controls and long evidence values must stay
+   usable on narrow phones and under native light/dark colour schemes. */
+.form select{min-width:0;width:100%;min-height:42px;padding:9px 10px;
+  border:1px solid var(--off-next-line,#dce6df);border-radius:9px;
+  background:var(--off-next-panel,#fff);color:inherit;font:inherit;box-sizing:border-box}
+.form input[type=date],.form input[type=number]{min-width:0;max-width:100%}
+.subsection small,.files small,.reviewNote{overflow-wrap:anywhere}
+.edu{min-width:0}
+@media(prefers-reduced-motion:reduce){.details>summary>svg:last-child{transition:none}}

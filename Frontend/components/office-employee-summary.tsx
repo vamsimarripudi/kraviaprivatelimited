@@ -3,7 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
-import { BadgeCheck, CalendarClock, ChevronRight, CircleAlert, ClipboardCheck, FileDown, IdCard, ShieldCheck, Timer, Wallet } from "lucide-react";
+import { BadgeCheck, CalendarClock, ChevronRight, CircleAlert, ClipboardCheck, FileDown, IdCard, RefreshCw, ShieldCheck, Timer, Wallet } from "lucide-react";
+import { HoverActionButton } from "./office-hover-action-button";
 import styles from "./office-employee-summary.module.css";
 
 type RoleApplication = { id: string; snapshot: {
@@ -18,7 +19,7 @@ type Roles = {
   tasks: Array<{ required: boolean; status: string; label: string }>;
   functional_positions: Array<{ position_code: string; department_code: string; responsibilities: string[] }>;
 };
-type EmployeeIntake = { profile:{photo_storage_reference?:string|null}|null;permanent_employee_id:string|null };
+type EmployeeIntake = { profile:{photo_storage_reference?:string|null;status?:"DRAFT"|"SUBMITTED"|"RETURNED"|"VERIFIED"}|null;permanent_employee_id:string|null };
 type Worktime = {
   month: string;
   approved_monthly_gross_minor?: number | null;
@@ -88,7 +89,7 @@ export function OfficeEmployeeSummary() {
 
   return <section className={styles.shell} aria-label="My verified employee profile">
     <header className={styles.header}>
-      {intake?.profile?.photo_storage_reference ?
+      {intake?.profile?.status === "VERIFIED" && intake.profile.photo_storage_reference ?
         <Image unoptimized className={styles.avatar} width={48} height={48} alt="Verified employee profile photo"
           src="/api/office-employee-intake/photo" /> :
         <div className={styles.avatar} aria-hidden="true">{initials}</div>}
@@ -98,8 +99,8 @@ export function OfficeEmployeeSummary() {
         <p>{department} · {title}</p>
         <span><IdCard size={14} aria-hidden="true"/>{intake?.permanent_employee_id || roles?.employment?.employment_code || "Employment verification pending"}</span>
       </div>
-      <button type="button" className={styles.refresh} onClick={() => void refresh()}
-        disabled={refreshing} aria-label="Refresh employee profile">Refresh</button>
+      <HoverActionButton Icon={RefreshCw} label="Refresh employee profile"
+        onClick={() => void refresh()} disabled={refreshing}/>
     </header>
     {errors.length ? <div className={styles.error} role="status"><CircleAlert size={16}/>
       <span>{errors.join(" · ")}. Other verified records remain available.</span></div> : null}

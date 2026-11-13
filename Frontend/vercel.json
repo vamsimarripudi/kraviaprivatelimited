@@ -7,7 +7,7 @@
       "main": true
     }
   },
-  "ignoreCommand": "if git log -1 --pretty=%s | grep -q '^deploy(frontend):'; then exit 1; fi; git diff --quiet HEAD^ HEAD ./",
+  "ignoreCommand": "subject=$(git log -1 --pretty=%s); if [ \"$subject\" = 'feat(Office): complete KRAVIA Office release' ]; then exit 0; fi; if printf '%s' \"$subject\" | grep -q '^deploy(frontend):'; then exit 1; fi; git diff --quiet HEAD^ HEAD ./",
   "regions": [
     "bom1"
   ]

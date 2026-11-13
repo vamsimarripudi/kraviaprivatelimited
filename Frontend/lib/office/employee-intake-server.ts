@@ -9,11 +9,18 @@ export class EmployeeIntakeError extends Error {
   constructor(public readonly status: number, message: string) { super(message); this.name = "EmployeeIntakeError"; }
 }
 type Actor = { admin: SupabaseClient; identity: OfficeIdentity };
-type Education = { qualification: string; institution: string; year?: number; course?: string };
+type Education = { qualification: string; institution: string; year?: number; course?: string;
+  specialisation?: string; start_date?: string; end_date?: string; completion_date?: string };
+type EmergencyContact = { name: string; relation: string; phone: string };
+type PriorExperience = { organisation: string; position: string; started_at?: string; ended_at?: string };
+type TaxDeclarations = { tax_residency?: "INDIA" | "OTHER" | "UNDECLARED";
+  regime_preference?: "OLD" | "NEW" | "UNDECLARED"; pf_declaration_submitted?: boolean };
 type Address = { street?: string; city?: string; state?: string; postal_code?: string; country?: string };
 type Draft = {
   legal_name: string; preferred_name?: string; contact_phone: string; date_of_birth?: string;
   current_address: Address; education: Education[];
+  emergency_contacts: EmergencyContact[]; prior_experience: PriorExperience[];
+  tax_declarations: TaxDeclarations;
   bank_account?: string; bank_account_holder?: string; bank_ifsc?: string;
   signature_evidence_reference?: string;
   policy_acknowledged: boolean;
@@ -55,15 +62,20 @@ async function log(current: Actor, employeeId: string, event: string, metadata: 
 export async function employeeIntakeOverview(employeeId?: string) {
   const current = await actor(), id=employeeId || current.identity.userId;
   if (id !== current.identity.userId) await reviewer(current,id,"people.update");
-  const [profile, reference, employment, identity] = await Promise.all([
+  const [profile, reference, employment, identity, employeeMail] = await Promise.all([
     current.admin.from("office_employee_intake_profiles").select(
-      "legal_name,preferred_name,contact_phone,date_of_birth,current_address,education,certificates,bank_account_last4,bank_ifsc,bank_account_holder,bank_verified_at,bank_verification_evidence,photo_storage_reference,signature_evidence_reference,policy_acknowledged_at,status,submitted_at,reviewed_by,reviewed_at,review_note,revision"
+      "legal_name,preferred_name,contact_phone,date_of_birth,current_address,education,emergency_contacts,prior_experience,tax_declarations,certificates,bank_account_last4,bank_ifsc,bank_account_holder,bank_verified_at,bank_verification_evidence,photo_storage_reference,signature_evidence_reference,policy_acknowledged_at,status,submitted_at,reviewed_by,reviewed_at,review_note,revision"
     ).eq("employee_user_id",id).maybeSingle(),
     current.admin.from("office_employee_reference_ids").select("reference_code,issued_at").eq("employee_user_id",id).maybeSingle(),
     current.admin.from("office_employment_registry").select("employment_code,status,start_date,relationship_type")
       .eq("identity_user_id",id).order("created_at",{ascending:false}).limit(1),
     current.admin.from("office_identity_users").select("display_name,job_title,primary_department,status")
       .eq("user_id",id).maybeSingle(),
+    // A provider acceptance is not proof of inbox delivery. Do not turn an
+    // unavailable outbox into a fabricated successful message.
+    current.admin.from("office_employee_mail_outbox").select("status,submitted_at")
+      .eq("employee_user_id",id).eq("kind","EMPLOYEE_ID_ISSUED")
+      .order("created_at",{ascending:false}).limit(1),
   ]);
   for(const x of [profile,reference,employment,identity])check(x.error,"Employee intake record is unavailable");
   if(!identity.data)throw new EmployeeIntakeError(404,"Employee identity does not exist");
@@ -73,6 +85,9 @@ export async function employeeIntakeOverview(employeeId?: string) {
     profile:profile.data || null,
     permanent_employee_id:reference.data?.reference_code || null,
     issued_at:reference.data?.issued_at || null,
+    employee_mail_status:employeeMail.error ? "UNAVAILABLE" :
+      employeeMail.data?.[0]?.status || (reference.data?.reference_code ? "UNKNOWN" : "NOT_QUEUED"),
+    employee_mail_submitted_at:employeeMail.error ? null : employeeMail.data?.[0]?.submitted_at || null,
     bank_encryption_available:(() => {
       const key=process.env.OFFICE_EMPLOYEE_DATA_ENCRYPTION_KEY?.trim();
       return Boolean(key&&Buffer.from(key,"base64").length===32);
@@ -106,6 +121,9 @@ export async function saveEmployeeIntake(input: Draft) {
     date_of_birth:input.date_of_birth||null,
     current_address:input.current_address||{},
     education:input.education,
+    emergency_contacts:input.emergency_contacts,
+    prior_experience:input.prior_experience,
+    tax_declarations:input.tax_declarations,
     bank_account_ciphertext:encrypted,
     bank_account_last4:bank?bank.slice(-4):old.data?.bank_account_last4??null,
     bank_account_holder:bankHolder,

@@ -1,12 +1,70 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createElement } from "react";
+import { render } from "@react-email/render";
 
 import { PLACEHOLDERS, renderTemplateManifest } from "../templates/kravia.js";
+import { OFFICE_LIFECYCLE_CATALOG, OFFICE_LIFECYCLE_DISPATCH_ENABLED, validateOfficeLifecycleCatalog } from "../templates/office-lifecycle-catalog.js";
+import { OFFICE_LIFECYCLE_COPY } from "../templates/office-lifecycle-copy.js";
+import { availableOfficeLifecycleEventCodes, renderOfficeLifecyclePreview } from "../templates/office-lifecycle-renderer.js";
+import { KraviaEmailShell, KraviaEmailHero, KraviaOtpCode, KraviaEmailActionButton } from "../templates/kravia-email-components.js";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const target = resolve(scriptDirectory, "..", "..", "Backend", "backend", "generated_email_templates.json");
 const check = process.argv.includes("--check");
+
+validateOfficeLifecycleCatalog();
+if (OFFICE_LIFECYCLE_DISPATCH_ENABLED !== false) throw new Error("Employee lifecycle send gate must remain disabled until signed event-to-template approval");
+const lifecycleIds = availableOfficeLifecycleEventCodes();
+if (lifecycleIds.length !== 81 || Object.keys(OFFICE_LIFECYCLE_COPY).length !== 81) {
+  throw new Error("All 81 lifecycle events must have distinct notification copy");
+}
+for (const id of lifecycleIds) {
+  const message = await renderOfficeLifecyclePreview({
+    id, recipientName:"Synthetic CI Employee", payPeriod:"November 2026",
+    officeUrl:"https://www.kraviaprivatelimited.com/office/dashboard",
+    eventReference:"CI-TEST-EVENT",
+  });
+  if (!message.previewOnly || !message.html.includes("CI-TEST-EVENT") ||
+      !message.text.includes("Synthetic CI Employee") ||
+      /\{\{|<script\b|javascript:/i.test(message.html + message.subject)) {
+    throw new Error("Unsafe or incomplete lifecycle notification preview for " + id);
+  }
+}
+let lifecycleUrlRejected = false;
+try {
+  await renderOfficeLifecyclePreview({
+    id:"ONB-09", recipientName:"Synthetic CI Employee",
+    officeUrl:"https://unsafe.example.com/office/dashboard",
+  });
+} catch { lifecycleUrlRejected = true; }
+if (!lifecycleUrlRejected) throw new Error("Lifecycle preview allows untrusted external URLs");
+
+const renderedEmail = await render(createElement(KraviaEmailShell, {
+  preview:"KRAVIA Office verification",
+  children:createElement(KraviaEmailHero,{
+    eyebrow:"SECURITY",
+    title:"Email preview",
+    children:createElement(KraviaOtpCode,{code:"123456"}),
+  }),
+}));
+if (!renderedEmail.includes("kravia-header-lockup-v2.png") ||
+    !renderedEmail.includes("123456") && !renderedEmail.includes(">1</td>") ||
+    /<script\\b|javascript:/i.test(renderedEmail)) {
+  throw new Error("Corporate React Email preview is unsafe or missing required content");
+}
+let externalLinkRejected = false;
+try {
+  await render(createElement(KraviaEmailActionButton, {
+    href:"https://untrusted.example.net/office/dashboard",
+    children:"Unsafe link",
+  }));
+} catch {
+  externalLinkRejected = true;
+}
+if (!externalLinkRejected) throw new Error("Office email CTA must reject external origins");
+
 
 const requiredTokens = {
   office_sign_in_code: [PLACEHOLDERS.code, PLACEHOLDERS.expiryMinutes],
@@ -61,3 +119,33 @@ if (check) {
 } else {
   process.stdout.write("React Email manifest is already current.\n");
 }
+
+/** Versioned backend data for all 81 lifecycle templates. This artifact
+ * contains approved *copy*, not an event handler or permission to send. */
+const lifecycleTarget = resolve(scriptDirectory, "..", "..", "Backend", "backend", "generated_office_lifecycle_templates.json");
+const lifecycleManifest = {
+  format: 1,
+  generatedBy: "EmailTemplates/scripts/build-manifest.ts",
+  total: 81,
+  dispatchEnabled: false,
+  templates: Object.fromEntries(OFFICE_LIFECYCLE_CATALOG.map(entry => [
+    entry.id,
+    {...entry, body: OFFICE_LIFECYCLE_COPY[entry.id]},
+  ])),
+};
+const lifecycleSerialized = JSON.stringify(lifecycleManifest, null, 2) + "\n";
+let lifecycleExisting: string | undefined;
+try { lifecycleExisting = await readFile(lifecycleTarget, "utf8"); }
+catch (error: unknown) {
+  if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") throw error;
+}
+if (check) {
+  if (lifecycleExisting !== lifecycleSerialized) {
+    throw new Error("81-event Office lifecycle artifact is stale. Rebuild EmailTemplates before releasing.");
+  }
+  process.stdout.write("All 81 server-side lifecycle definitions match their canonical React catalog.\n");
+} else if (lifecycleExisting !== lifecycleSerialized) {
+  await writeFile(lifecycleTarget, lifecycleSerialized, "utf8");
+  process.stdout.write("Wrote Office lifecycle data manifest.\n");
+}
+

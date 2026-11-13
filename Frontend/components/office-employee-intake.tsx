@@ -1,15 +1,20 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import { BadgeCheck, BookOpen, CheckCircle2, ChevronRight, CircleAlert, FileText, IdCard, ImagePlus, Save, ShieldCheck, Upload, UserRound, Wallet } from "lucide-react";
 import styles from "./office-employee-intake.module.css";
 
-type Education={qualification:string;institution:string;year?:number;course?:string};
+type Education={qualification:string;institution:string;year?:number;course?:string;specialisation?:string;
+  start_date?:string;end_date?:string;completion_date?:string};
+type EmergencyContact={name:string;relation:string;phone:string};
+type PriorExperience={organisation:string;position:string;started_at?:string;ended_at?:string};
+type TaxDeclarations={tax_residency?:"INDIA"|"OTHER"|"UNDECLARED";regime_preference?:"OLD"|"NEW"|"UNDECLARED";pf_declaration_submitted?:boolean};
 type Address={street?:string;city?:string;state?:string;postal_code?:string;country?:string};
 type Profile={
   legal_name?:string|null;preferred_name?:string|null;contact_phone?:string|null;date_of_birth?:string|null;
   current_address?:Address;education?:Education[];
+  emergency_contacts?:EmergencyContact[];prior_experience?:PriorExperience[];tax_declarations?:TaxDeclarations;
   certificates?:Array<{label?:string;storage_reference?:string;review_status?:string}>;
   bank_account_last4?:string|null;bank_ifsc?:string|null;bank_account_holder?:string|null;bank_verified_at?:string|null;
   photo_storage_reference?:string|null;signature_evidence_reference?:string|null;policy_acknowledged_at?:string|null;
@@ -20,18 +25,21 @@ type Overview={
   identity:{display_name?:string;job_title?:string;primary_department?:string;status:string};
   profile:Profile|null;permanent_employee_id:string|null;issued_at:string|null;
   employment:{employment_code:string;status:string;start_date?:string|null}|null;
-  bank_encryption_available:boolean;note:string;
+  bank_encryption_available:boolean;employee_mail_status?:string;employee_mail_submitted_at?:string|null;note:string;
 };
 type Person={user_id:string;display_name:string;department:string};
 type Draft={
   legal_name:string;preferred_name:string;contact_phone:string;date_of_birth:string;
-  current_address:Address;education:Education[];bank_account:string;bank_account_holder:string;bank_ifsc:string;
+  current_address:Address;education:Education[];emergency_contacts:EmergencyContact[];prior_experience:PriorExperience[];
+  tax_declarations:TaxDeclarations;bank_account:string;bank_account_holder:string;bank_ifsc:string;
   signature_evidence_reference:string;policy_acknowledged:boolean;
 };
 const initial:Draft={
   legal_name:"",preferred_name:"",contact_phone:"",date_of_birth:"",
   current_address:{street:"",city:"",state:"",postal_code:"",country:"India"},
   education:[{qualification:"",institution:"",course:""}],
+  emergency_contacts:[],prior_experience:[],
+  tax_declarations:{tax_residency:"UNDECLARED",regime_preference:"UNDECLARED",pf_declaration_submitted:false},
   bank_account:"",bank_account_holder:"",bank_ifsc:"",signature_evidence_reference:"",policy_acknowledged:false,
 };
 async function api<T>(url:string,init?:RequestInit):Promise<T>{
@@ -39,6 +47,18 @@ async function api<T>(url:string,init?:RequestInit):Promise<T>{
   const body=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(typeof body.detail==="string"?body.detail:"Private HR request unavailable");
   return body as T;
+}
+/** A Brevo submission acknowledgement does not prove mailbox delivery. */
+function officeEmployeeMailStatus(status?:string):string {
+  switch(status){
+    case "SENT":return "Accepted by mail provider; inbox delivery not independently confirmed";
+    case "SENDING":return "Corporate transactional email is being submitted";
+    case "PENDING":return "Employee ID email remains pending until verified provider acknowledgement";
+    case "UNKNOWN":return "Delivery result unknown; no automatic duplicate submission";
+    case "REJECTED":return "Mail provider rejected the notification; authorised review required";
+    case "UNAVAILABLE":return "Employee notification ledger is temporarily unavailable";
+    default:return "Employee ID notification has not been queued";
+  }
 }
 function fromProfile(profile:Profile|null,identity:Overview["identity"]):Draft{
   return {
@@ -48,12 +68,77 @@ function fromProfile(profile:Profile|null,identity:Overview["identity"]):Draft{
     date_of_birth:profile?.date_of_birth||"",
     current_address:profile?.current_address||initial.current_address,
     education:profile?.education?.length?profile.education:initial.education,
+    emergency_contacts:profile?.emergency_contacts||[],
+    prior_experience:profile?.prior_experience||[],
+    tax_declarations:profile?.tax_declarations||initial.tax_declarations,
     bank_account:"",
     bank_account_holder:profile?.bank_account_holder||"",
     bank_ifsc:profile?.bank_ifsc||"",
     signature_evidence_reference:profile?.signature_evidence_reference||"",
     policy_acknowledged:Boolean(profile?.policy_acknowledged_at),
   };
+}
+
+function ExtendedIntakeFields({draft,update}:{draft:Draft;update:Dispatch<SetStateAction<Draft>>}) {
+  return <>
+    <div className={styles.subsection}>
+      <div className={styles.row}>
+        <strong>Emergency contacts · private</strong>
+        <button type="button" disabled={draft.emergency_contacts.length>=4}
+          onClick={()=>update(d=>({...d,emergency_contacts:[...d.emergency_contacts,{name:"",relation:"",phone:""}]}))}>
+          Add contact
+        </button>
+      </div>
+      {draft.emergency_contacts.length===0?<p>Optional. Only authorised employee and HR workflows can view these records.</p>:null}
+      {draft.emergency_contacts.map((contact,i)=><div className={styles.edu} key={i}>
+        <label>Contact name<input required maxLength={160} value={contact.name}
+          onChange={e=>update(d=>({...d,emergency_contacts:d.emergency_contacts.map((x,j)=>j===i?{...x,name:e.target.value}:x)}))}/></label>
+        <label>Relationship<input required maxLength={80} value={contact.relation}
+          onChange={e=>update(d=>({...d,emergency_contacts:d.emergency_contacts.map((x,j)=>j===i?{...x,relation:e.target.value}:x)}))}/></label>
+        <label>Contact phone<input required type="tel" maxLength={32} value={contact.phone}
+          onChange={e=>update(d=>({...d,emergency_contacts:d.emergency_contacts.map((x,j)=>j===i?{...x,phone:e.target.value}:x)}))}/></label>
+        <button type="button" onClick={()=>update(d=>({...d,emergency_contacts:d.emergency_contacts.filter((_,j)=>j!==i)}))}>Remove contact</button>
+      </div>)}
+    </div>
+    <div className={styles.subsection}>
+      <div className={styles.row}>
+        <strong>Prior employment and experience</strong>
+        <button type="button" disabled={draft.prior_experience.length>=15}
+          onClick={()=>update(d=>({...d,prior_experience:[...d.prior_experience,{organisation:"",position:""}]}))}>
+          Add experience
+        </button>
+      </div>
+      {draft.prior_experience.map((work,i)=><div className={styles.edu} key={i}>
+        <label>Organisation<input required maxLength={180} value={work.organisation}
+          onChange={e=>update(d=>({...d,prior_experience:d.prior_experience.map((x,j)=>j===i?{...x,organisation:e.target.value}:x)}))}/></label>
+        <label>Position<input required maxLength={160} value={work.position}
+          onChange={e=>update(d=>({...d,prior_experience:d.prior_experience.map((x,j)=>j===i?{...x,position:e.target.value}:x)}))}/></label>
+        <label>Start date<input type="date" value={work.started_at||""}
+          onChange={e=>update(d=>({...d,prior_experience:d.prior_experience.map((x,j)=>j===i?{...x,started_at:e.target.value||undefined}:x)}))}/></label>
+        <label>End date<input type="date" min={work.started_at||undefined} value={work.ended_at||""}
+          onChange={e=>update(d=>({...d,prior_experience:d.prior_experience.map((x,j)=>j===i?{...x,ended_at:e.target.value||undefined}:x)}))}/></label>
+        <button type="button" onClick={()=>update(d=>({...d,prior_experience:d.prior_experience.filter((_,j)=>j!==i)}))}>Remove experience</button>
+      </div>)}
+    </div>
+    <div className={styles.subsection}>
+      <strong>Payroll declarations · sensitive identifiers are not collected here</strong>
+      <div className={styles.fields}>
+        <label>Tax residency<select value={draft.tax_declarations.tax_residency||"UNDECLARED"}
+          onChange={e=>update(d=>({...d,tax_declarations:{...d.tax_declarations,tax_residency:e.target.value as "INDIA"|"OTHER"|"UNDECLARED"}}))}>
+          <option value="UNDECLARED">Not declared</option><option value="INDIA">India</option><option value="OTHER">Other</option>
+        </select></label>
+        <label>Income-tax regime preference<select value={draft.tax_declarations.regime_preference||"UNDECLARED"}
+          onChange={e=>update(d=>({...d,tax_declarations:{...d.tax_declarations,regime_preference:e.target.value as "OLD"|"NEW"|"UNDECLARED"}}))}>
+          <option value="UNDECLARED">Not declared</option><option value="OLD">Old regime</option><option value="NEW">New regime</option>
+        </select></label>
+        <label className={styles.checkbox}><input type="checkbox" checked={draft.tax_declarations.pf_declaration_submitted||false}
+          onChange={e=>update(d=>({...d,tax_declarations:{...d.tax_declarations,pf_declaration_submitted:e.target.checked}}))}/>
+          I have submitted any required provident-fund declarations through an approved private channel.
+        </label>
+      </div>
+      <p>Do not enter PAN, Aadhaar or other tax identification numbers into free-text fields. Verification requires a separate authorised secure collection process.</p>
+    </div>
+  </>;
 }
 
 export function OfficeEmployeeIntake({view="self"}:{view?:"self"|"hr"}){
@@ -152,10 +237,56 @@ export function OfficeEmployeeIntake({view="self"}:{view?:"self"|"hr"}){
         <div><strong>{profile?.legal_name||state.identity.display_name||"Employee"}</strong>
           <small>{state.identity.primary_department||"Unassigned"} · {state.identity.job_title||"Role pending"}</small>
           <small>Employee reference: {state.permanent_employee_id||"Not yet issued"}</small>
-          <small>Existing employment: {state.employment?.employment_code||"Not yet registered"}</small></div>
+          <small>Existing employment: {state.employment?.employment_code||"Not yet registered"}</small>
+          {state.permanent_employee_id ? <small>Employee ID mail: {officeEmployeeMailStatus(state.employee_mail_status)}</small> : null}</div>
         <span className={styles.status} data-status={profile?.status||"DRAFT"}>{profile?.status||"NOT STARTED"}</span>
       </div>
       {profile?.review_note?<p className={styles.reviewNote}>Reviewer note: {profile.review_note}</p>:null}
+      {reviewed && profile ? <details className={styles.details}>
+        <summary><BookOpen size={17}/> Complete private employee intake review <ChevronRight size={16}/></summary>
+        <div className={styles.files}>
+          <div className={styles.subsection}>
+            <strong>Identity & contact</strong>
+            <small>Legal name: {profile.legal_name||"Not supplied"}</small>
+            <small>Preferred name: {profile.preferred_name||"Not supplied"}</small>
+            <small>Phone: {profile.contact_phone||"Not supplied"}</small>
+            <small>Date of birth: {profile.date_of_birth||"Not supplied"}</small>
+            <small>Address: {profile.current_address ? Object.values(profile.current_address).filter(Boolean).join(", ") : "Not supplied"}</small>
+          </div>
+          <div className={styles.subsection}>
+            <strong>Emergency contacts</strong>
+            {profile.emergency_contacts?.length ? profile.emergency_contacts.map((contact,i)=>
+              <small key={i}>{contact.name} · {contact.relation} · {contact.phone}</small>
+            ) : <small>None submitted</small>}
+          </div>
+          <div className={styles.subsection}>
+            <strong>Qualifications, certifications & experience</strong>
+            {profile.education?.length ? profile.education.map((edu,i)=>
+              <small key={i}>{edu.qualification} · {edu.institution}
+                {edu.specialisation ? " · "+edu.specialisation : ""}
+                {edu.course ? " · "+edu.course : ""}
+                {edu.completion_date ? " · Completed "+edu.completion_date : ""}</small>
+            ) : <small>No qualifications submitted</small>}
+            {profile.certificates?.map((item,i)=><small key={"cert-"+i}>Certificate: {item.label||"Unlabelled"} · {item.review_status||"PENDING"}</small>)}
+            {profile.prior_experience?.map((work,i)=>
+              <small key={"work-"+i}>Experience: {work.position} · {work.organisation}
+                {work.started_at ? " · From "+work.started_at : ""}
+                {work.ended_at ? " · To "+work.ended_at : ""}</small>)}
+          </div>
+          <div className={styles.subsection}>
+            <strong>Private Finance and document evidence</strong>
+            <small>Bank account: {profile.bank_account_last4 ? "••••"+profile.bank_account_last4 : "Not submitted"} (masked)</small>
+            <small>IFSC: {profile.bank_ifsc||"Not supplied"}</small>
+            <small>Bank verification: {profile.bank_verified_at ? "Verified "+profile.bank_verified_at : "Pending independent Finance verification"}</small>
+            <small>Tax residency: {profile.tax_declarations?.tax_residency||"Not declared"}</small>
+            <small>Tax regime: {profile.tax_declarations?.regime_preference||"Not declared"}</small>
+            <small>Signed-document reference: {profile.signature_evidence_reference||"Missing"}</small>
+            <small>Policies: {profile.policy_acknowledged_at ? "Acknowledged "+profile.policy_acknowledged_at : "Acknowledgement missing"}</small>
+            <small>Photo: {profile.photo_storage_reference ? "Scanned privately; subject to HR review" : "Not submitted"}</small>
+          </div>
+          <p>Only authorised reviewers may use these records. Profile scanning, a typed reference and a bank-account number do not alone establish verification or valid e-signature.</p>
+        </div>
+      </details> : null}
       {view==="self"?<details className={styles.details} open={!profile}>
         <summary><BookOpen size={17}/> Employee intake details <ChevronRight size={16}/></summary>
         <form className={styles.form} onSubmit={save}>
@@ -180,11 +311,20 @@ export function OfficeEmployeeIntake({view="self"}:{view?:"self"|"hr"}){
                 <label>Qualification<input required value={edu.qualification} onChange={e=>setDraft(d=>({...d,education:d.education.map((x,j)=>j===i?{...x,qualification:e.target.value}:x)}))}/></label>
                 <label>Institution<input required value={edu.institution} onChange={e=>setDraft(d=>({...d,education:d.education.map((x,j)=>j===i?{...x,institution:e.target.value}:x)}))}/></label>
                 <label>Course<input value={edu.course||""} onChange={e=>setDraft(d=>({...d,education:d.education.map((x,j)=>j===i?{...x,course:e.target.value}:x)}))}/></label>
+                <label>Specialisation<input maxLength={160} value={edu.specialisation||""}
+                  onChange={e=>setDraft(d=>({...d,education:d.education.map((x,j)=>j===i?{...x,specialisation:e.target.value}:x)}))}/></label>
+                <label>Study start<input type="date" value={edu.start_date||""}
+                  onChange={e=>setDraft(d=>({...d,education:d.education.map((x,j)=>j===i?{...x,start_date:e.target.value||undefined}:x)}))}/></label>
+                <label>Study end<input type="date" min={edu.start_date||undefined} value={edu.end_date||""}
+                  onChange={e=>setDraft(d=>({...d,education:d.education.map((x,j)=>j===i?{...x,end_date:e.target.value||undefined}:x)}))}/></label>
+                <label>Completion date<input type="date" value={edu.completion_date||""}
+                  onChange={e=>setDraft(d=>({...d,education:d.education.map((x,j)=>j===i?{...x,completion_date:e.target.value||undefined}:x)}))}/></label>
                 <label>Completion year<input type="number" min={1950} max={2100} value={edu.year||""}
                   onChange={e=>setDraft(d=>({...d,education:d.education.map((x,j)=>j===i?{...x,year:e.target.value?Number(e.target.value):undefined}:x)}))}/></label>
                 <button type="button" disabled={draft.education.length===1} onClick={()=>setDraft(d=>({...d,education:d.education.filter((_,j)=>j!==i)}))}>Remove</button>
               </div>)}
             </div>
+            <ExtendedIntakeFields draft={draft} update={setDraft}/>
             <div className={styles.subsection}>
               <strong>Bank details · encrypted server-side</strong>
               <small>Existing account: {profile?.bank_account_last4?"••••"+profile.bank_account_last4:"not recorded"}. Enter a new account only when updating it.</small>
@@ -255,7 +395,7 @@ export function OfficeEmployeeIntake({view="self"}:{view?:"self"|"hr"}){
             <IdCard size={16}/> Issue permanent ID
           </button>
         </div>
-        <small>Employee ID email remains pending until the corporate transactional delivery worker acknowledges it.</small>
+        <small>{officeEmployeeMailStatus(state.employee_mail_status)}</small>
       </div>:null}
       <div className={styles.disclaimer}><FileText size={16}/>{state.note}</div>
     </>}

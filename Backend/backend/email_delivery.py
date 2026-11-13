@@ -15,12 +15,15 @@ from time import perf_counter
 
 import httpx
 
+from .office_lifecycle_templates import render_office_lifecycle_notice
+
 from .email_templates import (
     TransactionalEmail,
     kravia_welcome_template,
     office_device_approval_template,
     office_email_verification_template,
     office_invitation_template,
+    office_employee_id_issued_template,
     office_password_recovery_template,
     office_workspace_ready_template,
     public_form_follow_up_template,
@@ -226,6 +229,50 @@ def send_office_invitation_email(
         ),
         delivery_id=delivery_id,
         tags=["kravia-office-auth", "invitation"],
+    )
+
+
+def send_office_lifecycle_notification(
+    *, recipient_email: str, recipient_name: str,
+    event_code: str, event_reference: str, delivery_id: str,
+    pay_period: str | None = None,
+) -> str | None:
+    """Submit a previously claimed canonical lifecycle notification.
+
+    This does not select a recipient or approve the event; the restricted
+    PostgreSQL worker must commit its claim before calling this function.
+    """
+    return _send_transactional_email(
+        recipient_email=recipient_email,
+        template=render_office_lifecycle_notice(
+            event_code=event_code,
+            recipient_name=recipient_name,
+            event_reference=event_reference,
+            pay_period=pay_period,
+            office_url="https://www.kraviaprivatelimited.com/office/dashboard",
+        ),
+        delivery_id=delivery_id,
+        tags=["kravia-office-lifecycle", event_code.lower()],
+    )
+
+
+def send_office_employee_id_issued_email(
+    *, recipient_email: str, recipient_name: str,
+    employee_reference: str, delivery_id: str,
+) -> str | None:
+    """Submit only a previously claimed, independently approved outbox event.
+
+    The worker passes the immutable outbox UUID as delivery_id; neither a
+    preview render nor a browser refresh can initiate this mail.
+    """
+    return _send_transactional_email(
+        recipient_email=recipient_email,
+        template=office_employee_id_issued_template(
+            recipient_name=recipient_name,
+            employee_reference=employee_reference,
+        ),
+        delivery_id=delivery_id,
+        tags=["kravia-office-employee", "employee-id-issued"],
     )
 
 

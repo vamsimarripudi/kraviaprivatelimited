@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Bell, Fingerprint, Moon, ShieldCheck, Sun, UserRound, Users, Wallet } from "lucide-react";
+import { Bell, Fingerprint, MailCheck, Moon, ShieldCheck, Sun, UserRound, Users, Wallet } from "lucide-react";
 import type { OfficeIdentity } from "@/lib/office/auth-server";
 import { OfficeSecuritySettings } from "@/components/office-security-settings";
+import { OfficeEmployeeMailControls } from "@/components/office-employee-mail-controls";
+import { OfficeLifecycleMailControls } from "@/components/office-lifecycle-mail-controls";
 import styles from "./office-settings-hub.module.css";
 
-type View = "account" | "appearance" | "security";
+type View = "account" | "appearance" | "security" | "communications";
 type Theme = "light" | "dark";
 const preferenceKey = "kravia.office.appearance";
 
@@ -42,6 +44,10 @@ export function OfficeSettingsHub({ identity }: { identity: OfficeIdentity }) {
       <button type="button" data-active={view === "account"} onClick={() => setView("account")}><UserRound size={17}/>Account</button>
       <button type="button" data-active={view === "appearance"} onClick={() => setView("appearance")}><Sun size={17}/>Appearance</button>
       <button type="button" data-active={view === "security"} onClick={() => setView("security")}><ShieldCheck size={17}/>Security & devices</button>
+      {identity.roles.includes("OWNER") ?
+        <button type="button" data-active={view === "communications"} onClick={() => setView("communications")}>
+          <MailCheck size={17}/>Employee communications
+        </button> : null}
     </nav>
 
     {view === "account" ? <div className={styles.grid}>
@@ -84,5 +90,10 @@ export function OfficeSettingsHub({ identity }: { identity: OfficeIdentity }) {
     </div> : null}
 
     {view === "security" ? <OfficeSecuritySettings identity={identity}/> : null}
+    {view === "communications" && identity.roles.includes("OWNER") ?
+      <div style={{display:"grid",gap:16,minWidth:0}}>
+        <OfficeEmployeeMailControls/>
+        <OfficeLifecycleMailControls/>
+      </div> : null}
   </section>;
 }
