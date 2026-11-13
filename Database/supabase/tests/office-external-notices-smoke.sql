@@ -71,8 +71,9 @@ BEGIN
  THEN RAISE EXCEPTION 'Wrong corporate signatory or source claimed'; END IF;
  IF NOT EXISTS(
   SELECT 1 FROM pg_temp.sign_claims claim
-  WHERE public.office_external_notice_can_send(claim.outbox_id,claim.claim_token)
+  WHERE public.office_external_notice_can_send(claim.outbox_id,claim.claim_token,claim.recipient_email)
  ) THEN RAISE EXCEPTION 'Safe signatory claim was denied'; END IF;
+ IF EXISTS(SELECT 1 FROM pg_temp.sign_claims claim WHERE public.office_external_notice_can_send(claim.outbox_id,claim.claim_token,'changed@kraviaprivatelimited.com')) THEN RAISE EXCEPTION 'Wrong signatory email inherited old claim'; END IF;
 END $sign_claim$;
 SELECT public.office_external_notice_finish(outbox_id,claim_token,'SENT','synthetic-provider-confirmation')
  FROM pg_temp.sign_claims;
@@ -117,8 +118,9 @@ BEGIN
      AND source_reference LIKE 'EXIT_NOTIFICATION:%')
  THEN RAISE EXCEPTION 'Former employee notice used an unverified or corporate address'; END IF;
  IF NOT EXISTS(SELECT 1 FROM pg_temp.exit_claims claim
-  WHERE public.office_external_notice_can_send(claim.outbox_id,claim.claim_token))
+  WHERE public.office_external_notice_can_send(claim.outbox_id,claim.claim_token,claim.recipient_email))
  THEN RAISE EXCEPTION 'Consent-bound exit claim was denied before revocation'; END IF;
+ IF EXISTS(SELECT 1 FROM pg_temp.exit_claims claim WHERE public.office_external_notice_can_send(claim.outbox_id,claim.claim_token,'changed@example.net')) THEN RAISE EXCEPTION 'Changed personal email inherited old claim'; END IF;
 END $exit_claim$;
 
 SELECT public.office_exit_contact_revoke(
@@ -128,7 +130,7 @@ SELECT public.office_exit_contact_revoke(
 DO $revoke$
 BEGIN
  IF EXISTS(SELECT 1 FROM pg_temp.exit_claims claim
-   WHERE public.office_external_notice_can_send(claim.outbox_id,claim.claim_token))
+   WHERE public.office_external_notice_can_send(claim.outbox_id,claim.claim_token,claim.recipient_email))
  THEN RAISE EXCEPTION 'Revoked consent did not block already claimed external mail'; END IF;
 END $revoke$;
 

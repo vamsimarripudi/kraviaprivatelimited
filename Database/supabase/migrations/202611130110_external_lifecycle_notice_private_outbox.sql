@@ -198,7 +198,7 @@ CREATE TRIGGER office_external_on_exit_completion
 -- Revalidation is called just before provider submission, after claim commit.
 -- Revoking consent or signing the document after claim denies delivery.
 CREATE OR REPLACE FUNCTION public.office_external_notice_can_send(
- p_id uuid,p_token uuid
+ p_id uuid,p_token uuid,p_recipient_email text
 ) RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path=''
 AS $safe$
@@ -213,12 +213,13 @@ AS $safe$
  AND public.office_external_notice_source_valid(
   outbox.event_code,outbox.source_kind,outbox.source_proof_id,outbox.recipient_user_id)
  AND public.office_external_notice_recipient(
-  outbox.event_code,outbox.recipient_user_id,outbox.contact_version) IS NOT NULL
+  outbox.event_code,outbox.recipient_user_id,outbox.contact_version)
+ =pg_catalog.lower(pg_catalog.btrim(p_recipient_email))
  );
 $safe$;
-REVOKE ALL ON FUNCTION public.office_external_notice_can_send(uuid,uuid)
+REVOKE ALL ON FUNCTION public.office_external_notice_can_send(uuid,uuid,text)
  FROM PUBLIC,anon,authenticated,service_role;
-GRANT EXECUTE ON FUNCTION public.office_external_notice_can_send(uuid,uuid)
+GRANT EXECUTE ON FUNCTION public.office_external_notice_can_send(uuid,uuid,text)
  TO kravia_office_backend;
 
 CREATE OR REPLACE FUNCTION public.office_external_notice_claim(p_limit integer DEFAULT 10)

@@ -47,6 +47,8 @@ describe("KRAVIA Office external signing and offboarding audit gates", () => {
     expect(sourceMapping).toContain("office_external_notice_source_valid");
     expect(sourceMapping).toContain("office_external_notice_recipient");
     expect(sourceMapping).toContain("office_external_notice_can_send");
+    expect(sourceMapping).toContain("p_id uuid,p_token uuid,p_recipient_email text");
+    expect(sourceMapping).toContain("pg_catalog.btrim(p_recipient_email)");
     expect(sourceMapping).toContain("STALE_UNKNOWN");
     expect(sourceMapping).not.toContain("SET enabled=true");
     expect(externalWorker).toContain("KRAVIA_LIFECYCLE_MAIL_DISPATCH_ENABLED");

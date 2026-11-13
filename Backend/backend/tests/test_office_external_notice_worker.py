@@ -99,7 +99,7 @@ class FakeSession:
             self.events.append(("claim", params["p_limit"]))
             return Result([self.row])
         if "office_external_notice_can_send" in statement:
-            self.events.append(("verify", None))
+            self.events.append(("verify", params["p_email"]))
             return Result(scalar=self.permitted)
         if "office_external_notice_finish" in statement:
             self.events.append(("finish", params["p_status"]))
@@ -129,9 +129,22 @@ def test_claim_commit_then_revalidate_revoked_consent_before_provider(monkeypatc
     result = worker.process_external_notice_outbox()
     assert result["claimed"] == 1 and result["rejected"] == 1
     assert events == [
-        ("claim", 10), ("commit", None), ("verify", None), ("rollback", None),
+        ("claim", 10), ("commit", None), ("verify", "former.person@example.net"), ("rollback", None),
         ("finish", "REJECTED"), ("commit", None),
     ]
+
+
+def test_claim_requires_exact_recipient_address_recheck(monkeypatch):
+    events = []
+    _enable(monkeypatch)
+    monkeypatch.setattr(worker, "SessionLocal", lambda: FakeSession(record(
+        "ONB-04", "employee@kraviaprivatelimited.com", "ONBOARDING_SIGNING:2"
+    ), events))
+    monkeypatch.setattr(worker, "send_office_external_lifecycle_notification",
+                        lambda **kwargs: "synthetic-provider-accepted")
+    result = worker.process_external_notice_outbox()
+    assert result["accepted"] == 1
+    assert ("verify", "employee@kraviaprivatelimited.com") in events
 
 
 def test_provider_timeout_never_triggers_automatic_resubmission(monkeypatch):
@@ -146,7 +159,7 @@ def test_provider_timeout_never_triggers_automatic_resubmission(monkeypatch):
     result = worker.process_external_notice_outbox()
     assert result["unknown"] == 1 and len(calls) == 1
     assert events == [
-        ("claim", 10), ("commit", None), ("verify", None), ("rollback", None),
+        ("claim", 10), ("commit", None), ("verify", "former.person@example.net"), ("rollback", None),
         ("finish", "UNKNOWN"), ("commit", None),
     ]
 

@@ -118,8 +118,9 @@ def process_external_notice_outbox(limit: int = 10) -> dict[str, Any]:
             with SessionLocal() as db:
                 is_allowed = bool(db.execute(
                     text("SELECT public.office_external_notice_can_send("
-                         "cast(:p_id AS uuid),cast(:p_token AS uuid))"),
-                    {"p_id": str(claim.outbox_id), "p_token": str(claim.claim_token)},
+                         "cast(:p_id AS uuid),cast(:p_token AS uuid),:p_email)"),
+                    {"p_id": str(claim.outbox_id), "p_token": str(claim.claim_token),
+                     "p_email": claim.recipient_email},
                 ).scalar_one())
                 db.rollback()
             if not is_allowed:
