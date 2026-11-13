@@ -167,3 +167,25 @@ export async function withdrawOfficeVaultAccess(requestId:string){
  if(error||data!==true)throw new OfficeVaultAccessError(409,"Withdrawal was not confirmed");
  return {withdrawn:true};
 }
+
+
+export async function getOfficeVaultAllowedActions(category:string,recordId:string){
+ const current=await actor();
+ const sources=sourceReadPermissions[category];
+ if(!sources?.length)throw new OfficeVaultAccessError(404,"Resource unavailable");
+ const decisions=await Promise.all(sources.map(code=>permitted(current,code)));
+ if(!decisions.some(Boolean))throw new OfficeVaultAccessError(404,"Resource unavailable");
+ const {data,error}=await current.admin.from("office_vault_access_grants")
+  .select("resource_id,action").eq("grantee_user_id",current.identity.userId)
+  .eq("category_slug",category).is("revoked_at",null)
+  .gt("expires_at",new Date().toISOString()).limit(250);
+ if(error)throw new OfficeVaultAccessError(503,"Grant authority unavailable");
+ const actions=new Set<string>();
+ for(const grant of data??[]){
+  if(grant.resource_id!==null&&grant.resource_id!==recordId)continue;
+  actions.add("READ");
+  if(grant.action==="PREVIEW"||grant.action==="DOWNLOAD")actions.add("PREVIEW");
+  if(grant.action==="DOWNLOAD")actions.add("DOWNLOAD");
+ }
+ return {read:actions.has("READ"),preview:actions.has("PREVIEW"),download:actions.has("DOWNLOAD")};
+}

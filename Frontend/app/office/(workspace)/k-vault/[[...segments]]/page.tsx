@@ -7,7 +7,7 @@ import { getOfficeDocumentStudioOverview } from "@/lib/office/document-studio-se
 import { getSecureCustodyOverview } from "@/lib/office/custody-server";
 import { InternalWorkspaceScreen } from "@/components/internal-workspace-screen";
 import { OfficeVaultAccessCenter } from "@/components/office-vault-access-center";
-import { requireOfficeVaultRecord, getOfficeVaultGrantedResources, OfficeVaultAccessError } from "@/lib/office/vault-access-server";
+import { requireOfficeVaultRecord, getOfficeVaultGrantedResources, getOfficeVaultAllowedActions, OfficeVaultAccessError } from "@/lib/office/vault-access-server";
 import { vaultCategories, type VaultCategory } from "@/lib/office/vault-categories";
 import styles from "@/components/office-vault.module.css";
 
@@ -157,15 +157,25 @@ export default async function VaultPages({params}:Props){
    const document=records.instances.find(row=>row.id===segments[1]);
    if(!document) notFound();
    title="Document reference";subtitle="Verified metadata and authorized output links from Document Studio.";
-   const renders=records.renders.filter(row=>row.document_instance_id===document.id&&row.status==="COMPLETED");
+   const actions=await getOfficeVaultAllowedActions("documents",segments[1]);
+   const renders=records.renders.filter(row=>row.document_instance_id===document.id&&
+     ["GENERATED","SIGNED"].includes(row.status));
    content=<article className={styles.record}>
      <FileLock2 size={30} aria-hidden="true"/><h2>{document.title}</h2>
      <dl><dt>Document code</dt><dd>{document.document_code}</dd><dt>Classification</dt><dd>{document.classification}</dd>
      <dt>Status</dt><dd>{document.status}</dd><dt>Recorded</dt><dd>{document.created_at}</dd></dl>
      <h3>Available authorized outputs</h3>
      {renders.length?<ul>{renders.map(render=><li key={render.id}>
-       <a href={"/api/office-vault/documents/"+render.id+"/download"}>{render.output_format} · permission-checked download</a>
-     </li>)}</ul>:<p>No verified output is currently available.</p>}
+       <strong>{render.output_format}</strong> · {render.status} · {render.byte_size.toLocaleString("en-IN")} bytes
+       {actions.download?<a href={"/api/office-vault/documents/"+render.id+"/download"}>Authorized download</a>:null}
+       {actions.preview&&render.output_format==="PDF"?<details>
+         <summary>Preview protected PDF</summary>
+         <iframe className={styles.documentPreview} title={"Secure preview: "+document.title}
+           src={"/api/office-vault/documents/"+render.id+"/preview"}
+           referrerPolicy="no-referrer" sandbox="allow-same-origin" loading="lazy"/>
+       </details>:null}
+     </li>)}</ul>:<p>No current generated or signed output is available.</p>}
+     {renders.length&&!actions.download?<Link href="/office/k-vault/requests">Request download authorization <ArrowRight size={16}/></Link>:null}
      <p>Files are retrieved through the canonical document service, which rechecks download permissions and integrity.</p>
      <Link href="/office/documents">Open Document Studio <ArrowRight size={16}/></Link>
    </article>;

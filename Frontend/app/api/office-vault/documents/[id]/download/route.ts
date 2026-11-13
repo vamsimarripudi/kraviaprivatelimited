@@ -12,9 +12,9 @@ export async function GET(_:Request,{params}:Props){
  try{
   const current=await requireOfficeActor();
   const {data:render,error}=await current.admin.from("office_document_renders")
-    .select("document_instance_id").eq("id",id).maybeSingle();
+    .select("document_instance_id,status").eq("id",id).maybeSingle();
   if(error)throw new OfficeVaultAccessError(503,"Document authority unavailable");
-  if(!render)throw new OfficeVaultAccessError(404,"Resource unavailable");
+  if(!render||!["GENERATED","SIGNED"].includes(render.status))throw new OfficeVaultAccessError(404,"Resource unavailable");
   await requireOfficeVaultRecord({category:"documents",recordId:String(render.document_instance_id),action:"DOWNLOAD"});
   const file=await downloadOfficeDocumentRender(id);
   return new NextResponse(new Uint8Array(file.bytes),{headers:{

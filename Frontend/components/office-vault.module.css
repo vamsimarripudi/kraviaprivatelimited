@@ -25,3 +25,7 @@
 .footnote{display:flex;align-items:center;gap:8px;line-height:1.55;color:var(--office-ui-muted);font-size:12px}
 .footnote svg{flex:none}
 @media(max-width:767px){.vault{margin:10px 12px 20px}.sourceCard{padding:16px}.record{padding:16px}.record dl{grid-template-columns:1fr;gap:4px}.record dd{margin-bottom:9px}.nav{overflow-x:auto;flex-wrap:nowrap}.nav a{flex:none;white-space:nowrap}}
+.documentPreview{display:block;width:100%;min-width:0;max-width:100%;height:min(530px,66dvh);border:1px solid var(--office-ui-line);border-radius:12px;background:var(--office-ui-surface-alt);margin:10px 0}
+.record li{line-height:1.7}.record li>a{margin-left:12px}
+.record li details{padding:8px 0}.record li details>summary{display:inline-flex;align-items:center;cursor:pointer;min-height:44px;color:var(--office-ui-accent)}
+@media(max-width:767px){.documentPreview{height:min(450px,57dvh)}}
