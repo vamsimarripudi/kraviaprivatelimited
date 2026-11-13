@@ -27,8 +27,8 @@ function wrap(value:string,limit:number):string[]{
   return lines.length?lines:[""];
 }
 function stripMarkup(input:string){
-  return input.replace(/\\*\\*/g,"").replaceAll(String.fromCharCode(96),"")
-    .replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g,"$1 ($2)");
+  return input.replace(/\*\*/g,"").replaceAll(String.fromCharCode(96),"")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g,"$1 ($2)");
 }
 function buildLines(pack:Pack):Line[]{
   const out:Line[]=[];
@@ -44,9 +44,9 @@ function buildLines(pack:Pack):Line[]{
     for(const raw of pack.fullCommon.split("\n")){
       const line=raw.trim();
       if(!line || line==="---"){out.push({kind:"body",text:" "});continue;}
-      if(/^\\|[\\s|:\\-]+\\|?$/.test(line))continue;
-      if(line.startsWith("#"))put("heading",stripMarkup(line.replace(/^#+\\s*/,"")),70);
-      else put("body",stripMarkup(line).replace(/^>\\s?/,"").replace(/^\\|/,""),90);
+      if(/^\|[\s|:\-]+\|?$/.test(line))continue;
+      if(line.startsWith("#"))put("heading",stripMarkup(line.replace(/^#+\s*/,"")),70);
+      else put("body",stripMarkup(line).replace(/^>\s?/,"").replace(/^\|/,""),90);
     }
   } else pack.common.forEach(chapter=>{
     put("heading",chapter.title,68);
@@ -59,9 +59,9 @@ function buildLines(pack:Pack):Line[]{
       for(const raw of pack.fullRoles[roleIndex].split("\n")){
         const line=raw.trim();
         if(!line || line==="---"){out.push({kind:"body",text:" "});continue;}
-        if(/^\\|[\\s|:\\-]+\\|?$/.test(line))continue;
-        if(line.startsWith("#"))put("heading",stripMarkup(line.replace(/^#+\\s*/,"")),70);
-        else put("body",stripMarkup(line).replace(/^>\\s?/,"").replace(/^\\|/,""),90);
+        if(/^\|[\s|:\-]+\|?$/.test(line))continue;
+        if(line.startsWith("#"))put("heading",stripMarkup(line.replace(/^#+\s*/,"")),70);
+        else put("body",stripMarkup(line).replace(/^>\s?/,"").replace(/^\|/,""),90);
       }
       out.push({kind:"body",text:" "});
       return;
