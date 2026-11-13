@@ -69,7 +69,7 @@ VALUES
   ('TIME-09','P1',false),
   ('TIME-10','P1',false),
   ('PAY-01','P0',false),
-  ('PAY-02','P0',false),
+  ('PAY-02','P0',true),
   ('PAY-03','P1',false),
   ('PAY-04','P0',false),
   ('PAY-05','P0',false),
@@ -80,11 +80,11 @@ VALUES
   ('PAY-10','P0',false),
   ('PAY-11','P1',false),
   ('PAY-12','P2',false),
-  ('DEV-01','P1',false),
+  ('DEV-01','P1',true),
   ('DEV-02','P2',false),
   ('DEV-03','P2',false),
   ('DEV-04','P2',false),
-  ('DEV-05','P2',false),
+  ('DEV-05','P2',true),
   ('DEV-06','P2',false),
   ('DEV-07','P1',false),
   ('DEV-08','P1',false),
@@ -119,7 +119,8 @@ CREATE TABLE IF NOT EXISTS public.office_lifecycle_mail_outbox(
   event_code text NOT NULL REFERENCES public.office_lifecycle_mail_policy(event_code),
   source_table text NOT NULL CHECK(source_table IN (
     'office_employee_intake_events','office_role_package_events',
-    'office_worktime_events','office_department_transfer_events','office_auth_events'
+    'office_worktime_events','office_department_transfer_events','office_auth_events',
+    'office_people_development_events','office_payroll_events'
   )),
   source_id bigint NOT NULL CHECK(source_id>0),
   recipient_user_id uuid NOT NULL REFERENCES public.office_identity_users(user_id) ON DELETE RESTRICT,
@@ -256,6 +257,29 @@ BEGIN
           TG_TABLE_NAME,NEW.id,v_from);
       END IF;
     END IF;
+  ELSIF TG_TABLE_NAME='office_people_development_events' THEN
+    IF NEW.event_type='TRAINING_ASSIGNED' AND NEW.training_assignment_id IS NOT NULL THEN
+      PERFORM public.office_lifecycle_mail_enqueue('DEV-01',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
+    ELSIF NEW.event_type='PERFORMANCE_UPDATED' AND NEW.new_status='FINAL'
+        AND NEW.performance_review_id IS NOT NULL THEN
+      IF EXISTS(SELECT 1 FROM public.office_performance_reviews r
+        WHERE r.id=NEW.performance_review_id AND r.user_id=NEW.target_user_id
+          AND r.status='FINAL' AND r.finalized_by IS NOT NULL) THEN
+        PERFORM public.office_lifecycle_mail_enqueue('DEV-05',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
+      END IF;
+    END IF;
+  ELSIF TG_TABLE_NAME='office_payroll_events' THEN
+    IF NEW.event_type='COMPENSATION_APPROVAL_SYNCED'
+        AND NEW.compensation_version_id IS NOT NULL
+        AND NEW.metadata->>'compensation_status'='APPROVED' THEN
+      SELECT c.employee_user_id INTO v_recipient
+      FROM public.office_compensation_versions c
+      WHERE c.id=NEW.compensation_version_id AND c.status='APPROVED'
+        AND c.approved_by IS NOT NULL AND c.approved_at IS NOT NULL;
+      IF v_recipient IS NOT NULL THEN
+        PERFORM public.office_lifecycle_mail_enqueue('PAY-02',TG_TABLE_NAME,NEW.id,v_recipient);
+      END IF;
+    END IF;
   ELSIF TG_TABLE_NAME='office_auth_events' THEN
     IF NEW.event_type='SESSION_REVOKED' THEN
       PERFORM public.office_lifecycle_mail_enqueue('AUTH-11',TG_TABLE_NAME,NEW.id,NEW.user_id);
@@ -281,6 +305,13 @@ CREATE TRIGGER office_lifecycle_mail_on_department_transfer AFTER INSERT ON publ
   FOR EACH ROW EXECUTE FUNCTION public.office_lifecycle_mail_source_trigger();
 DROP TRIGGER IF EXISTS office_lifecycle_mail_on_auth ON public.office_auth_events;
 CREATE TRIGGER office_lifecycle_mail_on_auth AFTER INSERT ON public.office_auth_events
+  FOR EACH ROW EXECUTE FUNCTION public.office_lifecycle_mail_source_trigger();
+
+DROP TRIGGER IF EXISTS office_lifecycle_mail_on_development ON public.office_people_development_events;
+CREATE TRIGGER office_lifecycle_mail_on_development AFTER INSERT ON public.office_people_development_events
+  FOR EACH ROW EXECUTE FUNCTION public.office_lifecycle_mail_source_trigger();
+DROP TRIGGER IF EXISTS office_lifecycle_mail_on_payroll ON public.office_payroll_events;
+CREATE TRIGGER office_lifecycle_mail_on_payroll AFTER INSERT ON public.office_payroll_events
   FOR EACH ROW EXECUTE FUNCTION public.office_lifecycle_mail_source_trigger();
 
 -- Restricted backend claims, following an atomic database commit before
@@ -342,6 +373,24 @@ BEGIN
               AND ((o.event_code='ROLE-04' AND ev.event_type='PROPOSED')
                 OR (o.event_code='ROLE-05' AND ev.event_type='ACCEPTED')
                 OR (o.event_code='ROLE-06' AND ev.event_type='CANCELLED'))))
+        OR (o.source_table='office_people_development_events'
+          AND EXISTS(SELECT 1 FROM public.office_people_development_events ev
+            WHERE ev.id=o.source_id AND ev.target_user_id=o.recipient_user_id
+              AND ((o.event_code='DEV-01'
+                AND ev.event_type='TRAINING_ASSIGNED' AND ev.training_assignment_id IS NOT NULL)
+                OR (o.event_code='DEV-05' AND ev.event_type='PERFORMANCE_UPDATED'
+                  AND ev.new_status='FINAL' AND EXISTS(
+                    SELECT 1 FROM public.office_performance_reviews pr
+                      WHERE pr.id=ev.performance_review_id AND pr.user_id=o.recipient_user_id
+                        AND pr.status='FINAL' AND pr.finalized_by IS NOT NULL)))))
+        OR (o.source_table='office_payroll_events' AND o.event_code='PAY-02'
+          AND EXISTS(SELECT 1 FROM public.office_payroll_events ev
+            JOIN public.office_compensation_versions cv ON cv.id=ev.compensation_version_id
+            WHERE ev.id=o.source_id
+              AND cv.employee_user_id=o.recipient_user_id
+              AND cv.status='APPROVED' AND cv.approved_by IS NOT NULL AND cv.approved_at IS NOT NULL
+              AND ev.event_type='COMPENSATION_APPROVAL_SYNCED'
+              AND ev.metadata->>'compensation_status'='APPROVED'))
         OR (o.source_table='office_auth_events' AND o.event_code='AUTH-11'
           AND EXISTS(SELECT 1 FROM public.office_auth_events ev
             WHERE ev.id=o.source_id AND ev.user_id=o.recipient_user_id
