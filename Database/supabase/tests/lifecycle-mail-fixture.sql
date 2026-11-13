@@ -283,3 +283,23 @@ INSERT INTO public.office_salary_settlement_evidence(
  'f0000000-0000-4000-8000-000000000012',60000,'INR','PENDING',
  'a0000000-0000-4000-8000-000000000003',pg_catalog.now(),
  'Synthetic-self-reviewed-bank-credit','****9012');
+
+
+-- Synthetic first-party credential and owned-asset sources for migration 025.
+-- These tables and records exist only in the disposable PostgreSQL fixture.
+CREATE TABLE public.office_auth_events_v2(
+ id varchar PRIMARY KEY,
+ user_id varchar,session_id varchar,event_type varchar NOT NULL,metadata_json text
+);
+CREATE TABLE public.office_login_device_approvals(
+ id varchar PRIMARY KEY,
+ user_id varchar,session_id varchar,status varchar,consumed_at timestamptz
+);
+CREATE TABLE public.office_asset_lifecycle(
+ asset_id varchar PRIMARY KEY,custodian_user_id uuid,lifecycle_status text
+);
+CREATE TABLE public.office_asset_events(
+ id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ asset_id varchar NOT NULL,actor_user_id uuid,event_type text NOT NULL,
+ new_status text,metadata jsonb NOT NULL DEFAULT '{}'::jsonb
+);
