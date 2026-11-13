@@ -45,6 +45,15 @@ describe("KRAVIA canonical product/customer master data",()=>{
   expect(component).toContain('/api/office-runtime/');
  });
 
+ it("presents product and customer cards with readable status labels instead of internal codes",()=>{
+  expect(component).toContain('value==="ACTIVE_CONFIG"');
+  expect(component).toContain('"Configuration active"');
+  expect(component).toContain("masterStatusLabel(row.status)");
+  expect(component).not.toContain(">{row.status}</em>");
+  expect(component).toContain("Only authorised employees can create a new product.");
+  expect(component).not.toContain("FastAPI runtime; the Office capability layer");
+ });
+
  it("wires Products and Customers to the specialised action surface",()=>{
   expect(screen).toContain('<OfficeMasterData kind="products"');
   expect(screen).toContain('<OfficeMasterData kind="customers"');

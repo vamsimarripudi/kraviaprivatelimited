@@ -1,0 +1,146 @@
+/*
+ * KRAVIA Office visual-integrity guard.
+ *
+ * Static audit (13 Nov 2026): Office has 82 component stylesheets, including
+ * older hard-coded light cards, modal surfaces and drawer forms.
+ *
+ * Scope only CSS-module class suffixes for individual surfaces, not generic
+ * substring selectors like [class*="card"] which accidentally also match
+ * card headings, controls, and unrelated data-state elements.
+ *
+ * This stylesheet is loaded last. It never changes business workflows.
+ */
+.kravia-office .office-v2.office-modern .office-main :where(
+  [class*="_card__"], [class*="_panel__"],
+  [class*="_dialog__"], [class*="_modal__"], [class*="_drawer__"],
+  [role="dialog"], [aria-modal="true"]
+):not([data-office-presence-dialog]) {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Explicitly put card typography on the same tokenized surface in dark mode.
+   Preserve special statuses, buttons, notices, and dark branded hero panels. */
+.kravia-office .office-v2.office-modern[data-ui-theme="dark"] .office-main :where(
+  [class*="_card__"], [class*="_panel__"],
+  [class*="_dialog__"], [class*="_modal__"], [class*="_drawer__"],
+  [role="dialog"], [aria-modal="true"]
+):not([data-office-presence-dialog]) {
+  background: var(--office-ui-surface, #111319) !important;
+  color: var(--office-ui-ink, #f7f8fb) !important;
+  border-color: var(--office-ui-line, #353945) !important;
+}
+.kravia-office .office-v2.office-modern[data-ui-theme="dark"] .office-main :where(
+  [class*="_metrics__"]
+) > :where(article) {
+  background: var(--office-ui-surface, #111319) !important;
+  color: var(--office-ui-ink, #f7f8fb) !important;
+  border-color: var(--office-ui-line, #353945) !important;
+}
+/* Legacy metric labels often hard-code #69706b, which fails contrast on dark
+   surfaces. Use the theme's stronger muted tone for normal-size text. */
+.kravia-office .office-v2.office-modern[data-ui-theme="dark"] .office-main :where([class*="_metrics__"]) > article :where(span,small,dt) {
+  color: var(--office-ui-muted, #c2c6d0) !important;
+  opacity: 1 !important;
+}
+
+/* In light mode, don't force dark-theme foregrounds onto white cards. */
+.kravia-office .office-v2.office-modern[data-ui-theme="light"] .office-main :where(
+  [class*="_card__"], [class*="_panel__"],
+  [class*="_dialog__"], [class*="_modal__"], [class*="_drawer__"],
+  [role="dialog"], [aria-modal="true"]
+):not([data-office-presence-dialog]) {
+  color: var(--office-ui-ink, #171b25) !important;
+  border-color: var(--office-ui-line, #d9dfe9) !important;
+}
+.kravia-office .office-v2.office-modern[data-ui-theme="light"] .office-main :where(
+  [class*="_metrics__"]
+) > :where(article) {
+  background: var(--office-ui-surface, #fff) !important;
+  color: var(--office-ui-ink, #171b25) !important;
+  border-color: var(--office-ui-line, #d9dfe9) !important;
+}
+/* A modal's inputs and labels must share its active Office theme.
+   This handles older modules that hardcode #fff inputs and containers. */
+.kravia-office .office-v2.office-modern .office-main :where(
+  [class*="_dialog__"], [class*="_modal__"], [role="dialog"], [aria-modal="true"]
+):not([data-office-presence-dialog]) :where(input:not([type="checkbox"]):not([type="radio"]),textarea,select) {
+  min-width: 0;
+  max-width: 100%;
+  background-color: var(--office-ui-control, #fff) !important;
+  color: var(--office-ui-ink, #171b25) !important;
+  border-color: var(--office-ui-line, #d9dfe9) !important;
+}
+.kravia-office .office-v2.office-modern .office-main :where(
+  [class*="_dialog__"], [class*="_modal__"], [role="dialog"], [aria-modal="true"]
+):not([data-office-presence-dialog]) :where(label,legend) {
+  color: var(--office-ui-ink, #171b25) !important;
+}
+.kravia-office .office-v2.office-modern .office-main :where(
+  [class*="_dialog__"], [class*="_modal__"], [role="dialog"], [aria-modal="true"]
+):not([data-office-presence-dialog]) select option {
+  background: var(--office-ui-control, #fff);
+  color: var(--office-ui-ink, #171b25);
+}
+/* Keep IDs, document names and long values from expanding grid cards. */
+.kravia-office .office-v2.office-modern .office-main :where(
+  [class*="_card__"], [class*="_panel__"]
+) :where(h2,h3,h4,code,strong) { overflow-wrap: anywhere; }
+
+@media (max-width: 760px) {
+  .kravia-office .office-v2.office-modern .office-main :where(
+    [class*="_dialog__"], [class*="_modal__"], [role="dialog"], [aria-modal="true"]
+  ):not([data-office-presence-dialog]) {
+    box-sizing: border-box;
+    max-width: calc(100dvw - 24px);
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  /* 16px inputs prevent Safari's forced focus zoom at phone widths. */
+  .kravia-office .office-v2.office-modern .office-main :where(input:not([type="checkbox"]):not([type="radio"]),textarea,select) {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    font-size: max(16px, 1rem) !important;
+  }
+  .kravia-office .office-v2.office-modern .office-main :where(
+    [class*="_dialog__"], [class*="_modal__"], [role="dialog"], [aria-modal="true"]
+  ):not([data-office-presence-dialog]) :where(button,select,input,textarea) {
+    min-height: 44px;
+  }
+}
+/* Native workforce modal is a top-layer component, outside legacy sticky
+   topbar positioning. Reinforce its active theme against broad V2/V4 rules. */
+.kravia-office .office-v2.office-modern .office-main dialog[data-office-presence-dialog] {
+  /* Explicit viewport coordinates avoid UA dialog centering offsets inherited
+     from the transformed, sticky Office top bar. */
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  margin: 0 !important;
+  transform: translate(-50%, -50%) !important;
+  background: var(--office-ui-surface, #fff) !important;
+  color: var(--office-ui-ink, #171b25) !important;
+  border-color: var(--office-ui-line, #d9dfe9) !important;
+}
+.kravia-office .office-v2.office-modern .office-main dialog[data-office-presence-dialog] #office-presence-heading {
+  color: var(--office-ui-ink, #171b25) !important;
+  font-size: clamp(18px, 4vw, 23px) !important;
+}
+.kravia-office .office-v2.office-modern .office-main dialog[data-office-presence-dialog] :where(
+  [class*="_actionsContent__"],[class*="_closeButton__"]
+) {
+  background: var(--office-ui-surface, #fff) !important;
+  color: var(--office-ui-ink, #171b25) !important;
+  border-color: var(--office-ui-line, #d9dfe9) !important;
+}
+.kravia-office .office-v2.office-modern .office-main dialog[data-office-presence-dialog] :where(
+  [class*="_attendance__"],[class*="_statusSummary__"]
+) {
+  color: var(--office-ui-ink, #171b25) !important;
+}

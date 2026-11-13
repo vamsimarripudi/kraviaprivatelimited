@@ -5,6 +5,12 @@ on:
   pull_request:
     paths:
       - "Frontend/app/office/office-design-system.css"
+      - "Frontend/app/office/office-surface-integrity.css"
+      - "Frontend/app/office/office-mobile-contrast.css"
+      - "Frontend/components/office-presence-control*"
+      - "Frontend/components/office-recruitment-workspace*"
+      - "Frontend/components/office-work-hub*"
+      - "Frontend/components/office-master-data*"
       - "Frontend/app/office/layout.tsx"
       - "Frontend/app/finance/layout.tsx"
       - "Frontend/components/office-appearance-root.tsx"
@@ -16,6 +22,12 @@ on:
     branches: [main]
     paths:
       - "Testing/playwright/**"
+      - "Frontend/app/office/office-surface-integrity.css"
+      - "Frontend/app/office/office-mobile-contrast.css"
+      - "Frontend/components/office-presence-control*"
+      - "Frontend/components/office-recruitment-workspace*"
+      - "Frontend/components/office-work-hub*"
+      - "Frontend/components/office-master-data*"
       - "Frontend/next.config.ts"
       - "Frontend/tests/office-auth-cache-policy.test.ts"
       - ".github/workflows/office-e2e.yml"
@@ -49,15 +61,21 @@ jobs:
         working-directory: Testing/playwright
         run: npm install --no-fund --no-audit
 
-      - name: Install Chromium runtime
+      - name: Install Chromium and WebKit runtimes
         working-directory: Testing/playwright
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium webkit
 
       - name: Run desktop + mobile Chromium Office auth E2E
         working-directory: Testing/playwright
         env:
           CI: "1"
         run: npm run test:ci
+
+      - name: Run iPhone WebKit Office layout and contrast checks
+        working-directory: Testing/playwright
+        env:
+          CI: "1"
+        run: npx playwright test tests/office-surface-integrity.spec.mjs tests/office-theme.spec.mjs --project=mobile-webkit
 
       - name: Upload failure evidence
         if: failure()

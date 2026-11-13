@@ -22,6 +22,8 @@ describe("KRAVIA HR Manager effective-date access and evidence-based worktime", 
   it("uses real check-in events rather than adding six hours merely for login", () => {
     expect(tracker).toContain('attendance("CHECK_IN")');
     expect(tracker).toContain('attendance("CHECK_OUT")');
+    // The compact Actions menu renders explicit controls for both transitions.
+    expect(tracker).toContain('state.attendance.state === "ON_BREAK"');
     expect(tracker).toContain('attendance("BREAK_START")');
     expect(tracker).toContain('attendance("BREAK_END")');
     expect(tracker).toContain("Browser activity is never treated as payroll time");

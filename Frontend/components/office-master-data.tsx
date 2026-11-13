@@ -16,6 +16,10 @@ async function request<T>(kind:Kind,options?:RequestInit):Promise<T>{
  return body as T;
 }
 function isProduct(row:Row):row is Product{return "code" in row}
+function masterStatusLabel(value:string){
+ if(value==="ACTIVE_CONFIG")return "Configuration active";
+ return value.toLowerCase().replaceAll("_"," ").replace(/(^|\s)\S/g,(char)=>char.toUpperCase());
+}
 function idempotencyKey(){return typeof crypto!=="undefined"&&"randomUUID" in crypto?crypto.randomUUID():"kravia-"+String(Date.now())+"-"+Math.random().toString(16).slice(2)}
 
 export function OfficeMasterData({kind,canCreate}:{kind:Kind;canCreate:boolean}){
@@ -33,11 +37,11 @@ export function OfficeMasterData({kind,canCreate}:{kind:Kind;canCreate:boolean})
  }catch(caught){setError(caught instanceof Error?caught.message:"Unable to create canonical record")}finally{setBusy(false)}}
 
  return <section className={styles.shell}>
-  <header className={styles.hero}><div><p>CANONICAL MASTER DATA</p><h2>{kind==="products"?"Products":"Customers"}</h2><span>{kind==="products"?"Product creation is finally enforced by the FastAPI runtime; the Office capability layer only decides whether to expose the action.":"Customer identities feed billing, tax, contracts and commercial workflows. Creation remains final-authority checked by the FastAPI runtime."}</span></div><div className={styles.toolbar}><button type="button" onClick={()=>void load()}><RefreshCw/>Refresh</button>{canCreate?<button type="button" onClick={()=>{setDraft(kind==="customers"?{country:"India"}:{});setDialog(true)}}><Plus/>{kind==="products"?"Create product":"Create customer"}</button>:null}</div></header>
+  <header className={styles.hero}><div><p>CANONICAL MASTER DATA</p><h2>{kind==="products"?"Products":"Customers"}</h2><span>{kind==="products"?"The product catalogue contains official company records. Only authorised employees can create a new product.":"Approved customer records support billing, tax, contracts and commercial workflows. Creation and access remain permission-controlled."}</span></div><div className={styles.toolbar}><button type="button" onClick={()=>void load()}><RefreshCw/>Refresh</button>{canCreate?<button type="button" onClick={()=>{setDraft(kind==="customers"?{country:"India"}:{});setDialog(true)}}><Plus/>{kind==="products"?"Create product":"Create customer"}</button>:null}</div></header>
   {notice?<div className={styles.notice}><BadgeCheck/>{notice}</div>:null}{error?<div className={styles.error}><CircleAlert/>{error}</div>:null}
   {loading?<div className={styles.state}><LoaderCircle className={styles.spin}/>Loading canonical records…</div>:<div className={styles.grid}>{data.map(row=>isProduct(row)
-   ?<article className={styles.card} key={row.id}><PackagePlus/><div><small>{row.code}</small><h3>{row.name}</h3><p>{row.category}</p></div><em data-status={row.status}>{row.status}</em></article>
-   :<article className={styles.card} key={row.id}><Building2/><div><small>{row.id}</small><h3>{row.display_name||row.legal_name}</h3><p>{row.legal_name} · {row.state}, {row.country}{row.gstin?" · GSTIN "+row.gstin:""}</p></div><em data-status={row.status}>{row.status}</em></article>)}
+   ?<article className={styles.card} key={row.id}><PackagePlus/><div><small>{row.code}</small><h3>{row.name}</h3><p>{row.category}</p></div><em data-status={row.status}>{masterStatusLabel(row.status)}</em></article>
+   :<article className={styles.card} key={row.id}><Building2/><div><small>{row.id}</small><h3>{row.display_name||row.legal_name}</h3><p>{row.legal_name} · {row.state}, {row.country}{row.gstin?" · GSTIN "+row.gstin:""}</p></div><em data-status={row.status}>{masterStatusLabel(row.status)}</em></article>)}
    {!data.length?<div className={styles.empty}>No canonical {kind} records yet.</div>:null}</div>}
 
   {dialog?<div className={styles.backdrop} role="presentation" onMouseDown={()=>!busy&&setDialog(false)}><form className={styles.dialog} onSubmit={submit} onMouseDown={e=>e.stopPropagation()}><header><div><small>CANONICAL CREATE</small><h3>{kind==="products"?"Create product":"Create customer"}</h3></div><button type="button" aria-label="Close" onClick={()=>setDialog(false)}><X/></button></header>
