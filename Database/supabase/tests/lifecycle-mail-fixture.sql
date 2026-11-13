@@ -334,3 +334,24 @@ ALTER TABLE public.office_worktime_review_cases
   ADD COLUMN reviewed_at timestamptz;
 ALTER TABLE public.office_worktime_policy_versions
   ADD COLUMN effective_from date;
+
+
+-- Disposable scheduling sources. Real production tables already contain these
+-- columns; only the stripped SQL rehearsal fixture needs their shape.
+ALTER TABLE public.office_training_assignments ADD COLUMN due_on date;
+ALTER TABLE public.office_employment_registry
+ ADD COLUMN employment_id uuid NOT NULL DEFAULT pg_catalog.gen_random_uuid(),
+ ADD COLUMN end_date date;
+ALTER TABLE public.office_payroll_periods ADD COLUMN pay_date date;
+ALTER TABLE public.office_job_assignments
+ ADD COLUMN start_date date NOT NULL DEFAULT CURRENT_DATE-90,
+ ADD COLUMN end_date date;
+ALTER TABLE public.office_auth_users ADD COLUMN locked_until timestamptz;
+ALTER TABLE public.office_auth_events_v2
+ ADD COLUMN created_at timestamptz NOT NULL DEFAULT pg_catalog.now();
+ALTER TABLE public.office_worktime_policy_versions
+ ADD COLUMN regular_daily_minutes integer NOT NULL DEFAULT 360,
+ ADD COLUMN weekly_target_minutes integer NOT NULL DEFAULT 1800;
+ALTER TABLE public.office_flex_day_requests
+ ADD COLUMN earned_week_monday date,
+ ADD COLUMN qualifying_work_minutes numeric NOT NULL DEFAULT 0;
