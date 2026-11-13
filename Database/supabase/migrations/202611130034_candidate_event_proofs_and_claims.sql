@@ -305,6 +305,7 @@ BEGIN
    JOIN public.office_lifecycle_mail_policy policy ON policy.event_code=q.event_code
    WHERE q.status='PENDING'
      AND policy.source_ready AND policy.enabled AND policy.delivery_owner='CANDIDATE_WORKER'
+     AND consent.recipient_email=pg_catalog.lower(pg_catalog.btrim(c.email))
      AND consent.status='VERIFIED' AND consent.verified_by IS NOT NULL
      AND consent.verified_by<>consent.recorded_by AND consent.verified_at IS NOT NULL
      AND c.email ~* '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$'
