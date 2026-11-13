@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, Clock3, LoaderCircle, MoreHorizontal, X } from "lucide-react";
 import Link from "next/link";
 import {
@@ -78,6 +79,15 @@ export function OfficePresenceControl() {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDetailsElement>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+
+  // Native dialogs escape stacking contexts, but transformed sticky ancestors
+  // can still shift their fixed containing block on mobile browsers.
+  // Mount directly under Office main, outside the overflow-hidden header.
+  useEffect(() => {
+    const target = document.querySelector<HTMLElement>(".kravia-office .office-modern .office-main");
+    if (target) setPortalTarget(target);
+  }, []);
 
   function openDialog() {
     if (dialogRef.current && !dialogRef.current.open) {
@@ -206,13 +216,14 @@ export function OfficePresenceControl() {
       aria-controls="office-presence-dialog"
       aria-expanded={dialogOpen}
       aria-label={"Manage workforce status: " + availability.label}
+      disabled={!portalTarget}
       onClick={openDialog}
     >
       <span className={styles.dot} data-status={availability.value} aria-hidden="true" />
       <span><b>{availability.label}</b><small>{state?.attendance.state === "ON_BREAK" ? "On break" : state?.attendance.state === "WORKING" ? "Working · " + duration(liveTracked) : "Check in to record work"}</small></span>
     </button>
 
-    <dialog
+    {portalTarget ? createPortal(<dialog
       id="office-presence-dialog"
       ref={dialogRef}
       className={styles.panel}
@@ -290,6 +301,6 @@ export function OfficePresenceControl() {
         </div>
         <p className={styles.note}>Attendance and sign-in are separate. Browser activity is never treated as payroll time. <Link href="/office/worktime" onClick={closeDialog}>View timesheets and corrections</Link>.</p>
       </>}
-    </dialog>
+    </dialog>, portalTarget) : null}
   </div>;
 }
