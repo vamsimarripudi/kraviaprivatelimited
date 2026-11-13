@@ -21,10 +21,10 @@ CREATE TABLE public.office_worktime_review_cases(id uuid PRIMARY KEY,employee_us
 CREATE TABLE public.office_department_ownership(department_code text PRIMARY KEY,owner_user_id uuid);
 CREATE OR REPLACE FUNCTION public.office_effective_permission(
  p_user_id uuid,p_permission text,p_scope_type text,p_scope_key text,p_owner_user_id uuid
-) RETURNS boolean LANGUAGE sql STABLE AS $
+) RETURNS boolean LANGUAGE sql STABLE AS $fixture_permission$
   SELECT p_user_id='a0000000-0000-4000-8000-000000000003'::uuid
     AND p_permission='people.update';
-$;
+$fixture_permission$;
 CREATE TABLE public.office_worktime_events(
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,case_id uuid,actor_user_id uuid,event_type text NOT NULL
 );
