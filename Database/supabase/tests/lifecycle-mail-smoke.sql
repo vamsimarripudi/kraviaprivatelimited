@@ -7,7 +7,7 @@ BEGIN
   IF EXISTS(SELECT 1 FROM public.office_lifecycle_mail_policy WHERE enabled) THEN
     RAISE EXCEPTION 'Office lifecycle mail migration unexpectedly enabled delivery';
   END IF;
-  IF (SELECT count(*) FROM public.office_lifecycle_mail_policy WHERE source_ready)<>26 THEN
+  IF (SELECT count(*) FROM public.office_lifecycle_mail_policy WHERE source_ready)<>27 THEN
     RAISE EXCEPTION 'Source-ready events must be accurately distinguished from unmapped events';
   END IF;
   IF pg_catalog.has_table_privilege('anon','public.office_lifecycle_mail_outbox','SELECT') OR
@@ -109,6 +109,9 @@ SELECT public.office_lifecycle_mail_policy_set(
 SELECT public.office_lifecycle_mail_policy_set(
  'a0000000-0000-4000-8000-000000000001','TIME-08',true,
  pg_catalog.now(),'Independent reviewed flex leave decision notice');
+SELECT public.office_lifecycle_mail_policy_set(
+ 'a0000000-0000-4000-8000-000000000001','PAY-08',true,
+ pg_catalog.now(),'Independently bank-verified full salary settlement notice');
 
 INSERT INTO public.office_employee_intake_events(employee_user_id,event_type)
 VALUES
@@ -194,15 +197,25 @@ UPDATE public.office_flex_day_requests
       reviewed_at=pg_catalog.now()
 WHERE id='b0000000-0000-4000-8000-000000000008';
 
+-- Only independent confirmed full-net salary credit creates PAY-08.
+UPDATE public.office_salary_settlement_evidence SET
+  status='VERIFIED',
+  verified_by='a0000000-0000-4000-8000-000000000001',
+  verified_at=pg_catalog.now()
+WHERE id='f0000000-0000-4000-8000-000000000009';
+
 DO $prove$
 BEGIN
-  IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox)<>26 THEN
-    RAISE EXCEPTION 'Expected twenty-six grounded, committed lifecycle mail records';
+  IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox)<>27 THEN
+    RAISE EXCEPTION 'Expected twenty-seven grounded, committed lifecycle mail records';
   END IF;
  IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE event_code='PAY-06')<>1 THEN
    RAISE EXCEPTION 'Immutable approved payslip did not create one private notice';
  END IF;
-  IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE event_code='TIME-01')<>1
+  IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE event_code='PAY-08')<>1 THEN
+   RAISE EXCEPTION 'Salary paid notice requires independently verified full net bank credit';
+ END IF;
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE event_code='TIME-01')<>1
    OR (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE event_code='TIME-08')<>1 THEN
    RAISE EXCEPTION 'Independent effective work-policy and Flex decisions must each be recorded once';
  END IF;
@@ -227,13 +240,16 @@ RESET ROLE;
 
 DO $claim$
 BEGIN
- IF (SELECT count(*) FROM pg_temp.ci_claims)<>25 THEN
+ IF (SELECT count(*) FROM pg_temp.ci_claims)<>26 THEN
    RAISE EXCEPTION 'Suspended identity must not receive an employee notification';
+ END IF;
+ IF (SELECT count(*) FROM pg_temp.ci_claims WHERE event_code='PAY-08' AND pay_period='2026-11')<>1 THEN
+   RAISE EXCEPTION 'Real payroll period missing from independently verified paid-salary claim';
  END IF;
  IF (SELECT count(*) FROM pg_temp.ci_claims WHERE event_code='PAY-06' AND pay_period='2026-11')<>1 THEN
    RAISE EXCEPTION 'Verified payroll period missing from approved notice claim';
  END IF;
- IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE status='SENDING')<>25 THEN
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE status='SENDING')<>26 THEN
    RAISE EXCEPTION 'Twenty-two verified notifications were not claimed atomically';
  END IF;
  IF pg_catalog.has_function_privilege('anon','public.office_lifecycle_mail_finish(uuid,uuid,text,text)','EXECUTE') THEN
@@ -268,10 +284,10 @@ SELECT count(*) AS safe_claims_after_timeout FROM public.office_lifecycle_mail_c
 RESET ROLE;
 DO $verify$
 BEGIN
- IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE status='UNKNOWN')<>24 THEN
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE status='UNKNOWN')<>25 THEN
    RAISE EXCEPTION 'Stale submission was not quarantined rather than retried';
  END IF;
- IF (SELECT count(*) FROM public.office_lifecycle_mail_events WHERE event_type='STALE_UNKNOWN')<>24 THEN
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_events WHERE event_type='STALE_UNKNOWN')<>25 THEN
    RAISE EXCEPTION 'Stale lifecycle mail events lack audit evidence';
  END IF;
  IF (SELECT count(*) FROM public.office_lifecycle_mail_outbox WHERE status='SENT')<>1 THEN

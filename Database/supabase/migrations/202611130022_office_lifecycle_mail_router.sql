@@ -79,7 +79,7 @@ VALUES
   ('PAY-05','P0',true,'Payroll approved','KRAVIA payroll run approved','All required approvals completed and results locked','Finance preparer'),
   ('PAY-06','P0',true,'Salary slip issued','Your KRAVIA payslip for {{pay_period}} is ready','Immutable approved payroll payslip exists','Employee'),
   ('PAY-07','P1',true,'Payment batch prepared','KRAVIA salary batch prepared — not yet paid','Batch only PREPARED; not bank-confirmed','Finance preparer/reviewer'),
-  ('PAY-08','P0',false,'Salary credit verified','KRAVIA salary payment confirmed — {{pay_period}}','Independent bank settlement verification covers full net salary','Employee'),
+  ('PAY-08','P0',true,'Salary credit verified','KRAVIA salary payment confirmed — {{pay_period}}','Independent bank settlement verification covers full net salary','Employee'),
   ('PAY-09','P0',false,'Partial payment / balance outstanding','Important: Outstanding KRAVIA salary balance','Verified credit is less than net; remaining amount owed','Employee and authorised Finance'),
   ('PAY-10','P0',false,'Unpaid salary overdue','Salary payment follow-up for {{pay_period}}','Pay date passed with independently unverified balance','Employee and escalation approver'),
   ('PAY-11','P1',false,'Corrected payslip issued','Updated KRAVIA payslip available','New approved correction/adjustment and new immutable issue','Employee'),
@@ -427,6 +427,31 @@ BEGIN
       IF v_recipient IS NOT NULL THEN
         PERFORM public.office_lifecycle_mail_enqueue('PAY-07',TG_TABLE_NAME,NEW.id,v_recipient);
       END IF;
+    ELSIF NEW.event_type='BANK_SALARY_CREDIT_VERIFIED'
+        AND NEW.metadata->>'settlement_id' IS NOT NULL THEN
+      SELECT result.employee_user_id INTO v_recipient
+      FROM public.office_salary_settlement_evidence se
+      JOIN public.office_payroll_results result ON result.id=se.payroll_result_id
+      JOIN public.office_payroll_periods period ON period.id=result.period_id
+      WHERE se.id::text=NEW.metadata->>'settlement_id'
+        AND se.status='VERIFIED' AND se.verified_by=NEW.actor_user_id
+        AND se.verified_at IS NOT NULL
+        AND se.verified_by IS DISTINCT FROM se.submitted_by
+        AND se.verified_by IS DISTINCT FROM result.employee_user_id
+        AND nullif(pg_catalog.btrim(se.evidence_reference),'') IS NOT NULL
+        AND nullif(pg_catalog.btrim(se.masked_bank_reference),'') IS NOT NULL
+        AND se.amount_minor>0
+        AND NEW.period_id=result.period_id AND NEW.employment_id=result.employment_id
+        AND result.status='LOCKED' AND result.net_pay_minor>0
+        AND period.status IN ('APPROVED','PAYMENT_PREPARED','CLOSED')
+        AND nullif(pg_catalog.btrim(period.period_code),'') IS NOT NULL
+        AND (SELECT pg_catalog.coalesce(pg_catalog.sum(credit.amount_minor),0)
+             FROM public.office_salary_settlement_evidence credit
+             WHERE credit.payroll_result_id=result.id AND credit.status='VERIFIED')
+            =result.net_pay_minor;
+      IF v_recipient IS NOT NULL THEN
+        PERFORM public.office_lifecycle_mail_enqueue('PAY-08',TG_TABLE_NAME,NEW.id,v_recipient);
+      END IF;
     ELSIF NEW.event_type='PAYSLIP_ISSUED' AND NEW.metadata->>'payslip_issue_id' IS NOT NULL THEN
       SELECT issue.employee_user_id INTO v_recipient
       FROM public.office_salary_payslip_issues issue
@@ -522,6 +547,59 @@ REVOKE ALL ON FUNCTION public.office_lifecycle_mail_payslip_source()
 DROP TRIGGER IF EXISTS office_lifecycle_mail_on_payslip ON public.office_salary_payslip_issues;
 CREATE TRIGGER office_lifecycle_mail_on_payslip AFTER INSERT ON public.office_salary_payslip_issues
   FOR EACH ROW EXECUTE FUNCTION public.office_lifecycle_mail_payslip_source();
+
+-- The separate approved bank settlement transition creates a verifiable
+-- payroll audit event. Never classify a prepared batch as a bank credit.
+CREATE OR REPLACE FUNCTION public.office_lifecycle_mail_bank_settlement_source()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
+AS $settled$
+DECLARE v_result public.office_payroll_results%ROWTYPE;
+DECLARE v_period public.office_payroll_periods%ROWTYPE;
+DECLARE v_paid bigint;
+BEGIN
+  IF NEW.status<>'VERIFIED' OR OLD.status IS NOT DISTINCT FROM NEW.status
+     OR NEW.verified_by IS NULL OR NEW.verified_at IS NULL
+     OR NEW.verified_by IS NOT DISTINCT FROM NEW.submitted_by
+     OR NEW.amount_minor<=0 OR NEW.credited_at IS NULL
+     OR NEW.credited_at>pg_catalog.now()+interval '5 minutes'
+     OR nullif(pg_catalog.btrim(NEW.evidence_reference),'') IS NULL
+     OR nullif(pg_catalog.btrim(NEW.masked_bank_reference),'') IS NULL THEN
+    RETURN NEW;
+  END IF;
+  SELECT * INTO v_result FROM public.office_payroll_results
+    WHERE id=NEW.payroll_result_id AND status='LOCKED' AND net_pay_minor>0;
+  IF NOT FOUND OR NEW.verified_by IS NOT DISTINCT FROM v_result.employee_user_id THEN
+    RETURN NEW;
+  END IF;
+  SELECT * INTO v_period FROM public.office_payroll_periods
+    WHERE id=v_result.period_id AND status IN ('APPROVED','PAYMENT_PREPARED','CLOSED')
+      AND nullif(pg_catalog.btrim(period_code),'') IS NOT NULL;
+  IF NOT FOUND THEN RETURN NEW; END IF;
+  SELECT pg_catalog.coalesce(pg_catalog.sum(s.amount_minor),0) INTO v_paid
+    FROM public.office_salary_settlement_evidence s
+    WHERE s.payroll_result_id=NEW.payroll_result_id AND s.status='VERIFIED';
+  IF v_paid=v_result.net_pay_minor
+     AND EXISTS(SELECT 1 FROM public.office_lifecycle_mail_policy
+       WHERE event_code='PAY-08' AND enabled AND source_ready
+         AND effective_from<=pg_catalog.now()) THEN
+    INSERT INTO public.office_payroll_events(
+      actor_user_id,period_id,employment_id,event_type,metadata
+    ) VALUES (
+      NEW.verified_by,v_result.period_id,v_result.employment_id,
+      'BANK_SALARY_CREDIT_VERIFIED',
+      pg_catalog.jsonb_build_object('settlement_id',NEW.id)
+    );
+  END IF;
+  RETURN NEW;
+END;
+$settled$;
+REVOKE ALL ON FUNCTION public.office_lifecycle_mail_bank_settlement_source()
+  FROM PUBLIC,anon,authenticated,service_role,kravia_office_backend;
+DROP TRIGGER IF EXISTS office_lifecycle_mail_on_bank_credit
+  ON public.office_salary_settlement_evidence;
+CREATE TRIGGER office_lifecycle_mail_on_bank_credit
+  AFTER UPDATE OF status ON public.office_salary_settlement_evidence
+  FOR EACH ROW EXECUTE FUNCTION public.office_lifecycle_mail_bank_settlement_source();
 
 -- Restricted backend claims, following an atomic database commit before
 -- provider I/O. An unacknowledged claim is quarantined, never automatically resent.
@@ -659,6 +737,30 @@ BEGIN
               AND batch.prepared_by=o.recipient_user_id
               AND batch.status='PREPARED'
               AND p.id=ev.period_id AND p.status IN ('APPROVED','PAYMENT_PREPARED')))
+        OR (o.source_table='office_payroll_events' AND o.event_code='PAY-08'
+          AND EXISTS(SELECT 1 FROM public.office_payroll_events ev
+            JOIN public.office_salary_settlement_evidence se
+              ON se.id::text=ev.metadata->>'settlement_id'
+            JOIN public.office_payroll_results result ON result.id=se.payroll_result_id
+            JOIN public.office_payroll_periods period ON period.id=result.period_id
+            WHERE ev.id=o.source_id
+              AND ev.event_type='BANK_SALARY_CREDIT_VERIFIED'
+              AND result.employee_user_id=o.recipient_user_id
+              AND se.status='VERIFIED' AND se.verified_by=ev.actor_user_id
+              AND se.verified_at IS NOT NULL
+              AND se.verified_by IS DISTINCT FROM se.submitted_by
+              AND se.verified_by IS DISTINCT FROM result.employee_user_id
+              AND se.amount_minor>0
+              AND nullif(pg_catalog.btrim(se.evidence_reference),'') IS NOT NULL
+              AND nullif(pg_catalog.btrim(se.masked_bank_reference),'') IS NOT NULL
+              AND ev.period_id=result.period_id AND ev.employment_id=result.employment_id
+              AND result.status='LOCKED' AND result.net_pay_minor>0
+              AND period.status IN ('APPROVED','PAYMENT_PREPARED','CLOSED')
+              AND nullif(pg_catalog.btrim(period.period_code),'') IS NOT NULL
+              AND (SELECT pg_catalog.coalesce(pg_catalog.sum(v.amount_minor),0)
+                   FROM public.office_salary_settlement_evidence v
+                   WHERE v.payroll_result_id=result.id AND v.status='VERIFIED')
+                  =result.net_pay_minor))
         OR (o.source_table='office_payroll_events' AND o.event_code='PAY-06'
           AND EXISTS(SELECT 1 FROM public.office_payroll_events ev
             JOIN public.office_salary_payslip_issues issue
@@ -730,7 +832,17 @@ BEGIN
         JOIN public.office_payroll_results result ON result.id=issue.payroll_result_id
         JOIN public.office_payroll_periods period ON period.id=result.period_id
       WHERE ev.id=c.source_id AND ev.event_type='PAYSLIP_ISSUED' LIMIT 1
-    ) ELSE NULL END
+    )
+    WHEN c.event_code='PAY-08' THEN (
+      SELECT period.period_code FROM public.office_payroll_events ev
+        JOIN public.office_salary_settlement_evidence se
+          ON se.id::text=ev.metadata->>'settlement_id'
+        JOIN public.office_payroll_results result ON result.id=se.payroll_result_id
+        JOIN public.office_payroll_periods period ON period.id=result.period_id
+      WHERE ev.id=c.source_id AND ev.event_type='BANK_SALARY_CREDIT_VERIFIED'
+      LIMIT 1
+    )
+    ELSE NULL END
     FROM claimed c JOIN logged l ON l.outbox_id=c.id
     JOIN public.office_identity_users i ON i.user_id=c.recipient_user_id
     JOIN public.office_auth_users a ON a.id=c.recipient_user_id::text;

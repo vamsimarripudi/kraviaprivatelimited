@@ -84,7 +84,14 @@ CREATE TABLE public.office_salary_payment_batches(
   id uuid PRIMARY KEY,period_id uuid,prepared_by uuid,status text NOT NULL
 );
 CREATE TABLE public.office_payroll_results(
-  id uuid PRIMARY KEY,period_id uuid,employment_id uuid,employee_user_id uuid,status text NOT NULL
+  id uuid PRIMARY KEY,period_id uuid,employment_id uuid,employee_user_id uuid,
+  status text NOT NULL,net_pay_minor bigint NOT NULL
+);
+CREATE TABLE public.office_salary_settlement_evidence(
+  id uuid PRIMARY KEY,payroll_result_id uuid NOT NULL,
+  amount_minor bigint NOT NULL,currency text,
+  status text NOT NULL,submitted_by uuid,verified_by uuid,verified_at timestamptz,
+  credited_at timestamptz,evidence_reference text,masked_bank_reference text
 );
 CREATE TABLE public.office_salary_payslip_issues(
   id uuid PRIMARY KEY,payroll_result_id uuid,employee_user_id uuid,issued_by uuid,
@@ -149,9 +156,9 @@ INSERT INTO public.office_salary_payment_batches(id,period_id,prepared_by,status
 VALUES('f0000000-0000-4000-8000-000000000007',
  'f0000000-0000-4000-8000-000000000001',
  'a0000000-0000-4000-8000-000000000003','PREPARED');
-INSERT INTO public.office_payroll_results(id,period_id,employment_id,employee_user_id,status) VALUES(
+INSERT INTO public.office_payroll_results(id,period_id,employment_id,employee_user_id,status,net_pay_minor) VALUES(
  'f0000000-0000-4000-8000-000000000002','f0000000-0000-4000-8000-000000000001',
- 'f0000000-0000-4000-8000-000000000003','a0000000-0000-4000-8000-000000000002','LOCKED');
+ 'f0000000-0000-4000-8000-000000000003','a0000000-0000-4000-8000-000000000002','LOCKED',50000);
 
 INSERT INTO public.office_role_package_onboarding_tasks(id,application_id,employee_user_id,required,status)
 VALUES('e0000000-0000-4000-8000-000000000009',
@@ -169,3 +176,12 @@ VALUES('b0000000-0000-4000-8000-000000000007',
  ('b0000000-0000-4000-8000-000000000008',
  'a0000000-0000-4000-8000-000000000002','PENDING',
  'a0000000-0000-4000-8000-000000000002');
+
+INSERT INTO public.office_salary_settlement_evidence(
+  id,payroll_result_id,amount_minor,currency,status,submitted_by,credited_at,
+  evidence_reference,masked_bank_reference
+) VALUES(
+ 'f0000000-0000-4000-8000-000000000009',
+ 'f0000000-0000-4000-8000-000000000002',50000,'INR','PENDING',
+ 'a0000000-0000-4000-8000-000000000003',pg_catalog.now(),
+ 'Synthetic-private-bank-verification-evidence','****1234');

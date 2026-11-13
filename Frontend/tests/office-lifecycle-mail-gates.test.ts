@@ -46,6 +46,9 @@ describe("KRAVIA Office governed 81-event lifecycle notification delivery",()=>{
     expect(schema).toContain("development_plan");
     expect(schema).toContain("DEV-07");
     expect(schema).toContain("office_salary_payslip_issues");
+    expect(schema).toContain("office_salary_settlement_evidence");
+    expect(schema).toContain("BANK_SALARY_CREDIT_VERIFIED");
+    expect(schema).toContain("v_paid=v_result.net_pay_minor");
     expect(schema).toContain("PAYSLIP_ISSUED");
     expect(schema).toContain("office_access_audit");
     expect(schema).toContain("ROLE_GRANTED");
