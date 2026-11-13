@@ -29,10 +29,11 @@ VALUES('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','EMPLOYEE_OFFBOARDING',
 
 -- A generic signed document is not an HR relieving document.
 INSERT INTO public.office_document_instances(
- id,document_code,subject_type,subject_reference,status,
+ id,document_code,template_id,subject_type,subject_reference,status,
  approved_by,approved_at,signed_at
 ) VALUES(
- 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','HR_POLICY','EMPLOYEE',
+ 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','KR-DOC-00000001',
+ 'f1000000-0000-4000-8000-000000000003','EMPLOYEE',
  '33333333-3333-4333-8333-333333333333','DELIVERED',
  '11111111-1111-4111-8111-111111111111',now(),now());
 INSERT INTO public.office_document_signature_evidence(
@@ -63,10 +64,11 @@ END $negative$;
 -- Real signed HR relieving document: independently approved, verified signed
 -- file evidence, external delivery record and already fulfilled offboarding.
 INSERT INTO public.office_document_instances(
- id,document_code,subject_type,subject_reference,status,
+ id,document_code,template_id,subject_type,subject_reference,status,
  approved_by,approved_at,signed_at
 ) VALUES(
- 'cccccccc-cccc-4ccc-8ccc-cccccccccccc','HR_RELIEVING','EMPLOYEE',
+ 'cccccccc-cccc-4ccc-8ccc-cccccccccccc','KR-DOC-00000002',
+ 'f1000000-0000-4000-8000-000000000001','EMPLOYEE',
  '33333333-3333-4333-8333-333333333333','DELIVERED',
  '11111111-1111-4111-8111-111111111111',now(),now());
 INSERT INTO public.office_document_signature_evidence(
