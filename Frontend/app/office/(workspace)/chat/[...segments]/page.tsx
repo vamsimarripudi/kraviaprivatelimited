@@ -1,5 +1,7 @@
 import {notFound} from "next/navigation";
 import {OfficeConnectWorkflows} from "@/components/office-connect-workflows";
+import {OfficeConnectMessageIndex} from "@/components/office-connect-message-index";
+import {OfficeConnectThread} from "@/components/office-connect-thread";
 type Props={params:Promise<{segments:string[]}>};
 export const dynamic="force-dynamic";
 const permittedPaths=new Set([
@@ -14,10 +16,14 @@ export default async function OtherConnectRoute({params}:Props){
  const {segments}=await params;
  const path=segments.join("/");
  if(path==="wireframe-lab")notFound();
- const detail=/^support\/tickets\/[0-9a-f-]{36}$/i.test(path)||
+ const detail=/^threads\/[0-9a-f-]{36}$/i.test(path)||/^support\/tickets\/[0-9a-f-]{36}$/i.test(path)||
               /^support\/escalations\/[0-9a-f-]{36}$/i.test(path)||
               /^support\/knowledge\/[0-9a-f-]{36}$/i.test(path)||
               /^approvals\/[0-9a-f-]{36}$/i.test(path);
  if(!permittedPaths.has(path)&&!detail)notFound();
+ if(path==="search"||path==="saved"||path==="mentions")
+   return <OfficeConnectMessageIndex kind={path}/>;
+ if(/^threads\/[0-9a-f-]{36}$/i.test(path))
+   return <OfficeConnectThread id={segments[1]}/>;
  return <OfficeConnectWorkflows path={path}/>;
 }

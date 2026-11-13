@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, ClipboardCheck, MessageSquareText, RefreshCw, Search, Send, ShieldCheck } from "lucide-react";
 import styles from "./office-connect.module.css";
+import { OfficeConnectMessageActions } from "@/components/office-connect-message-actions";
 
 type Conversation = { id: string; kind: string; title: string; updated_at: string };
 type Message = { id: string; sender_user_id: string; sender_name: string; body: string; created_at: string; edited_at?: string | null };
@@ -143,6 +144,8 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
               <strong>{message.sender_user_id === actor ? "You" : message.sender_name}</strong>
               <p>{message.body}</p>
               <time dateTime={message.created_at}>{new Date(message.created_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</time>
+              <OfficeConnectMessageActions id={message.id} body={message.body}
+                own={message.sender_user_id===actor} onDone={()=>setReloadCount(v=>v+1)}/>
             </article>)}
           </div>
           <form className={styles.composer} onSubmit={send}>
