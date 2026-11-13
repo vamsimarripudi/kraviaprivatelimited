@@ -108,7 +108,7 @@ CREATE TABLE public.office_document_renders(
  output_format text NOT NULL
 );
 CREATE TABLE public.office_document_delivery_events(
- id uuid PRIMARY KEY,
+ id uuid PRIMARY KEY DEFAULT pg_catalog.gen_random_uuid(),
  document_instance_id uuid NOT NULL REFERENCES public.office_document_instances(id),
  render_id uuid REFERENCES public.office_document_renders(id),
  actor_user_id uuid REFERENCES public.office_identity_users(user_id),
