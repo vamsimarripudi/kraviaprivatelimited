@@ -6,6 +6,7 @@ import "./office-shell-next.css";
 import "./office-design-system.css";
 import "./office-auth-responsive.css";
 import "./office-mobile-contrast.css";
+import "./office-surface-integrity.css";
 import { OfficeAppearanceRoot } from "@/components/office-appearance-root";
 
 export const metadata: Metadata = {
