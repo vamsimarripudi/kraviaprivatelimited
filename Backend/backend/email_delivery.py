@@ -16,6 +16,7 @@ from time import perf_counter
 import httpx
 
 from .office_lifecycle_templates import render_office_lifecycle_notice
+from .office_candidate_lifecycle_templates import render_office_candidate_notice
 
 from .email_templates import (
     TransactionalEmail,
@@ -23,6 +24,7 @@ from .email_templates import (
     office_device_approval_template,
     office_email_verification_template,
     office_invitation_template,
+    office_invitation_status_notice_template,
     office_employee_id_issued_template,
     office_password_recovery_template,
     office_workspace_ready_template,
@@ -232,6 +234,45 @@ def send_office_invitation_email(
     )
 
 
+def send_office_invitation_status_notice(
+    *, recipient_email: str, recipient_name: str, invitee_name: str,
+    kind: str, recipient_kind: str, hours_left: int, delivery_id: str,
+) -> str | None:
+    """Only an explicitly opted-in, committed invitation notice may call this."""
+    return _send_transactional_email(
+        recipient_email=recipient_email,
+        template=office_invitation_status_notice_template(
+            kind=kind, recipient_kind=recipient_kind,
+            recipient_name=recipient_name, invitee_name=invitee_name,
+            hours_left=hours_left,
+        ),
+        delivery_id=delivery_id,
+        tags=["kravia-office-auth", "invitation-notice", kind.lower()],
+    )
+
+
+def send_office_candidate_lifecycle_notification(
+    *, recipient_email: str, recipient_name: str,
+    event_code: str, delivery_id: str,
+    interview_time: str | None = None,
+) -> str | None:
+    """Send only a previously claimed, separately opted-in candidate notice.
+
+    Never reuse employee Office dashboard URLs, secure document links or
+    internal mail authorization for third-party candidate addresses.
+    """
+    return _send_transactional_email(
+        recipient_email=recipient_email,
+        template=render_office_candidate_notice(
+            event_code=event_code,
+            recipient_name=recipient_name,
+            interview_time=interview_time,
+        ),
+        delivery_id=delivery_id,
+        tags=["kravia-candidate-mail", event_code.lower()],
+    )
+
+
 def send_office_lifecycle_notification(
     *, recipient_email: str, recipient_name: str,
     event_code: str, event_reference: str, delivery_id: str,
@@ -255,6 +296,48 @@ def send_office_lifecycle_notification(
         tags=["kravia-office-lifecycle", event_code.lower()],
     )
 
+
+
+def send_office_external_lifecycle_notification(
+    *, recipient_email: str, recipient_name: str,
+    event_code: str, event_reference: str, delivery_id: str,
+) -> str | None:
+    """Mail a consent-gated event without exporting provider URLs or documents.
+
+    Caller must own a committed private outbox claim and have checked the
+    recipient immediately before submission. This function never chooses an
+    address, fabricates a signatory link, or certifies salary settlement.
+    """
+    allowed = {
+        "ONB-04", "EXIT-02", "EXIT-04", "EXIT-05",
+        "EXIT-06", "EXIT-07", "EXIT-08",
+    }
+    domain = recipient_email.strip().lower().rpartition("@")[2]
+    if event_code not in allowed:
+        raise EmailDeliveryRejected("Unsupported external lifecycle event")
+    if (event_code == "ONB-04" and domain != "kraviaprivatelimited.com") or (
+        event_code.startswith("EXIT-") and domain == "kraviaprivatelimited.com"
+    ):
+        raise EmailDeliveryRejected("External lifecycle recipient domain mismatch")
+
+    # A former employee cannot authenticate to the old corporate Office, so
+    # never include a dead login link or private document download URL. For
+    # active signatories, direct only to the authenticated Office workspace.
+    private_office = (
+        "https://www.kraviaprivatelimited.com/office/dashboard"
+        if event_code == "ONB-04" else None
+    )
+    return _send_transactional_email(
+        recipient_email=recipient_email,
+        template=render_office_lifecycle_notice(
+            event_code=event_code,
+            recipient_name=recipient_name,
+            event_reference=event_reference,
+            office_url=private_office,
+        ),
+        delivery_id=delivery_id,
+        tags=["kravia-office-external-notice", event_code.lower()],
+    )
 
 def send_office_employee_id_issued_email(
     *, recipient_email: str, recipient_name: str,

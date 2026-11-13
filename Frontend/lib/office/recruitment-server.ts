@@ -228,6 +228,33 @@ export async function scheduleInterview(input: { candidateId: string; stage: str
   return { interview_id: data };
 }
 
+export async function changeInterview(input: {
+  interviewId: string; decision: "RESCHEDULE" | "CANCEL";
+  startsAt?: string; endsAt?: string; reason: string;
+}) {
+  const current = await permission("hiring.interview.manage");
+  if (input.decision === "RESCHEDULE") {
+    if (!input.startsAt) throw new OfficeRecruitmentError(400, "A future interview start is required");
+    const { data, error } = await current.admin.rpc("office_interview_reschedule", {
+      p_actor: current.identity.userId, p_interview: input.interviewId,
+      p_starts_at: input.startsAt, p_ends_at: input.endsAt ?? null,
+      p_reason: input.reason.trim(),
+    });
+    if (error || typeof data !== "string") {
+      throw new OfficeRecruitmentError(400, error?.message ?? "Unable to reschedule interview");
+    }
+    return { interview_id: data, status: "RESCHEDULED" };
+  }
+  const { data, error } = await current.admin.rpc("office_interview_cancel", {
+    p_actor: current.identity.userId, p_interview: input.interviewId,
+    p_reason: input.reason.trim(),
+  });
+  if (error || typeof data !== "string") {
+    throw new OfficeRecruitmentError(400, error?.message ?? "Unable to cancel interview");
+  }
+  return { interview_id: data, status: "CANCELLED" };
+}
+
 export async function submitInterviewFeedback(input: { interviewId: string; outcome: string; evidence: string; strengths?: string; concerns?: string }) {
   const current = await permission("hiring.interview.manage");
   const { data, error } = await current.admin.rpc("office_interview_feedback_submit", {

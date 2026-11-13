@@ -51,8 +51,12 @@ CREATE TABLE public.office_department_ownership(department_code text PRIMARY KEY
 CREATE OR REPLACE FUNCTION public.office_effective_permission(
  p_user_id uuid,p_permission text,p_scope_type text,p_scope_key text,p_owner_user_id uuid
 ) RETURNS boolean LANGUAGE sql STABLE AS $fixture_permission$
-  SELECT p_user_id='a0000000-0000-4000-8000-000000000003'::uuid
-    AND p_permission IN ('people.update','hiring.offer.review','payroll.compensation.review','payroll.run.review');
+  SELECT
+    (p_user_id='a0000000-0000-4000-8000-000000000003'::uuid
+      AND p_permission IN ('people.update','hiring.offer.review','hiring.interview.manage','payroll.compensation.review','payroll.run.review'))
+    OR
+    (p_user_id='a0000000-0000-4000-8000-000000000002'::uuid
+      AND p_permission IN ('hiring.candidate.manage','hiring.interview.manage'));
 $fixture_permission$;
 CREATE TABLE public.office_worktime_events(
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,case_id uuid,actor_user_id uuid,event_type text NOT NULL
@@ -421,4 +425,47 @@ CREATE TABLE public.office_request_events(
  actor_user_id uuid,
  event_type text NOT NULL,
  to_status text
+);
+
+
+-- External candidate data is a separate service-only domain: no user identity
+-- is fabricated for these addresses. Consent is independently reviewed.
+CREATE TABLE public.office_hiring_requisitions(
+ id uuid PRIMARY KEY,department_code text NOT NULL
+);
+CREATE TABLE public.office_candidates(
+ id uuid PRIMARY KEY,requisition_id uuid NOT NULL REFERENCES public.office_hiring_requisitions(id),
+ candidate_code text NOT NULL,full_name text NOT NULL,email text NOT NULL,
+ status text NOT NULL
+);
+CREATE TABLE public.office_candidate_interviews(
+ id uuid PRIMARY KEY,candidate_id uuid NOT NULL REFERENCES public.office_candidates(id),
+ scheduled_start timestamptz NOT NULL,scheduled_end timestamptz,
+ status text NOT NULL,updated_at timestamptz NOT NULL DEFAULT pg_catalog.now()
+);
+CREATE TABLE public.office_candidate_document_requests(
+ id uuid PRIMARY KEY,candidate_id uuid NOT NULL REFERENCES public.office_candidates(id),
+ document_type text NOT NULL, label text NOT NULL, required boolean NOT NULL DEFAULT true,
+ status text NOT NULL DEFAULT 'REQUESTED',requested_by uuid,
+ requested_at timestamptz NOT NULL DEFAULT pg_catalog.now(),
+ updated_at timestamptz NOT NULL DEFAULT pg_catalog.now()
+);
+ALTER TABLE public.office_recruitment_events
+ ADD COLUMN candidate_id uuid,
+ ADD COLUMN requisition_id uuid,
+ ADD COLUMN previous_status text,
+ ADD COLUMN note text,
+ ADD COLUMN created_at timestamptz NOT NULL DEFAULT pg_catalog.now();
+ALTER TABLE public.office_offer_proposals
+ ADD COLUMN candidate_id uuid,ADD COLUMN requisition_id uuid,
+ ADD COLUMN approved_by uuid,ADD COLUMN accepted_at timestamptz,
+ ADD COLUMN offer_document_instance_id uuid;
+CREATE TABLE public.office_document_delivery_events(
+ id uuid PRIMARY KEY,document_instance_id uuid NOT NULL,
+ channel text NOT NULL,provider_reference text,event_type text NOT NULL
+);
+CREATE TABLE public.office_document_engine_events(
+ id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ document_instance_id uuid NOT NULL,actor_user_id uuid NOT NULL,
+ event_type text NOT NULL,metadata jsonb NOT NULL DEFAULT '{}'::jsonb
 );

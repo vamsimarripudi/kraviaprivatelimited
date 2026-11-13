@@ -12,6 +12,7 @@ const inviteSchema = z.object({
   department: z.enum(officeDepartments),
   roles: z.array(z.enum(officeRoles)).min(1).max(6),
   reason: z.string().trim().min(3).max(500),
+  notice_opt_in: z.boolean().optional().default(false),
 });
 
 export async function POST(request: Request) {
@@ -27,6 +28,7 @@ export async function POST(request: Request) {
       department: parsed.data.department,
       roles: parsed.data.roles,
       reason: parsed.data.reason,
+      noticeOptIn: parsed.data.notice_opt_in,
       origin: new URL(request.url).origin,
     });
     return NextResponse.json(result, { status: 201, headers: { "Cache-Control": "no-store" } });
