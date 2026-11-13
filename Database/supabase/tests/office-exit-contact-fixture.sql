@@ -25,7 +25,7 @@ CREATE OR REPLACE FUNCTION public.office_effective_permission(
  SELECT p_actor IN (
  '11111111-1111-4111-8111-111111111111'::uuid,
  '22222222-2222-4222-8222-222222222222'::uuid
- ) AND p_permission='people.update' AND p_type='COMPANY';
+ ) AND p_type='COMPANY' AND p_permission IN('people.update','document.delivery.record');
 $perm$;
 
 INSERT INTO public.office_identity_users(user_id,status) VALUES
@@ -78,7 +78,8 @@ CREATE TABLE public.office_salary_settlement_evidence(
 
 
 CREATE TABLE public.office_document_templates(
- id uuid PRIMARY KEY, template_code text NOT NULL UNIQUE
+ id uuid PRIMARY KEY, template_code text NOT NULL UNIQUE,
+ status text NOT NULL DEFAULT 'ACTIVE'
 );
 INSERT INTO public.office_document_templates(id,template_code) VALUES
  ('f1000000-0000-4000-8000-000000000001','HR_RELIEVING'),
@@ -89,6 +90,8 @@ CREATE TABLE public.office_document_instances(
  id uuid PRIMARY KEY,
  document_code text NOT NULL,
  template_id uuid NOT NULL REFERENCES public.office_document_templates(id),
+ template_version_id uuid,
+ owner_user_id uuid REFERENCES public.office_identity_users(user_id),
  subject_type text NOT NULL,
  subject_reference text NOT NULL,
  status text NOT NULL,
@@ -97,9 +100,16 @@ CREATE TABLE public.office_document_instances(
  approved_at timestamptz,
  signed_at timestamptz
 );
+CREATE TABLE public.office_document_renders(
+ id uuid PRIMARY KEY,
+ document_instance_id uuid NOT NULL REFERENCES public.office_document_instances(id),
+ output_format text NOT NULL
+);
 CREATE TABLE public.office_document_delivery_events(
  id uuid PRIMARY KEY,
  document_instance_id uuid NOT NULL REFERENCES public.office_document_instances(id),
+ render_id uuid REFERENCES public.office_document_renders(id),
+ actor_user_id uuid REFERENCES public.office_identity_users(user_id),
  channel text NOT NULL,destination_masked text,
  provider_reference text,event_type text NOT NULL,
  metadata jsonb NOT NULL DEFAULT '{}'::jsonb
@@ -112,6 +122,9 @@ CREATE TABLE public.office_document_signature_evidence(
 );
 CREATE TABLE public.office_document_engine_events(
  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ actor_user_id uuid REFERENCES public.office_identity_users(user_id),
+ template_id uuid REFERENCES public.office_document_templates(id),
+ template_version_id uuid,
  document_instance_id uuid NOT NULL REFERENCES public.office_document_instances(id),
  event_type text NOT NULL,metadata jsonb NOT NULL DEFAULT '{}'::jsonb
 );
