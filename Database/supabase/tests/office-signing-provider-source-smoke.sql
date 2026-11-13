@@ -9,10 +9,11 @@ BEGIN
 END $privacy$;
 
 INSERT INTO public.office_document_instances(
- id,document_code,subject_type,subject_reference,status,
+ id,document_code,template_id,subject_type,subject_reference,status,
  created_by,approved_by,approved_at,signed_at
 ) VALUES(
- 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','HR_APPOINTMENT',
+ 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','KR-DOC-00000003',
+ 'f1000000-0000-4000-8000-000000000002',
  'EMPLOYEE','33333333-3333-4333-8333-333333333333',
  'DELIVERED',
  '22222222-2222-4222-8222-222222222222',
