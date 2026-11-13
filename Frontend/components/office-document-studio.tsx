@@ -224,7 +224,7 @@ export function OfficeDocumentStudio() {
         <p className={styles.warning}>This records delivery evidence only. It does not claim an email/SMS/eSign provider sent anything unless a real provider reference or other evidence is supplied.</p>
       </> : null}
       {modal.kind === "REVIEW_SIGNING" ? <>
-        <p className={styles.warning}>Open the genuine eSign provider console and verify the issuer, signatory, provider reference and expiry. HR's entered reference alone cannot authorize email.</p>
+        <p className={styles.warning}>Open the genuine eSign provider console and verify the issuer, signatory, provider reference and expiry. HR&apos;s entered reference alone cannot authorize email.</p>
         <label>Provider reference<input readOnly value={modal.delivery.provider_reference || ""} /></label>
         {draft.mode !== "REVOKE" ? <>
           <label>Independent decision<select value={draft.approve || "true"} onChange={(event) => setDraft({ ...draft, approve: event.target.value })}><option value="true">Verify actual issued link</option><option value="false">Reject unverified issuance</option></select></label>
