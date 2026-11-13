@@ -37,11 +37,11 @@ VALUES
   ('HIRE-04','P1',false,'Interview cancelled','Update to your KRAVIA interview','Interview cancellation recorded','Candidate and interviewers'),
   ('HIRE-05','P0',false,'Recruitment documents requested','Document request for your KRAVIA application','Approved document request created','Candidate'),
   ('HIRE-06','P1',false,'Recruitment document needs correction','Action required: Your KRAVIA document','Document reviewer rejects or requests new evidence','Candidate'),
-  ('HIRE-07','P0',true,'Offer awaiting director approval','Approval required: KRAVIA offer','Offer enters governed review state','Authorised director/reviewer'),
+  ('HIRE-07','P0',false,'Offer awaiting director approval','Approval required: KRAVIA offer','Offer enters governed review state','Authorised director/reviewer'),
   ('HIRE-08','P0',false,'Approved offer available','Your KRAVIA offer letter is ready','Approved document signed/published with candidate access','Candidate'),
   ('HIRE-09','P0',false,'Offer accepted','KRAVIA offer acceptance confirmed','Acceptance is actually recorded and verified','Candidate and approved hiring owner'),
   ('HIRE-10','P1',false,'Offer declined, withdrawn or expired','Update on your KRAVIA offer','Canonical status recorded','Candidate as appropriate; hiring owner'),
-  ('ONB-01','P0',true,'Welcome aboard','Welcome aboard KRAVIA, {{employee_first_name}}','Active employee identity + accepted employment + director-approved joining','Employee'),
+  ('ONB-01','P0',false,'Welcome aboard','Welcome aboard KRAVIA, {{employee_first_name}}','Active employee identity + accepted employment + director-approved joining','Employee'),
   ('ONB-02','P0',true,'Private onboarding checklist','Your KRAVIA joining checklist','Onboarding workflow starts, assigned tasks exist','Employee'),
   ('ONB-03','P0',false,'Appointment letter ready','Your KRAVIA appointment letter is available','Signed approved appointment document stored','Employee'),
   ('ONB-04','P0',false,'E-sign requested','Signature requested: KRAVIA appointment documents','Document requires signature; permitted signing link issued','Signatory'),
@@ -50,7 +50,7 @@ VALUES
   ('ONB-07','P1',false,'Equipment and account readiness','Your KRAVIA work setup is ready','Verified device/asset assignment or provisioning change','Employee'),
   ('ONB-08','P0',false,'Policy acknowledgement requested','Please acknowledge your KRAVIA policies','Versioned policy assigned in Office','Employee'),
   ('ONB-09','P0',true,'Assigned responsibilities available','Your KRAVIA roles and responsibilities','Role package actually applied and scoped permissions verified','Employee'),
-  ('ONB-10','P0',true,'Onboarding complete','KRAVIA onboarding completed','All required checklist items verified and governance approved','Employee and hiring manager'),
+  ('ONB-10','P0',false,'Onboarding complete','KRAVIA onboarding completed','All required checklist items verified and governance approved','Employee and hiring manager'),
   ('ONB-11','P2',false,'First-week check-in','Your first-week check-in at KRAVIA','7th calendar day after actual joining, if employed','Employee and manager'),
   ('ONB-12','P2',false,'First-month check-in','Your first-month check-in at KRAVIA','30th day after actual joining, if employed','Employee and manager'),
   ('ROLE-01','P0',true,'Position or functional duty assigned','Your KRAVIA responsibilities have been updated','Canonical role package applied / job changed','Employee'),
@@ -72,15 +72,15 @@ VALUES
   ('TIME-08','P1',true,'Flex Day request decision','Your KRAVIA Flex Day request update','Independent decision committed','Employee'),
   ('TIME-09','P1',false,'Leave request / decision','KRAVIA leave request update','Real request or reviewer decision recorded','Approver or employee'),
   ('TIME-10','P1',false,'Payroll attendance cutoff','Attendance review closes soon','Upcoming verified period cutoff','Employee and permitted approver'),
-  ('PAY-01','P0',true,'Compensation draft for review','Compensation proposal requires approval','Effective-dated compensation proposal submitted','Independent reviewer/director'),
+  ('PAY-01','P0',false,'Compensation draft for review','Compensation proposal requires approval','Effective-dated compensation proposal submitted','Independent reviewer/director'),
   ('PAY-02','P0',true,'Compensation approved / rejected','Your KRAVIA compensation record was updated','Governed final decision committed','Affected employee'),
   ('PAY-03','P1',true,'Payroll period opened','KRAVIA payroll period is open','Actual period created','Finance preparer'),
-  ('PAY-04','P0',true,'Payroll review required','KRAVIA payroll approval required','Locked review request sent to independent approver','Payroll reviewer/director'),
+  ('PAY-04','P0',false,'Payroll review required','KRAVIA payroll approval required','Locked review request sent to independent approver','Payroll reviewer/director'),
   ('PAY-05','P0',true,'Payroll approved','KRAVIA payroll run approved','All required approvals completed and results locked','Finance preparer'),
   ('PAY-06','P0',true,'Salary slip issued','Your KRAVIA payslip for {{pay_period}} is ready','Immutable approved payroll payslip exists','Employee'),
   ('PAY-07','P1',true,'Payment batch prepared','KRAVIA salary batch prepared — not yet paid','Batch only PREPARED; not bank-confirmed','Finance preparer/reviewer'),
   ('PAY-08','P0',true,'Salary credit verified','KRAVIA salary payment confirmed — {{pay_period}}','Independent bank settlement verification covers full net salary','Employee'),
-  ('PAY-09','P0',true,'Partial payment / balance outstanding','Important: Outstanding KRAVIA salary balance','Verified credit is less than net; remaining amount owed','Employee and authorised Finance'),
+  ('PAY-09','P0',false,'Partial payment / balance outstanding','Important: Outstanding KRAVIA salary balance','Verified credit is less than net; remaining amount owed','Employee and authorised Finance'),
   ('PAY-10','P0',false,'Unpaid salary overdue','Salary payment follow-up for {{pay_period}}','Pay date passed with independently unverified balance','Employee and escalation approver'),
   ('PAY-11','P1',false,'Corrected payslip issued','Updated KRAVIA payslip available','New approved correction/adjustment and new immutable issue','Employee'),
   ('PAY-12','P2',false,'Annual wage or statutory statement ready','Your annual KRAVIA payroll statement is available','Approved statement exists in private Office vault','Employee'),
@@ -125,7 +125,6 @@ CREATE TABLE IF NOT EXISTS public.office_lifecycle_mail_outbox(
     'office_employee_intake_events','office_role_package_events',
     'office_worktime_events','office_department_transfer_events','office_auth_events',
     'office_people_development_events','office_payroll_events','office_task_events',
-    'office_recruitment_events',
     'office_access_audit','office_lifecycle_mail_decision_events'
   )),
   source_id bigint NOT NULL CHECK(source_id>0),
@@ -299,22 +298,6 @@ BEGIN
   IF TG_TABLE_NAME='office_employee_intake_events' THEN
     IF NEW.event_type IN ('PROFILE_SUBMITTED','PROFILE_RETURNED') THEN
       PERFORM public.office_lifecycle_mail_enqueue('ONB-05',TG_TABLE_NAME,NEW.id,NEW.employee_user_id);
-    ELSIF NEW.event_type='REFERENCE_ID_ISSUED' AND NEW.actor_user_id IS NOT NULL
-        AND NEW.actor_user_id IS DISTINCT FROM NEW.employee_user_id THEN
-      IF EXISTS(SELECT 1 FROM public.office_employee_reference_ids reference
-        WHERE reference.employee_user_id=NEW.employee_user_id
-          AND reference.issued_by=NEW.actor_user_id
-          AND reference.issued_at IS NOT NULL)
-        AND EXISTS(SELECT 1 FROM public.office_employee_intake_profiles profile
-          WHERE profile.employee_user_id=NEW.employee_user_id
-            AND profile.status='VERIFIED')
-        AND EXISTS(SELECT 1 FROM public.office_employment_registry employment
-          WHERE employment.identity_user_id=NEW.employee_user_id
-            AND employment.status='ACTIVE'
-            AND employment.relationship_type='EMPLOYEE'
-            AND employment.start_date<=CURRENT_DATE) THEN
-        PERFORM public.office_lifecycle_mail_enqueue('ONB-01',TG_TABLE_NAME,NEW.id,NEW.employee_user_id);
-      END IF;
     END IF;
   ELSIF TG_TABLE_NAME='office_role_package_events' THEN
     IF NEW.event_type='PACKAGE_APPLIED' AND NEW.target_user_id IS NOT NULL THEN
@@ -326,63 +309,8 @@ BEGIN
       PERFORM public.office_lifecycle_mail_enqueue('ONB-09',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
       PERFORM public.office_lifecycle_mail_enqueue('ROLE-01',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
       PERFORM public.office_lifecycle_mail_enqueue('ROLE-09',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
-    ELSIF NEW.event_type='TASK_VERIFIED' AND NEW.target_user_id IS NOT NULL
-        AND NEW.task_id IS NOT NULL AND NEW.application_id IS NOT NULL
-        AND NEW.actor_user_id IS DISTINCT FROM NEW.target_user_id THEN
-      IF EXISTS(SELECT 1 FROM public.office_role_package_onboarding_tasks completed
-        WHERE completed.id=NEW.task_id
-          AND completed.application_id=NEW.application_id
-          AND completed.employee_user_id=NEW.target_user_id
-          AND completed.required AND completed.status='VERIFIED'
-          AND completed.reviewed_by=NEW.actor_user_id
-          AND completed.reviewed_by IS DISTINCT FROM completed.submitted_by
-          AND completed.reviewed_at IS NOT NULL)
-        AND EXISTS(SELECT 1 FROM public.office_employee_intake_profiles profile
-          WHERE profile.employee_user_id=NEW.target_user_id AND profile.status='VERIFIED')
-        AND EXISTS(SELECT 1 FROM public.office_employee_reference_ids ref
-          WHERE ref.employee_user_id=NEW.target_user_id)
-        AND EXISTS(SELECT 1 FROM public.office_employment_registry employment
-          WHERE employment.identity_user_id=NEW.target_user_id
-            AND employment.status='ACTIVE'
-            AND employment.start_date<=CURRENT_DATE)
-        AND EXISTS(SELECT 1 FROM public.office_employee_role_package_applications application
-          WHERE application.id=NEW.application_id
-            AND application.employee_user_id=NEW.target_user_id)
-        AND EXISTS(SELECT 1 FROM public.office_role_package_onboarding_tasks task
-          WHERE task.application_id=NEW.application_id
-            AND task.employee_user_id=NEW.target_user_id AND task.required)
-        AND NOT EXISTS(SELECT 1 FROM public.office_role_package_onboarding_tasks task
-          WHERE task.application_id=NEW.application_id
-            AND task.employee_user_id=NEW.target_user_id
-            AND task.required AND task.status<>'VERIFIED') THEN
-        PERFORM public.office_lifecycle_mail_enqueue('ONB-10',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
-      END IF;
     ELSIF NEW.event_type='TASK_RETURNED' AND NEW.target_user_id IS NOT NULL THEN
       PERFORM public.office_lifecycle_mail_enqueue('ONB-05',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
-    END IF;
-  ELSIF TG_TABLE_NAME='office_recruitment_events' THEN
-    IF NEW.event_type='OFFER_SUBMITTED' AND NEW.offer_id IS NOT NULL
-        AND NEW.new_status='PENDING_APPROVAL' THEN
-      SELECT step.assigned_user_id INTO v_recipient
-      FROM public.office_offer_proposals offer
-      JOIN public.office_requests request
-        ON request.id=offer.approval_request_id
-      JOIN public.office_request_steps step
-        ON step.request_id=request.id AND step.step_order=request.current_step_order
-      JOIN public.office_identity_users reviewer ON reviewer.user_id=step.assigned_user_id
-      WHERE offer.id=NEW.offer_id AND offer.status='PENDING_APPROVAL'
-        AND offer.created_by IS DISTINCT FROM step.assigned_user_id
-        AND step.assigned_user_id IS DISTINCT FROM NEW.actor_user_id
-        AND reviewer.status='ACTIVE'
-        AND request.request_type_code='EMPLOYMENT_OFFER_APPROVAL'
-        AND request.status IN ('PENDING','IN_REVIEW')
-        AND request.id::text=NEW.metadata->>'approval_request_id'
-        AND step.status='PENDING' AND step.required_permission='hiring.offer.review'
-        AND public.office_effective_permission(
-          step.assigned_user_id,'hiring.offer.review','COMPANY',NULL,NULL);
-      IF v_recipient IS NOT NULL THEN
-        PERFORM public.office_lifecycle_mail_enqueue('HIRE-07',TG_TABLE_NAME,NEW.id,v_recipient);
-      END IF;
     END IF;
   ELSIF TG_TABLE_NAME='office_worktime_events' THEN
     IF NEW.event_type='SUBMITTED' THEN
@@ -465,55 +393,7 @@ BEGIN
       END IF;
     END IF;
   ELSIF TG_TABLE_NAME='office_payroll_events' THEN
-    IF NEW.event_type='COMPENSATION_SUBMITTED'
-        AND NEW.compensation_version_id IS NOT NULL
-        AND NEW.metadata->>'approval_request_id' IS NOT NULL THEN
-      SELECT step.assigned_user_id INTO v_recipient
-        FROM public.office_compensation_versions cv
-        JOIN public.office_requests request ON request.id=cv.approval_request_id
-        JOIN public.office_request_steps step
-          ON step.request_id=request.id AND step.step_order=request.current_step_order
-        JOIN public.office_identity_users reviewer ON reviewer.user_id=step.assigned_user_id
-      WHERE cv.id=NEW.compensation_version_id
-        AND cv.status='PENDING_APPROVAL'
-        AND cv.created_by=NEW.actor_user_id
-        AND reviewer.status='ACTIVE'
-        AND request.request_type_code='COMPENSATION_CHANGE'
-        AND request.id::text=NEW.metadata->>'approval_request_id'
-        AND request.status IN ('PENDING','IN_REVIEW')
-        AND step.status='PENDING' AND step.required_permission='payroll.compensation.review'
-        AND step.assigned_user_id IS DISTINCT FROM cv.employee_user_id
-        AND step.assigned_user_id IS DISTINCT FROM cv.created_by
-        AND public.office_effective_permission(
-          step.assigned_user_id,'payroll.compensation.review','COMPANY',NULL,NULL);
-      IF v_recipient IS NOT NULL THEN
-        PERFORM public.office_lifecycle_mail_enqueue('PAY-01',TG_TABLE_NAME,NEW.id,v_recipient);
-      END IF;
-    ELSIF NEW.event_type='PAYROLL_SUBMITTED'
-        AND NEW.period_id IS NOT NULL
-        AND NEW.metadata->>'approval_request_id' IS NOT NULL THEN
-      SELECT step.assigned_user_id INTO v_recipient
-        FROM public.office_payroll_periods period
-        JOIN public.office_requests request ON request.id=period.approval_request_id
-        JOIN public.office_request_steps step
-          ON step.request_id=request.id AND step.step_order=request.current_step_order
-        JOIN public.office_identity_users reviewer ON reviewer.user_id=step.assigned_user_id
-      WHERE period.id=NEW.period_id
-        AND period.status='PENDING_REVIEW'
-        AND period.created_by=NEW.actor_user_id
-        AND reviewer.status='ACTIVE'
-        AND request.request_type_code='PAYROLL_RUN_APPROVAL'
-        AND request.id::text=NEW.metadata->>'approval_request_id'
-        AND request.status IN ('PENDING','IN_REVIEW')
-        AND step.status='PENDING'
-        AND step.required_permission='payroll.run.review'
-        AND step.assigned_user_id IS DISTINCT FROM period.created_by
-        AND public.office_effective_permission(
-          step.assigned_user_id,'payroll.run.review','COMPANY',NULL,NULL);
-      IF v_recipient IS NOT NULL THEN
-        PERFORM public.office_lifecycle_mail_enqueue('PAY-04',TG_TABLE_NAME,NEW.id,v_recipient);
-      END IF;
-    ELSIF NEW.event_type='COMPENSATION_APPROVAL_SYNCED'
+    IF NEW.event_type='COMPENSATION_APPROVAL_SYNCED'
         AND NEW.compensation_version_id IS NOT NULL
         AND NEW.metadata->>'compensation_status'='APPROVED' THEN
       SELECT c.employee_user_id INTO v_recipient
@@ -571,31 +451,6 @@ BEGIN
             =result.net_pay_minor;
       IF v_recipient IS NOT NULL THEN
         PERFORM public.office_lifecycle_mail_enqueue('PAY-08',TG_TABLE_NAME,NEW.id,v_recipient);
-      END IF;
-    ELSIF NEW.event_type='BANK_SALARY_PARTIAL_VERIFIED'
-        AND NEW.metadata->>'settlement_id' IS NOT NULL THEN
-      SELECT result.employee_user_id INTO v_recipient
-      FROM public.office_salary_settlement_evidence se
-      JOIN public.office_payroll_results result ON result.id=se.payroll_result_id
-      JOIN public.office_payroll_periods period ON period.id=result.period_id
-      WHERE se.id::text=NEW.metadata->>'settlement_id'
-        AND se.status='VERIFIED' AND se.verified_by=NEW.actor_user_id
-        AND se.verified_at IS NOT NULL
-        AND se.verified_by IS DISTINCT FROM se.submitted_by
-        AND se.verified_by IS DISTINCT FROM result.employee_user_id
-        AND nullif(pg_catalog.btrim(se.evidence_reference),'') IS NOT NULL
-        AND nullif(pg_catalog.btrim(se.masked_bank_reference),'') IS NOT NULL
-        AND se.amount_minor>0
-        AND NEW.period_id=result.period_id AND NEW.employment_id=result.employment_id
-        AND result.status='LOCKED' AND result.net_pay_minor>0
-        AND period.status IN ('APPROVED','PAYMENT_PREPARED','CLOSED')
-        AND nullif(pg_catalog.btrim(period.period_code),'') IS NOT NULL
-        AND (SELECT coalesce(sum(credit.amount_minor),0)
-             FROM public.office_salary_settlement_evidence credit
-             WHERE credit.payroll_result_id=result.id AND credit.status='VERIFIED')
-            BETWEEN 1 AND result.net_pay_minor-1;
-      IF v_recipient IS NOT NULL THEN
-        PERFORM public.office_lifecycle_mail_enqueue('PAY-09',TG_TABLE_NAME,NEW.id,v_recipient);
       END IF;
     ELSIF NEW.event_type='PAYSLIP_ISSUED' AND NEW.metadata->>'payslip_issue_id' IS NOT NULL THEN
       SELECT issue.employee_user_id INTO v_recipient
@@ -663,9 +518,6 @@ CREATE TRIGGER office_lifecycle_mail_on_task AFTER INSERT ON public.office_task_
   FOR EACH ROW EXECUTE FUNCTION public.office_lifecycle_mail_source_trigger();
 DROP TRIGGER IF EXISTS office_lifecycle_mail_on_access_audit ON public.office_access_audit;
 CREATE TRIGGER office_lifecycle_mail_on_access_audit AFTER INSERT ON public.office_access_audit
-  FOR EACH ROW EXECUTE FUNCTION public.office_lifecycle_mail_source_trigger();
-DROP TRIGGER IF EXISTS office_lifecycle_mail_on_recruitment ON public.office_recruitment_events;
-CREATE TRIGGER office_lifecycle_mail_on_recruitment AFTER INSERT ON public.office_recruitment_events
   FOR EACH ROW EXECUTE FUNCTION public.office_lifecycle_mail_source_trigger();
 
 -- A payslip is eligible only once its immutable issue is actually inserted.
@@ -737,17 +589,6 @@ BEGIN
       'BANK_SALARY_CREDIT_VERIFIED',
       pg_catalog.jsonb_build_object('settlement_id',NEW.id)
     );
-  ELSIF v_paid>0 AND v_paid<v_result.net_pay_minor
-     AND EXISTS(SELECT 1 FROM public.office_lifecycle_mail_policy
-       WHERE event_code='PAY-09' AND enabled AND source_ready
-         AND effective_from<=pg_catalog.now()) THEN
-    INSERT INTO public.office_payroll_events(
-      actor_user_id,period_id,employment_id,event_type,metadata
-    ) VALUES (
-      NEW.verified_by,v_result.period_id,v_result.employment_id,
-      'BANK_SALARY_PARTIAL_VERIFIED',
-      pg_catalog.jsonb_build_object('settlement_id',NEW.id)
-    );
   END IF;
   RETURN NEW;
 END;
@@ -797,23 +638,8 @@ BEGIN
         (o.source_table='office_employee_intake_events'
           AND EXISTS(SELECT 1 FROM public.office_employee_intake_events ev
             WHERE ev.id=o.source_id AND ev.employee_user_id=o.recipient_user_id
-              AND ((o.event_code='ONB-05'
-                AND ev.event_type IN ('PROFILE_SUBMITTED','PROFILE_RETURNED'))
-                OR (o.event_code='ONB-01' AND ev.event_type='REFERENCE_ID_ISSUED'
-                  AND ev.actor_user_id IS NOT NULL
-                  AND ev.actor_user_id IS DISTINCT FROM ev.employee_user_id
-                  AND EXISTS(SELECT 1 FROM public.office_employee_reference_ids reference
-                    WHERE reference.employee_user_id=o.recipient_user_id
-                      AND reference.issued_by=ev.actor_user_id
-                      AND reference.issued_at IS NOT NULL)
-                  AND EXISTS(SELECT 1 FROM public.office_employee_intake_profiles profile
-                    WHERE profile.employee_user_id=o.recipient_user_id
-                      AND profile.status='VERIFIED')
-                  AND EXISTS(SELECT 1 FROM public.office_employment_registry employment
-                    WHERE employment.identity_user_id=o.recipient_user_id
-                      AND employment.status='ACTIVE'
-                      AND employment.relationship_type='EMPLOYEE'
-                      AND employment.start_date<=CURRENT_DATE)))))
+              AND o.event_code='ONB-05'
+              AND ev.event_type IN ('PROFILE_SUBMITTED','PROFILE_RETURNED')))
         OR (o.source_table='office_role_package_events'
           AND EXISTS(SELECT 1 FROM public.office_role_package_events ev
             WHERE ev.id=o.source_id AND ev.target_user_id=o.recipient_user_id
@@ -823,55 +649,7 @@ BEGIN
                   AND EXISTS(SELECT 1 FROM public.office_role_package_onboarding_tasks task
                     WHERE task.application_id=ev.application_id
                       AND task.employee_user_id=ev.target_user_id AND task.required))
-                OR (o.event_code='ONB-10' AND ev.event_type='TASK_VERIFIED'
-                  AND ev.task_id IS NOT NULL AND ev.application_id IS NOT NULL
-                  AND ev.actor_user_id IS DISTINCT FROM ev.target_user_id
-                  AND EXISTS(SELECT 1 FROM public.office_role_package_onboarding_tasks completed
-                    WHERE completed.id=ev.task_id AND completed.application_id=ev.application_id
-                      AND completed.employee_user_id=o.recipient_user_id
-                      AND completed.required AND completed.status='VERIFIED'
-                      AND completed.reviewed_by=ev.actor_user_id
-                      AND completed.reviewed_by IS DISTINCT FROM completed.submitted_by
-                      AND completed.reviewed_at IS NOT NULL)
-                  AND EXISTS(SELECT 1 FROM public.office_employee_intake_profiles profile
-                    WHERE profile.employee_user_id=o.recipient_user_id AND profile.status='VERIFIED')
-                  AND EXISTS(SELECT 1 FROM public.office_employee_reference_ids ref
-                    WHERE ref.employee_user_id=o.recipient_user_id)
-                  AND EXISTS(SELECT 1 FROM public.office_employment_registry employment
-                    WHERE employment.identity_user_id=o.recipient_user_id
-                      AND employment.status='ACTIVE'
-                      AND employment.start_date<=CURRENT_DATE)
-                  AND EXISTS(SELECT 1 FROM public.office_employee_role_package_applications application
-                    WHERE application.id=ev.application_id
-                      AND application.employee_user_id=o.recipient_user_id)
-                  AND EXISTS(SELECT 1 FROM public.office_role_package_onboarding_tasks task
-                    WHERE task.application_id=ev.application_id
-                      AND task.employee_user_id=o.recipient_user_id AND task.required)
-                  AND NOT EXISTS(SELECT 1 FROM public.office_role_package_onboarding_tasks task
-                    WHERE task.application_id=ev.application_id
-                      AND task.employee_user_id=o.recipient_user_id
-                      AND task.required AND task.status<>'VERIFIED'))
                 OR (o.event_code='ONB-05' AND ev.event_type='TASK_RETURNED'))))
-        OR (o.source_table='office_recruitment_events' AND o.event_code='HIRE-07'
-          AND EXISTS(SELECT 1 FROM public.office_recruitment_events ev
-            JOIN public.office_offer_proposals offer ON offer.id=ev.offer_id
-            JOIN public.office_requests request ON request.id=offer.approval_request_id
-            JOIN public.office_request_steps step
-              ON step.request_id=request.id AND step.step_order=request.current_step_order
-            JOIN public.office_identity_users reviewer ON reviewer.user_id=step.assigned_user_id
-            WHERE ev.id=o.source_id AND ev.event_type='OFFER_SUBMITTED'
-              AND ev.new_status='PENDING_APPROVAL' AND offer.status='PENDING_APPROVAL'
-              AND ev.metadata->>'approval_request_id'=request.id::text
-              AND request.request_type_code='EMPLOYMENT_OFFER_APPROVAL'
-              AND request.status IN ('PENDING','IN_REVIEW')
-              AND step.assigned_user_id=o.recipient_user_id
-              AND step.status='PENDING'
-              AND step.required_permission='hiring.offer.review'
-              AND reviewer.status='ACTIVE'
-              AND step.assigned_user_id IS DISTINCT FROM offer.created_by
-              AND step.assigned_user_id IS DISTINCT FROM ev.actor_user_id
-              AND public.office_effective_permission(
-                step.assigned_user_id,'hiring.offer.review','COMPANY',NULL,NULL)))
         OR (o.source_table='office_worktime_events' AND o.event_code='TIME-03'
           AND EXISTS(SELECT 1 FROM public.office_worktime_events ev
             JOIN public.office_worktime_review_cases c ON c.id=ev.case_id
@@ -928,45 +706,6 @@ BEGIN
             WHERE ev.id=o.source_id AND ev.event_type='CREATED'
               AND task.assigned_user_id=o.recipient_user_id
               AND task.status NOT IN ('CANCELLED','COMPLETED')))
-        OR (o.source_table='office_payroll_events' AND o.event_code='PAY-01'
-          AND EXISTS(SELECT 1 FROM public.office_payroll_events ev
-            JOIN public.office_compensation_versions cv ON cv.id=ev.compensation_version_id
-            JOIN public.office_requests request ON request.id=cv.approval_request_id
-            JOIN public.office_request_steps step ON step.request_id=request.id
-                AND step.step_order=request.current_step_order
-            JOIN public.office_identity_users reviewer ON reviewer.user_id=step.assigned_user_id
-            WHERE ev.id=o.source_id AND ev.event_type='COMPENSATION_SUBMITTED'
-              AND ev.metadata->>'approval_request_id'=request.id::text
-              AND cv.status='PENDING_APPROVAL' AND cv.created_by=ev.actor_user_id
-              AND request.request_type_code='COMPENSATION_CHANGE'
-              AND request.status IN ('PENDING','IN_REVIEW')
-              AND step.status='PENDING'
-              AND step.required_permission='payroll.compensation.review'
-              AND reviewer.status='ACTIVE'
-              AND step.assigned_user_id=o.recipient_user_id
-              AND step.assigned_user_id IS DISTINCT FROM cv.created_by
-              AND step.assigned_user_id IS DISTINCT FROM cv.employee_user_id
-              AND public.office_effective_permission(
-                o.recipient_user_id,'payroll.compensation.review','COMPANY',NULL,NULL)))
-        OR (o.source_table='office_payroll_events' AND o.event_code='PAY-04'
-          AND EXISTS(SELECT 1 FROM public.office_payroll_events ev
-            JOIN public.office_payroll_periods period ON period.id=ev.period_id
-            JOIN public.office_requests request ON request.id=period.approval_request_id
-            JOIN public.office_request_steps step ON step.request_id=request.id
-                AND step.step_order=request.current_step_order
-            JOIN public.office_identity_users reviewer ON reviewer.user_id=step.assigned_user_id
-            WHERE ev.id=o.source_id AND ev.event_type='PAYROLL_SUBMITTED'
-              AND ev.metadata->>'approval_request_id'=request.id::text
-              AND period.status='PENDING_REVIEW'
-              AND period.created_by=ev.actor_user_id
-              AND request.request_type_code='PAYROLL_RUN_APPROVAL'
-              AND request.status IN ('PENDING','IN_REVIEW')
-              AND step.status='PENDING' AND step.required_permission='payroll.run.review'
-              AND reviewer.status='ACTIVE'
-              AND step.assigned_user_id=o.recipient_user_id
-              AND step.assigned_user_id IS DISTINCT FROM period.created_by
-              AND public.office_effective_permission(
-                o.recipient_user_id,'payroll.run.review','COMPANY',NULL,NULL)))
         OR (o.source_table='office_payroll_events' AND o.event_code='PAY-02'
           AND EXISTS(SELECT 1 FROM public.office_payroll_events ev
             JOIN public.office_compensation_versions cv ON cv.id=ev.compensation_version_id
@@ -998,30 +737,6 @@ BEGIN
               AND batch.prepared_by=o.recipient_user_id
               AND batch.status='PREPARED'
               AND p.id=ev.period_id AND p.status IN ('APPROVED','PAYMENT_PREPARED')))
-        OR (o.source_table='office_payroll_events' AND o.event_code='PAY-09'
-          AND EXISTS(SELECT 1 FROM public.office_payroll_events ev
-            JOIN public.office_salary_settlement_evidence se
-              ON se.id::text=ev.metadata->>'settlement_id'
-            JOIN public.office_payroll_results result ON result.id=se.payroll_result_id
-            JOIN public.office_payroll_periods period ON period.id=result.period_id
-            WHERE ev.id=o.source_id
-              AND ev.event_type='BANK_SALARY_PARTIAL_VERIFIED'
-              AND result.employee_user_id=o.recipient_user_id
-              AND se.status='VERIFIED' AND se.verified_by=ev.actor_user_id
-              AND se.verified_at IS NOT NULL
-              AND se.verified_by IS DISTINCT FROM se.submitted_by
-              AND se.verified_by IS DISTINCT FROM result.employee_user_id
-              AND se.amount_minor>0
-              AND nullif(pg_catalog.btrim(se.evidence_reference),'') IS NOT NULL
-              AND nullif(pg_catalog.btrim(se.masked_bank_reference),'') IS NOT NULL
-              AND ev.period_id=result.period_id AND ev.employment_id=result.employment_id
-              AND result.status='LOCKED' AND result.net_pay_minor>0
-              AND period.status IN ('APPROVED','PAYMENT_PREPARED','CLOSED')
-              AND nullif(pg_catalog.btrim(period.period_code),'') IS NOT NULL
-              AND (SELECT coalesce(sum(v.amount_minor),0)
-                   FROM public.office_salary_settlement_evidence v
-                   WHERE v.payroll_result_id=result.id AND v.status='VERIFIED')
-                  BETWEEN 1 AND result.net_pay_minor-1))
         OR (o.source_table='office_payroll_events' AND o.event_code='PAY-08'
           AND EXISTS(SELECT 1 FROM public.office_payroll_events ev
             JOIN public.office_salary_settlement_evidence se
@@ -1117,15 +832,6 @@ BEGIN
         JOIN public.office_payroll_results result ON result.id=issue.payroll_result_id
         JOIN public.office_payroll_periods period ON period.id=result.period_id
       WHERE ev.id=c.source_id AND ev.event_type='PAYSLIP_ISSUED' LIMIT 1
-    )
-    WHEN c.event_code='PAY-09' THEN (
-      SELECT period.period_code FROM public.office_payroll_events ev
-        JOIN public.office_salary_settlement_evidence se
-          ON se.id::text=ev.metadata->>'settlement_id'
-        JOIN public.office_payroll_results result ON result.id=se.payroll_result_id
-        JOIN public.office_payroll_periods period ON period.id=result.period_id
-      WHERE ev.id=c.source_id AND ev.event_type='BANK_SALARY_PARTIAL_VERIFIED'
-      LIMIT 1
     )
     WHEN c.event_code='PAY-08' THEN (
       SELECT period.period_code FROM public.office_payroll_events ev
