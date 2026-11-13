@@ -52,7 +52,7 @@ CREATE TABLE public.office_compensation_versions(
 );
 CREATE TABLE public.office_payroll_events(
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,compensation_version_id uuid,
-  period_id uuid,employment_id uuid,actor_user_id uuid,
+  period_id uuid,employment_id uuid,actor_user_id uuid,batch_id uuid,
   event_type text NOT NULL,metadata jsonb NOT NULL DEFAULT '{}'::jsonb
 );
 CREATE TABLE public.office_payroll_periods(
