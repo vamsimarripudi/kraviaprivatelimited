@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, CheckCircle2, KeyRound, LockKeyhole, ShieldCheck, Smartphone, UserRound } from "lucide-react";
+import { BookOpen, KeyRound, LockKeyhole, ShieldCheck, Smartphone } from "lucide-react";
 import { OfficeAuthLayout } from "@/components/office-auth-layout";
 
 export const metadata = {
@@ -21,7 +21,7 @@ export default function OfficeQuickStart(){
     title="Your first day in KRAVIA Office"
     description="A public-safe guide for invited colleagues. Private workspaces open only after account and device verification."
     footerHref="/office/login" footerLabel="Return to sign in">
-    <main style={{display:"flex",flexDirection:"column",gap:16}}>
+    <section aria-label="First access steps" style={{display:"flex",flexDirection:"column",gap:16}}>
       <p style={{margin:0,fontSize:13,lineHeight:1.65}}>You do not need to know the Office system before joining. Follow the steps below in order. Each step is separate from formal employment or statutory appointment approval.</p>
       {steps.map((step,i)=><article key={step.title} style={{display:"flex",alignItems:"flex-start",gap:12,padding:13,border:"1px solid #dce5e1",borderRadius:13}}>
         <span style={{display:"grid",placeItems:"center",width:31,height:31,flex:"0 0 auto",background:"#e9f2ff",color:"#1a548f",borderRadius:9,fontWeight:800,fontSize:12}}>{i+1}</span>
@@ -37,7 +37,6 @@ export default function OfficeQuickStart(){
         <Link href="/office/recover" style={{padding:8,textAlign:"center",color:"inherit",textDecoration:"none",fontSize:12}}><LockKeyhole size={14} style={{verticalAlign:"middle",marginRight:4}}/> Need recovery?</Link>
       </nav>
       <p style={{fontSize:11,lineHeight:1.5,margin:0,opacity:.75}}><BookOpen size={14} style={{verticalAlign:"middle",marginRight:3}}/> Full employee manuals and acknowledgement records are private and visible only after activation.</p>
-      <p style={{display:"none"}}><UserRound/><CheckCircle2/></p>
-    </main>
+    </section>
   </OfficeAuthLayout>;
 }
