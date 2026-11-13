@@ -405,3 +405,20 @@ CREATE TABLE public.office_payroll_adjustments(
 -- Production identity V2 auth events carry the immutable insertion timestamp.
 ALTER TABLE public.office_auth_events_v2
  ADD COLUMN created_at timestamptz NOT NULL DEFAULT pg_catalog.now();
+
+
+-- Synthetic sources for calendar-aware attendance review and approved exits.
+-- No actual employee or request records are created by this CI fixture.
+ALTER TABLE public.office_attendance_sessions
+  ADD COLUMN work_date date;
+ALTER TABLE public.office_flex_day_requests
+  ADD COLUMN leave_date date;
+ALTER TABLE public.office_requests
+  ADD COLUMN target_user_id uuid;
+CREATE TABLE public.office_request_events(
+ id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ request_id uuid NOT NULL,
+ actor_user_id uuid,
+ event_type text NOT NULL,
+ to_status text
+);
