@@ -27,6 +27,7 @@ from .file_security import (
 )
 from .models import WorkerHeartbeat
 from .office_employee_mail_worker import process_employee_mail_outbox
+from .office_lifecycle_mail_worker import process_office_lifecycle_mail_outbox
 from .services import now_utc
 
 WORKER_LOCK_KEY = 5_821_841_907_269_011_847
@@ -254,6 +255,17 @@ def run_iteration(
                     "error_type": type(email_error).__name__,
                 }
                 _log("employee_mail_worker_error", error_type=type(email_error).__name__)
+            # A second independent, default-disabled mail boundary. Every
+            # lifecycle claim is checked against a committed source record and
+            # a per-code Owner approval before any Brevo request.
+            try:
+                response["lifecycle_mail"] = process_office_lifecycle_mail_outbox(min(batch, 25))
+            except Exception as lifecycle_error:
+                response["lifecycle_mail"] = {
+                    "status": "NEEDS_RECONCILIATION",
+                    "error_type": type(lifecycle_error).__name__,
+                }
+                _log("lifecycle_mail_worker_error", error_type=type(lifecycle_error).__name__)
             return response
         except Exception as exc:
             duration_ms = max(0, round((time.monotonic() - started) * 1000))
