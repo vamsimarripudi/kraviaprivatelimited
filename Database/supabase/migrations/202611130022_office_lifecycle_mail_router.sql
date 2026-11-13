@@ -50,7 +50,7 @@ VALUES
   ('ONB-07','P1',false,'Equipment and account readiness','Your KRAVIA work setup is ready','Verified device/asset assignment or provisioning change','Employee'),
   ('ONB-08','P0',false,'Policy acknowledgement requested','Please acknowledge your KRAVIA policies','Versioned policy assigned in Office','Employee'),
   ('ONB-09','P0',true,'Assigned responsibilities available','Your KRAVIA roles and responsibilities','Role package actually applied and scoped permissions verified','Employee'),
-  ('ONB-10','P0',false,'Onboarding complete','KRAVIA onboarding completed','All required checklist items verified and governance approved','Employee and hiring manager'),
+  ('ONB-10','P0',true,'Onboarding complete','KRAVIA onboarding completed','All required checklist items verified and governance approved','Employee and hiring manager'),
   ('ONB-11','P2',false,'First-week check-in','Your first-week check-in at KRAVIA','7th calendar day after actual joining, if employed','Employee and manager'),
   ('ONB-12','P2',false,'First-month check-in','Your first-month check-in at KRAVIA','30th day after actual joining, if employed','Employee and manager'),
   ('ROLE-01','P0',true,'Position or functional duty assigned','Your KRAVIA responsibilities have been updated','Canonical role package applied / job changed','Employee'),
@@ -309,6 +309,37 @@ BEGIN
       PERFORM public.office_lifecycle_mail_enqueue('ONB-09',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
       PERFORM public.office_lifecycle_mail_enqueue('ROLE-01',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
       PERFORM public.office_lifecycle_mail_enqueue('ROLE-09',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
+    ELSIF NEW.event_type='TASK_VERIFIED' AND NEW.target_user_id IS NOT NULL
+        AND NEW.task_id IS NOT NULL AND NEW.application_id IS NOT NULL
+        AND NEW.actor_user_id IS DISTINCT FROM NEW.target_user_id THEN
+      IF EXISTS(SELECT 1 FROM public.office_role_package_onboarding_tasks completed
+        WHERE completed.id=NEW.task_id
+          AND completed.application_id=NEW.application_id
+          AND completed.employee_user_id=NEW.target_user_id
+          AND completed.required AND completed.status='VERIFIED'
+          AND completed.reviewed_by=NEW.actor_user_id
+          AND completed.reviewed_by IS DISTINCT FROM completed.submitted_by
+          AND completed.reviewed_at IS NOT NULL)
+        AND EXISTS(SELECT 1 FROM public.office_employee_intake_profiles profile
+          WHERE profile.employee_user_id=NEW.target_user_id AND profile.status='VERIFIED')
+        AND EXISTS(SELECT 1 FROM public.office_employee_reference_ids ref
+          WHERE ref.employee_user_id=NEW.target_user_id)
+        AND EXISTS(SELECT 1 FROM public.office_employment_registry employment
+          WHERE employment.identity_user_id=NEW.target_user_id
+            AND employment.status='ACTIVE'
+            AND employment.start_date<=CURRENT_DATE)
+        AND EXISTS(SELECT 1 FROM public.office_employee_role_package_applications application
+          WHERE application.id=NEW.application_id
+            AND application.employee_user_id=NEW.target_user_id)
+        AND EXISTS(SELECT 1 FROM public.office_role_package_onboarding_tasks task
+          WHERE task.application_id=NEW.application_id
+            AND task.employee_user_id=NEW.target_user_id AND task.required)
+        AND NOT EXISTS(SELECT 1 FROM public.office_role_package_onboarding_tasks task
+          WHERE task.application_id=NEW.application_id
+            AND task.employee_user_id=NEW.target_user_id
+            AND task.required AND task.status<>'VERIFIED') THEN
+        PERFORM public.office_lifecycle_mail_enqueue('ONB-10',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
+      END IF;
     ELSIF NEW.event_type='TASK_RETURNED' AND NEW.target_user_id IS NOT NULL THEN
       PERFORM public.office_lifecycle_mail_enqueue('ONB-05',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
     END IF;
@@ -686,6 +717,34 @@ BEGIN
                   AND EXISTS(SELECT 1 FROM public.office_role_package_onboarding_tasks task
                     WHERE task.application_id=ev.application_id
                       AND task.employee_user_id=ev.target_user_id AND task.required))
+                OR (o.event_code='ONB-10' AND ev.event_type='TASK_VERIFIED'
+                  AND ev.task_id IS NOT NULL AND ev.application_id IS NOT NULL
+                  AND ev.actor_user_id IS DISTINCT FROM ev.target_user_id
+                  AND EXISTS(SELECT 1 FROM public.office_role_package_onboarding_tasks completed
+                    WHERE completed.id=ev.task_id AND completed.application_id=ev.application_id
+                      AND completed.employee_user_id=o.recipient_user_id
+                      AND completed.required AND completed.status='VERIFIED'
+                      AND completed.reviewed_by=ev.actor_user_id
+                      AND completed.reviewed_by IS DISTINCT FROM completed.submitted_by
+                      AND completed.reviewed_at IS NOT NULL)
+                  AND EXISTS(SELECT 1 FROM public.office_employee_intake_profiles profile
+                    WHERE profile.employee_user_id=o.recipient_user_id AND profile.status='VERIFIED')
+                  AND EXISTS(SELECT 1 FROM public.office_employee_reference_ids ref
+                    WHERE ref.employee_user_id=o.recipient_user_id)
+                  AND EXISTS(SELECT 1 FROM public.office_employment_registry employment
+                    WHERE employment.identity_user_id=o.recipient_user_id
+                      AND employment.status='ACTIVE'
+                      AND employment.start_date<=CURRENT_DATE)
+                  AND EXISTS(SELECT 1 FROM public.office_employee_role_package_applications application
+                    WHERE application.id=ev.application_id
+                      AND application.employee_user_id=o.recipient_user_id)
+                  AND EXISTS(SELECT 1 FROM public.office_role_package_onboarding_tasks task
+                    WHERE task.application_id=ev.application_id
+                      AND task.employee_user_id=o.recipient_user_id AND task.required)
+                  AND NOT EXISTS(SELECT 1 FROM public.office_role_package_onboarding_tasks task
+                    WHERE task.application_id=ev.application_id
+                      AND task.employee_user_id=o.recipient_user_id
+                      AND task.required AND task.status<>'VERIFIED'))
                 OR (o.event_code='ONB-05' AND ev.event_type='TASK_RETURNED'))))
         OR (o.source_table='office_worktime_events' AND o.event_code='TIME-03'
           AND EXISTS(SELECT 1 FROM public.office_worktime_events ev

@@ -14,10 +14,24 @@ CREATE TABLE public.office_employee_intake_events(
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,employee_user_id uuid NOT NULL,event_type text NOT NULL
 );
 CREATE TABLE public.office_role_package_events(
-  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,target_user_id uuid,application_id uuid,event_type text NOT NULL
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  target_user_id uuid,application_id uuid,task_id uuid,actor_user_id uuid,event_type text NOT NULL
+);
+CREATE TABLE public.office_employee_role_package_applications(
+  id uuid PRIMARY KEY,employee_user_id uuid NOT NULL
+);
+CREATE TABLE public.office_employee_intake_profiles(
+  employee_user_id uuid PRIMARY KEY,status text NOT NULL
+);
+CREATE TABLE public.office_employee_reference_ids(
+  employee_user_id uuid PRIMARY KEY,reference_code text NOT NULL
+);
+CREATE TABLE public.office_employment_registry(
+  identity_user_id uuid PRIMARY KEY,status text NOT NULL,start_date date
 );
 CREATE TABLE public.office_role_package_onboarding_tasks(
-  id uuid PRIMARY KEY,application_id uuid,employee_user_id uuid,required boolean NOT NULL,status text NOT NULL
+  id uuid PRIMARY KEY,application_id uuid,employee_user_id uuid,required boolean NOT NULL,status text NOT NULL,
+  reviewed_by uuid,submitted_by uuid,reviewed_at timestamptz
 );
 CREATE TABLE public.office_worktime_policy_versions(
   id uuid PRIMARY KEY,employee_user_id uuid NOT NULL,status text NOT NULL,
@@ -164,6 +178,15 @@ INSERT INTO public.office_role_package_onboarding_tasks(id,application_id,employ
 VALUES('e0000000-0000-4000-8000-000000000009',
  'e0000000-0000-4000-8000-000000000008',
  'a0000000-0000-4000-8000-000000000002',true,'PENDING');
+INSERT INTO public.office_employee_role_package_applications(id,employee_user_id)
+VALUES('e0000000-0000-4000-8000-000000000008',
+       'a0000000-0000-4000-8000-000000000002');
+INSERT INTO public.office_employee_intake_profiles(employee_user_id,status)
+VALUES('a0000000-0000-4000-8000-000000000002','VERIFIED');
+INSERT INTO public.office_employee_reference_ids(employee_user_id,reference_code)
+VALUES('a0000000-0000-4000-8000-000000000002','KRV-E26-0123456789ABCDEF');
+INSERT INTO public.office_employment_registry(identity_user_id,status,start_date)
+VALUES('a0000000-0000-4000-8000-000000000002','ACTIVE','2026-11-01');
 
 INSERT INTO public.office_worktime_policy_versions(id,employee_user_id,status,proposed_by,authority_reference)
 VALUES('b0000000-0000-4000-8000-000000000006',

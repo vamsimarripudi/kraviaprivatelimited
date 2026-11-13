@@ -51,6 +51,9 @@ describe("KRAVIA Office governed 81-event lifecycle notification delivery",()=>{
     expect(schema).toContain("v_paid=v_result.net_pay_minor");
     expect(schema).toContain("PAYSLIP_ISSUED");
     expect(schema).toContain("BANK_SALARY_PARTIAL_VERIFIED");
+    expect(schema).toContain("ONB-10");
+    expect(schema).toContain("office_employee_reference_ids");
+    expect(schema).toContain("task.status<>'VERIFIED'");
     expect(schema).toContain("event_code='PAY-09'");
     expect(worker).toContain('"PAY-09"');
     expect(schema).toContain("office_access_audit");
