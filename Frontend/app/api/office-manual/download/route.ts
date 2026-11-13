@@ -1,5 +1,6 @@
 import { getOfficeManualHub, OfficeManualError } from "@/lib/office/manual-server";
 import { renderOfficeManualPdf } from "@/lib/office/manual-pdf";
+import { OfficePermissionError } from "@/lib/office/permission-engine";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -25,8 +26,10 @@ export async function GET(){
       },
     });
   }catch(error){
-    const status=error instanceof OfficeManualError?error.status:500;
-    return Response.json({detail:status===500?"PDF manual unavailable":(error as OfficeManualError).message},
+    const status=error instanceof OfficeManualError||error instanceof OfficePermissionError?error.status:500;
+    const detail=error instanceof OfficeManualError||error instanceof OfficePermissionError
+      ? error.message : "PDF manual unavailable";
+    return Response.json({detail},
       {status,headers:{"Cache-Control":"private, no-store"}});
   }
 }
