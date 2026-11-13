@@ -3,6 +3,7 @@ import {OfficeConnectWorkflows} from "@/components/office-connect-workflows";
 import {OfficeConnectMessageIndex} from "@/components/office-connect-message-index";
 import {OfficeConnectThread} from "@/components/office-connect-thread";
 import {OfficeConnectEscalations} from "@/components/office-connect-escalations";
+import {OfficeConnectTicket} from "@/components/office-connect-ticket";
 type Props={params:Promise<{segments:string[]}>};
 export const dynamic="force-dynamic";
 const permittedPaths=new Set([
@@ -22,6 +23,8 @@ export default async function OtherConnectRoute({params}:Props){
               /^support\/knowledge\/[0-9a-f-]{36}$/i.test(path)||
               /^approvals\/[0-9a-f-]{36}$/i.test(path);
  if(!permittedPaths.has(path)&&!detail)notFound();
+ if(/^support\/tickets\/[0-9a-f-]{36}$/i.test(path))
+   return <OfficeConnectTicket id={segments[2]}/>;
  if(path==="support/escalations" || /^support\/escalations\/[0-9a-f-]{36}$/i.test(path))
    return <OfficeConnectEscalations detailId={segments[2]}/>;
  if(path==="search"||path==="saved"||path==="mentions")
