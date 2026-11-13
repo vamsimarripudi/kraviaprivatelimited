@@ -31,9 +31,16 @@ async function ownMembership(current: OfficeChatActor, id: string) {
   if (error) throw internalFailure("The communication service is unavailable");
   if (!data) throw new OfficeChatError(404, "Conversation not found");
   const conversation = await current.admin.from("office_chat_conversations")
-    .select("id,kind,state").eq("id", id).eq("state", "ACTIVE").maybeSingle();
+    .select("id,kind,state,department_code").eq("id", id).eq("state", "ACTIVE").maybeSingle();
   if (conversation.error) throw internalFailure("The communication service is unavailable");
   if (!conversation.data) throw new OfficeChatError(404, "Conversation not found");
+  if(conversation.data.kind==="DEPARTMENT"){
+    const assignment=await current.admin.from("office_job_assignments")
+     .select("user_id").eq("user_id",current.identity.userId)
+     .eq("status","ACTIVE").eq("department_code",conversation.data.department_code).maybeSingle();
+    if(assignment.error)throw internalFailure("Department authority is unavailable");
+    if(!assignment.data)throw new OfficeChatError(404,"Conversation not found");
+  }
   return conversation.data;
 }
 
@@ -60,7 +67,7 @@ export async function listOfficeChatConversations() {
   const ids = (members.data ?? []).map(row => String(row.conversation_id));
   if (!ids.length) return { actor_user_id: current.identity.userId, conversations: [] };
   const [conversations, participants] = await Promise.all([
-    current.admin.from("office_chat_conversations").select("id,kind,title,state,updated_at")
+    current.admin.from("office_chat_conversations").select("id,kind,title,state,department_code,updated_at")
       .in("id", ids).eq("state", "ACTIVE").order("updated_at", { ascending: false }).limit(100),
     current.admin.from("office_chat_memberships").select("conversation_id,user_id,status")
       .in("conversation_id", ids).eq("status", "ACTIVE").limit(300),
@@ -74,9 +81,15 @@ export async function listOfficeChatConversations() {
     : { data: [], error: null };
   if (personResult.error) throw internalFailure("The communication directory is unavailable");
   const names = new Map((personResult.data ?? []).map(row => [String(row.user_id), String(row.display_name ?? "Employee")]));
+  const job=await current.admin.from("office_job_assignments").select("department_code")
+    .eq("user_id",current.identity.userId).eq("status","ACTIVE").maybeSingle();
+  if(job.error)throw internalFailure("Current department is unavailable");
+  const assignedDepartment=job.data?.department_code??null;
   return {
     actor_user_id: current.identity.userId,
-    conversations: (conversations.data ?? []).map(row => {
+    conversations: (conversations.data ?? []).filter(row=>
+      row.kind!=="DEPARTMENT"||Boolean(assignedDepartment&&assignedDepartment===row.department_code)
+    ).map(row => {
       const membersOfConversation = (participants.data ?? []).filter(m => m.conversation_id === row.id);
       const namesOfOthers = membersOfConversation
         .filter(m => m.user_id !== current.identity.userId)
@@ -179,7 +192,7 @@ async function myConversationIds(current:OfficeChatActor){
  const ids=(data??[]).map(row=>String(row.conversation_id));
  if(!ids.length)return [];
  const conversations=await current.admin.from("office_chat_conversations")
-  .select("id").in("id",ids).eq("state","ACTIVE");
+  .select("id,kind,department_code").in("id",ids).eq("state","ACTIVE");
  if(conversations.error)throw internalFailure("Conversation membership authority is unavailable");
  return (conversations.data??[]).map(row=>String(row.id));
 }
@@ -315,4 +328,38 @@ export async function getOfficeChatMembers(conversationId:string){
   .select("user_id,display_name").in("user_id",ids).eq("status","ACTIVE").limit(100);
  if(people.error)throw internalFailure("Current conversation members unavailable");
  return {members:people.data??[]};
+}
+
+
+export async function getOfficeDepartmentChannel(code:string){
+ const current=await actor();
+ const normalized=code.trim().toUpperCase();
+ if(current.identity.department!==normalized)
+  throw new OfficeChatError(404,"Department channel unavailable");
+ const job=await current.admin.from("office_job_assignments").select("department_code")
+  .eq("user_id",current.identity.userId).eq("department_code",normalized)
+  .eq("status","ACTIVE").maybeSingle();
+ if(job.error)throw internalFailure("Department authority unavailable");
+ if(!job.data)throw new OfficeChatError(404,"Department channel unavailable");
+ const result=await current.admin.from("office_chat_conversations")
+  .select("id,title").eq("kind","DEPARTMENT").eq("department_code",normalized)
+  .eq("state","ACTIVE").maybeSingle();
+ if(result.error)throw internalFailure("Department channel unavailable");
+ if(!result.data)return {department:normalized,conversation_id:null,joined:false};
+ const member=await current.admin.from("office_chat_memberships")
+  .select("conversation_id").eq("conversation_id",result.data.id)
+  .eq("user_id",current.identity.userId).eq("status","ACTIVE").maybeSingle();
+ if(member.error)throw internalFailure("Department channel unavailable");
+ return {department:normalized,conversation_id:result.data.id,joined:Boolean(member.data)};
+}
+export async function openOfficeDepartmentChannel(code:string){
+ const current=await actor();
+ const normalized=code.trim().toUpperCase();
+ if(current.identity.department!==normalized)
+   throw new OfficeChatError(404,"Department unavailable");
+ const result=await current.admin.rpc("office_chat_open_department",{
+  p_actor:current.identity.userId,p_department:normalized});
+ if(result.error||typeof result.data!=="string")
+  throw new OfficeChatError(403,"Current department assignment is required");
+ return {conversation_id:result.data};
 }
