@@ -49,6 +49,7 @@ test("native workforce modal stays centered and usable beyond sticky header on e
   const body = [
     "<header style='position:sticky;top:0;overflow:hidden;transform:translateZ(0);height:56px'>",
     "<button id='presence-trigger' class='summary'>Work status</button>",
+    "</header>",
     "<dialog id='presence-dialog' class='panel' data-office-presence-dialog='true' aria-modal='true'>",
     "<div class='heading'><h2>Workforce status</h2><details class='actionsMenu'>",
     "<summary>Actions</summary><div class='actionsContent'><div class='menuGroup'>",
@@ -58,7 +59,7 @@ test("native workforce modal stays centered and usable beyond sticky header on e
     "<div><span>Attendance</span><strong>Not checked in</strong></div></div>",
     "<div class='attendance'><strong>Six-hour weekday target</strong></div>",
     ...Array.from({ length: 48 }, (_, index) => "<p class='note'>Review attendance note " + index + "</p>"),
-    "</dialog></header>",
+    "</dialog>",
   ].join("");
 
   for (const theme of ["light", "dark"]) {
