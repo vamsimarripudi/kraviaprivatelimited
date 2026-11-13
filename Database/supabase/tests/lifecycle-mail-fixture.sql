@@ -11,13 +11,30 @@ CREATE TABLE public.office_identity_users(user_id uuid PRIMARY KEY,display_name 
 CREATE TABLE public.office_user_roles(user_id uuid,role text,expires_at timestamptz);
 CREATE TABLE public.office_auth_users(id text PRIMARY KEY,email text NOT NULL,status text NOT NULL);
 CREATE TABLE public.office_employee_intake_events(
-  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,employee_user_id uuid NOT NULL,event_type text NOT NULL
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  employee_user_id uuid NOT NULL,actor_user_id uuid,event_type text NOT NULL
 );
 CREATE TABLE public.office_role_package_events(
-  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,target_user_id uuid,application_id uuid,event_type text NOT NULL
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  target_user_id uuid,application_id uuid,task_id uuid,actor_user_id uuid,event_type text NOT NULL
+);
+CREATE TABLE public.office_employee_role_package_applications(
+  id uuid PRIMARY KEY,employee_user_id uuid NOT NULL
+);
+CREATE TABLE public.office_employee_intake_profiles(
+  employee_user_id uuid PRIMARY KEY,status text NOT NULL
+);
+CREATE TABLE public.office_employee_reference_ids(
+  employee_user_id uuid PRIMARY KEY,reference_code text NOT NULL,
+  issued_by uuid,issued_at timestamptz
+);
+CREATE TABLE public.office_employment_registry(
+  identity_user_id uuid PRIMARY KEY,status text NOT NULL,start_date date,
+  relationship_type text NOT NULL
 );
 CREATE TABLE public.office_role_package_onboarding_tasks(
-  id uuid PRIMARY KEY,application_id uuid,employee_user_id uuid,required boolean NOT NULL,status text NOT NULL
+  id uuid PRIMARY KEY,application_id uuid,employee_user_id uuid,required boolean NOT NULL,status text NOT NULL,
+  reviewed_by uuid,submitted_by uuid,reviewed_at timestamptz
 );
 CREATE TABLE public.office_worktime_policy_versions(
   id uuid PRIMARY KEY,employee_user_id uuid NOT NULL,status text NOT NULL,
@@ -35,7 +52,7 @@ CREATE OR REPLACE FUNCTION public.office_effective_permission(
  p_user_id uuid,p_permission text,p_scope_type text,p_scope_key text,p_owner_user_id uuid
 ) RETURNS boolean LANGUAGE sql STABLE AS $fixture_permission$
   SELECT p_user_id='a0000000-0000-4000-8000-000000000003'::uuid
-    AND p_permission='people.update';
+    AND p_permission IN ('people.update','hiring.offer.review','payroll.compensation.review','payroll.run.review');
 $fixture_permission$;
 CREATE TABLE public.office_worktime_events(
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,case_id uuid,actor_user_id uuid,event_type text NOT NULL
@@ -55,6 +72,22 @@ CREATE TABLE public.office_access_audit(
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,actor_user_id uuid,
   target_user_id uuid,action text NOT NULL
 );
+CREATE TABLE public.office_offer_proposals(
+  id uuid PRIMARY KEY,created_by uuid,approval_request_id uuid,status text NOT NULL
+);
+CREATE TABLE public.office_requests(
+  id uuid PRIMARY KEY,request_type_code text NOT NULL,
+  current_step_order integer NOT NULL,status text NOT NULL
+);
+CREATE TABLE public.office_request_steps(
+  id uuid PRIMARY KEY,request_id uuid NOT NULL,step_order integer NOT NULL,
+  assigned_user_id uuid,status text NOT NULL,required_permission text
+);
+CREATE TABLE public.office_recruitment_events(
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  offer_id uuid,actor_user_id uuid,event_type text NOT NULL,new_status text,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb
+);
 CREATE TABLE public.office_training_assignments(
   id uuid PRIMARY KEY,user_id uuid NOT NULL,status text NOT NULL,
   completion_evidence_reference text
@@ -69,7 +102,7 @@ CREATE TABLE public.office_people_development_events(
 );
 CREATE TABLE public.office_compensation_versions(
   id uuid PRIMARY KEY,employee_user_id uuid NOT NULL,status text NOT NULL,
-  approved_by uuid,approved_at timestamptz
+  approved_by uuid,approved_at timestamptz,approval_request_id uuid,created_by uuid
 );
 CREATE TABLE public.office_payroll_events(
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,compensation_version_id uuid,
@@ -78,7 +111,7 @@ CREATE TABLE public.office_payroll_events(
 );
 CREATE TABLE public.office_payroll_periods(
   id uuid PRIMARY KEY,period_code text NOT NULL,status text NOT NULL,
-  created_by uuid,approved_by uuid,approved_at timestamptz
+  created_by uuid,approved_by uuid,approved_at timestamptz,approval_request_id uuid
 );
 CREATE TABLE public.office_salary_payment_batches(
   id uuid PRIMARY KEY,period_id uuid,prepared_by uuid,status text NOT NULL
@@ -164,6 +197,46 @@ INSERT INTO public.office_role_package_onboarding_tasks(id,application_id,employ
 VALUES('e0000000-0000-4000-8000-000000000009',
  'e0000000-0000-4000-8000-000000000008',
  'a0000000-0000-4000-8000-000000000002',true,'PENDING');
+INSERT INTO public.office_employee_role_package_applications(id,employee_user_id)
+VALUES('e0000000-0000-4000-8000-000000000008',
+       'a0000000-0000-4000-8000-000000000002');
+INSERT INTO public.office_employee_intake_profiles(employee_user_id,status)
+VALUES('a0000000-0000-4000-8000-000000000002','VERIFIED');
+INSERT INTO public.office_employee_reference_ids(employee_user_id,reference_code,issued_by,issued_at)
+VALUES('a0000000-0000-4000-8000-000000000002','KRV-E26-0123456789ABCDEF',
+ 'a0000000-0000-4000-8000-000000000001',pg_catalog.now());
+INSERT INTO public.office_employment_registry(identity_user_id,status,start_date,relationship_type)
+VALUES('a0000000-0000-4000-8000-000000000002','ACTIVE','2026-11-01','EMPLOYEE');
+INSERT INTO public.office_requests(id,request_type_code,current_step_order,status)
+VALUES('c0000000-0000-4000-8000-000000000011','EMPLOYMENT_OFFER_APPROVAL',1,'IN_REVIEW');
+INSERT INTO public.office_request_steps(id,request_id,step_order,assigned_user_id,status,required_permission)
+VALUES('c0000000-0000-4000-8000-000000000012','c0000000-0000-4000-8000-000000000011',1,
+  'a0000000-0000-4000-8000-000000000003','PENDING','hiring.offer.review');
+INSERT INTO public.office_offer_proposals(id,created_by,approval_request_id,status)
+VALUES('c0000000-0000-4000-8000-000000000013','a0000000-0000-4000-8000-000000000002',
+  'c0000000-0000-4000-8000-000000000011','PENDING_APPROVAL');
+INSERT INTO public.office_requests(id,request_type_code,current_step_order,status)
+VALUES
+ ('c0000000-0000-4000-8000-000000000021','COMPENSATION_CHANGE',1,'IN_REVIEW'),
+ ('c0000000-0000-4000-8000-000000000022','PAYROLL_RUN_APPROVAL',1,'IN_REVIEW');
+INSERT INTO public.office_request_steps(
+ id,request_id,step_order,assigned_user_id,status,required_permission
+) VALUES
+ ('c0000000-0000-4000-8000-000000000023',
+  'c0000000-0000-4000-8000-000000000021',1,
+  'a0000000-0000-4000-8000-000000000003','PENDING','payroll.compensation.review'),
+ ('c0000000-0000-4000-8000-000000000024',
+  'c0000000-0000-4000-8000-000000000022',1,
+  'a0000000-0000-4000-8000-000000000003','PENDING','payroll.run.review');
+INSERT INTO public.office_compensation_versions(id,employee_user_id,status,created_by,approval_request_id)
+VALUES('d0000000-0000-4000-8000-000000000006',
+ 'a0000000-0000-4000-8000-000000000002','PENDING_APPROVAL',
+ 'a0000000-0000-4000-8000-000000000002',
+ 'c0000000-0000-4000-8000-000000000021');
+INSERT INTO public.office_payroll_periods(id,period_code,status,created_by,approval_request_id)
+VALUES('f0000000-0000-4000-8000-000000000016','2026-10','PENDING_REVIEW',
+ 'a0000000-0000-4000-8000-000000000002',
+ 'c0000000-0000-4000-8000-000000000022');
 
 INSERT INTO public.office_worktime_policy_versions(id,employee_user_id,status,proposed_by,authority_reference)
 VALUES('b0000000-0000-4000-8000-000000000006',

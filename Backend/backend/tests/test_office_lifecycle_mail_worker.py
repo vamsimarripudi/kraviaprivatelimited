@@ -132,3 +132,11 @@ def test_full_verified_bank_credit_requires_real_period_in_worker_claim():
     assert mail._validate_claim(claim).pay_period=="2026-11"
     with pytest.raises(RuntimeError):
         mail._validate_claim(dict(claim,pay_period=None))
+
+
+def test_verified_partial_wage_claim_requires_real_pay_period():
+    claim = dict(_synthetic_claim()[0], event_code="PAY-09",
+                 source_reference="office_payroll_events:43", pay_period="2026-11")
+    assert mail._validate_claim(claim).pay_period == "2026-11"
+    with pytest.raises(RuntimeError):
+        mail._validate_claim(dict(claim,pay_period=None))

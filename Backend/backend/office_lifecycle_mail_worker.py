@@ -59,7 +59,7 @@ def _validate_claim(row: Any) -> OfficeLifecycleClaim:
     name = str(data["recipient_name"]).strip()
     reference = str(data["source_reference"])
     pay_period = data.get("pay_period")
-    if code in ("PAY-06", "PAY-08"):
+    if code in ("PAY-06", "PAY-08", "PAY-09"):
         if (not isinstance(pay_period, str) or not 1 <= len(pay_period.strip()) <= 40
                 or any(ord(ch) < 32 for ch in pay_period)):
             raise RuntimeError("Immutable payroll period evidence is missing")
