@@ -3,6 +3,7 @@ import { z } from "zod";
 import { officeMutationIsSameOrigin } from "@/lib/office/request-security";
 import {
   attachOfferDocument,
+  changeInterview,
   createCandidate,
   createHiringRequisition,
   createOfferProposal,
@@ -67,6 +68,18 @@ const schema = z.discriminatedUnion("action", [
     starts_at: z.string().datetime({ offset: true }),
     ends_at: z.string().datetime({ offset: true }).optional(),
     location: optionalText(1000),
+  }),
+  z.object({
+    action: z.literal("CHANGE_INTERVIEW"),
+    interview_id: uuid,
+    decision: z.enum(["RESCHEDULE","CANCEL"]),
+    starts_at: z.string().datetime({ offset: true }).optional(),
+    ends_at: z.string().datetime({ offset: true }).optional(),
+    reason: z.string().trim().min(8).max(1000),
+  }).superRefine((value, context) => {
+    if (value.decision === "RESCHEDULE" && !value.starts_at) {
+      context.addIssue({ code: "custom", message: "New interview time required" });
+    }
   }),
   z.object({
     action: z.literal("SUBMIT_FEEDBACK"),
@@ -147,6 +160,7 @@ export async function POST(request: Request) {
         break;
       case "TRANSITION_CANDIDATE": result = await transitionCandidate({ candidateId: input.candidate_id, status: input.status, note: input.note }); break;
       case "SCHEDULE_INTERVIEW": result = await scheduleInterview({ candidateId: input.candidate_id, stage: input.stage, title: input.title, interviewerUserId: input.interviewer_user_id, startsAt: input.starts_at, endsAt: input.ends_at, location: input.location }); break;
+      case "CHANGE_INTERVIEW": result = await changeInterview({ interviewId: input.interview_id, decision: input.decision, startsAt: input.starts_at, endsAt: input.ends_at, reason: input.reason }); break;
       case "SUBMIT_FEEDBACK": result = await submitInterviewFeedback({ interviewId: input.interview_id, outcome: input.outcome, evidence: input.evidence, strengths: input.strengths, concerns: input.concerns }); break;
       case "REQUEST_DOCUMENT": result = await requestCandidateDocument({ candidateId: input.candidate_id, type: input.document_type, label: input.label, required: input.required }); break;
       case "REVIEW_DOCUMENT": result = await reviewCandidateDocument({ requestId: input.request_id, decision: input.decision, note: input.note }); break;
