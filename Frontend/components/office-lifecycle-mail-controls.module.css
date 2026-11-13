@@ -26,3 +26,8 @@
 .primary:disabled,.head button:disabled{opacity:.5;cursor:not-allowed}
 @media(max-width:690px){.shell{padding:12px}.metrics{grid-template-columns:1fr 1fr}.counts{grid-template-columns:repeat(2,minmax(0,1fr))}.primary{width:100%}}
 @media(prefers-reduced-motion:reduce){.categories button,.primary{transition:none}}
+
+.summary{display:grid;gap:7px;padding:13px;border:1px solid var(--off-next-line,#dce6df);border-radius:11px;background:var(--off-next-canvas,#f6f8f7);min-width:0}
+.summary>strong{font-size:14px;overflow-wrap:anywhere}
+.summary>p{margin:0;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.summary>small{font-size:11px;line-height:1.5;color:var(--off-next-muted,#63736b);overflow-wrap:anywhere}
