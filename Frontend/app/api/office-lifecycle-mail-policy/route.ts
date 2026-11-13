@@ -26,7 +26,7 @@ function failure(error:unknown){
 }
 async function readPolicies(actor:Awaited<ReturnType<typeof owner>>){
   const result=await actor.admin.from("office_lifecycle_mail_policy")
-    .select("event_code,priority,source_ready,enabled,approved_at,effective_from,intent,subject,trigger_description,recipient_description")
+    .select("event_code,priority,source_ready,enabled,delivery_channel,approved_at,effective_from,intent,subject,trigger_description,recipient_description")
     .order("event_code");
   if(result.error||!result.data||result.data.length!==81)
     throw new Error("Office lifecycle registry is incomplete or unavailable");
@@ -55,6 +55,16 @@ export async function POST(request:Request){
     return NextResponse.json({detail:"Invalid documented lifecycle-policy decision"},{status:400,headers});
   try{
     const current=await owner();
+    const policy=await current.admin.from("office_lifecycle_mail_policy")
+      .select("delivery_channel").eq("event_code",parsed.data.event_code).maybeSingle();
+    if(policy.error||!policy.data) {
+      return NextResponse.json({detail:"Lifecycle policy not available"},{status:503,headers});
+    }
+    if(policy.data.delivery_channel==="FIRST_PARTY_AUTH") {
+      return NextResponse.json({
+        detail:"Dedicated Office authentication delivery cannot be enabled or modified through the lifecycle outbox",
+      },{status:409,headers});
+    }
     const result=await current.admin.rpc("office_lifecycle_mail_policy_set",{
       p_actor:current.identity.userId,
       p_event:parsed.data.event_code,
