@@ -4,6 +4,7 @@ on:
     paths:
       - 'Database/supabase/migrations/202611130022_office_lifecycle_mail_router.sql'
       - 'Database/supabase/migrations/202611130023_reconcile_office_lifecycle_mail_sources.sql'
+      - 'Database/supabase/migrations/202611130024_reconcile_office_lifecycle_additional_routes.sql'
       - 'Database/supabase/tests/lifecycle-mail-*.sql'
       - '.github/workflows/office-lifecycle-mail-db.yml'
   workflow_dispatch:
@@ -53,6 +54,7 @@ jobs:
           pg -f Database/supabase/tests/lifecycle-mail-fixture.sql
           pg -f Database/supabase/tests/lifecycle-mail-legacy-release-snapshot.sql
           pg -f Database/supabase/migrations/202611130023_reconcile_office_lifecycle_mail_sources.sql
+          pg -f Database/supabase/migrations/202611130024_reconcile_office_lifecycle_additional_routes.sql
           upgraded_output="$(pg --tuples-only --no-align -f Database/supabase/tests/lifecycle-mail-smoke.sql)"
           echo "$upgraded_output"
           printf '%s\n' "$upgraded_output" | grep -Fxq 'LIFECYCLE_MAIL_ROUTES_VERIFIED'

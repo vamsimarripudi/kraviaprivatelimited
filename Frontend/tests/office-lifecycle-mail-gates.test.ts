@@ -5,6 +5,7 @@ const endpoint = readFileSync(new URL("../app/api/office-lifecycle-mail-policy/r
 const controls = readFileSync(new URL("../components/office-lifecycle-mail-controls.tsx",import.meta.url),"utf8");
 const settings = readFileSync(new URL("../components/office-settings-hub.tsx",import.meta.url),"utf8");
 const schema = readFileSync(new URL("../../Database/supabase/migrations/202611130022_office_lifecycle_mail_router.sql",import.meta.url),"utf8");
+const forward = readFileSync(new URL("../../Database/supabase/migrations/202611130024_reconcile_office_lifecycle_additional_routes.sql",import.meta.url),"utf8");
 const worker = readFileSync(new URL("../../Backend/backend/office_lifecycle_mail_worker.py",import.meta.url),"utf8");
 const manifest = JSON.parse(readFileSync(new URL("../../Backend/backend/generated_office_lifecycle_templates.json",import.meta.url),"utf8"));
 
@@ -53,6 +54,11 @@ describe("KRAVIA Office governed 81-event lifecycle notification delivery",()=>{
     expect(schema).toContain("BANK_SALARY_PARTIAL_VERIFIED");
     expect(schema).toContain("ONB-10");
     expect(schema).toContain("ONB-01");
+    expect(forward).toContain("Expected exactly 31 audited source routes");
+    expect(forward).toContain("BANK_SALARY_PARTIAL_VERIFIED");
+    expect(forward).toContain("office_lifecycle_mail_on_recruitment");
+    expect(forward).toContain("Existing employee notification ledger requires manual reconciliation");
+    expect(forward).not.toContain("SET enabled=true");
     expect(schema).toContain("REFERENCE_ID_ISSUED");
     expect(schema).toContain("OFFER_SUBMITTED");
     expect(schema).toContain("hiring.offer.review");
