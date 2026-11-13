@@ -38,7 +38,7 @@ grant usage,select on sequence public.office_manual_receipt_events_id_seq to ser
 create or replace function public.office_manual_record_receipt(
   p_actor uuid, p_key text, p_version text, p_action text
 ) returns text
-language plpgsql security definer set search_path=public
+language plpgsql security invoker set search_path=public
 as $$
 declare
   previous_status text;
