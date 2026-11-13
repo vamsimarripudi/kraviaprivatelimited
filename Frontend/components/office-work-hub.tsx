@@ -168,11 +168,11 @@ export function OfficeWorkHub({ identity, mode }: { identity: OfficeIdentity; mo
 
   const selectedType = requestType(overview.request_types, draft.requestType);
 
-  return <div className={styles.hub} data-office-work-hub data-mode={mode}>
-    {mode === "dashboard" ? <header className={styles.compactHero} data-office-work-hero>
+  return <div className={styles.hub} data-office-work-hub="true" data-mode={mode}>
+    {mode === "dashboard" ? <header className={styles.compactHero} data-office-work-hero="true">
       <div><p>PERSONAL WORKSPACE</p><h2>Your work, in focus.</h2>
         <span>Only your assigned workflows, decisions and verified status are shown.</span></div>
-      <button className={styles.iconFirst} data-office-new-request type="button" aria-label="Create a new request"
+      <button className={styles.iconFirst} data-office-new-request="true" type="button" aria-label="Create a new request"
         title="New request" onClick={() => setNewOpen(true)}>
         <Plus size={17}/><span>New request</span>
       </button>
@@ -185,7 +185,7 @@ export function OfficeWorkHub({ identity, mode }: { identity: OfficeIdentity; mo
       <div className={styles.heroActions}><button className={styles.primary} type="button" onClick={() => setNewOpen(true)}><Plus /> New request</button><span className={styles.authBadge}><ShieldCheck /> AAL2 · authz v{identity.authzVersion}</span></div>
     </section>}
 
-    <section className={styles.metrics} data-office-work-metrics aria-label="Work summary">
+    <section className={styles.metrics} data-office-work-metrics="true" aria-label="Work summary">
       <article><span>My active requests</span><strong>{activeCount}</strong><small>Pending, in review or approved</small></article>
       <article><span>My approvals</span><strong>{overview.approvals.length}</strong><small>Decisions currently assigned</small></article>
       <article><span>Direct reports</span><strong>{overview.direct_reports.length}</strong><small>From the controlled reporting line</small></article>
@@ -221,16 +221,16 @@ export function OfficeWorkHub({ identity, mode }: { identity: OfficeIdentity; mo
 
 function Dashboard({ overview, onOpen, onApprove }: { overview: Overview; onOpen: (request: WorkRequest) => void; onApprove: (request: WorkRequest) => void }) {
   return <div className={styles.dashboardGrid}>
-    <details className={styles.compactPanel} data-office-work-panel open={overview.approvals.length > 0}><summary><PanelHeader eyebrow="NEXT ACTIONS" title="Your approval queue" action={overview.approvals.length ? `${overview.approvals.length} waiting` : "Clear"} /></summary>
+    <details className={styles.compactPanel} data-office-work-panel="true" open={overview.approvals.length > 0}><summary><PanelHeader eyebrow="NEXT ACTIONS" title="Your approval queue" action={overview.approvals.length ? `${overview.approvals.length} waiting` : "Clear"} /></summary>
       <div className={styles.actionList}>{overview.approvals.slice(0, 5).map(({ request, step }) => request ? <button type="button" key={step.id} onClick={() => onApprove(request)}><StatusBadge status={request.status} /><span><b>{request.title}</b><small>{step.label} · {request.priority}</small></span><ArrowRight /></button> : null)}{!overview.approvals.length ? <Empty title="No approvals waiting" text="New assigned decisions will appear here." /> : null}</div>
     </details>
-    <details className={styles.compactPanel} data-office-work-panel><summary><PanelHeader eyebrow="MY REQUESTS" title="Recent workflow" action={`${overview.requests.length} total`} /></summary>
+    <details className={styles.compactPanel} data-office-work-panel="true"><summary><PanelHeader eyebrow="MY REQUESTS" title="Recent workflow" action={`${overview.requests.length} total`} /></summary>
       <div className={styles.compactRows}>{overview.requests.slice(0, 6).map((request) => <button type="button" key={request.id} onClick={() => onOpen(request)}><span><b>{request.title}</b><small>{request.request_type_code} · {readableDate(request.updated_at)}</small></span><StatusBadge status={request.status} /></button>)}{!overview.requests.length ? <Empty title="No requests yet" text="Create your first governed request instead of handling it through chat or email." /> : null}</div>
     </details>
-    <details className={styles.compactPanel} data-office-work-panel><summary><PanelHeader eyebrow="TRUST" title="Your devices" action={`${overview.devices.length} registered`} /></summary>
+    <details className={styles.compactPanel} data-office-work-panel="true"><summary><PanelHeader eyebrow="TRUST" title="Your devices" action={`${overview.devices.length} registered`} /></summary>
       <div className={styles.devices}>{overview.devices.slice(0, 4).map((device) => <article key={device.id}><Laptop /><span><b>{device.device_label}</b><small>{device.platform || device.device_kind}</small></span><em data-status={device.trust_state}>{statusLabel(device.trust_state)}</em></article>)}{!overview.devices.length ? <Empty title="No registered device" text="Device controls become visible when your access profile requires them." /> : null}</div>
     </details>
-    <details className={styles.compactPanel} data-office-work-panel><summary><PanelHeader eyebrow="NOTIFICATIONS" title="What changed" action={`${overview.notifications.length} recent`} /></summary>
+    <details className={styles.compactPanel} data-office-work-panel="true"><summary><PanelHeader eyebrow="NOTIFICATIONS" title="What changed" action={`${overview.notifications.length} recent`} /></summary>
       <div className={styles.notificationList}>{overview.notifications.slice(0, 5).map((item) => <article key={item.id} data-unread={item.status !== "READ"}><CircleDot /><div><b>{item.title}</b><p>{item.body}</p><small>{readableDate(item.created_at)}</small></div></article>)}{!overview.notifications.length ? <Empty title="All quiet" text="Workflow updates and delegated actions will appear here." /> : null}</div>
     </details>
   </div>;
