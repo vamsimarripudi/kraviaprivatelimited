@@ -272,9 +272,9 @@ RETURNS TABLE(outbox_id uuid,claim_token uuid,event_code text,
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
 AS $claim$
 BEGIN
- IF current_user<>'kravia_office_backend' THEN
-    RAISE EXCEPTION 'Dedicated candidate mail worker authority required';
- END IF;
+ -- SQL SECURITY DEFINER switches current_user to the function owner.
+ -- The explicit REVOKE/GRANT EXECUTE boundary below restricts callers to
+ -- kravia_office_backend, and source checks protect every claim.
  IF p_limit<1 OR p_limit>25 THEN RAISE EXCEPTION 'Candidate claim batch must be 1..25'; END IF;
 
  UPDATE public.office_candidate_mail_outbox q SET status='UNKNOWN',
@@ -336,8 +336,8 @@ RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
 AS $finish$
 DECLARE v_status text;
 BEGIN
- IF current_user<>'kravia_office_backend' THEN
-    RAISE EXCEPTION 'Dedicated candidate worker authority required'; END IF;
+ -- Only kravia_office_backend may invoke this SECURITY DEFINER function
+ -- under the explicit EXECUTE grant; do not compare definer current_user.
  IF p_outcome NOT IN('SENT','REJECTED','UNKNOWN') THEN
     RAISE EXCEPTION 'Invalid candidate mail provider outcome'; END IF;
  UPDATE public.office_candidate_mail_outbox q
