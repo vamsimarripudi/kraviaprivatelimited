@@ -11,7 +11,8 @@ const nextSources = readFileSync(new URL("../../Database/supabase/migrations/202
 const deviceAtomicity = readFileSync(new URL("../../Database/supabase/migrations/202611130026_auth_device_decision_atomicity.sql",import.meta.url),"utf8");
 const workforce = readFileSync(new URL("../../Database/supabase/migrations/202611130027_workforce_lifecycle_verified_sources.sql",import.meta.url),"utf8");
 const scheduled = readFileSync(new URL("../../Database/supabase/migrations/202611130028_scheduled_lifecycle_verified_sources.sql",import.meta.url),"utf8");
-const effectiveSchema = schema + "\n" + forward + "\n" + nextSources + "\n" + deviceAtomicity + "\n" + workforce + "\n" + scheduled;
+const controlled = readFileSync(new URL("../../Database/supabase/migrations/202611130029_policy_documents_flex_sources.sql",import.meta.url),"utf8");
+const effectiveSchema = schema + "\n" + forward + "\n" + nextSources + "\n" + deviceAtomicity + "\n" + workforce + "\n" + scheduled + "\n" + controlled;
 const worker = readFileSync(new URL("../../Backend/backend/office_lifecycle_mail_worker.py",import.meta.url),"utf8");
 const manifest = JSON.parse(readFileSync(new URL("../../Backend/backend/generated_office_lifecycle_templates.json",import.meta.url),"utf8"));
 
@@ -84,6 +85,14 @@ describe("KRAVIA Office governed 81-event lifecycle notification delivery",()=>{
     }
     expect(scheduled).toContain("status='VERIFIED'");
     expect(scheduled).not.toContain("SET enabled=true");
+    expect(controlled).toContain("source_ready)<>57");
+    for(const code of ["AUTH-10","DEV-08","ONB-08","ONB-03","PAY-11","PAY-12","TIME-07","TIME-09"]){
+      expect(controlled).toContain(code);
+    }
+    expect(controlled).toContain("office_lifecycle_flex_evidence_valid");
+    expect(controlled).toContain("office_document_signature_evidence");
+    expect(controlled).toContain("office_policy_acknowledgements");
+    expect(controlled).not.toContain("SET enabled=true");
     expect(nextSources).toContain("approval.status IN (\'APPROVED\',\'TRUSTED\')");
 
     expect(forward).toContain("BANK_SALARY_PARTIAL_VERIFIED");

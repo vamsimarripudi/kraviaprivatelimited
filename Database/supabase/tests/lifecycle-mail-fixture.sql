@@ -7,7 +7,7 @@ BEGIN
   IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='kravia_office_backend') THEN CREATE ROLE kravia_office_backend NOLOGIN; END IF;
 END;
 $roles$;
-CREATE TABLE public.office_identity_users(user_id uuid PRIMARY KEY,display_name text,status text NOT NULL);
+CREATE TABLE public.office_identity_users(user_id uuid PRIMARY KEY,display_name text,status text NOT NULL, primary_department text);
 CREATE TABLE public.office_user_roles(user_id uuid,role text,expires_at timestamptz);
 CREATE TABLE public.office_auth_users(id text PRIMARY KEY,email text NOT NULL,status text NOT NULL);
 CREATE TABLE public.office_employee_intake_events(
@@ -349,3 +349,59 @@ ALTER TABLE public.office_job_assignments
 ALTER TABLE public.office_payroll_periods
  ADD COLUMN pay_date date,
  ADD COLUMN attendance_cutoff_at timestamptz;
+
+
+-- Synthetic authoritative, verified documents, policy publication, Flex Day
+-- and account-locking sources. All data remains in disposable Postgres CI.
+ALTER TABLE public.office_auth_users ADD COLUMN locked_until timestamptz;
+ALTER TABLE public.office_worktime_policy_versions
+ ADD COLUMN regular_daily_minutes integer NOT NULL DEFAULT 360,
+ ADD COLUMN weekly_target_minutes integer NOT NULL DEFAULT 1800;
+ALTER TABLE public.office_flex_day_requests
+ ADD COLUMN qualifying_work_minutes numeric NOT NULL DEFAULT 1800,
+ ADD COLUMN earned_week_monday date;
+
+CREATE TABLE public.office_policies(
+ id uuid PRIMARY KEY,audience_type text NOT NULL,audience_key text,
+ status text NOT NULL,acknowledgement_required boolean NOT NULL DEFAULT false,
+ current_version integer NOT NULL
+);
+CREATE TABLE public.office_policy_versions(
+ id uuid PRIMARY KEY,policy_id uuid NOT NULL,version integer NOT NULL,
+ status text NOT NULL,published_by uuid,published_at timestamptz
+);
+CREATE TABLE public.office_policy_acknowledgements(
+ id uuid PRIMARY KEY,policy_version_id uuid NOT NULL,user_id uuid NOT NULL,
+ acknowledged_at timestamptz
+);
+CREATE TABLE public.office_document_templates(
+ id uuid PRIMARY KEY,template_code text NOT NULL,category text NOT NULL,
+ status text NOT NULL
+);
+CREATE TABLE public.office_document_instances(
+ id uuid PRIMARY KEY,template_id uuid NOT NULL,subject_type text,
+ subject_reference text,status text NOT NULL,
+ approved_by uuid,approved_at timestamptz,
+ signed_at timestamptz,delivered_at timestamptz
+);
+CREATE TABLE public.office_document_signature_evidence(
+ id uuid PRIMARY KEY,document_instance_id uuid NOT NULL,
+ status text NOT NULL,signed_at timestamptz
+);
+
+
+-- Match production's immutable one-issue-per-calculation invariant and
+-- approved adjustment evidence for a new calculated result version.
+ALTER TABLE public.office_payroll_results
+ ADD COLUMN calculation_version integer NOT NULL DEFAULT 1;
+ALTER TABLE public.office_salary_payslip_issues
+ ADD CONSTRAINT ci_one_issue_per_calculation UNIQUE(payroll_result_id);
+CREATE TABLE public.office_payroll_adjustments(
+ id uuid PRIMARY KEY,
+ period_id uuid NOT NULL,employment_id uuid NOT NULL,employee_user_id uuid NOT NULL,
+ status text NOT NULL,created_by uuid,approved_by uuid,approved_at timestamptz
+);
+
+-- Production identity V2 auth events carry the immutable insertion timestamp.
+ALTER TABLE public.office_auth_events_v2
+ ADD COLUMN created_at timestamptz NOT NULL DEFAULT pg_catalog.now();
