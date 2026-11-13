@@ -44,5 +44,8 @@ describe("KRAVIA Office multi-role sign-in and effective-dated authority", () =>
     expect(snapshot).toContain('.select("profile_code,scope_type,scope_key,status,expires_at,effective_from")');
     expect(snapshot).toContain("officeAccessProfileIsEffective(row)");
     expect(engine).toContain("officeAccessProfileIsEffective(row)");
+    const overview = readFileSync(new URL("../lib/office/workflow-server.ts", import.meta.url), "utf8");
+    expect(overview).toContain('.select("id,profile_code,scope_type,scope_key,status,expires_at,effective_from")');
+    expect(overview).toContain("officeAccessProfileIsEffective(row)");
   });
 });
