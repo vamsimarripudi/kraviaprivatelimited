@@ -55,7 +55,7 @@ test("native workforce modal stays centered and usable beyond sticky header on e
     "<div class='statusSummary'><div><span>Availability</span><strong>Available</strong></div>",
     "<div><span>Attendance</span><strong>Not checked in</strong></div></div>",
     "<div class='attendance'><strong>Six-hour weekday target</strong></div>",
-    ...Array.from({ length: 16 }, (_, index) => "<p class='note'>Review attendance note " + index + "</p>"),
+    ...Array.from({ length: 48 }, (_, index) => "<p class='note'>Review attendance note " + index + "</p>"),
     "</dialog></header>",
   ].join("");
 
