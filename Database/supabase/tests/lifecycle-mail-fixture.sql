@@ -16,9 +16,17 @@ CREATE TABLE public.office_employee_intake_events(
 CREATE TABLE public.office_role_package_events(
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,target_user_id uuid,event_type text NOT NULL
 );
-CREATE TABLE public.office_worktime_review_cases(id uuid PRIMARY KEY,employee_user_id uuid NOT NULL,status text);
+CREATE TABLE public.office_worktime_review_cases(id uuid PRIMARY KEY,employee_user_id uuid NOT NULL,
+ requested_by uuid,status text);
+CREATE TABLE public.office_department_ownership(department_code text PRIMARY KEY,owner_user_id uuid);
+CREATE OR REPLACE FUNCTION public.office_effective_permission(
+ p_user_id uuid,p_permission text,p_scope_type text,p_scope_key text,p_owner_user_id uuid
+) RETURNS boolean LANGUAGE sql STABLE AS $
+  SELECT p_user_id='a0000000-0000-4000-8000-000000000003'::uuid
+    AND p_permission='people.update';
+$;
 CREATE TABLE public.office_worktime_events(
-  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,case_id uuid,event_type text NOT NULL
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,case_id uuid,actor_user_id uuid,event_type text NOT NULL
 );
 CREATE TABLE public.office_department_transfer_requests(
   id uuid PRIMARY KEY,department_code text NOT NULL,
@@ -88,8 +96,14 @@ INSERT INTO public.office_auth_users(id,email,status) VALUES
   ('a0000000-0000-4000-8000-000000000002','synthetic.staff@kraviaprivatelimited.com','ACTIVE'),
   ('a0000000-0000-4000-8000-000000000003','synthetic.manager@kraviaprivatelimited.com','ACTIVE'),
   ('a0000000-0000-4000-8000-000000000004','synthetic.dormant@kraviaprivatelimited.com','ACTIVE');
-INSERT INTO public.office_worktime_review_cases(id,employee_user_id,status)
-VALUES('b0000000-0000-4000-8000-000000000002','a0000000-0000-4000-8000-000000000002','APPROVED');
+INSERT INTO public.office_worktime_review_cases(id,employee_user_id,requested_by,status)
+VALUES
+ ('b0000000-0000-4000-8000-000000000002','a0000000-0000-4000-8000-000000000002',
+ 'a0000000-0000-4000-8000-000000000002','APPROVED'),
+ ('b0000000-0000-4000-8000-000000000005','a0000000-0000-4000-8000-000000000002',
+ 'a0000000-0000-4000-8000-000000000002','PENDING');
+INSERT INTO public.office_department_ownership(department_code,owner_user_id)
+VALUES('PEOPLE','a0000000-0000-4000-8000-000000000003');
 INSERT INTO public.office_department_transfer_requests(id,department_code,from_owner_user_id,to_owner_user_id,status)
 VALUES('c0000000-0000-4000-8000-000000000001','ENGINEERING',
   'a0000000-0000-4000-8000-000000000002','a0000000-0000-4000-8000-000000000003','ACCEPTED');

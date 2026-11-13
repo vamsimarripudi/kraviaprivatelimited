@@ -50,6 +50,9 @@ describe("KRAVIA Office governed 81-event lifecycle notification delivery",()=>{
     expect(schema).toContain("PAYROLL_APPROVAL_SYNCED");
     expect(schema).toContain("SALARY_BATCH_PREPARED");
     expect(schema).toContain("bank_execution");
+    expect(schema).toContain("office_department_ownership");
+    expect(schema).toContain("office_effective_permission");
+    expect(schema).toContain("TIME-03");
 
     expect(worker).toContain("pay_period");
     expect(schema).toContain("FOR UPDATE OF o SKIP LOCKED");

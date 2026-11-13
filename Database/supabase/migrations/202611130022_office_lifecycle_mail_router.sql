@@ -64,7 +64,7 @@ VALUES
   ('ROLE-09','P1',true,'Package version assigned','Your KRAVIA role package has been updated','New role-package version applied to employee','Employee'),
   ('TIME-01','P1',false,'Work schedule assigned or revised','Your KRAVIA work schedule','Approved work schedule/version effective','Employee'),
   ('TIME-02','P2',false,'Missing attendance reminder','Please review your KRAVIA attendance','Scheduled reminder; no approved/open check-in by cutoff','Employee'),
-  ('TIME-03','P1',false,'Attendance correction submitted','Attendance correction awaiting review','Verified correction awaiting separate reviewer','Independent authorised reviewer'),
+  ('TIME-03','P1',true,'Attendance correction submitted','Attendance correction awaiting review','Verified correction awaiting separate reviewer','Independent authorised reviewer'),
   ('TIME-04','P1',true,'Attendance correction decision','Your attendance correction was reviewed','Approved or rejected correction committed','Employee'),
   ('TIME-05','P1',false,'Overtime review requested','Overtime request awaiting review','Weekday/weekend/night extra work evidence submitted','Independent authorised reviewer'),
   ('TIME-06','P1',false,'Overtime approved / rejected','Your KRAVIA overtime request was reviewed','Recorded reviewer decision, approved policy in force','Employee'),
@@ -238,7 +238,20 @@ BEGIN
       PERFORM public.office_lifecycle_mail_enqueue('ONB-05',TG_TABLE_NAME,NEW.id,NEW.target_user_id);
     END IF;
   ELSIF TG_TABLE_NAME='office_worktime_events' THEN
-    IF NEW.event_type IN ('APPROVED','REJECTED') THEN
+    IF NEW.event_type='SUBMITTED' THEN
+      SELECT owner.owner_user_id INTO v_recipient
+      FROM public.office_department_ownership owner
+      JOIN public.office_worktime_review_cases c ON c.id=NEW.case_id
+      JOIN public.office_identity_users reviewer ON reviewer.user_id=owner.owner_user_id
+      WHERE owner.department_code='PEOPLE' AND reviewer.status='ACTIVE'
+        AND c.status='PENDING' AND c.requested_by=NEW.actor_user_id
+        AND owner.owner_user_id IS DISTINCT FROM c.employee_user_id
+        AND owner.owner_user_id IS DISTINCT FROM NEW.actor_user_id
+        AND public.office_effective_permission(owner.owner_user_id,'people.update','COMPANY',NULL,NULL);
+      IF v_recipient IS NOT NULL THEN
+        PERFORM public.office_lifecycle_mail_enqueue('TIME-03',TG_TABLE_NAME,NEW.id,v_recipient);
+      END IF;
+    ELSIF NEW.event_type IN ('APPROVED','REJECTED') THEN
       SELECT c.employee_user_id INTO v_recipient
         FROM public.office_worktime_review_cases c WHERE c.id=NEW.case_id;
       IF v_recipient IS NOT NULL THEN
@@ -471,6 +484,18 @@ BEGIN
               AND ((o.event_code IN ('ONB-09','ROLE-01','ROLE-09')
                      AND ev.event_type='PACKAGE_APPLIED')
                 OR (o.event_code='ONB-05' AND ev.event_type='TASK_RETURNED'))))
+        OR (o.source_table='office_worktime_events' AND o.event_code='TIME-03'
+          AND EXISTS(SELECT 1 FROM public.office_worktime_events ev
+            JOIN public.office_worktime_review_cases c ON c.id=ev.case_id
+            JOIN public.office_department_ownership owner ON owner.department_code='PEOPLE'
+            JOIN public.office_identity_users reviewer ON reviewer.user_id=owner.owner_user_id
+            WHERE ev.id=o.source_id AND ev.event_type='SUBMITTED'
+              AND c.status='PENDING' AND c.requested_by=ev.actor_user_id
+              AND reviewer.status='ACTIVE'
+              AND owner.owner_user_id=o.recipient_user_id
+              AND owner.owner_user_id IS DISTINCT FROM c.employee_user_id
+              AND owner.owner_user_id IS DISTINCT FROM ev.actor_user_id
+              AND public.office_effective_permission(owner.owner_user_id,'people.update','COMPANY',NULL,NULL)))
         OR (o.source_table='office_worktime_events' AND o.event_code='TIME-04'
           AND EXISTS(SELECT 1 FROM public.office_worktime_events ev
             JOIN public.office_worktime_review_cases c ON c.id=ev.case_id
