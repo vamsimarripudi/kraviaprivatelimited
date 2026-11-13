@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, Boolean, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, Index
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, Index
 from sqlalchemy.sql import func
 
 from .database import Base
@@ -185,10 +185,38 @@ class OfficeAuthInvite(Base):
     used_by = Column(String(36), nullable=True)
     used_at = Column(DateTime(timezone=True), nullable=True)
     revoked_at = Column(DateTime(timezone=True), nullable=True)
+    # Explicit Owner opt-in; invite expiry alone never sends another email.
+    notice_opt_in = Column(Boolean, nullable=False, default=False, server_default="false")
 
     __table_args__ = (
         Index("ix_office_auth_invites_email_status", "email", "status"),
         Index("ix_office_auth_invites_expires", "expires_at"),
+    )
+
+
+class OfficeInvitationNoticeDelivery(Base):
+    """One claim per invitation/kind/recipient. UNKNOWN is never resent."""
+
+    __tablename__ = "office_auth_invite_notice_deliveries"
+
+    id = Column(String(36), primary_key=True)
+    invite_id = Column(String(36), ForeignKey("office_auth_invites.id", ondelete="RESTRICT"), nullable=False)
+    kind = Column(String(24), nullable=False)
+    recipient_kind = Column(String(16), nullable=False)
+    recipient_email = Column(String(320), nullable=False)
+    recipient_name = Column(String(160), nullable=False)
+    status = Column(String(16), nullable=False, default="SENDING")
+    claim_token = Column(String(36), nullable=False)
+    claimed_at = Column(DateTime(timezone=True), nullable=False)
+    finalized_at = Column(DateTime(timezone=True), nullable=True)
+    provider_message_id = Column(String(200), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("invite_id", "kind", "recipient_kind", name="uq_auth_invite_notice_once"),
+        CheckConstraint("kind IN ('REMINDER','EXPIRED')", name="ck_auth_invite_notice_kind"),
+        CheckConstraint("recipient_kind IN ('INVITEE','INVITER')", name="ck_auth_invite_notice_recipient"),
+        CheckConstraint("status IN ('SENDING','SENT','REJECTED','UNKNOWN','SKIPPED')", name="ck_auth_invite_notice_outcome"),
+        Index("ix_auth_invite_notice_status_claim", "status", "claimed_at"),
     )
 
 

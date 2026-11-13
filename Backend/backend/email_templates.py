@@ -231,6 +231,60 @@ def office_invitation_template(*, recipient_name: str, registration_url: str, ex
 
 
 
+def office_invitation_status_notice_template(
+    *, kind: str, recipient_kind: str, recipient_name: str,
+    invitee_name: str, hours_left: int = 0,
+) -> TransactionalEmail:
+    """No raw invite token is stored or repeated in a reminder/expiry notice."""
+    if kind not in {"REMINDER", "EXPIRED"}:
+        raise ValueError("Invalid invitation notice kind")
+    if recipient_kind not in {"INVITEE", "INVITER"}:
+        raise ValueError("Invalid invitation notice recipient")
+    if not 0 <= hours_left <= 48:
+        raise ValueError("Invalid remaining invitation lifetime")
+    recipient = (recipient_name.strip() or "Colleague")[:120]
+    invitee = (invitee_name.strip() or "Colleague")[:120]
+    if kind == "REMINDER":
+        subject = "Your KRAVIA Office invitation expires soon"
+        heading = "Your private invitation is expiring"
+        message = (f"Your original KRAVIA Office invitation is due to expire within {hours_left} hours. "
+                   "Use the original single-use registration link you received. "
+                   "If you cannot locate it, ask the authorised KRAVIA Office inviter for a new one.")
+    elif recipient_kind == "INVITER":
+        subject = "A KRAVIA Office invitation has expired"
+        heading = "Invitation expiry recorded"
+        message = (f"The registration invitation issued for {invitee} has expired without completion. "
+                   "If access is still needed, review and reissue it through KRAVIA Office. "
+                   "Expired links cannot be reactivated.")
+    else:
+        subject = "Your KRAVIA Office invitation has expired"
+        heading = "Your private invitation has expired"
+        message = ("The original single-use KRAVIA Office registration link has expired. "
+                   "Please contact your authorised company inviter to request a fresh invitation. "
+                   "Do not share login credentials or attempt to use an expired link.")
+    html_content = (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1"></head>'
+        '<body style="margin:0;background:#f3f5f8;color:#172235;font-family:Arial,sans-serif">'
+        '<main style="max-width:560px;margin:26px auto;padding:30px;background:#fff;'
+        'border:1px solid #d7dfea;border-radius:18px">'
+        '<p style="font:700 11px/18px Arial,sans-serif;color:#1559ce;letter-spacing:1.3px">'
+        'KRAVIA PRIVATE LIMITED</p>'
+        f'<h1 style="font:700 23px/31px Arial,sans-serif">{escape(heading)}</h1>'
+        f'<p style="font:15px/24px Arial,sans-serif">Hello {escape(recipient)},</p>'
+        f'<p style="font:14px/23px Arial,sans-serif;color:#4a5465">{escape(message)}</p>'
+        '<p style="font:12px/20px Arial,sans-serif;color:#687386">'
+        'Security note: We never ask you to reply with a password or authentication code. '
+        'This notice does not contain a registration credential.</p>'
+        '</main></body></html>'
+    )
+    return TransactionalEmail(
+        subject=subject,html_content=html_content,
+        text_content=f"KRAVIA PRIVATE LIMITED\\nHello {recipient},\\n\\n{message}\\n\\n"
+                     "Security: Never share passwords or verification codes.",
+    )
+
+
 def office_password_recovery_template(*, recipient_name: str, recovery_url: str, expiry_minutes: int) -> TransactionalEmail:
     """Send only the registered Office account holder a private password-reset link."""
     name = recipient_name.strip() or "Colleague"

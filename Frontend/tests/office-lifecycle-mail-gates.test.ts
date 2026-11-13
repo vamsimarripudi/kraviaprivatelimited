@@ -13,6 +13,9 @@ const workforce = readFileSync(new URL("../../Database/supabase/migrations/20261
 const scheduled = readFileSync(new URL("../../Database/supabase/migrations/202611130028_scheduled_lifecycle_verified_sources.sql",import.meta.url),"utf8");
 const controlled = readFileSync(new URL("../../Database/supabase/migrations/202611130029_policy_documents_flex_sources.sql",import.meta.url),"utf8");
 const workdayExit = readFileSync(new URL("../../Database/supabase/migrations/202611130030_workday_attendance_offboarding_notifications.sql",import.meta.url),"utf8");
+const transactionalAuth = readFileSync(new URL("../../Database/supabase/migrations/202611130031_existing_transactional_auth_delivery_ownership.sql",import.meta.url),"utf8");
+const existingAuthDelivery = readFileSync(new URL("../../Backend/backend/email_delivery.py",import.meta.url),"utf8");
+const existingAuthRouter = readFileSync(new URL("../../Backend/backend/identity_auth.py",import.meta.url),"utf8");
 const effectiveSchema = schema + "\n" + forward + "\n" + nextSources + "\n" + deviceAtomicity + "\n" + workforce + "\n" + scheduled + "\n" + controlled;
 const worker = readFileSync(new URL("../../Backend/backend/office_lifecycle_mail_worker.py",import.meta.url),"utf8");
 const manifest = JSON.parse(readFileSync(new URL("../../Backend/backend/generated_office_lifecycle_templates.json",import.meta.url),"utf8"));
@@ -144,6 +147,28 @@ describe("KRAVIA Office governed 81-event lifecycle notification delivery",()=>{
     expect(effectiveSchema).toContain("FROM PUBLIC,anon,authenticated,service_role");
     expect(worker).toContain('KRAVIA_LIFECYCLE_MAIL_DISPATCH_ENABLED');
     expect(worker).toContain('PROVIDER_NOT_CONFIGURED');
+  });
+  it("recognises the four existing first-party credential senders without duplicate lifecycle sends",()=>{
+    for(const code of ["AUTH-01","AUTH-05","AUTH-06","AUTH-08"]){
+      expect(transactionalAuth).toContain(code);
+    }
+    for(const sender of ["send_office_invitation_email","send_office_email_verification_code",
+      "send_office_device_approval","send_office_password_recovery_email"]){
+      expect(existingAuthDelivery).toContain("def "+sender+"(");
+      expect(existingAuthRouter).toContain(sender+"(");
+    }
+    for(const event of ["INVITATION_EMAIL_ACCEPTED","OFFICE_INVITE_EMAIL_OTP_SENT",
+      "DEVICE_APPROVAL_SENT","PASSWORD_RECOVERY_EMAIL_ACCEPTED"]){
+      expect(transactionalAuth).toContain(event);
+    }
+    expect(transactionalAuth).toContain("delivery_owner='FIRST_PARTY_AUTH'");
+    expect(transactionalAuth).toContain("office_lifecycle_mail_prevent_duplicate_auth_dispatch");
+    expect(transactionalAuth).toContain("source_ready)<>63");
+    expect(endpoint).toContain('ownership.data.delivery_owner==="FIRST_PARTY_AUTH"');
+    expect(controls).toContain("This security email already uses the authenticated KRAVIA Office transactional sender.");
+    expect(controls).toContain('active.delivery_owner==="CANDIDATE_WORKER"');
+    expect(controls).toContain("Consent-verified candidate mail worker");
+    expect(transactionalAuth).not.toContain("INSERT INTO public.office_lifecycle_mail_outbox");
   });
   it("requires authorised Owner and AAL2 for every review, without manual sending",()=>{
     expect(endpoint).toContain("await requireOfficeActor()");

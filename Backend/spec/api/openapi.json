@@ -1579,6 +1579,11 @@
             ],
             "title": "Job Title"
           },
+          "notice_opt_in": {
+            "default": false,
+            "title": "Notice Opt In",
+            "type": "boolean"
+          },
           "reason": {
             "maxLength": 500,
             "minLength": 3,
@@ -1601,6 +1606,26 @@
           "reason"
         ],
         "title": "InviteCreatePayload",
+        "type": "object"
+      },
+      "InviteNoticeOptInPayload": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 12,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled",
+          "reason"
+        ],
+        "title": "InviteNoticeOptInPayload",
         "type": "object"
       },
       "InviteRegisterPayload": {
@@ -6306,6 +6331,72 @@
           }
         },
         "summary": "Create Invitation",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/invitations/{invitation_id}/notice-opt-in": {
+      "post": {
+        "operationId": "set_invitation_notice_opt_in_api_v1_auth_invitations__invitation_id__notice_opt_in_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invitation_id",
+            "required": true,
+            "schema": {
+              "title": "Invitation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteNoticeOptInPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Invitation Notice Opt In",
         "tags": [
           "identity"
         ]

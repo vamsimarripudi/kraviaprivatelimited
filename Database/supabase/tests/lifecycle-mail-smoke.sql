@@ -7,8 +7,26 @@ BEGIN
   IF EXISTS(SELECT 1 FROM public.office_lifecycle_mail_policy WHERE enabled) THEN
     RAISE EXCEPTION 'Office lifecycle mail migration unexpectedly enabled delivery';
   END IF;
-  IF (SELECT count(*) FROM public.office_lifecycle_mail_policy WHERE source_ready)<>59 THEN
+  IF (SELECT count(*) FROM public.office_lifecycle_mail_policy WHERE source_ready)<>74 THEN
     RAISE EXCEPTION 'Source-ready events must be accurately distinguished from unmapped events';
+  END IF;
+  -- Exactly seven still-unmapped events must remain unready until their
+  -- independently evidenced signing / former-employee delivery paths exist.
+  -- A count-only check could miss an unsafe substitution of one event for another.
+  IF (SELECT array_agg(event_code ORDER BY event_code)
+      FROM public.office_lifecycle_mail_policy WHERE NOT source_ready)
+     IS DISTINCT FROM ARRAY[
+       'EXIT-02','EXIT-04','EXIT-05','EXIT-06','EXIT-07','EXIT-08','ONB-04'
+     ]::text[] THEN
+    RAISE EXCEPTION 'Exactly seven still-unmapped events must remain blocked';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.office_lifecycle_mail_policy
+     WHERE event_code IN (
+       'EXIT-02','EXIT-04','EXIT-05','EXIT-06','EXIT-07','EXIT-08','ONB-04'
+     ) AND (source_ready OR enabled OR delivery_owner <> 'LIFECYCLE_WORKER')
+  ) THEN
+    RAISE EXCEPTION 'Unverified signing or former-employee route was activated';
   END IF;
   IF pg_catalog.has_table_privilege('anon','public.office_lifecycle_mail_outbox','SELECT') OR
      pg_catalog.has_table_privilege('authenticated','public.office_lifecycle_mail_policy','SELECT') OR
@@ -29,17 +47,31 @@ BEGIN
 END;
 $history$;
 
--- An Owner cannot enable unmapped events.
+-- Even the active Owner must be refused for EACH unverified event,
+-- not only for one representative signing event. This tests the public
+-- policy-setting procedure as well as the raw database invariants above.
 DO $deny$
-DECLARE refused boolean:=false;
+DECLARE
+  v_code text;
+  v_refused boolean;
 BEGIN
-  BEGIN
-    PERFORM public.office_lifecycle_mail_policy_set(
-      'a0000000-0000-4000-8000-000000000001','HIRE-01',true,
-      pg_catalog.now(),'Synthetic, strictly isolated candidate event approval');
-  EXCEPTION WHEN others THEN refused:=true;
-  END;
-  IF NOT refused THEN RAISE EXCEPTION 'Unmapped lifecycle event became sendable'; END IF;
+  FOREACH v_code IN ARRAY ARRAY[
+    'ONB-04','EXIT-02','EXIT-04','EXIT-05','EXIT-06','EXIT-07','EXIT-08'
+  ]::text[] LOOP
+    v_refused:=false;
+    BEGIN
+      PERFORM public.office_lifecycle_mail_policy_set(
+        'a0000000-0000-4000-8000-000000000001',v_code,true,
+        pg_catalog.now(),'Synthetic isolated check of unverified mail denial');
+    EXCEPTION WHEN others THEN v_refused:=true;
+    END;
+    IF NOT v_refused OR EXISTS(
+      SELECT 1 FROM public.office_lifecycle_mail_policy
+      WHERE event_code=v_code AND enabled
+    ) THEN
+      RAISE EXCEPTION 'Unverified event % became sendable',v_code;
+    END IF;
+  END LOOP;
 END;
 $deny$;
 

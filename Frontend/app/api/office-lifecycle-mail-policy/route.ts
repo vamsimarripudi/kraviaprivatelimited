@@ -26,7 +26,7 @@ function failure(error:unknown){
 }
 async function readPolicies(actor:Awaited<ReturnType<typeof owner>>){
   const result=await actor.admin.from("office_lifecycle_mail_policy")
-    .select("event_code,priority,source_ready,enabled,approved_at,effective_from,intent,subject,trigger_description,recipient_description")
+    .select("event_code,priority,source_ready,delivery_owner,enabled,approved_at,effective_from,intent,subject,trigger_description,recipient_description")
     .order("event_code");
   if(result.error||!result.data||result.data.length!==81)
     throw new Error("Office lifecycle registry is incomplete or unavailable");
@@ -40,7 +40,7 @@ async function readPolicies(actor:Awaited<ReturnType<typeof owner>>){
     enabled:result.data.filter(row=>row.enabled===true).length,
     count_by_status:Object.fromEntries(states.map((status,i)=>[status,
       !counts[i]?.error && typeof counts[i]?.count==="number"?counts[i].count:null])),
-    notice:"Only committed, source-verified employee events can be enabled. All 81 copies exist but unmapped event sources remain blocked. Provider acceptance does not prove inbox delivery.",
+    notice:"Covered events include first-party credential emails that already use secure transactional delivery. Those cannot be enabled again in lifecycle mail. All other unmapped sources remain blocked; provider acceptance does not prove inbox delivery.",
   };
 }
 export async function GET(){
@@ -55,6 +55,12 @@ export async function POST(request:Request){
     return NextResponse.json({detail:"Invalid documented lifecycle-policy decision"},{status:400,headers});
   try{
     const current=await owner();
+    const ownership=await current.admin.from("office_lifecycle_mail_policy")
+      .select("delivery_owner").eq("event_code",parsed.data.event_code).single();
+    if(ownership.error||!ownership.data)
+      return NextResponse.json({detail:"The lifecycle delivery owner could not be verified"},{status:503,headers});
+    if(parsed.data.enabled&&ownership.data.delivery_owner==="FIRST_PARTY_AUTH")
+      return NextResponse.json({detail:"This security email is already delivered by the authenticated Office workflow; enabling lifecycle delivery would duplicate it"},{status:409,headers});
     const result=await current.admin.rpc("office_lifecycle_mail_policy_set",{
       p_actor:current.identity.userId,
       p_event:parsed.data.event_code,
