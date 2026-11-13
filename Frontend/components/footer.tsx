@@ -123,16 +123,37 @@ export async function Footer() {
         </section>
 
         <section className={styles.recognitions} aria-label="Registrations and recognitions">
-          <div className={styles.credentials}>
-            {recognitions.map((recognition) => (
-              <a key={recognition.reference} href={recognition.href} target="_blank" rel="noopener noreferrer" aria-label={`Verify ${recognition.title}, ${recognition.reference} (opens in a new tab)`}>
-                <BadgeCheck className={styles.badge} aria-hidden="true" />
-                <span><strong>{recognition.authority}</strong><span>{recognition.title}</span><code>{recognition.reference}</code></span>
-                <ExternalLink className={styles.external} aria-hidden="true" />
-              </a>
-            ))}
+          <div className={styles.registrationGroup}>
+            <div className={styles.credentials}>
+              {recognitions.map((recognition) => (
+                <a key={recognition.reference} href={recognition.href} target="_blank" rel="noopener noreferrer" aria-label={`Verify ${recognition.title}, ${recognition.reference} (opens in a new tab)`}>
+                  <BadgeCheck className={styles.badge} aria-hidden="true" />
+                  <span><strong>{recognition.authority}</strong><span>{recognition.title}</span><code>{recognition.reference}</code></span>
+                  <ExternalLink className={styles.external} aria-hidden="true" />
+                </a>
+              ))}
+            </div>
+            <p className={styles.note}>Recognition, registration and program membership identify the company only. They do not endorse KRAVIA products or services.</p>
           </div>
-          <p className={styles.note}>Recognition and registration identify the company only. They do not endorse KRAVIA products or services.</p>
+          <div className={styles.inceptionMember}>
+            <p className={styles.inceptionLabel}>Startup program membership</p>
+            <a
+              className={styles.inceptionBadge}
+              href="https://www.nvidia.com/en-in/startups/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="KRAVIA is a member of the NVIDIA Inception program (opens in a new tab)"
+            >
+              <Image
+                src="/brand/partners/nvidia-inception-member-rgb.svg"
+                width={501}
+                height={217}
+                alt="NVIDIA Inception Program member badge"
+                unoptimized
+              />
+            </a>
+            <p className={styles.inceptionCaption}>KRAVIA PRIVATE LIMITED is a member of NVIDIA Inception.</p>
+          </div>
         </section>
 
         <div className={styles.bottom}>

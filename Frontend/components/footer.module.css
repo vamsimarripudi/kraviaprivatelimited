@@ -40,7 +40,13 @@
 .facts dd { margin: 0; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 .contact dd > a { display: inline-flex; align-items: center; min-height: 28px; max-width: 100%; margin-top: -4px; text-decoration: underline; text-decoration-color: var(--footer-border); }
 .recognitions { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); align-items: center; gap: 32px; padding-block: 16px; }
+.registrationGroup { display: grid; align-content: center; gap: 12px; min-width: 0; }
 .credentials { display: flex; flex-wrap: wrap; gap: 16px 36px; }
+.inceptionMember { display: grid; justify-items: start; align-content: center; gap: 6px; min-width: 0; }
+.inceptionLabel { margin: 0; font-size: 12px; font-weight: 600; color: var(--footer-accent); line-height: 1.5; }
+.inceptionBadge { display: inline-flex; align-items: center; justify-content: start; width: min(218px, 100%); min-height: 44px; line-height: 0; text-decoration: none; border-radius: 3px; }
+.inceptionBadge img { display: block; width: 100%; height: auto; object-fit: contain; }
+.inceptionCaption { margin: 0; color: var(--footer-muted); font-size: 12px; line-height: 1.5; max-width: 30ch; }
 .credentials > a { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 44px; }
 .badge { flex: none; width: 19px; height: 19px; color: var(--footer-accent); }
 .credentials > a > span { display: grid; gap: 2px; min-width: 0; }
