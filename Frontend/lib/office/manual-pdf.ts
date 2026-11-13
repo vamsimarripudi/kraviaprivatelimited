@@ -8,7 +8,7 @@ import { type ManualRole } from "@/lib/office/manuals";
 
 type Chapter = {title:string;steps:readonly string[]};
 type Route = {href:string;title:string;description:string};
-type Pack = {edition:string;common:readonly Chapter[];roles:readonly ManualRole[];routes:readonly Route[];fullCommon?:string;fullRoles?:readonly string[]};
+type Pack = {edition:string;common:readonly Chapter[];roles:readonly ManualRole[];routes:readonly Route[];fullCommon?:string;fullRoles?:readonly string[];fullAtlas?:string};
 type Line = {text:string;kind:"title"|"sub"|"heading"|"body"};
 const clean=(value:string)=>value.normalize("NFKD")
   .replace(/[\u2010-\u2015\u2212]/g,"-").replace(/[\u2018\u2019]/g,"'")
@@ -74,6 +74,16 @@ function buildLines(pack:Pack):Line[]{
     put("sub","Authority boundary");put("body",role.boundaries);
     out.push({kind:"body",text:" "});
   });
+  if(pack.fullAtlas){
+    put("heading","OWNER REFERENCE - FULL AUDITED OFFICE AND FINANCE ROUTE ATLAS",70);
+    for(const raw of pack.fullAtlas.split("\n")){
+      const line=raw.trim();
+      if(!line || line==="---"){out.push({kind:"body",text:" "});continue;}
+      if(/^\|[\s|:\-]+\|?$/.test(line))continue;
+      if(line.startsWith("#"))put("heading",stripMarkup(line.replace(/^#+\s*/,"")),70);
+      else put("body",stripMarkup(line).replace(/^>\s?/,"").replace(/^\|/,""),90);
+    }
+  }
   put("heading","YOUR CURRENTLY PERMITTED OFFICE ROUTES",68);
   pack.routes.forEach((route,i)=>{
     put("body",String(i+1)+". "+route.title+" - "+route.href,90);
