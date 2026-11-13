@@ -115,9 +115,15 @@
 /* Native workforce modal is a top-layer component, outside legacy sticky
    topbar positioning. Reinforce its active theme against broad V2/V4 rules. */
 .kravia-office .office-v2.office-modern .office-main dialog[data-office-presence-dialog] {
+  /* Explicit viewport coordinates avoid UA dialog centering offsets inherited
+     from the transformed, sticky Office top bar. */
   position: fixed !important;
-  inset: 0 !important;
-  margin: auto !important;
+  top: 50% !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  margin: 0 !important;
+  transform: translate(-50%, -50%) !important;
   background: var(--office-ui-surface, #fff) !important;
   color: var(--office-ui-ink, #171b25) !important;
   border-color: var(--office-ui-line, #d9dfe9) !important;
