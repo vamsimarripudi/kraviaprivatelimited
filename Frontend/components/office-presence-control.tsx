@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, Clock3, LoaderCircle, MoreHorizontal, ShieldCheck, X } from "lucide-react";
+import { ChevronDown, Clock3, LoaderCircle, MoreHorizontal, X } from "lucide-react";
 import Link from "next/link";
 import {
   availabilityOption,
