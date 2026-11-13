@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'Database/supabase/migrations/202611130035_governed_offboarding_contact_evidence.sql'
+      - 'Database/supabase/migrations/202611130036_offboarding_event_source_proofs.sql'
       - 'Database/supabase/tests/office-exit-contact-*.sql'
       - '.github/workflows/office-exit-contact-db.yml'
   workflow_dispatch:
@@ -47,4 +48,8 @@ jobs:
           result="$(pg --tuples-only --no-align \
             -f Database/supabase/tests/office-exit-contact-smoke.sql | tail -n 1)"
           test "$result" = "OFFICE_EXIT_CONTACT_EVIDENCE_VERIFIED"
-          echo "Two-person contact evidence, address rotation, revocation, and private access verified."
+          pg -f Database/supabase/migrations/202611130036_offboarding_event_source_proofs.sql
+          source_result="$(pg --tuples-only --no-align \
+            -f Database/supabase/tests/office-exit-source-smoke.sql | tail -n 1)"
+          test "$source_result" = "OFFICE_EXIT_SOURCE_PROOFS_VERIFIED"
+          echo "Two-person contact evidence, governed exit source proofs, and zero delivery verified."
