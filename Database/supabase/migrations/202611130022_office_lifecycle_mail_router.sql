@@ -74,11 +74,11 @@ VALUES
   ('TIME-10','P1',false,'Payroll attendance cutoff','Attendance review closes soon','Upcoming verified period cutoff','Employee and permitted approver'),
   ('PAY-01','P0',false,'Compensation draft for review','Compensation proposal requires approval','Effective-dated compensation proposal submitted','Independent reviewer/director'),
   ('PAY-02','P0',true,'Compensation approved / rejected','Your KRAVIA compensation record was updated','Governed final decision committed','Affected employee'),
-  ('PAY-03','P1',false,'Payroll period opened','KRAVIA payroll period is open','Actual period created','Finance preparer'),
+  ('PAY-03','P1',true,'Payroll period opened','KRAVIA payroll period is open','Actual period created','Finance preparer'),
   ('PAY-04','P0',false,'Payroll review required','KRAVIA payroll approval required','Locked review request sent to independent approver','Payroll reviewer/director'),
-  ('PAY-05','P0',false,'Payroll approved','KRAVIA payroll run approved','All required approvals completed and results locked','Finance preparer'),
+  ('PAY-05','P0',true,'Payroll approved','KRAVIA payroll run approved','All required approvals completed and results locked','Finance preparer'),
   ('PAY-06','P0',true,'Salary slip issued','Your KRAVIA payslip for {{pay_period}} is ready','Immutable approved payroll payslip exists','Employee'),
-  ('PAY-07','P1',false,'Payment batch prepared','KRAVIA salary batch prepared — not yet paid','Batch only PREPARED; not bank-confirmed','Finance preparer/reviewer'),
+  ('PAY-07','P1',true,'Payment batch prepared','KRAVIA salary batch prepared — not yet paid','Batch only PREPARED; not bank-confirmed','Finance preparer/reviewer'),
   ('PAY-08','P0',false,'Salary credit verified','KRAVIA salary payment confirmed — {{pay_period}}','Independent bank settlement verification covers full net salary','Employee'),
   ('PAY-09','P0',false,'Partial payment / balance outstanding','Important: Outstanding KRAVIA salary balance','Verified credit is less than net; remaining amount owed','Employee and authorised Finance'),
   ('PAY-10','P0',false,'Unpaid salary overdue','Salary payment follow-up for {{pay_period}}','Pay date passed with independently unverified balance','Employee and escalation approver'),
@@ -306,6 +306,30 @@ BEGIN
       IF v_recipient IS NOT NULL THEN
         PERFORM public.office_lifecycle_mail_enqueue('PAY-02',TG_TABLE_NAME,NEW.id,v_recipient);
       END IF;
+    ELSIF NEW.event_type='PAYROLL_PERIOD_OPENED' AND NEW.period_id IS NOT NULL THEN
+      SELECT p.created_by INTO v_recipient FROM public.office_payroll_periods p
+      WHERE p.id=NEW.period_id AND p.status IN ('DRAFT','ATTENDANCE_READY','CALCULATED','PENDING_REVIEW')
+        AND p.created_by=NEW.actor_user_id;
+      IF v_recipient IS NOT NULL THEN
+        PERFORM public.office_lifecycle_mail_enqueue('PAY-03',TG_TABLE_NAME,NEW.id,v_recipient);
+      END IF;
+    ELSIF NEW.event_type='PAYROLL_APPROVAL_SYNCED'
+        AND NEW.period_id IS NOT NULL AND NEW.metadata->>'payroll_status'='APPROVED' THEN
+      SELECT p.created_by INTO v_recipient FROM public.office_payroll_periods p
+      WHERE p.id=NEW.period_id AND p.status IN ('APPROVED','PAYMENT_PREPARED')
+        AND p.approved_by IS NOT NULL AND p.approved_at IS NOT NULL;
+      IF v_recipient IS NOT NULL THEN
+        PERFORM public.office_lifecycle_mail_enqueue('PAY-05',TG_TABLE_NAME,NEW.id,v_recipient);
+      END IF;
+    ELSIF NEW.event_type='SALARY_BATCH_PREPARED' AND NEW.batch_id IS NOT NULL
+        AND NEW.metadata->>'bank_execution'='false' THEN
+      SELECT batch.prepared_by INTO v_recipient FROM public.office_salary_payment_batches batch
+      JOIN public.office_payroll_periods p ON p.id=batch.period_id
+      WHERE batch.id=NEW.batch_id AND batch.status='PREPARED'
+        AND p.id=NEW.period_id AND p.status IN ('APPROVED','PAYMENT_PREPARED');
+      IF v_recipient IS NOT NULL THEN
+        PERFORM public.office_lifecycle_mail_enqueue('PAY-07',TG_TABLE_NAME,NEW.id,v_recipient);
+      END IF;
     ELSIF NEW.event_type='PAYSLIP_ISSUED' AND NEW.metadata->>'payslip_issue_id' IS NOT NULL THEN
       SELECT issue.employee_user_id INTO v_recipient
       FROM public.office_salary_payslip_issues issue
@@ -492,6 +516,29 @@ BEGIN
               AND cv.status='APPROVED' AND cv.approved_by IS NOT NULL AND cv.approved_at IS NOT NULL
               AND ev.event_type='COMPENSATION_APPROVAL_SYNCED'
               AND ev.metadata->>'compensation_status'='APPROVED'))
+        OR (o.source_table='office_payroll_events' AND o.event_code='PAY-03'
+          AND EXISTS(SELECT 1 FROM public.office_payroll_events ev
+            JOIN public.office_payroll_periods p ON p.id=ev.period_id
+            WHERE ev.id=o.source_id AND ev.event_type='PAYROLL_PERIOD_OPENED'
+              AND p.created_by=o.recipient_user_id AND p.created_by=ev.actor_user_id
+              AND p.status IN ('DRAFT','ATTENDANCE_READY','CALCULATED','PENDING_REVIEW')))
+        OR (o.source_table='office_payroll_events' AND o.event_code='PAY-05'
+          AND EXISTS(SELECT 1 FROM public.office_payroll_events ev
+            JOIN public.office_payroll_periods p ON p.id=ev.period_id
+            WHERE ev.id=o.source_id AND ev.event_type='PAYROLL_APPROVAL_SYNCED'
+              AND ev.metadata->>'payroll_status'='APPROVED'
+              AND p.created_by=o.recipient_user_id
+              AND p.approved_by IS NOT NULL AND p.approved_at IS NOT NULL
+              AND p.status IN ('APPROVED','PAYMENT_PREPARED')))
+        OR (o.source_table='office_payroll_events' AND o.event_code='PAY-07'
+          AND EXISTS(SELECT 1 FROM public.office_payroll_events ev
+            JOIN public.office_salary_payment_batches batch ON batch.id=ev.batch_id
+            JOIN public.office_payroll_periods p ON p.id=batch.period_id
+            WHERE ev.id=o.source_id AND ev.event_type='SALARY_BATCH_PREPARED'
+              AND ev.metadata->>'bank_execution'='false'
+              AND batch.prepared_by=o.recipient_user_id
+              AND batch.status='PREPARED'
+              AND p.id=ev.period_id AND p.status IN ('APPROVED','PAYMENT_PREPARED')))
         OR (o.source_table='office_payroll_events' AND o.event_code='PAY-06'
           AND EXISTS(SELECT 1 FROM public.office_payroll_events ev
             JOIN public.office_salary_payslip_issues issue

@@ -56,7 +56,11 @@ CREATE TABLE public.office_payroll_events(
   event_type text NOT NULL,metadata jsonb NOT NULL DEFAULT '{}'::jsonb
 );
 CREATE TABLE public.office_payroll_periods(
-  id uuid PRIMARY KEY,period_code text NOT NULL,status text NOT NULL
+  id uuid PRIMARY KEY,period_code text NOT NULL,status text NOT NULL,
+  created_by uuid,approved_by uuid,approved_at timestamptz
+);
+CREATE TABLE public.office_salary_payment_batches(
+  id uuid PRIMARY KEY,period_id uuid,prepared_by uuid,status text NOT NULL
 );
 CREATE TABLE public.office_payroll_results(
   id uuid PRIMARY KEY,period_id uuid,employment_id uuid,employee_user_id uuid,status text NOT NULL
@@ -103,8 +107,18 @@ INSERT INTO public.office_compensation_versions(id,employee_user_id,status,appro
 INSERT INTO public.office_tasks(id,assigned_user_id,status) VALUES(
  'e0000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000002','OPEN');
 
-INSERT INTO public.office_payroll_periods(id,period_code,status) VALUES(
- 'f0000000-0000-4000-8000-000000000001','2026-11','APPROVED');
+INSERT INTO public.office_payroll_periods(
+  id,period_code,status,created_by,approved_by,approved_at
+) VALUES
+ ('f0000000-0000-4000-8000-000000000001','2026-11','APPROVED',
+  'a0000000-0000-4000-8000-000000000003',
+  'a0000000-0000-4000-8000-000000000001',pg_catalog.now()),
+ ('f0000000-0000-4000-8000-000000000006','2026-12','DRAFT',
+  'a0000000-0000-4000-8000-000000000003',NULL,NULL);
+INSERT INTO public.office_salary_payment_batches(id,period_id,prepared_by,status)
+VALUES('f0000000-0000-4000-8000-000000000007',
+ 'f0000000-0000-4000-8000-000000000001',
+ 'a0000000-0000-4000-8000-000000000003','PREPARED');
 INSERT INTO public.office_payroll_results(id,period_id,employment_id,employee_user_id,status) VALUES(
  'f0000000-0000-4000-8000-000000000002','f0000000-0000-4000-8000-000000000001',
  'f0000000-0000-4000-8000-000000000003','a0000000-0000-4000-8000-000000000002','LOCKED');
