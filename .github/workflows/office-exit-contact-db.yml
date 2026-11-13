@@ -7,6 +7,7 @@ on:
       - 'Database/supabase/migrations/202611130037_offboarding_settlement_source_evidence.sql'
       - 'Database/supabase/migrations/202611130038_signed_exit_document_source_evidence.sql'
       - 'Database/supabase/migrations/202611130039_offboarding_completion_source_evidence.sql'
+      - 'Database/supabase/migrations/202611130040_signing_provider_link_source_evidence.sql'
       - 'Database/supabase/tests/office-exit-contact-*.sql'
       - '.github/workflows/office-exit-contact-db.yml'
   workflow_dispatch:
@@ -67,4 +68,8 @@ jobs:
           completion_result="$(pg --tuples-only --no-align \
             -f Database/supabase/tests/office-exit-completion-smoke.sql | tail -n 1)"
           test "$completion_result" = "OFFICE_EXIT_COMPLETION_EVIDENCE_VERIFIED"
-          echo "All six offboarding source-proof requirements tested with no external mail or production writes."
+          pg -f Database/supabase/migrations/202611130040_signing_provider_link_source_evidence.sql
+          signing_result="$(pg --tuples-only --no-align \
+            -f Database/supabase/tests/office-signing-provider-source-smoke.sql | tail -n 1)"
+          test "$signing_result" = "ONBOARDING_SIGNING_PROVIDER_PROOF_VERIFIED"
+          echo "Six exit source proofs and one provider-issued signing link proof validated; zero mail or production writes."
