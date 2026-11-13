@@ -1,0 +1,50 @@
+name: Office 5.0 isolated chat SQL rehearsal
+
+on:
+  pull_request:
+    paths:
+      - "Database/supabase/migrations/202611140001_office_chat_private_messages.sql"
+      - "Database/supabase/migrations/202611140002_office_chat_private_groups.sql"
+      - "Database/supabase/tests/office5_chat_security.sql"
+      - ".github/workflows/office5-chat-sql.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chat-postgres:
+    name: Private chat authorization / isolated Postgres 17
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-isolated-office-only
+          POSTGRES_DB: kravia_office_chat_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kravia_office_chat_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate private data, membership, idempotency and group authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg() {
+            docker run --rm --network host --volume "$PWD:/repo:ro" --workdir /repo \
+              --env PGPASSWORD=ci-isolated-office-only postgres:17 \
+              psql --host 127.0.0.1 --username postgres --dbname kravia_office_chat_test \
+              --set ON_ERROR_STOP=1 "$@"
+          }
+          pg --command "create role anon nologin; create role authenticated nologin; create role service_role nologin; create extension if not exists pgcrypto; create table public.office_identity_users(user_id uuid primary key, status text not null);"
+          pg --file Database/supabase/migrations/202611140001_office_chat_private_messages.sql
+          pg --file Database/supabase/migrations/202611140002_office_chat_private_groups.sql
+          pg --file Database/supabase/tests/office5_chat_security.sql
+          counts="$(pg --tuples-only --no-align --command "select (select count(*) from public.office_chat_conversations),(select count(*) from public.office_chat_messages)")"
+          test "$counts" = "0|0"

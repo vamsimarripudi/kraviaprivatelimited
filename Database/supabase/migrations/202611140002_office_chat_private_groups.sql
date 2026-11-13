@@ -15,7 +15,7 @@ begin
  or p_members is null or array_position(p_members,null) is not null then
    raise exception 'Invalid private group';
  end if;
- select count(distinct id) into v_count from unnest(p_members) as id;
+ select count(distinct candidate.user_id) into v_count from unnest(p_members) as candidate(user_id);
  if v_count<1 or v_count>29 or array_length(p_members,1)<>v_count
  or p_actor=any(p_members) then
    raise exception 'Group requires 1 to 29 distinct verified colleagues';
@@ -32,7 +32,7 @@ begin
  insert into public.office_chat_memberships(conversation_id,user_id,added_by)
  values(v_id,p_actor,p_actor);
  insert into public.office_chat_memberships(conversation_id,user_id,added_by)
- select v_id,id,p_actor from unnest(p_members) as id;
+ select v_id,candidate.user_id,p_actor from unnest(p_members) as candidate(user_id);
  insert into public.office_chat_audit_events(conversation_id,actor_user_id,event_type,object_id)
  values(v_id,p_actor,'GROUP_CREATED',v_id);
  return v_id;
