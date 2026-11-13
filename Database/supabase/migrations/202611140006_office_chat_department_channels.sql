@@ -50,3 +50,26 @@ alter table public.office_chat_audit_events add constraint office_chat_audit_eve
 
 revoke all on function public.office_chat_open_department(uuid,text) from public,anon,authenticated;
 grant execute on function public.office_chat_open_department(uuid,text) to service_role;
+
+
+-- Fail closed if an HR transfer races with a message write.
+create or replace function public.office_chat_department_message_guard()
+returns trigger language plpgsql security invoker set search_path=public as $$
+begin
+ if exists(
+  select 1 from public.office_chat_conversations c
+   where c.id=new.conversation_id and c.kind='DEPARTMENT'
+   and not exists(
+    select 1 from public.office_job_assignments j
+     where j.user_id=new.sender_user_id and j.status='ACTIVE'
+       and upper(j.department_code)=c.department_code
+   )
+ ) then raise exception 'Sender no longer has this department assignment'; end if;
+ return new;
+end; $$;
+drop trigger if exists office_chat_department_message_guard on public.office_chat_messages;
+create trigger office_chat_department_message_guard
+ before insert or update on public.office_chat_messages
+ for each row execute function public.office_chat_department_message_guard();
+revoke execute on function public.office_chat_department_message_guard() from public,anon,authenticated;
+grant execute on function public.office_chat_department_message_guard() to service_role;

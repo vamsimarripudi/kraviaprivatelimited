@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, ClipboardCheck, MessageSquareText, RefreshCw, Search, Send, ShieldCheck } from "lucide-react";
 import styles from "./office-connect.module.css";
 import { OfficeConnectMessageActions } from "@/components/office-connect-message-actions";
+import { useOfficeWorkspace } from "@/components/office-workspace-context";
 
 type Conversation = { id: string; kind: string; title: string; updated_at: string };
 type Message = { id: string; sender_user_id: string; sender_name: string; body: string; created_at: string; edited_at?: string | null };
@@ -20,6 +21,7 @@ async function json<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export function OfficeConnect({ initialConversationId }: { initialConversationId?: string }) {
+  const {identity}=useOfficeWorkspace();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [actor, setActor] = useState("");
   const [listError, setListError] = useState("");
@@ -118,6 +120,8 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
       <div className={styles.headerActions}>
         <Link href="/office/chat/directory"><Search size={17} aria-hidden="true"/>Find employee</Link>
         <Link href="/office/chat/groups/new"><MessageSquareText size={17} aria-hidden="true"/>Create group</Link>
+        {identity.department?<Link href={"/office/chat/channels/"+identity.department.toLowerCase()}>
+          <MessageSquareText size={17} aria-hidden="true"/>My department</Link>:null}
         <button type="button" onClick={() => setReloadCount(v => v + 1)} aria-label="Refresh Connect" title="Refresh"><RefreshCw size={17}/></button>
       </div>
     </header>

@@ -327,7 +327,14 @@ export async function getOfficeChatMembers(conversationId:string){
  const people=await current.admin.from("office_identity_users")
   .select("user_id,display_name").in("user_id",ids).eq("status","ACTIVE").limit(100);
  if(people.error)throw internalFailure("Current conversation members unavailable");
- return {members:people.data??[]};
+ const conversation=await ownMembership(current,conversationId);
+ if(conversation.kind!=="DEPARTMENT")return {members:people.data??[]};
+ const assignments=await current.admin.from("office_job_assignments")
+  .select("user_id").in("user_id",ids).eq("department_code",conversation.department_code)
+  .eq("status","ACTIVE").limit(100);
+ if(assignments.error)throw internalFailure("Department membership unavailable");
+ const effective=new Set((assignments.data??[]).map(row=>String(row.user_id)));
+ return {members:(people.data??[]).filter(row=>effective.has(String(row.user_id)))};
 }
 
 
