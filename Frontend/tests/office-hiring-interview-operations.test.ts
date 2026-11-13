@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const read = (path: string) => readFileSync(new URL("../" + path, import.meta.url), "utf8");
-const schema = read("../Database/supabase/migrations/202611130034_candidate_event_proofs_and_claims.sql");
+const schema = read("../Database/supabase/migrations/202611130103_candidate_event_proofs_and_claims.sql");
 const route = read("app/api/office-recruitment/route.ts");
 const server = read("lib/office/recruitment-server.ts");
 const ui = read("components/office-recruitment-workspace.tsx");
