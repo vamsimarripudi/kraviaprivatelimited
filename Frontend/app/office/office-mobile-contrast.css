@@ -56,7 +56,7 @@
   color: var(--office-ui-ink, #101827) !important;
   border: 1px solid var(--office-ui-line, #d1d8e1) !important;
 }
-.kravia-office .office-modern .office-main [data-office-work-hub] [data-office-work-panel] > summary :is([class*="panelHeader"]::after) {
+.kravia-office .office-modern .office-main [data-office-work-hub] [data-office-work-panel] > summary [class*="panelHeader"]::after {
   color: var(--office-ui-muted, #485467) !important;
 }
 
