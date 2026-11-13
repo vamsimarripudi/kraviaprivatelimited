@@ -1120,10 +1120,10 @@ GRANT EXECUTE ON FUNCTION public.office_lifecycle_mail_claim(integer)
  TO kravia_office_backend;
 DO $postcheck$
 BEGIN
- IF (SELECT count(*) FROM public.office_lifecycle_mail_policy WHERE source_ready)<>55
+ IF (SELECT count(*) FROM public.office_lifecycle_mail_policy WHERE source_ready)<>57
     OR EXISTS(SELECT 1 FROM public.office_lifecycle_mail_policy WHERE enabled)
     OR EXISTS(SELECT 1 FROM public.office_lifecycle_mail_outbox) THEN
-   RAISE EXCEPTION 'Expected 55 mapped sources (6 additional policy/document routes) with sending disabled';
+   RAISE EXCEPTION 'Expected 57 mapped sources (8 additional verified routes) with sending disabled';
  END IF;
 END;
 $postcheck$;
