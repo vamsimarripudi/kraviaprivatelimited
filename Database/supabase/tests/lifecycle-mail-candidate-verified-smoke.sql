@@ -137,7 +137,7 @@ INSERT INTO public.office_recruitment_events(
  'INTERVIEW_SCHEDULED',pg_catalog.jsonb_build_object(
   'interview_id','e1000000-0000-4000-8000-000000000004',
   'scheduled_start',(SELECT scheduled_start FROM public.office_candidate_interviews
-    WHERE id='e1000000-0000-4000-8000-000000000004'));
+    WHERE id='e1000000-0000-4000-8000-000000000004')));
 SET ROLE kravia_office_backend;
 CREATE TEMP TABLE interview_claims AS SELECT * FROM public.office_candidate_mail_claim(5);
 RESET ROLE;
