@@ -30,6 +30,8 @@ export function OfficeVaultSecretLocker(){
  const [filter,setFilter]=useState("");
  const [classification,setClassification]=useState("ALL");
  const [busy,setBusy]=useState(false);
+ const [uploadProgress,setUploadProgress]=useState(0);
+ const uploadSession=useRef<string|null>(null);
  const [title,setTitle]=useState("");
  const [kind,setKind]=useState<typeof classifications[number]>("RESTRICTED");
  const [file,setFile]=useState<File|null>(null);
@@ -91,31 +93,87 @@ export function OfficeVaultSecretLocker(){
   if(!file||file.size>10_485_760||file.size<1||busy||title.trim().length<3)return;
   setBusy(true);setError("");setNotice("");
   try{
-   const form=new FormData();
-   form.set("title",title.trim());form.set("classification",kind);
-   form.set("file",file);
-   if(revision)form.set("document_id",revision);
-   const response=await fetch("/api/office-vault/secrets",{
-     method:"POST",body:form,credentials:"same-origin",
+   const chunkSize=1_048_576;
+   let sessionId=uploadSession.current;
+   if(!sessionId){
+    const hash=await window.crypto.subtle.digest("SHA-256",await file.arrayBuffer());
+    const sha256=Array.from(new Uint8Array(hash)).map(v=>v.toString(16).padStart(2,"0")).join("");
+    const response=await fetch("/api/office-vault/secrets/ingress",{
+     method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+     body:JSON.stringify({action:"START",title:title.trim(),classification:kind,
+      filename:file.name,mime:file.type||"application/octet-stream",bytes:file.size,
+      sha256,...(revision?{document_id:revision}:{})}),
+    });
+    const result=await response.json().catch(()=>({})) as {session_id?:string;chunk_size?:number;
+      total_chunks?:number;detail?:string};
+    if(!response.ok||typeof result.session_id!=="string"||result.chunk_size!==chunkSize||
+      result.total_chunks!==Math.ceil(file.size/chunkSize))
+      throw new Error(result.detail||"Private upload session not verified");
+    sessionId=result.session_id;
+    uploadSession.current=sessionId;
+   }
+   const total=Math.ceil(file.size/chunkSize);
+   for(let index=0;index<total;index++){
+    const payload=file.slice(index*chunkSize,Math.min((index+1)*chunkSize,file.size));
+    const response=await fetch("/api/office-vault/secrets/ingress/"+
+      encodeURIComponent(sessionId)+"/parts/"+index,{
+       method:"PUT",credentials:"same-origin",
+       headers:{"Content-Type":"application/octet-stream"},body:payload,
+    });
+    const outcome=await response.json().catch(()=>({})) as {state?:string;detail?:string};
+    if(!response.ok||outcome.state!=="READY")
+      throw new Error(outcome.detail||"Encrypted upload part not verified");
+    setUploadProgress(Math.min(95,Math.round((index+1)/total*95)));
+   }
+   const completed=await fetch("/api/office-vault/secrets/ingress",{
+    method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({action:"COMPLETE",session_id:sessionId}),
    });
-   const result=await response.json().catch(()=>({})) as {status?:string;detail?:string};
-   if(!response.ok||!result.status)throw new Error(result.detail||"Sealed upload not confirmed");
+   const result=await completed.json().catch(()=>({})) as {status?:string;detail?:string;
+    cleanup_pending?:boolean};
+   if(!completed.ok||!result.status)throw new Error(result.detail||"Sealed upload not confirmed");
+   setUploadProgress(100);
+   uploadSession.current=null;
    setNotice(result.status==="CLEAN"?
     "Encrypted and scanner-clean. Independent reviewer approval is still required.":
     result.status==="BLOCKED"?"File blocked by the security scanner.":
     "Encrypted upload remains quarantined until the scanner confirms safety.");
+   if(result.cleanup_pending)setNotice("Sealed document recorded. Encrypted staging cleanup requires reconciliation.");
    uploadDialog.current?.close();
-   setTitle("");setFile(null);setRevision("");
-   uploadFocus.current?.focus();
-   setLoading(true);setRefresh(v=>v+1);
-  }catch(e){setError(e instanceof Error?e.message:"Sealed upload unavailable");}
-  finally{setBusy(false);}
+   setTitle("");setFile(null);setRevision("");setUploadProgress(0);
+   uploadFocus.current?.focus();setLoading(true);setRefresh(v=>v+1);
+  }catch(e){
+   setError((e instanceof Error?e.message:"Encrypted upload unavailable")+
+    (uploadSession.current?" Retry with the same file or cancel the staged upload.":""));
+  }finally{setBusy(false);}
  }
+ async function cancelUpload(){
+  if(busy)return;
+  const sessionId=uploadSession.current;
+  if(sessionId){
+   setBusy(true);setError("");
+   try{
+    const response=await fetch("/api/office-vault/secrets/ingress",{
+     method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+     body:JSON.stringify({action:"ABORT",session_id:sessionId}),
+    });
+    const result=await response.json().catch(()=>({})) as {aborted?:boolean;detail?:string};
+    if(!response.ok||result.aborted!==true)
+     throw new Error(result.detail||"Staged upload cancellation not confirmed");
+    uploadSession.current=null;
+   }catch(e){setError(e instanceof Error?e.message:"Upload cancellation unavailable");
+    setBusy(false);return;
+   }finally{setBusy(false);}
+  }
+  uploadDialog.current?.close();setUploadProgress(0);setFile(null);
+  setTitle("");setRevision("");uploadFocus.current?.focus();
+ }
+
  function openUpload(document?:Document){
   setTitle(document?.title||"");
   setKind((classifications.find(c=>c===document?.classification))||"RESTRICTED");
   setRevision(document?.id||"");
-  setFile(null);uploadDialog.current?.showModal();
+  setFile(null);setUploadProgress(0);uploadSession.current=null;uploadDialog.current?.showModal();
  }
  function openReview(version:Version,trigger:HTMLButtonElement){
   reviewFocus.current=trigger;setReviewVersion(version);setReviewNote("");
@@ -213,23 +271,30 @@ export function OfficeVaultSecretLocker(){
     src={"/api/office-vault/secrets/"+previewVersion.id+"/preview"}
     sandbox="allow-same-origin" referrerPolicy="no-referrer" loading="lazy"/>:null}
   </dialog>
-  <dialog className={styles.dialog} ref={uploadDialog} onCancel={e=>{if(busy)e.preventDefault();}}>
+  <dialog className={styles.dialog} ref={uploadDialog} onCancel={e=>{if(busy){e.preventDefault();return;}
+   if(uploadSession.current){e.preventDefault();void cancelUpload();}
+  }}>
    <form onSubmit={upload}>
     <header><div><p className={styles.eyebrow}>PRIVATE COMPANY EVIDENCE</p>
       <h2>{revision?"Propose new sealed version":"Seal company document"}</h2></div>
       <button type="button" aria-label="Close upload" disabled={busy}
-       onClick={()=>uploadDialog.current?.close()}><X size={18}/></button></header>
+       onClick={()=>void cancelUpload()}><X size={18}/></button></header>
     <label>Document title<input required minLength={3} maxLength={180} value={title}
      onChange={e=>setTitle(e.target.value)}/></label>
     <label>Classification<select value={kind} disabled={!!revision}
      onChange={e=>setKind(e.target.value as typeof kind)}>
      {classifications.map(c=><option key={c}>{c}</option>)}</select></label>
     <label>Verified document file<input required type="file"
-     accept=".pdf,.jpg,.jpeg,.png,.webp,.docx,.xlsx" onChange={e=>setFile(e.target.files?.[0]||null)}/></label>
-    <p>Max 10 MiB · PDF/JPEG/PNG/WebP/DOCX/XLSX · No password, private key or raw database backup content. No email or external notice is sent.</p>
-    <div className={styles.actions}><button type="button" disabled={busy} onClick={()=>uploadDialog.current?.close()}>Cancel</button>
+     accept=".pdf,.jpg,.jpeg,.png,.webp,.docx,.xlsx" onChange={e=>{
+     if(uploadSession.current){setError("Cancel the staged upload before selecting another file.");e.target.value="";return;}
+     setFile(e.target.files?.[0]||null);
+   }}/></label>
+    <p>Max 10 MiB · PDF/JPEG/PNG/WebP/DOCX/XLSX. Transfer uses independently encrypted, private 1 MiB chunks before the original scanner and maker-checker review. No raw keys, credentials or backup content.</p>
+    {uploadProgress>0?<div role="status" aria-live="polite"><progress aria-label="Encrypted upload progress" max={100}
+     value={uploadProgress}/><small>{uploadProgress}% transferred or verifying</small></div>:null}
+    <div className={styles.actions}><button type="button" disabled={busy} onClick={()=>void cancelUpload()}>Cancel</button>
      <button type="submit" disabled={busy||!file||file.size>10_485_760||file.size<1||title.trim().length<3}>
-      {busy?"Encrypting and verifying…":"Encrypt & quarantine"}</button></div>
+      {busy?"Encrypting and verifying…":"Encrypt & quarantine in chunks"}</button></div>
    </form>
   </dialog>
   <dialog className={styles.dialog} ref={reviewDialog} onCancel={e=>{if(busy)e.preventDefault();}}>
