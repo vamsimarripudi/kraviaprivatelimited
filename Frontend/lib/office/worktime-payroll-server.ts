@@ -1,5 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
+import { calculateVerifiedMonthlyAttendance, type ApprovedLeaveEvidence } from "@/lib/office/attendance-salary-preview";
+import { setPayrollAttendance } from "@/lib/office/payroll-server";
 import { requireOfficeActor, resolveOfficePermission, type OfficePermissionDecision } from "@/lib/office/permission-engine";
 import { monthlyFlexibleWorktime, type TrackedSession, type WorktimeBreak, type HistoricalWorkClaim } from "@/lib/office/flexible-worktime";
 import { calculateApprovedWorkPremiums, reconcileWageDebt, targetSalaryDate,
@@ -23,6 +25,13 @@ type PolicyRow = {
   maximum_daily_minutes: number; maximum_weekly_minutes: number;
 };
 type CompensationRow = { id: string; monthly_gross_minor: number; currency: string; status: string };
+type LeaveRow = {
+  id: string; employee_user_id: string; starts_on: string; ends_on: string;
+  pay_class: "PAID_LEAVE" | "UNPAID_LEAVE" | "SICK_PAID" | "HOLIDAY_PAID";
+  minutes_per_weekday: number; status: string; requested_by: string; reviewed_by: string | null;
+  evidence_reference: string; authority_reference: string | null; request_reason: string;
+  review_note: string | null;
+};
 type IssueRow = { id: string; payroll_result_id: string; employee_user_id: string; issue_code: string; snapshot: Record<string, unknown>; issued_at: string };
 
 function check(result: { error?: { message?: string } | null }, message: string) {
@@ -33,15 +42,29 @@ function monthRange(month: string) {
   const [year, num] = month.split("-").map(Number);
   const first = new Date(Date.UTC(year, num - 1, 1));
   const last = new Date(Date.UTC(year, num, 0));
-  // Include the preceding day for overnight sessions that enter this month.
-  const from = new Date(first.getTime() - 86_400_000);
-  const to = new Date(Date.UTC(year, num, 2));
+  // Query IST calendar boundaries: include the preceding day for shifts
+  // crossing into the month; exclude sessions starting next month.
+  const monthStartIst = first.getTime() - 330 * 60_000;
+  const from = new Date(monthStartIst - 86_400_000);
+  const to = new Date(Date.UTC(year, num, 1) - 330 * 60_000);
   return { first: first.toISOString().slice(0, 10), last: last.toISOString().slice(0, 10),
     from: from.toISOString(), to: to.toISOString() };
 }
 async function can(actor: Actor, permission: string): Promise<boolean> {
   const result: OfficePermissionDecision = await resolveOfficePermission(actor.admin, actor.identity, permission, { type: "COMPANY" });
   return result.allowed;
+}
+async function hasEffectiveHrManager(actor: Actor): Promise<boolean> {
+  const rows = await actor.admin.from("office_user_access_profiles")
+    .select("effective_from,expires_at").eq("user_id", actor.identity.userId)
+    .eq("profile_code", "HR_MANAGER").eq("status", "ACTIVE");
+  check(rows, "HR Manager authority is unavailable");
+  const now = Date.now();
+  return (rows.data ?? []).some(row => {
+    const from = row.effective_from ? Date.parse(String(row.effective_from)) : 0;
+    const until = row.expires_at ? Date.parse(String(row.expires_at)) : Number.POSITIVE_INFINITY;
+    return Number.isFinite(from) && from <= now && until > now;
+  });
 }
 function asApprovedPolicy(row: PolicyRow): ApprovedWorkPolicy {
   return {
@@ -83,15 +106,15 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
   const range = monthRange(month);
   const employeeId = input.employeeUserId || actor.identity.userId;
   const self = employeeId === actor.identity.userId;
-  const [canReadOthers, canReviewWorktime, canPreparePayroll] = await Promise.all([
+  const [canReadOthers, canReviewWorktime, canPreparePayroll, canReviewPolicy] = await Promise.all([
     Promise.all([can(actor, "people.sensitive.read"), can(actor, "payroll.run.read")]).then(([people, payroll]) => people || payroll),
-    can(actor, "people.update"), can(actor, "payroll.run.prepare"),
+    can(actor, "people.update"), can(actor, "payroll.run.prepare"), can(actor, "payroll.run.review"),
   ]);
   if (!self && !canReadOthers) throw new OfficeWorktimeError(403, "Employee record is not assigned to you");
-  const [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult, periodResult, flexResult, sessionsResult] = await Promise.all([
+  const [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult, periodResult, flexResult, sessionsResult, leaveResult] = await Promise.all([
     actor.admin.from("office_identity_users").select("user_id,display_name,status").eq("user_id", employeeId).maybeSingle(),
     actor.admin.from("office_worktime_policy_versions").select("*").eq("employee_user_id", employeeId).lte("effective_from", range.last).order("effective_from", { ascending: false }).limit(12),
-    actor.admin.from("office_worktime_review_cases").select("id,employee_user_id,attendance_session_id,work_starts_at,work_ends_at,breaks,source_kind,source_reference,review_note,requested_by,reviewed_by,status").eq("employee_user_id", employeeId).gte("work_starts_at", range.from).lt("work_starts_at", range.to).order("work_starts_at"),
+    actor.admin.from("office_worktime_review_cases").select("id,employee_user_id,attendance_session_id,work_starts_at,work_ends_at,breaks,source_kind,source_reference,request_reason,review_note,requested_by,reviewed_by,status").eq("employee_user_id", employeeId).gte("work_starts_at", range.from).lt("work_starts_at", range.to).order("work_starts_at"),
     actor.admin.from("office_compensation_versions").select("id,monthly_gross_minor,currency,status").eq("employee_user_id", employeeId).eq("status", "APPROVED").lte("effective_from", range.first).order("effective_from", { ascending: false }).limit(1),
     actor.admin.from("office_salary_payslip_issues").select("id,payroll_result_id,employee_user_id,issue_code,snapshot,issued_at").eq("employee_user_id", employeeId).order("issued_at", { ascending: false }).limit(60),
     canReadOthers ? actor.admin.from("office_identity_users").select("user_id,display_name,status").eq("status", "ACTIVE").order("display_name").limit(500) : Promise.resolve({ data: [], error: null }),
@@ -107,24 +130,20 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
       .select("id,check_in_at,check_out_at,status")
       .eq("user_id", employeeId).gte("check_in_at", range.from).lt("check_in_at", range.to)
       .order("check_in_at", { ascending: true }).limit(400),
+    actor.admin.from("office_hr_leave_requests")
+      .select("id,employee_user_id,starts_on,ends_on,pay_class,minutes_per_weekday,status,requested_by,reviewed_by,evidence_reference,authority_reference,request_reason,review_note")
+      .eq("employee_user_id", employeeId).lte("starts_on", range.last).gte("ends_on", range.first)
+      .order("starts_on", { ascending: true }).limit(100),
   ]);
-  for (const r of [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult, periodResult, flexResult, sessionsResult]) check(r, "Office worktime evidence is unavailable");
+  for (const r of [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult, periodResult, flexResult, sessionsResult, leaveResult]) check(r, "Office worktime evidence is unavailable");
   if (!identityResult.data) throw new OfficeWorktimeError(404, "Employee not found");
-  const manager = await actor.admin.from("office_user_access_profiles")
-    .select("effective_from,expires_at").eq("user_id", actor.identity.userId)
-    .eq("profile_code", "HR_MANAGER").eq("status", "ACTIVE");
-  check(manager, "HR Manager authority is unavailable");
-  const nowMs = Date.now();
-  const hrManagerActive = (manager.data ?? []).some(row => {
-    const from = row.effective_from ? Date.parse(String(row.effective_from)) : 0;
-    const until = row.expires_at ? Date.parse(String(row.expires_at)) : Number.POSITIVE_INFINITY;
-    return Number.isFinite(from) && from <= nowMs && until > nowMs;
-  });
+  const hrManagerActive = await hasEffectiveHrManager(actor);
   const isDirector = actor.identity.roles.some(role => role === "OWNER" || role === "DIRECTOR");
   const policyProposal = isDirector && await can(actor, "payroll.rules.manage");
   const policies = (policiesResult.data ?? []) as PolicyRow[];
   const claims = (claimsResult.data ?? []) as ClaimRow[];
   const issues = (issuesResult.data ?? []) as IssueRow[];
+  const leaves = (leaveResult.data ?? []) as LeaveRow[];
   const sessions = (sessionsResult.data ?? []) as TrackedSession[];
   const breakResult = sessions.length
     ? await actor.admin.from("office_attendance_breaks")
@@ -145,12 +164,27 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
   const policy = policies.find(x => x.status === "APPROVED");
   const compensation = (compensationResult.data ?? [])[0] as CompensationRow | undefined;
   let preview = null;
+  const approvedClaims = claims.filter(x => x.status === "APPROVED").map(toApprovedSession);
+  let salaryPreview;
+  try {
+    salaryPreview = calculateVerifiedMonthlyAttendance({
+      month, employeeUserId: employeeId, sessions: approvedClaims,
+      leaveEvidence: leaves.filter(x => x.status === "APPROVED").map((x): ApprovedLeaveEvidence => ({
+        id: x.id, employeeUserId: x.employee_user_id, startsOn: x.starts_on, endsOn: x.ends_on,
+        payClass: x.pay_class, minutesPerWeekday: Number(x.minutes_per_weekday),
+        status: "APPROVED", requestedBy: x.requested_by, reviewedBy: x.reviewed_by || "",
+      })),
+      monthlyGrossMinor: compensation?.currency === "INR" ? Number(compensation.monthly_gross_minor) : null,
+    });
+  } catch (error) {
+    throw new OfficeWorktimeError(409, error instanceof Error ? error.message : "Salary evidence needs reconciliation");
+  }
   if (policy && compensation && compensation.currency === "INR") {
     try {
       preview = calculateApprovedWorkPremiums({
         month, employeeUserId: employeeId, monthlyGrossMinor: Number(compensation.monthly_gross_minor),
         policy: asApprovedPolicy(policy),
-        sessions: claims.filter(x => x.status === "APPROVED").map(toApprovedSession),
+        sessions: approvedClaims,
       });
     } catch (error) {
       throw new OfficeWorktimeError(409, error instanceof Error ? error.message : "Approved time needs reconciliation");
@@ -175,18 +209,28 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
   });
   return {
     actor: { user_id: actor.identity.userId, roles: actor.identity.roles },
-    employee: identityResult.data, employees: directoryResult.data ?? [], payroll_periods: periodResult.data ?? [], flex_days: flexResult.data ?? [], month, target_payment: targetSalaryDate(month),
-    approved_policy: policy ?? null, policies, claims, preview, attendance_targets: attendanceTargets,
+    employee: identityResult.data, employees: directoryResult.data ?? [], payroll_periods: periodResult.data ?? [], flex_days: flexResult.data ?? [], leave_requests: leaves, month, target_payment: targetSalaryDate(month),
+    recorded_sessions: sessions.filter(s => Boolean(s.check_out_at)).map(s => ({
+      id: s.id, check_in_at: s.check_in_at, check_out_at: s.check_out_at,
+      status: s.status,
+      needs_review: !claims.some(claim => claim.attendance_session_id === s.id &&
+        (claim.status === "PENDING" || claim.status === "APPROVED")),
+    })),
+    approved_policy: policy ?? null, policies, claims, preview, salary_preview: salaryPreview, attendance_targets: attendanceTargets,
     approved_monthly_gross_minor: compensation ? Number(compensation.monthly_gross_minor) : null,
     approved_gross_currency: compensation?.currency ?? null,
     salary_slips: salarySlips,
-    capabilities: { self, review_worktime: canReviewWorktime && (isDirector || hrManagerActive), propose_policy: policyProposal, prepare_payroll: canPreparePayroll },
-    notice: "Attendance targets reflect tracked net time plus independently approved historical corrections; they are not wage evidence. Unpaid salary is not marked PAID without verified bank evidence. No overtime rates or payroll are created automatically.",
+    capabilities: { self, review_worktime: canReviewWorktime && (isDirector || hrManagerActive), review_policy: canReviewPolicy && isDirector, propose_policy: policyProposal, prepare_payroll: canPreparePayroll },
+    notice: "Salary previews use approved compensation and independently verified net hours. Missing time remains UNRESOLVED, never automatically unpaid. Overtime requires approved policy and independent review. No payment is executed automatically.",
   };
 }
 export async function officeWorktimeAction(input:
   | { action: "SUBMIT"; employeeId?: string; sessionId?: string; startAt: string; endAt: string; breaks: unknown[]; sourceKind: "RECORDED_SESSION" | "HISTORICAL_CORRECTION"; sourceReference: string; reason: string }
+  | { action: "AMEND_PENDING"; caseId: string; startAt: string; endAt: string; breaks: unknown[]; sourceReference: string; reason: string }
+  | { action: "QUEUE_RECORDED"; employeeId: string; sessionId: string }
   | { action: "DECIDE"; caseId: string; decision: "APPROVE" | "REJECT"; note?: string }
+  | { action: "REQUEST_LEAVE"; employeeId: string; startsOn: string; endsOn: string; payClass: "PAID_LEAVE" | "UNPAID_LEAVE" | "SICK_PAID" | "HOLIDAY_PAID"; minutesPerWeekday: number; evidenceReference: string; authorityReference?: string; reason: string }
+  | { action: "DECIDE_LEAVE"; leaveId: string; decision: "APPROVE" | "REJECT"; note: string }
   | { action: "REQUEST_FLEX"; weekMonday: string; leaveDate: string }
   | { action: "DECIDE_FLEX"; flexId: string; decision: "APPROVE" | "REJECT"; note?: string }
   | { action: "PROPOSE_POLICY"; employeeId: string; effectiveFrom: string; authorityReference: string }
@@ -214,10 +258,46 @@ export async function officeWorktimeAction(input:
         p_breaks: input.breaks, p_source_kind: input.sourceKind, p_source_reference: input.sourceReference, p_reason: input.reason };
       break;
     }
+    case "QUEUE_RECORDED":
+      rpcName = "office_worktime_queue_recorded";
+      params = { p_actor: user, p_employee: input.employeeId, p_attendance: input.sessionId };
+      break;
+    case "AMEND_PENDING": {
+      const start = Date.parse(input.startAt);
+      const end = Date.parse(input.endAt);
+      if (!Number.isFinite(start) || !Number.isFinite(end) ||
+          start < Date.parse("2026-07-31T18:30:00Z") ||
+          start >= end || end > Date.now() + 60_000) {
+        throw new OfficeWorktimeError(400, "Historical amendment must have completed times from 1 August 2026");
+      }
+      rpcName = "office_worktime_amend_pending";
+      params = { p_actor: user, p_case: input.caseId, p_start: input.startAt,
+        p_end: input.endAt, p_breaks: input.breaks,
+        p_source_reference: input.sourceReference, p_reason: input.reason };
+      break;
+    }
     case "DECIDE":
-      if (!actor.identity.roles.some(role => role === "OWNER" || role === "DIRECTOR") || !await can(actor, "people.update")) throw new OfficeWorktimeError(403, "Director People approval required");
+      if (!await can(actor, "people.update") || !(
+        actor.identity.roles.some(role => role === "OWNER" || role === "DIRECTOR") ||
+        await hasEffectiveHrManager(actor)
+      )) throw new OfficeWorktimeError(403, "Current independent People or HR Manager review permission required");
       rpcName = "office_worktime_decide";
       params = { p_actor: user, p_case: input.caseId, p_decision: input.decision, p_note: input.note || null };
+      break;
+    case "REQUEST_LEAVE":
+      rpcName = "office_hr_leave_submit";
+      params = { p_actor: user, p_employee: input.employeeId, p_start: input.startsOn, p_end: input.endsOn,
+        p_pay_class: input.payClass, p_minutes: input.minutesPerWeekday,
+        p_evidence: input.evidenceReference, p_authority: input.authorityReference || null,
+        p_reason: input.reason };
+      break;
+    case "DECIDE_LEAVE":
+      if (!await can(actor, "people.update") || !(
+        actor.identity.roles.some(role => role === "OWNER" || role === "DIRECTOR") ||
+        await hasEffectiveHrManager(actor)
+      )) throw new OfficeWorktimeError(403, "Independent HR leave review permission required");
+      rpcName = "office_hr_leave_decide";
+      params = { p_actor: user, p_leave: input.leaveId, p_decision: input.decision, p_note: input.note };
       break;
     case "REQUEST_FLEX":
       rpcName = "office_flex_day_request";
@@ -297,13 +377,26 @@ export async function importVerifiedWorktimePremiums(input: { periodId: string; 
     { code: "WORKTIME_WEEKEND", label: "Approved Saturday/Sunday work (3x)", amount: approved.weekendPremiumMinor },
     { code: "WORKTIME_NIGHT", label: "Approved night-work premium", amount: approved.nightPremiumMinor },
   ].filter(row => row.amount > 0);
+  // A new evidence digest must never add a second approved OT entry for
+  // the same employee, month and earning type. Reject stale imports instead
+  // of silently accumulating both the old and revised premium.
+  const knownCodes = ["WORKTIME_WEEKDAY_OT", "WORKTIME_WEEKEND", "WORKTIME_NIGHT"];
+  const existing = await actor.admin.from("office_payroll_adjustments")
+    .select("id,adjustment_code,source_reference,amount_minor,status")
+    .eq("period_id", input.periodId).eq("employment_id", employmentId)
+    .in("adjustment_code", knownCodes);
+  check(existing, "Existing payroll premium evidence unavailable");
+  for (const item of existing.data ?? []) {
+    const expected = rows.find(row => row.code === item.adjustment_code);
+    if (!expected || item.source_reference !== reference ||
+        Number(item.amount_minor) !== expected.amount || item.status === "REJECTED") {
+      throw new OfficeWorktimeError(409, "Existing overtime adjustments differ from verified attendance. Do not re-import or double-pay; resolve the prior adjustment through a separately approved correction.");
+    }
+  }
   const imported: string[] = [];
   for (const row of rows) {
-    const existing = await actor.admin.from("office_payroll_adjustments")
-      .select("id").eq("period_id", input.periodId).eq("employment_id", employmentId)
-      .eq("adjustment_code", row.code).eq("source_reference", reference).maybeSingle();
-    check(existing, "Existing adjustment check unavailable");
-    if (existing.data) { imported.push(existing.data.id); continue; }
+    const duplicate = (existing.data ?? []).find(item => item.adjustment_code === row.code);
+    if (duplicate) { imported.push(duplicate.id); continue; }
     const result = await actor.admin.rpc("office_payroll_add_adjustment", {
       p_actor: actor.identity.userId, p_period: input.periodId, p_employment: employmentId,
       p_kind: "EARNING", p_code: row.code, p_label: row.label, p_amount: row.amount,
@@ -314,4 +407,103 @@ export async function importVerifiedWorktimePremiums(input: { periodId: string; 
   }
   return { adjustment_ids: imported, amounts: rows, total_minor: approved.totalAdditionalEarningsMinor,
     source_reference: reference, status: "DRAFT_ADJUSTMENTS_NEED_INDEPENDENT_REVIEW" };
+}
+
+/**
+ * Creates or intentionally revises a reviewable monthly payroll attendance
+ * snapshot from independently approved worktime. Unverified scheduled hours
+ * remain unresolved; neither absence nor deduction is inferred.
+ */
+export async function prepareVerifiedHoursPayroll(input: {
+  periodId: string;
+  employeeId: string;
+  replaceExisting?: boolean;
+  expectedUpdatedAt?: string;
+  reason?: string;
+}) {
+  const current = await requireOfficeActor();
+  if (!await can(current, "payroll.run.prepare")) {
+    throw new OfficeWorktimeError(403, "Payroll preparation permission required");
+  }
+  const period = await current.admin.from("office_payroll_periods")
+    .select("id,starts_on,ends_on,status,period_kind").eq("id", input.periodId).maybeSingle();
+  check(period, "Payroll period unavailable");
+  if (!period.data || period.data.period_kind !== "MONTHLY" ||
+      !["DRAFT","ATTENDANCE_READY","CALCULATED"].includes(period.data.status)) {
+    throw new OfficeWorktimeError(409, "Payroll period is not editable");
+  }
+  const month = period.data.starts_on.slice(0, 7);
+  const range = monthRange(month);
+  if (range.first !== period.data.starts_on || range.last !== period.data.ends_on) {
+    throw new OfficeWorktimeError(409, "Only complete calendar months support automatic verified hours");
+  }
+  const state = await officeWorktimeOverview({ month, employeeUserId: input.employeeId });
+  if (!state.approved_monthly_gross_minor || state.approved_gross_currency !== "INR") {
+    throw new OfficeWorktimeError(409, "An approved INR compensation version is required");
+  }
+  if (state.claims.some(claim => claim.status === "PENDING")) {
+    throw new OfficeWorktimeError(409, "Resolve pending attendance corrections before payroll preparation");
+  }
+  const employment = await current.admin.from("office_employment_registry")
+    .select("employment_id,identity_user_id,status,start_date,end_date")
+    .eq("identity_user_id", input.employeeId).in("status", ["ACTIVE","ON_LEAVE"]).limit(2);
+  check(employment, "Employment record unavailable");
+  if (employment.data?.length !== 1) {
+    throw new OfficeWorktimeError(409, "Exactly one active employment record is required");
+  }
+  const record = employment.data[0];
+  if ((record.start_date && record.start_date > range.first) ||
+      (record.end_date && record.end_date < range.last)) {
+    throw new OfficeWorktimeError(409, "Partial-month employment requires reviewed manual proration");
+  }
+  const previous = await current.admin.from("office_payroll_attendance_snapshots")
+    .select("id,updated_at,basis_units,payable_units,paid_leave_units,unpaid_leave_units,absence_units,unresolved_units")
+    .eq("period_id", input.periodId).eq("employment_id", record.employment_id).maybeSingle();
+  check(previous, "Existing payroll attendance snapshot unavailable");
+  if (previous.data && !input.replaceExisting) {
+    throw new OfficeWorktimeError(409, "An attendance snapshot already exists. Explicitly Update with a correction reason or edit in Payroll OS");
+  }
+  if (previous.data && (!input.reason || input.reason.trim().length < 12)) {
+    throw new OfficeWorktimeError(400, "An evidence-backed correction reason is required to update recorded payroll hours");
+  }
+  if (previous.data && input.expectedUpdatedAt && previous.data.updated_at !== input.expectedUpdatedAt) {
+    throw new OfficeWorktimeError(409, "Payroll attendance changed since the form was opened. Refresh and retry");
+  }
+  const estimate = state.salary_preview;
+  const basis = Number((estimate.basisMinutes / 60).toFixed(3));
+  const regular = Number((estimate.approvedRegularMinutes / 60).toFixed(3));
+  const paidLeave = Number((estimate.approvedPaidLeaveMinutes / 60).toFixed(3));
+  const unpaidLeave = Number((estimate.approvedUnpaidLeaveMinutes / 60).toFixed(3));
+  const payable = Number(((estimate.approvedRegularMinutes + estimate.approvedPaidLeaveMinutes) / 60).toFixed(3));
+  const unresolved = Number(Math.max(0, (estimate.unresolvedMinutes / 60)).toFixed(3));
+  const audit = {
+    source: "INDEPENDENTLY_APPROVED_WORKTIME", month,
+    source_case_ids: estimate.sourceSessionIds,
+    source_leave_ids: estimate.sourceLeaveIds,
+    verified_regular_minutes: estimate.approvedRegularMinutes,
+    outstanding_minutes: estimate.unresolvedMinutes,
+    approved_paid_leave_minutes: estimate.approvedPaidLeaveMinutes,
+    approved_unpaid_leave_minutes: estimate.approvedUnpaidLeaveMinutes,
+    potential_weekday_overtime_minutes: estimate.potentialWeekdayOvertimeMinutes,
+    optional_weekend_minutes: estimate.optionalWeekendMinutes,
+    calculation_note: "Unverified time is unresolved, not automatically unpaid. Leave/holiday evidence must be reviewed in Payroll OS.",
+    update_reason: input.reason?.trim() || null,
+    replaced_snapshot: previous.data || null,
+  };
+  const result = await setPayrollAttendance({
+    periodId: input.periodId, employmentId: record.employment_id,
+    basisUnits: basis, payableUnits: payable, paidLeaveUnits: paidLeave,
+    unpaidLeaveUnits: unpaidLeave, absenceUnits: 0, unresolvedUnits: unresolved,
+    sourceSnapshot: audit,
+    expectedUpdatedAt: previous.data?.updated_at,
+    correctionReason: previous.data ? input.reason : undefined,
+  });
+  return {
+    ...result, employee_user_id: input.employeeId, period_id: input.periodId,
+    scheduled_hours: basis, verified_regular_hours: regular, approved_paid_leave_hours: paidLeave,
+    approved_unpaid_leave_hours: unpaidLeave, payable_hours: payable, unresolved_hours: unresolved,
+    potential_weekday_overtime_hours: Number((estimate.potentialWeekdayOvertimeMinutes / 60).toFixed(3)),
+    estimated_regular_gross_minor: estimate.estimatedRegularGrossMinor,
+    review_required: unresolved > 0, bank_execution: false,
+  };
 }

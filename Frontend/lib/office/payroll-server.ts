@@ -50,11 +50,14 @@ export async function getOfficePayrollOverview() {
     allowed(current, "payroll.payment.prepare"),
   ]);
   if (!canReadRun && !canReadCompensation && !canReadRules) throw new OfficePayrollError(403, "Payroll read permission is required");
+  // Payroll rule-only readers must never receive the private employee directory.
+  const canReadEmployeePayroll = canReadRun || canReadCompensation || canManageCompensation || canPrepare;
+  const empty = { data: [], error: null };
 
   const [employment, identities, jobs, periods, rules, compensation, snapshots, adjustments, results, batches, entries] = await Promise.all([
-    current.admin.from("office_employment_registry").select("employment_id,employment_code,identity_user_id,relationship_type,status,start_date,end_date,end_reason").in("status", ["PLANNED", "ACTIVE", "ON_LEAVE", "ENDED"]).order("employment_code"),
-    current.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").order("display_name"),
-    current.admin.from("office_job_assignments").select("user_id,position_code,department_code,reports_to_user_id,status,start_date,end_date").in("status", ["PLANNED", "ACTIVE", "ON_LEAVE", "ENDED"]),
+    canReadEmployeePayroll ? current.admin.from("office_employment_registry").select("employment_id,employment_code,identity_user_id,relationship_type,status,start_date,end_date,end_reason").in("status", ["PLANNED", "ACTIVE", "ON_LEAVE", "ENDED"]).order("employment_code") : Promise.resolve(empty),
+    canReadEmployeePayroll ? current.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").order("display_name") : Promise.resolve(empty),
+    canReadEmployeePayroll ? current.admin.from("office_job_assignments").select("user_id,position_code,department_code,reports_to_user_id,status,start_date,end_date").in("status", ["PLANNED", "ACTIVE", "ON_LEAVE", "ENDED"]) : Promise.resolve(empty),
     canReadRun ? current.admin.from("office_payroll_periods").select("id,period_code,period_kind,starts_on,ends_on,attendance_cutoff_at,pay_date,status,approval_request_id,calculation_version,approved_by,approved_at,created_at,updated_at").order("starts_on", { ascending: false }).limit(36) : Promise.resolve({ data: [], error: null }),
     canReadRules ? current.admin.from("office_payroll_rule_versions").select("id,rule_code,version,rule_kind,title,jurisdiction,effective_from,effective_to,configuration,source_reference,status,created_by,approved_by,approved_at,created_at,updated_at").order("rule_code").order("version", { ascending: false }).limit(300) : Promise.resolve({ data: [], error: null }),
     canReadCompensation ? current.admin.from("office_compensation_versions").select("id,compensation_code,employment_id,employee_user_id,grade_code,annual_ctc_minor,monthly_gross_minor,currency,components,effective_from,effective_to,reason,status,approval_request_id,created_by,approved_by,approved_at,created_at,updated_at").order("effective_from", { ascending: false }).limit(500) : Promise.resolve({ data: [], error: null }),
@@ -169,16 +172,57 @@ export async function openPayrollPeriod(input: { kind: "MONTHLY" | "OFF_CYCLE" |
   return { period_id: data };
 }
 
-export async function setPayrollAttendance(input: { periodId: string; employmentId: string; basisUnits: number; payableUnits: number; paidLeaveUnits?: number; unpaidLeaveUnits?: number; absenceUnits?: number; unresolvedUnits?: number; sourceSnapshot?: Record<string, unknown> }) {
+export async function setPayrollAttendance(input: { periodId: string; employmentId: string; basisUnits: number; payableUnits: number; paidLeaveUnits?: number; unpaidLeaveUnits?: number; absenceUnits?: number; unresolvedUnits?: number; sourceSnapshot?: Record<string, unknown>; expectedUpdatedAt?: string; correctionReason?: string }) {
   const current = await requirePermission("payroll.run.prepare");
-  const { data, error } = await current.admin.rpc("office_payroll_set_attendance_snapshot", {
+  const payable = input.payableUnits;
+  const paidLeave = input.paidLeaveUnits ?? 0;
+  const unpaid = input.unpaidLeaveUnits ?? 0;
+  const absence = input.absenceUnits ?? 0;
+  const unresolved = input.unresolvedUnits ?? 0;
+  const entries = [input.basisUnits,payable,paidLeave,unpaid,absence,unresolved];
+  if (entries.some(x => !Number.isFinite(x) || x < 0) || input.basisUnits <= 0 ||
+      paidLeave > payable || Math.abs(payable + unpaid + absence + unresolved - input.basisUnits) > 0.001) {
+    throw new OfficePayrollError(400, "Invalid reviewed payroll hours. Paid leave is within payable; payable plus unpaid leave, verified absence and unresolved must exactly equal the period basis");
+  }
+  if (!input.sourceSnapshot || typeof input.sourceSnapshot.source !== "string") {
+    throw new OfficePayrollError(400, "Verifiable attendance evidence is required");
+  }
+  const previous = await current.admin.from("office_payroll_attendance_snapshots")
+    .select("id,updated_at").eq("period_id", input.periodId).eq("employment_id", input.employmentId).maybeSingle();
+  fail(previous.error, "Previous payroll attendance unavailable");
+  if (previous.data && (!input.expectedUpdatedAt || previous.data.updated_at !== input.expectedUpdatedAt)) {
+    throw new OfficePayrollError(409, "Attendance was updated; refresh before changing an existing snapshot");
+  }
+  if (previous.data && (!input.correctionReason || input.correctionReason.trim().length < 12)) {
+    throw new OfficePayrollError(400, "Provide an evidence-backed reason to update an existing snapshot");
+  }
+  const { data, error } = await current.admin.rpc("office_payroll_set_attendance_snapshot_v2", {
     p_actor: current.identity.userId, p_period: input.periodId, p_employment: input.employmentId,
     p_basis: input.basisUnits, p_payable: input.payableUnits, p_paid_leave: input.paidLeaveUnits ?? 0,
     p_unpaid_leave: input.unpaidLeaveUnits ?? 0, p_absence: input.absenceUnits ?? 0,
     p_unresolved: input.unresolvedUnits ?? 0, p_source: input.sourceSnapshot ?? {},
+    p_expected_updated_at: input.expectedUpdatedAt || null,
+    p_correction_reason: input.correctionReason?.trim() || null,
   });
   if (error || typeof data !== "string") throw new OfficePayrollError(400, error?.message ?? "Unable to record payroll attendance snapshot");
   return { attendance_snapshot_id: data };
+}
+
+export async function reviewPayrollAttendance(input: { snapshotId: string; decision: "APPROVE" | "REJECT"; note: string }) {
+  const current = await requirePermission("payroll.run.review");
+  if (input.note.trim().length < 12) {
+    throw new OfficePayrollError(400, "Record an independent evidence review note before deciding attendance");
+  }
+  const { data, error } = await current.admin.rpc("office_payroll_review_attendance", {
+    p_actor: current.identity.userId,
+    p_snapshot: input.snapshotId,
+    p_decision: input.decision,
+    p_note: input.note.trim(),
+  });
+  if (error || typeof data !== "string") {
+    throw new OfficePayrollError(409, error?.message ?? "Unable to independently review attendance");
+  }
+  return { status: data, bank_execution: false };
 }
 
 export async function addPayrollAdjustment(input: { periodId: string; employmentId: string; kind: "EARNING" | "DEDUCTION" | "EMPLOYER_COST"; code: string; label: string; amountMinor: number; currency: string; sourceReference: string; note?: string }) {
