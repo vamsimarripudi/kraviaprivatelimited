@@ -195,7 +195,7 @@ $$;
 create or replace function public.office_role_seat_add_grant(
  p_actor uuid,p_seat uuid,p_permission text,p_scope_type text,p_scope_key text,p_exclusive boolean
 ) returns uuid language plpgsql security definer set search_path to '' as $$
-declare rec public.office_role_seats%rowtype; pr public.office_permission_catalog%rowtype; gid uuid; state text;
+declare rec public.office_role_seats%rowtype; pr public.office_permission_catalog%rowtype; gid uuid; state text; mapped_department text;
 begin
   if not public.office_role_seat_is_owner(p_actor) then raise exception 'OWNER authority required'; end if;
   select * into rec from public.office_role_seats where id=p_seat for update;
@@ -210,6 +210,11 @@ begin
   end if;
   if coalesce(p_exclusive,false) and (pr.action='VIEW' or pr.action='AUDIT_USAGE' or pr.action like 'READ%') then
     raise exception 'Exclusive transfer does not apply to read-only permission';
+  end if;
+  mapped_department:=public.office_department_for_permission(p_permission);
+  if coalesce(p_exclusive,false) and mapped_department is not null
+      and mapped_department<>rec.department_code then
+    raise exception 'Exclusive permission must belong to this seat department';
   end if;
   state:=case when pr.high_risk then 'PENDING' else 'ACTIVE' end;
   insert into public.office_role_seat_grants
