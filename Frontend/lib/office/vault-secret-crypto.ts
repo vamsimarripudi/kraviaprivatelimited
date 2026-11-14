@@ -77,8 +77,14 @@ export function openVaultContent(
   const cipher=createDecipheriv("aes-256-gcm",contentKey,decodeHex(stored.content_nonce,12));
   cipher.setAAD(context);cipher.setAuthTag(decodeHex(stored.content_tag,16));
   const plaintext=Buffer.concat([cipher.update(ciphertext),cipher.final()]);
-  if(plaintext.length!==stored.byte_size||sha(plaintext)!==stored.sha256)
-   throw new Error("Secret document failed integrity verification");
-  return plaintext;
+  try{
+   if(plaintext.length!==stored.byte_size||sha(plaintext)!==stored.sha256)
+    throw new Error("Secret document failed integrity verification");
+   return plaintext;
+  }catch(error){
+   // This branch never returns the buffer to an owning caller.
+   plaintext.fill(0);
+   throw error;
+  }
  }finally{contentKey.fill(0);}
 }

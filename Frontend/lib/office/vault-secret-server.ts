@@ -149,6 +149,9 @@ export async function uploadOfficeVaultSecret(input:{
   throw new SecretLockerError(413,"Secret documents must be between 1 byte and 10 MiB");
  const filename=sanitizedFilename(input.file.name);
  const data=Buffer.from(await input.file.arrayBuffer());
+ // Do not retain plaintext beyond the encryption and scanner boundary, even
+ // when validation, private storage, registration, or scanning fails.
+ try{
  const mime=detectMime(data,filename,input.file.type||"");
  const documentId=input.documentId||randomUUID(),versionId=randomUUID();
  const sealed=sealVaultContent(data,documentId,versionId,loadVaultKeyring());
@@ -182,6 +185,7 @@ export async function uploadOfficeVaultSecret(input:{
  if(result.error||result.data!==verdict)
   throw new SecretLockerError(503,"Secret scanner outcome could not be recorded");
  return {document_id:documentId,version_id:versionId,status:verdict};
+ }finally{data.fill(0);}
 }
 export async function retryOfficeVaultSecretScan(versionId:string){
  const current=await actor();await permission(current,"vault.secret.upload");
@@ -189,6 +193,7 @@ export async function retryOfficeVaultSecretScan(versionId:string){
  if(version.uploaded_by!==current.identity.userId||version.scan_state!=="QUARANTINED")
   throw new SecretLockerError(404,"Quarantined upload unavailable");
  const data=await decryptStored(current,version);
+ try{
  const verdict=await scan(data,version.mime_type);
  if(verdict==="UNKNOWN"){
   await record(current,version,"SCAN_UNKNOWN");
@@ -201,6 +206,7 @@ export async function retryOfficeVaultSecretScan(versionId:string){
  if(result.error||result.data!==verdict)
   throw new SecretLockerError(503,"Scanner outcome could not be committed");
  return {status:verdict};
+ }finally{data.fill(0);}
 }
 export async function reviewOfficeVaultSecret(input:{versionId:string;approve:boolean;note:string}){
  const current=await actor();await permission(current,"vault.secret.review");
@@ -326,6 +332,14 @@ export async function downloadOfficeVaultSecret(versionId:string,action:"PREVIEW
   throw new SecretLockerError(415,"This document format cannot be previewed safely");
  await requireOfficeVaultRecord({category:"secrets",recordId:version.document_id,action});
  const bytes=await decryptStored(current,version);
- await record(current,version,action==="DOWNLOAD"?"DOWNLOADED":"PREVIEWED");
- return {bytes,mime:version.mime_type,filename:version.filename,sha256:version.sha256};
+ let transferred=false;
+ try{
+  await record(current,version,action==="DOWNLOAD"?"DOWNLOADED":"PREVIEWED");
+  // The response's cancel/end handler now owns this buffer and clears it.
+  transferred=true;
+  return {bytes,mime:version.mime_type,filename:version.filename,sha256:version.sha256};
+ }finally{
+  // Audit failure must not strand decrypted evidence in the server heap.
+  if(!transferred)bytes.fill(0);
+ }
 }
