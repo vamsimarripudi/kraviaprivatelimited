@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, ClipboardCheck, MessageSquareText, RefreshCw, Search, Send, ShieldCheck, Paperclip } from "lucide-react";
 import styles from "./office-connect.module.css";
 import { OfficeConnectMessageActions } from "@/components/office-connect-message-actions";
+import { OfficeConnectOverview } from "@/components/office-connect-overview";
 import { Office5FileCard, type Office5FileStatus } from "@/components/office5-primitives";
 import { useOfficeWorkspace } from "@/components/office-workspace-context";
 
@@ -170,7 +171,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
   return <section className={styles.connect} aria-label="KRAVIA Connect">
     <header className={styles.header}>
       <div><p className={styles.eyebrow}>KRAVIA OFFICE · CONNECT</p>
-        <h1>{activeId ? selected?.title ?? "Private conversation" : "Communications"}</h1>
+        <h1>{activeId ? selected?.title ?? "Private conversation" : "Communication home"}</h1>
         <p>Employee-only conversations. Formal approvals, access grants and payments remain in their governed systems.</p></div>
       <div className={styles.headerActions}>
         <Link href="/office/chat/directory"><Search size={17} aria-hidden="true"/>Find employee</Link>
@@ -180,7 +181,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
         <button type="button" onClick={() => setReloadCount(v => v + 1)} aria-label="Refresh Connect" title="Refresh"><RefreshCw size={17}/></button>
       </div>
     </header>
-    <div className={styles.grid}>
+    <div className={styles.grid} data-home={!activeId}>
       <aside className={styles.sidebar} aria-label="Conversations">
         <div className={styles.sideHeading}><h2>My conversations</h2><span>{conversations.length}</span></div>
         {listLoading ? <div className={styles.skeleton} role="status">Loading authorized conversations…</div> : null}
@@ -196,17 +197,8 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
             <ArrowRight size={15} aria-hidden="true"/></Link>)}
         </nav>
       </aside>
-      <section className={styles.body} aria-label={activeId ? "Private messages" : "Connect workspace"}>
-        {!activeId ? <>
-          <div className={styles.welcome}><ShieldCheck size={30} aria-hidden="true"/><h2>Private by membership</h2>
-            <p>Start with an eligible employee. Conversation content is reauthorized for every read and message submission.</p>
-            <Link href="/office/chat/directory">Employee directory <ArrowRight size={16} aria-hidden="true"/></Link></div>
-          <nav className={styles.quick} aria-label="Related Office workflows">
-            <Link href="/office/chat/support"><ShieldCheck size={19}/>IT & Customer Support <ArrowRight size={16}/></Link>
-            <Link href="/office/chat/approvals"><ClipboardCheck size={19}/>Formal approvals <ArrowRight size={16}/></Link>
-            <Link href="/office/chat/activity"><MessageSquareText size={19}/>My notifications <ArrowRight size={16}/></Link>
-          </nav>
-        </> : <>
+      <section className={styles.body} data-home={!activeId} aria-label={activeId ? "Private messages" : "Connect workspace"}>
+        {!activeId ? <OfficeConnectOverview conversations={conversations}/> : <>
           <div className={styles.threadHeader}><Link href="/office/chat" className={styles.back}><ArrowLeft size={17}/>All conversations</Link><span>Verified membership · Internal</span></div>
           <div className={styles.timeline} role="log" aria-label="Message history" aria-live="polite">
             {messageLoading ? <div className={styles.skeleton}>Opening private history…</div> : null}
