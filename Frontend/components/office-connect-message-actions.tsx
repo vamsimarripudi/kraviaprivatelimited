@@ -1,7 +1,7 @@
 "use client";
 import {useState,type FormEvent} from "react";
 import Link from "next/link";
-import {Bookmark,CornerDownRight,Edit3,Flag,History,Pin,PinOff,Trash2} from "lucide-react";
+import {Bookmark,CornerDownRight,Edit3,Flag,History,Pin,PinOff,Trash2,SmilePlus} from "lucide-react";
 import styles from "./office-connect-message-actions.module.css";
 type Reaction={emoji:string;count:number;mine:boolean};
 type Props={id:string;body:string;own:boolean;pinned?:boolean;canPin?:boolean;
@@ -25,6 +25,7 @@ export function OfficeConnectMessageActions({id,body,own,pinned=false,canPin=fal
  const [historyBusy,setHistoryBusy]=useState(false);
  const [history,setHistory]=useState<RevisionResponse|null>(null);
  const [reportOpen,setReportOpen]=useState(false);
+ const [reactionsExpanded,setReactionsExpanded]=useState(false);
  const [reportCategory,setReportCategory]=useState("CODE_OF_CONDUCT");
  const [reportSeverity,setReportSeverity]=useState("MEDIUM");
  const [reportDetail,setReportDetail]=useState("");
@@ -94,19 +95,24 @@ export function OfficeConnectMessageActions({id,body,own,pinned=false,canPin=fal
  }
  return <div className={styles.actions}>
   <nav aria-label="Message actions">
-   <Link href={"/office/chat/threads/"+id}><CornerDownRight size={14}/>Reply</Link>
-   <button type="button" disabled={busy} onClick={()=>void save()}><Bookmark size={14}/>Save</button>
-   {canPin?<button type="button" disabled={busy} onClick={()=>void togglePin()}>
-    {pinned?<PinOff size={14}/>:<Pin size={14}/>} {pinned?"Unpin":"Pin"}</button>:null}
-   {own?<button type="button" disabled={busy} onClick={()=>{setDraft(body);setEditing(true);setRemove(false);}}><Edit3 size={14}/>Edit</button>:null}
-   {own?<button type="button" disabled={busy} onClick={()=>{setRemove(true);setEditing(false);}}><Trash2 size={14}/>Remove</button>:null}
-   {editedAt?<button type="button" disabled={busy} aria-expanded={historyOpen}
-     onClick={()=>void toggleHistory()}><History size={14}/>History</button>:null}
-   <button type="button" disabled={busy} aria-expanded={reportOpen}
-    onClick={()=>{setReportOpen(open=>!open);setEditing(false);setRemove(false);}}>
-     <Flag size={14}/>Report</button>
+   <Link href={"/office/chat/threads/"+id} aria-label="Reply in thread" title="Reply in thread"><CornerDownRight size={16}/></Link>
+   <button type="button" aria-label="Save message" title="Save" disabled={busy}
+     onClick={()=>void save()}><Bookmark size={16}/></button>
+   {canPin?<button type="button" aria-label={pinned?"Unpin message":"Pin message"} title={pinned?"Unpin":"Pin"}
+     disabled={busy} onClick={()=>void togglePin()}>{pinned?<PinOff size={16}/>:<Pin size={16}/>}</button>:null}
+   {own?<button type="button" aria-label="Edit message" title="Edit" disabled={busy}
+     onClick={()=>{setDraft(body);setEditing(true);setRemove(false);}}><Edit3 size={16}/></button>:null}
+   {own?<button type="button" aria-label="Remove message" title="Remove" disabled={busy}
+     onClick={()=>{setRemove(true);setEditing(false);}}><Trash2 size={16}/></button>:null}
+   {editedAt?<button type="button" aria-label="Message edit history" title="History"
+     disabled={busy} aria-expanded={historyOpen} onClick={()=>void toggleHistory()}><History size={16}/></button>:null}
+   <button type="button" aria-label="Confidentially report message" title="Report" disabled={busy}
+     aria-expanded={reportOpen}
+     onClick={()=>{setReportOpen(open=>!open);setEditing(false);setRemove(false);}}><Flag size={16}/></button>
+   <button type="button" aria-label="React to message" title="React" aria-expanded={reactionsExpanded}
+     disabled={busy} onClick={()=>setReactionsExpanded(v=>!v)}><SmilePlus size={16}/></button>
   </nav>
-  <div className={styles.reactions} role="group" aria-label="Message reactions">
+  {reactionsExpanded?<div className={styles.reactions} role="group" aria-label="Message reactions">
    {["👍","❤️","✅","🎉","👀","🤔"].map(emoji=>{
     const current=reactions.find(reaction=>reaction.emoji===emoji);
     return <button type="button" key={emoji} disabled={busy}
@@ -115,7 +121,7 @@ export function OfficeConnectMessageActions({id,body,own,pinned=false,canPin=fal
       onClick={()=>void react(emoji,current?.mine??false)}>{emoji}
       {current?.count?<span aria-hidden="true">{current.count}</span>:null}</button>;
    })}
-  </div>
+  </div>:null}
   {reportOpen?<form className={styles.form} aria-label="Report a message" onSubmit={report}>
    <h3>Confidential Ethics report</h3>
    <p>The report is stored in the separate Ethics case system. Investigators do not gain access to this private conversation automatically.</p>
