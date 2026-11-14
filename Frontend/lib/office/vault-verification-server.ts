@@ -1,6 +1,6 @@
 import "server-only";
-import {getOfficeRegistrationOverview,reviewOfficeRegistration,OfficeRegistrationError} from "@/lib/office/registration-server";
-import {getOfficeVaultAccess,getOfficeVaultSourceVisibleRecordIds,getOfficeVaultGrantedResources,
+import {getOfficeRegistrationOverview,reviewOfficeRegistration} from "@/lib/office/registration-server";
+import {getOfficeVaultSourceVisibleRecordIds,getOfficeVaultGrantedResources,
  requireOfficeVaultRecord,OfficeVaultAccessError} from "@/lib/office/vault-access-server";
 
 export class OfficeVaultVerificationError extends Error{
