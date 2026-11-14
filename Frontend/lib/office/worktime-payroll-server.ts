@@ -45,6 +45,18 @@ async function can(actor: Actor, permission: string): Promise<boolean> {
   const result: OfficePermissionDecision = await resolveOfficePermission(actor.admin, actor.identity, permission, { type: "COMPANY" });
   return result.allowed;
 }
+async function hasEffectiveHrManager(actor: Actor): Promise<boolean> {
+  const rows = await actor.admin.from("office_user_access_profiles")
+    .select("effective_from,expires_at").eq("user_id", actor.identity.userId)
+    .eq("profile_code", "HR_MANAGER").eq("status", "ACTIVE");
+  check(rows, "HR Manager authority is unavailable");
+  const now = Date.now();
+  return (rows.data ?? []).some(row => {
+    const from = row.effective_from ? Date.parse(String(row.effective_from)) : 0;
+    const until = row.expires_at ? Date.parse(String(row.expires_at)) : Number.POSITIVE_INFINITY;
+    return Number.isFinite(from) && from <= now && until > now;
+  });
+}
 function asApprovedPolicy(row: PolicyRow): ApprovedWorkPolicy {
   return {
     status: "APPROVED", authorityReference: row.authority_reference, effectiveFrom: row.effective_from,
@@ -112,16 +124,7 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
   ]);
   for (const r of [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult, periodResult, flexResult, sessionsResult]) check(r, "Office worktime evidence is unavailable");
   if (!identityResult.data) throw new OfficeWorktimeError(404, "Employee not found");
-  const manager = await actor.admin.from("office_user_access_profiles")
-    .select("effective_from,expires_at").eq("user_id", actor.identity.userId)
-    .eq("profile_code", "HR_MANAGER").eq("status", "ACTIVE");
-  check(manager, "HR Manager authority is unavailable");
-  const nowMs = Date.now();
-  const hrManagerActive = (manager.data ?? []).some(row => {
-    const from = row.effective_from ? Date.parse(String(row.effective_from)) : 0;
-    const until = row.expires_at ? Date.parse(String(row.expires_at)) : Number.POSITIVE_INFINITY;
-    return Number.isFinite(from) && from <= nowMs && until > nowMs;
-  });
+  const hrManagerActive = await hasEffectiveHrManager(actor);
   const isDirector = actor.identity.roles.some(role => role === "OWNER" || role === "DIRECTOR");
   const policyProposal = isDirector && await can(actor, "payroll.rules.manage");
   const policies = (policiesResult.data ?? []) as PolicyRow[];
@@ -253,7 +256,10 @@ export async function officeWorktimeAction(input:
       break;
     }
     case "DECIDE":
-      if (!actor.identity.roles.some(role => role === "OWNER" || role === "DIRECTOR") || !await can(actor, "people.update")) throw new OfficeWorktimeError(403, "Director People approval required");
+      if (!await can(actor, "people.update") || !(
+        actor.identity.roles.some(role => role === "OWNER" || role === "DIRECTOR") ||
+        await hasEffectiveHrManager(actor)
+      )) throw new OfficeWorktimeError(403, "Current independent People or HR Manager review permission required");
       rpcName = "office_worktime_decide";
       params = { p_actor: user, p_case: input.caseId, p_decision: input.decision, p_note: input.note || null };
       break;
