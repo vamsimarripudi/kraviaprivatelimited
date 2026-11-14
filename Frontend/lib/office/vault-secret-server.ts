@@ -321,6 +321,9 @@ export async function downloadOfficeVaultSecret(versionId:string,action:"PREVIEW
  const version=await storedVersion(current,versionId);
  if(version.scan_state!=="CLEAN"||version.review_state!=="APPROVED")
   throw new SecretLockerError(404,"Secret document unavailable");
+ if(action==="PREVIEW"&&version.mime_type!=="application/pdf"&&
+    !["image/jpeg","image/png","image/webp"].includes(version.mime_type))
+  throw new SecretLockerError(415,"This document format cannot be previewed safely");
  await requireOfficeVaultRecord({category:"secrets",recordId:version.document_id,action});
  const bytes=await decryptStored(current,version);
  await record(current,version,action==="DOWNLOAD"?"DOWNLOADED":"PREVIEWED");
