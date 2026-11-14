@@ -7,6 +7,7 @@ import { getOfficeDocumentStudioOverview } from "@/lib/office/document-studio-se
 import { getSecureCustodyOverview } from "@/lib/office/custody-server";
 import { InternalWorkspaceScreen } from "@/components/internal-workspace-screen";
 import { OfficeVaultAccessCenter } from "@/components/office-vault-access-center";
+import { OfficeVaultOverview } from "@/components/office-vault-overview";
 import { requireOfficeVaultRecord, getOfficeVaultGrantedResources, getOfficeVaultAllowedActions, OfficeVaultAccessError } from "@/lib/office/vault-access-server";
 import { vaultCategories, type VaultCategory } from "@/lib/office/vault-categories";
 import styles from "@/components/office-vault.module.css";
@@ -84,7 +85,7 @@ export default async function VaultPages({params}:Props){
  let subtitle="A permission-first index of authoritative corporate records. Values and files remain in their source systems.";
  let content:React.ReactNode;
  if (!route) {
-   content=categories.length?<div className={styles.categories}>{categories.map(link)}</div>:<Restricted request/>;
+   content=<OfficeVaultOverview categories={categories}/>;
  } else if(route==="categories"){
    title="Categories";subtitle="Only resource categories authorized for the current employee.";
    content=categories.length?<div className={styles.categories}>{categories.map(link)}</div>:<Restricted request/>;
