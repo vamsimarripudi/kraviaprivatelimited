@@ -169,8 +169,30 @@ export async function openPayrollPeriod(input: { kind: "MONTHLY" | "OFF_CYCLE" |
   return { period_id: data };
 }
 
-export async function setPayrollAttendance(input: { periodId: string; employmentId: string; basisUnits: number; payableUnits: number; paidLeaveUnits?: number; unpaidLeaveUnits?: number; absenceUnits?: number; unresolvedUnits?: number; sourceSnapshot?: Record<string, unknown> }) {
+export async function setPayrollAttendance(input: { periodId: string; employmentId: string; basisUnits: number; payableUnits: number; paidLeaveUnits?: number; unpaidLeaveUnits?: number; absenceUnits?: number; unresolvedUnits?: number; sourceSnapshot?: Record<string, unknown>; expectedUpdatedAt?: string; correctionReason?: string }) {
   const current = await requirePermission("payroll.run.prepare");
+  const payable = input.payableUnits;
+  const paidLeave = input.paidLeaveUnits ?? 0;
+  const unpaid = input.unpaidLeaveUnits ?? 0;
+  const absence = input.absenceUnits ?? 0;
+  const unresolved = input.unresolvedUnits ?? 0;
+  const entries = [input.basisUnits,payable,paidLeave,unpaid,absence,unresolved];
+  if (entries.some(x => !Number.isFinite(x) || x < 0) || input.basisUnits <= 0 ||
+      paidLeave > payable || payable + unpaid + absence + unresolved > input.basisUnits + 0.001) {
+    throw new OfficePayrollError(400, "Invalid reviewed payroll hours. Paid leave is part of payable hours; unresolved time cannot be silently deducted");
+  }
+  if (!input.sourceSnapshot || typeof input.sourceSnapshot.source !== "string") {
+    throw new OfficePayrollError(400, "Verifiable attendance evidence is required");
+  }
+  const previous = await current.admin.from("office_payroll_attendance_snapshots")
+    .select("id,updated_at").eq("period_id", input.periodId).eq("employment_id", input.employmentId).maybeSingle();
+  fail(previous.error, "Previous payroll attendance unavailable");
+  if (previous.data && (!input.expectedUpdatedAt || previous.data.updated_at !== input.expectedUpdatedAt)) {
+    throw new OfficePayrollError(409, "Attendance was updated; refresh before changing an existing snapshot");
+  }
+  if (previous.data && (!input.correctionReason || input.correctionReason.trim().length < 12)) {
+    throw new OfficePayrollError(400, "Provide an evidence-backed reason to update an existing snapshot");
+  }
   const { data, error } = await current.admin.rpc("office_payroll_set_attendance_snapshot", {
     p_actor: current.identity.userId, p_period: input.periodId, p_employment: input.employmentId,
     p_basis: input.basisUnits, p_payable: input.payableUnits, p_paid_leave: input.paidLeaveUnits ?? 0,
