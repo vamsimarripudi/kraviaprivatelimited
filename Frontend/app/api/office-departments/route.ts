@@ -24,12 +24,15 @@ export async function GET() {
     const owns = new Set((ownership.data ?? []).filter((row) => row.owner_user_id === identity.userId).map((row) => row.department_code));
     const visible = (transfers.data ?? []).filter((item) => founder || item.to_owner_user_id === identity.userId || item.from_owner_user_id === identity.userId);
     const departmentsToShow = (departments.data ?? []).filter((item) => founder || owns.has(item.code) || visible.some((transfer) => transfer.department_code === item.code));
+    // Self-service recipients may see only the people participating in their
+    // visible transfers, never the entire employee directory.
+    const participantIds = new Set([identity.userId, ...visible.flatMap(item => [item.from_owner_user_id, item.to_owner_user_id])]);
     return NextResponse.json({
       actor: { user_id: identity.userId, founder },
       departments: departmentsToShow,
       ownership: (ownership.data ?? []).filter((item) => departmentsToShow.some((dept) => dept.code === item.department_code)),
       transfers: visible,
-      people: founder || owns.size ? (people.data ?? []) : [],
+      people: founder || owns.size ? (people.data ?? []) : (people.data ?? []).filter(item => participantIds.has(item.user_id)),
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return NextResponse.json({ detail: error instanceof OfficePermissionError ? error.message : "Ownership data unavailable" }, { status: error instanceof OfficePermissionError ? error.status : 503 });
