@@ -443,9 +443,23 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
               <p>{message.body}</p>
               <time dateTime={message.created_at}>{new Date(message.created_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</time>
               {message.attachments?.length?<div className={styles.messageFiles} aria-label="Scanned shared attachments">
-                {message.attachments.map(file=><a key={file.id}
-                  href={"/api/office-chat/attachments/"+file.id+"/download"}><Paperclip size={14}/>
-                  {file.name} · {Math.ceil(file.size/1024)} KiB</a>)}
+                {message.attachments.map(file=><div key={file.id} className="chat-inline-media">
+                  {["image/jpeg","image/png","image/webp","image/gif"].includes(file.mime)?
+                   // Only server-authorized CLEAN linked message attachments may load.
+                   <a href={"/api/office-chat/attachments/"+file.id+"/download"} title={"Download "+file.name}>
+                    {/* A controlled same-origin binary media preview, never a remote URL. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={"/api/office-chat/attachments/"+file.id+"/preview"}
+                      loading="lazy" decoding="async" alt={"Shared image: "+file.name}/></a>:null}
+                  {["video/mp4","video/webm"].includes(file.mime)?
+                   <video controls preload="none" playsInline
+                     aria-label={"Shared video: "+file.name}>
+                    <source src={"/api/office-chat/attachments/"+file.id+"/preview"} type={file.mime}/>
+                    Your browser cannot play this video.
+                   </video>:null}
+                  <a href={"/api/office-chat/attachments/"+file.id+"/download"}>
+                   <Paperclip size={14}/>{file.name} · {Math.ceil(file.size/1024)} KiB</a>
+                 </div>)}
               </div>:null}
               <OfficeConnectMessageActions id={message.id} body={message.body} editedAt={message.edited_at}
                 pinned={message.pinned} canPin={canPin} reactions={message.reactions??[]} own={message.sender_user_id===actor} onDone={()=>setReloadCount(v=>v+1)}/>
