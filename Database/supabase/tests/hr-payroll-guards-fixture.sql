@@ -3,7 +3,13 @@
 -- Reproduce the real period columns used by the draft invalidation trigger.
 alter table public.office_payroll_periods
   add column if not exists approval_request_id uuid,
-  add column if not exists updated_at timestamptz not null default now();
+  add column if not exists updated_at timestamptz not null default now(),
+  add column if not exists period_kind text not null default 'MONTHLY';
+alter table public.office_employment_registry
+  add column if not exists identity_user_id uuid references public.office_identity_users(user_id),
+  add column if not exists status text not null default 'ACTIVE',
+  add column if not exists start_date date,
+  add column if not exists end_date date;
 alter table public.office_payroll_adjustments
   add column if not exists amount_minor bigint not null default 0,
   add column if not exists status text not null default 'DRAFT',
@@ -28,6 +34,9 @@ create table if not exists public.office_payroll_attendance_snapshots (
   reviewed_at timestamptz,
   updated_at timestamptz not null default now()
 );
+create unique index if not exists office_hr_qa_snapshot_single
+  on public.office_payroll_attendance_snapshots(period_id,employment_id);
+
 create table if not exists public.office_payroll_events (
   id bigint generated always as identity primary key,
   actor_user_id uuid references public.office_identity_users(user_id),
