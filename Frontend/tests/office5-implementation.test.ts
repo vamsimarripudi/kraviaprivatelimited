@@ -12,7 +12,9 @@ const style = read("app/office/office-experience-5.css");
 
 describe("KRAVIA Office 5.0 source-backed implementation guardrails", () => {
  it("preserves every existing 55 Office and 24 Finance section entry",()=>{
-   expect(Object.keys(officeSections)).toHaveLength(55);
+   const baseline=["dashboard","my-role","info","notifications","tasks","calendar","requests","approvals","manager","department-ownership","decisions","strategy","intelligence","products","portfolio","customers","crm","engineering","governance","compliance","registrations","knowledge","documents","contracts","vendors","recruitment","people","emergency","development","travel","cards","payroll","worktime","budget","assets","devices","it","facilities","support","role-packages","access","data","privacy","ethics","resilience","ai","quality","trust","security","integrations","domains","custody","readiness","audit","settings"];
+   expect(Object.keys(officeSections)).toEqual(expect.arrayContaining(baseline));
+   expect(Object.keys(officeSections).length).toBeGreaterThanOrEqual(baseline.length);
    expect(Object.keys(financeSections)).toHaveLength(24);
    expect(preferredLandingPath(["DIRECTOR","FINANCE","HR","MEMBER","PRODUCT_ADMIN"])).toBe("/office/dashboard");
  });
