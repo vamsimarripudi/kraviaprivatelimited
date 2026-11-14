@@ -3,11 +3,46 @@ import "server-only";
 import { OfficePermissionError, requireOfficeActor, resolveOfficePermission } from "@/lib/office/permission-engine";
 import { currentOfficeTrustedDeviceId } from "@/lib/office/device-binding-server";
 import {vaultCategories} from "@/lib/office/vault-categories";
+import {visibleVaultRecordIds} from "@/lib/office/vault-record-visibility";
 
 export class OfficeVaultAccessError extends Error {
  constructor(public readonly status:number,message:string){super(message);this.name="OfficeVaultAccessError";}
 }
 type Actor=Awaited<ReturnType<typeof requireOfficeActor>>;
+const scopedRecordSource:Record<string,{table:string;owner:string;permission:string}>={
+ documents:{table:"office_document_instances",owner:"owner_user_id",permission:"document.instance.read"},
+ identity:{table:"office_company_registrations",owner:"owner_user_id",permission:"registration.read"},
+ registrations:{table:"office_company_registrations",owner:"owner_user_id",permission:"registration.read"},
+ custody:{table:"office_secure_custody_items",owner:"current_custodian_user_id",permission:"custody.read"},
+};
+type ScopedRow={id:string;owner_user_id?:string|null};
+async function sourceVisibleIds(current:Actor,category:string,rows:readonly ScopedRow[]){
+ const source=scopedRecordSource[category];
+ if(!source)throw new OfficeVaultAccessError(404,"Record scope unavailable");
+ const device=await currentOfficeTrustedDeviceId(current.admin,current.identity.userId);
+ const company=await resolveOfficePermission(current.admin,current.identity,
+  source.permission,{type:"COMPANY"},device);
+ const own=company.allowed?{allowed:false}:await resolveOfficePermission(current.admin,current.identity,
+  source.permission,{type:"OWN",ownerUserId:current.identity.userId},device);
+ return visibleVaultRecordIds(rows,current.identity.userId,company.allowed,own.allowed);
+}
+export async function getOfficeVaultSourceVisibleRecordIds(category:string,rows:readonly ScopedRow[]){
+ const current=await actor();
+ return sourceVisibleIds(current,category,rows);
+}
+async function sourceRecordCanRead(current:Actor,category:string,recordId:string){
+ const source=scopedRecordSource[category];
+ if(!source)return false;
+ const {data,error}=await current.admin.from(source.table).select("id,"+source.owner)
+  .eq("id",recordId).maybeSingle();
+ if(error)throw new OfficeVaultAccessError(503,"Source record authorization unavailable");
+ if(!data)return false;
+ const fields=data as Record<string,unknown>;
+ const rows=[{id:String(fields.id),owner_user_id:typeof fields[source.owner]==="string"
+  ?String(fields[source.owner]):null}];
+ const allowed=await sourceVisibleIds(current,category,rows);
+ return allowed.has(recordId);
+}
 const reviewPermission:Record<string,string>={
  identity:"registration.review",registrations:"registration.review",
  banking:"finance.bank.read",legal:"legal.contract.review",
@@ -123,9 +158,10 @@ export async function requireOfficeVaultRecord(input:{category:string;recordId:s
  if(!Object.hasOwn(sourceReadPermissions,input.category)||
    !sourceReadPermissions[input.category]?.length)
   throw new OfficeVaultAccessError(404,"Resource unavailable");
- // A Vault grant is additive, never an alternative to current source authority.
- const sourceDecisions=await Promise.all(sourceReadPermissions[input.category].map(code=>permitted(current,code)));
- if(!sourceDecisions.some(Boolean))throw new OfficeVaultAccessError(404,"Resource unavailable");
+ // Record ownership is checked against the canonical source row. Template
+ // reading alone cannot authorize a document instance or file download.
+ if(!await sourceRecordCanRead(current,input.category,input.recordId))
+  throw new OfficeVaultAccessError(404,"Resource unavailable");
  const {data,error}=await current.admin.from("office_vault_access_grants").select(
   "id,category_slug,resource_id,action,expires_at,revoked_at"
  ).eq("grantee_user_id",current.identity.userId).eq("category_slug",input.category)
@@ -174,8 +210,8 @@ export async function getOfficeVaultAllowedActions(category:string,recordId:stri
  const current=await actor();
  const sources=sourceReadPermissions[category];
  if(!sources?.length)throw new OfficeVaultAccessError(404,"Resource unavailable");
- const decisions=await Promise.all(sources.map(code=>permitted(current,code)));
- if(!decisions.some(Boolean))throw new OfficeVaultAccessError(404,"Resource unavailable");
+ if(!await sourceRecordCanRead(current,category,recordId))
+  throw new OfficeVaultAccessError(404,"Resource unavailable");
  const {data,error}=await current.admin.from("office_vault_access_grants")
   .select("resource_id,action").eq("grantee_user_id",current.identity.userId)
   .eq("category_slug",category).is("revoked_at",null)

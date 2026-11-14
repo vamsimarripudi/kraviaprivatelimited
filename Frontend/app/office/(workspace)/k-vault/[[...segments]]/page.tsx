@@ -9,7 +9,7 @@ import { InternalWorkspaceScreen } from "@/components/internal-workspace-screen"
 import { OfficeVaultAccessCenter } from "@/components/office-vault-access-center";
 import { OfficeVaultOverview } from "@/components/office-vault-overview";
 import { OfficeVaultActivity } from "@/components/office-vault-activity";
-import { requireOfficeVaultRecord, getOfficeVaultGrantedResources, getOfficeVaultAllowedActions, OfficeVaultAccessError } from "@/lib/office/vault-access-server";
+import { requireOfficeVaultRecord, getOfficeVaultGrantedResources, getOfficeVaultAllowedActions, getOfficeVaultSourceVisibleRecordIds, OfficeVaultAccessError } from "@/lib/office/vault-access-server";
 import { vaultCategories, type VaultCategory } from "@/lib/office/vault-categories";
 import styles from "@/components/office-vault.module.css";
 
@@ -25,7 +25,9 @@ async function RegisteredRecords({category}:{category:"identity"|"registrations"
  const grants=await getOfficeVaultGrantedResources(category);
  if(!grants.length)return <AccessEmpty category="registration"/>;
  const data=await getOfficeRegistrationOverview();
- const allowed=data.registrations.filter(row=>grants.includes(null)||grants.includes(row.id));
+ const sourceVisible=await getOfficeVaultSourceVisibleRecordIds(category,data.registrations);
+ const allowed=data.registrations.filter(row=>sourceVisible.has(row.id)&&
+  (grants.includes(null)||grants.includes(row.id)));
  if(!allowed.length)return <AccessEmpty category="registration"/>;
  return <div className={styles.categories}>{allowed.map(row=><Link className={styles.category}
    href={"/office/k-vault/records/"+row.id} key={row.id}><ShieldCheck size={20}/>
@@ -36,7 +38,9 @@ async function GrantedDocuments(){
  const grants=await getOfficeVaultGrantedResources("documents");
  if(!grants.length)return <AccessEmpty category="document"/>;
  const data=await getOfficeDocumentStudioOverview();
- const docs=data.instances.filter(row=>grants.includes(null)||grants.includes(row.id));
+ const sourceVisible=await getOfficeVaultSourceVisibleRecordIds("documents",data.instances);
+ const docs=data.instances.filter(row=>sourceVisible.has(row.id)&&
+  (grants.includes(null)||grants.includes(row.id)));
  if(!docs.length)return <AccessEmpty category="document"/>;
  return <div className={styles.categories}>{docs.map(row=><Link className={styles.category}
   href={"/office/k-vault/documents/"+row.id} key={row.id}><FileLock2 size={20}/>
@@ -47,7 +51,10 @@ async function GrantedCustody(){
  const grants=await getOfficeVaultGrantedResources("custody");
  if(!grants.length)return <AccessEmpty category="custody"/>;
  const data=await getSecureCustodyOverview();
- const records=data.items.filter(row=>grants.includes(null)||grants.includes(row.id));
+ const sourceVisible=await getOfficeVaultSourceVisibleRecordIds("custody",
+  data.items.map(row=>({id:row.id,owner_user_id:row.current_custodian_user_id})));
+ const records=data.items.filter(row=>sourceVisible.has(row.id)&&
+  (grants.includes(null)||grants.includes(row.id)));
  if(!records.length)return <AccessEmpty category="custody"/>;
  return <div className={styles.categories}>{records.map(row=><article className={styles.category} key={row.id}>
   <LockKeyhole size={20}/><span><strong>{row.title}</strong>
