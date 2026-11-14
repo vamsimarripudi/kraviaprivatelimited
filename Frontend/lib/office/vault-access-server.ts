@@ -14,6 +14,7 @@ const scopedRecordSource:Record<string,{table:string;owner:string;permission:str
  identity:{table:"office_company_registrations",owner:"owner_user_id",permission:"registration.read"},
  registrations:{table:"office_company_registrations",owner:"owner_user_id",permission:"registration.read"},
  custody:{table:"office_secure_custody_items",owner:"current_custodian_user_id",permission:"custody.read"},
+ secrets:{table:"office_vault_secret_documents",owner:"owner_user_id",permission:"vault.secret.read"},
 };
 type ScopedRow={id:string;owner_user_id?:string|null};
 async function sourceVisibleIds(current:Actor,category:string,rows:readonly ScopedRow[]){
@@ -47,7 +48,7 @@ const reviewPermission:Record<string,string>={
  identity:"registration.review",registrations:"registration.review",
  banking:"finance.bank.read",legal:"legal.contract.review",
  people:"people.sensitive.read",technology:"operations.asset.manage",
- documents:"document.instance.review",custody:"custody.review",
+ documents:"document.instance.review",custody:"custody.review",secrets:"vault.secret.review",
 };
 const sourceReadPermissions:Record<string,readonly string[]>=Object.fromEntries(
  vaultCategories.map(c=>[c.slug,c.permissions])
