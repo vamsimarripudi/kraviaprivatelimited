@@ -1,5 +1,5 @@
 import Link from "next/link";
-import {FolderClosed,ShieldCheck} from "lucide-react";
+import {FolderClosed} from "lucide-react";
 import {getOfficeRegistrationOverview} from "@/lib/office/registration-server";
 import {getOfficeVaultGrantedResources,getOfficeVaultSourceVisibleRecordIds} from "@/lib/office/vault-access-server";
 import {OfficeVaultCompanyRecords,type CompanyMasterRow} from "@/components/office-vault-company-records";
