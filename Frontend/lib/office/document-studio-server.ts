@@ -5,6 +5,7 @@ import { Buffer } from "node:buffer";
 import { getOfficeRuntimeOrigin } from "@/lib/env/office";
 import { getOfficeSessionContext } from "@/lib/office/auth-server";
 import {sourceVisibleDocumentInstances} from "@/lib/office/document-source-scope";
+import { currentOfficeTrustedDeviceId } from "@/lib/office/device-binding-server";
 import {
   OfficePermissionError,
   requireOfficeActor,
@@ -22,6 +23,22 @@ export class OfficeDocumentStudioError extends Error {
 type Actor = Awaited<ReturnType<typeof requireOfficeActor>>;
 type Row = Record<string, unknown>;
 
+/** Bind a single verified device to every source-record action and read gate.
+ * Cache for the duration of this request actor, not across employees/sessions. */
+const deviceForActor=new WeakMap<Actor,Promise<string|null>>();
+function currentDocumentDevice(current:Actor):Promise<string|null>{
+ let cached=deviceForActor.get(current);
+ if(!cached){
+   cached=currentOfficeTrustedDeviceId(current.admin,current.identity.userId);
+   deviceForActor.set(current,cached);
+ }
+ return cached;
+}
+async function documentPermission(current:Actor,code:string,scope:OfficeResourceScope){
+ return resolveOfficePermission(current.admin,current.identity,code,scope,
+   await currentDocumentDevice(current));
+}
+
 async function actor(): Promise<Actor> {
   try { return await requireOfficeActor(); }
   catch (error) {
@@ -37,7 +54,7 @@ async function decision(current: Actor, permission: string, ownerUserId?: string
     ...(ownerUserId ? [{ type: "OWN" as const, ownerUserId }] : []),
   ];
   for (const resource of scopes) {
-    const result = await resolveOfficePermission(current.admin, current.identity, permission, resource);
+    const result = await documentPermission(current, permission, resource);
     if (result.allowed) return result;
   }
   return null;
@@ -67,10 +84,10 @@ async function requireInstanceAuthority(
  instance:{owner_user_id?:string|null;template_id?:string|null},
 ){
  const actorId=current.identity.userId;
- const company=await resolveOfficePermission(current.admin,current.identity,permission,{type:"COMPANY"});
+ const company=await documentPermission(current,permission,{type:"COMPANY"});
  if(company.allowed)return;
  if(instance.owner_user_id===actorId){
-  const own=await resolveOfficePermission(current.admin,current.identity,permission,
+  const own=await documentPermission(current,permission,
    {type:"OWN",ownerUserId:actorId});
   if(own.allowed)return;
  }
@@ -80,7 +97,7 @@ async function requireInstanceAuthority(
   if(error)throw new OfficeDocumentStudioError(503,"Document department authority unavailable");
   const department=template?.owner_department;
   if(department&&await hasCurrentOfficeDepartment(current,department)){
-   const scoped=await resolveOfficePermission(current.admin,current.identity,permission,
+   const scoped=await documentPermission(current,permission,
     {type:"DEPARTMENT",key:department});
    if(scoped.allowed)return;
   }
@@ -133,16 +150,16 @@ export async function getOfficeDocumentStudioOverview() {
   const actorId=current.identity.userId;
   const [companyInstance,ownInstance,departmentInstance,
     companyTemplate,ownTemplate,departmentTemplate]=await Promise.all([
-    resolveOfficePermission(current.admin,current.identity,"document.instance.read",{type:"COMPANY"}),
-    resolveOfficePermission(current.admin,current.identity,"document.instance.read",{type:"OWN",ownerUserId:actorId}),
+    documentPermission(current,"document.instance.read",{type:"COMPANY"}),
+    documentPermission(current,"document.instance.read",{type:"OWN",ownerUserId:actorId}),
     current.identity.department
-     ?resolveOfficePermission(current.admin,current.identity,"document.instance.read",
+     ?documentPermission(current,"document.instance.read",
        {type:"DEPARTMENT",key:current.identity.department})
      :Promise.resolve({allowed:false}),
-    resolveOfficePermission(current.admin,current.identity,"document.template.read",{type:"COMPANY"}),
-    resolveOfficePermission(current.admin,current.identity,"document.template.read",{type:"OWN",ownerUserId:actorId}),
+    documentPermission(current,"document.template.read",{type:"COMPANY"}),
+    documentPermission(current,"document.template.read",{type:"OWN",ownerUserId:actorId}),
     current.identity.department
-     ?resolveOfficePermission(current.admin,current.identity,"document.template.read",
+     ?documentPermission(current,"document.template.read",
        {type:"DEPARTMENT",key:current.identity.department})
      :Promise.resolve({allowed:false}),
   ]);
