@@ -4,7 +4,7 @@ import { officeSections, financeSections, preferredLandingPath } from "../lib/of
 import { vaultCategories } from "../lib/office/vault-categories";
 
 const read = (path: string) => readFileSync(new URL("../" + path, import.meta.url), "utf8");
-const sql = read("../Database/supabase/migrations/20261114130001_office_chat_private_messages.sql");
+const sql = read("../Database/supabase/migrations/20261114150001_office_chat_private_messages.sql");
 const chat = read("lib/office/chat-server.ts");
 const vault = read("app/office/(workspace)/k-vault/[[...segments]]/page.tsx");
 const shell = read("components/office-workspace-shell.tsx");
@@ -32,7 +32,7 @@ describe("KRAVIA Office 5.0 source-backed implementation guardrails", () => {
  });
  it("does not leak old department channels through saved messages, mentions or search",()=>{
    const server = read("lib/office/chat-server.ts");
-   const migration = read("../Database/supabase/migrations/20261114130006_office_chat_department_channels.sql");
+   const migration = read("../Database/supabase/migrations/20261114150006_office_chat_department_channels.sql");
    const component = read("components/office-connect.tsx");
    expect(server).toContain("const effectiveDepartments=new Set");
    expect(server).toContain('row.kind!=="DEPARTMENT"||effectiveDepartments.has');
