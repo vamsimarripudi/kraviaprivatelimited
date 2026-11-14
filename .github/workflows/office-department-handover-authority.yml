@@ -3,13 +3,13 @@ name: Office department handover authority
 on:
   pull_request:
     paths:
-      - "Database/supabase/migrations/202611140002_department_handover_access_sync.sql"
+      - "Database/supabase/migrations/20261114102312_office_department_handover_access_sync_20261114.sql"
       - "Database/supabase/tests/department-handover-access-sync.sql"
       - ".github/workflows/office-department-handover-authority.yml"
   push:
     branches: [main]
     paths:
-      - "Database/supabase/migrations/202611140002_department_handover_access_sync.sql"
+      - "Database/supabase/migrations/20261114102312_office_department_handover_access_sync_20261114.sql"
       - "Database/supabase/tests/department-handover-access-sync.sql"
 
 permissions:

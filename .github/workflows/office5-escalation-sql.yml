@@ -3,7 +3,7 @@ name: Office 5.0 isolated IT escalation security
 on:
   pull_request:
     paths:
-      - "Database/supabase/migrations/202611140013_office_chat_it_escalations.sql"
+      - "Database/supabase/migrations/20261114130007_office_chat_it_escalations.sql"
       - "Database/supabase/tests/office5_escalation_stub.sql"
       - "Database/supabase/tests/office5_escalation_security.sql"
       - ".github/workflows/office5-escalation-sql.yml"
@@ -43,7 +43,7 @@ jobs:
               --set ON_ERROR_STOP=1 "$@"
           }
           pg --file Database/supabase/tests/office5_escalation_stub.sql
-          pg --file Database/supabase/migrations/202611140013_office_chat_it_escalations.sql
+          pg --file Database/supabase/migrations/20261114130007_office_chat_it_escalations.sql
           pg --file Database/supabase/tests/office5_escalation_security.sql
           counts="$(pg --tuples-only --no-align --command "select (select count(*) from public.office_chat_it_escalations),(select count(*) from public.office_chat_it_escalation_events),(select count(*) from public.office_it_service_tickets)")"
           test "$counts" = "0|0|0"
