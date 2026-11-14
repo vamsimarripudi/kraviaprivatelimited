@@ -64,7 +64,7 @@ export async function GET(request:Request,{params}:Context){
      for(const row of result.data??[]){
       const next=String(row.id);
       if(!cursor.test(next))throw new Error("Event cursor unavailable");
-      emit(event("change",{kind:String(row.event_type)},next));
+      emit(event(row.event_type==="PRESENCE"?"presence":"change",{kind:String(row.event_type)},next));
       since=next;
      }
      // Heartbeats are comments and are never interpreted as business events.

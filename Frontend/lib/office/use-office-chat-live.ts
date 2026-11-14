@@ -8,13 +8,15 @@ export function useOfficeChatLive(
  conversationId:string|undefined,
  onChange:()=>void,
  onRevoked:()=>void,
+ onPresence?:()=>void,
 ):OfficeChatLiveStatus{
  const [status,setStatus]=useState<OfficeChatLiveStatus>("idle");
- const changeRef=useRef(onChange),revokedRef=useRef(onRevoked);
+ const changeRef=useRef(onChange),revokedRef=useRef(onRevoked),presenceRef=useRef(onPresence);
  useEffect(()=>{
   changeRef.current=onChange;
   revokedRef.current=onRevoked;
- },[onChange,onRevoked]);
+  presenceRef.current=onPresence;
+ },[onChange,onRevoked,onPresence]);
  useEffect(()=>{
   if(!conversationId){return;}
   if(typeof EventSource==="undefined"){return;}
@@ -34,6 +36,9 @@ export function useOfficeChatLive(
     if(!active||document.visibilityState!=="visible")return;
     if(debounce)clearTimeout(debounce);
     debounce=setTimeout(()=>{if(active)changeRef.current();},200);
+   });
+   source.addEventListener("presence",()=>{
+    if(active&&document.visibilityState==="visible")presenceRef.current?.();
    });
    source.addEventListener("access-revoked",()=>{
     if(!active)return;

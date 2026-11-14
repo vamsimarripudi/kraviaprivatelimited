@@ -13,6 +13,7 @@ on:
       - "Database/supabase/migrations/202611140012_office_chat_scope_triggers.sql"
       - "Database/supabase/migrations/202611140013_office_chat_user_preferences.sql"
       - "Database/supabase/migrations/202611140014_office_chat_private_realtime.sql"
+      - "Database/supabase/migrations/202611140015_office_chat_private_typing.sql"
       - "Database/supabase/tests/office5_chat_security.sql"
       - "Database/supabase/tests/office5_chat_extended_security.sql"
       - "Database/supabase/tests/office5_chat_department_security.sql"
@@ -22,6 +23,7 @@ on:
       - "Database/supabase/tests/office5_chat_scope_triggers_security.sql"
       - "Database/supabase/tests/office5_chat_preferences_security.sql"
       - "Database/supabase/tests/office5_chat_realtime_security.sql"
+      - "Database/supabase/tests/office5_chat_typing_security.sql"
       - ".github/workflows/office5-chat-sql.yml"
   workflow_dispatch:
 
@@ -73,6 +75,7 @@ jobs:
           # for trigger installation, never granted to browser SQL roles.
           pg --command "create table public.office_chat_attachment_objects(id uuid primary key,conversation_id uuid not null references public.office_chat_conversations(id),status text,message_id uuid);"
           pg --file Database/supabase/migrations/202611140014_office_chat_private_realtime.sql
+          pg --file Database/supabase/migrations/202611140015_office_chat_private_typing.sql
           pg --file Database/supabase/tests/office5_chat_security.sql
           pg --file Database/supabase/tests/office5_chat_extended_security.sql
           pg --file Database/supabase/tests/office5_chat_department_security.sql
@@ -82,5 +85,6 @@ jobs:
           pg --file Database/supabase/tests/office5_chat_scope_triggers_security.sql
           pg --file Database/supabase/tests/office5_chat_preferences_security.sql
           pg --file Database/supabase/tests/office5_chat_realtime_security.sql
+          pg --file Database/supabase/tests/office5_chat_typing_security.sql
           counts="$(pg --tuples-only --no-align --command "select (select count(*) from public.office_chat_conversations),(select count(*) from public.office_chat_messages)")"
           test "$counts" = "0|0"
