@@ -1,7 +1,7 @@
 "use client";
 import {useEffect,useMemo,useState} from "react";
 import Link from "next/link";
-import {ArrowLeft,ArrowRight,BarChart3,Clock3,Headphones,LockKeyhole,RefreshCw,ShieldCheck} from "lucide-react";
+import {ArrowLeft,ArrowRight,BarChart3,Clock3,LockKeyhole,RefreshCw,ShieldCheck} from "lucide-react";
 import {summarizeSupportCases,type SupportPeriod} from "@/lib/office/connect-support-insights";
 import styles from "./office-connect-customer-workspace.module.css";
 type CaseEvent={id:string;event_type:string;created_at:string};
@@ -11,7 +11,6 @@ type Case={id:string;case_code:string;customer_id?:string|null;subject:string;
 type Customer={id:string;display_name?:string|null;legal_name?:string|null};
 type Payload={actor:{user_id:string};scope:{type?:string|null;key?:string|null};
  can_manage:boolean;cases:Case[];customers:Customer[];disclaimer:string};
-const closed=new Set(["RESOLVED","CLOSED"]);
 function format(value?:string|null){
  if(!value)return "Not recorded";
  const parsed=Date.parse(value);
@@ -22,6 +21,7 @@ const periodOptions=[{value:"7",label:"7 days"},{value:"30",label:"30 days"},
  {value:"90",label:"90 days"},{value:"all",label:"All visible records"}];
 export function OfficeConnectCustomerWorkspace({mode}:{mode:"customers"|"analytics"}){
  const [data,setData]=useState<Payload|null>(null);
+ const [sourceTime,setSourceTime]=useState<number|null>(null);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
  const [refresh,setRefresh]=useState(0);
@@ -36,8 +36,8 @@ export function OfficeConnectCustomerWorkspace({mode}:{mode:"customers"|"analyti
     const value=await response.json().catch(()=>({})) as Payload&{detail?:string};
     if(!response.ok||!Array.isArray(value.cases))throw Error(value.detail||"Customer Support source unavailable");
     return value;
-   }).then(value=>{if(active){setData(value);setError("");}})
-   .catch(e=>{if(active){setData(null);setError(e instanceof Error?e.message:"Customer cases unavailable");}})
+   }).then(value=>{if(active){setData(value);setSourceTime(Date.now());setError("");}})
+   .catch(e=>{if(active){setData(null);setSourceTime(null);setError(e instanceof Error?e.message:"Customer cases unavailable");}})
    .finally(()=>{if(active)setLoading(false)});
   return()=>{active=false};
  },[refresh]);
@@ -50,9 +50,8 @@ export function OfficeConnectCustomerWorkspace({mode}:{mode:"customers"|"analyti
  const customers=new Map((data?.customers??[]).map(row=>[row.id,row]));
  // A source page is bounded at 400 cases; never present a partial result as a
  // complete or company-wide business metric.
- const now=Date.now();
- const insights=mode==="analytics"?summarizeSupportCases(data?.cases??[],
-  period==="all"?null:Number(period) as SupportPeriod,now):null;
+ const insights=mode==="analytics"&&sourceTime!==null?summarizeSupportCases(data?.cases??[],
+  period==="all"?null:Number(period) as SupportPeriod,sourceTime):null;
  const maxWeek=Math.max(1,...(insights?.weekly??[]).map(row=>row.count));
  const maxCategory=Math.max(1,...(insights?.categories??[]).map(row=>row.count));
  return <section className={styles.shell} aria-label={mode==="analytics"?"Customer Support analytics":"Customer correspondence"}>
