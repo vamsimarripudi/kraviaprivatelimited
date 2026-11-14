@@ -10,7 +10,7 @@ type Employment = { employment_id: string; employment_code: string; identity_use
 type Period = { id: string; period_code: string; period_kind: string; starts_on: string; ends_on: string; attendance_cutoff_at?: string | null; pay_date?: string | null; status: string; approval_request_id?: string | null; calculation_version: number; approved_at?: string | null };
 type Compensation = { id: string; compensation_code: string; employment_id: string; employee_user_id: string; grade_code?: string | null; annual_ctc_minor: number; monthly_gross_minor: number; currency: string; components: unknown[]; effective_from: string; effective_to?: string | null; reason: string; status: string; approval_request_id?: string | null };
 type Rule = { id: string; rule_code: string; version: number; rule_kind: string; title: string; jurisdiction: string; effective_from: string; effective_to?: string | null; configuration: Record<string, unknown>; source_reference: string; status: string; created_by: string };
-type Attendance = { id: string; period_id: string; employment_id: string; employee_user_id: string; basis_units: number; payable_units: number; paid_leave_units: number; unpaid_leave_units: number; absence_units: number; unresolved_units: number; status: string };
+type Attendance = { id: string; period_id: string; employment_id: string; employee_user_id: string; basis_units: number; payable_units: number; paid_leave_units: number; unpaid_leave_units: number; absence_units: number; unresolved_units: number; status: string; updated_at: string; source_snapshot?: { evidence_reference?: string; note?: string } };
 type Adjustment = { id: string; period_id: string; employment_id: string; employee_user_id: string; adjustment_kind: string; adjustment_code: string; label: string; amount_minor: number; currency: string; source_reference: string; status: string; created_by: string };
 type Result = { id: string; period_id: string; employment_id: string; employee_user_id: string; currency: string; base_gross_minor: number; prorated_gross_minor: number; additional_earnings_minor: number; deductions_minor: number; employer_costs_minor: number; net_pay_minor: number; calculation_hash: string; calculation_version: number; status: string };
 type Batch = { id: string; batch_code: string; period_id: string; currency: string; total_minor: number; employee_count: number; status: string; provider?: string | null; provider_batch_reference?: string | null; created_at: string };
@@ -21,7 +21,7 @@ type View = "periods" | "compensation" | "rules" | "batches";
 type Modal =
   | { kind: "OPEN_PERIOD" }
   | { kind: "COMPENSATION" }
-  | { kind: "ATTENDANCE"; period: Period }
+  | { kind: "ATTENDANCE"; period: Period; existing?: Attendance }
   | { kind: "ADJUSTMENT"; period: Period }
   | { kind: "RULE" };
 
@@ -54,11 +54,23 @@ export function OfficePayrollConsole() {
   const activeEmployment = useMemo(() => (data?.employment ?? []).filter((row) => ["PLANNED", "ACTIVE", "ON_LEAVE"].includes(row.status)), [data?.employment]);
 
   function person(employmentId: string) { const employment = employmentMap.get(employmentId); const identity = employment ? identityMap.get(employment.identity_user_id) : undefined; return identity?.display_name || identity?.job_title || employment?.employment_code || "Employee"; }
-  function open(kind: Modal["kind"], subject?: Period) {
+  function open(kind: Modal["kind"], subject?: Period, existing?: Attendance) {
     if (kind === "OPEN_PERIOD") { setDraft({ kind: "MONTHLY" }); setModal({ kind }); }
     else if (kind === "COMPENSATION") { setDraft({ currency: "INR", components: "[]" }); setModal({ kind }); }
     else if (kind === "RULE") { setDraft({ kind: "COMPANY_POLICY", jurisdiction: "IN", configuration: "{}" }); setModal({ kind }); }
-    else if (kind === "ATTENDANCE" && subject) { setDraft({ basis_units: "30", payable_units: "30", paid_leave_units: "0", unpaid_leave_units: "0", absence_units: "0", unresolved_units: "0" }); setModal({ kind, period: subject }); }
+    else if (kind === "ATTENDANCE" && subject) {
+      setDraft(existing ? {
+        employment_id: existing.employment_id, basis_units: String(existing.basis_units),
+        payable_units: String(existing.payable_units),
+        paid_leave_units: String(existing.paid_leave_units),
+        unpaid_leave_units: String(existing.unpaid_leave_units),
+        absence_units: String(existing.absence_units),
+        unresolved_units: String(existing.unresolved_units),
+        evidence_reference: existing.source_snapshot?.evidence_reference || "",
+        source_note: existing.source_snapshot?.note || "",
+      } : { paid_leave_units: "0", unpaid_leave_units: "0", absence_units: "0", unresolved_units: "0" });
+      setModal({ kind, period: subject, existing });
+    }
     else if (kind === "ADJUSTMENT" && subject) { setDraft({ kind: "EARNING", currency: "INR" }); setModal({ kind, period: subject }); }
   }
 
@@ -81,7 +93,32 @@ export function OfficePayrollConsole() {
       let configuration: Record<string, unknown>; try { const parsed = JSON.parse(draft.configuration || "{}"); if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") throw new Error(); configuration = parsed; } catch { return setError("Rule configuration must be a valid JSON object."); }
       return action({ action: "CREATE_RULE", rule_code: draft.rule_code, kind: draft.kind, title: draft.title, jurisdiction: draft.jurisdiction || "IN", effective_from: draft.effective_from, effective_to: draft.effective_to || undefined, configuration, source_reference: draft.source_reference }, "New payroll rule version drafted. It is not effective until authorised approval.");
     }
-    if (modal.kind === "ATTENDANCE") return action({ action: "SET_ATTENDANCE", period_id: modal.period.id, employment_id: draft.employment_id, basis_units: Number(draft.basis_units), payable_units: Number(draft.payable_units), paid_leave_units: Number(draft.paid_leave_units || "0"), unpaid_leave_units: Number(draft.unpaid_leave_units || "0"), absence_units: Number(draft.absence_units || "0"), unresolved_units: Number(draft.unresolved_units || "0"), source_snapshot: { source: "KRAVIA_OFFICE_REVIEW", note: draft.source_note || "Manual reviewed payroll attendance snapshot" } }, "Attendance snapshot recorded for payroll. Browser login time is not treated as payable time.");
+    if (modal.kind === "ATTENDANCE") {
+      const basis = Number(draft.basis_units);
+      const payable = Number(draft.payable_units);
+      const leave = Number(draft.paid_leave_units || "0");
+      const unpaid = Number(draft.unpaid_leave_units || "0");
+      const absent = Number(draft.absence_units || "0");
+      const unresolved = Number(draft.unresolved_units || "0");
+      if ([basis,payable,leave,unpaid,absent,unresolved].some(v => !Number.isFinite(v) || v < 0) ||
+          basis <= 0 || leave > payable || payable + unpaid + absent + unresolved > basis + 0.001) {
+        return setError("Hours are inconsistent. Payable includes paid leave; payable + unpaid leave + absence + unresolved must not exceed basis.");
+      }
+      if ((draft.evidence_reference || "").trim().length < 5 ||
+          (draft.source_note || "").trim().length < 8 ||
+          (modal.existing && (draft.correction_reason || "").trim().length < 12)) {
+        return setError("Provide a traceable source, meaningful review note and a correction reason when updating.");
+      }
+      return action({
+        action: "SET_ATTENDANCE", period_id: modal.period.id, employment_id: draft.employment_id,
+        basis_units: basis, payable_units: payable, paid_leave_units: leave,
+        unpaid_leave_units: unpaid, absence_units: absent, unresolved_units: unresolved,
+        expected_updated_at: modal.existing?.updated_at,
+        correction_reason: modal.existing ? draft.correction_reason : undefined,
+        source_snapshot: { source: "HR_EVIDENCE_REVIEW", evidence_reference: draft.evidence_reference,
+          note: draft.source_note, correction_reason: draft.correction_reason || null },
+      }, "Payroll attendance created or corrected with source evidence. Recalculate before submission; no bank action occurred.");
+    }
     const amount = amountMinor(draft.amount); if (amount === undefined) return setError("Enter a valid adjustment amount.");
     return action({ action: "ADD_ADJUSTMENT", period_id: modal.period.id, employment_id: draft.employment_id, kind: draft.kind, code: draft.code, label: draft.label, amount_minor: amount, currency: draft.currency || "INR", source_reference: draft.source_reference, note: draft.note || undefined }, "Payroll adjustment drafted. A separate reviewer must approve it before calculation.");
   }
