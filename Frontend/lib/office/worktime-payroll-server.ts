@@ -35,9 +35,11 @@ function monthRange(month: string) {
   const [year, num] = month.split("-").map(Number);
   const first = new Date(Date.UTC(year, num - 1, 1));
   const last = new Date(Date.UTC(year, num, 0));
-  // Include the preceding day for overnight sessions that enter this month.
-  const from = new Date(first.getTime() - 86_400_000);
-  const to = new Date(Date.UTC(year, num, 2));
+  // Query IST calendar boundaries: include the preceding day for shifts
+  // crossing into the month; exclude sessions starting next month.
+  const monthStartIst = first.getTime() - 330 * 60_000;
+  const from = new Date(monthStartIst - 86_400_000);
+  const to = new Date(Date.UTC(year, num, 1) - 330 * 60_000);
   return { first: first.toISOString().slice(0, 10), last: last.toISOString().slice(0, 10),
     from: from.toISOString(), to: to.toISOString() };
 }
