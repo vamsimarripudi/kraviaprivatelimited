@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import { calculateVerifiedMonthlyAttendance } from "@/lib/office/attendance-salary-preview";
+import { calculateVerifiedMonthlyAttendance, type ApprovedLeaveEvidence } from "@/lib/office/attendance-salary-preview";
 import { setPayrollAttendance } from "@/lib/office/payroll-server";
 import { requireOfficeActor, resolveOfficePermission, type OfficePermissionDecision } from "@/lib/office/permission-engine";
 import { monthlyFlexibleWorktime, type TrackedSession, type WorktimeBreak, type HistoricalWorkClaim } from "@/lib/office/flexible-worktime";
@@ -25,6 +25,13 @@ type PolicyRow = {
   maximum_daily_minutes: number; maximum_weekly_minutes: number;
 };
 type CompensationRow = { id: string; monthly_gross_minor: number; currency: string; status: string };
+type LeaveRow = {
+  id: string; employee_user_id: string; starts_on: string; ends_on: string;
+  pay_class: "PAID_LEAVE" | "UNPAID_LEAVE" | "SICK_PAID" | "HOLIDAY_PAID";
+  minutes_per_weekday: number; status: string; requested_by: string; reviewed_by: string | null;
+  evidence_reference: string; authority_reference: string | null; request_reason: string;
+  review_note: string | null;
+};
 type IssueRow = { id: string; payroll_result_id: string; employee_user_id: string; issue_code: string; snapshot: Record<string, unknown>; issued_at: string };
 
 function check(result: { error?: { message?: string } | null }, message: string) {
@@ -104,7 +111,7 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
     can(actor, "people.update"), can(actor, "payroll.run.prepare"), can(actor, "payroll.run.review"),
   ]);
   if (!self && !canReadOthers) throw new OfficeWorktimeError(403, "Employee record is not assigned to you");
-  const [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult, periodResult, flexResult, sessionsResult] = await Promise.all([
+  const [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult, periodResult, flexResult, sessionsResult, leaveResult] = await Promise.all([
     actor.admin.from("office_identity_users").select("user_id,display_name,status").eq("user_id", employeeId).maybeSingle(),
     actor.admin.from("office_worktime_policy_versions").select("*").eq("employee_user_id", employeeId).lte("effective_from", range.last).order("effective_from", { ascending: false }).limit(12),
     actor.admin.from("office_worktime_review_cases").select("id,employee_user_id,attendance_session_id,work_starts_at,work_ends_at,breaks,source_kind,source_reference,request_reason,review_note,requested_by,reviewed_by,status").eq("employee_user_id", employeeId).gte("work_starts_at", range.from).lt("work_starts_at", range.to).order("work_starts_at"),
@@ -123,8 +130,12 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
       .select("id,check_in_at,check_out_at,status")
       .eq("user_id", employeeId).gte("check_in_at", range.from).lt("check_in_at", range.to)
       .order("check_in_at", { ascending: true }).limit(400),
+    actor.admin.from("office_hr_leave_requests")
+      .select("id,employee_user_id,starts_on,ends_on,pay_class,minutes_per_weekday,status,requested_by,reviewed_by,evidence_reference,authority_reference,request_reason,review_note")
+      .eq("employee_user_id", employeeId).lte("starts_on", range.last).gte("ends_on", range.first)
+      .order("starts_on", { ascending: true }).limit(100),
   ]);
-  for (const r of [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult, periodResult, flexResult, sessionsResult]) check(r, "Office worktime evidence is unavailable");
+  for (const r of [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult, periodResult, flexResult, sessionsResult, leaveResult]) check(r, "Office worktime evidence is unavailable");
   if (!identityResult.data) throw new OfficeWorktimeError(404, "Employee not found");
   const hrManagerActive = await hasEffectiveHrManager(actor);
   const isDirector = actor.identity.roles.some(role => role === "OWNER" || role === "DIRECTOR");
@@ -132,6 +143,7 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
   const policies = (policiesResult.data ?? []) as PolicyRow[];
   const claims = (claimsResult.data ?? []) as ClaimRow[];
   const issues = (issuesResult.data ?? []) as IssueRow[];
+  const leaves = (leaveResult.data ?? []) as LeaveRow[];
   const sessions = (sessionsResult.data ?? []) as TrackedSession[];
   const breakResult = sessions.length
     ? await actor.admin.from("office_attendance_breaks")
@@ -157,6 +169,11 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
   try {
     salaryPreview = calculateVerifiedMonthlyAttendance({
       month, employeeUserId: employeeId, sessions: approvedClaims,
+      leaveEvidence: leaves.filter(x => x.status === "APPROVED").map((x): ApprovedLeaveEvidence => ({
+        id: x.id, employeeUserId: x.employee_user_id, startsOn: x.starts_on, endsOn: x.ends_on,
+        payClass: x.pay_class, minutesPerWeekday: Number(x.minutes_per_weekday),
+        status: "APPROVED", requestedBy: x.requested_by, reviewedBy: x.reviewed_by || "",
+      })),
       monthlyGrossMinor: compensation?.currency === "INR" ? Number(compensation.monthly_gross_minor) : null,
     });
   } catch (error) {
@@ -192,7 +209,7 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
   });
   return {
     actor: { user_id: actor.identity.userId, roles: actor.identity.roles },
-    employee: identityResult.data, employees: directoryResult.data ?? [], payroll_periods: periodResult.data ?? [], flex_days: flexResult.data ?? [], month, target_payment: targetSalaryDate(month),
+    employee: identityResult.data, employees: directoryResult.data ?? [], payroll_periods: periodResult.data ?? [], flex_days: flexResult.data ?? [], leave_requests: leaves, month, target_payment: targetSalaryDate(month),
     recorded_sessions: sessions.filter(s => Boolean(s.check_out_at)).map(s => ({
       id: s.id, check_in_at: s.check_in_at, check_out_at: s.check_out_at,
       status: s.status,
@@ -212,6 +229,8 @@ export async function officeWorktimeAction(input:
   | { action: "AMEND_PENDING"; caseId: string; startAt: string; endAt: string; breaks: unknown[]; sourceReference: string; reason: string }
   | { action: "QUEUE_RECORDED"; employeeId: string; sessionId: string }
   | { action: "DECIDE"; caseId: string; decision: "APPROVE" | "REJECT"; note?: string }
+  | { action: "REQUEST_LEAVE"; employeeId: string; startsOn: string; endsOn: string; payClass: "PAID_LEAVE" | "UNPAID_LEAVE" | "SICK_PAID" | "HOLIDAY_PAID"; minutesPerWeekday: number; evidenceReference: string; authorityReference?: string; reason: string }
+  | { action: "DECIDE_LEAVE"; leaveId: string; decision: "APPROVE" | "REJECT"; note: string }
   | { action: "REQUEST_FLEX"; weekMonday: string; leaveDate: string }
   | { action: "DECIDE_FLEX"; flexId: string; decision: "APPROVE" | "REJECT"; note?: string }
   | { action: "PROPOSE_POLICY"; employeeId: string; effectiveFrom: string; authorityReference: string }
@@ -264,6 +283,21 @@ export async function officeWorktimeAction(input:
       )) throw new OfficeWorktimeError(403, "Current independent People or HR Manager review permission required");
       rpcName = "office_worktime_decide";
       params = { p_actor: user, p_case: input.caseId, p_decision: input.decision, p_note: input.note || null };
+      break;
+    case "REQUEST_LEAVE":
+      rpcName = "office_hr_leave_submit";
+      params = { p_actor: user, p_employee: input.employeeId, p_start: input.startsOn, p_end: input.endsOn,
+        p_pay_class: input.payClass, p_minutes: input.minutesPerWeekday,
+        p_evidence: input.evidenceReference, p_authority: input.authorityReference || null,
+        p_reason: input.reason };
+      break;
+    case "DECIDE_LEAVE":
+      if (!await can(actor, "people.update") || !(
+        actor.identity.roles.some(role => role === "OWNER" || role === "DIRECTOR") ||
+        await hasEffectiveHrManager(actor)
+      )) throw new OfficeWorktimeError(403, "Independent HR leave review permission required");
+      rpcName = "office_hr_leave_decide";
+      params = { p_actor: user, p_leave: input.leaveId, p_decision: input.decision, p_note: input.note };
       break;
     case "REQUEST_FLEX":
       rpcName = "office_flex_day_request";
@@ -438,12 +472,18 @@ export async function prepareVerifiedHoursPayroll(input: {
   const estimate = state.salary_preview;
   const basis = Number((estimate.basisMinutes / 60).toFixed(3));
   const regular = Number((estimate.approvedRegularMinutes / 60).toFixed(3));
-  const unresolved = Number(Math.max(0, basis - regular).toFixed(3));
+  const paidLeave = Number((estimate.approvedPaidLeaveMinutes / 60).toFixed(3));
+  const unpaidLeave = Number((estimate.approvedUnpaidLeaveMinutes / 60).toFixed(3));
+  const payable = Number(((estimate.approvedRegularMinutes + estimate.approvedPaidLeaveMinutes) / 60).toFixed(3));
+  const unresolved = Number(Math.max(0, (estimate.unresolvedMinutes / 60)).toFixed(3));
   const audit = {
     source: "INDEPENDENTLY_APPROVED_WORKTIME", month,
     source_case_ids: estimate.sourceSessionIds,
+    source_leave_ids: estimate.sourceLeaveIds,
     verified_regular_minutes: estimate.approvedRegularMinutes,
     outstanding_minutes: estimate.unresolvedMinutes,
+    approved_paid_leave_minutes: estimate.approvedPaidLeaveMinutes,
+    approved_unpaid_leave_minutes: estimate.approvedUnpaidLeaveMinutes,
     potential_weekday_overtime_minutes: estimate.potentialWeekdayOvertimeMinutes,
     optional_weekend_minutes: estimate.optionalWeekendMinutes,
     calculation_note: "Unverified time is unresolved, not automatically unpaid. Leave/holiday evidence must be reviewed in Payroll OS.",
@@ -452,15 +492,16 @@ export async function prepareVerifiedHoursPayroll(input: {
   };
   const result = await setPayrollAttendance({
     periodId: input.periodId, employmentId: record.employment_id,
-    basisUnits: basis, payableUnits: regular, paidLeaveUnits: 0,
-    unpaidLeaveUnits: 0, absenceUnits: 0, unresolvedUnits: unresolved,
+    basisUnits: basis, payableUnits: payable, paidLeaveUnits: paidLeave,
+    unpaidLeaveUnits: unpaidLeave, absenceUnits: 0, unresolvedUnits: unresolved,
     sourceSnapshot: audit,
     expectedUpdatedAt: previous.data?.updated_at,
     correctionReason: previous.data ? input.reason : undefined,
   });
   return {
     ...result, employee_user_id: input.employeeId, period_id: input.periodId,
-    scheduled_hours: basis, verified_regular_hours: regular, unresolved_hours: unresolved,
+    scheduled_hours: basis, verified_regular_hours: regular, approved_paid_leave_hours: paidLeave,
+    approved_unpaid_leave_hours: unpaidLeave, payable_hours: payable, unresolved_hours: unresolved,
     potential_weekday_overtime_hours: Number((estimate.potentialWeekdayOvertimeMinutes / 60).toFixed(3)),
     estimated_regular_gross_minor: estimate.estimatedRegularGrossMinor,
     review_required: unresolved > 0, bank_execution: false,
