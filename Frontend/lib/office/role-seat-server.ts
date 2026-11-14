@@ -29,7 +29,7 @@ export async function getOfficeRoleSeatPortfolio() {
   const isOwner = identity.roles.includes("OWNER");
   const isReviewer = identity.roles.some(role => ["OWNER", "ADMIN", "DIRECTOR"].includes(role));
 
-  const [seats, transfers, items, grants, positions, departments, people, currentJob, functionalPositions] = await Promise.all([
+  const [seats, transfers, items, grants, positions, departments, people, jobs, roleGrants, accessProfiles, permissionCatalog, currentJob, functionalPositions] = await Promise.all([
     admin.from("office_role_seats")
       .select("id,seat_code,label,position_code,department_code,description,responsibilities,current_holder_user_id,status,department_ownership_required,version,created_at")
       .order("label").limit(300),
@@ -47,6 +47,12 @@ export async function getOfficeRoleSeatPortfolio() {
     admin.from("office_department_catalog").select("code,label").eq("active", true).order("label"),
     admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status")
       .eq("status", "ACTIVE").order("display_name"),
+    admin.from("office_job_assignments").select("user_id,position_code,department_code,status,start_date"),
+    admin.from("office_user_roles").select("user_id,role,expires_at"),
+    admin.from("office_user_access_profiles")
+      .select("user_id,profile_code,scope_type,scope_key,status,effective_from,expires_at"),
+    admin.from("office_permission_catalog")
+      .select("code,module,action,high_risk,active,owner_bypass").eq("active",true).order("code"),
     admin.from("office_job_assignments")
       .select("position_code,department_code,status,team_key,product_key")
       .eq("user_id", actorId).maybeSingle(),
@@ -54,7 +60,7 @@ export async function getOfficeRoleSeatPortfolio() {
       .select("position_code,department_code,responsibilities")
       .eq("employee_user_id", actorId).eq("active", true),
   ]);
-  for (const response of [seats, transfers, items, grants, positions, departments, people, currentJob, functionalPositions]) {
+  for (const response of [seats, transfers, items, grants, positions, departments, people, jobs, roleGrants, accessProfiles, permissionCatalog, currentJob, functionalPositions]) {
     assertResult(response, "Role portfolio records are not available. Verify the reviewed database migration.");
   }
 
@@ -80,7 +86,23 @@ export async function getOfficeRoleSeatPortfolio() {
     grants: (grants.data ?? []).filter(g => visibleSeatIds.has(g.seat_id)),
     positions: isOwner ? positions.data ?? [] : [],
     departments: isOwner ? departments.data ?? [] : [],
-    people: isReviewer ? people.data ?? [] : (people.data ?? []).filter(person => person.user_id === actorId),
+    permissions: isOwner ? permissionCatalog.data ?? [] : [],
+    people: isReviewer || visibleSeatIds.size > 0 ? people.data ?? [] :
+      (people.data ?? []).filter(person => person.user_id === actorId),
+    employee_directory: isOwner ? (people.data ?? []).map(person => ({
+      ...person,
+      primary_job: (jobs.data ?? []).find(job => job.user_id === person.user_id) ?? null,
+      security_roles: (roleGrants.data ?? [])
+        .filter(grant => grant.user_id === person.user_id &&
+          (!grant.expires_at || Date.parse(grant.expires_at) > Date.now()))
+        .map(grant => grant.role),
+      profiles: (accessProfiles.data ?? [])
+        .filter(grant => grant.user_id === person.user_id)
+        .map(grant => ({
+          profile_code: grant.profile_code, status: grant.status,
+          effective_from: grant.effective_from, expires_at: grant.expires_at,
+        })),
+    })) : [],
     notice: "A job title or security role is not a role-seat assignment. Seat grants require explicit review; department ownership and provider access transfer separately.",
   };
 }
