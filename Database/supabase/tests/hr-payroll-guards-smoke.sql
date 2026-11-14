@@ -12,7 +12,7 @@ declare
   sample_id uuid;
   failed boolean;
 begin
-  insert into public.office_employment_registry(employment_code) values ('HR-QA-EMP') returning employment_id into employment;
+  insert into public.office_employment_registry(employment_code,identity_user_id,status,start_date) values ('HR-QA-EMP',employee,'ACTIVE','2026-08-01') returning employment_id into employment;
   insert into public.office_compensation_versions(annual_ctc_minor,monthly_gross_minor)
   values (60000000,5000000) returning id into compensation;
 
@@ -92,10 +92,41 @@ begin
   exception when check_violation then failed:=true; end;
   if not failed then raise exception 'Attendance was falsely marked reviewed without a reviewer'; end if;
 
-  update public.office_payroll_attendance_snapshots
-    set payable_units=126,unresolved_units=0,
-        source_snapshot='{"source":"HR_EVIDENCE_REVIEW","evidence_reference":"QA-WORKLOG-001","note":"Reviewed independent source evidence"}'::jsonb
-    where period_id=period;
+  -- Planned/invited identities are not payable employment.
+  update public.office_employment_registry set status='PLANNED' where employment_id=employment;
+  failed:=false;
+  begin
+    perform public.office_payroll_set_attendance_snapshot_v2(
+      founder,period,employment,126,126,0,0,0,0,
+      '{"source":"HR_EVIDENCE_REVIEW","evidence_reference":"QA-WORKLOG-001","note":"Actual test evidence for a fully paid period"}'::jsonb,
+      (select updated_at from public.office_payroll_attendance_snapshots where period_id=period),
+      'HR correction for an independently reviewed month');
+  exception when others then
+    if sqlerrm not like '%verified employment dates%' then raise; end if;
+    failed:=true;
+  end;
+  if not failed then raise exception 'Planned employment entered payable monthly payroll'; end if;
+  update public.office_employment_registry set status='ACTIVE' where employment_id=employment;
+
+  -- Invalid leave/absence allocations must fail at the database boundary.
+  failed:=false;
+  begin
+    perform public.office_payroll_set_attendance_snapshot_v2(
+      founder,period,employment,126,125,0,0,0,0,
+      '{"source":"HR_EVIDENCE_REVIEW","evidence_reference":"QA-WORKLOG-001","note":"Actual test evidence for invalid hours"}'::jsonb,
+      (select updated_at from public.office_payroll_attendance_snapshots where period_id=period),
+      'HR correction checking incomplete allocation');
+  exception when others then
+    if sqlerrm not like '%reconcile exactly%' then raise; end if;
+    failed:=true;
+  end;
+  if not failed then raise exception 'Unreconciled hours were accepted'; end if;
+
+  perform public.office_payroll_set_attendance_snapshot_v2(
+    founder,period,employment,126,126,0,0,0,0,
+    '{"source":"HR_EVIDENCE_REVIEW","evidence_reference":"QA-WORKLOG-001","note":"Reviewed independent source evidence"}'::jsonb,
+    (select updated_at from public.office_payroll_attendance_snapshots where period_id=period),
+    'HR correction after verified worktime reconciliation');
   -- Returning without an independently approved review note is impossible.
   failed:=false;
   begin
