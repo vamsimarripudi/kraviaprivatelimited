@@ -1,7 +1,7 @@
 "use client";
 import {useEffect,useMemo,useState} from "react";
 import Link from "next/link";
-import {ArrowLeft,BookOpen,Check,Clipboard,Search,ShieldCheck} from "lucide-react";
+import {ArrowLeft,BookOpen,Clipboard,Search,ShieldCheck} from "lucide-react";
 import styles from "./office-connect-macros.module.css";
 type Article={id:string;title:string;category:string;status:string;current_version:number;updated_at:string};
 type Version={id:string;article_id:string;version:number;status:string;content_text:string};
