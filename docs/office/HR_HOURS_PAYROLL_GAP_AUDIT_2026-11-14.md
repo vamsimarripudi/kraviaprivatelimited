@@ -63,6 +63,16 @@ The HR payroll console now supports independent review with a mandatory note and
 
 Production prerequisites still include independently authorized remuneration evidence, verified employment dates, a competent independent reviewer, actual leave/holiday policy records and CA-reviewed statutory rules. **Do not enter real or hypothetical employee earnings in tests, migrations or repository documents.**
 
+## Additional source-verified fixes (HR leave and maker–checker)
+- `202611140005_hr_leave_evidence.sql`: Service-only employee-specific leave request and independent review; separately approved paid leave, unpaid leave and paid company holiday evidence. Source IDs **and** matching paid/unpaid minutes are validated before payroll calculation, submission and approval. Pending weekday leave blocks payroll until an independent decision. Approved late leave prompts a separate correction rather than rewriting locked pay.
+- `202611140006_hr_payroll_maker_checker.sql`: Finance review, separate Owner final decision and payroll requester must be **three distinct actual identities**. Direct service-role RPC cannot treat the same employee as maker and reviewer. Employment payroll must be authorized under the existing workflow.
+- `Frontend/lib/office/attendance-salary-preview.ts`: Approved leave amounts count as verified payable or independently verified unpaid time, without inferring that missing check-in means absence; overlapping worked and leave minutes are rejected.
+- `Frontend/components/office-worktime-console.tsx`: Leave request, source-reference form, HR independent decision and actual paid/unpaid time display.
+- `Frontend/components/office-payroll-console.tsx`: Actual database readiness blockers and non-additive role-components draft; any salary is inactive until approved.
+- Tests: `hr-leave-workflow-smoke.sql`, `hr-payroll-maker-checker-smoke.sql`, `office-approved-leave-payroll.test.ts`, `office-salary-components.test.ts` and isolated PostgreSQL/TypeScript/lint CI.
+
+These are **codebase changes only**. The Office production data layer still lacks approved compensation, dates, payroll policies and approved reviewed attendance. Existing contracts, bank confirmations, statutory rule versions and operational permissions must be verified by authorized HR/Finance/Board personnel; a green code test is not a real wage payment or legal approval.
+
 ## Acceptance checks
 - All 6-hour, 8-hour, split-day, weekend and overnight scenarios are independently reviewed, consistent across IST boundaries and free of duplicate earning minutes.
 - Missing check-in stays unresolved until verified leave, holiday, absence or historical evidence is supplied.
