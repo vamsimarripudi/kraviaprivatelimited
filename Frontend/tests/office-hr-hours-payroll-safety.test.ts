@@ -25,7 +25,8 @@ describe("KRAVIA HR hours and payroll integration safety", () => {
     expect(migration).toContain("Submitted, approved, and paid payroll inputs cannot be rewritten");
   });
   it("keeps corrections source-backed and never silently marks missing time absent", () => {
-    expect(server).toContain("unpaidLeaveUnits: 0, absenceUnits: 0");
+    expect(server).toContain("unpaidLeaveUnits: unpaidLeave, absenceUnits: 0");
+    expect(server).toContain("source_leave_ids: estimate.sourceLeaveIds");
     expect(server).toContain("UNRESOLVED");
     expect(payroll).toContain("expectedUpdatedAt");
     expect(api).toContain("AMEND_PENDING");
