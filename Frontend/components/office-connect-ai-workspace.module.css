@@ -1,0 +1,21 @@
+.shell{display:grid;gap:15px;align-content:start;min-width:0;margin:16px clamp(12px,2vw,24px) 28px;color:var(--office-ui-ink)}
+.back,.tabs a{display:inline-flex;align-items:center;gap:7px;min-height:44px;color:var(--office-ui-accent);font-size:12px;text-decoration:none;width:max-content}
+.head{display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap}
+.eyebrow{color:var(--office-ui-accent);letter-spacing:.13em;font-size:11px;font-weight:700;margin:0}
+.head h1{font-size:clamp(23px,3vw,30px)!important;margin:6px 0}.head p:last-child,.boundary p{font-size:12px;color:var(--office-ui-muted);line-height:1.6;margin:0}
+.head>button,.tabs button,.error button{min-height:44px;display:inline-flex;align-items:center;gap:7px;padding:9px 13px;border:1px solid var(--office-ui-line);border-radius:10px;background:var(--office-ui-surface);color:var(--office-ui-ink);font:inherit;cursor:pointer;font-size:12px}
+.boundary{display:flex;align-items:start;gap:12px;padding:17px;border:1px solid var(--office-ui-line);background:var(--office-ui-surface);border-radius:14px}
+.boundary>svg,.cards svg{flex:none;color:var(--office-ui-accent)}.boundary strong{display:block;font-size:13px;margin-bottom:5px}
+.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.metrics article{display:grid;gap:7px;padding:17px;border:1px solid var(--office-ui-line);border-radius:14px;background:var(--office-ui-surface)}
+.metrics span{font-size:11px;color:var(--office-ui-muted)}.metrics strong{font-size:25px;font-variant-numeric:tabular-nums}
+.tabs{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.tabs button[aria-pressed=true]{border-color:var(--office-ui-accent);color:var(--office-ui-accent)}.tabs a{margin-left:auto}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:12px}
+.cards article{display:grid;gap:13px;padding:18px;border:1px solid var(--office-ui-line);border-radius:15px;background:var(--office-ui-surface);min-width:0}
+.cards article header{display:flex;gap:11px;align-items:start}.cards header>div{display:grid;gap:7px;flex:1;min-width:0}.cards strong{font-size:14px;overflow-wrap:anywhere}
+.cards small{font-size:11px;color:var(--office-ui-muted)}
+.cards dl{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:8px 13px;margin:0}
+.cards dt{font-size:11px;color:var(--office-ui-muted)}.cards dd{margin:0;font-size:12px;overflow-wrap:anywhere}
+.state,.error{display:flex;align-items:center;gap:12px;padding:20px;border:1px solid var(--office-ui-line);border-radius:14px;background:var(--office-ui-surface);color:var(--office-ui-muted);font-size:12px}
+.error{border-color:var(--office-ui-danger);color:var(--office-ui-danger)}.shell footer{display:flex;align-items:center;gap:9px;font-size:11px;color:var(--office-ui-muted);line-height:1.6}
+.shell :is(button,a):focus-visible{outline:2px solid var(--office-ui-accent);outline-offset:3px}
+@media(max-width:767px){.shell{margin:10px 12px 24px}.cards{grid-template-columns:1fr}.tabs a{margin-left:0}.metrics article{padding:10px}.metrics strong{font-size:21px}}

@@ -17,6 +17,7 @@ import {OfficeConnectAnnouncements} from "@/components/office-connect-announceme
 import {OfficeConnectApprovals} from "@/components/office-connect-approvals";
 import {OfficeConnectIntegrations} from "@/components/office-connect-integrations";
 import {OfficeConnectKnowledge} from "@/components/office-connect-knowledge";
+import {OfficeConnectAiWorkspace} from "@/components/office-connect-ai-workspace";
 type Props={params:Promise<{segments:string[]}>};
 export const dynamic="force-dynamic";
 const permittedPaths=new Set([
@@ -45,6 +46,7 @@ export default async function OtherConnectRoute({params}:Props){
  if(path==="admin/queues"||path==="admin/sla")return <OfficeConnectServiceGovernance mode={path==="admin/queues"?"queues":"sla"}/>;
  if(path==="support/knowledge"||/^support\/knowledge\/[0-9a-f-]{36}$/i.test(path))
    return <OfficeConnectKnowledge articleId={segments[2]}/>;
+ if(path==="ai")return <OfficeConnectAiWorkspace/>;
  if(path==="support/macros")return <OfficeConnectMacros/>;
  if(path==="announcements")return <OfficeConnectAnnouncements/>;
  if(/^approvals\/[0-9a-f-]{36}$/i.test(path))return <OfficeConnectApprovals requestId={segments[1]}/>;
