@@ -36,6 +36,7 @@ const everyAdmittedRole: readonly OfficeRole[] = officeRoles;
 export const officeSections = {
   dashboard: { title: "My work", eyebrow: "KRAVIA OFFICE", description: "Your role-scoped company workspace, pending work, approvals, requests and governed operational modules.", roles: everyAdmittedRole, group: "My Work" },
   "my-role": { title: "My roles & onboarding", eyebrow: "EMPLOYEE PROFILE", description: "My assigned functional responsibilities, working pattern and evidence-backed onboarding checklist.", roles: everyAdmittedRole, group: "My Work" },
+  "my-transfers": { title: "Pending transfers", eyebrow: "PERSONAL AUTHORITY INBOX", description: "Review and accept only department ownership transfers explicitly addressed to your identity.", roles: everyAdmittedRole, group: "My Work" },
   info: { title: "Info & Help", eyebrow: "EMPLOYEE HANDBOOK", description: "Private common and role-specific manuals, route directions and versioned acknowledgement receipts.", roles: everyAdmittedRole, group: "My Work" },
   notifications: { title: "Notifications", eyebrow: "ATTENTION CENTER", description: "Personal workflow, task and security signals with explicit read and dismissal state.", roles: everyAdmittedRole, group: "My Work" },
   tasks: { title: "Company inbox", eyebrow: "ACTIONABLE WORK", description: "Assigned tasks, blockers and execution work kept separate from approvals and authority decisions.", roles: everyAdmittedRole, group: "My Work" },
