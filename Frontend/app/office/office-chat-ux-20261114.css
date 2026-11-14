@@ -610,3 +610,78 @@
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
   }
 }
+
+/* Inline media is loaded only through source-scoped, scanner-clean routes. */
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline] .chat-inline-media {
+  display:grid;
+  gap:5px;
+  max-width:100%;
+  margin-top:7px;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline] .chat-inline-media :is(img,video) {
+  display:block;
+  border-radius:10px;
+  width:auto;
+  height:auto;
+  max-width:100%;
+  max-height:min(360px,43dvh);
+  object-fit:contain;
+  background:var(--office-ui-control);
+  border:1px solid var(--office-ui-line);
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline] .chat-inline-media video {
+  width:min(480px,100%);
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline] .chat-inline-media a {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  max-width:100%;
+  min-width:0;
+  overflow-wrap:anywhere;
+  font-size:11px;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-home-header]{
+  margin:0;
+  padding:14px 16px 8px;
+  align-items:center;
+  min-height:75px;
+  gap:8px;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-home-header] h1{
+  font-size:clamp(18px,2vw,22px)!important;
+  margin:0 0 3px!important;
+  line-height:1.3;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-home-header] p{
+  font-size:11px!important;
+  line-height:1.45!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-home-header] :is(a,button) {
+  display:inline-grid;
+  place-items:center;
+  width:38px;
+  min-width:38px;
+  min-height:38px;
+  height:38px;
+  padding:0!important;
+  background:var(--office-ui-surface)!important;
+  border:1px solid var(--office-ui-line)!important;
+  color:var(--office-ui-ink)!important;
+  border-radius:10px;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-home-header] :is(a,button):hover{
+  background:var(--office-ui-surface-alt)!important;
+  color:var(--office-ui-accent)!important;
+}
+@media(max-width:767px){
+  .kravia-office .office-v2.office-modern .office-main [data-chat-home-header] {padding:9px;min-height:62px}
+  .kravia-office .office-v2.office-modern .office-main [data-chat-home-header] h1 {font-size:17px!important}
+  .kravia-office .office-v2.office-modern .office-main [data-chat-home-header] p{display:none}
+  .kravia-office .office-v2.office-modern .office-main section[aria-label="KRAVIA Connect"][data-thread="false"] {
+    padding-bottom:calc(98px + env(safe-area-inset-bottom,0px))!important;
+  }
+  .kravia-office .office-v2.office-modern .office-main [data-chat-timeline] .chat-inline-media :is(img,video) {
+    max-height:30dvh;
+  }
+}
