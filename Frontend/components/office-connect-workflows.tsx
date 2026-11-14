@@ -3,6 +3,7 @@ import {useEffect,useMemo,useState,type FormEvent} from "react";
 import Link from "next/link";
 import {ArrowLeft,ArrowRight,BookOpen,CheckCircle2,ClipboardCheck,Headphones,LockKeyhole,RefreshCw,Search,ShieldCheck,Ticket,TriangleAlert} from "lucide-react";
 import styles from "./office-connect-workflows.module.css";
+import { useOfficeWorkspace } from "@/components/office-workspace-context";
 
 type TicketRow={id:string;ticket_code:string;title:string;description:string;category:string;priority:string;status:string;requester_user_id:string;owner_user_id?:string|null;due_at?:string|null;created_at:string;updated_at:string};
 type ItData={actor:{user_id:string};capabilities:{manage:boolean;read_company:boolean};tickets:TicketRow[];events:{id:string;ticket_id:string;event_type:string;note?:string|null;created_at:string}[];disclaimer:string};
@@ -48,6 +49,7 @@ function sourceLinks(filter?:string){
  return <nav className={styles.sources} aria-label="Source-owned workflows">{list.map(link=><Link href={link.href} key={link.href}><span><strong>{link.label}</strong><small>{link.detail}</small></span><ArrowRight size={17}/></Link>)}</nav>;
 }
 export function OfficeConnectWorkflows({path}:{path:string}){
+ const { permissions } = useOfficeWorkspace();
  const [state,setState]=useState<ApiState>({});
  const [error,setError]=useState("");
  const [loading,setLoading]=useState(true);
@@ -141,7 +143,13 @@ export function OfficeConnectWorkflows({path}:{path:string}){
   {error?<div className={styles.error} role="alert"><TriangleAlert size={18}/><span>{error}</span>
     <button type="button" onClick={()=>{setLoading(true);setReload(v=>v+1);}}>Retry</button></div>:null}
   {loading?<div className={styles.loading} role="status" aria-busy="true">Loading authorized source records…</div>:null}
-  {!loading&&!error&&path==="support/new"?<form className={styles.form} onSubmit={submitTicket}>
+  {!loading&&!error&&path==="support/new"&&!permissions.includes("it.service.request")
+   ? <div className={styles.restricted} role="status"><LockKeyhole size={24}/>
+       <h2>IT service request access not assigned</h2>
+       <p>Request the required authority through KRAVIA Office. Creating a ticket does not grant access or execute a change.</p>
+       <Link href="/office/requests">Open formal requests <ArrowRight size={15}/></Link>
+     </div> : null}
+  {!loading&&!error&&path==="support/new"&&permissions.includes("it.service.request")?<form className={styles.form} onSubmit={submitTicket}>
    <h2>IT service request</h2><p>Creates a canonical IT ticket. Customer cases continue through Customer Support, not this form.</p>
    <label>Subject<input required minLength={3} maxLength={180} value={title} onChange={e=>setTitle(e.target.value)}/></label>
    <div className={styles.columns}>

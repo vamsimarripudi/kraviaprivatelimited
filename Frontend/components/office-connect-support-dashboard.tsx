@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Headphones, Laptop, Plus, RefreshCw, ShieldCheck } from "lucide-react";
 import styles from "./office-connect-support.module.css";
+import { useOfficeWorkspace } from "@/components/office-workspace-context";
 
 type ITTicket={id:string;ticket_code:string;title:string;status:string;priority:string;created_at:string;requester_user_id:string};
 type Case={id:string;case_code:string;subject:string;status:string;priority:string;created_at:string};
@@ -20,6 +21,7 @@ async function source<T>(url:string):Promise<Result<T>>{
  }catch(e){return {reason:e instanceof Error?e.message:"Canonical service temporarily unavailable"};}
 }
 export function OfficeConnectSupportDashboard(){
+ const { permissions } = useOfficeWorkspace();
  const [it,setIt]=useState<Result<IT>>({});
  const [support,setSupport]=useState<Result<Support>>({});
  const [loading,setLoading]=useState(true);
@@ -53,7 +55,7 @@ export function OfficeConnectSupportDashboard(){
    <section className={styles.panel} aria-label="IT service queue">
     <header><Laptop size={21}/><div><h2>IT service desk</h2>
      <small>{it.reason??"Scoped to your current IT permissions"}</small></div>
-     <Link href="/office/chat/support/new"><Plus size={15}/>New IT ticket</Link></header>
+     {permissions.includes("it.service.request")?<Link href="/office/chat/support/new"><Plus size={15}/>New IT ticket</Link>:null}</header>
     {!loading&&it.reason?<p className={styles.warning} role="status">{it.reason}. No restricted tickets are displayed.</p>:null}
     {!loading&&!it.reason&&!tickets.length?<p>No IT tickets currently visible.</p>:null}
     {!loading&&tickets.slice(0,12).map(t=><Link key={t.id} className={styles.ticket}

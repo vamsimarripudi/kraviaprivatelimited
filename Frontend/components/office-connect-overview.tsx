@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, BellRing, CheckCircle2, ClipboardCheck, Headphones, MessageCircle, Plus, RefreshCw, ShieldCheck, TriangleAlert } from "lucide-react";
 import styles from "./office-connect-overview.module.css";
+import { useOfficeWorkspace } from "@/components/office-workspace-context";
 
 type Conversation = { id: string; kind: string; title: string; department_code?: string | null; updated_at: string };
 type Work = {
@@ -50,6 +51,7 @@ export function OfficeConnectOverview({ conversations, conversationsLoading, con
   conversationsLoading: boolean;
   conversationsError: string;
 }) {
+ const { permissions } = useOfficeWorkspace();
  const [work, setWork] = useState<SourceResult<Work>>({ state: "unavailable" });
  const [it, setIt] = useState<SourceResult<IT>>({ state: "unavailable" });
  const [escalations, setEscalations] = useState<SourceResult<Escalations>>({ state: "unavailable" });
@@ -93,7 +95,7 @@ export function OfficeConnectOverview({ conversations, conversationsLoading, con
  return <div className={styles.overview} aria-label="Communication home overview">
   <div className={styles.actions}>
    <Link href="/office/chat/directory"><Plus size={17} aria-hidden="true"/>New message</Link>
-   <Link href="/office/chat/support/new"><Headphones size={17} aria-hidden="true"/>New IT ticket</Link>
+{permissions.includes("it.service.request")?<Link href="/office/chat/support/new"><Headphones size={17} aria-hidden="true"/>New IT ticket</Link>:null}
    <button type="button" onClick={() => {setLoading(true);setRefresh(count => count + 1);}}
     disabled={loading} aria-label="Refresh communication overview">
     <RefreshCw size={17} aria-hidden="true"/>{loading ? "Loading…" : "Refresh"}
