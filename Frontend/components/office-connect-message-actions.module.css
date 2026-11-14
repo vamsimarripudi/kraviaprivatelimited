@@ -15,3 +15,9 @@
 .history time{color:var(--office-ui-muted);font-size:11px}.history>button{justify-self:start;min-height:44px;border-radius:9px;border:1px solid var(--office-ui-line);background:transparent;color:var(--office-ui-ink);padding:8px 12px;cursor:pointer}
 .actions nav :is(button,a){min-height:44px;padding:7px 11px;font-size:12px}
 .actions :is(button,a):focus-visible{outline:2px solid var(--office-ui-accent);outline-offset:3px}
+
+.form h3{font-size:13px;margin:0}.form p{font-size:12px;line-height:1.5;margin:0;color:var(--office-ui-muted)}
+.form .reportFields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.form select{width:100%;min-width:0;min-height:44px;border-radius:9px;border:1px solid var(--office-ui-line);padding:8px;background:var(--office-ui-surface);color:var(--office-ui-ink)}
+.form a{font-size:12px;color:var(--office-ui-accent);padding:8px 0}
+@media(max-width:430px){.form .reportFields{grid-template-columns:minmax(0,1fr)}}
