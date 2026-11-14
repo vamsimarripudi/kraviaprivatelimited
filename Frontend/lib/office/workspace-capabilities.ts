@@ -82,7 +82,7 @@ const requirements: Record<string, readonly string[]> = {
 // Personal account utilities are available to any activated employee.
 // Every other business module requires an explicit capability assignment.
 const personalOfficeSections = new Set([
-  "dashboard", "my-role", "info", "notifications", "tasks", "calendar", "requests",
+  "dashboard", "my-role", "my-transfers", "info", "notifications", "tasks", "calendar", "requests",
   "approvals", "worktime", "settings", "emergency",
 ]);
 
