@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, MessageSquareText, RefreshCw, Search, Send, Paperclip, Pin, UsersRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, MessageSquareText, RefreshCw, Search, Send, Paperclip, Pin, UsersRound, Smile, Image, Video, FileText, FileImage, BookMarked, Plus, X, Wifi, WifiOff } from "lucide-react";
 import styles from "./office-connect.module.css";
 import { OfficeConnectMessageActions } from "@/components/office-connect-message-actions";
 import { OfficeConnectOverview } from "@/components/office-connect-overview";
@@ -21,6 +21,17 @@ type SelectedFile={id?:string;key:string;name:string;status:Office5FileStatus;me
 type ListResponse = { actor_user_id: string; conversations: Conversation[] };
 type Member={user_id:string;display_name:string};
 type MessageResponse = { actor_user_id: string; can_pin:boolean; messages: Message[];older_cursor:ChatHistoryCursor|null };
+type ComposerTool = "attach"|"emoji"|"templates"|null;
+type MessageTemplate = {title:string;body:string};
+const EMOJIS=["😀","😃","😄","😁","😊","😍","😂","🥹","😉","🤔","😎","😮","🙏","👏","👍","👎","❤️","💙","✅","🎉","🔥","⭐","💯","👀","🙌","💡","📌","📎","📅","📢","💬","🚀","🤝","🎯","🌟","☕","🙋","👌","💪","🤗","🎂","🎊"];
+const QUICK_TEMPLATES:MessageTemplate[]=[
+  {title:"Quick update",body:"Quick update: "},
+  {title:"Meeting request",body:"Could we arrange a short meeting to discuss this? Please share your availability."},
+  {title:"Status request",body:"Could you share the current status and any blockers when convenient?"},
+  {title:"Acknowledgement",body:"Received, thank you. I will review and follow up."},
+];
+const MAX_CHAT_UPLOAD_BYTES=4_194_304; // Vercel Function request body is capped at 4.5 MB; reserve multipart overhead.
+
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { credentials: "same-origin", cache: "no-store", ...init });
@@ -60,7 +71,19 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
   const [typingPeople,setTypingPeople]=useState<Member[]>([]);
   const [typingRefresh,setTypingRefresh]=useState(0);
   const lastTypingSignal=useRef(0);
-  const [mentionPicker,setMentionPicker] = useState(false);
+  const [mentionTerm,setMentionTerm] = useState<string|null>(null);
+  const [mentionIndex,setMentionIndex] = useState(0);
+  const [composerTool,setComposerTool] = useState<ComposerTool>(null);
+  const [templateTitle,setTemplateTitle] = useState("");
+  const [customTemplates,setCustomTemplates] = useState<MessageTemplate[]>([]);
+  const [pendingMessage,setPendingMessage] = useState<{nonce:string;body:string;created_at:string}|null>(null);
+  const composerInput=useRef<HTMLTextAreaElement|null>(null);
+  const filePicker=useRef<HTMLInputElement|null>(null);
+  const imagePicker=useRef<HTMLInputElement|null>(null);
+  const videoPicker=useRef<HTMLInputElement|null>(null);
+  const gifPicker=useRef<HTMLInputElement|null>(null);
+  const mentionPicker=false; // Deprecated standalone mention button: typing @ opens the scoped people menu.
+
   const nonce = useRef<string | null>(null);
   const activeId = initialConversationId;
   const inboxLive=useOfficeChatInboxLive(()=>setReloadCount(x=>x+1),()=>{
@@ -74,6 +97,52 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
     ()=>setTypingRefresh(value=>value+1));
   const selected = conversations.find(row => row.id === activeId);
   const visibleMessages=messageScope===activeId?messages:[];
+  const mentionSuggestions=mentionTerm===null?[]:members.filter(person=>
+    person.display_name.toLocaleLowerCase().includes(mentionTerm.toLocaleLowerCase())).slice(0,8);
+  useEffect(()=>{
+    if(!actor)return;
+    try{
+      const saved=JSON.parse(window.localStorage.getItem("kravia.connect.templates."+actor)??"[]") as unknown;
+      if(Array.isArray(saved))setCustomTemplates(saved.filter((row):row is MessageTemplate=>
+        !!row&&typeof row==="object"&&"title" in row&&"body" in row&&
+        typeof row.title==="string"&&typeof row.body==="string").slice(0,12));
+    }catch{setCustomTemplates([]);}
+  },[actor]);
+  function updateDraft(value:string,caret:number){
+    nonce.current=null;setDraft(value);setSendStatus("");
+    const token=value.slice(0,caret).match(/(?:^|\s)@([\p{L}\p{N} ._-]{0,42})$/u);
+    setMentionTerm(token?token[1]:null);setMentionIndex(0);
+    setPickedMentions(existing=>existing.filter(id=>members.some(person=>
+      person.user_id===id&&value.includes("@"+person.display_name))));
+    signalTyping(Boolean(value.trim()));
+  }
+  function insertText(value:string,replaceMention=false){
+    const field=composerInput.current;
+    const start=field?.selectionStart??draft.length;
+    const end=field?.selectionEnd??draft.length;
+    const prefix=draft.slice(0,start);
+    const mention=replaceMention?prefix.match(/(?:^|\s)@([\p{L}\p{N} ._-]{0,42})$/u):null;
+    const from=mention?start-mention[0].length+(mention[0].startsWith(" ")?1:0):start;
+    const result=draft.slice(0,from)+value+draft.slice(end);
+    setDraft(result);setMentionTerm(null);setComposerTool(null);nonce.current=null;
+    window.requestAnimationFrame(()=>{
+      field?.focus();const cursor=from+value.length;field?.setSelectionRange(cursor,cursor);
+    });
+  }
+  function chooseMention(person:Member){
+    insertText("@"+person.display_name+" ",true);
+    setPickedMentions(ids=>ids.includes(person.user_id)?ids:[...ids,person.user_id]);
+  }
+  function saveCustomTemplate(){
+    const name=templateTitle.trim();
+    if(!actor||!name||!draft.trim())return;
+    const next=[...customTemplates.filter(x=>x.title!==name),{title:name.slice(0,60),body:draft.slice(0,4000)}].slice(-12);
+    try{window.localStorage.setItem("kravia.connect.templates."+actor,JSON.stringify(next));}
+    catch{setSendStatus("This browser could not save the template.");return;}
+    setCustomTemplates(next);setTemplateTitle("");setComposerTool(null);
+    setSendStatus("Template saved on this browser only. Do not store sensitive credentials.");
+  }
+
   const waitingMessage=!messageError&&(messageLoading||messageScope!==activeId);
   useLayoutEffect(()=>{
    const el=timelineRef.current;
@@ -219,15 +288,15 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
   }
 
   async function uploadFile(file:File) {
-    if(!activeId)return;
+    if(!activeId||selectedFiles.length>=5)return;
     const key=window.crypto.randomUUID();
     const entry:SelectedFile={key,name:file.name,status:"selected"};
     setSelectedFiles(prev=>[...prev,entry]);
-    if(file.size<1||file.size>10_485_760){
-      setSelectedFiles(prev=>prev.map(f=>f.key===key?{...f,status:"blocked",message:"File must be 1 byte–10 MiB"}:f));
+    if(file.size<1||file.size>MAX_CHAT_UPLOAD_BYTES){
+      setSelectedFiles(prev=>prev.map(f=>f.key===key?{...f,status:"blocked",message:"Files must be 1 byte–4 MiB for this secure transfer endpoint"}:f));
       return;
     }
-    setFileLoading(true);
+    setComposerTool(null);setFileLoading(true);
     setSelectedFiles(prev=>prev.map(f=>f.key===key?{...f,status:"uploading"}:f));
     try{
       const form=new FormData();
@@ -269,27 +338,34 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
 
   async function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!activeId || !draft.trim() || submitting || fileLoading || selectedFiles.some(file=>file.status!=="available")) return;
-    setSubmitting(true);
-    setSendStatus("");
-    nonce.current ??= window.crypto.randomUUID();
-    try {
-      await json<{ message_id: string }>("/api/office-chat/conversations/" + encodeURIComponent(activeId) + "/messages", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: draft.trim(), client_nonce: nonce.current, mention_user_ids:pickedMentions, attachment_ids:selectedFiles.map(f=>f.id).filter(Boolean) }),
-      });
-      nonce.current = null;
-      setDraft("");signalTyping(false);setPickedMentions([]);setMentionPicker(false);setSelectedFiles([]);
-      setSendStatus("Message stored in the private conversation");
-      setReloadCount(value => value + 1);
-    } catch (error) {
-      setSendStatus(error instanceof Error ? error.message : "Message not confirmed; your draft has been preserved");
-    } finally {
-      setSubmitting(false);
-    }
+    if(!activeId||!draft.trim()||submitting||fileLoading||selectedFiles.some(file=>file.status!=="available"))return;
+    const body=draft.trim();
+    setSubmitting(true);setSendStatus("");setComposerTool(null);setMentionTerm(null);
+    nonce.current??=window.crypto.randomUUID();
+    const sendingNonce=nonce.current;
+    setPendingMessage({nonce:sendingNonce,body,created_at:new Date().toISOString()});
+    try{
+      const confirmed=await json<{message_id:string}>("/api/office-chat/conversations/"+
+        encodeURIComponent(activeId)+"/messages",{
+         method:"POST",headers:{"Content-Type":"application/json"},
+         body:JSON.stringify({body,client_nonce:sendingNonce,
+           mention_user_ids:pickedMentions,attachment_ids:selectedFiles.map(f=>f.id).filter(Boolean)}),
+        });
+      if(!confirmed.message_id)throw new Error("Server did not confirm the message ID");
+      nonce.current=null;
+      setMessages(previous=>previous.some(m=>m.id===confirmed.message_id)?previous:[
+        ...previous,{id:confirmed.message_id,sender_user_id:actor,
+          sender_name:"You",body,created_at:new Date().toISOString()}]);
+      setDraft("");signalTyping(false);setPickedMentions([]);setSelectedFiles([]);
+      setSendStatus("Sent");setReloadCount(v=>v+1);
+      scrollIntent.current="initial";
+    }catch(error){
+      // Keep the actual draft and client nonce for a safe idempotent retry.
+      setSendStatus(error instanceof Error?error.message:"Send not confirmed; draft retained");
+    }finally{setPendingMessage(null);setSubmitting(false);}
   }
 
-  return <section className={styles.connect} aria-label="KRAVIA Connect">
+  return <section className={styles.connect} aria-label="KRAVIA Connect" data-thread={!!activeId}>
     <header className={styles.header}>
       <div><p className={styles.eyebrow}>KRAVIA OFFICE · CONNECT</p>
         <h1>{activeId ? selected?.title ?? "Private conversation" : "Communication home"}</h1>
@@ -303,7 +379,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
       </div>
     </header>
     <div className={styles.grid} data-home={!activeId}>
-      <aside className={styles.sidebar} aria-label="Conversations">
+      <aside className={styles.sidebar} aria-label="Conversations" data-chat-list>
         <div className={styles.sideHeading}><h2>My conversations</h2><span>{listLoading?"…":listError?"—":conversations.length}</span></div>
         {listLoading ? <div className={styles.skeleton} role="status">Loading authorized conversations…</div> : null}
         {listError ? <div className={styles.error} role="alert"><p>{listError}</p><button type="button" onClick={() => setReloadCount(n => n + 1)}>Retry</button></div> : null}
@@ -321,17 +397,20 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
             <ArrowRight size={15} aria-hidden="true"/></Link>)}
         </nav>
       </aside>
-      <section className={styles.body} data-home={!activeId} aria-label={activeId ? "Private messages" : "Connect workspace"}>
+      <section className={styles.body} data-home={!activeId} data-chat-body aria-label={activeId ? "Private messages" : "Connect workspace"}>
         {!activeId ? <OfficeConnectOverview conversations={conversations} conversationsLoading={listLoading} conversationsError={listError} liveRevision={reloadCount} liveState={inboxLive}/> : <>
-          <div className={styles.threadHeader}><Link href="/office/chat" className={styles.back}><ArrowLeft size={17}/>All conversations</Link>
-             <span className={styles.liveStatus} data-state={live} aria-live="polite" role="status">
-              {live==="live"?"Live updates · private":live==="reconnecting"?"Live stream reconnecting":
-                live==="restricted"?"Conversation access revoked":"Private refresh · fallback"}
+          <div className={styles.threadHeader} data-chat-thread-header>
+             <Link href="/office/chat" className={styles.back} aria-label="Back to conversations" title="All conversations">
+               <ArrowLeft size={17} aria-hidden="true"/></Link>
+             <strong>{selected?.title??"Private conversation"}</strong>
+             <span className="chat-status-indicator" data-state={live} aria-label={live==="restricted"?"Access revoked":live==="live"?"Realtime updates connected":"Private backup refresh available"} title={live==="live"?"Live · encrypted transport":"Private connection with refresh fallback"}>
+               {live==="restricted"?<WifiOff size={15}/>:<Wifi size={15}/>}
+               {live==="restricted"?"Access changed":live==="live"?"Live":"Private refresh"}
              </span>
-             <button type="button" aria-expanded={memberPanel} aria-controls="office-connect-members"
-              onClick={()=>setMemberPanel(open=>!open)}><UsersRound size={16} aria-hidden="true"/>Members</button></div>
+             <button type="button" aria-label="Conversation members" title="Members" aria-expanded={memberPanel} aria-controls="office-connect-members"
+              onClick={()=>setMemberPanel(open=>!open)}><UsersRound size={17} aria-hidden="true"/></button></div>
           {memberPanel?<OfficeConnectMembers key={activeId} conversationId={activeId} onChanged={()=>setReloadCount(n=>n+1)}/>:null}
-          <div ref={timelineRef} className={styles.timeline} role="log" aria-label="Message history" aria-live="polite">
+          <div ref={timelineRef} className={styles.timeline} data-chat-timeline role="log" aria-label="Message history" aria-live="polite">
             {waitingMessage ? <div className={styles.skeleton} role="status">Opening authorized history…</div> : null}
             {messageError ? <div className={styles.error} role="alert"><p>{messageError}</p>
               <button type="button" onClick={() => setReloadCount(v=>v+1)}>Retry</button></div> : null}
@@ -354,52 +433,112 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
               <OfficeConnectMessageActions id={message.id} body={message.body} editedAt={message.edited_at}
                 pinned={message.pinned} canPin={canPin} reactions={message.reactions??[]} own={message.sender_user_id===actor} onDone={()=>setReloadCount(v=>v+1)}/>
             </article>)}
+            {pendingMessage?<article className={styles.message} data-own="true" data-chat-pending="true">
+              <strong>You · sending…</strong><p>{pendingMessage.body}</p>
+            </article>:null}
           </div>
           {typingPeople.length?<p className={styles.typingNotice} role="status" aria-live="polite">
             {typingPeople.slice(0,2).map(p=>p.display_name).join(", ")}
             {typingPeople.length===1?" is typing…":" are typing…"}
           </p>:null}
-          <form className={styles.composer} onSubmit={send}>
-            <label htmlFor="office-chat-message">Message</label>
-            <div><textarea id="office-chat-message" value={draft} maxLength={4000} rows={2}
-              placeholder="Write a message for verified participants…" disabled={submitting || !!messageError}
-              onChange={event => { nonce.current = null; setDraft(event.target.value);
-                signalTyping(Boolean(event.target.value.trim()));setSendStatus(""); }}
-              onBlur={()=>signalTyping(false)}
-              onKeyDown={event => { if ((event.ctrlKey || event.metaKey) && event.key === "Enter") event.currentTarget.form?.requestSubmit(); }}/>
-              <button type="submit" disabled={!draft.trim() || submitting || fileLoading || selectedFiles.some(file=>file.status!=="available") || !!messageError}><Send size={16}/> {submitting ? "Sending…" : "Send"}</button>
-            </div>
-            <div className={styles.attachmentControls}>
-              <label htmlFor="office-chat-file"><Paperclip size={16}/> Attach scanned file</label>
-              <input id="office-chat-file" type="file" accept="application/pdf,image/jpeg,image/png,image/webp"
-                disabled={fileLoading||submitting||selectedFiles.length>=5} onChange={e=>{
-                  const file=e.target.files?.[0];e.target.value="";if(file)void uploadFile(file);
+          <form className={styles.composer} data-chat-composer onSubmit={send}>
+            <label htmlFor="office-chat-message" className="chat-sr-only">Message to verified conversation members</label>
+            {mentionTerm!==null?<div className="chat-mention-menu" role="listbox" id="office-chat-mentions" aria-label="Mention group members">
+              {mentionSuggestions.length?mentionSuggestions.map((person,index)=>
+                <button type="button" role="option" aria-selected={mentionIndex===index} key={person.user_id}
+                  onMouseDown={e=>e.preventDefault()} onClick={()=>chooseMention(person)}>
+                  {person.display_name}</button>):<p>No matching current members</p>}
+            </div>:null}
+            {composerTool?<div className="chat-tool-panel" role="dialog" aria-label="Composer tools">
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+                <strong style={{fontSize:12}}>{composerTool==="attach"?"Attach securely":composerTool==="emoji"?"Insert emoji":"Message templates"}</strong>
+                <button type="button" title="Close tools" aria-label="Close tools" onClick={()=>setComposerTool(null)}><X size={15}/></button>
+              </div>
+              {composerTool==="attach"?<div className="chat-attachment-menu">
+                <button type="button" onClick={()=>filePicker.current?.click()}><FileText size={17}/>Documents and files</button>
+                <button type="button" onClick={()=>imagePicker.current?.click()}><Image size={17}/>Photos</button>
+                <button type="button" onClick={()=>videoPicker.current?.click()}><Video size={17}/>Video clips</button>
+                <button type="button" onClick={()=>gifPicker.current?.click()}><FileImage size={17}/>Animated GIF file</button>
+                <small>Scanner-verified · up to 4 MiB per upload · 5 attachments</small>
+              </div>:null}
+              {composerTool==="emoji"?<div className="chat-emoji-grid">
+                {EMOJIS.map(emoji=><button key={emoji} type="button" title={emoji}
+                  aria-label={"Insert emoji "+emoji} onClick={()=>insertText(emoji)}>{emoji}</button>)}
+              </div>:null}
+              {composerTool==="templates"?<div className="chat-template-list">
+                {[...QUICK_TEMPLATES,...customTemplates].map(t=><button type="button"
+                  key={t.title} onClick={()=>{setDraft(t.body);setComposerTool(null);composerInput.current?.focus();}}>{t.title}</button>)}
+                <div className="chat-template-save">
+                  <input aria-label="Name for current draft template" maxLength={60} placeholder="Template title"
+                    value={templateTitle} onChange={e=>setTemplateTitle(e.target.value)}/>
+                  <button type="button" disabled={!templateTitle.trim()||!draft.trim()} onClick={saveCustomTemplate}>Save draft</button>
+                </div>
+                <small>Personal templates stay in this browser; do not save private data or credentials.</small>
+              </div>:null}
+            </div>:null}
+            <div className="chat-composer-frame">
+              <button type="button" className="chat-tool" aria-label="Attach file or media" title="Attach"
+                aria-expanded={composerTool==="attach"} aria-controls="office-chat-file-picker"
+                disabled={submitting||fileLoading||selectedFiles.length>=5}
+                onClick={()=>{setMentionTerm(null);setComposerTool(v=>v==="attach"?null:"attach");}}>
+                <Plus size={20}/></button>
+              <textarea id="office-chat-message" ref={composerInput} value={draft} maxLength={4000}
+                rows={1} placeholder="Message… type @ to mention a member"
+                aria-controls={mentionTerm!==null?"office-chat-mentions":undefined}
+                aria-autocomplete="list" disabled={submitting||!!messageError}
+                onChange={event=>{
+                  const input=event.currentTarget;
+                  updateDraft(input.value,input.selectionStart);
+                  input.style.height="auto";
+                  input.style.height=Math.min(144,Math.max(40,input.scrollHeight))+"px";
+                }}
+                onBlur={()=>signalTyping(false)}
+                onKeyDown={event=>{
+                  if(mentionTerm!==null&&mentionSuggestions.length){
+                    if(event.key==="ArrowDown"){event.preventDefault();setMentionIndex(i=>(i+1)%mentionSuggestions.length);return;}
+                    if(event.key==="ArrowUp"){event.preventDefault();setMentionIndex(i=>(i+mentionSuggestions.length-1)%mentionSuggestions.length);return;}
+                    if(event.key==="Enter"||event.key==="Tab"){event.preventDefault();chooseMention(mentionSuggestions[mentionIndex]??mentionSuggestions[0]);return;}
+                  }
+                  if(event.key==="Escape"){setMentionTerm(null);setComposerTool(null);return;}
+                  if(event.key==="Enter"&&!event.shiftKey&&!event.isComposing){
+                    event.preventDefault();event.currentTarget.form?.requestSubmit();
+                  }
                 }}/>
-              <small>PDF/JPEG/PNG/WebP · Max 10 MiB · 5 attachments</small>
+              <button type="button" className="chat-tool" aria-label="Choose emoji" title="Emoji"
+                aria-expanded={composerTool==="emoji"} onClick={()=>{setMentionTerm(null);setComposerTool(v=>v==="emoji"?null:"emoji");}}>
+                <Smile size={19}/></button>
+              <button type="button" className="chat-tool" aria-label="Choose GIF" title="GIF"
+                onClick={()=>gifPicker.current?.click()}><FileImage size={19}/></button>
+              <button type="button" className="chat-tool" aria-label="Message templates" title="Templates"
+                aria-expanded={composerTool==="templates"} onClick={()=>{setMentionTerm(null);setComposerTool(v=>v==="templates"?null:"templates");}}>
+                <BookMarked size={18}/></button>
+              <button type="submit" className="chat-tool chat-send" aria-label={submitting?"Sending message":"Send message"}
+                title="Send · Enter" disabled={!draft.trim()||submitting||fileLoading||
+                  selectedFiles.some(file=>file.status!=="available")||!!messageError}>
+                <Send size={18} aria-hidden="true"/></button>
             </div>
-            {selectedFiles.length?<div className={styles.selectedFiles} aria-label="Attachment status">
+            <div id="office-chat-file-picker" className="chat-sr-only" aria-hidden="true">Private attachment selections</div>
+            <input className="chat-file-input" ref={filePicker} type="file" aria-label="Choose a scanned file"
+              accept=".pdf,.txt,.docx,.xlsx,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm"
+              onChange={e=>{const file=e.target.files?.[0];e.target.value="";if(file)void uploadFile(file);}}/>
+            <input className="chat-file-input" ref={imagePicker} type="file" aria-label="Choose an image"
+              accept="image/jpeg,image/png,image/webp,image/gif" 
+              onChange={e=>{const file=e.target.files?.[0];e.target.value="";if(file)void uploadFile(file);}}/>
+            <input className="chat-file-input" ref={videoPicker} type="file" aria-label="Choose a video"
+              accept="video/mp4,video/webm" 
+              onChange={e=>{const file=e.target.files?.[0];e.target.value="";if(file)void uploadFile(file);}}/>
+            <input className="chat-file-input" ref={gifPicker} type="file" aria-label="Choose a GIF"
+              accept="image/gif,.gif"
+              onChange={e=>{const file=e.target.files?.[0];e.target.value="";if(file)void uploadFile(file);}}/>
+            {selectedFiles.length?<div className="chat-file-queue" aria-label="Attachment scan status">
               {selectedFiles.map(file=><Office5FileCard key={file.key} name={file.name} status={file.status}
-               reason={file.message} onRetry={file.id?()=>void retryAttachment(file.id!):undefined}
-               onCancel={()=>setSelectedFiles(prev=>prev.filter(f=>f.key!==file.key))}/>)}
-              <p>Files are not shared until their scan is clean and your message is confirmed by the server.</p>
-              <button type="button" onClick={()=>setSelectedFiles([])} disabled={submitting}>Clear selected files</button>
+                reason={file.message} onRetry={file.id?()=>void retryAttachment(file.id!):undefined}
+                onCancel={()=>setSelectedFiles(prev=>prev.filter(f=>f.key!==file.key))}/>)}
             </div>:null}
-            <div className={styles.mentionControls}>
-              <button type="button" aria-expanded={mentionPicker} aria-controls="office-chat-mention-picker"
-               onClick={()=>setMentionPicker(v=>!v)} disabled={submitting}>@ Mention participant</button>
-              {pickedMentions.length?<small>{pickedMentions.length} verified mention(s) selected</small>:null}
+            <div className="chat-composer-foot">
+              <span>{sendStatus||"Enter to send · Shift+Enter for a new line"}</span>
+              <span>Private message · not an approval</span>
             </div>
-            {mentionPicker?<div id="office-chat-mention-picker" className={styles.mentionPicker} role="group" aria-label="Current conversation participants">
-              {members.length?members.map(person=><button key={person.user_id} type="button"
-               disabled={pickedMentions.includes(person.user_id)}
-               onClick={()=>{
-                setPickedMentions(prev=>[...prev,person.user_id]);
-                setDraft(prev=>prev.trimEnd()+(prev.trim()?" ":"")+"@"+person.display_name+" ");
-                setMentionPicker(false);nonce.current=null;
-               }}>{person.display_name}</button>):<span>No other current active members</span>}
-            </div>:null}
-            {sendStatus ? <p role="status" className={styles.sendStatus}>{sendStatus}</p> : null}
-            <small>A stored message is not a formal approval or instruction to execute an action.</small>
           </form>
         </>}
       </section>
