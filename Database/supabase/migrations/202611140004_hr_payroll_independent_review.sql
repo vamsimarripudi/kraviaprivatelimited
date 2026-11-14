@@ -102,6 +102,7 @@ declare
   decision text:=upper(trim(p_decision));
 begin
   if decision not in ('APPROVE','REJECT') then raise exception 'Invalid attendance decision'; end if;
+  if coalesce(length(trim(p_note)),0)<12 then raise exception 'Independent attendance review requires a meaningful evidence note'; end if;
   if not public.office_effective_permission(p_actor,'payroll.run.review','COMPANY',null,null) then
     raise exception 'Independent payroll review permission is required'; end if;
   select * into snap from public.office_payroll_attendance_snapshots where id=p_snapshot;
