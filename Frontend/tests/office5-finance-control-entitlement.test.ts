@@ -12,13 +12,14 @@ describe("Office 5.0 Finance and governance action presentation",()=>{
   }
  });
  it("does not expose ownership control because of OWNER or DIRECTOR title alone",()=>{
-  expect(screen).not.toContain('canStage={!financeReadOnly && (identity.roles.includes("OWNER") || identity.roles.includes("DIRECTOR"))}');
-  expect(screen).toContain('canStage={!financeReadOnly && permissions.includes("secretarial.corporate.prepare")');
-  expect(screen).toContain('canPost={!financeReadOnly && permissions.includes("secretarial.corporate.approve")');
+  expect(screen).not.toContain('canStage={(identity.roles.includes("OWNER") || identity.roles.includes("DIRECTOR"))}');
+  expect(screen).toContain('canStage={permissions.includes("secretarial.corporate.prepare")');
+  expect(screen).toContain('canPost={permissions.includes("secretarial.corporate.approve")');
  });
  it("limits financial assurance and audit verification to currently granted authority",()=>{
+  expect(screen).not.toContain("financeReadOnly");
   expect(screen).toContain('canVerifyChain={permissions.includes("audit.read")');
-  expect(screen).toContain('canManageCompliance={!financeReadOnly && permissions.includes("compliance.instance.manage")');
-  expect(screen).toContain('canSignatory={!financeReadOnly && identity.roles.includes("OWNER") && permissions.includes("tax.gst.approve")');
+  expect(screen).toContain('canManageCompliance={permissions.includes("compliance.instance.manage")');
+  expect(screen).toContain('canSignatory={identity.roles.includes("OWNER") && permissions.includes("tax.gst.approve")');
  });
 });

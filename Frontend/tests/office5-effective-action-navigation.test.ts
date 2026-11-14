@@ -4,9 +4,9 @@ import {capabilityCanAccessSection} from "../lib/office/workspace-capabilities";
 const screen=readFileSync(new URL("../components/internal-workspace-screen.tsx",import.meta.url),"utf8");
 describe("Office 5.0 effective action entitlements",()=>{
  it("does not enable Finance payment actions because of a job title",()=>{
-  expect(screen).toContain('canStage={!financeReadOnly && permissions.includes("finance.payment.prepare")}');
-  expect(screen).toContain('canDecide={!financeReadOnly && permissions.includes("finance.payment.approve")}');
-  expect(screen).toContain('canExecute={!financeReadOnly && permissions.includes("finance.payment.approve")}');
+  expect(screen).toContain('canStage={permissions.includes("finance.payment.prepare")}');
+  expect(screen).toContain('canDecide={permissions.includes("finance.payment.approve")}');
+  expect(screen).toContain('canExecute={permissions.includes("finance.payment.approve")}');
  });
  it("requires current create capability for products, customers and invoices",()=>{
   for(const code of ["master.product.create","master.customer.create","finance.invoice.create","finance.receipt.record"]){
