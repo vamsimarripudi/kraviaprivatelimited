@@ -20,7 +20,7 @@ No department ownership, handover request, functional position, role package or 
 
 1. Founder — protected, nontransferable corporate Founder/Owner identity. Remains governed by existing controls.
 2. CTO — establish a separate vacant ENGINEERING seat, then nominate the current Founder as initial CTO holder through formal recipient acceptance and independent review.
-3. Full Stack Developer — create a separate ENGINEERING seat. The existing catalogue offers SOFTWARE_ENGINEER; if the actual job is Full Stack Developer, a separately approved position-catalog entry should be created instead of quietly relabeling statutory evidence.
+3. Full Stack Developer — create a separate ENGINEERING seat using the new reusable FULL_STACK_DEVELOPER position entry in this versioned migration. The catalogue entry does not change any person's signed appointment or payroll.
 4. COO — register an OPERATIONS seat and reconcile the existing active COO job with the recipient-accepted seat. If department leadership is intended, separately transfer OPERATIONS ownership.
 5. CEO — review executive appointment evidence before creating/activating the executive seat for the employee recorded as CEO/CFO.
 6. CFO — register FINANCE executive seat, configure explicitly scoped and reviewed grants. Complete formal FINANCE ownership transfer if intended; the existing FINANCE login role is not enough.
