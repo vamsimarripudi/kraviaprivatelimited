@@ -1,0 +1,49 @@
+name: Office role-seat PostgreSQL integration
+
+on:
+  pull_request:
+    paths:
+      - "Database/supabase/migrations/202611140001_role_seat_transfer_control.sql"
+      - "Database/supabase/tests/role-seat-transfer-smoke.sql"
+      - "Frontend/lib/office/permission-engine.ts"
+      - ".github/workflows/office-role-seat-postgres.yml"
+  push:
+    branches: [main]
+    paths:
+      - "Database/supabase/migrations/202611140001_role_seat_transfer_control.sql"
+      - "Database/supabase/tests/role-seat-transfer-smoke.sql"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Role-seat transaction and authorization
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: office_role_seat_test
+          POSTGRES_PASSWORD: isolated-ci-role-seat
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d office_role_seat_test"
+          --health-interval 3s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Apply migration and exercise isolated multi-role transfers
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --network host \
+            --volume "$PWD:/repo:ro" --workdir /repo \
+            --env PGPASSWORD=isolated-ci-role-seat \
+            postgres:17 \
+            psql --host 127.0.0.1 --username postgres \
+              --dbname office_role_seat_test --set ON_ERROR_STOP=1 \
+              --file Database/supabase/tests/role-seat-transfer-smoke.sql
