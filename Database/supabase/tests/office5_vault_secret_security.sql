@@ -46,6 +46,18 @@ begin
   where id=version and scan_state='QUARANTINED' and review_state='PENDING')
  then raise exception 'New secret was not quarantined'; end if;
  begin
+  update public.office_vault_secret_documents set owner_user_id=reader where id=doc;
+  raise exception 'Sealed owner overwritten';
+ exception when raise_exception then
+  if sqlerrm='Sealed owner overwritten' then raise; end if;
+ end;
+ begin
+  update public.office_vault_secret_documents set classification='HR' where id=doc;
+  raise exception 'Sealed classification overwritten';
+ exception when raise_exception then
+  if sqlerrm='Sealed classification overwritten' then raise; end if;
+ end;
+ begin
   perform public.office_vault_secret_review(reviewer,version,true,'Unscanned data');
   raise exception 'Reviewer approved without scanner release';
  exception when raise_exception then
