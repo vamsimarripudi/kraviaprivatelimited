@@ -67,6 +67,7 @@ export async function getOfficeVaultAccessCenter(){
  if(own.error||review.error||ownGrants.error||reviewGrants.error)
   throw new OfficeVaultAccessError(503,"Vault access authority is temporarily unavailable");
  return {
+  generated_at:new Date().toISOString(),
   actor_user_id:current.identity.userId,
   request_categories:Object.keys(reviewPermission),
   reviewer_categories:reviewCategories,

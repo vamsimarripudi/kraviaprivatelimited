@@ -84,7 +84,7 @@ export function OfficeConnectWorkflows({path}:{path:string}){
   return()=>{active=false;};
  },[path,reload,requiresIT,requiresWork,requiresKnowledge]);
  const heading= pageNames[path] || (ticketId?"Ticket workspace":approvalId?"Approval decision room":articleKey?"Knowledge article":escalationId?"Escalation detail":"Restricted workflow");
- const tickets=state.it?.tickets??[];
+ const tickets=useMemo(()=>state.it?.tickets??[],[state.it?.tickets]);
  const filtered=useMemo(()=>{
   const needle=filter.trim().toLowerCase();
   const mine=path==="support/mine"?tickets.filter(t=>t.requester_user_id===state.it?.actor.user_id)

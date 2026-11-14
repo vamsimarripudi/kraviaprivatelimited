@@ -26,7 +26,7 @@ export async function OfficeVaultOverview({ categories }: { categories: VaultCat
   // counts when this read-only ledger is missing or temporarily unavailable.
   if (!(error instanceof OfficeVaultAccessError) || error.status !== 503) throw error;
  }
- const now = Date.now();
+ const now = access?.generated_at ? Date.parse(access.generated_at) : 0;
  const pending = access?.my_requests.filter(row => row.status === "PENDING") ?? [];
  const reviews = access?.review_queue.filter(row => row.requester_user_id !== access.actor_user_id) ?? [];
  const effective = access?.my_grants.filter(row => !row.revoked_at && Date.parse(row.expires_at) > now) ?? [];
