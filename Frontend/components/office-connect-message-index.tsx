@@ -1,5 +1,6 @@
 "use client";
 import {useEffect,useState,type FormEvent} from "react";
+import {useOfficeChatInboxLive} from "@/lib/office/use-office-chat-inbox-live";
 import Link from "next/link";
 import {ArrowLeft,ArrowRight,Bookmark,CheckCircle2,RefreshCw,Search} from "lucide-react";
 import styles from "./office-connect-index.module.css";
@@ -15,6 +16,7 @@ export function OfficeConnectMessageIndex({kind}:{kind:Kind}){
  const [submitted,setSubmitted]=useState("");
  const [refresh,setRefresh]=useState(0);
  const [pending,setPending]=useState("");
+ useOfficeChatInboxLive(()=>setRefresh(value=>value+1));
  useEffect(()=>{
   let live=true;
   void (async()=>{try{
