@@ -2,6 +2,7 @@ import "server-only";
 
 import { OfficePermissionError, requireOfficeActor, resolveOfficePermission } from "@/lib/office/permission-engine";
 import { currentOfficeTrustedDeviceId } from "@/lib/office/device-binding-server";
+import {knowledgeArticleIsManaged,knowledgeArticleIsVisible,type KnowledgeVisibilityContext} from "@/lib/office/knowledge-visibility";
 
 export class OfficeKnowledgeError extends Error {
   constructor(public readonly status:number,message:string){super(message);this.name="OfficeKnowledgeError"}
@@ -13,6 +14,32 @@ async function can(current:Actor,code:string,scope:"COMPANY"|"DEPARTMENT"="COMPA
  return (await resolveOfficePermission(current.admin,current.identity,code,{type:scope,key},device)).allowed;
 }
 function fail(error:{message?:string}|null,message:string){if(error)throw new OfficeKnowledgeError(503,error.message||message)}
+/** Only verified active department employment may unlock department audiences
+ * or departmental management. The cached session department is a hint, not
+ * ongoing authority after a transfer or offboarding. */
+async function currentDepartment(current:Actor):Promise<string|null>{
+ const department=String(current.identity.department??"").trim().toUpperCase();
+ if(!department)return null;
+ const {count,error}=await current.admin.from("office_job_assignments")
+  .select("user_id",{count:"exact",head:true})
+  .eq("user_id",current.identity.userId).eq("department_code",department)
+  .eq("status","ACTIVE");
+ if(error||typeof count!=="number")throw new OfficeKnowledgeError(503,"Department authority unavailable");
+ return count>0?department:null;
+}
+async function requireKnowledgeWrite(current:Actor,permission:"knowledge.manage"|"knowledge.publish",articleId:string){
+ if(await can(current,permission))return;
+ const department=await currentDepartment(current);
+ if(!department||!await can(current,permission,"DEPARTMENT",department))
+  throw new OfficeKnowledgeError(403,"Knowledge management is not authorized");
+ const {data,error}=await current.admin.from("office_knowledge_articles")
+  .select("audience_type,audience_key").eq("id",articleId).maybeSingle();
+ if(error)throw new OfficeKnowledgeError(503,"Knowledge source authority unavailable");
+ if(!data||data.audience_type!=="DEPARTMENT"||
+   String(data.audience_key??"").toUpperCase()!==department)
+  throw new OfficeKnowledgeError(404,"Knowledge record unavailable");
+}
+
 function inAudience(row:{audience_type:string;audience_key?:string|null},department:string|null,roles:string[]){
  if(row.audience_type==="COMPANY")return true;
  if(row.audience_type==="DEPARTMENT")return Boolean(department&&row.audience_key&&department.toUpperCase()===row.audience_key.toUpperCase());
@@ -22,7 +49,18 @@ function inAudience(row:{audience_type:string;audience_key?:string|null},departm
 
 export async function getKnowledgeHub(){
  const current=await actor();
- const department=current.identity.department||null;
+ const department=await currentDepartment(current);
+ const [companyKnowledgeManage,companyKnowledgePublish,departmentKnowledgeManage,departmentKnowledgePublish]=await Promise.all([
+  can(current,"knowledge.manage"),
+  can(current,"knowledge.publish"),
+  department?can(current,"knowledge.manage","DEPARTMENT",department):Promise.resolve(false),
+  department?can(current,"knowledge.publish","DEPARTMENT",department):Promise.resolve(false),
+ ]);
+ const visibility:KnowledgeVisibilityContext={
+  department,roles:current.identity.roles,
+  companyManage:companyKnowledgeManage,companyPublish:companyKnowledgePublish,
+  departmentManage:departmentKnowledgeManage,departmentPublish:departmentKnowledgePublish,
+ };
  const caps={
   policy_read:await can(current,"policy.read"),
   policy_manage:await can(current,"policy.manage"),
@@ -30,11 +68,18 @@ export async function getKnowledgeHub(){
   announcement_read:await can(current,"announcement.read"),
   announcement_manage:await can(current,"announcement.manage"),
   knowledge_read:await can(current,"knowledge.read"),
-  knowledge_manage:await can(current,"knowledge.manage")||Boolean(department&&await can(current,"knowledge.manage","DEPARTMENT",department)),
-  knowledge_publish:await can(current,"knowledge.publish")||Boolean(department&&await can(current,"knowledge.publish","DEPARTMENT",department)),
+  knowledge_manage:companyKnowledgeManage||departmentKnowledgeManage,
+  knowledge_publish:companyKnowledgePublish||departmentKnowledgePublish,
  };
  if(!caps.policy_read&&!caps.announcement_read&&!caps.knowledge_read)throw new OfficeKnowledgeError(403,"Knowledge Hub is not assigned to your current authority");
 
+ const globalDirectory=caps.policy_manage||caps.policy_publish||caps.announcement_manage||
+  companyKnowledgeManage||companyKnowledgePublish;
+ const hasDirectory=globalDirectory||departmentKnowledgeManage||departmentKnowledgePublish;
+ let directoryQuery=current.admin.from("office_identity_users")
+  .select("user_id,display_name,job_title,primary_department,status")
+  .eq("status","ACTIVE").order("display_name");
+ if(!globalDirectory&&department)directoryQuery=directoryQuery.eq("primary_department",department);
  const [policies,policyVersions,acks,announcements,receipts,articles,articleVersions,people]=await Promise.all([
   caps.policy_read?current.admin.from("office_policies").select("id,policy_code,title,category,audience_type,audience_key,acknowledgement_required,owner_user_id,current_version,status,created_by,created_at,updated_at").order("updated_at",{ascending:false}).limit(500):Promise.resolve({data:[],error:null}),
   caps.policy_read?current.admin.from("office_policy_versions").select("id,policy_id,version,content_text,effective_on,change_summary,status,created_by,published_by,published_at,content_sha256,created_at").order("version",{ascending:false}).limit(2000):Promise.resolve({data:[],error:null}),
@@ -43,7 +88,7 @@ export async function getKnowledgeHub(){
   caps.announcement_read?current.admin.from("office_announcement_receipts").select("id,announcement_id,user_id,read_at,acknowledged_at").eq("user_id",current.identity.userId).limit(1000):Promise.resolve({data:[],error:null}),
   caps.knowledge_read?current.admin.from("office_knowledge_articles").select("id,article_code,title,category,audience_type,audience_key,owner_user_id,current_version,status,created_by,created_at,updated_at").order("updated_at",{ascending:false}).limit(800):Promise.resolve({data:[],error:null}),
   caps.knowledge_read?current.admin.from("office_knowledge_versions").select("id,article_id,version,content_text,change_summary,status,created_by,published_by,published_at,content_sha256,created_at").order("version",{ascending:false}).limit(3000):Promise.resolve({data:[],error:null}),
-  (caps.policy_manage||caps.policy_publish||caps.announcement_manage||caps.knowledge_manage||caps.knowledge_publish)?current.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").eq("status","ACTIVE").order("display_name"):Promise.resolve({data:[],error:null}),
+  hasDirectory?directoryQuery:Promise.resolve({data:[],error:null}),
  ]);
  for(const result of [policies,policyVersions,acks,announcements,receipts,articles,articleVersions,people])fail(result.error,"Knowledge Hub records are temporarily unavailable");
 
@@ -54,9 +99,12 @@ export async function getKnowledgeHub(){
  const announcementRows=(announcements.data||[]).filter(row=>(caps.announcement_manage)||(
   row.status==="PUBLISHED"&&(!row.expires_at||new Date(row.expires_at).getTime()>now)&&inAudience(row,department,current.identity.roles)
  ));
- const articleRows=(articles.data||[]).filter(row=>(caps.knowledge_manage||caps.knowledge_publish)||(row.status==="PUBLISHED"&&inAudience(row,department,current.identity.roles)));
+ const articleRows=(articles.data||[]).filter(row=>knowledgeArticleIsVisible(row,visibility));
  const articleIds=new Set(articleRows.map(row=>String(row.id)));
- const knowledgeVersions=(articleVersions.data||[]).filter(row=>articleIds.has(String(row.article_id))&&((caps.knowledge_manage||caps.knowledge_publish)||row.status==="PUBLISHED"));
+ const editableIds=new Set(articleRows.filter(row=>knowledgeArticleIsManaged(row,visibility))
+  .map(row=>String(row.id)));
+ const knowledgeVersions=(articleVersions.data||[]).filter(row=>
+  articleIds.has(String(row.article_id))&&(editableIds.has(String(row.article_id))||row.status==="PUBLISHED"));
 
  return {
   actor:{user_id:current.identity.userId,roles:current.identity.roles,department},
@@ -105,18 +153,30 @@ export async function receiptAnnouncement(announcementId:string,ack:boolean){
 }
 export async function createKnowledge(input:{title:string;category:string;audienceType:string;audienceKey?:string;ownerUserId:string;content:string;summary?:string}){
  const current=await actor();
- const allowed=await can(current,"knowledge.manage")||Boolean(current.identity.department&&await can(current,"knowledge.manage","DEPARTMENT",current.identity.department));
- if(!allowed)throw new OfficeKnowledgeError(403,"Knowledge management permission is required");
+ const company=await can(current,"knowledge.manage");
+ if(!company){
+  const department=await currentDepartment(current);
+  if(!department||input.audienceType!=="DEPARTMENT"||
+    input.audienceKey?.trim().toUpperCase()!==department||
+    !await can(current,"knowledge.manage","DEPARTMENT",department))
+   throw new OfficeKnowledgeError(403,"Knowledge management is restricted to the current department");
+ }
  const {data,error}=await current.admin.rpc("office_knowledge_create",{p_actor:current.identity.userId,p_title:input.title,p_category:input.category,p_audience_type:input.audienceType,p_audience_key:input.audienceKey?.trim()||null,p_owner:input.ownerUserId,p_content:input.content,p_summary:input.summary?.trim()||null});
  if(error||typeof data!=="string")throw new OfficeKnowledgeError(400,error?.message||"Unable to create knowledge article"); return {article_id:data};
 }
 export async function newKnowledgeVersion(input:{articleId:string;content:string;summary?:string}){
  const current=await actor();
+ await requireKnowledgeWrite(current,"knowledge.manage",input.articleId);
  const {data,error}=await current.admin.rpc("office_knowledge_new_version",{p_actor:current.identity.userId,p_article:input.articleId,p_content:input.content,p_summary:input.summary?.trim()||null});
  if(error||typeof data!=="string")throw new OfficeKnowledgeError(400,error?.message||"Unable to create knowledge version"); return {version_id:data};
 }
 export async function publishKnowledge(versionId:string){
  const current=await actor();
+ const version=await current.admin.from("office_knowledge_versions")
+  .select("article_id").eq("id",versionId).maybeSingle();
+ if(version.error)throw new OfficeKnowledgeError(503,"Knowledge source authority unavailable");
+ if(!version.data)throw new OfficeKnowledgeError(404,"Knowledge version unavailable");
+ await requireKnowledgeWrite(current,"knowledge.publish",String(version.data.article_id));
  const {data,error}=await current.admin.rpc("office_knowledge_publish",{p_actor:current.identity.userId,p_version:versionId});
  if(error||data!==true)throw new OfficeKnowledgeError(400,error?.message||"Unable to publish knowledge version"); return {published:true};
 }
