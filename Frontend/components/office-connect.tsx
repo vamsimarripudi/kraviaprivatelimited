@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, MessageSquareText, RefreshCw, Search, Send, Paperclip, Pin, UsersRound } from "lucide-react";
 import styles from "./office-connect.module.css";
@@ -9,6 +9,7 @@ import { OfficeConnectOverview } from "@/components/office-connect-overview";
 import { OfficeConnectMembers } from "@/components/office-connect-members";
 import { Office5FileCard, type Office5FileStatus } from "@/components/office5-primitives";
 import { useOfficeWorkspace } from "@/components/office-workspace-context";
+import {mergeChatHistory,type ChatHistoryCursor} from "@/lib/office/chat-history";
 
 type Conversation = { id: string; kind: string; title: string; department_code?: string | null; updated_at: string };
 type Message = { id: string; sender_user_id: string; sender_name: string; body: string; created_at: string; edited_at?: string | null; pinned?:boolean;
@@ -17,7 +18,7 @@ type Message = { id: string; sender_user_id: string; sender_name: string; body: 
 type SelectedFile={id?:string;key:string;name:string;status:Office5FileStatus;message?:string};
 type ListResponse = { actor_user_id: string; conversations: Conversation[] };
 type Member={user_id:string;display_name:string};
-type MessageResponse = { actor_user_id: string; can_pin:boolean; messages: Message[] };
+type MessageResponse = { actor_user_id: string; can_pin:boolean; messages: Message[];older_cursor:ChatHistoryCursor|null };
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { credentials: "same-origin", cache: "no-store", ...init });
@@ -33,6 +34,15 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
   const [listError, setListError] = useState("");
   const [listLoading, setListLoading] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [messageScope,setMessageScope]=useState<string|null>(null);
+  const [olderCursor,setOlderCursor]=useState<ChatHistoryCursor|null>(null);
+  const [olderLoading,setOlderLoading]=useState(false);
+  const [olderError,setOlderError]=useState("");
+  const conversationRef=useRef<string|null>(null);
+  const historyInitialized=useRef(false);
+  const timelineRef=useRef<HTMLDivElement|null>(null);
+  const scrollIntent=useRef<"initial"|"older"|null>(null);
+  const scrollAnchor=useRef<{top:number;height:number}|null>(null);
   const [canPin,setCanPin]=useState(false);
   const [messageError, setMessageError] = useState("");
   const [messageLoading, setMessageLoading] = useState(!!initialConversationId);
@@ -49,6 +59,16 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
   const nonce = useRef<string | null>(null);
   const activeId = initialConversationId;
   const selected = conversations.find(row => row.id === activeId);
+  const visibleMessages=messageScope===activeId?messages:[];
+  const waitingMessage=!messageError&&(messageLoading||messageScope!==activeId);
+  useLayoutEffect(()=>{
+   const el=timelineRef.current;
+   if(!el||!scrollIntent.current)return;
+   if(scrollIntent.current==="initial")el.scrollTop=el.scrollHeight;
+   else if(scrollAnchor.current)el.scrollTop=scrollAnchor.current.top+
+     el.scrollHeight-scrollAnchor.current.height;
+   scrollIntent.current=null;scrollAnchor.current=null;
+  },[messages]);
 
   useEffect(() => {
     let live = true;
@@ -79,28 +99,75 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
   },[activeId,actor]);
 
   useEffect(() => {
-    if (!activeId) return;
-    let live = true;
-    const load = async () => {
-      try {
-        const response = await json<MessageResponse>("/api/office-chat/conversations/" + encodeURIComponent(activeId) + "/messages");
-        if (!live) return;
-        setMessages(response.messages);
+    if(!activeId)return;
+    let live=true;
+    let inFlight=false;
+    if(conversationRef.current!==activeId){
+      conversationRef.current=activeId;
+      historyInitialized.current=false;
+      setMessages([]);setMessageScope(null);setOlderCursor(null);
+      setOlderError("");setMessageError("");setMessageLoading(true);
+      setMemberPanel(false);setMembers([]);setPickedMentions([]);
+    }
+    const load=async()=>{
+      if(inFlight)return;
+      inFlight=true;
+      try{
+        const response=await json<MessageResponse>("/api/office-chat/conversations/"+
+          encodeURIComponent(activeId)+"/messages");
+        if(!live||conversationRef.current!==activeId)return;
+        if(!historyInitialized.current){
+          historyInitialized.current=true;
+          scrollIntent.current="initial";
+          setMessages(response.messages);
+          setOlderCursor(response.older_cursor);
+        }else{
+          setMessages(existing=>mergeChatHistory(existing,response.messages,"latest"));
+        }
+        setMessageScope(activeId);
         setCanPin(response.can_pin===true);
         setActor(response.actor_user_id);
         setMessageError("");
-        void fetch("/api/office-chat/conversations/"+encodeURIComponent(activeId)+"/messages",{method:"PATCH",credentials:"same-origin"});
-      } catch (error) {
-        if (live) { setMessages([]); setMessageError(error instanceof Error ? error.message : "Unable to load messages"); }
-      } finally {
-        if (live) setMessageLoading(false);
+        void fetch("/api/office-chat/conversations/"+encodeURIComponent(activeId)+
+         "/messages",{method:"PATCH",credentials:"same-origin"});
+      }catch(error){
+        if(live&&conversationRef.current===activeId){
+          setMessages([]);setMessageScope(null);setOlderCursor(null);
+          setMessageError(error instanceof Error?error.message:"Unable to load messages");
+        }
+      }finally{
+        inFlight=false;
+        if(live)setMessageLoading(false);
       }
     };
     void load();
-    const interval = window.setInterval(() => { if (document.visibilityState === "visible") void load(); }, 15000);
-    return () => { live = false; window.clearInterval(interval); };
+    const interval=window.setInterval(()=>{
+      if(document.visibilityState==="visible")void load();
+    },15000);
+    return()=>{live=false;window.clearInterval(interval);};
   }, [activeId, reloadCount]);
 
+
+  async function loadOlder(){
+    if(!activeId||!olderCursor||olderLoading||messageScope!==activeId)return;
+    const currentId=activeId;
+    setOlderLoading(true);setOlderError("");
+    const node=timelineRef.current;
+    if(node)scrollAnchor.current={top:node.scrollTop,height:node.scrollHeight};
+    try{
+      const query=new URLSearchParams({before_at:olderCursor.at,before_id:olderCursor.id});
+      const response=await json<MessageResponse>("/api/office-chat/conversations/"+
+        encodeURIComponent(currentId)+"/messages?"+query.toString());
+      if(conversationRef.current!==currentId)return;
+      scrollIntent.current="older";
+      setMessages(existing=>mergeChatHistory(existing,response.messages,"older"));
+      setOlderCursor(response.older_cursor);
+      setMessageError("");
+    }catch(error){
+      scrollAnchor.current=null;
+      setOlderError(error instanceof Error?error.message:"Older messages unavailable");
+    }finally{setOlderLoading(false);}
+  }
 
   async function uploadFile(file:File) {
     if(!activeId)return;
@@ -212,12 +279,17 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
              <button type="button" aria-expanded={memberPanel} aria-controls="office-connect-members"
               onClick={()=>setMemberPanel(open=>!open)}><UsersRound size={16} aria-hidden="true"/>Members</button></div>
           {memberPanel?<OfficeConnectMembers key={activeId} conversationId={activeId} onChanged={()=>setReloadCount(n=>n+1)}/>:null}
-          <div className={styles.timeline} role="log" aria-label="Message history" aria-live="polite">
-            {messageLoading ? <div className={styles.skeleton}>Opening private history…</div> : null}
+          <div ref={timelineRef} className={styles.timeline} role="log" aria-label="Message history" aria-live="polite">
+            {waitingMessage ? <div className={styles.skeleton} role="status">Opening authorized history…</div> : null}
             {messageError ? <div className={styles.error} role="alert"><p>{messageError}</p>
               <button type="button" onClick={() => setReloadCount(v=>v+1)}>Retry</button></div> : null}
-            {!messageLoading && !messageError && !messages.length ? <div className={styles.empty}>No messages yet. Start the conversation below.</div> : null}
-            {messages.map(message => <article key={message.id} className={styles.message} data-own={message.sender_user_id === actor}>
+            {!waitingMessage&&!messageError&&olderCursor?<button type="button"
+             className={styles.olderButton} disabled={olderLoading}
+             onClick={()=>void loadOlder()}>{olderLoading?"Loading earlier history…":"Load older messages"}</button>:null}
+            {olderError?<p role="alert" className={styles.olderError}>{olderError}
+             <button type="button" disabled={olderLoading} onClick={()=>void loadOlder()}>Retry</button></p>:null}
+            {!waitingMessage && !messageError && !visibleMessages.length ? <div className={styles.empty}>No messages yet. Start the conversation below.</div> : null}
+            {visibleMessages.map(message => <article key={message.id} className={styles.message} data-own={message.sender_user_id === actor}>
               <strong>{message.sender_user_id === actor ? "You" : message.sender_name}</strong>
               {message.pinned?<span className={styles.pinned}><Pin size={13} aria-hidden="true"/>Pinned in this conversation</span>:null}
               <p>{message.body}</p>

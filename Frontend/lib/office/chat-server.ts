@@ -1,6 +1,7 @@
 import "server-only";
 
 import { requireOfficeActor, OfficePermissionError } from "@/lib/office/permission-engine";
+import {CHAT_HISTORY_PAGE_SIZE,chatHistoryFilter,type ChatHistoryCursor} from "@/lib/office/chat-history";
 
 export class OfficeChatError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -124,15 +125,22 @@ export async function startOfficeChatDm(recipientUserId: string) {
   return { conversation_id: data };
 }
 
-export async function getOfficeChatMessages(conversationId: string) {
+export async function getOfficeChatMessages(conversationId: string,before?:ChatHistoryCursor) {
   const current = await actor();
   const conversation=await ownMembership(current, conversationId);
-  const result = await current.admin.from("office_chat_messages")
+  let query=current.admin.from("office_chat_messages")
     .select("id,sender_user_id,body,created_at,edited_at")
-    .eq("conversation_id", conversationId).is("deleted_at", null)
-    .order("created_at", { ascending: false }).limit(100);
-  if (result.error) throw internalFailure("Message history is unavailable");
-  const rows = [...(result.data ?? [])].reverse();
+    .eq("conversation_id",conversationId).is("deleted_at",null)
+    .order("created_at",{ascending:false}).order("id",{ascending:false})
+    .limit(CHAT_HISTORY_PAGE_SIZE+1);
+  if(before)query=query.or(chatHistoryFilter(before));
+  const result=await query;
+  if(result.error)throw internalFailure("Message history is unavailable");
+  const descending=(result.data??[]).slice(0,CHAT_HISTORY_PAGE_SIZE);
+  const hasOlder=(result.data??[]).length>CHAT_HISTORY_PAGE_SIZE;
+  const last=descending.at(-1);
+  const olderCursor=hasOlder&&last?{at:last.created_at,id:last.id}:null;
+  const rows=[...descending].reverse();
   const senderIds = [...new Set(rows.map(row => String(row.sender_user_id)))];
   const people = senderIds.length
     ? await current.admin.from("office_identity_users").select("user_id,display_name").in("user_id", senderIds)
@@ -163,6 +171,7 @@ export async function getOfficeChatMessages(conversationId: string) {
   }
   const pinned=new Set((pinResult.data??[]).map(pin=>String(pin.message_id)));
   return { actor_user_id: current.identity.userId,
+    older_cursor:olderCursor,
     can_pin:conversation.kind!=="GROUP"||conversation.created_by===current.identity.userId,
     messages: rows.map(row => ({
       id: row.id, sender_user_id: row.sender_user_id,
