@@ -168,7 +168,7 @@ $$;
 
 create or replace function public.office_role_seat_is_independent_reviewer(
   p_actor uuid, p_from uuid, p_to uuid
-) returns boolean language plpgsql stable security definer set search_path to '' as $
+) returns boolean language plpgsql stable security definer set search_path to '' as $reviewer$
 begin
   if p_actor is not distinct from p_from or p_actor is not distinct from p_to then return false; end if;
   if not exists(select 1 from public.office_identity_users i
@@ -181,7 +181,7 @@ begin
   return public.office_effective_permission(p_actor,'access.profile.assign','COMPANY',null,null)
       or public.office_effective_permission(p_actor,'security.change.review','COMPANY',null,null);
 end;
-$;
+$reviewer$;
 
 create or replace function public.office_role_seat_create(
  p_actor uuid,p_code text,p_label text,p_position text,p_department text,
