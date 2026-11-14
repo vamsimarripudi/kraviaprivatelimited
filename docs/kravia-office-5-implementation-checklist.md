@@ -17,8 +17,8 @@ Date: 2026-11-14 (Asia/Kolkata) · Draft PR: https://github.com/vamsimarripudi/k
 | Existing Office registry | 55 | 55 unchanged route definitions, 5.0 shared shell | Individual route interaction/keyboard/role QA at 360–1920px |
 | Existing Finance registry | 24 | 24 unchanged route definitions, shared 5.0 CSS and Finance sign-in | Per-module layout, finance SoD, access and responsive regression |
 | Existing secure access | 15 audit tracks | Existing password/email/MFA/QR/recovery logic preserved; shared layouts | Detailed 76-page addendum state validation, native Authenticator UX |
-| Connect | 38 atlas route designs | Private DM/group/department chat, scoped search/saved/mentions, thread, attachments, support/IT, escalation, source workflow bridges, KPI home | Distinct administration/scheduling/SLA retention, approvals and deeper customer support screens |
-| K-Vault | 12 atlas routes | Permission-filtered source directory, governed grants and requests, current evidence downloads/previews, own audit log and overview | Detailed category-specific forms, independent evidence verification, persistent source upload/version proposals and staff-role QA |
+| Connect | 38 atlas route designs | Private DM/group/department chat, keyed message pagination and revision audit, scoped search/saved/mentions, reactions/pins, governed settings, permissions/channels/retention, IT and customer support case queues, source-bounded analytics and governance home | Remaining generic activity, macros, AI, approval list, integration lifecycle, push/presence/SLA policy editing; full 41 overlays and 8 mobile acceptance |
+| K-Vault | 12 atlas routes | Permission-filtered source directory, governed grants and requests, current evidence downloads/previews, own audit log/overview; newly scoped and independently reviewed Registration Registry evidence queue | Other source categories' independent verification, evidence upload and version proposals, full grant/revocation and restricted-role QA |
 
 ## Existing Office routes — 55
 
@@ -139,16 +139,16 @@ All routes below continue to use their canonical implementation. 5.0 shell styli
 | `/office/chat/support/sla` | Dedicated component or source-backed interaction | [ ] Source-to-wireframe and authenticated authorization acceptance |
 | `/office/chat/support/knowledge` | Dedicated component or source-backed interaction | [ ] Source-to-wireframe and authenticated authorization acceptance |
 | `/office/chat/support/knowledge/[id]` | Dedicated component or source-backed interaction | [ ] Source-to-wireframe and authenticated authorization acceptance |
-| `/office/chat/support/analytics` | Dedicated component or source-backed interaction | [ ] Source-to-wireframe and authenticated authorization acceptance |
+| `/office/chat/support/analytics` | Source-bounded case aggregates and weekly demand visualization | [ ] Source-to-wireframe and authenticated authorization acceptance |
 | `/office/chat/support/macros` | Canonical Office workflow bridge; dedicated 5.0 UX incomplete | [ ] Source-to-wireframe and authenticated authorization acceptance |
-| `/office/chat/support/customers` | Canonical Office workflow bridge; dedicated 5.0 UX incomplete | [ ] Source-to-wireframe and authenticated authorization acceptance |
-| `/office/chat/approvals` | Canonical Office workflow bridge; dedicated 5.0 UX incomplete | [ ] Source-to-wireframe and authenticated authorization acceptance |
+| `/office/chat/support/customers` | Scoped, two-pane Customer Support case inspector (no outward sends) | [ ] Source-to-wireframe and authenticated authorization acceptance |
+| `/office/chat/approvals` | Canonical Office workflow bridge; dedicated 5.0 UX still outstanding | [ ] Source-to-wireframe and authenticated authorization acceptance |
 | `/office/chat/approvals/[id]` | Dedicated component or source-backed interaction | [ ] Source-to-wireframe and authenticated authorization acceptance |
-| `/office/chat/settings` | Canonical Office workflow bridge; dedicated 5.0 UX incomplete | [ ] Source-to-wireframe and authenticated authorization acceptance |
-| `/office/chat/admin` | Canonical Office workflow bridge; dedicated 5.0 UX incomplete | [ ] Source-to-wireframe and authenticated authorization acceptance |
+| `/office/chat/settings` | Dedicated server-scoped preferences and device-local appearance controls | [ ] Source-to-wireframe and authenticated authorization acceptance |
+| `/office/chat/admin` | Read-only source-backed communication governance home | [ ] Source-to-wireframe and authenticated authorization acceptance |
 | `/office/chat/admin/channels` | Canonical Office workflow bridge; dedicated 5.0 UX incomplete | [ ] Source-to-wireframe and authenticated authorization acceptance |
-| `/office/chat/admin/queues` | Canonical Office workflow bridge; dedicated 5.0 UX incomplete | [ ] Source-to-wireframe and authenticated authorization acceptance |
-| `/office/chat/admin/sla` | Canonical Office workflow bridge; dedicated 5.0 UX incomplete | [ ] Source-to-wireframe and authenticated authorization acceptance |
+| `/office/chat/admin/queues` | Source-limited IT and Customer Support queue ownership table | [ ] Source-to-wireframe and authenticated authorization acceptance |
+| `/office/chat/admin/sla` | Source-only deadlines with no synthetic SLA timer | [ ] Source-to-wireframe and authenticated authorization acceptance |
 | `/office/chat/admin/retention` | Canonical Office workflow bridge; dedicated 5.0 UX incomplete | [ ] Source-to-wireframe and authenticated authorization acceptance |
 | `/office/chat/admin/integrations` | Canonical Office workflow bridge; dedicated 5.0 UX incomplete | [ ] Source-to-wireframe and authenticated authorization acceptance |
 | `/office/chat/admin/permissions` | Canonical Office workflow bridge; dedicated 5.0 UX incomplete | [ ] Source-to-wireframe and authenticated authorization acceptance |
@@ -181,7 +181,7 @@ All routes below continue to use their canonical implementation. 5.0 shell styli
 | `/office/k-vault/documents/[id]` | Versioned Document Studio references, secure preview/download | [ ] Specialized forms, live permission/grant and mobile acceptance |
 | `/office/k-vault/requests` | Access requests, withdrawal, expiration | [ ] Specialized forms, live permission/grant and mobile acceptance |
 | `/office/k-vault/access` | Independent reviewer, scoped grants and revocation | [ ] Specialized forms, live permission/grant and mobile acceptance |
-| `/office/k-vault/reviews` | Independent access-review UI; record verification remains source-owned | [ ] Specialized forms, live permission/grant and mobile acceptance |
+| `/office/k-vault/reviews` | Independent Vault-granted registration evidence review using canonical source decision; other record types still source-owned | [ ] Specialized forms, live permission/grant and mobile acceptance |
 | `/office/k-vault/activity` | Own-identity access audit events only | [ ] Specialized forms, live permission/grant and mobile acceptance |
 | `/office/k-vault/settings` | Existing Office Settings source bridge | [ ] Specialized forms, live permission/grant and mobile acceptance |
 
@@ -227,3 +227,28 @@ All routes below continue to use their canonical implementation. 5.0 shell styli
 - [ ] Full migration backup/rollback, release note, main merge, production migration and Vercel/Railway rollout **only after separate explicit approval**.
 
 **Status:** implementation is active, not complete or deployable. This ledger distinguishes coded components from validated enterprise behavior. The original documents are a *design baseline*, not evidence that production screens are working.
+
+
+## 14 November 2026 implementation addendum — code audited, release NOT approved
+
+The feature branch has continued beyond the initial 35-commit checkpoint. New GitHub commits were made **only** to `feature/kravia-office-5-implementation-20261114`; PR #157 is still draft and not merged into main. Developer/owner restrictions explicitly prohibit Vercel previews, staging or production deployments, production Supabase migrations, IAM changes and outbound employee messaging at this stage.
+
+### Connect changes now coded
+
+- The prior code supports member-scoped direct/group/department messaging, current-department write guards, deduplicated message IDs, saved/mentions, private scanner-verified attachments, pins, reactions and immutable message revisions. Revoked department membership no longer authorizes indexed reads or message edits.
+- Chat now provides a **50-message keyset-paginated** history endpoint with server-checked current membership for every page, timestamp and UUID cursor validation, bounded responses, persistent older-page scroll and re-fetch of recent messages. Pagination does not retroactively authorize revoked or deleted messages; authenticated browser verification remains outstanding.
+- `/office/chat/settings` now combines the first-party actor-specific preference ledger (`office_chat_user_preferences`) with device-local theme, reduced animation and Connect-home display choices. Email digests and read-receipt sharing are *consents/preferences only*; neither delivery nor peer receipt publication is implemented or authorized.
+- `/office/chat/admin` is a real read-only source-backed overview, and `/office/chat/admin/queues`, `/office/chat/admin/sla` use current Office IT and Customer Support records. Counts are always scoped and bounded (500 IT / 400 Customer Support); unavailable or forbidden sources display “—”, not fictional zeroes. Due dates use current source evidence, **not** invented SLA or escalation policy values.
+- `/office/chat/support/customers` is a two-pane authorized customer case inspector. Event detail notes are not exposed as customer-visible text without independent classification. `/office/chat/support/analytics` aggregates permitted source records (period, active, urgent, due dates, median closure, eight weekly buckets) and explicitly warns about pagination limits. Neither route makes external sends, refunds or privilege changes.
+- New source-only pure tests cover chat pagination, scoped queue and case analytics, personal preference parsing; browser regression extends anonymous/cross-origin denial to private chat history cursors and K-Vault evidence review endpoints.
+
+### K-Vault changes now coded
+
+- `/office/k-vault/reviews` separates **registration evidence verification** from **Vault access grant review**. The new `/api/office-vault/verification` returns only UNVERIFIED registrations visible under *both* a canonical source permission and an active Vault category/record grant. The queue excludes records created by the reviewer.
+- POST decisions require an authenticated same-origin session, a fresh scoped-record grant, an independent reviewer, a recorded rationale and authoritative evidence reference for ACTIVE. Commit uses the existing Registration Registry's maker-checker workflow; the route does not store credentials or authorize release of protected files. Other categories' independent verification, signed document review and quarantine lifecycle remain outstanding.
+
+### Acceptance and release boundary
+
+- **Code committed does not mean 281-page Office / 76-page Auth / 93-page Connect / 32-page K-Vault acceptance is complete.** The shared 5.0 shell covers all 55 Office and 24 Finance route definitions, but specialized screen-by-screen interactions, overlays, mobile states, keyboard/focus/contrast and genuine multi-role behavior are not yet fully tested.
+- Required before production authorization: complete isolated full-schema migration rehearsal (new chat/Vault migrations), verified scanner and private storage, real AAL2 role scenarios (including HR/Finance separation, restricted employee, Manohar access), revoked-grant and document-IDOR test identities, Authenticator native testing, responsive 360–1920 authenticated artifacts, WCAG 2.2 AA checks, release rollback runbook.
+- The latest complete GH Actions check run **must** be attached to the exact final branch head before declaring green. Passing older commits is not evidence for later code. No Vercel preview, production deployment, database migration or main merge should occur until an explicit separate release instruction.
