@@ -9,6 +9,7 @@ import { InternalWorkspaceScreen } from "@/components/internal-workspace-screen"
 import { OfficeVaultAccessCenter } from "@/components/office-vault-access-center";
 import { OfficeVaultOverview } from "@/components/office-vault-overview";
 import { OfficeVaultActivity } from "@/components/office-vault-activity";
+import { OfficeVaultVerificationQueue } from "@/components/office-vault-verification-queue";
 import { requireOfficeVaultRecord, getOfficeVaultGrantedResources, getOfficeVaultAllowedActions, getOfficeVaultSourceVisibleRecordIds, OfficeVaultAccessError } from "@/lib/office/vault-access-server";
 import { vaultCategories, type VaultCategory } from "@/lib/office/vault-categories";
 import styles from "@/components/office-vault.module.css";
@@ -126,9 +127,9 @@ export default async function VaultPages({params}:Props){
    if(!allowed.includes("access.profile.assign")) notFound();
    content=<OfficeVaultAccessCenter reviewOnly/>;
  } else if(route==="reviews"){
-   title="Verification reviews";subtitle="Evidence review is separate from data entry and access approval.";
-   if(!allowed.includes("access.profile.assign")) notFound();
-   content=<OfficeVaultAccessCenter reviewOnly/>;
+   title="Verification reviews";subtitle="Independent evidence reviews use the canonical registration authority.";
+   if(!allowed.includes("registration.review")) notFound();
+   content=<OfficeVaultVerificationQueue/>;
  } else if(route==="activity"){
    title="My Vault activity";subtitle="Only access events attributed to your current AAL2 Office identity.";
    content=<OfficeVaultActivity/>;
