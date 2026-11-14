@@ -12,6 +12,7 @@ import {OfficeConnectSettings} from "@/components/office-connect-settings";
 import {OfficeConnectAdmin} from "@/components/office-connect-admin";
 import {OfficeConnectServiceGovernance} from "@/components/office-connect-service-governance";
 import {OfficeConnectCustomerWorkspace} from "@/components/office-connect-customer-workspace";
+import {OfficeConnectMacros} from "@/components/office-connect-macros";
 type Props={params:Promise<{segments:string[]}>};
 export const dynamic="force-dynamic";
 const permittedPaths=new Set([
@@ -38,6 +39,7 @@ export default async function OtherConnectRoute({params}:Props){
  if(path==="files")return <OfficeConnectSharedFiles/>;
  if(path==="support/customers"||path==="support/analytics")return <OfficeConnectCustomerWorkspace mode={path==="support/analytics"?"analytics":"customers"}/>;
  if(path==="admin/queues"||path==="admin/sla")return <OfficeConnectServiceGovernance mode={path==="admin/queues"?"queues":"sla"}/>;
+ if(path==="support/macros")return <OfficeConnectMacros/>;
  if(path==="admin")return <OfficeConnectAdmin/>;
  if(path==="admin/permissions")return <OfficeConnectGovernance/>;
  if(path==="admin/channels")return <OfficeConnectChannels/>;
