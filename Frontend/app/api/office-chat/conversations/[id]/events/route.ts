@@ -47,7 +47,8 @@ export async function GET(request:Request,{params}:Context){
  }
  let cancelled=false;
  const stream=new ReadableStream<Uint8Array>({
-  async start(controller){
+  start(controller){
+   void (async()=>{
    const emit=(value:string)=>{if(!cancelled)controller.enqueue(encoder.encode(value));};
    emit("retry: 3000\n\n");
    emit(event("ready",{mode:"private",cursor:since},since==="0"?undefined:since));
@@ -61,15 +62,21 @@ export async function GET(request:Request,{params}:Context){
       .select("id,event_type").eq("conversation_id",id).gt("id",since)
       .order("id",{ascending:true}).limit(MAX_EVENTS_PER_BATCH);
      if(result.error)throw new Error("Event source unavailable");
+     let backpressured=false;
      for(const row of result.data??[]){
+      // Never enqueue an unbounded backlog when a slow mobile client is not
+      // draining the stream. Do not advance the cursor for an unsent item.
+      if(controller.desiredSize!==null&&controller.desiredSize<=0){
+       backpressured=true;break;
+      }
       const next=String(row.id);
       if(!cursor.test(next))throw new Error("Event cursor unavailable");
       emit(event(row.event_type==="PRESENCE"?"presence":"change",{kind:String(row.event_type)},next));
       since=next;
      }
-     // Heartbeats are comments and are never interpreted as business events.
-     emit(": keepalive\n\n");
-     if(result.data?.length===MAX_EVENTS_PER_BATCH)continue;
+     // Heartbeats carry no business content and are also flow-controlled.
+     if(controller.desiredSize!==null&&controller.desiredSize>0)emit(": keepalive\n\n");
+     if(!backpressured&&result.data?.length===MAX_EVENTS_PER_BATCH)continue;
      await new Promise<void>(resolve=>setTimeout(resolve,PULSE_MS));
     }catch(error){
      const revoked=error instanceof OfficeChatError&&
@@ -80,6 +87,9 @@ export async function GET(request:Request,{params}:Context){
     }
    }
    if(!cancelled){cancelled=true;controller.close();}
+   })().catch(()=>{
+    if(!cancelled){cancelled=true;controller.close();}
+   });
   },
   cancel(){cancelled=true;},
  });
