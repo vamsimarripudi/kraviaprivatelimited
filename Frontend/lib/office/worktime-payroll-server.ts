@@ -423,6 +423,8 @@ export async function prepareVerifiedHoursPayroll(input: {
     basisUnits: basis, payableUnits: regular, paidLeaveUnits: 0,
     unpaidLeaveUnits: 0, absenceUnits: 0, unresolvedUnits: unresolved,
     sourceSnapshot: audit,
+    expectedUpdatedAt: previous.data?.updated_at,
+    correctionReason: previous.data ? input.reason : undefined,
   });
   return {
     ...result, employee_user_id: input.employeeId, period_id: input.periodId,
