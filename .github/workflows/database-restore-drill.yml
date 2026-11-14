@@ -437,6 +437,59 @@ jobs:
           $$;
           SQL
 
+      - name: Rehearse 17 KRAVIA Office 5.0 migrations on restored schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          migrations=(Database/supabase/migrations/202611141500[0-1][0-9]_*.sql)
+          if [ "${#migrations[@]}" -ne 17 ]; then
+            echo "::error::Exactly 17 Office 5.0 migration files required, found ${#migrations[@]}"
+            exit 1
+          fi
+          ordinal=1
+          for migration in "${migrations[@]}"; do
+            expected=$(printf '202611141500%02d_' "$ordinal")
+            filename=${migration##*/}
+            if [[ "$filename" != "$expected"* ]]; then
+              echo "::error::Unexpected Office 5.0 migration order: $filename"
+              exit 1
+            fi
+            echo "Rehearsing $filename against isolated restored schema"
+            psql "$RESTORE_DATABASE_URL" -X -v ON_ERROR_STOP=1 --single-transaction -f "$migration" >/dev/null
+            ordinal=$((ordinal+1))
+          done
+          psql "$RESTORE_DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+          do $office5$
+          begin
+            if to_regclass('public.office_chat_conversations') is null
+               or to_regclass('public.office_chat_messages') is null
+               or to_regclass('public.office_chat_change_events') is null
+               or to_regclass('public.office_vault_access_grants') is null
+               or to_regclass('public.office_vault_secret_documents') is null
+               or to_regclass('public.office_vault_secret_versions') is null
+               or to_regclass('public.office_vault_secret_ingress_sessions') is null then
+              raise exception 'Office 5.0 canonical migration objects absent after rehearsal';
+            end if;
+            if exists(
+              select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+              where n.nspname='public' and c.relkind in ('r','p')
+                and (c.relname like 'office_chat_%' or c.relname like 'office_vault_%')
+                and not c.relrowsecurity
+            ) then
+              raise exception 'Office 5.0 private table missing row-level security';
+            end if;
+            if not exists (
+              select 1 from storage.buckets
+              where id='office-vault-secrets' and public=false
+            ) then
+              raise exception 'Office 5.0 sealed document private bucket unavailable';
+            end if;
+          end
+          $office5$;
+          SQL
+          echo "Office 5.0 isolated complete-schema migration rehearsal passed."
+
       - name: Destroy isolated restore database and plaintext
         if: always()
         shell: bash
