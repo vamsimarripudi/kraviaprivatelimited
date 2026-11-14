@@ -325,9 +325,9 @@ export function OfficeRolePortfolio({ focusSeatId }: { focusSeatId?: string }) {
     <section className={styles.notes}>
       <Shield size={20}/>
       <div><b>Separation of authority</b>
-        <p>Founder authority, the employee's primary job, functional positions, scoped seat grants,
+        <p>Founder authority, the employee&apos;s primary job, functional positions, scoped seat grants,
           Finance payment approvals, legal appointments and provider access are independently governed.
-          A handover never copies secrets or implies that a cloud provider's access was transferred.</p>
+          A handover never copies secrets or implies that a cloud provider&apos;s access was transferred.</p>
         <p>For an Engineering or Finance head, first record the separate departmental handover in
           <Link href="/office/department-ownership"> Department ownership</Link>. For account guidance, use
           <Link href="/office/info"> Info &amp; Help</Link>.</p>
