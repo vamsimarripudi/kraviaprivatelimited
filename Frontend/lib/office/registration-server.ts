@@ -1,6 +1,7 @@
 import "server-only";
 
 import { OfficePermissionError, requireOfficeActor, resolveOfficePermission } from "@/lib/office/permission-engine";
+import {currentOfficeTrustedDeviceId} from "@/lib/office/device-binding-server";
 
 export class OfficeRegistrationError extends Error {
   constructor(public readonly status:number,message:string){super(message);this.name="OfficeRegistrationError"}
@@ -14,17 +15,13 @@ async function actor():Promise<Actor>{
     throw error;
   }
 }
-function roleFallback(current:Actor,code:PermissionCode){
-  const roles=current.identity.roles;
-  if(roles.includes("OWNER"))return true;
-  if(code==="registration.read")return roles.some(role=>["DIRECTOR","CS","LEGAL","CA","AUDITOR"].includes(role));
-  if(code==="registration.manage")return roles.some(role=>["DIRECTOR","CS"].includes(role));
-  return roles.some(role=>["DIRECTOR","CS","LEGAL","CA"].includes(role));
-}
+// Permission authority comes only from active catalog, effective-dated profiles,
+ // explicit denies, current department ownership and AAL2 device assurance.
+ // A job title or role label is never sufficient for registration record access.
 async function allowed(current:Actor,code:PermissionCode){
-  if(roleFallback(current,code))return true;
-  const result=await resolveOfficePermission(current.admin,current.identity,code,{type:"COMPANY"});
-  return result.allowed;
+  const device=await currentOfficeTrustedDeviceId(current.admin,current.identity.userId);
+  const decision=await resolveOfficePermission(current.admin,current.identity,code,{type:"COMPANY"},device);
+  return decision.allowed;
 }
 async function requireAllowed(current:Actor,code:PermissionCode){
   if(!await allowed(current,code))throw new OfficeRegistrationError(403,code+" permission is required");
