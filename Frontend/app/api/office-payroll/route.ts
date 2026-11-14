@@ -11,6 +11,7 @@ import {
   openPayrollPeriod,
   prepareSalaryBatch,
   reviewPayrollAdjustment,
+  reviewPayrollAttendance,
   reviewPayrollRule,
   setPayrollAttendance,
   submitCompensation,
@@ -44,6 +45,7 @@ const schema = z.discriminatedUnion("action", [
       note: z.string().trim().min(8).max(1000) }).passthrough() }),
   z.object({ action: z.literal("ADD_ADJUSTMENT"), period_id: uuid, employment_id: uuid, kind: z.enum(["EARNING", "DEDUCTION", "EMPLOYER_COST"]), code: z.string().trim().min(1).max(80), label: z.string().trim().min(1).max(160), amount_minor: z.number().int().nonnegative(), currency, source_reference: z.string().trim().min(3).max(1000), note: optionalText(2000) }),
   z.object({ action: z.literal("REVIEW_ADJUSTMENT"), adjustment_id: uuid, decision: z.enum(["APPROVE", "REJECT"]) }),
+  z.object({ action: z.literal("REVIEW_ATTENDANCE"), snapshot_id: uuid, decision: z.enum(["APPROVE","REJECT"]), note: z.string().trim().min(12).max(1000) }),
   z.object({ action: z.literal("CALCULATE"), period_id: uuid }),
   z.object({ action: z.literal("SUBMIT_PAYROLL"), period_id: uuid }),
   z.object({ action: z.literal("SYNC_PAYROLL"), period_id: uuid }),
@@ -81,6 +83,7 @@ export async function POST(request: Request) {
       case "SET_ATTENDANCE": result = await setPayrollAttendance({ periodId: input.period_id, employmentId: input.employment_id, basisUnits: input.basis_units, payableUnits: input.payable_units, paidLeaveUnits: input.paid_leave_units, unpaidLeaveUnits: input.unpaid_leave_units, absenceUnits: input.absence_units, unresolvedUnits: input.unresolved_units, sourceSnapshot: input.source_snapshot, expectedUpdatedAt: input.expected_updated_at, correctionReason: input.correction_reason }); break;
       case "ADD_ADJUSTMENT": result = await addPayrollAdjustment({ periodId: input.period_id, employmentId: input.employment_id, kind: input.kind, code: input.code, label: input.label, amountMinor: input.amount_minor, currency: input.currency, sourceReference: input.source_reference, note: input.note }); break;
       case "REVIEW_ADJUSTMENT": result = await reviewPayrollAdjustment({ adjustmentId: input.adjustment_id, decision: input.decision }); break;
+      case "REVIEW_ATTENDANCE": result = await reviewPayrollAttendance({ snapshotId: input.snapshot_id, decision: input.decision, note: input.note }); break;
       case "CALCULATE": result = await calculatePayroll(input.period_id); break;
       case "SUBMIT_PAYROLL": result = await submitPayroll(input.period_id); break;
       case "SYNC_PAYROLL": result = await syncPayrollApproval(input.period_id); break;
