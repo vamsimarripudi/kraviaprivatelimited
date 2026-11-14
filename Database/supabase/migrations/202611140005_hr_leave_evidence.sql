@@ -166,6 +166,25 @@ begin
   select * into per from public.office_payroll_periods where id=p_period;
   if not found then raise exception 'Payroll period missing'; end if;
 
+  -- A pending leave request is neither authorized paid time nor proof of
+  -- unpaid absence. Review it before certifying affected wages.
+  if exists (
+    select 1 from public.office_payroll_attendance_snapshots s
+    join public.office_hr_leave_requests l on l.employee_user_id=s.employee_user_id
+    where s.period_id=per.id and l.status='PENDING'
+      and l.starts_on<=per.ends_on and l.ends_on>=per.starts_on
+      and exists (
+        select 1 from generate_series(
+          greatest(l.starts_on,per.starts_on)::timestamp,
+          least(l.ends_on,per.ends_on)::timestamp,
+          interval '1 day'
+        ) day
+        where extract(isodow from day) between 1 and 5
+      )
+  ) then
+    raise exception 'Pending leave requires an independent decision before payroll calculation or approval';
+  end if;
+
   -- Inspect actual scheduled weekdays. A weekend-only leave request has
   -- no ordinary payable hours and must not freeze monthly wages.
   -- Merely adding a leave ID to source_snapshot is NOT enough: the paid
