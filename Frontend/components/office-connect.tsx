@@ -448,7 +448,6 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
                    // Only server-authorized CLEAN linked message attachments may load.
                    <a href={"/api/office-chat/attachments/"+file.id+"/download"} title={"Download "+file.name}>
                     {/* A controlled same-origin binary media preview, never a remote URL. */}
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={"/api/office-chat/attachments/"+file.id+"/preview"}
                       loading="lazy" decoding="async" alt={"Shared image: "+file.name}/></a>:null}
                   {["video/mp4","video/webm"].includes(file.mime)?
