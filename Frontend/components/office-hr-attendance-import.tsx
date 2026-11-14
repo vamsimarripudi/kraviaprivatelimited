@@ -184,8 +184,8 @@ export function OfficeHrAttendanceImport(){
             {row.review_note?<small>Review: {row.review_note}</small>:null}
           </div>
           <div className={styles.decision}><strong>{row.status}</strong>
-            {row.status==="PENDING"&&history.actorId!==owner?.created_by&&
-              history.actorId!==row.employee_user_id?<>
+            {row.status==="PENDING"&&history?.actorId!==owner?.created_by&&
+              history?.actorId!==row.employee_user_id?<>
               <textarea placeholder="Describe the actual source you inspected (at least 12 characters)"
                 aria-label={"Independent review note for "+row.work_date}
                 value={note[row.id]||""} onChange={e=>setNote(p=>({...p,[row.id]:e.target.value}))}/>
