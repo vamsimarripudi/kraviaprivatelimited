@@ -16,8 +16,10 @@ describe("Office 5.0 effective action entitlements",()=>{
  });
  it("keeps OWNER's non-bypass permissions behind explicit grants and effective denies",()=>{
   const cap=readFileSync(new URL("../lib/office/capability-server.ts",import.meta.url),"utf8");
-  expect(cap).toContain('.select("code,active,owner_bypass")');
+  expect(cap).toContain('.select("code,active,owner_bypass,high_risk,requires_managed_device")');
   expect(cap).toContain("entry.owner_bypass===false");
+  expect(cap).toContain("currentOfficeTrustedDeviceId(admin,identity.userId)");
+  expect(cap).toContain("managedDeviceValid");
   expect(cap).not.toContain("const permissions = Array.from(activeCodes).sort()");
   expect(cap).toContain("officeAccessProfileIsEffective(row)");
  });

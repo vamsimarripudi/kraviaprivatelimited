@@ -3,6 +3,7 @@ import "server-only";
 import { createOfficeServiceClient, OfficePermissionError, requireOfficeActor } from "@/lib/office/permission-engine";
 import type { OfficeIdentity } from "@/lib/office/auth-server";
 import { officeAccessProfileIsEffective } from "@/lib/office/access-profile-effective";
+import { currentOfficeTrustedDeviceId } from "@/lib/office/device-binding-server";
 
 export class OfficeCapabilityError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -53,7 +54,7 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
   }
   const catalog = await admin
     .from("office_permission_catalog")
-    .select("code,active,owner_bypass")
+    .select("code,active,owner_bypass,high_risk,requires_managed_device")
     .eq("active", true)
     .order("code", { ascending: true });
   if (catalog.error) throw new OfficeCapabilityError(503, "Authorization catalog is temporarily unavailable");
@@ -80,9 +81,29 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
   for (const row of globalDeniesResult.data ?? []) {
     if (active(row.expires_at)) denied.add(String(row.permission_code));
   }
+  // A rendered action must not contradict the enforcement on the API.
+  // If managed-device enforcement is enabled, fail closed on revoked, absent
+  // or non-managed device bindings for every high-risk catalog entry.
+  const deviceEnforced=process.env.OFFICE_DEVICE_ENFORCEMENT?.toLowerCase()==="true";
+  let managedDeviceValid=false;
+  if(deviceEnforced){
+    const deviceId=await currentOfficeTrustedDeviceId(admin,identity.userId);
+    if(deviceId){
+      const device=await admin.from("office_device_registry")
+        .select("trust_state,company_managed,revoked_at")
+        .eq("id",deviceId).eq("user_id",identity.userId).maybeSingle();
+      managedDeviceValid=!device.error&&Boolean(device.data)&&
+        device.data?.trust_state==="TRUSTED"&&device.data?.company_managed===true&&
+        !device.data?.revoked_at;
+    }
+  }
   const activeCodes = new Set((catalog.data ?? [])
-    .map((row) => String(row.code))
-    .filter((code) => !denied.has(code)));
+    .filter(row=>{
+      const code=String(row.code);
+      return !denied.has(code)&&
+        (!deviceEnforced || (!row.high_risk&&!row.requires_managed_device) || managedDeviceValid);
+    })
+    .map((row) => String(row.code)));
 
   const [profilesResult, overridesResult] = await Promise.all([
     admin
