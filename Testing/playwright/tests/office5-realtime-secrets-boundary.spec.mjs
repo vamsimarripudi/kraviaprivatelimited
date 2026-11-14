@@ -35,6 +35,7 @@ test("cross-site scripts cannot upload, review or retry sealed-file evidence",as
 test("live Connect conversation events never expose private content to anonymous browsers",async({request})=>{
  const endpoints=[
   "/api/office-chat/conversations/"+fake+"/events",
+  "/api/office-chat/inbox/events",
   "/api/office-chat/conversations/"+fake+"/typing",
  ];
  for(const url of endpoints){
