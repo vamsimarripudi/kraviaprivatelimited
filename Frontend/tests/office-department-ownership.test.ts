@@ -50,7 +50,8 @@ describe("KRAVIA permanent department ownership", () => {
     expect(snapshot).toContain('admin.rpc("office_department_capability_changes"');
     expect(snapshot).toContain("const denied = new Set");
     expect(snapshot).toContain('source: "DEPARTMENT_OWNER"');
-    expect(screen).toContain("financeReadOnly");
+    expect(screen).not.toContain("financeReadOnly");
+    expect(screen).toContain('canCreateInvoice={permissions.includes("finance.invoice.create")}');
     expect(screen).toContain('permissions.includes("finance.invoice.create")');
   });
 
