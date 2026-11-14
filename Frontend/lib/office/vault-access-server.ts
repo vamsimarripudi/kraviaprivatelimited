@@ -229,23 +229,34 @@ export async function getOfficeVaultAllowedActions(category:string,recordId:stri
 }
 
 
-/** An employee may inspect only audit events attributed to their own AAL2 identity. */
+/** Personal activity combines access and sealed-document custody evidence.
+ * No secret filename, encrypted object key, document identifier, or colleague
+ * activity leaves this AAL2, actor-restricted read model. */
 export async function getOfficeVaultMyActivity() {
- const current = await actor();
- const { data, error } = await current.admin.from("office_vault_access_events")
-  .select("id,event_type,category_slug,resource_id,occurred_at")
-  .eq("actor_user_id",current.identity.userId)
-  .order("occurred_at",{ascending:false}).limit(100);
- if(error)throw new OfficeVaultAccessError(503,"Vault access history is temporarily unavailable");
- return {
-  generated_at:new Date().toISOString(),
-  events:(data??[]).map(row=>({
-   id:row.id,
-   event_type:row.event_type,
-   category_slug:row.category_slug,
-   resource_scoped:row.resource_id!==null,
-   occurred_at:row.occurred_at,
+ const current=await actor();
+ const [access,secret]=await Promise.all([
+  current.admin.from("office_vault_access_events")
+   .select("id,event_type,category_slug,resource_id,occurred_at")
+   .eq("actor_user_id",current.identity.userId)
+   .order("occurred_at",{ascending:false}).limit(100),
+  current.admin.from("office_vault_secret_events")
+   .select("id,event_type,occurred_at")
+   .eq("actor_user_id",current.identity.userId)
+   .order("occurred_at",{ascending:false}).limit(100),
+ ]);
+ if(access.error||secret.error)
+  throw new OfficeVaultAccessError(503,"Personal Vault audit sources are unavailable");
+ const events=[
+  ...(access.data??[]).map(row=>({
+   id:"access:"+String(row.id),
+   event_type:row.event_type,category_slug:row.category_slug,
+   resource_scoped:row.resource_id!==null,occurred_at:row.occurred_at,
   })),
-  scope:"OWN" as const,
- };
+  ...(secret.data??[]).map(row=>({
+   id:"secrets:"+String(row.id),
+   event_type:row.event_type,category_slug:"secrets",
+   resource_scoped:true,occurred_at:row.occurred_at,
+  })),
+ ].sort((a,b)=>Date.parse(b.occurred_at)-Date.parse(a.occurred_at)).slice(0,100);
+ return {generated_at:new Date().toISOString(),events,scope:"OWN" as const};
 }
