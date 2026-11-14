@@ -91,3 +91,8 @@
 .olderButton:disabled{opacity:.6;cursor:wait}.olderError{align-self:center;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid var(--office-ui-danger);color:var(--office-ui-danger);padding:10px;border-radius:10px;font-size:12px}
 .olderError button{min-height:44px;padding:8px 12px;border-radius:9px;border:1px solid var(--office-ui-line);background:var(--office-ui-surface);color:var(--office-ui-ink);cursor:pointer}
 .olderButton:focus-visible,.olderError button:focus-visible{outline:2px solid var(--office-ui-accent);outline-offset:3px}
+
+.liveStatus{display:inline-flex;align-items:center;gap:7px;min-width:0;max-width:100%;color:var(--office-ui-muted);font-size:11px;line-height:1.5}
+.liveStatus::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--office-ui-soft);flex:none}
+.liveStatus[data-state="live"]{color:var(--office-ui-accent)}.liveStatus[data-state="live"]::before{background:var(--office-ui-accent)}
+.liveStatus[data-state="restricted"]{color:var(--office-ui-danger)}.liveStatus[data-state="restricted"]::before{background:var(--office-ui-danger)}

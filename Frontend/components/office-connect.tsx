@@ -10,6 +10,7 @@ import { OfficeConnectMembers } from "@/components/office-connect-members";
 import { Office5FileCard, type Office5FileStatus } from "@/components/office5-primitives";
 import { useOfficeWorkspace } from "@/components/office-workspace-context";
 import {mergeChatHistory,type ChatHistoryCursor} from "@/lib/office/chat-history";
+import {useOfficeChatLive} from "@/lib/office/use-office-chat-live";
 
 type Conversation = { id: string; kind: string; title: string; department_code?: string | null; updated_at: string };
 type Message = { id: string; sender_user_id: string; sender_name: string; body: string; created_at: string; edited_at?: string | null; pinned?:boolean;
@@ -58,6 +59,10 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
   const [mentionPicker,setMentionPicker] = useState(false);
   const nonce = useRef<string | null>(null);
   const activeId = initialConversationId;
+  const live=useOfficeChatLive(activeId,
+    ()=>setReloadCount(count=>count+1),
+    ()=>{setMessageError("Conversation access has changed. Reload after authorization is restored.");
+      setMessages([]);setMessageScope(null);setReloadCount(count=>count+1);});
   const selected = conversations.find(row => row.id === activeId);
   const visibleMessages=messageScope===activeId?messages:[];
   const waitingMessage=!messageError&&(messageLoading||messageScope!==activeId);
@@ -278,7 +283,10 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
       <section className={styles.body} data-home={!activeId} aria-label={activeId ? "Private messages" : "Connect workspace"}>
         {!activeId ? <OfficeConnectOverview conversations={conversations} conversationsLoading={listLoading} conversationsError={listError}/> : <>
           <div className={styles.threadHeader}><Link href="/office/chat" className={styles.back}><ArrowLeft size={17}/>All conversations</Link>
-             <span>Verified membership · Internal</span>
+             <span className={styles.liveStatus} data-state={live} aria-live="polite" role="status">
+              {live==="live"?"Live updates · private":live==="reconnecting"?"Live stream reconnecting":
+                live==="restricted"?"Conversation access revoked":"Private refresh · fallback"}
+             </span>
              <button type="button" aria-expanded={memberPanel} aria-controls="office-connect-members"
               onClick={()=>setMemberPanel(open=>!open)}><UsersRound size={16} aria-hidden="true"/>Members</button></div>
           {memberPanel?<OfficeConnectMembers key={activeId} conversationId={activeId} onChanged={()=>setReloadCount(n=>n+1)}/>:null}
