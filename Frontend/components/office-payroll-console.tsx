@@ -144,9 +144,49 @@ export function OfficePayrollConsole() {
   const currentPeriods = data.periods.filter((row) => !["CLOSED", "CANCELLED"].includes(row.status)).length;
   const pendingComp = data.compensation.filter((row) => ["DRAFT", "PENDING_APPROVAL"].includes(row.status)).length;
   const draftAdjustments = data.adjustments.filter((row) => row.status === "DRAFT").length;
+  const payrollEligible = data.employment.filter(row => ["ACTIVE","ON_LEAVE"].includes(row.status));
+  const missingSalary = payrollEligible.filter(row => !data.compensation.some(
+    salary => salary.employment_id === row.employment_id && salary.status === "APPROVED"
+  ));
+  const missingStart = payrollEligible.filter(row => !row.start_date);
+  const waitingEmployment = data.employment.filter(row => row.status === "PLANNED");
+  const reviewPending = data.attendance.filter(row => row.status === "DRAFT");
+  const noApprovedRules = data.capabilities.read_rules && !data.rules.some(row => row.status === "APPROVED");
 
   return <section className={styles.shell}>
     <header className={styles.hero}><div><p>PAYROLL OS</p><h2>Compensation → attendance → review → payroll → salary batch.</h2><span>{data.disclaimer}</span></div><div className={styles.metrics}><article><b>{currentPeriods}</b><span>active periods</span></article><article><b>{pendingComp}</b><span>comp changes</span></article><article><b>{draftAdjustments}</b><span>adjustments to review</span></article></div></header>
+    {(data.capabilities.read_run || data.capabilities.read_compensation) ?
+      <article className={styles.card}>
+        <header><div><h3>HR payroll readiness · verified records only</h3>
+          <span>All issues below are calculated from the current Office database. Missing work is unresolved, not automatically unpaid.</span></div>
+        </header>
+        <div className={styles.grid}>
+          <span>Active without approved salary<b>{missingSalary.length}</b></span>
+          <span>Employment dates missing<b>{missingStart.length}</b></span>
+          <span>Employment still planned<b>{waitingEmployment.length}</b></span>
+          <span>Attendance awaiting review<b>{reviewPending.length}</b></span>
+          <span>Approved payroll policies<b>{noApprovedRules ? "0 · configure" : "Review rules"}</b></span>
+          <span>Payroll periods created<b>{data.periods.length}</b></span>
+        </div>
+        {missingSalary.length ? <div className={styles.review}>
+          {missingSalary.map(row => <div key={row.employment_id}>
+            <span>{person(row.employment_id)} · no APPROVED compensation version. The contract or appointment reference must be verified first.</span>
+            {data.capabilities.manage_compensation ? <button type="button" disabled={busy}
+              onClick={() => { setView("compensation"); setDraft({ employment_id: row.employment_id, currency: "INR", components: "[]" }); setModal({kind: "COMPENSATION"}); }}>
+              Prepare salary draft
+            </button> : null}
+          </div>)}
+        </div> : null}
+        {waitingEmployment.length ? <p className={styles.warning}>
+          Planned employment is deliberately excluded from payable payroll. Complete verified onboarding and authorized activation before salary preparation.
+        </p> : null}
+        {missingStart.length ? <p className={styles.warning}>
+          Missing actual employment start dates require source documents. Never infer joining dates from a first login or create backdated attendance automatically.
+        </p> : null}
+        {noApprovedRules ? <p className={styles.warning}>
+          No approved effective-dated statutory payroll rules are recorded. Obtain qualified finance review before processing PF, ESI, TDS, leave and benefit deductions.
+        </p> : null}
+      </article> : null}
     <div className={styles.tabs}>{(["periods", "compensation", "rules", "batches"] as View[]).map((item) => <button type="button" data-active={view === item} onClick={() => setView(item)} key={item}>{label(item)}</button>)}<div className={styles.actions}>{view === "periods" && data.capabilities.prepare_run ? <button type="button" onClick={() => open("OPEN_PERIOD")}><Plus /> Open period</button> : null}{view === "compensation" && data.capabilities.manage_compensation ? <button type="button" onClick={() => open("COMPENSATION")}><Plus /> Compensation</button> : null}{view === "rules" && data.capabilities.manage_rules ? <button type="button" onClick={() => open("RULE")}><Plus /> Rule version</button> : null}</div></div>
     {notice ? <div className={styles.notice}><CheckCircle2 />{notice}<button type="button" onClick={() => setNotice(undefined)} aria-label="Dismiss"><X /></button></div> : null}
     {error ? <div className={styles.error}><CircleAlert />{error}</div> : null}
