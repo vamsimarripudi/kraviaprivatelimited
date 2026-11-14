@@ -88,6 +88,10 @@ create trigger office_vault_secret_ingress_scope_guard before update
 create or replace function public.office_vault_secret_ingress_part_guard()
 returns trigger language plpgsql security invoker set search_path=public as $$
 begin
+ if not exists(select 1 from public.office_vault_secret_ingress_sessions s
+   where s.id=new.session_id and s.state='OPEN' and s.expires_at>now())
+ then raise exception 'Upload session is not open for parts'; end if;
+ if tg_op='INSERT' then return new; end if;
  if row(new.session_id,new.part_index,new.part_id,new.byte_size,
   new.sha256,new.sealed_path,new.key_id,new.wrapped_key,new.wrap_nonce,
   new.wrap_tag,new.content_nonce,new.content_tag,new.created_at)
@@ -103,6 +107,6 @@ revoke all on function public.office_vault_secret_ingress_part_guard() from publ
 grant execute on function public.office_vault_secret_ingress_part_guard() to service_role;
 drop trigger if exists office_vault_secret_ingress_part_guard
  on public.office_vault_secret_ingress_parts;
-create trigger office_vault_secret_ingress_part_guard before update
+create trigger office_vault_secret_ingress_part_guard before insert or update
  on public.office_vault_secret_ingress_parts for each row
  execute function public.office_vault_secret_ingress_part_guard();
