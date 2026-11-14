@@ -61,6 +61,14 @@ revoke all on function public.office_worktime_amend_pending(
 grant execute on function public.office_worktime_amend_pending(
   uuid,uuid,timestamptz,timestamptz,jsonb,text,text) to service_role;
 
+-- Enforce one live draft/approved premium per type, employee and period,
+-- including concurrent imports with different attendance evidence hashes.
+-- Existing duplicate rows cause the migration to fail safely for reconciliation.
+create unique index if not exists office_worktime_single_active_premium
+  on public.office_payroll_adjustments(period_id,employment_id,adjustment_code)
+  where adjustment_code in ('WORKTIME_WEEKDAY_OT','WORKTIME_WEEKEND','WORKTIME_NIGHT')
+    and status in ('DRAFT','APPROVED');
+
 -- Draft payroll mutations invalidate any previously calculated version.
 -- Audit captures old and new evidence. Attendance uses prepared_by and
 -- adjustments use created_by; never rewrite locked payroll.
@@ -80,6 +88,8 @@ begin
     raise exception 'Submitted, approved, and paid payroll inputs cannot be rewritten'; end if;
   if TG_OP='UPDATE' then old_evidence := to_jsonb(OLD); end if;
   audit_actor := coalesce(
+    case when TG_OP='UPDATE' and new_evidence->>'status' is distinct from old_evidence->>'status'
+      then nullif(new_evidence->>'approved_by','')::uuid else null end,
     nullif(new_evidence->>'prepared_by','')::uuid,
     nullif(new_evidence->>'created_by','')::uuid);
   if audit_actor is null then raise exception 'Payroll change actor is missing'; end if;
