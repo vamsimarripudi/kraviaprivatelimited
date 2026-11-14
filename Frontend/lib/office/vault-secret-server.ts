@@ -254,7 +254,9 @@ export async function getOfficeVaultSecretLocker(){
  return {as_of:new Date().toISOString(),
   actor_user_id:current.identity.userId,
   capabilities:{upload:mayUpload,review:mayReview,read:mayRead},
-  documents:visible.map(d=>({...d,
+  documents:visible.map(d=>({
+    id:d.id,title:d.title,classification:d.classification,state:d.state,
+    created_at:d.created_at,updated_at:d.updated_at,
     is_owner:d.owner_user_id===current.identity.userId,
     grant_active:mayRead&&(full||resourceIds.includes(d.id)),
     versions:listings.filter(v=>v.document_id===d.id)
@@ -265,7 +267,7 @@ export async function getOfficeVaultSecretLocker(){
        id:v.id,version_number:v.version_number,filename:v.filename,
        mime_type:v.mime_type,byte_size:v.byte_size,
        scan_state:v.scan_state,review_state:v.review_state,
-       uploaded_by:v.uploaded_by,created_at:v.created_at,reviewed_at:v.reviewed_at,
+       created_at:v.created_at,reviewed_at:v.reviewed_at,
       })),
    })).filter(d=>d.versions.length>0),
  };
