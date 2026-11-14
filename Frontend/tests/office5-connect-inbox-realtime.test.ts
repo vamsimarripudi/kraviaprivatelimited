@@ -26,7 +26,7 @@ describe("KRAVIA private multi-conversation live inbox",()=>{
   expect(index).toContain('useOfficeChatInboxLive(()=>setRefresh(value=>value+1),()=>{');
  });
  it("keeps canonical requests and bounded fallback on SSE disconnect",()=>{
-  expect(hook).toContain('source.addEventListener("access-revoked"');
+  expect(hook).toContain('next.addEventListener("access-revoked"');
   expect(connect).toContain("setConversations([]);setActor(\"\")");
   expect(index).toContain("setItems([]);setError");
   expect(hook).toContain('document.addEventListener("visibilitychange",visibility)');
