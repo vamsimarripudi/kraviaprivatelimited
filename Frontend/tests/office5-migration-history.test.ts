@@ -40,12 +40,14 @@ describe("Office5 migration-history identity and release ordering",()=>{
    expect(md5(content(filename)),filename).toBe(originalHash);
   }
  });
- it("defines 17 new Office5 SQL migrations after the already-applied histories",()=>{
-  expect(paths).toHaveLength(24);
+ it("preserves the 17 canonical Office 5.0 migrations while permitting ordered additive extensions",()=>{
+  const core=paths.filter(name=>name<"20261114200000");
+  expect(core).toHaveLength(24);
   const expected=planned.map((name,i)=>
    "2026111415"+String(i+1).padStart(4,"0")+"_"+name+".sql");
   expect(new Set(paths).size).toBe(paths.length);
-  expect(paths).toEqual([...Object.keys(applied),...expected].sort());
+  expect(core).toEqual([...Object.keys(applied),...expected].sort());
+  expect(paths).toContain("20261114215001_office_chat_media_and_personal_templates.sql");
   expect(paths.every(name=>/^20261114\d{6}_[a-zA-Z0-9_]+\.sql$/.test(name))).toBe(true);
  });
  it("references only existing migration files from Office, Vault, HR and OTP workflows",()=>{
