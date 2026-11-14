@@ -5,7 +5,7 @@ export type ChatHistoryCursor={at:string;id:string};
 export const CHAT_HISTORY_PAGE_SIZE=50;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function chatHistoryFilter(cursor:ChatHistoryCursor):string{
- if(!uuid.test(cursor.id)||!/^[0-9T:.+\\-Z]+$/.test(cursor.at)||
+ if(!uuid.test(cursor.id)||!/^[0-9T:.+Z-]+$/.test(cursor.at)||
    !Number.isFinite(Date.parse(cursor.at)))throw new Error("Invalid chat history cursor");
  // PostgREST OR: older timestamp, or same timestamp with smaller UUID.
  return "created_at.lt."+cursor.at+",and(created_at.eq."+cursor.at+",id.lt."+cursor.id+")";

@@ -22,9 +22,9 @@ describe("Private Connect history pagination",()=>{
   expect(mergeChatHistory([old,mid,fresh],[amended,fresh],"latest"))
    .toEqual([old,amended,fresh]);
  });
- it("removes deleted recent messages on refresh, and handles empty history",()=>{
-  expect(mergeChatHistory([old,mid,fresh],[fresh],"latest")).toEqual([old,mid,fresh]);
+ it("does not retain text when the latest source window becomes empty",()=>{
   expect(mergeChatHistory([old,mid,fresh],[],"latest")).toEqual([]);
+  expect(mergeChatHistory([old,mid,fresh],[fresh],"latest")).toEqual([old,mid,fresh]);
  });
  it("sorts identical timestamps by UUID to keep keyset ordering stable",()=>{
   expect(compareChatHistory({...old,created_at:mid.created_at},mid)).toBeLessThan(0);

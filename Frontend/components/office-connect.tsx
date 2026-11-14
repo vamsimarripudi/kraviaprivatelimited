@@ -122,7 +122,10 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
           setMessages(response.messages);
           setOlderCursor(response.older_cursor);
         }else{
-          setMessages(existing=>mergeChatHistory(existing,response.messages,"latest"));
+          // A short latest page is the entire current conversation. Discard
+          // previously cached text that may have since been deleted.
+          if(!response.older_cursor){setMessages(response.messages);setOlderCursor(null);}
+          else setMessages(existing=>mergeChatHistory(existing,response.messages,"latest"));
         }
         setMessageScope(activeId);
         setCanPin(response.can_pin===true);
