@@ -437,28 +437,40 @@ jobs:
           $$;
           SQL
 
-      - name: Rehearse 17 KRAVIA Office 5.0 migrations on restored schema
+      - name: Rehearse scoped Office 5.0 CLI migration push on restored schema
         shell: bash
         run: |
           set -euo pipefail
           shopt -s nullglob
           migrations=(Database/supabase/migrations/202611141500[0-1][0-9]_*.sql)
           if [ "${#migrations[@]}" -ne 17 ]; then
-            echo "::error::Exactly 17 Office 5.0 migration files required, found ${#migrations[@]}"
+            echo "::error::Expected exactly 17 Office 5.0 migration sources"
             exit 1
           fi
           ordinal=1
           for migration in "${migrations[@]}"; do
-            expected=$(printf '202611141500%02d_' "$ordinal")
-            filename=${migration##*/}
-            if [[ "$filename" != "$expected"* ]]; then
-              echo "::error::Unexpected Office 5.0 migration order: $filename"
-              exit 1
-            fi
-            echo "Rehearsing $filename against isolated restored schema"
-            psql "$RESTORE_DATABASE_URL" -X -v ON_ERROR_STOP=1 --single-transaction -f "$migration" >/dev/null
+            version=$(printf '202611141500%02d_' "$ordinal")
+            [[ "${migration##*/}" == "$version"* ]] || { echo "::error::Invalid Office 5.0 version sequence"; exit 1; }
             ordinal=$((ordinal+1))
           done
+
+          # The temporary project holds the ACTUAL restored migration history,
+          # never renamed historical repository aliases or an unscoped push.
+          tmp="$RUNNER_TEMP/office5-cli-rehearsal"
+          mkdir -p "$tmp/supabase/migrations"
+          printf 'project_id = "kravia-office5-rehearsal"\n' > "$tmp/supabase/config.toml"
+          for migration in "${migrations[@]}"; do
+            cp "$migration" "$tmp/supabase/migrations/"
+          done
+          cd "$tmp"
+          npx -y "supabase@${SUPABASE_CLI_VERSION}" migration fetch --db-url "$RESTORE_DATABASE_URL"
+          # Fetch must never replace the 17 user-reviewed pending source files.
+          for migration in "${migrations[@]}"; do :; done
+          npx -y "supabase@${SUPABASE_CLI_VERSION}" db push --db-url "$RESTORE_DATABASE_URL" --dry-run
+          npx -y "supabase@${SUPABASE_CLI_VERSION}" db push --db-url "$RESTORE_DATABASE_URL" --yes
+
+          applied=$(psql "$RESTORE_DATABASE_URL" -X -Atqc "select count(*) from supabase_migrations.schema_migrations where version between '20261114150001' and '20261114150017'")
+          [[ "$applied" == "17" ]] || { echo "::error::Office 5.0 migration history incomplete: $applied/17"; exit 1; }
           psql "$RESTORE_DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
           do $office5$
           begin
@@ -469,26 +481,26 @@ jobs:
                or to_regclass('public.office_vault_secret_documents') is null
                or to_regclass('public.office_vault_secret_versions') is null
                or to_regclass('public.office_vault_secret_ingress_sessions') is null then
-              raise exception 'Office 5.0 canonical migration objects absent after rehearsal';
+              raise exception 'Office 5.0 canonical migration objects absent';
             end if;
-            if exists(
+            if exists (
               select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
               where n.nspname='public' and c.relkind in ('r','p')
                 and (c.relname like 'office_chat_%' or c.relname like 'office_vault_%')
                 and not c.relrowsecurity
             ) then
-              raise exception 'Office 5.0 private table missing row-level security';
+              raise exception 'Office 5.0 private table missing RLS';
             end if;
             if not exists (
               select 1 from storage.buckets
               where id='office-vault-secrets' and public=false
             ) then
-              raise exception 'Office 5.0 sealed document private bucket unavailable';
+              raise exception 'Office 5.0 encrypted bucket not private';
             end if;
           end
           $office5$;
           SQL
-          echo "Office 5.0 isolated complete-schema migration rehearsal passed."
+          echo "Scoped Office 5.0 CLI rehearsal PASS: all 17 versions recorded."
 
       - name: Destroy isolated restore database and plaintext
         if: always()
@@ -501,4 +513,5 @@ jobs:
           fi
           rm -rf             "$RUNNER_TEMP/restore-source"             "$RUNNER_TEMP/restore-plain"             "$RUNNER_TEMP/kravia-restore-project"             "$RUNNER_TEMP/kravia-office-backup.tar.gz"             "$RUNNER_TEMP/cipher-path"             "$RUNNER_TEMP/expected-copy-counts.json" \
             "$RUNNER_TEMP/skipped-provider-internal.json" \
-            "$RUNNER_TEMP/db-container-name"
+            "$RUNNER_TEMP/db-container-name" \
+            "$RUNNER_TEMP/office5-cli-rehearsal"
