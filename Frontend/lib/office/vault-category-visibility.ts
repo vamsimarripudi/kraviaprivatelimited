@@ -8,9 +8,12 @@ const recordRead:Readonly<Record<string,string>>={
 export function visibleVaultCategories<T extends VaultCategory>(
  categories:readonly T[],sourcePermissions:ReadonlySet<string>,activeGrantCategories:ReadonlySet<string>,
 ):T[]{
- return categories.filter(category=>
-  activeGrantCategories.has(category.slug)&&
-  (recordRead[category.slug]?sourcePermissions.has(recordRead[category.slug]):
-   category.permissions.some(code=>sourcePermissions.has(code)))
- );
+ return categories.filter(category=>{
+  if(category.slug==="secrets")return sourcePermissions.has("vault.secret.upload")||
+    sourcePermissions.has("vault.secret.review")||
+    (sourcePermissions.has("vault.secret.read")&&activeGrantCategories.has("secrets"));
+  return activeGrantCategories.has(category.slug)&&
+    (recordRead[category.slug]?sourcePermissions.has(recordRead[category.slug]):
+     category.permissions.some(code=>sourcePermissions.has(code)));
+ });
 }
