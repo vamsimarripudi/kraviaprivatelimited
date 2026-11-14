@@ -10,6 +10,6 @@ describe("Office 5.0 Vault category authority uses managed-device policy",()=>{
  });
  it("never displays categories for non-active workspace identities",()=>{
   expect(source).toContain('current.identity.workspaceStatus!=="ACTIVE"');
-  expect(source).toContain('vaultCategories.filter(row=>row.permissions.some(code=>permitted.includes(code)))');
+  expect(source).toContain('visibleVaultCategories(vaultCategories,new Set(permitted),grantedCategories)');
  });
 });

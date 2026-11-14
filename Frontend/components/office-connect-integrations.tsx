@@ -47,7 +47,7 @@ export function OfficeConnectIntegrations(){
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return()=>controller.abort();
  },[refresh]);
- const policies=view?.lifecycle.status==="ok"?view.lifecycle.data.policies:[];
+ const policies=useMemo(()=>view?.lifecycle.status==="ok"?view.lifecycle.data.policies:[],[view]);
  const owners=useMemo(()=>["ALL",...new Set(policies.map(p=>p.delivery_owner))],[policies]);
  const visible=useMemo(()=>policies.filter(p=>{
   const needle=query.trim().toLowerCase();
