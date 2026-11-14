@@ -1,9 +1,11 @@
 "use client";
 import {useState,type FormEvent} from "react";
 import Link from "next/link";
-import {Bookmark,CornerDownRight,Edit3,Flag,Trash2} from "lucide-react";
+import {Bookmark,CornerDownRight,Edit3,Flag,History,Trash2} from "lucide-react";
 import styles from "./office-connect-message-actions.module.css";
-type Props={id:string;body:string;own:boolean;onDone:()=>void};
+type Props={id:string;body:string;own:boolean;editedAt?:string|null;onDone:()=>void};
+type RevisionResponse={created_at:string;edited_at:string|null;current_body:string;
+ previous_versions:{id:number;body:string;revised_at:string}[]};
 async function mutation<T>(url:string,method:string,payload?:Record<string,unknown>):Promise<T>{
  const response=await fetch(url,{method,credentials:"same-origin",
   headers:{"Content-Type":"application/json"},body:payload?JSON.stringify(payload):undefined});
@@ -11,12 +13,15 @@ async function mutation<T>(url:string,method:string,payload?:Record<string,unkno
  if(!response.ok)throw new Error(data.detail||"Action not confirmed");
  return data;
 }
-export function OfficeConnectMessageActions({id,body,own,onDone}:Props){
+export function OfficeConnectMessageActions({id,body,own,editedAt,onDone}:Props){
  const [editing,setEditing]=useState(false);
  const [remove,setRemove]=useState(false);
  const [draft,setDraft]=useState(body);
  const [busy,setBusy]=useState(false);
  const [notice,setNotice]=useState("");
+ const [historyOpen,setHistoryOpen]=useState(false);
+ const [historyBusy,setHistoryBusy]=useState(false);
+ const [history,setHistory]=useState<RevisionResponse|null>(null);
  async function save(){
   setBusy(true);setNotice("");
   try{await mutation("/api/office-chat/saved","POST",{message_id:id,save:true});
@@ -31,6 +36,16 @@ export function OfficeConnectMessageActions({id,body,own,onDone}:Props){
   catch(e){setNotice(e instanceof Error?e.message:"Edit not confirmed")}
   finally{setBusy(false)}
  }
+ async function toggleHistory(){
+  if(historyOpen){setHistoryOpen(false);return;}
+  setHistoryOpen(true);
+  setHistoryBusy(true);setNotice("");
+  try{
+   setHistory(await mutation<RevisionResponse>("/api/office-chat/messages/"+id+"/revisions","GET"));
+  }catch(e){
+   setHistory(null);setNotice(e instanceof Error?e.message:"Revision history unavailable");
+  }finally{setHistoryBusy(false);}
+ }
  async function del(){
   setBusy(true);setNotice("");
   try{await mutation("/api/office-chat/messages/"+id,"DELETE");
@@ -44,8 +59,20 @@ export function OfficeConnectMessageActions({id,body,own,onDone}:Props){
    <button type="button" disabled={busy} onClick={()=>void save()}><Bookmark size={14}/>Save</button>
    {own?<button type="button" disabled={busy} onClick={()=>{setDraft(body);setEditing(true);setRemove(false);}}><Edit3 size={14}/>Edit</button>:null}
    {own?<button type="button" disabled={busy} onClick={()=>{setRemove(true);setEditing(false);}}><Trash2 size={14}/>Remove</button>:null}
+   {editedAt?<button type="button" disabled={busy} aria-expanded={historyOpen}
+     onClick={()=>void toggleHistory()}><History size={14}/>History</button>:null}
    <Link href="/office/ethics"><Flag size={14}/>Report</Link>
   </nav>
+  {historyOpen?<section className={styles.history} aria-label="Previous message versions" aria-live="polite">
+   <h3>Revision history</h3>
+   {historyBusy?<p>Checking current membership and history…</p>:null}
+   {!historyBusy&&history?<ol>{history.previous_versions.map(version=><li key={version.id}>
+     <time dateTime={version.revised_at}>{new Date(version.revised_at).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"})}</time>
+     <p>{version.body}</p>
+   </li>)}</ol>:null}
+   {!historyBusy&&history&&!history.previous_versions.length?<p>No previous text versions recorded.</p>:null}
+   <button type="button" onClick={()=>setHistoryOpen(false)}>Close history</button>
+  </section>:null}
   {editing?<form className={styles.form} onSubmit={edit}>
     <label>Edit your message (15 minute window)<textarea required maxLength={4000} minLength={1}
        rows={3} value={draft} onChange={e=>setDraft(e.target.value)}/></label>

@@ -217,7 +217,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
                   href={"/api/office-chat/attachments/"+file.id+"/download"}><Paperclip size={14}/>
                   {file.name} · {Math.ceil(file.size/1024)} KiB</a>)}
               </div>:null}
-              <OfficeConnectMessageActions id={message.id} body={message.body}
+              <OfficeConnectMessageActions id={message.id} body={message.body} editedAt={message.edited_at}
                 own={message.sender_user_id===actor} onDone={()=>setReloadCount(v=>v+1)}/>
             </article>)}
           </div>

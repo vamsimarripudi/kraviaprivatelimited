@@ -7,3 +7,11 @@
 .form button,.confirm button{min-height:44px;padding:8px 12px;border:1px solid var(--office-ui-line);border-radius:9px;background:var(--office-ui-surface);color:var(--office-ui-ink);cursor:pointer}
 .form button[type=submit],.confirm button:last-child{background:var(--office-ui-accent);border-color:transparent;color:white}
 .confirm p,.actions>p{font-size:11px;line-height:1.5;color:var(--office-ui-muted);margin:0}
+
+.history{display:grid;gap:8px;border:1px solid var(--office-ui-line);background:var(--office-ui-surface);padding:12px;border-radius:12px;max-width:100%;overflow-wrap:anywhere}
+.history h3{font-size:13px;margin:0}.history ol{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+.history li{border-block-start:1px solid var(--office-ui-line);padding-top:8px}
+.history li p,.history>p{font-size:12px;white-space:pre-wrap;margin:4px 0;color:var(--office-ui-ink)}
+.history time{color:var(--office-ui-muted);font-size:11px}.history>button{justify-self:start;min-height:44px;border-radius:9px;border:1px solid var(--office-ui-line);background:transparent;color:var(--office-ui-ink);padding:8px 12px;cursor:pointer}
+.actions nav :is(button,a){min-height:44px;padding:7px 11px;font-size:12px}
+.actions :is(button,a):focus-visible{outline:2px solid var(--office-ui-accent);outline-offset:3px}

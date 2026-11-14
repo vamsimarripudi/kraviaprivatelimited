@@ -324,8 +324,17 @@ export async function saveOfficeChatMessage(messageId:string,save:boolean){
  if(result.error||result.data!==true)throw new OfficeChatError(409,"Save state was not confirmed");
  return {saved:save};
 }
+async function authorizeMessageMutation(current:OfficeChatActor,messageId:string){
+ const {data,error}=await current.admin.from("office_chat_messages")
+  .select("conversation_id").eq("id",messageId).is("deleted_at",null).maybeSingle();
+ if(error)throw internalFailure("Message authorization is unavailable");
+ if(!data)throw new OfficeChatError(404,"Message unavailable");
+ // RPC membership guards alone are insufficient for reassigned department users.
+ await ownMembership(current,String(data.conversation_id));
+}
 export async function editOfficeChatMessage(messageId:string,body:string){
  const current=await actor();
+ await authorizeMessageMutation(current,messageId);
  const result=await current.admin.rpc("office_chat_edit_message",{
   p_actor:current.identity.userId,p_message:messageId,p_body:body});
  if(result.error||result.data!==true)throw new OfficeChatError(409,"Message revision was not committed");
@@ -333,6 +342,7 @@ export async function editOfficeChatMessage(messageId:string,body:string){
 }
 export async function deleteOfficeChatMessage(messageId:string){
  const current=await actor();
+ await authorizeMessageMutation(current,messageId);
  const result=await current.admin.rpc("office_chat_soft_delete_message",{
   p_actor:current.identity.userId,p_message:messageId});
  if(result.error||result.data!==true)throw new OfficeChatError(409,"Message removal was not confirmed");
@@ -340,6 +350,7 @@ export async function deleteOfficeChatMessage(messageId:string){
 }
 export async function markOfficeChatMentionRead(messageId:string){
  const current=await actor();
+ await authorizeMessageMutation(current,messageId);
  const result=await current.admin.rpc("office_chat_mark_mention_read",{
   p_actor:current.identity.userId,p_message:messageId});
  if(result.error||result.data!==true)throw new OfficeChatError(409,"Mention read state not confirmed");
@@ -419,4 +430,24 @@ export async function getOfficeChatUnreadSummary() {
     unread_conversations: conversations.filter((row: { unread: number }) => row.unread > 0).length,
     conversations,
   };
+}
+
+/** Revision history is visible only to currently authorized conversation members.
+ * Deleted messages and former department assignments never reveal past text. */
+export async function getOfficeChatMessageRevisions(messageId:string){
+ const current=await actor();
+ const {data:message,error}=await current.admin.from("office_chat_messages")
+  .select("id,conversation_id,body,created_at,edited_at")
+  .eq("id",messageId).is("deleted_at",null).maybeSingle();
+ if(error)throw internalFailure("Message history is unavailable");
+ if(!message)throw new OfficeChatError(404,"Message unavailable");
+ await ownMembership(current,String(message.conversation_id));
+ const {data:revisions,error:revisionError}=await current.admin.from("office_chat_message_revisions")
+  .select("id,previous_body,revised_at").eq("message_id",messageId)
+  .order("id",{ascending:true}).limit(100);
+ if(revisionError)throw internalFailure("Message revisions are unavailable");
+ return {message_id:messageId,created_at:message.created_at,edited_at:message.edited_at,
+  current_body:message.body,previous_versions:(revisions??[]).map(row=>({
+    id:row.id,body:row.previous_body,revised_at:row.revised_at,
+  }))};
 }
