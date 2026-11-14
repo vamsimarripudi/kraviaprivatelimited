@@ -24,6 +24,7 @@ export type OfficeCapabilitySnapshot = {
   generated_at: string;
   permissions: string[];
   scopes: OfficeCapabilityScope[];
+  delegatedDepartments: string[];
 };
 
 function active(expiresAt: unknown, now = Date.now()) {
@@ -60,15 +61,17 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
   if (catalog.error) throw new OfficeCapabilityError(503, "Authorization catalog is temporarily unavailable");
   // The Founder continues to see transferred departments, but their write
   // permissions must disappear from the action capability snapshot.
-  const [departmentDeltaResult, globalDeniesResult] = await Promise.all([
+  const [departmentDeltaResult, globalDeniesResult, formerOwnerResult] = await Promise.all([
     admin.rpc("office_department_capability_changes", { p_actor: identity.userId }),
     admin.from("office_user_permission_overrides")
       .select("permission_code,expires_at")
       .eq("user_id", identity.userId)
       .eq("effect", "DENY")
       .eq("scope_type", "COMPANY"),
+    admin.from("office_department_former_owners")
+      .select("department_code").eq("user_id",identity.userId),
   ]);
-  if (departmentDeltaResult.error || globalDeniesResult.error || !departmentDeltaResult.data ||
+  if (departmentDeltaResult.error || globalDeniesResult.error || formerOwnerResult.error || !departmentDeltaResult.data ||
       typeof departmentDeltaResult.data !== "object" || Array.isArray(departmentDeltaResult.data)) {
     throw new OfficeCapabilityError(503, "Department capability authority is unavailable");
   }
@@ -78,6 +81,8 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
   }
   const denied = new Set(changes.denied.filter((code): code is string => typeof code === "string"));
   const owned = new Set(changes.owned.filter((code): code is string => typeof code === "string"));
+  const delegatedDepartments=Array.from(new Set((formerOwnerResult.data??[])
+    .map(record=>String(record.department_code??"").toUpperCase()).filter(Boolean)));
   for (const row of globalDeniesResult.data ?? []) {
     if (active(row.expires_at)) denied.add(String(row.permission_code));
   }
@@ -184,6 +189,7 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
   return {
     generated_at: new Date().toISOString(),
     permissions,
+    delegatedDepartments,
     scopes: scopes.filter((scope) => permissions.includes(scope.permission)),
   };
 }

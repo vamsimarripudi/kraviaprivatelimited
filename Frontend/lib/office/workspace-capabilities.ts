@@ -82,7 +82,7 @@ const requirements: Record<string, readonly string[]> = {
 // Personal account utilities are available to any activated employee.
 // Every other business module requires an explicit capability assignment.
 const personalOfficeSections = new Set([
-  "dashboard", "my-role", "info", "notifications", "tasks", "calendar", "requests",
+  "dashboard", "my-role", "my-transfers", "info", "notifications", "tasks", "calendar", "requests",
   "approvals", "worktime", "settings", "emergency",
 ]);
 
@@ -99,7 +99,7 @@ export function capabilityCanAccessSection(
   // OWNER label is not navigation authorization: use the effective capability snapshot,
   // including explicit denies and department transfers, for all business sections.
   const required = requiredCapabilities(workspace, section);
-  if (!required.length) return (workspace === "office" && personalOfficeSections.has(section)) || (workspace === "finance" && ["my-role","info","worktime"].includes(section));
+  if (!required.length) return (workspace === "office" && personalOfficeSections.has(section)) || (workspace === "finance" && ["my-role","info","worktime","settings"].includes(section));
   const granted = new Set(permissions);
   return required.some((permission) => granted.has(permission));
 }

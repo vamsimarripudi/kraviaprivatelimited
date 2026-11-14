@@ -140,6 +140,7 @@ export function InternalWorkspaceScreen({ workspace, section }: Props) {
       {permitted && item ? (
         <>
           {workspace === "office" && section === "role-packages" ? <OfficeRolePackageStudio view="admin" />
+          : workspace === "office" && section === "my-transfers" ? <OfficeDepartmentHandover mode="recipient" />
           : section === "info" ? <OfficeManualHub />
           : (workspace === "office" || workspace === "finance") && section === "my-role" ? <><OfficeEmployeeSummary/>
             <details className="office-employee-full-record"><summary>Personal details, education, bank and signed onboarding · Expand</summary><OfficeEmployeeIntake view="self"/></details>

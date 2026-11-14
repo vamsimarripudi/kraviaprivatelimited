@@ -8,10 +8,11 @@ export default async function AuthenticatedOfficeLayout({
   children: React.ReactNode;
 }) {
   const identity = await requireWorkspaceIdentity("office", "/office/dashboard");
-  const permissions = (await getOfficeCapabilitySnapshot(identity)).permissions;
+  const authorization = await getOfficeCapabilitySnapshot(identity);
 
   return (
-    <OfficeWorkspaceShell workspace="office" identity={identity} permissions={permissions}>
+    <OfficeWorkspaceShell workspace="office" identity={identity}
+      permissions={authorization.permissions} delegatedDepartments={authorization.delegatedDepartments}>
       {children}
     </OfficeWorkspaceShell>
   );
