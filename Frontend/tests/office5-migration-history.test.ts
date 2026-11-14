@@ -43,7 +43,7 @@ describe("Office5 migration-history identity and release ordering",()=>{
  it("defines 17 new Office5 SQL migrations after the already-applied histories",()=>{
   expect(paths).toHaveLength(24);
   const expected=planned.map((name,i)=>
-   "2026111413"+String(i+1).padStart(4,"0")+"_"+name+".sql");
+   "2026111415"+String(i+1).padStart(4,"0")+"_"+name+".sql");
   expect(new Set(paths).size).toBe(paths.length);
   expect(paths).toEqual([...Object.keys(applied),...expected].sort());
   expect(paths.every(name=>/^20261114\d{6}_[a-zA-Z0-9_]+\.sql$/.test(name))).toBe(true);
