@@ -122,3 +122,15 @@ test("anonymous accounts cannot inspect or alter Connect personal preferences",a
  expect([401,403,503]).toContain(change.status());
  expect(change.headers()["cache-control"]).toContain("no-store");
 });
+
+test("private message history cursors enforce identity and strict input validation",async({request})=>{
+ const id="00000000-0000-4000-8000-000000000001";
+ const endpoint="/api/office-chat/conversations/"+id+"/messages";
+ const unauthorized=await request.get(endpoint+"?before_at=2026-11-14T00%3A00%3A00Z&before_id="+id);
+ expect([401,403,404,503]).toContain(unauthorized.status());
+ expect(unauthorized.headers()["cache-control"]).toContain("no-store");
+ expect(await unauthorized.text()).not.toContain("sender_name");
+ const invalid=await request.get(endpoint+"?before_at=not-a-date&before_id="+id);
+ expect(invalid.status()).toBe(400);
+ expect(invalid.headers()["cache-control"]).toContain("no-store");
+});

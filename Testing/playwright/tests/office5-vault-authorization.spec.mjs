@@ -52,3 +52,24 @@ test("Connect and Vault page bodies cannot be viewed before KRAVIA AAL2 login",a
   await expect(page.getByText("My current grants")).toHaveCount(0);
  }
 });
+
+test("independent Vault verification queue requires explicit membership, source grants and a reviewer",async({request})=>{
+ const id="00000000-0000-4000-8000-000000000001";
+ const url="/api/office-vault/verification";
+ const read=await request.get(url);
+ expect([401,403,404,503]).toContain(read.status());
+ expect(read.status()).not.toBe(200);
+ expect(read.headers()["cache-control"]).toContain("no-store");
+ const leaked=await read.text();
+ expect(leaked).not.toContain("registration_code");
+ expect(leaked).not.toContain("grant_category");
+ const crossOrigin=await request.post(url,{headers:{Origin:"https://untrusted.example.invalid"},
+   data:{record_id:id,decision:"ACTIVE",note:"Unsafe validation attempt",
+    evidence_reference:"Unverified outside reference"}});
+ expect(crossOrigin.status()).toBe(403);
+ expect(crossOrigin.headers()["cache-control"]).toContain("no-store");
+ const anonymous=await request.post(url,{data:{record_id:id,decision:"ACTIVE",
+  note:"Cannot bypass independent review",evidence_reference:"Unknown reference"}});
+ expect([401,403,404,503]).toContain(anonymous.status());
+ expect(anonymous.headers()["cache-control"]).toContain("no-store");
+});
