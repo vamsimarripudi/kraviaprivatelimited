@@ -84,24 +84,27 @@ function attr(text:string,key:string):string {
   return decode(text.match(pattern)?.[1]||"");
 }
 function xmlText(text:string):string {
-  return [...text.matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)].map(m=>decode(m[1])).join("");
+  return [...text.matchAll(/<(?:[A-Za-z][\w.-]*:)?t\b[^>]*>([\s\S]*?)<\/(?:[A-Za-z][\w.-]*:)?t>/g)].map(m=>decode(m[1])).join("");
 }
 type Cell=string|number|null;
 type SheetRows=Map<number,Map<number,Cell>>;
 function parseSheet(xml:string,strings:string[]):SheetRows{
   const rows:SheetRows=new Map();
   let count=0;
-  for(const match of xml.matchAll(/<row\b([^>]*)>([\s\S]*?)<\/row>/g)){
+  for(const match of xml.matchAll(/<(?:[A-Za-z][\w.-]*:)?row\b([^>]*)>([\s\S]*?)<\/(?:[A-Za-z][\w.-]*:)?row>/g)){
     const line=Number(attr(match[1],"r"));
     if(!Number.isSafeInteger(line)||line<1||line>2000||rows.has(line))reject("Invalid or duplicate worksheet row");
     const cells=new Map<number,Cell>();
-    for(const cell of match[2].matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)){
+    for(const cell of match[2].matchAll(/<(?:[A-Za-z][\w.-]*:)?c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:[A-Za-z][\w.-]*:)?c>)/g)){
       const code=attr(cell[1],"r").match(/^([A-Z]{1,3})[0-9]+$/)?.[1];
       if(!code)continue;
       const col=[...code].reduce((v,c)=>v*26+c.charCodeAt(0)-64,0)-1;
       if(col>30)continue;
       if(cells.has(col))reject("Duplicate XLSX cell");
-      const raw=cell[2]||"",v=raw.match(/<v\b[^>]*>([\s\S]*?)<\/v>/)?.[1];
+      const raw=cell[2]||"";
+      if(col>=9&&col<=13&&/<(?:[A-Za-z][\w.-]*:)?f\b/.test(raw))
+        reject("HR-editable cells must be literal values, not spreadsheet formulas");
+      const v=raw.match(/<(?:[A-Za-z][\w.-]*:)?v\b[^>]*>([\s\S]*?)<\/(?:[A-Za-z][\w.-]*:)?v>/)?.[1];
       const t=attr(cell[1],"t");
       let value:Cell=null;
       if(t==="s"){
@@ -111,7 +114,7 @@ function parseSheet(xml:string,strings:string[]):SheetRows{
       }else if(t==="inlineStr"||t==="str")value=xmlText(raw)||(v===undefined?null:decode(v));
       else if(v!==undefined){
         const n=Number(v);value=Number.isFinite(n)?n:decode(v);
-      }else if(raw.includes("<is"))value=xmlText(raw);
+      }else if(/<(?:[A-Za-z][\w.-]*:)?is\b/.test(raw))value=xmlText(raw);
       cells.set(col,value);
       if(++count>35000)reject("Workbook contains too many data cells");
     }
@@ -130,10 +133,10 @@ function readSheets(parts:Map<string,string>):Map<string,SheetRows>{
       if(!path.includes(".."))links.set(id,path);
     }
   }
-  const strings=[...(parts.get("xl/sharedStrings.xml")||"").matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/g)]
+  const strings=[...(parts.get("xl/sharedStrings.xml")||"").matchAll(/<(?:[A-Za-z][\w.-]*:)?si\b[^>]*>([\s\S]*?)<\/(?:[A-Za-z][\w.-]*:)?si>/g)]
     .map(x=>xmlText(x[1]));
   const sheets=new Map<string,SheetRows>();
-  for(const x of workbook.matchAll(/<sheet\b([^>]*?)(?:\/>|>)/g)){
+  for(const x of workbook.matchAll(/<(?:[A-Za-z][\w.-]*:)?sheet\b([^>]*?)(?:\/>|>)/g)){
     const name=attr(x[1],"name"),id=attr(x[1],"r:id"),path=links.get(id);
     if(name&&path&&parts.has(path))sheets.set(name,parseSheet(parts.get(path)!,strings));
   }
