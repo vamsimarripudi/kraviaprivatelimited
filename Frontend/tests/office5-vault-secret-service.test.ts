@@ -19,6 +19,14 @@ describe("K-Vault secret locker service boundaries",()=>{
   expect(server).not.toContain("NEXT_PUBLIC_OFFICE_VAULT");
   expect(server).toContain('storage.from(BUCKET).upload');
  });
+ it("rejects non-previewable encrypted files before decryption and before a success audit",()=>{
+  expect(server).toContain('if(action==="PREVIEW"&&version.mime_type!=="application/pdf"');
+  expect(server).toContain('!["image/jpeg","image/png","image/webp"].includes(version.mime_type)');
+  expect(server.indexOf('if(action==="PREVIEW"&&version.mime_type'))
+   .toBeLessThan(server.indexOf('await requireOfficeVaultRecord({category:"secrets",recordId:version.document_id,action})'));
+  expect(server.indexOf('if(action==="PREVIEW"&&version.mime_type'))
+   .toBeLessThan(server.indexOf('const bytes=await decryptStored(current,version);',server.indexOf('export async function downloadOfficeVaultSecret')));
+ });
  it("enforces independent confirmation and durable audit before decrypted bytes",()=>{
   expect(server).toContain('version.uploaded_by===current.identity.userId');
   expect(server).toContain('await record(current,version,action==="DOWNLOAD"?"DOWNLOADED":"PREVIEWED")');
