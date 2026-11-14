@@ -188,6 +188,12 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
   return {
     actor: { user_id: actor.identity.userId, roles: actor.identity.roles },
     employee: identityResult.data, employees: directoryResult.data ?? [], payroll_periods: periodResult.data ?? [], flex_days: flexResult.data ?? [], month, target_payment: targetSalaryDate(month),
+    recorded_sessions: sessions.filter(s => Boolean(s.check_out_at)).map(s => ({
+      id: s.id, check_in_at: s.check_in_at, check_out_at: s.check_out_at,
+      status: s.status,
+      needs_review: !claims.some(claim => claim.attendance_session_id === s.id &&
+        (claim.status === "PENDING" || claim.status === "APPROVED")),
+    })),
     approved_policy: policy ?? null, policies, claims, preview, salary_preview: salaryPreview, attendance_targets: attendanceTargets,
     approved_monthly_gross_minor: compensation ? Number(compensation.monthly_gross_minor) : null,
     approved_gross_currency: compensation?.currency ?? null,
@@ -199,6 +205,7 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
 export async function officeWorktimeAction(input:
   | { action: "SUBMIT"; employeeId?: string; sessionId?: string; startAt: string; endAt: string; breaks: unknown[]; sourceKind: "RECORDED_SESSION" | "HISTORICAL_CORRECTION"; sourceReference: string; reason: string }
   | { action: "AMEND_PENDING"; caseId: string; startAt: string; endAt: string; breaks: unknown[]; sourceReference: string; reason: string }
+  | { action: "QUEUE_RECORDED"; employeeId: string; sessionId: string }
   | { action: "DECIDE"; caseId: string; decision: "APPROVE" | "REJECT"; note?: string }
   | { action: "REQUEST_FLEX"; weekMonday: string; leaveDate: string }
   | { action: "DECIDE_FLEX"; flexId: string; decision: "APPROVE" | "REJECT"; note?: string }
@@ -227,6 +234,10 @@ export async function officeWorktimeAction(input:
         p_breaks: input.breaks, p_source_kind: input.sourceKind, p_source_reference: input.sourceReference, p_reason: input.reason };
       break;
     }
+    case "QUEUE_RECORDED":
+      rpcName = "office_worktime_queue_recorded";
+      params = { p_actor: user, p_employee: input.employeeId, p_attendance: input.sessionId };
+      break;
     case "AMEND_PENDING": {
       const start = Date.parse(input.startAt);
       const end = Date.parse(input.endAt);
