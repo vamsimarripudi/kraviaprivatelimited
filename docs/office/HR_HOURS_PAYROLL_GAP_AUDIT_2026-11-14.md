@@ -43,7 +43,7 @@ The existing worktime policy template proposes a weekday overtime premium of 2×
 | P0 — release gate | Production schema and permissions not yet verified against this feature migration | Run migration in disposable clone, review existing duplicate OT rows before unique-index creation, approve rollout |
 | P0 — payroll data | No employee remuneration, time or bank confirmation is seeded | Import only signed/approved compensation versions and actual independently reviewed evidence |
 | P0 — actual payout | Bank transfer execution and reference reconciliation are separate from salary batch preparation | Finance maker-checker approvals, payment-channel integration and verified bank receipts |
-| P1 | Paid holidays, leave balances, statutory absences and partial-month hires require manual reviewed snapshots | Add a governed calendar/leave ingestion process and evidence-backed overrides before accepting auto-payroll as end-to-end |
+| P1 | Approved paid/unpaid leave and holidays have an evidence ledger on the branch; organization-wide entitlements, statutory absences, custom holiday calendars and partial-month edge cases still require source-backed policy configuration | Obtain approved HR policies, enter real entitlements, and validate edge cases before first production payroll |
 | P1 | Stale or corrected *approved* overtime cannot be reimported automatically | Use an independently approved reversal/off-cycle correction workflow with no history rewrite |
 | P1 | Salary components and deductions (PF, ESI, TDS, tax and benefits) remain policy/rule dependent | CA-verified effective-dated rule configuration and validation |
 | P1 | HR Manager/Director access in production not tested with a real session | Live permission checks for Manohar, HR reviewer, employee, department head, Finance reviewer and Owner |
@@ -55,11 +55,13 @@ The existing worktime policy template proposes a weekday overtime premium of 2×
 Do not publish individual employee salary amounts, onboarding documents, attendance history, personal identifiers, bank records or pending compensation proposals in a public repository. KRAVIA's compensation versions must be imported only from independently verified, appropriately approved source documents. When an employee has multiple functions, record the roles as a **non-additive breakdown of one gross salary**, not two separate disbursements. Proposed remuneration remains a draft until authorized approvals and execution.
 
 ## Source-audited correction status
-The feature branch now contains two guarded payroll migrations:
+The feature branch now contains four guarded payroll migrations:
 - `202611140003_hr_hours_payroll_revision_guards.sql`: traceable worktime edits, queued verified sessions, draft recalculation invalidation and active premium deduplication.
 - `202611140004_hr_payroll_independent_review.sql`: explicitly independent payroll attendance review, original source evidence validation, payable/leave/absence reconciliation, atomic draft correction, employer-date validation, beneficiary self-approval prevention, and safe payroll locking.
+- `202611140005_hr_leave_evidence.sql`: source-backed paid, unpaid, sick and holiday evidence with independent decisions; approved weekdays reconcile to payable/unpaid salary hours. Pending leave, missing leave references and mismatched paid hours block final payroll.
+- `202611140006_hr_payroll_maker_checker.sql`: requires three distinct actors for payroll preparation, Finance review and Owner final approval, beyond merely granting permissions to one person.
 
-The HR payroll console now supports independent review with a mandatory note and displays evidence-based readiness blockers; rules-only permission does not receive the employee directory. Non-additive role remuneration lines may be added in a draft provided they reconcile to the single monthly gross.
+The HR payroll console now supports independently reviewed leave/holiday entries, audited payroll attendance approval and adjustment reconciliation. It also supports independent review with a mandatory note and displays evidence-based readiness blockers; rules-only permission does not receive the employee directory. Non-additive role remuneration lines may be added in a draft provided they reconcile to the single monthly gross.
 
 Production prerequisites still include independently authorized remuneration evidence, verified employment dates, a competent independent reviewer, actual leave/holiday policy records and CA-reviewed statutory rules. **Do not enter real or hypothetical employee earnings in tests, migrations or repository documents.**
 
@@ -72,6 +74,11 @@ Production prerequisites still include independently authorized remuneration evi
 - Tests: `hr-leave-workflow-smoke.sql`, `hr-payroll-maker-checker-smoke.sql`, `office-approved-leave-payroll.test.ts`, `office-salary-components.test.ts` and isolated PostgreSQL/TypeScript/lint CI.
 
 These are **codebase changes only**. The Office production data layer still lacks approved compensation, dates, payroll policies and approved reviewed attendance. Existing contracts, bank confirmations, statutory rule versions and operational permissions must be verified by authorized HR/Finance/Board personnel; a green code test is not a real wage payment or legal approval.
+
+## Latest release verification
+- All targeted TypeScript, Vitest, ESLint and disposable PostgreSQL 17 payroll/leave/approval checks passed on the branch. No live migration was applied by these tests.
+- The work is **code-complete for audited high-priority integrity protections**, but **not production payroll-ready** until documentary approvals, real effective-dated remuneration, employment dates, distinct human review assignments and statutory configurations exist.
+- Public Git history must not be treated as signed employment evidence. Do not auto-confirm salary payments or backfill hours.
 
 ## Acceptance checks
 - All 6-hour, 8-hour, split-day, weekend and overnight scenarios are independently reviewed, consistent across IST boundaries and free of duplicate earning minutes.
