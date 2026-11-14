@@ -1,73 +1,95 @@
 "use client";
-import {useEffect,useState,type FormEvent} from "react";
+import {useEffect,useState} from "react";
 import Link from "next/link";
-import {ArrowLeft,ArrowRight,CheckCircle2,LockKeyhole,RefreshCw,ShieldCheck} from "lucide-react";
-import type {ConnectPrefs} from "@/lib/office/chat-preferences-server";
-import styles from "./office-connect-governance.module.css";
-type Answer={scope:"OWN";preferences:ConnectPrefs;updated_at:string|null;detail?:string};
-const fields:{key:keyof ConnectPrefs;label:string;help:string}[]=[
- {key:"notify_direct",label:"Direct messages",help:"Save your preferred direct-message alert setting"},
- {key:"notify_mentions",label:"Mentions",help:"Save your preferred mention-alert setting"},
- {key:"notify_ticket_updates",label:"Assigned IT ticket events",help:"Save your preferred source-ticket alert setting"},
- {key:"email_digest_opt_in",label:"Email digest opt-in",help:"Consent is saved; no digest is sent without separately approved delivery"},
- {key:"share_read_receipts",label:"Share read receipts",help:"No colleague receipt information is exposed by this settings screen"},
- {key:"reduce_motion",label:"Reduce Connect animations",help:"Applies to Connect screens for your signed-in session"},
-];
+import {ArrowLeft,ArrowRight,Bell,Eye,EyeOff,Mail,Monitor, Moon, ShieldCheck, Sun, VolumeX} from "lucide-react";
+import {readConnectPreferences,readMotionMode,saveConnectPreferences,saveMotionMode,
+ type ConnectPreferences,type MotionMode} from "@/lib/office/connect-preferences";
+import styles from "./office-connect-settings.module.css";
+const themeKey="kravia.office.appearance";
+type Theme="light"|"dark";
 export function OfficeConnectSettings(){
- const [value,setValue]=useState<ConnectPrefs|null>(null);
- const [loading,setLoading]=useState(true);const [saving,setSaving]=useState(false);
- const [error,setError]=useState("");const [notice,setNotice]=useState("");
- const [refresh,setRefresh]=useState(0);
+ const [preferences,setPreferences]=useState<ConnectPreferences>({showUnread:true,showMentions:true});
+ const [theme,setTheme]=useState<Theme>("light");
+ const [motion,setMotion]=useState<MotionMode>("system");
+ const [ready,setReady]=useState(false);
+ const [notice,setNotice]=useState("");
  useEffect(()=>{
-  let active=true;
-  void fetch("/api/office-chat/preferences",{cache:"no-store",credentials:"same-origin"})
-   .then(async res=>{const body=await res.json().catch(()=>({})) as Answer;
-    if(!res.ok||body.scope!=="OWN"||!body.preferences)throw Error(body.detail||"Settings unavailable");
-    return body;
-   }).then(body=>{if(active){setValue(body.preferences);setError("");}})
-   .catch(e=>{if(active){setValue(null);setError(e instanceof Error?e.message:"Settings unavailable");}})
-   .finally(()=>{if(active)setLoading(false)});
-  return()=>{active=false;};
- },[refresh]);
- async function save(event:FormEvent<HTMLFormElement>){
-  event.preventDefault();if(!value||saving)return;setSaving(true);setError("");setNotice("");
-  try{
-   const response=await fetch("/api/office-chat/preferences",{method:"PUT",credentials:"same-origin",
-    headers:{"Content-Type":"application/json"},body:JSON.stringify(value)});
-   const body=await response.json().catch(()=>({})) as Answer;
-   if(!response.ok||body.scope!=="OWN"||!body.preferences)throw Error(body.detail||"Save not confirmed");
-   setValue(body.preferences);setNotice("Settings saved to your verified Office identity.");
-   window.dispatchEvent(new CustomEvent("kravia-connect-preferences-change",
-    {detail:{reduce_motion:body.preferences.reduce_motion}}));
-  }catch(e){setError(e instanceof Error?e.message:"Save unavailable")}finally{setSaving(false)}
+  const frame=window.requestAnimationFrame(()=>{
+   setPreferences(readConnectPreferences());
+   setMotion(readMotionMode());
+   try{setTheme(window.localStorage.getItem(themeKey)==="dark"?"dark":"light");}catch{}
+   setReady(true);
+  });
+  return()=>window.cancelAnimationFrame(frame);
+ },[]);
+ function updatePreference(key:keyof ConnectPreferences,checked:boolean){
+  const next={...preferences,[key]:checked};
+  setPreferences(next);saveConnectPreferences(next);
+  setNotice("Display preference updated on this device. Server notifications remain unchanged.");
  }
- return <section className={styles.shell} aria-label="Connect personal settings">
-  <Link className={styles.back} href="/office/chat"><ArrowLeft size={16}/>Connect</Link>
-  <header><div><p>CURRENT VERIFIED OFFICE IDENTITY</p><h1>Personal settings</h1>
-   <span>Notification preferences and accessibility, independent of organization policy.</span>
-  </div><button type="button" disabled={loading||saving} onClick={()=>{setLoading(true);setRefresh(x=>x+1)}}>
-   <RefreshCw size={16}/>Reload</button></header>
-  {loading?<p role="status" aria-busy="true">Checking your personal settings…</p>:null}
-  {error?<p className={styles.error} role="alert"><LockKeyhole size={17}/>{error}</p>:null}
-  {notice?<p role="status" className={styles.status}><CheckCircle2 size={17}/>{notice}</p>:null}
-  {!loading&&value?<form onSubmit={save} className={styles.mappings}>
-    <h2>Message and notification choices</h2>
-    {fields.map(row=><label key={row.key} style={{display:"flex",alignItems:"center",gap:16,
-      justifyContent:"space-between",padding:14,border:"1px solid var(--office-ui-line)",borderRadius:12}}>
-     <span style={{display:"grid",gap:5}}><strong style={{fontSize:13}}>{row.label}</strong>
-      <small>{row.help}</small></span>
-     <input type="checkbox" style={{width:24,height:24,flexShrink:0}}
-      checked={value[row.key]}
-      onChange={e=>setValue(old=>old?{...old,[row.key]:e.target.checked}:old)}/>
-    </label>)}
-    <p>These entries record personal choices. Only the separately governed notification service may send email or publish peer receipts. This form makes no deliveries or IAM changes.</p>
-    <div className={styles.links}>
-     <button type="submit" disabled={saving}>{saving?"Saving…":"Save personal settings"}</button>
-     <Link href="/office/settings">Office theme and account security <ArrowRight size={15}/></Link>
+ function updateMotion(next:MotionMode){
+  setMotion(next);saveMotionMode(next);
+  setNotice("Motion preference updated for Office and Finance on this device.");
+ }
+ function updateTheme(next:Theme){
+  setTheme(next);
+  try{window.localStorage.setItem(themeKey,next);}catch{}
+  window.dispatchEvent(new CustomEvent("kravia-office-theme-change",{detail:next}));
+  setNotice("Theme updated for Office and Finance on this device.");
+ }
+ return <section className={styles.shell} aria-label="Connect personal preferences">
+  <Link href="/office/chat" className={styles.back}><ArrowLeft size={16} aria-hidden="true"/>Connect</Link>
+  <header><p className={styles.eyebrow}>KRAVIA CONNECT · PERSONAL CONTROLS</p>
+   <h1>Preferences</h1><p>Presentation settings for your device. Account security, mail consent and delivery remain controlled by Office policies.</p>
+  </header>
+  {!ready?<p role="status" aria-busy="true">Loading device preferences…</p>:null}
+  {ready?<div className={styles.columns}>
+   <section className={styles.card} aria-labelledby="connect-display-heading">
+    <h2 id="connect-display-heading"><Bell size={19} aria-hidden="true"/> In-app presentation</h2>
+    <p>Choose which shortcuts and statistics appear on your Connect home. Messages, assignments, and mandatory alerts are never deleted or suppressed.</p>
+    <label className={styles.switch}>
+     <span><strong>Show unread message count</strong><small>Hide the unread number on the Connect home KPI card only.</small></span>
+     <input type="checkbox" checked={preferences.showUnread}
+      onChange={event=>updatePreference("showUnread",event.target.checked)}/>
+    </label>
+    <label className={styles.switch}>
+     <span><strong>Show mentions shortcut</strong><small>Mentions remain available in the message index even when this shortcut is hidden.</small></span>
+     <input type="checkbox" checked={preferences.showMentions}
+      onChange={event=>updatePreference("showMentions",event.target.checked)}/>
+    </label>
+    <Link href="/office/notifications" className={styles.link}>Canonical Office notifications <ArrowRight size={16}/></Link>
+   </section>
+   <section className={styles.card} aria-labelledby="connect-theme-heading">
+    <h2 id="connect-theme-heading"><Monitor size={19} aria-hidden="true"/> Appearance</h2>
+    <p>Theme applies only to Office and Finance. It is saved on this device, not to your company access profile.</p>
+    <div className={styles.options} role="group" aria-label="Workspace colour theme">
+     <button type="button" aria-pressed={theme==="light"} data-selected={theme==="light"}
+      onClick={()=>updateTheme("light")}><Sun size={18}/>Light</button>
+     <button type="button" aria-pressed={theme==="dark"} data-selected={theme==="dark"}
+      onClick={()=>updateTheme("dark")}><Moon size={18}/>Dark</button>
     </div>
-  </form>:null}
-  <div className={styles.notice}><ShieldCheck size={16}/>
-   No confidential messages, passwords, OTPs, staff roles or legal hold controls are stored as personal preferences.
-  </div>
+    <h3><VolumeX size={17} aria-hidden="true"/> Motion and animation</h3>
+    <fieldset className={styles.motion}><legend>Animation preference</legend>
+     {([["system","Follow device accessibility setting"],["reduced","Reduce animation"],["full","Use standard animation"]] as const)
+       .map(([value,label])=><label key={value}>
+       <input type="radio" name="connect-motion" checked={motion===value}
+        onChange={()=>updateMotion(value)}/>{label}</label>)}
+    </fieldset>
+   </section>
+   <section className={styles.card} aria-labelledby="connect-policy-heading">
+    <h2 id="connect-policy-heading"><ShieldCheck size={19} aria-hidden="true"/> Privacy and delivery</h2>
+    <p>Read-receipt sharing and external email digests are not editable from Connect until a verified organization policy and delivery adapter explicitly enable them.</p>
+    <div className={styles.policy}><EyeOff size={18}/><span><strong>Other employees' read receipts</strong>
+     <small>Not exposed by the current private messaging service. Your unread cursor remains private.</small></span></div>
+    <div className={styles.policy}><Mail size={18}/><span><strong>Email digest</strong>
+     <small>Not configured in Connect. No email subscription or external message is created here.</small></span></div>
+    <div className={styles.policy}><Eye size={18}/><span><strong>Company-managed identity status</strong>
+     <small>Attendance, availability, role and trusted devices use the canonical Office controls.</small></span></div>
+    <Link className={styles.link} href="/office/settings">Open Office security and account settings <ArrowRight size={16}/></Link>
+    <Link className={styles.link} href="/office/privacy">Privacy and policy register <ArrowRight size={16}/></Link>
+   </section>
+  </div>:null}
+  {notice?<p className={styles.notice} role="status">{notice}</p>:null}
+  <p className={styles.footer}><ShieldCheck size={16} aria-hidden="true"/>No modification to server-side IAM, notifications, read receipts, legal holds, or external email delivery.</p>
  </section>;
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, BellRing, CheckCircle2, ClipboardCheck, Headphones, MessageCircle, Plus, RefreshCw, ShieldCheck, TriangleAlert } from "lucide-react";
 import styles from "./office-connect-overview.module.css";
 import { useOfficeWorkspace } from "@/components/office-workspace-context";
+import {readConnectPreferences, type ConnectPreferences} from "@/lib/office/connect-preferences";
 
 type Conversation = { id: string; kind: string; title: string; department_code?: string | null; updated_at: string };
 type Work = {
@@ -58,6 +59,16 @@ export function OfficeConnectOverview({ conversations, conversationsLoading, con
  const [unread, setUnread] = useState<SourceResult<Unread>>({ state: "unavailable" });
  const [loading, setLoading] = useState(true);
  const [refresh, setRefresh] = useState(0);
+ const [displayPreferences,setDisplayPreferences]=useState<ConnectPreferences>({
+  showUnread:true,showMentions:true,
+ });
+ useEffect(()=>{
+  const update=()=>setDisplayPreferences(readConnectPreferences());
+  const frame=window.requestAnimationFrame(update);
+  window.addEventListener("kravia-connect-preferences-change",update);
+  return()=>{window.cancelAnimationFrame(frame);
+   window.removeEventListener("kravia-connect-preferences-change",update);};
+ },[]);
 
  useEffect(() => {
   let active = true;
@@ -82,8 +93,8 @@ export function OfficeConnectOverview({ conversations, conversationsLoading, con
  const attention = escalations.value?.items.filter(item => item.recipient_user_id === escalations.value?.actor_user_id
   && item.status === "PENDING") ?? [];
  const metrics = [
-  { label: "Unread messages", value: displayCount(unread, unread.value?.unread_messages ?? 0),
-    detail: unread.state === "ok" ? (unread.value?.unread_conversations ?? 0) + " conversations" : "Source " + unread.state },
+  { label: "Unread messages", value: displayPreferences.showUnread?displayCount(unread, unread.value?.unread_messages ?? 0):"Hidden",
+    detail: !displayPreferences.showUnread?"Hidden on this device":unread.state === "ok" ? (unread.value?.unread_conversations ?? 0) + " conversations" : "Source " + unread.state },
   { label: "Assigned IT tickets", value: displayCount(it, assigned.length),
     detail: it.state === "ok" ? "Active assigned work" : "Source " + it.state },
   { label: "Pending approvals", value: displayCount(work, pendingApprovals.length),
@@ -169,10 +180,11 @@ export function OfficeConnectOverview({ conversations, conversationsLoading, con
    <section className={styles.panel} aria-labelledby="connect-controls-title">
     <header><h2 id="connect-controls-title">Workspaces & controls</h2><ShieldCheck size={19} aria-hidden="true"/></header>
     <nav className={styles.shortcuts} aria-label="Communication tools">
-     <Link href="/office/chat/mentions"><BellRing size={18}/>Mentions</Link>
+     {displayPreferences.showMentions?<Link href="/office/chat/mentions"><BellRing size={18}/>Mentions</Link>:null}
      <Link href="/office/chat/search"><MessageCircle size={18}/>Search messages</Link>
      <Link href="/office/chat/support"><Headphones size={18}/>Support</Link>
      <Link href="/office/chat/approvals"><ClipboardCheck size={18}/>Approvals</Link>
+     <Link href="/office/chat/settings"><ShieldCheck size={18}/>Preferences</Link>
     </nav>
     <p className={styles.hint}><CheckCircle2 size={16} aria-hidden="true"/>
      Messages remain separate from formal approvals and financial execution.</p>

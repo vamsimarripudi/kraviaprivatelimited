@@ -611,3 +611,12 @@
     padding: 18px !important;
   }
 }
+
+/* Office and Finance motion accessibility follows system preference unless the
+   employee chooses a device-local override. Functional transitions are not removed. */
+.kravia-office[data-office-reduced-motion="true"] :where(*,*::before,*::after){
+ animation-duration:.01ms!important;
+ animation-iteration-count:1!important;
+ transition-duration:.01ms!important;
+ scroll-behavior:auto!important;
+}
