@@ -3,8 +3,18 @@ on:
   push:
     branches:
       - feature/hr-hours-auto-payroll-audit-20261114
+      - feature/hr-attendance-workbook-import-20261114
     paths:
       - 'Frontend/lib/office/attendance-salary-preview.ts'
+      - 'Frontend/lib/office/hr-attendance-workbook.ts'
+      - 'Frontend/lib/office/hr-attendance-import-server.ts'
+      - 'Frontend/app/api/office-hr-attendance-import/route.ts'
+      - 'Frontend/components/office-hr-attendance-import.tsx'
+      - 'Frontend/components/office-hr-attendance-import.module.css'
+      - 'Frontend/components/internal-workspace-screen.tsx'
+      - 'Frontend/tests/office-hr-attendance-workbook.test.ts'
+      - 'Database/supabase/migrations/202611140007_hr_attendance_workbook_import.sql'
+      - 'Database/supabase/tests/hr-attendance-workbook-import-smoke.sql'
       - 'Frontend/lib/office/salary-components.ts'
       - 'Frontend/lib/office/worktime-payroll-server.ts'
       - 'Frontend/lib/office/payroll-server.ts'
@@ -51,10 +61,10 @@ jobs:
         run: npm run typecheck
       - name: HR payroll regression tests
         working-directory: Frontend
-        run: npx vitest run tests/office-attendance-salary-preview.test.ts tests/office-salary-components.test.ts tests/office-approved-leave-payroll.test.ts tests/office-hr-hours-payroll-safety.test.ts tests/office-worktime-payroll-policy.test.ts tests/office-worktime-payroll-integration.test.ts tests/office-payroll-engine.test.ts tests/office-hr-effective-dated-attendance.test.ts
+        run: npx vitest run tests/office-attendance-salary-preview.test.ts tests/office-hr-attendance-workbook.test.ts tests/office-salary-components.test.ts tests/office-approved-leave-payroll.test.ts tests/office-hr-hours-payroll-safety.test.ts tests/office-worktime-payroll-policy.test.ts tests/office-worktime-payroll-integration.test.ts tests/office-payroll-engine.test.ts tests/office-hr-effective-dated-attendance.test.ts
       - name: ESLint changed HR modules
         working-directory: Frontend
-        run: npx eslint lib/office/attendance-salary-preview.ts lib/office/salary-components.ts lib/office/worktime-payroll-server.ts lib/office/payroll-server.ts app/api/office-worktime/route.ts app/api/office-payroll/route.ts components/office-worktime-console.tsx components/office-payroll-console.tsx tests/office-attendance-salary-preview.test.ts tests/office-hr-hours-payroll-safety.test.ts
+        run: npx eslint lib/office/hr-attendance-workbook.ts lib/office/hr-attendance-import-server.ts app/api/office-hr-attendance-import/route.ts components/office-hr-attendance-import.tsx components/internal-workspace-screen.tsx tests/office-hr-attendance-workbook.test.ts lib/office/attendance-salary-preview.ts lib/office/salary-components.ts lib/office/worktime-payroll-server.ts lib/office/payroll-server.ts app/api/office-worktime/route.ts app/api/office-payroll/route.ts components/office-worktime-console.tsx components/office-payroll-console.tsx tests/office-attendance-salary-preview.test.ts tests/office-hr-hours-payroll-safety.test.ts
 
   database:
     name: Disposable PostgreSQL 17 HR payroll guards
@@ -100,7 +110,9 @@ jobs:
           pg -f Database/supabase/migrations/202611140004_hr_payroll_independent_review.sql
           pg -f Database/supabase/migrations/202611140005_hr_leave_evidence.sql
           pg -f Database/supabase/migrations/202611140006_hr_payroll_maker_checker.sql
+          pg -f Database/supabase/migrations/202611140007_hr_attendance_workbook_import.sql
           test "$(pg --tuples-only --no-align -f Database/supabase/tests/hr-payroll-guards-smoke.sql | tail -n 1)" = "HR_PAYROLL_CORRECTION_GUARDS_VERIFIED"
           test "$(pg --tuples-only --no-align -f Database/supabase/tests/hr-leave-workflow-smoke.sql | tail -n 1)" = "HR_LEAVE_INDEPENDENT_PAYROLL_VERIFIED"
           test "$(pg --tuples-only --no-align -f Database/supabase/tests/hr-payroll-maker-checker-smoke.sql | tail -n 1)" = "HR_PAYROLL_MAKER_CHECKER_VERIFIED"
+          test "$(pg --tuples-only --no-align -f Database/supabase/tests/hr-attendance-workbook-import-smoke.sql | tail -n 1)" = "HR_WORKBOOK_REVIEW_GUARDS_VERIFIED"
           echo "HR payroll and overtime guards passed in disposable PostgreSQL."
