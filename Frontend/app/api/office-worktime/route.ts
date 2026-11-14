@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { officeMutationIsSameOrigin } from "@/lib/office/request-security";
-import { officeWorktimeOverview, officeWorktimeAction, importVerifiedWorktimePremiums, OfficeWorktimeError } from "@/lib/office/worktime-payroll-server";
+import { officeWorktimeOverview, officeWorktimeAction, importVerifiedWorktimePremiums, prepareVerifiedHoursPayroll, OfficeWorktimeError } from "@/lib/office/worktime-payroll-server";
 
 const uuid = z.string().uuid();
 const datetime = z.string().datetime({ offset: true });
@@ -22,6 +22,9 @@ const schema = z.discriminatedUnion("action", [
     authorityReference: z.string().trim().min(12).max(300) }),
   z.object({ action: z.literal("DECIDE_POLICY"), policyId: uuid, decision: z.enum(["APPROVE","REJECT"]) }),
   z.object({ action: z.literal("IMPORT_PREMIUMS"), periodId: uuid, employeeId: uuid }),
+  z.object({ action: z.literal("AUTO_ATTENDANCE"), periodId: uuid, employeeId: uuid,
+    replaceExisting: z.boolean().optional(), expectedUpdatedAt: datetime.optional(),
+    reason: z.string().trim().min(12).max(1000).optional() }),
   z.object({ action: z.literal("ISSUE_SLIP"), payrollResultId: uuid }),
   z.object({ action: z.literal("SUBMIT_SETTLEMENT"), payrollResultId: uuid,
     amountMinor: z.number().int().positive(), creditedAt: datetime,
@@ -55,7 +58,10 @@ export async function POST(request: Request) {
     const input = parsed.data;
     const result = input.action === "IMPORT_PREMIUMS"
       ? await importVerifiedWorktimePremiums({ periodId: input.periodId, employeeId: input.employeeId })
-      : await officeWorktimeAction(input);
+      : input.action === "AUTO_ATTENDANCE"
+        ? await prepareVerifiedHoursPayroll({ periodId: input.periodId, employeeId: input.employeeId,
+            replaceExisting: input.replaceExisting, expectedUpdatedAt: input.expectedUpdatedAt, reason: input.reason })
+        : await officeWorktimeAction(input);
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (e) { return err(e); }
 }
