@@ -51,7 +51,8 @@ function workbook(options?:{missingEvidence?:boolean;duplicate?:boolean;editSour
   };
   files["xl/worksheets/sheet1.xml"]='<worksheet><sheetData>'+
     row(4,inline("A4","Employee")+inline("B4","Session ID"))+
-    row(5,inline("A5","Jaya M")+inline("B5","sample-source-id"))+
+    row(5,inline("A5","Jaya M")+inline("B5","sample-source-id")+
+      '<c r="L5"><f>IF(A5="",0,1)</f><v>1</v></c>')+
     '</sheetData></worksheet>';
   sheets.slice(1).forEach((name,index)=>{
     const isNov=index===3;
