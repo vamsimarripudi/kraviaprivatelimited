@@ -1,156 +1,83 @@
 "use client";
 import {useEffect,useMemo,useState} from "react";
 import Link from "next/link";
-import {ArrowLeft,ArrowRight,BellRing,CheckCheck,ClipboardCheck,Headphones,MessageCircle,RefreshCw,ShieldCheck,TriangleAlert} from "lucide-react";
+import {ArrowLeft,ArrowRight,BellRing,CheckCheck,Eye,EyeOff,RefreshCw,ShieldCheck} from "lucide-react";
 import styles from "./office-connect-activity.module.css";
-type Notification={id:string;request_id:string|null;kind:string;title:string;body:string;status:string;created_at:string;read_at:string|null};
-type Mention={id:string;body:string;sender_name:string;created_at:string;read_at:string|null};
-type Escalation={id:string;recipient_user_id:string;status:string;level:number;created_at:string;
- source_ticket?:{title?:string}|null};
-type Result<T>={state:"ok"|"restricted"|"unavailable";value?:T};
-type Source={notifications:Result<{notifications:Notification[]}>;mentions:Result<{messages:Mention[]}>;
- escalations:Result<{actor_user_id:string;items:Escalation[]}>};
-type Kind="ALL"|"UNREAD"|"MENTIONS"|"TICKETS"|"APPROVALS";
-type Item={id:string;source:"notification"|"mention"|"escalation";title:string;detail:string;
- kind:string;at:string;status:string;href:string;actionable:boolean};
-async function source<T>(url:string):Promise<Result<T>>{
- try{
-  const response=await fetch(url,{cache:"no-store",credentials:"same-origin"});
-  if([401,403].includes(response.status))return {state:"restricted"};
-  const body=await response.json().catch(()=>({})) as T;
-  if(!response.ok)return {state:"unavailable"};
-  return {state:"ok",value:body};
- }catch{return {state:"unavailable"};}
-}
-function when(value:string){
- const date=new Date(value);
- return Number.isNaN(date.getTime())?"Time unknown":new Intl.DateTimeFormat("en-IN",{
-  day:"numeric",month:"short",hour:"numeric",minute:"2-digit",timeZone:"Asia/Kolkata"
- }).format(date);
-}
-const initial:Source={
- notifications:{state:"unavailable"},mentions:{state:"unavailable"},escalations:{state:"unavailable"}
-};
-function notificationKind(value:string):Kind{
- const word=value.toUpperCase();
- if(word.includes("APPROV")||word.includes("DECISION")||word.includes("REQUEST"))return "APPROVALS";
- if(word.includes("TICKET")||word.includes("SERVICE")||word.includes("ESCALAT")||word.includes("IT_"))return "TICKETS";
- return "ALL";
-}
+type Item={id:string;kind:string;status:string;created_at:string;read_at:string|null;request_id:string|null};
+type Data={unread:number;notifications:Item[];detail?:string};
 export function OfficeConnectActivity(){
- const [sources,setSources]=useState<Source>(initial);
+ const [items,setItems]=useState<Item[]>([]);
+ const [filter,setFilter]=useState<"ALL"|"UNREAD">("ALL");
  const [loading,setLoading]=useState(true);
- const [refresh,setRefresh]=useState(0);
- const [filter,setFilter]=useState<Kind>("ALL");
  const [error,setError]=useState("");
  const [notice,setNotice]=useState("");
- const [busy,setBusy]=useState("");
+ const [refresh,setRefresh]=useState(0);
+ const [busy,setBusy]=useState<string|null>(null);
  useEffect(()=>{
-  let live=true;
-  void Promise.all([
-   source<{notifications:Notification[]}>("/api/office-notifications"),
-   source<{messages:Mention[]}>("/api/office-chat/mentions"),
-   source<{actor_user_id:string;items:Escalation[]}>("/api/office-chat/support/escalations")
-  ]).then(([notifications,mentions,escalations])=>{
-   if(live){setSources({notifications,mentions,escalations});setError("");}
-  }).catch(()=>{
-   if(live)setError("Could not load the current activity sources");
-  }).finally(()=>{if(live)setLoading(false);});
-  return()=>{live=false;};
+  const controller=new AbortController();
+  void (async()=>{
+   try{
+    const response=await fetch("/api/office-notifications",{
+      credentials:"same-origin",cache:"no-store",signal:controller.signal});
+    const body=await response.json().catch(()=>({})) as Data;
+    if(!response.ok||!Array.isArray(body.notifications))
+      throw new Error(body.detail||"Notification service unavailable");
+    if(controller.signal.aborted)return;
+    setItems(body.notifications);setError("");
+   }catch(e){
+    if(controller.signal.aborted)return;
+    setError(e instanceof Error?e.message:"Notification source unavailable");setItems([]);
+   }finally{if(!controller.signal.aborted)setLoading(false);}
+  })();return()=>controller.abort();
  },[refresh]);
- const all=useMemo<Item[]>(()=>{
-  const notifications=(sources.notifications.value?.notifications??[]).map(n=>({
-   id:n.id,source:"notification" as const,title:n.title,detail:n.body,
-   kind:notificationKind(n.kind),at:n.created_at,
-   status:n.status,href:n.request_id?"/office/requests":"/office/notifications",
-   actionable:n.status==="UNREAD",
-  }));
-  const mentions=(sources.mentions.value?.messages??[]).map(m=>({
-   id:m.id,source:"mention" as const,title:"Mentioned by "+m.sender_name,
-   detail:m.body,kind:"MENTIONS",at:m.created_at,
-   status:m.read_at?"READ":"UNREAD",href:"/office/chat/threads/"+m.id,
-   actionable:!m.read_at,
-  }));
-  const escalations=(sources.escalations.value?.items??[])
-   .filter(e=>e.recipient_user_id===sources.escalations.value?.actor_user_id)
-   .map(e=>({id:e.id,source:"escalation" as const,
-    title:e.source_ticket?.title??"Assigned IT escalation",
-    detail:"Level "+e.level+" · "+e.status,kind:"TICKETS",at:e.created_at,
-    status:e.status==="PENDING"?"UNREAD":"READ",
-    href:"/office/chat/support/escalations/"+e.id,actionable:false,
-   }));
-  return [...notifications,...mentions,...escalations]
-   .sort((a,b)=>Date.parse(b.at)-Date.parse(a.at)).slice(0,250);
- },[sources]);
- const shown=useMemo(()=>all.filter(item=>{
-  if(filter==="ALL")return true;
-  if(filter==="UNREAD")return item.status==="UNREAD";
-  return item.kind===filter;
- }),[all,filter]);
- async function mutation(url:string,action:Record<string,string>){
-  setBusy(url+JSON.stringify(action));setError("");setNotice("");
+ const displayed=useMemo(()=>items.filter(item=>filter==="ALL"||item.status==="UNREAD"),[items,filter]);
+ const unread=items.filter(item=>item.status==="UNREAD").length;
+ async function mutate(action:"READ"|"UNREAD"|"DISMISS"|"READ_ALL",id?:string){
+  setBusy(id??"ALL");setError("");setNotice("");
   try{
-   const response=await fetch(url,{method:"PATCH",credentials:"same-origin",
-    headers:{"Content-Type":"application/json"},body:JSON.stringify(action)});
-   const body=await response.json().catch(()=>({})) as {detail?:string};
-   if(!response.ok)throw new Error(body.detail||"Action was not confirmed");
-   setNotice("Current source recorded the read state.");
+   const response=await fetch("/api/office-notifications",{
+    method:"PATCH",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(action==="READ_ALL"?{action}:{action,notification_id:id})
+   });
+   const result=await response.json().catch(()=>({})) as {updated?:number;status?:string;detail?:string};
+   if(!response.ok||(action==="READ_ALL"?typeof result.updated!=="number":typeof result.status!=="string"))
+     throw new Error(result.detail||"Notification action not confirmed");
+   setNotice(action==="READ_ALL"?String(result.updated)+" notifications marked read":"Status recorded by source");
    setLoading(true);setRefresh(v=>v+1);
-  }catch(e){setError(e instanceof Error?e.message:"Read state unavailable")}
-  finally{setBusy("");}
+  }catch(e){setError(e instanceof Error?e.message:"Notification action failed");}
+  finally{setBusy(null);}
  }
- const sourceStatus=[
-  {label:"Personal notifications",state:sources.notifications.state},
-  {label:"Private mentions",state:sources.mentions.state},
-  {label:"Assigned escalations",state:sources.escalations.state},
- ];
- const hasNotifications=sources.notifications.state==="ok";
- return <section className={styles.shell} aria-label="Connect personal activity">
-  <Link href="/office/chat" className={styles.back}><ArrowLeft size={17}/>Connect</Link>
-  <header className={styles.header}><div><p>KRAVIA CONNECT · ATTENTION CENTER</p>
+ return <section className={styles.activity} aria-label="Connect notification activity">
+  <Link className={styles.back} href="/office/chat"><ArrowLeft size={16}/>Connect</Link>
+  <header className={styles.header}><div><p className={styles.eyebrow}>KRAVIA CONNECT · PRIVATE ACTIVITY</p>
    <h1>Activity & notifications</h1>
-   <span>Personal notifications, private mentions and assigned IT escalation evidence.</span>
-  </div><div className={styles.actions}><button type="button" disabled={loading} onClick={()=>{
-   setLoading(true);setRefresh(v=>v+1);}}><RefreshCw size={16}/>Refresh</button>
-   <Link href="/office/settings">Notification settings <ArrowRight size={15}/></Link></div></header>
-  <div className={styles.sourceStatuses} aria-live="polite">
-   {sourceStatus.map(row=><span key={row.label}><ShieldCheck size={14}/>
-     {row.label}: {loading?"checking":row.state}</span>)}
-  </div>
-  <div className={styles.toolbar}><div role="group" aria-label="Filter activity">
-   {(["ALL","UNREAD","MENTIONS","TICKETS","APPROVALS"] as const).map(item=>
-    <button type="button" key={item} onClick={()=>setFilter(item)} aria-pressed={filter===item}>
-     {item==="ALL"?"All":item==="UNREAD"?"Unread":item==="MENTIONS"?"Mentions":item==="TICKETS"?"Tickets":"Approvals"}
-    </button>)}</div>
-   {hasNotifications?<button type="button" disabled={loading||!!busy} onClick={()=>void mutation("/api/office-notifications",{action:"READ_ALL"})}>
-    <CheckCheck size={16}/>Mark notifications read</button>:null}
-  </div>
-  {error?<p className={styles.error} role="alert"><TriangleAlert size={16}/>{error}</p>:null}
-  {notice?<p className={styles.notice} role="status">{notice}</p>:null}
-  {loading?<p aria-busy="true" role="status">Checking current source subscriptions…</p>:null}
-  {!loading&&!error&&!shown.length?<div className={styles.empty}>
-   {sourceStatus.every(s=>s.state!=="ok")?"No activity sources are authorized or available.":"No matching activity in your available sources."}
-  </div>:null}
-  {!loading&&!error?<div className={styles.list}>
-   {shown.map(item=><article key={item.source+":"+item.id} data-unread={item.status==="UNREAD"}>
-    <div className={styles.symbol}>{item.source==="mention"?<MessageCircle size={20}/>:
-     item.source==="escalation"?<Headphones size={20}/>:
-     item.kind==="APPROVALS"?<ClipboardCheck size={20}/>:<BellRing size={20}/>}</div>
-    <div className={styles.content}><div><strong>{item.title}</strong>
-     <time dateTime={item.at}>{when(item.at)}</time></div>
-     <p>{item.detail}</p><small>{item.source==="notification"?"Office workflow":item.source==="mention"?"Private Connect":"Assigned IT escalation"}
-      {" · "}{item.status}</small>
-     <nav><Link href={item.href}>Open authorized source <ArrowRight size={15}/></Link>
-      {item.actionable?<button type="button" disabled={!!busy}
-       onClick={()=>void mutation(item.source==="mention"?"/api/office-chat/mentions":"/api/office-notifications",
-        item.source==="mention"?{message_id:item.id}:{action:"READ",notification_id:item.id})}>
-       <CheckCheck size={15}/>Mark read</button>:null}
-     </nav>
-    </div>
-   </article>)}
-  </div>:null}
-  <footer className={styles.disclaimer}><ShieldCheck size={17}/>
-   This view never grants access to a source ticket, approval, document or conversation. Restricted sources and stale memberships do not contribute fabricated counts or private previews.
-  </footer>
+   <p>Only notifications assigned to your Office identity. Source titles are omitted to prevent disclosure after access revocation.</p></div>
+   <button type="button" disabled={loading||!!busy} onClick={()=>{setLoading(true);setRefresh(v=>v+1);}}>
+    <RefreshCw size={16}/>Refresh</button></header>
+  <nav className={styles.toolbar} aria-label="Notification filters">
+   <button type="button" aria-pressed={filter==="ALL"} onClick={()=>setFilter("ALL")}>All ({items.length})</button>
+   <button type="button" aria-pressed={filter==="UNREAD"} onClick={()=>setFilter("UNREAD")}>Unread ({unread})</button>
+   <button type="button" disabled={loading||!!busy||!unread} onClick={()=>void mutate("READ_ALL")}>
+    <CheckCheck size={16}/>Mark all read</button>
+  </nav>
+  {notice?<p role="status" className={styles.notice}>{notice}</p>:null}
+  {error?<div role="alert" className={styles.error}><span>{error}</span>
+   <button type="button" onClick={()=>{setLoading(true);setRefresh(v=>v+1);}}>Retry</button></div>:null}
+  {loading?<p role="status" className={styles.empty}>Loading current actor notifications…</p>:null}
+  {!loading&&!error&&!displayed.length?<p className={styles.empty}>No {filter==="ALL"?"current":"unread"} notifications.</p>:null}
+  {!loading&&!error?<ol className={styles.list}>{displayed.map(item=><li key={item.id}>
+   <BellRing size={18} aria-hidden="true"/>
+   <div><strong>{item.kind.replaceAll("_"," ").toLowerCase()} notification</strong>
+    <small>{new Date(item.created_at).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"})} · {item.status}</small>
+    <p>Open the canonical Office notification center for current source-authorized details.</p></div>
+   <div className={styles.actions}>
+    <Link href="/office/notifications"><ArrowRight size={15}/>Open source</Link>
+    <button type="button" disabled={!!busy} onClick={()=>void mutate(item.status==="UNREAD"?"READ":"UNREAD",item.id)}>
+     {item.status==="UNREAD"?<Eye size={15}/>:<EyeOff size={15}/>}
+     {item.status==="UNREAD"?"Mark read":"Mark unread"}</button>
+    <button type="button" disabled={!!busy} onClick={()=>void mutate("DISMISS",item.id)}>Dismiss</button>
+   </div>
+  </li>)}</ol>:null}
+  <footer><ShieldCheck size={16}/>Activity does not grant access to restricted source records.</footer>
  </section>;
 }
