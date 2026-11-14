@@ -9,6 +9,7 @@ import { InternalWorkspaceScreen } from "@/components/internal-workspace-screen"
 import { OfficeVaultAccessCenter } from "@/components/office-vault-access-center";
 import {OfficeVaultCategoryBrowser} from "@/components/office-vault-category-browser";
 import {OfficeVaultCompanyMaster} from "@/components/office-vault-company-master";
+import {OfficeVaultDocumentDirectory,type VaultDocumentSummary} from "@/components/office-vault-document-directory";
 import {OfficeVaultSettings} from "@/components/office-vault-settings";
 import { OfficeVaultOverview } from "@/components/office-vault-overview";
 import { OfficeVaultActivity } from "@/components/office-vault-activity";
@@ -44,11 +45,14 @@ async function GrantedDocuments(){
  const sourceVisible=await getOfficeVaultSourceVisibleRecordIds("documents",data.instances);
  const docs=data.instances.filter(row=>sourceVisible.has(row.id)&&
   (grants.includes(null)||grants.includes(row.id)));
- if(!docs.length)return <AccessEmpty category="document"/>;
- return <div className={styles.categories}>{docs.map(row=><Link className={styles.category}
-  href={"/office/k-vault/documents/"+row.id} key={row.id}><FileLock2 size={20}/>
-  <span><strong>{row.title}</strong><small>{row.document_code} · {row.classification} · {row.status}</small></span>
-  <ArrowRight size={16}/></Link>)}</div>;
+ const rows:VaultDocumentSummary[]=docs.map(row=>({
+  id:row.id,title:row.title,code:row.document_code,
+  classification:row.classification,status:row.status,
+  createdAt:row.created_at,
+  outputCount:data.renders.filter(render=>render.document_instance_id===row.id&&
+   ["GENERATED","SIGNED"].includes(render.status)).length,
+ }));
+ return <OfficeVaultDocumentDirectory records={rows}/>;
 }
 async function GrantedCustody(){
  const grants=await getOfficeVaultGrantedResources("custody");
