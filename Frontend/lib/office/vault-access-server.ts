@@ -190,3 +190,19 @@ export async function getOfficeVaultAllowedActions(category:string,recordId:stri
  }
  return {read:actions.has("READ"),preview:actions.has("PREVIEW"),download:actions.has("DOWNLOAD")};
 }
+
+
+/** An employee may inspect only audit events attributed to their own AAL2 identity. */
+export async function getOfficeVaultMyActivity() {
+ const current = await actor();
+ const { data, error } = await current.admin.from("office_vault_access_events")
+  .select("id,event_type,category_slug,resource_id,occurred_at")
+  .eq("actor_user_id",current.identity.userId)
+  .order("occurred_at",{ascending:false}).limit(100);
+ if(error)throw new OfficeVaultAccessError(503,"Vault access history is temporarily unavailable");
+ return {
+  generated_at:new Date().toISOString(),
+  events:data??[],
+  scope:"OWN" as const,
+ };
+}

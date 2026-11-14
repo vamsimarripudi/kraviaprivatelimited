@@ -8,6 +8,7 @@ import { getSecureCustodyOverview } from "@/lib/office/custody-server";
 import { InternalWorkspaceScreen } from "@/components/internal-workspace-screen";
 import { OfficeVaultAccessCenter } from "@/components/office-vault-access-center";
 import { OfficeVaultOverview } from "@/components/office-vault-overview";
+import { OfficeVaultActivity } from "@/components/office-vault-activity";
 import { requireOfficeVaultRecord, getOfficeVaultGrantedResources, getOfficeVaultAllowedActions, OfficeVaultAccessError } from "@/lib/office/vault-access-server";
 import { vaultCategories, type VaultCategory } from "@/lib/office/vault-categories";
 import styles from "@/components/office-vault.module.css";
@@ -122,9 +123,8 @@ export default async function VaultPages({params}:Props){
    if(!allowed.includes("access.profile.assign")) notFound();
    content=<OfficeVaultAccessCenter reviewOnly/>;
  } else if(route==="activity"){
-   title="Audit activity";subtitle="Authorized source-system events. No cross-employee private message enumeration.";
-   if(!allowed.includes("audit.read")&&!allowed.includes("access.audit.read")) notFound();
-   content=<InternalWorkspaceScreen workspace="office" section="audit"/>;
+   title="My Vault activity";subtitle="Only access events attributed to your current AAL2 Office identity.";
+   content=<OfficeVaultActivity/>;
  } else if(route==="settings"){
    title="Vault settings";subtitle="Source-system policy controls remain governed and independently reviewed.";
    if(!allowed.includes("access.profile.assign")) notFound();

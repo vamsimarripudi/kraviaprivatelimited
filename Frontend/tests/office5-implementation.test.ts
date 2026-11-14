@@ -57,6 +57,14 @@ describe("KRAVIA Office 5.0 source-backed implementation guardrails", () => {
    expect(vault).toContain("/api/office-vault/documents/");
    expect(vault).not.toMatch(/password|private.key|recovery.phrase|bank.pin/i);
  });
+ it("keeps Vault activity attributable only to the current verified Office actor",()=>{
+   const server=read("lib/office/vault-access-server.ts");
+   const activity=read("components/office-vault-activity.tsx");
+   expect(server).toContain('export async function getOfficeVaultMyActivity()');
+   expect(server).toContain('.eq("actor_user_id",current.identity.userId)');
+   expect(activity).toContain('data.scope !== "OWN"');
+   expect(vault).toContain('<OfficeVaultActivity/>');
+ });
  it("provides keyboard-first responsive Office and Finance navigation",()=>{
    expect(shell).toContain("office5-mobile-dock");
    expect(shell).toContain("office-mega-panel");
