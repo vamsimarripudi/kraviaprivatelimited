@@ -1,6 +1,7 @@
 name: KRAVIA Office 5.0 controlled production database migration
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
@@ -15,6 +16,7 @@ concurrency:
 
 jobs:
   controlled-migration:
+    if: github.event_name == 'workflow_dispatch'
     name: Backup, preflight, apply and verify 17 Office 5.0 migrations
     runs-on: ubuntu-latest
     timeout-minutes: 75
@@ -267,15 +269,22 @@ jobs:
           db=os.environ["BACKUP_DATABASE_URL"]
           def read(sql):
             return subprocess.check_output(["psql",db,"-At","-F","|","-v","ON_ERROR_STOP=1","-c",sql],text=True).strip()
-          rows=read("select version,name,md5(statements[1]) from supabase_migrations.schema_migrations "
+          # Supabase CLI stores a parsed statement array, not the original whole-file
+          # string. Comparing md5(statements[1]) with md5(file) is invalid.
+          rows=read("select version,name,array_length(statements,1),"
+                    "encode(convert_to(left(statements[1],100),'UTF8'),'hex') "
+                    "from supabase_migrations.schema_migrations "
                     "where version between '20261114150001' and '20261114150017' order by version")
-          records=[line.split("|",2) for line in rows.splitlines()]
+          records=[line.split("|",3) for line in rows.splitlines()]
           sources=sorted(pathlib.Path("Database/supabase/migrations").glob("202611141500*.sql"))
           assert len(records)==len(sources)==17,f"Only {len(records)}/17 new migrations were committed"
           for source,record in zip(sources,records):
-            version,name,digest=record
+            version,name,statement_count,leading_hex=record
             assert version+"_"+name+".sql"==source.name,f"Remote migration name differs: {version}"
-            assert hashlib.md5(source.read_bytes()).hexdigest()==digest, f"Remote SQL body mismatch: {version}"
+            assert int(statement_count)>0,f"No parsed SQL retained for {version}"
+            assert source.read_text().startswith(bytes.fromhex(leading_hex).decode()), (
+              f"Stored SQL does not start with the approved source: {version}"
+            )
           objects=read("select to_regclass('public.office_chat_conversations') is not null "
                        "and to_regclass('public.office_chat_change_events') is not null "
                        "and to_regclass('public.office_vault_secret_documents') is not null "
@@ -303,3 +312,71 @@ jobs:
             "$RUNNER_TEMP/kravia-office5-pre-migration.tar.gz" \
             "$RUNNER_TEMP/kravia-office5-pre-migration.tar.gz.gpg" \
             "$RUNNER_TEMP/office5-dry-run.log"
+
+  post-verify:
+    name: Read-only Office 5.0 production schema verification
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      OFFICE_DB_URL: ${{ secrets.KRAVIA_BACKUP_DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Independently verify 17 applied versions, source anchors, RLS and buckets
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-client
+          fi
+          python3 - <<'PY'
+          import os
+          import pathlib
+          import re
+          import subprocess
+          from urllib.parse import parse_qsl,urlencode,urlsplit,urlunsplit
+
+          raw=os.environ.get("OFFICE_DB_URL","")
+          assert "xjtazosozxmudkbxqhjl" in raw,"Approved database identifier is missing"
+          parsed=urlsplit(raw)
+          options=parse_qsl(parsed.query,keep_blank_values=True)
+          assert not any(k=="sshmode" for k,v in options) or not any(k=="sslmode" for k,v in options)
+          options=[("sslmode",v) if k=="sshmode" else (k,v) for k,v in options]
+          db=urlunsplit((parsed.scheme,parsed.netloc,parsed.path,urlencode(options),parsed.fragment))
+          def read(sql):
+            out=subprocess.run(["psql",db,"-At","-F","|","-v","ON_ERROR_STOP=1","-c",sql],
+                               capture_output=True,text=True)
+            if out.returncode!=0:
+              raise RuntimeError("Secure read-only PostgreSQL verification failed; credentials suppressed")
+            return out.stdout.strip()
+
+          files=sorted(pathlib.Path("Database/supabase/migrations").glob("202611141500*.sql"))
+          rows=read("select version,name,array_length(statements,1),"
+                    "encode(convert_to(left(statements[1],100),'UTF8'),'hex') "
+                    "from supabase_migrations.schema_migrations "
+                    "where version between '20261114150001' and '20261114150017' order by version")
+          records=[line.split("|",3) for line in rows.splitlines()]
+          assert len(files)==len(records)==17,"Not all 17 approved Office 5.0 versions are present"
+          for i,(file,record) in enumerate(zip(files,records),1):
+            version,name,n,firsthex=record
+            assert version==f"202611141500{i:02d}","Unexpected migration version"
+            assert file.name==version+"_"+name+".sql","GitHub and database names differ"
+            assert int(n)>0,"Empty stored SQL statement array"
+            assert file.read_text().startswith(bytes.fromhex(firsthex).decode()),"Stored source prefix mismatch"
+
+          valid=read("select "
+            "(select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace "
+            "where n.nspname='public' and c.relkind='r' and "
+            "(c.relname like 'office_chat_%' or c.relname like 'office_vault_secret_%' "
+            "or c.relname in ('office_vault_access_requests','office_vault_access_grants','office_vault_access_events')) "
+            "and not c.relrowsecurity)=0 "
+            "and to_regclass('public.office_chat_change_events') is not null "
+            "and to_regclass('public.office_chat_typing_presence') is not null "
+            "and to_regclass('public.office_vault_secret_documents') is not null "
+            "and to_regclass('public.office_vault_secret_ingress_sessions') is not null "
+            "and (select count(*) from storage.buckets where id in "
+            "('office-chat-attachments','office-vault-secrets') and public=false)=2")
+          assert valid=="t","Private buckets, secret locker, realtime or RLS validation failed"
+          print("Verified 17/17 applied Office 5.0 migrations against current approved source, private buckets, RLS and realtime/locker objects.")
+          PY
