@@ -7,7 +7,7 @@ describe("KRAVIA Connect AI only exposes approved source governance",()=>{
   expect(router).toContain('if(path==="ai")return <OfficeConnectAiWorkspace/>;');
   expect(view).toContain('fetch("/api/office-ai-governance"');
   expect(view).not.toContain("dangerouslySetInnerHTML");
-  expect(view).not.toContain("method:\\"POST\\"");
+  expect(view).not.toContain('method:"POST"');
  });
  it("shows only approved, nonexpired tools and current actor's own requests",()=>{
   expect(view).toContain('item.status==="APPROVED"');
