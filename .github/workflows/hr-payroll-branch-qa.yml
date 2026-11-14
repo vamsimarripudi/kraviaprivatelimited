@@ -14,6 +14,7 @@ on:
       - 'Frontend/tests/office-attendance-salary-preview.test.ts'
       - 'Frontend/tests/office-hr-hours-payroll-safety.test.ts'
       - 'Database/supabase/migrations/202611140003_hr_hours_payroll_revision_guards.sql'
+      - 'Database/supabase/migrations/202611140004_hr_payroll_independent_review.sql'
       - 'Database/supabase/tests/hr-payroll-guards-*.sql'
       - '.github/workflows/hr-payroll-branch-qa.yml'
   workflow_dispatch:
@@ -89,5 +90,6 @@ jobs:
           pg -f Database/supabase/migrations/202611130002_hr_worktime_evidence_authority.sql
           pg -f Database/supabase/tests/hr-payroll-guards-fixture.sql
           pg -f Database/supabase/migrations/202611140003_hr_hours_payroll_revision_guards.sql
+          pg -f Database/supabase/migrations/202611140004_hr_payroll_independent_review.sql
           test "$(pg --tuples-only --no-align -f Database/supabase/tests/hr-payroll-guards-smoke.sql | tail -n 1)" = "HR_PAYROLL_CORRECTION_GUARDS_VERIFIED"
           echo "HR payroll and overtime guards passed in disposable PostgreSQL."
