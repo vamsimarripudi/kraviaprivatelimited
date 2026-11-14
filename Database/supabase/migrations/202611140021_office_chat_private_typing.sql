@@ -1,6 +1,6 @@
 -- KRAVIA Connect 5.0: ephemeral, revocation-aware typing signals.
 -- No keyboard content, IP address or device identifier is stored.
--- Requires private change ledger 202611140014; branch-only until approval.
+-- Requires private change ledger 202611140019; branch-only until approval.
 create table if not exists public.office_chat_typing_presence(
  conversation_id uuid not null references public.office_chat_conversations(id) on delete restrict,
  user_id uuid not null references public.office_identity_users(user_id) on delete restrict,

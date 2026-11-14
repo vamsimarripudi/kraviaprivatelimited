@@ -218,7 +218,7 @@ All routes below continue to use their canonical implementation. 5.0 shell styli
 ## CI and release gates
 
 - [x] Green CI existed on branch commit `35de78ce9750c327e486e0dc39fdbb91f6830ddb`: frontend, backend, Office browser E2E, isolated Connect/Vault/IT security, discovery.
-- [ ] Recheck all gates after **latest branch changes**, including the 202611140010 unread snapshot and the updated dashboard/activity screens. Do not call them green without commit-matched check results.
+- [ ] Recheck all gates after **latest branch changes**, including the 202611140015 unread snapshot and the updated dashboard/activity screens. Do not call them green without commit-matched check results.
 - [ ] Rehearse the entire ordered Supabase migration chain against an isolated copy of the relevant canonical Office schema and private storage policies; unit test stubs alone are insufficient.
 - [ ] AAL2 session security and role matrix: Owner, Director/Finance/HR/Member/Product Admin, delegated heads, ordinary employee, trainee, restricted adviser and no-onboarding employee.
 - [ ] Browser E2E screenshots at 360, 390, 430, 768, 900, 1024, 1280, 1440 and 1920 px in light and dark modes; screenshot artifacts must represent real rendered application screens.

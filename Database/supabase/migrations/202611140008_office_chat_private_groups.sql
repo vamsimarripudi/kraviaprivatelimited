@@ -1,5 +1,5 @@
 -- KRAVIA Connect: internal, explicitly member-scoped groups.
--- Additive to 202611140001. No external invites or notifications.
+-- Additive to 202611140007. No external invites or notifications.
 alter table public.office_chat_audit_events
  drop constraint if exists office_chat_audit_events_event_type_check;
 alter table public.office_chat_audit_events
