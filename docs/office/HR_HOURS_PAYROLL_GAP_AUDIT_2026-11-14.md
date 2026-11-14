@@ -11,7 +11,7 @@ KRAVIA's internal workforce standard is flexible worktime, six net hours per nor
 | --- | --- | --- |
 | Role and access | `Frontend/lib/office/workspaces.ts`, `Frontend/lib/office/permission-engine.ts`, HR effective-access migration | Owner/admin boundaries and effective HR authority; no self-approval |
 | Time recording | `Frontend/lib/office/flexible-worktime.ts`, `office_attendance_sessions`, `office_attendance_breaks` | Real clocked sessions with unpaid breaks, flexible starts |
-| Work evidence | `Frontend/app/api/office-worktime/route.ts`, `worktime-payroll-server.ts`, `202611140003_hr_hours_payroll_revision_guards.sql` | Recorded shifts queued for independent review, historical corrections and auditable pending edits |
+| Work evidence | `Frontend/app/api/office-worktime/route.ts`, `worktime-payroll-server.ts`, `20261114120547_hr_hours_payroll_revision_guards_20261114.sql` | Recorded shifts queued for independent review, historical corrections and auditable pending edits |
 | Regular pay calculation | `Frontend/lib/office/attendance-salary-preview.ts` | Computes scheduled regular hours, approved regular hours, unresolved hours and provisional gross |
 | Payroll preparation | `Frontend/app/api/office-payroll/route.ts`, `payroll-server.ts` | Reviewable attendance snapshots, compensation versions, adjustments and payroll calculation |
 | Overtime | `Frontend/lib/office/worktime-payroll-policy.ts` | Independent policy, reviewed weekday/weekend/night premiums and draft-only adjustment import |
@@ -56,18 +56,18 @@ Do not publish individual employee salary amounts, onboarding documents, attenda
 
 ## Source-audited correction status
 The feature branch now contains four guarded payroll migrations:
-- `202611140003_hr_hours_payroll_revision_guards.sql`: traceable worktime edits, queued verified sessions, draft recalculation invalidation and active premium deduplication.
-- `202611140004_hr_payroll_independent_review.sql`: explicitly independent payroll attendance review, original source evidence validation, payable/leave/absence reconciliation, atomic draft correction, employer-date validation, beneficiary self-approval prevention, and safe payroll locking.
-- `202611140005_hr_leave_evidence.sql`: source-backed paid, unpaid, sick and holiday evidence with independent decisions; approved weekdays reconcile to payable/unpaid salary hours. Pending leave, missing leave references and mismatched paid hours block final payroll.
-- `202611140006_hr_payroll_maker_checker.sql`: requires three distinct actors for payroll preparation, Finance review and Owner final approval, beyond merely granting permissions to one person.
+- `20261114120547_hr_hours_payroll_revision_guards_20261114.sql`: traceable worktime edits, queued verified sessions, draft recalculation invalidation and active premium deduplication.
+- `20261114120559_hr_payroll_independent_review_20261114.sql`: explicitly independent payroll attendance review, original source evidence validation, payable/leave/absence reconciliation, atomic draft correction, employer-date validation, beneficiary self-approval prevention, and safe payroll locking.
+- `20261114120612_hr_leave_evidence_20261114.sql`: source-backed paid, unpaid, sick and holiday evidence with independent decisions; approved weekdays reconcile to payable/unpaid salary hours. Pending leave, missing leave references and mismatched paid hours block final payroll.
+- `20261114120622_hr_payroll_maker_checker_20261114.sql`: requires three distinct actors for payroll preparation, Finance review and Owner final approval, beyond merely granting permissions to one person.
 
 The HR payroll console now supports independently reviewed leave/holiday entries, audited payroll attendance approval and adjustment reconciliation. It also supports independent review with a mandatory note and displays evidence-based readiness blockers; rules-only permission does not receive the employee directory. Non-additive role remuneration lines may be added in a draft provided they reconcile to the single monthly gross.
 
 Production prerequisites still include independently authorized remuneration evidence, verified employment dates, a competent independent reviewer, actual leave/holiday policy records and CA-reviewed statutory rules. **Do not enter real or hypothetical employee earnings in tests, migrations or repository documents.**
 
 ## Additional source-verified fixes (HR leave and maker–checker)
-- `202611140005_hr_leave_evidence.sql`: Service-only employee-specific leave request and independent review; separately approved paid leave, unpaid leave and paid company holiday evidence. Source IDs **and** matching paid/unpaid minutes are validated before payroll calculation, submission and approval. Pending weekday leave blocks payroll until an independent decision. Approved late leave prompts a separate correction rather than rewriting locked pay.
-- `202611140006_hr_payroll_maker_checker.sql`: Finance review, separate Owner final decision and payroll requester must be **three distinct actual identities**. Direct service-role RPC cannot treat the same employee as maker and reviewer. Employment payroll must be authorized under the existing workflow.
+- `20261114120612_hr_leave_evidence_20261114.sql`: Service-only employee-specific leave request and independent review; separately approved paid leave, unpaid leave and paid company holiday evidence. Source IDs **and** matching paid/unpaid minutes are validated before payroll calculation, submission and approval. Pending weekday leave blocks payroll until an independent decision. Approved late leave prompts a separate correction rather than rewriting locked pay.
+- `20261114120622_hr_payroll_maker_checker_20261114.sql`: Finance review, separate Owner final decision and payroll requester must be **three distinct actual identities**. Direct service-role RPC cannot treat the same employee as maker and reviewer. Employment payroll must be authorized under the existing workflow.
 - `Frontend/lib/office/attendance-salary-preview.ts`: Approved leave amounts count as verified payable or independently verified unpaid time, without inferring that missing check-in means absence; overlapping worked and leave minutes are rejected.
 - `Frontend/components/office-worktime-console.tsx`: Leave request, source-reference form, HR independent decision and actual paid/unpaid time display.
 - `Frontend/components/office-payroll-console.tsx`: Actual database readiness blockers and non-additive role-components draft; any salary is inactive until approved.

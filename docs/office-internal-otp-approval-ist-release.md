@@ -23,7 +23,7 @@ Workflow: Document Studio / My roles & onboarding → real assigned PDF → eSig
 
 The Next.js Frontend runtime needs `OFFICE_DOCUMENT_OTP_HMAC_SECRET` set securely to at least 32 high-entropy characters; this must not enter source control or logs. Existing `BREVO_API_KEY` must be present in the **Frontend server runtime** (not `NEXT_PUBLIC_*`); `BREVO_SENDER_EMAIL`, if provided, must equal `hello@kraviaprivatelimited.com`. Existing authenticated Office cookies, service-role database connectivity, and valid company email must work. Keep existing lifecycle mail dispatch policies and external workers disabled.
 
-Apply and audit the forward-only `Database/supabase/migrations/202611140001_office_document_email_otp_approval.sql` to the correct KRAVIA Office Supabase database **before** releasing the frontend, after verifying it is not already recorded and existing mail remains disabled. The isolated PostgreSQL17 CI suite validates all auth/privacy/OTP/location gates with synthetic rollback fixtures.
+Apply and audit the forward-only `Database/supabase/migrations/20261114110233_office_document_email_otp_approval_20261114.sql` to the correct KRAVIA Office Supabase database **before** releasing the frontend, after verifying it is not already recorded and existing mail remains disabled. The isolated PostgreSQL17 CI suite validates all auth/privacy/OTP/location gates with synthetic rollback fixtures.
 
 No valid HR appointment template, document or employee ID may be fabricated for a demonstration. Publish genuine approved HR template content through its existing independent approval flow and assign a real document, after appropriate HR/legal review.
 

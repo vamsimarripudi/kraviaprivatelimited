@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const root = new URL("../", import.meta.url);
 const load = (path: string) => readFileSync(new URL(path, root), "utf8");
-const migration = load("../Database/supabase/migrations/202611140003_hr_hours_payroll_revision_guards.sql");
+const migration = load("../Database/supabase/migrations/20261114120547_hr_hours_payroll_revision_guards_20261114.sql");
 const server = load("lib/office/worktime-payroll-server.ts");
 const payroll = load("lib/office/payroll-server.ts");
 const ui = load("components/office-worktime-console.tsx");

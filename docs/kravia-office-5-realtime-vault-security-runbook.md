@@ -9,15 +9,15 @@ No Vercel preview, Railway/Vercel production deployment, main merge, production 
 ## Private Connect real-time service
 
 - The first-party AAL2 Office identity is authoritative. Never issue a Supabase service key or private identity token to browser JavaScript.
-- Migration 202611140020_office_chat_private_realtime.sql provides a browser-inaccessible, RLS-protected change ledger. Message, member, reaction, pin and attachment updates create event invalidations with NO message text or storage references.
-- Migration 202611140021_office_chat_private_typing.sql provides a transient typing Boolean with a ten-second expiry and current-membership trigger.
+- Migration 20261114130014_office_chat_private_realtime.sql provides a browser-inaccessible, RLS-protected change ledger. Message, member, reaction, pin and attachment updates create event invalidations with NO message text or storage references.
+- Migration 20261114130015_office_chat_private_typing.sql provides a transient typing Boolean with a ten-second expiry and current-membership trigger.
 - GET /api/office-chat/conversations/[id]/events provides a bounded 24-second private Server-Sent Events channel with authorization rechecked for every batch, bounded backpressure and an access-revoked closure.
 - Browser clients refetch source-authorized message content after receiving an event. The existing private 15-second polling is the network fallback. The event stream is NOT the source of truth.
 - Outstanding enterprise acceptance: authenticated multi-user/department-transfer rehearsal, reconnect and stale-token testing, concurrent SSE load tests, multi-instance failover and a measured service target. No performance or SLA guarantee is inferred from CI.
 
 ## Sealed K-Vault secret locker
 
-- Migration 202611140022_office_vault_sealed_locker.sql provides the private office-vault-secrets bucket, immutable encrypted versions, separate source permissions, audited access and independent review.
+- Migration 20261114130016_office_vault_sealed_locker.sql provides the private office-vault-secrets bucket, immutable encrypted versions, separate source permissions, audited access and independent review.
 - Each version uses a fresh random AES-256-GCM content key. A separate 32-byte server-held key wraps the content key, binding both encrypted layers to the document and version IDs as authenticated associated data.
 - Configure OFFICE_VAULT_ACTIVE_KEY_ID and OFFICE_VAULT_KEYRING_JSON ONLY through trusted server-runtime secret management. The JSON object maps key IDs to true 32-byte base64 keys. Never store a key in source control, NEXT_PUBLIC variables, employee email or the browser. Preserve old key IDs while their versions remain encrypted; require a separate approved rewrapping process for rotation.
 - The FastAPI endpoint POST /api/v1/security/file-scan verifies a bounded attachment through the private ClamAV daemon and returns an integrity-checked digest. Configure CLAMAV_HOST, CLAMAV_PORT in authorized backend infrastructure and verify with the existing EICAR self-test. Scanner unavailability leaves the file QUARANTINED; infected files are BLOCKED.

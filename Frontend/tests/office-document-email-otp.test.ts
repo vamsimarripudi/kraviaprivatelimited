@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 function read(path: string) {
   return readFileSync(new URL("../" + path, import.meta.url), "utf8");
 }
-const schema = read("../Database/supabase/migrations/202611140001_office_document_email_otp_approval.sql");
+const schema = read("../Database/supabase/migrations/20261114110233_office_document_email_otp_approval_20261114.sql");
 const service = read("lib/office/document-otp-server.ts");
 const email = read("lib/office/document-otp-email.ts");
 const route = read("app/api/office-documents/otp/route.ts");
