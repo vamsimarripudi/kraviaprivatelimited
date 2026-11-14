@@ -7,6 +7,7 @@ import { getOfficeDocumentStudioOverview } from "@/lib/office/document-studio-se
 import { getSecureCustodyOverview } from "@/lib/office/custody-server";
 import { InternalWorkspaceScreen } from "@/components/internal-workspace-screen";
 import { OfficeVaultAccessCenter } from "@/components/office-vault-access-center";
+import {OfficeVaultCategoryBrowser} from "@/components/office-vault-category-browser";
 import { OfficeVaultOverview } from "@/components/office-vault-overview";
 import { OfficeVaultActivity } from "@/components/office-vault-activity";
 import { OfficeVaultVerificationQueue } from "@/components/office-vault-verification-queue";
@@ -97,7 +98,7 @@ export default async function VaultPages({params}:Props){
    content=<OfficeVaultOverview categories={categories}/>;
  } else if(route==="categories"){
    title="Categories";subtitle="Only resource categories authorized for the current employee.";
-   content=categories.length?<div className={styles.categories}>{categories.map(link)}</div>:<Restricted request/>;
+   content=<OfficeVaultCategoryBrowser categories={categories}/>;
  } else if(route==="company"){
    title="Company Master";subtitle="Verified company registration references, masked identifiers and independent review evidence.";
    if(!visible("identity")) notFound();

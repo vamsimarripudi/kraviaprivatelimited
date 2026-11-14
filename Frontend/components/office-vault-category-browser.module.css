@@ -1,0 +1,12 @@
+.browser{display:grid;gap:12px;min-width:0;color:var(--office-ui-ink)}
+.browser label{display:flex;align-items:center;gap:8px;font-weight:700;font-size:12px}
+.browser input{box-sizing:border-box;width:100%;max-width:560px;min-height:44px;padding:11px;border:1px solid var(--office-ui-line);border-radius:10px;background:var(--office-ui-surface);color:var(--office-ui-ink);font:inherit}
+.count{margin:0;color:var(--office-ui-muted);font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,265px),1fr));gap:12px}
+.grid a{display:flex;align-items:start;gap:12px;min-width:0;padding:18px;border:1px solid var(--office-ui-line);border-radius:16px;background:var(--office-ui-surface);color:var(--office-ui-ink);text-decoration:none}
+.grid a:hover,.grid a:focus-visible{border-color:var(--office-ui-accent)}.grid a>svg{flex:none;color:var(--office-ui-accent)}
+.grid a>span{flex:1;display:grid;gap:7px;min-width:0}.grid strong{font-size:15px}.grid small{font-size:12px;line-height:1.5;color:var(--office-ui-muted)}
+.empty{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border:1px solid var(--office-ui-line);border-radius:16px;padding:24px;color:var(--office-ui-muted)}
+.empty a{display:inline-flex;align-items:center;min-height:44px;color:var(--office-ui-accent)}.empty p{margin:0}
+.browser :is(a,input):focus-visible{outline:2px solid var(--office-ui-accent);outline-offset:3px}
+@media(max-width:767px){.grid{grid-template-columns:1fr}}
