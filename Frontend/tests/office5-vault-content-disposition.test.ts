@@ -16,7 +16,7 @@ describe("K-Vault protected download headers",()=>{
   expect(disposition).not.toContain("X-Injected:yes/");
  });
  it("does not throw for malformed Unicode inherited from old metadata",()=>{
-  expect(privateDocumentDisposition("broken\\uD800name.pdf")).toContain("filename*=UTF-8''");
+  expect(privateDocumentDisposition("broken"+String.fromCharCode(0xD800)+"name.pdf")).toContain("filename*=UTF-8''");
  });
  it("keeps private document hashes out of HTTP cache identifiers",()=>{
   expect(route).toContain('privateDocumentDisposition(file.filename)');
