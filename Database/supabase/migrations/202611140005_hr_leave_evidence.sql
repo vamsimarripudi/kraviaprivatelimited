@@ -165,14 +165,41 @@ declare per public.office_payroll_periods%rowtype;
 begin
   select * into per from public.office_payroll_periods where id=p_period;
   if not found then raise exception 'Payroll period missing'; end if;
+
+  -- Inspect actual scheduled weekdays. A weekend-only leave request has
+  -- no ordinary payable hours and must not freeze monthly wages.
+  -- Merely adding a leave ID to source_snapshot is NOT enough: the paid
+  -- and unpaid hour totals must reconcile with the approved leave ledger.
   if exists (
-    select 1 from public.office_payroll_attendance_snapshots s
-    join public.office_hr_leave_requests l on l.employee_user_id=s.employee_user_id
-    where s.period_id=per.id and l.status='APPROVED'
-      and l.starts_on<=per.ends_on and l.ends_on>=per.starts_on
-      and not coalesce((s.source_snapshot->'source_leave_ids') ? l.id::text,false)
+    select 1
+    from public.office_payroll_attendance_snapshots s
+    cross join lateral (
+      select
+        coalesce(sum(case when l.pay_class<>'UNPAID_LEAVE'
+          then l.minutes_per_weekday else 0 end),0)::numeric as paid_minutes,
+        coalesce(sum(case when l.pay_class='UNPAID_LEAVE'
+          then l.minutes_per_weekday else 0 end),0)::numeric as unpaid_minutes,
+        count(*) filter (where not coalesce(
+          (s.source_snapshot->'source_leave_ids') ? l.id::text,false)
+        ) as missing_references
+      from public.office_hr_leave_requests l
+      cross join lateral generate_series(
+        greatest(l.starts_on,per.starts_on)::timestamp,
+        least(l.ends_on,per.ends_on)::timestamp,
+        interval '1 day'
+      ) as work_date
+      where l.employee_user_id=s.employee_user_id
+        and l.status='APPROVED'
+        and l.starts_on<=per.ends_on
+        and l.ends_on>=per.starts_on
+        and extract(isodow from work_date) between 1 and 5
+    ) verified
+    where s.period_id=per.id
+      and (verified.missing_references>0
+        or abs(s.paid_leave_units*60-verified.paid_minutes)>0.06
+        or abs(s.unpaid_leave_units*60-verified.unpaid_minutes)>0.06)
   ) then
-    raise exception 'Payroll is missing approved leave evidence; refresh attendance and obtain independent review before calculation, approval or payment';
+    raise exception 'Payroll leave evidence or paid/unpaid hours are stale; re-import independently approved leave and re-review before calculation or payment';
   end if;
 end; $kravia_leave$;
 revoke all on function public.office_hr_leave_payroll_guard(uuid) from public,anon,authenticated;
