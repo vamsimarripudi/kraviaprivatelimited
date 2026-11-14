@@ -207,7 +207,7 @@ export async function getOfficeDocumentStudioOverview() {
       .in("document_instance_id",otpInstanceIds)
       .order("approved_at",{ascending:false}).limit(500):null;
   const otpApprovals=otpQuery
-    ?await (ownerOverride?otpQuery:otpQuery.eq("signer_user_id",current.identity.userId))
+    ?await (ownerSigningReviewer?otpQuery:otpQuery.eq("signer_user_id",current.identity.userId))
     :{data:[],error:null};
   fail(otpApprovals.error,"Internal document approval receipts unavailable");
 
