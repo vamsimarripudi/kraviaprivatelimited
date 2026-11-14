@@ -37,6 +37,7 @@ describe("KRAVIA employee department-transfer inbox", () => {
     expect(panel).toContain('selected && mode === "manage"');
     expect(panel).toContain('window.confirm');
     expect(panel).toContain('transfer_id: pending.id');
+    expect(panel).toContain('if (body.action === "ACCEPT") router.refresh()');
   });
 
   it("does not expose the employee directory or permit third-party acceptance through the API", () => {
