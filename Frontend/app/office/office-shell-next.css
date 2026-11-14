@@ -427,3 +427,25 @@
 .office-manual-sidebar-status{display:inline-flex;align-items:center;justify-content:center;font-size:10px;line-height:1.25;padding:4px 7px;border-radius:999px;margin-left:auto;white-space:nowrap;background:#edf4fe;color:#235b91;border:1px solid #bbd3ec;font-weight:750}
 [data-ui-theme="dark"] .office-manual-sidebar-status{background:#172a44;color:#d3e7ff;border-color:#3b567a}
 @media(max-width:480px){.office-manual-sidebar-status{font-size:9px;padding:4px 6px}}
+
+/* IST clock occupies the existing 58px/56px header: no toolbar height change. */
+.kravia-office .office-modern .office-ist-clock{
+  display:inline-flex;align-items:center;justify-content:flex-end;gap:6px;
+  color:var(--off-next-ink,#17251f);font-size:11px;line-height:18px;
+  font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap;
+  flex:none;max-width:100%;min-width:0;
+}
+.kravia-office .office-modern .office-ist-clock-separator{color:var(--off-next-muted,#63736b);font-size:9px}
+.kravia-office .office-modern .office-ist-clock-zone{color:var(--off-next-muted,#63736b);font-size:9px;letter-spacing:.05em}
+.kravia-office .office-modern .office-ist-clock-date-small{display:none}
+@media(max-width:900px){
+  .kravia-office .office-modern .office-ist-clock{gap:4px;font-size:10px}
+  .kravia-office .office-modern .office-ist-clock-seconds{display:none}
+  .kravia-office .office-modern .office-ist-clock-date{display:none}
+  .kravia-office .office-modern .office-ist-clock-date-small{display:inline}
+}
+@media(max-width:390px){
+  .kravia-office .office-modern .office-ist-clock{gap:3px;font-size:10px}
+  .kravia-office .office-modern .office-topbar-compact .office-breadcrumbs{max-width:28vw}
+  .kravia-office .office-modern .office-ist-clock-zone{font-size:8px}
+}

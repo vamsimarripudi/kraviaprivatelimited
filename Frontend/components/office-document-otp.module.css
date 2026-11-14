@@ -1,0 +1,113 @@
+.approveButton {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 8px 11px; min-height: 36px; max-width: 100%;
+  background: var(--off-next-panel, #fff); color: var(--off-next-ink, #17251f);
+  border: 1px solid var(--off-next-line, #dce6df);
+  border-radius: 9px; font-size: 12px; font-weight: 700;
+  cursor: pointer; white-space: normal; text-align: center;
+}
+.approveButton:hover { border-color: #20764b; }
+.approveButton:focus-visible,.primary:focus-visible {
+  outline: 2px solid #147c48; outline-offset: 2px;
+}
+.dialog {
+  padding: 0; margin: auto; width: min(440px, calc(100vw - 28px));
+  max-width: min(440px, calc(100vw - 28px));
+  max-height: calc(100dvh - 28px); overflow: auto;
+  border: 1px solid var(--off-next-line, #dce6df);
+  border-radius: 16px; background: var(--off-next-panel, #fff);
+  color: var(--off-next-ink, #17251f);
+  box-shadow: 0 24px 88px rgba(0, 0, 0, .24);
+}
+.dialog::backdrop { background: rgba(7, 15, 11, .62); }
+.dialogHead {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 12px; padding: 16px 18px;
+  border-bottom: 1px solid var(--off-next-line, #dce6df);
+}
+.dialogHead small {
+  color: var(--off-next-muted, #63736b); font-size: 10px;
+  font-weight: 750; letter-spacing: .08em;
+}
+.dialogHead h3 { margin: 5px 0 0; font-size: 18px; line-height: 1.3; }
+.dialogHead button {
+  flex: none; width: 33px; height: 33px; display: grid; place-items: center;
+  background: transparent; color: inherit; border: 1px solid var(--off-next-line, #dce6df);
+  border-radius: 8px; cursor: pointer;
+}
+.dialogBody {
+  padding: 18px; display: grid; gap: 12px; font-size: 13px; line-height: 1.5;
+}
+.dialogBody p { margin: 0; }
+.email {
+  display: flex; align-items: center; gap: 10px; padding: 12px;
+  border: 1px solid var(--off-next-line, #dce6df);
+  border-radius: 10px; background: var(--off-next-canvas, #f6f8f7);
+}
+.email span { min-width: 0; display: grid; }
+.email b { overflow-wrap: anywhere; }
+.employee { color: var(--off-next-muted, #63736b); font-size: 12px; }
+.employee strong { color: var(--off-next-ink, #17251f); }
+.error {
+  padding: 10px 12px; border: 1px solid #b55b60;
+  color: #9e3439; background: rgba(190, 65, 65, .08);
+  border-radius: 8px; font-size: 12px; overflow-wrap: anywhere;
+}
+.primary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 39px; border: none; border-radius: 10px; cursor: pointer;
+  background: #14683e; color: #fff; padding: 10px 15px;
+  font-size: 12px; font-weight: 750;
+}
+.primary:disabled,.approveButton:disabled { cursor: not-allowed; opacity: .5; }
+.codeLabel { font-size: 12px; font-weight: 700; }
+.dialogBody input {
+  display: block; min-height: 44px; width: 100%; max-width: 100%;
+  border: 1px solid var(--off-next-line, #dce6df); border-radius: 9px;
+  padding: 9px 12px; font: 650 18px/1.3 monospace; letter-spacing: .25em;
+  background: var(--off-next-panel, #fff); color: var(--off-next-ink, #17251f);
+  text-align: center; box-sizing: border-box;
+}
+.finePrint { font-size: 11px; line-height: 1.55; color: var(--off-next-muted, #63736b); }
+.stamp {
+  display: grid; gap: 8px; min-width: 0; padding: 12px;
+  border: 1px solid #23945b; border-radius: 10px;
+  background: rgba(34, 154, 91, .085); color: var(--off-next-ink, #17251f);
+  font-size: 11px; line-height: 1.45;
+}
+.stampTitle { display: flex; align-items: center; gap: 7px; color: #217249; }
+.stampTitle strong { letter-spacing: .065em; font-size: 11px; }
+.stampGrid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px 12px;
+}
+.stampGrid span { display: grid; gap: 2px; color: var(--off-next-muted, #63736b); }
+.stampGrid b { font-weight: 750; color: var(--off-next-ink, #17251f); overflow-wrap: anywhere; }
+.stamp small { display: flex; align-items: flex-start; gap: 5px; color: var(--off-next-muted, #63736b); font-size: 10px; }
+.stamp small svg { flex: none; margin-top: 1px; }
+.panel {
+  margin: 10px clamp(12px, 2vw, 25px); padding: 14px;
+  display: grid; gap: 12px;
+  border: 1px solid var(--off-next-line, #dce6df);
+  border-radius: 12px; background: var(--off-next-panel, #fff);
+  color: var(--off-next-ink, #17251f);
+}
+.panel>header { display: flex; align-items: flex-start; gap: 9px; }
+.panel>header svg { flex: none; }
+.panel h3 { margin: 0 0 3px; font-size: 14px; }
+.panel p { margin: 0; font-size: 12px; line-height: 1.5; }
+.panel header p,.empty { color: var(--off-next-muted, #63736b); }
+.assignment {
+  display: grid; gap: 10px; padding: 12px;
+  border: 1px solid var(--off-next-line, #dce6df);
+  border-radius: 10px; min-width: 0;
+}
+.assignment>div:first-child { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.assignment strong { font-size: 12px; }
+.assignment small { font-size: 10px; color: var(--off-next-muted, #63736b); }
+.pending { font-size: 11px; color: var(--off-next-muted, #63736b); }
+@media (max-width: 480px) {
+  .dialogBody { padding: 14px; }
+  .dialogHead { padding: 13px 14px; }
+  .stampGrid { grid-template-columns: 1fr; }
+}
