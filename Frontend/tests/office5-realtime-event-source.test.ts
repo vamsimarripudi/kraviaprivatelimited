@@ -10,6 +10,9 @@ describe("Office Connect private event streaming",()=>{
   expect(route).not.toContain('select("body');
   expect(route).not.toContain("service_role");
   expect(route).toContain("access-revoked");
+  expect(route).toContain("controller.desiredSize<=0");
+  expect(route).toContain("backpressured=true;break;");
+  expect(route).toContain("void (async()=>{");
  });
  it("has bounded streams, cache opt-out and first-party event cursors",()=>{
   expect(route).toContain('maxDuration=30');
