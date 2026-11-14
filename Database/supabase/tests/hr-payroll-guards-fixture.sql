@@ -39,12 +39,14 @@ create unique index if not exists office_hr_qa_snapshot_single
 
 -- The production approval graph already exists; isolated workforce fixtures omit it.
 create table if not exists public.office_requests (
-  id uuid primary key default gen_random_uuid(), status text not null default 'DRAFT'
+  id uuid primary key default gen_random_uuid(), status text not null default 'DRAFT',
+  requester_user_id uuid references public.office_identity_users(user_id)
 );
 create table if not exists public.office_request_steps (
   id uuid primary key default gen_random_uuid(),
   request_id uuid references public.office_requests(id),
   step_order integer not null default 1,
+  step_code text,
   status text not null default 'PENDING',
   decision_by uuid references public.office_identity_users(user_id)
 );
