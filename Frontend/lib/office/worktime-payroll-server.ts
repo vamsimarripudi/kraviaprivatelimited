@@ -327,3 +327,93 @@ export async function importVerifiedWorktimePremiums(input: { periodId: string; 
   return { adjustment_ids: imported, amounts: rows, total_minor: approved.totalAdditionalEarningsMinor,
     source_reference: reference, status: "DRAFT_ADJUSTMENTS_NEED_INDEPENDENT_REVIEW" };
 }
+
+/**
+ * Creates or intentionally revises a reviewable monthly payroll attendance
+ * snapshot from independently approved worktime. Unverified scheduled hours
+ * remain unresolved; neither absence nor deduction is inferred.
+ */
+export async function prepareVerifiedHoursPayroll(input: {
+  periodId: string;
+  employeeId: string;
+  replaceExisting?: boolean;
+  expectedUpdatedAt?: string;
+  reason?: string;
+}) {
+  const current = await requireOfficeActor();
+  if (!await can(current, "payroll.run.prepare")) {
+    throw new OfficeWorktimeError(403, "Payroll preparation permission required");
+  }
+  const period = await current.admin.from("office_payroll_periods")
+    .select("id,starts_on,ends_on,status,period_kind").eq("id", input.periodId).maybeSingle();
+  check(period, "Payroll period unavailable");
+  if (!period.data || period.data.period_kind !== "MONTHLY" ||
+      !["DRAFT","ATTENDANCE_READY","CALCULATED"].includes(period.data.status)) {
+    throw new OfficeWorktimeError(409, "Payroll period is not editable");
+  }
+  const month = period.data.starts_on.slice(0, 7);
+  const range = monthRange(month);
+  if (range.first !== period.data.starts_on || range.last !== period.data.ends_on) {
+    throw new OfficeWorktimeError(409, "Only complete calendar months support automatic verified hours");
+  }
+  const state = await officeWorktimeOverview({ month, employeeUserId: input.employeeId });
+  if (!state.approved_monthly_gross_minor || state.approved_gross_currency !== "INR") {
+    throw new OfficeWorktimeError(409, "An approved INR compensation version is required");
+  }
+  if (state.claims.some(claim => claim.status === "PENDING")) {
+    throw new OfficeWorktimeError(409, "Resolve pending attendance corrections before payroll preparation");
+  }
+  const employment = await current.admin.from("office_employment_registry")
+    .select("employment_id,identity_user_id,status,start_date,end_date")
+    .eq("identity_user_id", input.employeeId).in("status", ["ACTIVE","ON_LEAVE"]).limit(2);
+  check(employment, "Employment record unavailable");
+  if (employment.data?.length !== 1) {
+    throw new OfficeWorktimeError(409, "Exactly one active employment record is required");
+  }
+  const record = employment.data[0];
+  if ((record.start_date && record.start_date > range.first) ||
+      (record.end_date && record.end_date < range.last)) {
+    throw new OfficeWorktimeError(409, "Partial-month employment requires reviewed manual proration");
+  }
+  const previous = await current.admin.from("office_payroll_attendance_snapshots")
+    .select("id,updated_at,basis_units,payable_units,paid_leave_units,unpaid_leave_units,absence_units,unresolved_units")
+    .eq("period_id", input.periodId).eq("employment_id", record.employment_id).maybeSingle();
+  check(previous, "Existing payroll attendance snapshot unavailable");
+  if (previous.data && !input.replaceExisting) {
+    throw new OfficeWorktimeError(409, "An attendance snapshot already exists. Explicitly Update with a correction reason or edit in Payroll OS");
+  }
+  if (previous.data && (!input.reason || input.reason.trim().length < 12)) {
+    throw new OfficeWorktimeError(400, "An evidence-backed correction reason is required to update recorded payroll hours");
+  }
+  if (previous.data && input.expectedUpdatedAt && previous.data.updated_at !== input.expectedUpdatedAt) {
+    throw new OfficeWorktimeError(409, "Payroll attendance changed since the form was opened. Refresh and retry");
+  }
+  const estimate = state.salary_preview;
+  const basis = Number((estimate.basisMinutes / 60).toFixed(3));
+  const regular = Number((estimate.approvedRegularMinutes / 60).toFixed(3));
+  const unresolved = Number(Math.max(0, basis - regular).toFixed(3));
+  const audit = {
+    source: "INDEPENDENTLY_APPROVED_WORKTIME", month,
+    source_case_ids: estimate.sourceSessionIds,
+    verified_regular_minutes: estimate.approvedRegularMinutes,
+    outstanding_minutes: estimate.unresolvedMinutes,
+    potential_weekday_overtime_minutes: estimate.potentialWeekdayOvertimeMinutes,
+    optional_weekend_minutes: estimate.optionalWeekendMinutes,
+    calculation_note: "Unverified time is unresolved, not automatically unpaid. Leave/holiday evidence must be reviewed in Payroll OS.",
+    update_reason: input.reason?.trim() || null,
+    replaced_snapshot: previous.data || null,
+  };
+  const result = await setPayrollAttendance({
+    periodId: input.periodId, employmentId: record.employment_id,
+    basisUnits: basis, payableUnits: regular, paidLeaveUnits: 0,
+    unpaidLeaveUnits: 0, absenceUnits: 0, unresolvedUnits: unresolved,
+    sourceSnapshot: audit,
+  });
+  return {
+    ...result, employee_user_id: input.employeeId, period_id: input.periodId,
+    scheduled_hours: basis, verified_regular_hours: regular, unresolved_hours: unresolved,
+    potential_weekday_overtime_hours: Number((estimate.potentialWeekdayOvertimeMinutes / 60).toFixed(3)),
+    estimated_regular_gross_minor: estimate.estimatedRegularGrossMinor,
+    review_required: unresolved > 0, bank_execution: false,
+  };
+}
