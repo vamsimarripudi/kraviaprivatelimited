@@ -31,6 +31,7 @@ const WorkforceAdministrationPanel = dynamic(() => import("@/components/workforc
 const OfficeDepartmentHandover = dynamic(() => import("@/components/office-department-handover").then((module) => module.OfficeDepartmentHandover), { loading: ModuleLoading });
 const OfficeRolePackageStudio = dynamic(() => import("@/components/office-role-package-studio").then((module) => module.OfficeRolePackageStudio), { loading: ModuleLoading });
 const OfficeEmployeeSummary = dynamic(() => import("@/components/office-employee-summary").then((module) => module.OfficeEmployeeSummary), { loading: ModuleLoading });
+const OfficeDocumentOtpPanel = dynamic(() => import("@/components/office-document-otp").then((module) => module.OfficeDocumentOtpPanel), { loading: ModuleLoading });
 const OfficeManualHub = dynamic(() => import("@/components/office-manual-hub").then((module) => module.OfficeManualHub), { loading: ModuleLoading });
 const OfficeEmployeeIntake = dynamic(() => import("@/components/office-employee-intake").then((module) => module.OfficeEmployeeIntake), { loading: ModuleLoading });
 const WorkforceLiveOverview = dynamic(() => import("@/components/workforce-live-overview").then((module) => module.WorkforceLiveOverview), { loading: ModuleLoading });
@@ -143,7 +144,7 @@ export function InternalWorkspaceScreen({ workspace, section }: Props) {
           {workspace === "office" && section === "role-packages" ? <OfficeRolePackageStudio view="admin" />
           : workspace === "office" && section === "my-transfers" ? <OfficeDepartmentHandover mode="recipient" />
           : section === "info" ? <OfficeManualHub />
-          : (workspace === "office" || workspace === "finance") && section === "my-role" ? <><OfficeEmployeeSummary/>
+          : (workspace === "office" || workspace === "finance") && section === "my-role" ? <><OfficeEmployeeSummary/><OfficeDocumentOtpPanel/>
             <details className="office-employee-full-record"><summary>Personal details, education, bank and signed onboarding · Expand</summary><OfficeEmployeeIntake view="self"/></details>
             <details className="office-employee-full-record"><summary>Full role package and onboarding record · Expand</summary><OfficeRolePackageStudio view="self" /></details></>
           : workspace === "office" && section === "department-ownership" ? <OfficeDepartmentHandover />

@@ -91,6 +91,17 @@ export async function getOfficeDocumentStudioOverview() {
     : { data: [], error: null };
   fail(signingReviews.error, "Signing issuance review state unavailable");
 
+  const otpApprovalsQuery = current.admin.from("office_document_otp_approvals")
+    .select("id,document_instance_id,render_id,signer_user_id,signer_name,employee_reference,signer_email_masked,render_sha256,latitude,longitude,accuracy_m,location_captured_at,location_source,approved_at,method,status")
+    .order("approved_at", { ascending: false }).limit(500);
+  // Precise browser-reported coordinates are visible only to the Owner and
+  // to the individual whose own email OTP was verified.
+  const otpApprovals = canReadInstances || ownerOverride
+    ? ownerOverride ? await otpApprovalsQuery
+      : await otpApprovalsQuery.eq("signer_user_id", current.identity.userId)
+    : { data: [], error: null };
+  fail(otpApprovals.error, "Internal document approval receipts unavailable");
+
   const requestIds = (instances.data ?? []).map((row) => row.approval_request_id).filter((value): value is string => typeof value === "string" && Boolean(value));
   const approvals = requestIds.length ? await current.admin.from("office_requests").select("id,title,status,current_step_order,due_at,submitted_at,completed_at,updated_at").in("id", requestIds) : { data: [], error: null };
   fail(approvals.error, "Document approval state is temporarily unavailable");
@@ -124,6 +135,7 @@ export async function getOfficeDocumentStudioOverview() {
     signatures: signatures.data ?? [],
     deliveries: deliveries.data ?? [],
     signing_reviews: signingReviews.data ?? [],
+    otp_approvals: otpApprovals.data ?? [],
     identities: identities.data ?? [],
     approvals: approvals.data ?? [],
     disclaimer: "The canonical document is the published template version plus immutable input snapshot. PDF, DOCX, HTML and XLSX are rendered outputs and never replace historical source data.",

@@ -34,6 +34,20 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // Permit precise, user-consented browser geolocation ONLY inside
+        // authenticated Office/Finance pages. Public pages remain disabled.
+        source: "/office/:path*",
+        headers: [
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" },
+        ],
+      },
+      {
+        source: "/finance/:path*",
+        headers: [
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" },
+        ],
+      },
+      {
         // Do not let a prior login form survive release changes in browser/CDN.
         source: "/office/login",
         headers: [
