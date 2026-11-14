@@ -161,65 +161,56 @@ grant execute on function public.office_hr_leave_decide(uuid,uuid,text,text)
 -- be in the salary snapshot's approved source_leave_ids array.
 create or replace function public.office_hr_leave_payroll_guard(p_period uuid)
 returns void language plpgsql security definer set search_path='' as $kravia_leave$
-declare per public.office_payroll_periods%rowtype;
+declare
+  per public.office_payroll_periods%rowtype;
+  snap public.office_payroll_attendance_snapshots%rowtype;
+  leave_row public.office_hr_leave_requests%rowtype;
+  payroll_day date;
+  approved_paid_minutes numeric;
+  approved_unpaid_minutes numeric;
 begin
   select * into per from public.office_payroll_periods where id=p_period;
   if not found then raise exception 'Payroll period missing'; end if;
 
-  -- A pending leave request is neither authorized paid time nor proof of
-  -- unpaid absence. Review it before certifying affected wages.
-  if exists (
-    select 1 from public.office_payroll_attendance_snapshots s
-    join public.office_hr_leave_requests l on l.employee_user_id=s.employee_user_id
-    where s.period_id=per.id and l.status='PENDING'
-      and l.starts_on<=per.ends_on and l.ends_on>=per.starts_on
-      and exists (
-        select 1 from generate_series(
-          greatest(l.starts_on,per.starts_on)::timestamp,
-          least(l.ends_on,per.ends_on)::timestamp,
+  for snap in select * from public.office_payroll_attendance_snapshots
+              where period_id=per.id order by employment_id loop
+    approved_paid_minutes:=0;
+    approved_unpaid_minutes:=0;
+    for leave_row in
+      select * from public.office_hr_leave_requests l
+      where l.employee_user_id=snap.employee_user_id
+        and l.status in ('PENDING','APPROVED')
+        and l.starts_on<=per.ends_on and l.ends_on>=per.starts_on
+      order by l.starts_on,l.id
+    loop
+      for payroll_day in
+        select day::date from generate_series(
+          greatest(leave_row.starts_on,per.starts_on)::timestamp,
+          least(leave_row.ends_on,per.ends_on)::timestamp,
           interval '1 day'
-        ) day
-        where extract(isodow from day) between 1 and 5
-      )
-  ) then
-    raise exception 'Pending leave requires an independent decision before payroll calculation or approval';
-  end if;
-
-  -- Inspect actual scheduled weekdays. A weekend-only leave request has
-  -- no ordinary payable hours and must not freeze monthly wages.
-  -- Merely adding a leave ID to source_snapshot is NOT enough: the paid
-  -- and unpaid hour totals must reconcile with the approved leave ledger.
-  if exists (
-    select 1
-    from public.office_payroll_attendance_snapshots s
-    cross join lateral (
-      select
-        coalesce(sum(case when l.pay_class<>'UNPAID_LEAVE'
-          then l.minutes_per_weekday else 0 end),0)::numeric as paid_minutes,
-        coalesce(sum(case when l.pay_class='UNPAID_LEAVE'
-          then l.minutes_per_weekday else 0 end),0)::numeric as unpaid_minutes,
-        count(*) filter (where not coalesce(
-          (s.source_snapshot->'source_leave_ids') ? l.id::text,false)
-        ) as missing_references
-      from public.office_hr_leave_requests l
-      cross join lateral generate_series(
-        greatest(l.starts_on,per.starts_on)::timestamp,
-        least(l.ends_on,per.ends_on)::timestamp,
-        interval '1 day'
-      ) as work_date
-      where l.employee_user_id=s.employee_user_id
-        and l.status='APPROVED'
-        and l.starts_on<=per.ends_on
-        and l.ends_on>=per.starts_on
-        and extract(isodow from work_date) between 1 and 5
-    ) verified
-    where s.period_id=per.id
-      and (verified.missing_references>0
-        or abs(s.paid_leave_units*60-verified.paid_minutes)>0.06
-        or abs(s.unpaid_leave_units*60-verified.unpaid_minutes)>0.06)
-  ) then
-    raise exception 'Payroll leave evidence or paid/unpaid hours are stale; re-import independently approved leave and re-review before calculation or payment';
-  end if;
+        ) as day
+      loop
+        if extract(isodow from payroll_day) not between 1 and 5 then
+          continue; -- Weekend-only leave cannot affect normal weekday salary.
+        end if;
+        if leave_row.status='PENDING' then
+          raise exception 'Pending weekday leave requires an independent decision before payroll approval';
+        end if;
+        if not coalesce((snap.source_snapshot->'source_leave_ids') ? leave_row.id::text,false) then
+          raise exception 'Approved leave is missing from payroll evidence; refresh and independently review attendance';
+        end if;
+        if leave_row.pay_class='UNPAID_LEAVE' then
+          approved_unpaid_minutes:=approved_unpaid_minutes+leave_row.minutes_per_weekday;
+        else
+          approved_paid_minutes:=approved_paid_minutes+leave_row.minutes_per_weekday;
+        end if;
+      end loop;
+    end loop;
+    if abs(snap.paid_leave_units*60-approved_paid_minutes)>0.06
+      or abs(snap.unpaid_leave_units*60-approved_unpaid_minutes)>0.06 then
+      raise exception 'Payroll paid/unpaid leave hours disagree with approved evidence; re-import and independently review';
+    end if;
+  end loop;
 end; $kravia_leave$;
 revoke all on function public.office_hr_leave_payroll_guard(uuid) from public,anon,authenticated;
 grant execute on function public.office_hr_leave_payroll_guard(uuid) to service_role;
