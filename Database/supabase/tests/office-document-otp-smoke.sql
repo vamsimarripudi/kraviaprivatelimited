@@ -76,15 +76,15 @@ SELECT public.office_document_otp_delivery_result(
  'SENT','synthetic-brevo-accepted'
 );
 DO $mismatch$
-DECLARE id uuid;
+DECLARE v_result uuid;
 BEGIN
  SELECT public.office_document_otp_approve(
  '11111111-1111-4111-8111-111111111111',
  'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
  repeat('c',64),repeat('b',64),
  17.3850,78.4867,20,now()
- ) INTO id;
- IF id IS NOT NULL OR (SELECT attempt_count FROM public.office_document_otp_challenges
+ ) INTO v_result;
+ IF v_result IS NOT NULL OR (SELECT attempt_count FROM public.office_document_otp_challenges
  WHERE id='dddddddd-dddd-4ddd-8ddd-dddddddddddd')<>1 THEN
   RAISE EXCEPTION 'Wrong code did not consume one of five OTP attempts';
  END IF;
