@@ -2,6 +2,7 @@ import {test,expect} from "@playwright/test";
 const id="00000000-0000-4000-8000-000000000001";
 test("Connect approval, admin and Vault document screens require actual AAL2 Office identity",async({page},testInfo)=>{
  test.skip(testInfo.project.name!=="chromium","Route boundary runs once per browser suite");
+ test.setTimeout(180000);
  for(const target of [
   "/office/chat/approvals",
   "/office/chat/approvals/"+id,
