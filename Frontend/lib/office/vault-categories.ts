@@ -15,7 +15,8 @@ export const vaultCategories: readonly VaultCategory[] = [
  { slug:"technology",title:"Technology & assets",description:"Authorized company products and assigned physical and digital assets.",permissions:["master.product.read","operations.asset.read"],sourceHref:"/office/assets",sourceLabel:"Asset lifecycle" },
  { slug:"documents",title:"Document evidence",description:"Versioned, permission-controlled official documents and signed evidence.",permissions:["document.instance.read","document.template.read"],sourceHref:"/office/documents",sourceLabel:"Document Studio" },
  { slug:"custody",title:"Secure custody",description:"Physical originals, custody checks and secured evidence references only.",permissions:["custody.read"],sourceHref:"/office/custody",sourceLabel:"Secure Custody" },
+ { slug:"secrets",title:"Secret locker",description:"Sealed company documents: encrypted versions, scanner quarantine, independent review and revocable grants.",permissions:["vault.secret.read","vault.secret.upload","vault.secret.review"],sourceHref:"/office/k-vault/secrets",sourceLabel:"K-Vault sealed locker" },
 ];
 export const vaultReservedPaths = [
- "company","categories","records","documents","requests","access","reviews","activity","settings",
+ "company","categories","records","documents","requests","access","reviews","activity","settings","secrets",
 ] as const;
