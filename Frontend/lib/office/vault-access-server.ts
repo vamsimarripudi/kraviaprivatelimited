@@ -37,7 +37,7 @@ async function sourceRecordCanRead(current:Actor,category:string,recordId:string
   .eq("id",recordId).maybeSingle();
  if(error)throw new OfficeVaultAccessError(503,"Source record authorization unavailable");
  if(!data)return false;
- const fields=data as Record<string,unknown>;
+ const fields=data as unknown as Record<string,unknown>;
  const rows=[{id:String(fields.id),owner_user_id:typeof fields[source.owner]==="string"
   ?String(fields[source.owner]):null}];
  const allowed=await sourceVisibleIds(current,category,rows);
