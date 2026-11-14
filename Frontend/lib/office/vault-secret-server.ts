@@ -240,13 +240,37 @@ export async function getOfficeVaultSecretLocker(){
  if(pending.error)throw new SecretLockerError(503,"Independent review queue unavailable");
  const pendingDocumentIds=new Set((pending.data??[]).map(row=>String(row.document_id)));
  const currentGrants=grants.data??[];
- // Read strictly limited: owner uploads, currently granted records, and
- // independently reviewable pending versions. No global employee file search.
- const rows=await current.admin.from("office_vault_secret_documents")
-  .select("id,owner_user_id,title,classification,state,created_at,updated_at")
-  .eq("state","ACTIVE").order("updated_at",{ascending:false}).limit(500);
- if(rows.error)throw new SecretLockerError(503,"Secret locker registry unavailable");
- const documents=(rows.data??[]) as SecretDocument[];
+ // Query only the authorized source scopes. A global service-role scan of
+ // the latest 500 records hides older owned documents and touches unrelated
+ // corporate evidence before the application-level visibility filter.
+ const categoryWide=mayRead&&currentGrants.some(grant=>grant.resource_id===null);
+ const scopedIds=[...new Set([
+  ...currentGrants.filter(grant=>mayRead&&grant.resource_id!==null)
+   .map(grant=>String(grant.resource_id)),
+  ...(mayReview?[...pendingDocumentIds]:[]),
+ ])].filter(id=>/^[0-9a-f-]{36}$/i.test(id));
+ if(scopedIds.length>1500)
+  throw new SecretLockerError(503,"Secret listing exceeds the safe authorization window");
+ const select="id,owner_user_id,title,classification,state,created_at,updated_at";
+ const queries=[];
+ if(mayUpload)queries.push(current.admin.from("office_vault_secret_documents")
+  .select(select).eq("state","ACTIVE").eq("owner_user_id",current.identity.userId)
+  .order("updated_at",{ascending:false}).limit(500));
+ if(categoryWide)queries.push(current.admin.from("office_vault_secret_documents")
+  .select(select).eq("state","ACTIVE").order("updated_at",{ascending:false}).limit(500));
+ else for(let offset=0;offset<scopedIds.length;offset+=100){
+  queries.push(current.admin.from("office_vault_secret_documents")
+   .select(select).eq("state","ACTIVE").in("id",scopedIds.slice(offset,offset+100))
+   .order("updated_at",{ascending:false}).limit(100));
+ }
+ const sources=await Promise.all(queries);
+ if(sources.some(result=>result.error))
+  throw new SecretLockerError(503,"Scoped secret-document directory unavailable");
+ const unique=new Map<string,SecretDocument>();
+ for(const result of sources)for(const row of result.data??[])
+  unique.set(String(row.id),row as SecretDocument);
+ const documents=[...unique.values()].sort((a,b)=>
+  Date.parse(b.updated_at)-Date.parse(a.updated_at));
  const visible=documents.filter(row=>{
   const rights=secretGrantRights(currentGrants,row.id);
   return secretDocumentVisible({
