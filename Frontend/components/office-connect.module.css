@@ -84,3 +84,5 @@
 .connect .grid[data-home="true"] .sidebar{max-height:min(900px,calc(100dvh - 180px));position:sticky;top:74px}
 .connect .body[data-home="true"]{display:block;overflow:visible;max-height:none;min-height:640px}
 @media(max-width:767px){.connect .grid[data-home="true"] .sidebar{max-height:220px;position:static}.connect .body[data-home="true"]{min-height:0;max-height:none}}
+
+.pinned{display:inline-flex;align-items:center;gap:5px;align-self:start;max-width:100%;font-size:11px;font-weight:700;color:var(--office-ui-accent);padding:5px 9px;border:1px solid var(--office-ui-line);border-radius:999px}

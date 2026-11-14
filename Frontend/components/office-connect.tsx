@@ -11,6 +11,7 @@ import { useOfficeWorkspace } from "@/components/office-workspace-context";
 
 type Conversation = { id: string; kind: string; title: string; department_code?: string | null; updated_at: string };
 type Message = { id: string; sender_user_id: string; sender_name: string; body: string; created_at: string; edited_at?: string | null; pinned?:boolean;
+ reactions?:{emoji:string;count:number;mine:boolean}[];
  attachments?: {id:string;name:string;mime:string;size:number}[] };
 type SelectedFile={id?:string;key:string;name:string;status:Office5FileStatus;message?:string};
 type ListResponse = { actor_user_id: string; conversations: Conversation[] };
@@ -221,7 +222,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
                   {file.name} · {Math.ceil(file.size/1024)} KiB</a>)}
               </div>:null}
               <OfficeConnectMessageActions id={message.id} body={message.body} editedAt={message.edited_at}
-                pinned={message.pinned} canPin={canPin} own={message.sender_user_id===actor} onDone={()=>setReloadCount(v=>v+1)}/>
+                pinned={message.pinned} canPin={canPin} reactions={message.reactions??[]} own={message.sender_user_id===actor} onDone={()=>setReloadCount(v=>v+1)}/>
             </article>)}
           </div>
           <form className={styles.composer} onSubmit={send}>

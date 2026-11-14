@@ -3,7 +3,9 @@ import {useState,type FormEvent} from "react";
 import Link from "next/link";
 import {Bookmark,CornerDownRight,Edit3,Flag,History,Pin,PinOff,Trash2} from "lucide-react";
 import styles from "./office-connect-message-actions.module.css";
-type Props={id:string;body:string;own:boolean;pinned?:boolean;canPin?:boolean;editedAt?:string|null;onDone:()=>void};
+type Reaction={emoji:string;count:number;mine:boolean};
+type Props={id:string;body:string;own:boolean;pinned?:boolean;canPin?:boolean;
+ reactions?:Reaction[];editedAt?:string|null;onDone:()=>void};
 type RevisionResponse={created_at:string;edited_at:string|null;current_body:string;
  previous_versions:{id:number;body:string;revised_at:string}[]};
 async function mutation<T>(url:string,method:string,payload?:Record<string,unknown>):Promise<T>{
@@ -13,7 +15,7 @@ async function mutation<T>(url:string,method:string,payload?:Record<string,unkno
  if(!response.ok)throw new Error(data.detail||"Action not confirmed");
  return data;
 }
-export function OfficeConnectMessageActions({id,body,own,pinned=false,canPin=false,editedAt,onDone}:Props){
+export function OfficeConnectMessageActions({id,body,own,pinned=false,canPin=false,reactions=[],editedAt,onDone}:Props){
  const [editing,setEditing]=useState(false);
  const [remove,setRemove]=useState(false);
  const [draft,setDraft]=useState(body);
@@ -38,6 +40,14 @@ export function OfficeConnectMessageActions({id,body,own,pinned=false,canPin=fal
   try{await mutation("/api/office-chat/messages/"+id,"PATCH",{body:draft.trim()});
    setEditing(false);onDone();}
   catch(e){setNotice(e instanceof Error?e.message:"Edit not confirmed")}
+  finally{setBusy(false)}
+ }
+ async function react(emoji:string,mine:boolean){
+  setBusy(true);setNotice("");
+  try{
+   await mutation("/api/office-chat/messages/"+id+"/reactions","POST",{emoji,react:!mine});
+   onDone();
+  }catch(e){setNotice(e instanceof Error?e.message:"Reaction not confirmed")}
   finally{setBusy(false)}
  }
  async function togglePin(){
@@ -96,6 +106,16 @@ export function OfficeConnectMessageActions({id,body,own,pinned=false,canPin=fal
     onClick={()=>{setReportOpen(open=>!open);setEditing(false);setRemove(false);}}>
      <Flag size={14}/>Report</button>
   </nav>
+  <div className={styles.reactions} role="group" aria-label="Message reactions">
+   {["👍","❤️","✅","🎉","👀","🤔"].map(emoji=>{
+    const current=reactions.find(reaction=>reaction.emoji===emoji);
+    return <button type="button" key={emoji} disabled={busy}
+      aria-label={(current?.mine?"Remove your ":"Add ")+"reaction "+emoji+(current?" · "+current.count+" total":"")}
+      aria-pressed={current?.mine??false} title={"React "+emoji}
+      onClick={()=>void react(emoji,current?.mine??false)}>{emoji}
+      {current?.count?<span aria-hidden="true">{current.count}</span>:null}</button>;
+   })}
+  </div>
   {reportOpen?<form className={styles.form} aria-label="Report a message" onSubmit={report}>
    <h3>Confidential Ethics report</h3>
    <p>The report is stored in the separate Ethics case system. Investigators do not gain access to this private conversation automatically.</p>

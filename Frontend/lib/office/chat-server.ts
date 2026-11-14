@@ -140,7 +140,7 @@ export async function getOfficeChatMessages(conversationId: string) {
   if (people.error) throw internalFailure("Message author context is unavailable");
   const names = new Map((people.data ?? []).map(row => [String(row.user_id), String(row.display_name ?? "Employee")]));
   const ids=rows.map(row=>String(row.id));
-  const [fileResult,pinResult]=await Promise.all([
+  const [fileResult,pinResult,reactionResult]=await Promise.all([
    ids.length?current.admin.from("office_chat_attachment_objects")
     .select("id,message_id,original_filename,detected_mime_type,byte_size")
     .in("message_id",ids).eq("conversation_id",conversationId).eq("status","CLEAN")
@@ -148,8 +148,19 @@ export async function getOfficeChatMessages(conversationId: string) {
    ids.length?current.admin.from("office_chat_pinned_messages")
     .select("message_id").in("message_id",ids).eq("conversation_id",conversationId)
     .limit(100):Promise.resolve({data:[],error:null}),
+   ids.length?current.admin.rpc("office_chat_reaction_snapshot",{
+    p_actor:current.identity.userId,p_conversation:conversationId,p_messages:ids,
+   }):Promise.resolve({data:[],error:null}),
   ]);
-  if(fileResult.error||pinResult.error)throw internalFailure("Message history is unavailable");
+  if(fileResult.error||pinResult.error||reactionResult.error)throw internalFailure("Message history is unavailable");
+  const reactionByMessage=new Map<string,{emoji:string;count:number;mine:boolean}[]>();
+  for(const reaction of reactionResult.data??[]){
+   const id=String(reaction.message_id);
+   reactionByMessage.set(id,[...(reactionByMessage.get(id)??[]),{
+    emoji:String(reaction.emoji),count:Math.max(0,Number(reaction.reaction_count)||0),
+    mine:Boolean(reaction.mine),
+   }]);
+  }
   const pinned=new Set((pinResult.data??[]).map(pin=>String(pin.message_id)));
   return { actor_user_id: current.identity.userId,
     can_pin:conversation.kind!=="GROUP"||conversation.created_by===current.identity.userId,
@@ -158,6 +169,7 @@ export async function getOfficeChatMessages(conversationId: string) {
       sender_name: names.get(String(row.sender_user_id)) ?? "Employee",
       body: row.body, created_at: row.created_at, edited_at: row.edited_at,
       pinned:pinned.has(String(row.id)),
+      reactions:reactionByMessage.get(String(row.id))??[],
       attachments:(fileResult.data??[]).filter(file=>file.message_id===row.id).map(file=>({id:file.id,name:file.original_filename,mime:file.detected_mime_type,size:file.byte_size})),
     })) };
 }
@@ -470,4 +482,16 @@ export async function setOfficeChatMessagePin(messageId:string,pin:boolean){
  });
  if(error||data!==true)throw new OfficeChatError(403,"Conversation pin authority is unavailable");
  return {pinned:pin};
+}
+
+/** Only current members can modify their own reactions; this endpoint never
+ * exposes reacting employee identities or a private membership roster. */
+export async function setOfficeChatMessageReaction(messageId:string,emoji:string,react:boolean){
+ const current=await actor();
+ await authorizeMessageMutation(current,messageId);
+ const {data,error}=await current.admin.rpc("office_chat_set_reaction",{
+  p_actor:current.identity.userId,p_message:messageId,p_emoji:emoji,p_react:react,
+ });
+ if(error||data!==true)throw new OfficeChatError(403,"Reaction could not be committed");
+ return {reacted:react};
 }
