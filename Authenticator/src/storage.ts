@@ -1,6 +1,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import * as SecureStore from "expo-secure-store";
 import { KRAVIA_ISSUER, type KraviaTotpAccount } from "./types";
+import {isOfficeUuid} from "./identifiers";
 
 const SESSION_STORE_KEY = "kravia.authenticator.device-session.v3";
 const FACTOR_STORE_KEY = "kravia.authenticator.factor.v3";
@@ -70,7 +71,7 @@ function newInstallMarker() {
 }
 function validIdentifier(value: unknown) {
   return (
-    typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value)
+    isOfficeUuid(value)
   );
 }
 function validSecret(value: unknown) {
