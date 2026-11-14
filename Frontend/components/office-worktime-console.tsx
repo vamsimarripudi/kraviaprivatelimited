@@ -31,7 +31,7 @@ type Snapshot = {
   month: string; target_payment: { date: string; time: string; bankHolidayVerificationRequired: boolean };
   claims: Claim[]; policies: Policy[]; approved_policy: Policy | null; attendance_targets: WorktimeTargets;
   payroll_periods: Array<{ id: string; period_code: string; starts_on: string; ends_on: string; status: string }>;
-  preview: Premium | null; salary_preview: SalaryPreview; salary_slips: Slip[];
+  preview: Premium | null; salary_preview: SalaryPreview; approved_monthly_gross_minor: number | null; salary_slips: Slip[];
   capabilities: { self: boolean; review_worktime: boolean; propose_policy: boolean; prepare_payroll: boolean };
   notice: string;
 };
@@ -168,6 +168,24 @@ export function OfficeWorktimeConsole() {
           <article><CalendarClock size={20}/><small>Scheduled pay target</small><strong>{data.target_payment.date}</strong><span>6:00 P.M. IST · confirm bank holidays</span></article>
         </div>
         <article className={styles.panel}>
+          <div className={styles.heading}><h3>HR salary calculator · verified hours</h3>
+            {data.capabilities.prepare_payroll && data.approved_monthly_gross_minor !== null ?
+              <button type="button" disabled={busy} onClick={() => { setDraft({}); setMode(mode === "AUTO" ? null : "AUTO"); }}>
+                Auto-fill / update payroll hours
+              </button> : null}
+          </div>
+          <p>Contract gross {data.approved_monthly_gross_minor === null ? "not approved" : money(data.approved_monthly_gross_minor)} · 6 net hours per weekday. Estimated base is PROVISIONAL until all scheduled hours, holidays, leave and exceptions are independently reviewed.</p>
+          <div className={styles.metrics}>
+            <span>Scheduled regular <b>{formatHours(data.salary_preview.basisMinutes)}</b></span>
+            <span>Independently approved <b>{formatHours(data.salary_preview.approvedRegularMinutes)}</b></span>
+            <span>Unresolved — not absent <b>{formatHours(data.salary_preview.unresolvedMinutes)}</b></span>
+            <span>Provisional regular gross <b>{data.salary_preview.estimatedRegularGrossMinor === null ? "Awaiting approved salary" : money(data.salary_preview.estimatedRegularGrossMinor)}</b></span>
+            <span>Weekday OT candidate <b>{formatHours(data.salary_preview.potentialWeekdayOvertimeMinutes)}</b></span>
+            <span>Optional weekend work <b>{formatHours(data.salary_preview.optionalWeekendMinutes)}</b></span>
+          </div>
+          <p>Overtime is a separate addition only after a valid approved rate, verified worktime and an independent payroll adjustment review. Auto-fill does not issue a payslip or transfer funds.</p>
+        </article>
+        <article className={styles.panel}>
           <div className={styles.heading}><h3>Daily attendance · net time</h3><small>Effective tracking from 14 Nov 2026 · historical evidence from 1 Aug</small></div>
           <p>{data.attendance_targets.message}</p>
           <div className={styles.dailyLedger}>
@@ -194,7 +212,10 @@ export function OfficeWorktimeConsole() {
             <div className={styles.heading}><h3>Attendance & approvals</h3><button type="button" onClick={() => { setDraft({}); setMode(mode === "CORRECTION" ? null : "CORRECTION"); }}>{data.capabilities.review_worktime ? "Add / correct employee hours" : "Request correction"}</button></div>
             {data.claims.length ? data.claims.map(claim => <div className={styles.record} key={claim.id}>
               <span><b>{istTimestamp(claim.work_starts_at)}</b><small>Until {istTimestamp(claim.work_ends_at)}</small><small>{claim.source_reference}</small></span>
-              <div><em>{claim.status}</em>{data.capabilities.review_worktime && claim.status === "PENDING" &&
+              <div><em>{claim.status}</em>{claim.status === "PENDING" && claim.requested_by === data.actor.user_id &&
+                claim.source_kind === "HISTORICAL_CORRECTION" ?
+                <button type="button" disabled={busy} onClick={() => editPending(claim)}>Edit pending</button> : null}
+                {data.capabilities.review_worktime && claim.status === "PENDING" &&
                   claim.requested_by !== data.actor.user_id && claim.employee_user_id !== data.actor.user_id ? <div className={styles.actions}>
                     <button type="button" disabled={busy} onClick={() => void mutate({ action: "DECIDE", caseId: claim.id, decision: "APPROVE", note: "Verified evidence reviewed" }, "Approved independently.")}>Approve</button>
                     <button type="button" disabled={busy} onClick={() => void mutate({ action: "DECIDE", caseId: claim.id, decision: "REJECT", note: "Further evidence required" }, "Correction rejected with evidence request.")}>Reject</button>
@@ -229,15 +250,35 @@ export function OfficeWorktimeConsole() {
           </div>) : <p className={styles.empty}>No approved issued payslips. Issuance requires an approved locked payroll result and independent payroll reviewer; bank preparation does not prove payment.</p>}
         </article>
         {mode ? <form className={styles.form} onSubmit={submit}>
-          <div className={styles.heading}><h3>{mode === "CORRECTION" ? "Submit historical attendance evidence" : mode === "POLICY" ? "Propose effective-dated worktime policy" : "Import separately reviewed premiums"}</h3><button type="button" onClick={() => setMode(null)}>Cancel</button></div>
-          {mode === "CORRECTION" ? <>
+          <div className={styles.heading}><h3>{mode === "CORRECTION" ? "Submit historical attendance evidence" : mode === "EDIT_PENDING" ? "Edit your pending attendance evidence" : mode === "AUTO" ? "Auto-fill verified payroll hours" : mode === "POLICY" ? "Propose effective-dated worktime policy" : "Import separately reviewed premiums"}</h3><button type="button" onClick={() => setMode(null)}>Cancel</button></div>
+          {(mode === "CORRECTION" || mode === "EDIT_PENDING") ? <>
             <p>Backfill from 1 August 2026 using actual work records. Do not enter a six-hour default, fabricate past logins, or approve your own claim. For another employee, choose them from the Employee selector above.</p>
             <label>Actual start time (IST)<input type="datetime-local" required min="2026-08-01T00:00" value={draft.startAt || ""} onChange={e => setDraft({ ...draft, startAt: e.target.value })}/></label>
             <label>Actual end time (IST)<input type="datetime-local" required min="2026-08-01T00:00" value={draft.endAt || ""} onChange={e => setDraft({ ...draft, endAt: e.target.value })}/></label>
-            <label>Unpaid break start (IST, optional)<input type="datetime-local" value={draft.breakStart || ""} onChange={e => setDraft({ ...draft, breakStart: e.target.value })}/></label>
-            <label>Unpaid break end (IST, optional)<input type="datetime-local" value={draft.breakEnd || ""} onChange={e => setDraft({ ...draft, breakEnd: e.target.value })}/></label>
+            {mode === "CORRECTION" ? <>
+              <label>Unpaid break start (IST, optional)<input type="datetime-local" value={draft.breakStart || ""} onChange={e => setDraft({ ...draft, breakStart: e.target.value })}/></label>
+              <label>Unpaid break end (IST, optional)<input type="datetime-local" value={draft.breakEnd || ""} onChange={e => setDraft({ ...draft, breakEnd: e.target.value })}/></label>
+            </> : <label>Unpaid breaks · one start | end per line, IST
+              <textarea value={draft.breakLines || ""} placeholder="2026-11-16T13:00 | 2026-11-16T13:30" onChange={e => setDraft({ ...draft, breakLines: e.target.value })}/>
+            </label>}
             <label>Evidence reference<input required minLength={5} placeholder="Attendance export / signed work record" value={draft.evidence || ""} onChange={e => setDraft({ ...draft, evidence: e.target.value })}/></label>
             <label>Reason<textarea required minLength={8} value={draft.reason || ""} onChange={e => setDraft({ ...draft, reason: e.target.value })}/></label>
+          </> : null}
+          {mode === "AUTO" ? <>
+            <label>Monthly payroll period<select required value={draft.periodId || ""} onChange={e => setDraft({ ...draft, periodId: e.target.value })}>
+              <option value="">Select an editable monthly payroll period</option>
+              {data.payroll_periods.filter(period => ["DRAFT","ATTENDANCE_READY","CALCULATED"].includes(period.status)).map(period =>
+                <option key={period.id} value={period.id}>{period.period_code} · {period.status}</option>)}
+            </select></label>
+            <label><input type="checkbox" checked={draft.replaceExisting === "yes"}
+              onChange={e => setDraft({ ...draft, replaceExisting: e.target.checked ? "yes" : "" })}/>
+              Update an existing draft snapshot instead of adding a new one
+            </label>
+            {draft.replaceExisting === "yes" ?
+              <label>Required evidence-backed correction reason
+                <textarea required minLength={12} value={draft.reason || ""} onChange={e => setDraft({ ...draft, reason: e.target.value })}/>
+              </label> : null}
+            <p>Any missing verified hours remain unresolved and block final payroll. HR must enter approved paid leave, holidays or valid absences in Payroll OS using source references. Existing approved runs cannot be changed.</p>
           </> : null}
           {mode === "POLICY" ? <><label>Effective from<input required type="date" value={draft.effectiveFrom || ""} onChange={e => setDraft({ ...draft, effectiveFrom: e.target.value })}/></label><label>Signed policy / Board authority reference<input required minLength={12} value={draft.authority || ""} onChange={e => setDraft({ ...draft, authority: e.target.value })}/></label><p>The proposed rates remain inactive until a separate director authorises them. This does not retrospectively rewrite existing payslips.</p></> : null}
           {mode === "IMPORT" ? <><label>Monthly payroll period<select required value={draft.periodId || ""} onChange={e => setDraft({ ...draft, periodId: e.target.value })}><option value="">Select an existing editable period</option>{data.payroll_periods.filter(period => ["DRAFT","ATTENDANCE_READY","CALCULATED"].includes(period.status)).map(period => <option key={period.id} value={period.id}>{period.period_code} · {period.status}</option>)}</select></label><p>This creates only independently reviewable draft earnings adjustments, never a bank transfer or paid slip. If none is listed, open a monthly period in Payroll OS first.</p></> : null}
