@@ -65,7 +65,7 @@ insert into public.office_department_transfer_requests
 values ('00000000-0000-0000-0000-000000000010','FINANCE',
  '00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002',
  'ACCEPTED',now()-interval '1 hour');
-\ir ../migrations/202611140002_department_handover_access_sync.sql
+\ir ../migrations/20261114102312_office_department_handover_access_sync_20261114.sql
 
 do $$
 declare founder uuid:='00000000-0000-0000-0000-000000000001';
