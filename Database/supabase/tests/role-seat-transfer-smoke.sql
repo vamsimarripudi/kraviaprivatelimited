@@ -9,7 +9,7 @@ create table public.office_identity_users(user_id uuid primary key,status text n
 create table public.office_user_roles(user_id uuid not null,role text not null,expires_at timestamptz);
 create table public.office_auth_users(id text primary key,status text not null,workspace_status text not null);
 create table public.office_department_catalog(code text primary key,label text not null,active boolean not null);
-create table public.office_position_catalog(code text primary key,label text not null,active boolean not null);
+create table public.office_position_catalog(code text primary key,label text not null,family text not null default 'ENGINEERING',level smallint not null default 5,is_manager boolean not null default false,description text not null default '',active boolean not null);
 create table public.office_permission_catalog(
  code text primary key,action text not null,high_risk boolean not null,
  owner_bypass boolean not null,active boolean not null
@@ -91,7 +91,7 @@ begin
  end;
 
  cto:=public.office_role_seat_create(owner_id,'CTO_MAIN','Chief Technology Officer','CTO','ENGINEERING','CTO responsibility',false);
- developer:=public.office_role_seat_create(owner_id,'DEV_MAIN','Full Stack Developer','SOFTWARE_ENGINEER','ENGINEERING','Assigned code work',false);
+ developer:=public.office_role_seat_create(owner_id,'DEV_MAIN','Full Stack Developer','FULL_STACK_DEVELOPER','ENGINEERING','Assigned code work',false);
  if (select current_holder_user_id from public.office_role_seats where id=cto) is not null then
    raise exception 'Creating CTO wrongly assigned employee';
  end if;
