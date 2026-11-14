@@ -65,6 +65,7 @@ describe("First-party Office document OTP approvals", () => {
     expect(studio).toContain("<OfficeDocumentOtpStamp");
     expect(studioServer).toContain('from("office_document_otp_approvals")');
     expect(studioServer).toContain('eq("signer_user_id", current.identity.userId)');
+    expect(studioServer).toContain("ownerSigningReviewer && companyInstance.allowed");
     expect(ui).toContain("APPROVED · EMAIL OTP");
     expect(ui).toContain("signer_email_masked");
     expect(ui).toContain("accuracy_m");
