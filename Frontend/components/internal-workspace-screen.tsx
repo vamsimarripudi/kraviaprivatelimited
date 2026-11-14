@@ -74,6 +74,7 @@ const OfficePhysicalOffice = dynamic(() => import("@/components/office-physical-
 const OfficeNotificationCenter = dynamic(() => import("@/components/office-notification-center").then((module) => module.OfficeNotificationCenter), { loading: ModuleLoading });
 const OfficePayrollConsole = dynamic(() => import("@/components/office-payroll-console").then((module) => module.OfficePayrollConsole), { loading: ModuleLoading });
 const OfficeWorktimeConsole = dynamic(() => import("@/components/office-worktime-console").then((module) => module.OfficeWorktimeConsole), { loading: ModuleLoading });
+const OfficeHrAttendanceImport = dynamic(() => import("@/components/office-hr-attendance-import").then((module) => module.OfficeHrAttendanceImport), { loading: ModuleLoading });
 const OfficePortfolioWorkspace = dynamic(() => import("@/components/office-portfolio").then((module) => module.OfficePortfolioWorkspace), { loading: ModuleLoading });
 const OfficePeopleDevelopment = dynamic(() => import("@/components/office-people-development").then((module) => module.OfficePeopleDevelopment), { loading: ModuleLoading });
 const OfficeTravelWorkspace = dynamic(() => import("@/components/office-travel-workspace").then((module) => module.OfficeTravelWorkspace), { loading: ModuleLoading });
@@ -185,6 +186,7 @@ export function InternalWorkspaceScreen({ workspace, section }: Props) {
           : workspace === "office" && section === "facilities" ? <OfficePhysicalOffice />
           : workspace === "office" && section === "recruitment" ? <OfficeRecruitmentWorkspace />
           : workspace === "office" && section === "people" ? <>
+            <details className="office-employee-full-record"><summary>Upload & Extract Attendance · Excel reconciliation</summary><OfficeHrAttendanceImport/></details>
             <details className="office-employee-full-record"><summary>HR employee intake & verification desk · Expand</summary><OfficeEmployeeIntake view="hr"/></details>
             <WorkforceLiveOverview /><OfficeWorkforceLifecycle /><OfficeOrganizationChart />
           </>
