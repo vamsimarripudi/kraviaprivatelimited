@@ -6,7 +6,7 @@ import { ArrowRight, Clock3, Filter, RefreshCw, ShieldCheck } from "lucide-react
 import styles from "./office-vault-activity.module.css";
 
 type EventRow = {
- id: number; event_type: string; category_slug: string; resource_id: string | null; occurred_at: string;
+ id: number; event_type: string; category_slug: string; resource_scoped: boolean; occurred_at: string;
 };
 type Activity = { scope: "OWN"; generated_at: string; events: EventRow[] };
 const names: Record<string, string> = {
@@ -73,7 +73,7 @@ export function OfficeVaultActivity() {
   {!loading&&!error? <ol className={styles.events}>
    {rows.map(item=><li key={item.id}><ShieldCheck size={19} aria-hidden="true"/>
     <div><strong>{readable(item.event_type)}</strong>
-     <span>{names[item.category_slug]??readable(item.category_slug)} · {item.resource_id?"Specific record":"Category-level action"}</span>
+     <span>{names[item.category_slug]??readable(item.category_slug)} · {item.resource_scoped?"Specific record":"Category-level action"}</span>
     </div><time dateTime={item.occurred_at}><Clock3 size={14} aria-hidden="true"/>{date(item.occurred_at)}</time>
    </li>)}</ol>:null}
   <footer className={styles.footer}><p>Showing up to 100 most recent events from your own governed access history.</p>

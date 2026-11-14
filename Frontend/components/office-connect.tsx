@@ -183,7 +183,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
     </header>
     <div className={styles.grid} data-home={!activeId}>
       <aside className={styles.sidebar} aria-label="Conversations">
-        <div className={styles.sideHeading}><h2>My conversations</h2><span>{conversations.length}</span></div>
+        <div className={styles.sideHeading}><h2>My conversations</h2><span>{listLoading?"…":listError?"—":conversations.length}</span></div>
         {listLoading ? <div className={styles.skeleton} role="status">Loading authorized conversations…</div> : null}
         {listError ? <div className={styles.error} role="alert"><p>{listError}</p><button type="button" onClick={() => setReloadCount(n => n + 1)}>Retry</button></div> : null}
         {!listLoading && !listError && !conversations.length
@@ -201,7 +201,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
         </nav>
       </aside>
       <section className={styles.body} data-home={!activeId} aria-label={activeId ? "Private messages" : "Connect workspace"}>
-        {!activeId ? <OfficeConnectOverview conversations={conversations}/> : <>
+        {!activeId ? <OfficeConnectOverview conversations={conversations} conversationsLoading={listLoading} conversationsError={listError}/> : <>
           <div className={styles.threadHeader}><Link href="/office/chat" className={styles.back}><ArrowLeft size={17}/>All conversations</Link><span>Verified membership · Internal</span></div>
           <div className={styles.timeline} role="log" aria-label="Message history" aria-live="polite">
             {messageLoading ? <div className={styles.skeleton}>Opening private history…</div> : null}

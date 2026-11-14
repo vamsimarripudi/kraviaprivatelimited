@@ -39,3 +39,14 @@ test("cross-site scripts cannot request, grant or revoke Vault access", async({r
   expect(response.headers()["cache-control"]).toContain("no-store");
  }
 });
+
+
+test("Connect and Vault page bodies cannot be viewed before KRAVIA AAL2 login",async ({request})=>{
+ for(const path of ["/office/chat","/office/k-vault"]){
+  const response=await request.get(path);
+  expect(new URL(response.url()).pathname,path).toBe("/office/login");
+  const html=await response.text();
+  expect(html,path).not.toContain("Private conversation");
+  expect(html,path).not.toContain("Current access grants");
+ }
+});

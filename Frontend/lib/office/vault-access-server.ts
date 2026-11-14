@@ -202,7 +202,13 @@ export async function getOfficeVaultMyActivity() {
  if(error)throw new OfficeVaultAccessError(503,"Vault access history is temporarily unavailable");
  return {
   generated_at:new Date().toISOString(),
-  events:data??[],
+  events:(data??[]).map(row=>({
+   id:row.id,
+   event_type:row.event_type,
+   category_slug:row.category_slug,
+   resource_scoped:row.resource_id!==null,
+   occurred_at:row.occurred_at,
+  })),
   scope:"OWN" as const,
  };
 }

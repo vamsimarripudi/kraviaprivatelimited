@@ -45,7 +45,11 @@ function when(value: string) {
  }).format(date);
 }
 
-export function OfficeConnectOverview({ conversations }: { conversations: Conversation[] }) {
+export function OfficeConnectOverview({ conversations, conversationsLoading, conversationsError }: {
+  conversations: Conversation[];
+  conversationsLoading: boolean;
+  conversationsError: string;
+}) {
  const [work, setWork] = useState<SourceResult<Work>>({ state: "unavailable" });
  const [it, setIt] = useState<SourceResult<IT>>({ state: "unavailable" });
  const [escalations, setEscalations] = useState<SourceResult<Escalations>>({ state: "unavailable" });
@@ -108,7 +112,11 @@ export function OfficeConnectOverview({ conversations }: { conversations: Conver
   <div className={styles.columns}>
    <section className={styles.panel} aria-labelledby="connect-recent-title">
     <header><h2 id="connect-recent-title">Recent conversations</h2><Link href="/office/chat/directory">Find colleagues <ArrowRight size={15}/></Link></header>
-    {conversations.length === 0
+    {conversationsLoading
+     ? <p className={styles.empty} role="status">Loading permitted conversations…</p>
+     : conversationsError
+     ? <p className={styles.empty}>Conversation list is unavailable. Use Refresh to retry.</p>
+     : conversations.length === 0
      ? <div className={styles.empty}><MessageCircle size={21} aria-hidden="true"/>No authorized conversations yet.</div>
      : <div className={styles.rows}>
       {conversations.slice(0,5).map(row => <Link key={row.id}
