@@ -120,7 +120,7 @@ export function OfficeConnectSettings(){
    <section className={styles.card} aria-labelledby="connect-policy-heading">
     <h2 id="connect-policy-heading"><ShieldCheck size={19} aria-hidden="true"/> Delivery and privacy boundaries</h2>
     <p>Settings indicate consent. They do not authorize external delivery, expose conversation history, create a group membership or change access rights.</p>
-    <div className={styles.policy}><EyeOff size={18}/><span><strong>Other employees' read receipts</strong>
+    <div className={styles.policy}><EyeOff size={18}/><span><strong>Other employees’ read receipts</strong>
       <small>Not exposed to this settings page or organization-wide administration.</small></span></div>
     <div className={styles.policy}><Mail size={18}/><span><strong>Email digests</strong>
       <small>Consent can be stored but the delivery workflow requires separate provider verification and approval.</small></span></div>
