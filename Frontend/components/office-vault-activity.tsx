@@ -6,12 +6,13 @@ import { ArrowRight, Clock3, Filter, RefreshCw, ShieldCheck } from "lucide-react
 import styles from "./office-vault-activity.module.css";
 
 type EventRow = {
- id: number; event_type: string; category_slug: string; resource_scoped: boolean; occurred_at: string;
+ id: string; event_type: string; category_slug: string; resource_scoped: boolean; occurred_at: string;
 };
 type Activity = { scope: "OWN"; generated_at: string; events: EventRow[] };
 const names: Record<string, string> = {
  identity:"Company identity", registrations:"Registrations", banking:"Banking",
  legal:"Legal", people:"People", technology:"Technology", documents:"Documents", custody:"Secure custody",
+ secrets:"Sealed documents",
 };
 function readable(text: string) {
  return text.replaceAll("_"," ").toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase());
@@ -52,7 +53,7 @@ export function OfficeVaultActivity() {
  return <section className={styles.shell} aria-label="My Vault access audit">
   <header className={styles.heading}><div><p>PRIVATE AUDIT HISTORY</p>
    <h2>My Vault activity</h2>
-   <span>Only access events attributed to your verified Office identity are returned. Record identifiers and activity of other employees are not exposed.</span>
+   <span>Only access and sealed-document events attributed to your verified Office identity are returned. Record identifiers and activity of other employees are not exposed.</span>
   </div><button type="button" disabled={loading} onClick={()=>{setLoading(true);setRefresh(v=>v+1);}}>
    <RefreshCw size={17} aria-hidden="true"/>{loading?"Loading…":"Refresh"}
   </button></header>
@@ -69,14 +70,14 @@ export function OfficeVaultActivity() {
   {error?<div className={styles.error} role="alert"><p>{error}</p>
    <button type="button" onClick={()=>{setLoading(true);setRefresh(v=>v+1);}}>Retry</button></div>:null}
   {!loading&&!error&&!rows.length?<p className={styles.state} role="status">
-   {events.length===0?"No Vault access events are recorded for this identity.":"No events match these filters."}</p>:null}
+   {events.length===0?"No Vault access or sealed-document events are recorded for this identity.":"No events match these filters."}</p>:null}
   {!loading&&!error? <ol className={styles.events}>
    {rows.map(item=><li key={item.id}><ShieldCheck size={19} aria-hidden="true"/>
     <div><strong>{readable(item.event_type)}</strong>
      <span>{names[item.category_slug]??readable(item.category_slug)} · {item.resource_scoped?"Specific record":"Category-level action"}</span>
     </div><time dateTime={item.occurred_at}><Clock3 size={14} aria-hidden="true"/>{date(item.occurred_at)}</time>
    </li>)}</ol>:null}
-  <footer className={styles.footer}><p>Showing up to 100 most recent events from your own governed access history.</p>
+  <footer className={styles.footer}><p>Showing up to 100 most recent events across your own governed access and sealed-document history.</p>
    <Link href="/office/k-vault/requests">View access requests <ArrowRight size={16} aria-hidden="true"/></Link></footer>
  </section>;
 }
