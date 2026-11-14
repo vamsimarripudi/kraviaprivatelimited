@@ -13,7 +13,8 @@ describe("K-Vault 10 MiB encrypted chunk ingress",()=>{
   expect(service).toContain("TOTAL_LIMIT=10_485_760");
   expect(migration).toContain("enable row level security");
   expect(migration).toContain("revoke all on public.office_vault_secret_ingress_sessions");
-  expect(migration).toContain("revoke all on public.office_vault_secret_ingress_parts");
+  expect(migration).toContain("public.office_vault_secret_ingress_parts from public,anon,authenticated");
+  expect(migration).toContain("grant select,insert,update,delete");
  });
  it("only stores wrapped encrypted chunks, never plaintext object uploads",()=>{
   expect(service).toContain("sealVaultContent(data,id,partId,loadVaultKeyring())");
