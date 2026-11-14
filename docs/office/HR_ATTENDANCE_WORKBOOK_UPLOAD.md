@@ -32,7 +32,7 @@ When the user returns the completed sheet, an HR operator can validate and stage
 - Extractor: `lib/office/hr-attendance-workbook.ts` (ZIP integrity, bounded XML parsing, no external entities/macros/formulas in editable fields)
 - Auth/API: `app/api/office-hr-attendance-import/route.ts`
 - Server review: `lib/office/hr-attendance-import-server.ts`
-- Migration: `Database/supabase/migrations/20261114120641_hr_attendance_workbook_import.sql`
+- Migration: `Database/supabase/migrations/20261114140609_hr_attendance_workbook_import_20261114.sql`
 - QA: `Frontend/tests/office-hr-attendance-workbook.test.ts`, isolated PostgreSQL smoke `Database/supabase/tests/hr-attendance-workbook-import-smoke.sql`.
 
 No real employee records, board resolutions or payable hours are seeded.

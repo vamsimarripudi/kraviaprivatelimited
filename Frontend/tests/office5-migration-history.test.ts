@@ -12,6 +12,7 @@ const applied:Readonly<Record<string,string>>={
  "20261114120559_hr_payroll_independent_review_20261114.sql":"5c18e7d9722337c4d09247eaf6c82f58",
  "20261114120612_hr_leave_evidence_20261114.sql":"7db886381bf5628816b7c01c0d3b8a3b",
  "20261114120622_hr_payroll_maker_checker_20261114.sql":"0d9c7692a9a09d44f03a426cdfa72c02",
+ "20261114140609_hr_attendance_workbook_import_20261114.sql":"0000843e1c378f912e46cbc82daebea0",
 };
 const planned=[
  "office_chat_private_messages",
@@ -33,14 +34,14 @@ const planned=[
  "office_vault_chunked_ingress",
 ];
 describe("Office5 migration-history identity and release ordering",()=>{
- it("preserves all six production-applied November 14 SQL files byte-for-byte",()=>{
+ it("preserves all seven production-applied November 14 SQL files byte-for-byte",()=>{
   for(const [filename,originalHash] of Object.entries(applied)){
    expect(paths,filename).toContain(filename);
    expect(md5(content(filename)),filename).toBe(originalHash);
   }
  });
  it("defines 17 new Office5 SQL migrations after the already-applied histories",()=>{
-  expect(paths).toHaveLength(23);
+  expect(paths).toHaveLength(24);
   const expected=planned.map((name,i)=>
    "2026111413"+String(i+1).padStart(4,"0")+"_"+name+".sql");
   expect(new Set(paths).size).toBe(paths.length);
