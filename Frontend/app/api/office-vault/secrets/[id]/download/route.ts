@@ -1,6 +1,7 @@
 import {NextResponse} from "next/server";
 import {z} from "zod";
 import {downloadOfficeVaultSecret,SecretLockerError} from "@/lib/office/vault-secret-server";
+import {streamSealedDocument} from "@/lib/office/vault-secret-byte-stream";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 type Context={params:Promise<{id:string}>};
@@ -12,7 +13,7 @@ export async function GET(_:Request,{params}:Context){
  try{
   const file=await downloadOfficeVaultSecret(id,"DOWNLOAD");
   const name=file.filename.replaceAll('"',"").replaceAll("\\","_");
-  return new NextResponse(new Uint8Array(file.bytes),{headers:{
+  return new Response(streamSealedDocument(file.bytes),{headers:{
    ...headers,
    "Content-Type":file.mime,
    "Content-Disposition":'attachment; filename="'+name+'"',
