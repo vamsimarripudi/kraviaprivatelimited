@@ -23,4 +23,12 @@ describe("K-Vault secret locker service boundaries",()=>{
   expect(server).toContain('version.uploaded_by===current.identity.userId');
   expect(server).toContain('await record(current,version,action==="DOWNLOAD"?"DOWNLOADED":"PREVIEWED")');
  });
+ it("queries only authorized secret inventory scopes before emitting metadata",()=>{
+  expect(server).toContain('.eq("owner_user_id",current.identity.userId)');
+  expect(server).toContain('.in("id",scopedIds.slice(offset,offset+100))');
+  expect(server).toContain("const categoryWide=mayRead&&currentGrants.some");
+  expect(server).toContain("const unique=new Map<string,SecretDocument>()");
+  expect(server).toContain("secretDocumentVisible({");
+  expect(server).toContain("secretGrantRights(currentGrants,d.id)");
+ });
 });
