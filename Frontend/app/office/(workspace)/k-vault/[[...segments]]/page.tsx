@@ -144,7 +144,7 @@ export default async function VaultPages({params}:Props){
    content=<article className={styles.record}>
      <h2>{record.title}</h2><p>Registration type: {record.registration_type}</p>
      <dl><dt>Authority</dt><dd>{record.authority}</dd><dt>Identifier (masked)</dt><dd>{record.identifier_masked}</dd>
-       <dt>Status</dt><dd>{record.status}</dd><dt>Evidence reference</dt><dd>{record.evidence_reference || "Not linked"}</dd>
+       <dt>Status</dt><dd>{record.status}</dd><dt>Evidence reference</dt><dd>{record.evidence_reference ? "Recorded in the authoritative registry" : "Not linked"}</dd>
        <dt>Last update</dt><dd>{record.updated_at}</dd></dl>
      <h3>Source change history</h3>
      {history.length?<ul>{history.map(event=><li key={event.id}>{event.event_type} · {event.created_at}</li>)}</ul>:<p>No history entries are recorded.</p>}
