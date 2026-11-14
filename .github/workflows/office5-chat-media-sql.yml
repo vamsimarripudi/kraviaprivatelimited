@@ -1,0 +1,96 @@
+name: KRAVIA Connect private media/templates isolated SQL
+
+on:
+  pull_request:
+    paths:
+      - "Database/supabase/migrations/20261114215001_office_chat_media_and_personal_templates.sql"
+      - ".github/workflows/office5-chat-media-sql.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  media-templates-sql:
+    name: Private chat MIME and templates RLS - isolated PostgreSQL 17
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-only-kravia
+          POSTGRES_DB: office_chat_media
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d office_chat_media"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+      - name: Test additive schema, private bucket, MIME and no browser grants
+        shell: bash
+        env:
+          PGPASSWORD: ci-only-kravia
+        run: |
+          set -euo pipefail
+          export PGHOST=127.0.0.1 PGUSER=postgres PGDATABASE=office_chat_media
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          create role anon nologin;
+          create role authenticated nologin;
+          create role service_role nologin bypassrls;
+          create extension if not exists pgcrypto;
+          create schema storage;
+          create table storage.buckets(
+            id text primary key,name text not null,public boolean not null,
+            file_size_limit bigint,allowed_mime_types text[]
+          );
+          insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
+          values('office-chat-attachments','office-chat-attachments',false,10485760,
+            array['application/pdf','image/jpeg','image/png','image/webp']);
+          create table public.office_identity_users(
+            user_id uuid primary key,status text not null default 'ACTIVE'
+          );
+          create table public.office_chat_attachment_objects(
+            id uuid primary key default gen_random_uuid(),
+            detected_mime_type text not null
+              constraint office_chat_attachment_objects_detected_mime_type_check
+              check(detected_mime_type in (
+                'application/pdf','image/jpeg','image/png','image/webp'))
+          );
+          SQL
+          psql -X -v ON_ERROR_STOP=1 --single-transaction -f \
+            Database/supabase/migrations/20261114215001_office_chat_media_and_personal_templates.sql
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          do $media$
+          begin
+            if not exists(select 1 from storage.buckets where
+              id='office-chat-attachments' and public=false and
+              'image/gif'=any(allowed_mime_types) and
+              'video/mp4'=any(allowed_mime_types) and
+              'video/webm'=any(allowed_mime_types) and
+              'text/plain'=any(allowed_mime_types)) then
+              raise exception 'Approved private media MIME scope missing';
+            end if;
+            if to_regclass('public.office_chat_personal_templates') is null then
+              raise exception 'Private personal template relation missing';
+            end if;
+            if not (select c.relrowsecurity from pg_class c where c.oid=
+              'public.office_chat_personal_templates'::regclass) then
+              raise exception 'Private message templates do not enforce RLS';
+            end if;
+            if has_table_privilege('anon','public.office_chat_personal_templates','SELECT') or
+               has_table_privilege('authenticated','public.office_chat_personal_templates','SELECT') or
+               has_table_privilege('anon','public.office_chat_personal_templates','INSERT') or
+               has_table_privilege('authenticated','public.office_chat_personal_templates','INSERT') then
+              raise exception 'Browser database role incorrectly granted private templates';
+            end if;
+            if not has_table_privilege('service_role','public.office_chat_personal_templates','SELECT') then
+              raise exception 'Trusted backend missing private template grant';
+            end if;
+          end
+          $media$;
+          SQL
+          echo "Private template and scanner-MIME migration validated in disposable PostgreSQL 17."
