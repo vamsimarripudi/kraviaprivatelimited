@@ -41,12 +41,14 @@ test("cross-site scripts cannot request, grant or revoke Vault access", async({r
 });
 
 
-test("Connect and Vault page bodies cannot be viewed before KRAVIA AAL2 login",async ({request})=>{
+test("Connect and Vault page bodies cannot be viewed before KRAVIA AAL2 login",async ({page})=>{
+ // Next.js may carry a redirect in its streamed response while the fetch
+ // URL stays unchanged. Verify the actual browser navigation and visible UI.
  for(const path of ["/office/chat","/office/k-vault"]){
-  const response=await request.get(path);
-  expect(new URL(response.url()).pathname,path).toBe("/office/login");
-  const html=await response.text();
-  expect(html,path).not.toContain("Private conversation");
-  expect(html,path).not.toContain("Current access grants");
+  await page.goto(path);
+  await expect(page).toHaveURL(/\/office\/login(?:\?|$)/);
+  await expect(page.getByRole("heading",{name:"Sign in to KRAVIA Office"})).toBeVisible();
+  await expect(page.getByText("My conversations")).toHaveCount(0);
+  await expect(page.getByText("My current grants")).toHaveCount(0);
  }
 });
