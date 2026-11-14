@@ -1,0 +1,45 @@
+name: Office department handover authority
+
+on:
+  pull_request:
+    paths:
+      - "Database/supabase/migrations/202611140002_department_handover_access_sync.sql"
+      - "Database/supabase/tests/department-handover-access-sync.sql"
+      - ".github/workflows/office-department-handover-authority.yml"
+  push:
+    branches: [main]
+    paths:
+      - "Database/supabase/migrations/202611140002_department_handover_access_sync.sql"
+      - "Database/supabase/tests/department-handover-access-sync.sql"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Isolated PostgreSQL handover authority test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: office_handover_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: isolated-office-ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d office_handover_test"
+          --health-interval 3s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run ownership and authorization regression
+        run: |
+          docker run --rm --network host \
+            --volume "$PWD:/repo:ro" --workdir /repo \
+            --env PGPASSWORD=isolated-office-ci \
+            postgres:17 psql -h 127.0.0.1 -U postgres -d office_handover_test \
+              -v ON_ERROR_STOP=1 \
+              -f Database/supabase/tests/department-handover-access-sync.sql
