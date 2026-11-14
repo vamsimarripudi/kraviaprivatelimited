@@ -388,3 +388,22 @@ export async function openOfficeDepartmentChannel(code:string){
   throw new OfficeChatError(403,"Current department assignment is required");
  return {conversation_id:result.data};
 }
+
+
+/** Source-calculated unread counts, restricted to the current verified actor. */
+export async function getOfficeChatUnreadSummary() {
+  const current = await actor();
+  const { data, error } = await current.admin.rpc("office_chat_unread_snapshot", {
+    p_actor: current.identity.userId,
+  });
+  if (error || !Array.isArray(data)) throw internalFailure("Unread state is temporarily unavailable");
+  const conversations = data.map((row: { conversation_id: string; unread_count: number | string }) => ({
+    conversation_id: String(row.conversation_id),
+    unread: Math.max(0, Number(row.unread_count) || 0),
+  }));
+  return {
+    unread_messages: conversations.reduce((total: number, row: { unread: number }) => total + row.unread, 0),
+    unread_conversations: conversations.filter((row: { unread: number }) => row.unread > 0).length,
+    conversations,
+  };
+}

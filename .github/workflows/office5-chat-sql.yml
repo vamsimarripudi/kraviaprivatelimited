@@ -7,9 +7,11 @@ on:
       - "Database/supabase/migrations/202611140002_office_chat_private_groups.sql"
       - "Database/supabase/migrations/202611140005_office_chat_threads_and_search.sql"
       - "Database/supabase/migrations/202611140006_office_chat_department_channels.sql"
+      - "Database/supabase/migrations/202611140009_office_chat_unread_snapshot.sql"
       - "Database/supabase/tests/office5_chat_security.sql"
       - "Database/supabase/tests/office5_chat_extended_security.sql"
       - "Database/supabase/tests/office5_chat_department_security.sql"
+      - "Database/supabase/tests/office5_chat_unread_security.sql"
       - ".github/workflows/office5-chat-sql.yml"
   workflow_dispatch:
 
@@ -51,8 +53,10 @@ jobs:
           pg --file Database/supabase/migrations/202611140002_office_chat_private_groups.sql
           pg --file Database/supabase/migrations/202611140005_office_chat_threads_and_search.sql
           pg --file Database/supabase/migrations/202611140006_office_chat_department_channels.sql
+          pg --file Database/supabase/migrations/202611140009_office_chat_unread_snapshot.sql
           pg --file Database/supabase/tests/office5_chat_security.sql
           pg --file Database/supabase/tests/office5_chat_extended_security.sql
           pg --file Database/supabase/tests/office5_chat_department_security.sql
+          pg --file Database/supabase/tests/office5_chat_unread_security.sql
           counts="$(pg --tuples-only --no-align --command "select (select count(*) from public.office_chat_conversations),(select count(*) from public.office_chat_messages)")"
           test "$counts" = "0|0"
