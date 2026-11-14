@@ -161,14 +161,18 @@ export async function readHrAttendanceImports(batchId?:string){
     .order("created_at",{ascending:false}).limit(30);
   guard(batches.error,"Cannot load private HR import history");
   const current=batchId||batches.data?.[0]?.id;
-  if(!current)return {batches:batches.data||[],rows:[],actorId:actor.identity.userId};
+  const peopleResult=await actor.admin.from("office_identity_users")
+    .select("user_id,display_name").eq("status","ACTIVE").limit(600);
+  guard(peopleResult.error,"HR employee names unavailable");
+  const people=peopleResult.data||[];
+  if(!current)return {batches:batches.data||[],rows:[],people,actorId:actor.identity.userId};
   const allowed=(batches.data||[]).some(b=>b.id===current);
   if(!allowed)throw new HrImportError(404,"HR import batch not found");
   const rows=await actor.admin.from("office_hr_attendance_import_rows")
     .select("id,batch_id,row_key,source_sheet,source_row,employee_user_id,work_date,payable_candidate_minutes,paid_leave_candidate_minutes,overtime_candidate_minutes,evidence_reference,workbook_decision,status,reviewed_by,reviewed_at,review_note")
     .eq("batch_id",current).order("source_sheet").order("source_row").limit(400);
   guard(rows.error,"Cannot load reviewed HR import entries");
-  return {batches:batches.data||[],rows:rows.data||[],actorId:actor.identity.userId};
+  return {batches:batches.data||[],rows:rows.data||[],people,actorId:actor.identity.userId};
 }
 export async function reviewHrAttendanceRow(input:{rowId:string;decision:"ACCEPT"|"REJECT";note:string}){
   const actor=await hrActor();
