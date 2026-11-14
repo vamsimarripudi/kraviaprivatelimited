@@ -125,7 +125,7 @@ export default async function VaultPages({params}:Props){
    if(!allowed.includes("access.profile.assign")) notFound();
    content=<OfficeVaultSettings/>;
  } else if(segments.length===2&&segments[0]==="records"){
-   if(!visible("registrations")||!/^[0-9a-f-]{36}$/i.test(segments[1])) notFound();
+   if(!(visible("registrations")||visible("identity"))||!/^[0-9a-f-]{36}$/i.test(segments[1])) notFound();
    try {
      await requireOfficeVaultRecord({category:"registrations",recordId:segments[1],action:"READ"});
    } catch(error) {
