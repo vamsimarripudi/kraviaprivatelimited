@@ -95,3 +95,11 @@ test("anonymous sessions cannot aggregate personal notifications or assigned esc
   expect(response.headers()["cache-control"],url).toContain("no-store");
  }
 });
+
+test("anonymous accounts cannot enumerate channel provisioning or job-assignment counts",async({request})=>{
+ const response=await request.get("/api/office-chat/governance/channels");
+ expect([401,403,503]).toContain(response.status());
+ expect(response.headers()["cache-control"]).toContain("no-store");
+ const body=await response.text();
+ expect(body).not.toContain("active_assignment_count");
+});

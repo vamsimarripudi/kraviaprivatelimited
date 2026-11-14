@@ -60,3 +60,56 @@ export async function getOfficeConnectGovernance(){
   capabilities:decisions,policies:catalog.data??[],profile_mappings:profiles.data??[],
   disclaimer:"Canonical IAM and source-owned permissions decide every action. This register does not grant private message access, override department ownership, alter retention, approve work or expose other employees' messages."};
 }
+
+/** Governed inventory of department-channel *metadata*. No message bodies,
+ * member names, direct-message titles, or project group content are queried. */
+export async function getOfficeConnectChannelGovernance(){
+ let current:Awaited<ReturnType<typeof requireOfficeActor>>;
+ try{current=await requireOfficeActor()}
+ catch(error){if(error instanceof OfficePermissionError)
+  throw new OfficeConnectGovernanceError(error.status,error.message);throw error;}
+ if(current.identity.workspaceStatus!=="ACTIVE")throw new OfficeConnectGovernanceError(403,"Active Office access is required");
+ const device=await currentOfficeTrustedDeviceId(current.admin,current.identity.userId);
+ const [admin,auditor]=await Promise.all([
+  resolveOfficePermission(current.admin,current.identity,"access.profile.assign",{type:"COMPANY"},device),
+  resolveOfficePermission(current.admin,current.identity,"access.audit.read",{type:"COMPANY"},device),
+ ]);
+ if(!admin.allowed&&!auditor.allowed)throw new OfficeConnectGovernanceError(403,
+  "Independent communication administration or audit capability is required");
+ const [channels,assignments]=await Promise.all([
+  current.admin.from("office_chat_conversations")
+   .select("id,title,classification,state,department_code,updated_at")
+   .eq("kind","DEPARTMENT").order("department_code").limit(1000),
+  current.admin.from("office_job_assignments")
+   .select("department_code,user_id").eq("status","ACTIVE").limit(5000),
+ ]);
+ if(channels.error||assignments.error)
+  throw new OfficeConnectGovernanceError(503,"Channel metadata authority temporarily unavailable");
+ const counts=new Map<string,Set<string>>();
+ for(const row of assignments.data??[]){
+  const code=String(row.department_code??"").trim().toUpperCase();
+  if(!code)continue;
+  const group=counts.get(code)??new Set<string>();
+  group.add(String(row.user_id));counts.set(code,group);
+ }
+ const codes=new Set([...counts.keys(),...(channels.data??[])
+  .map(row=>String(row.department_code??"").toUpperCase())]);
+ const existing=new Map((channels.data??[])
+  .map(row=>[String(row.department_code??"").toUpperCase(),row]));
+ const truncated=(assignments.data??[]).length===5000;
+ return {scope:"GOVERNED_CHANNEL_METADATA" as const,generated_at:new Date().toISOString(),
+  assignments_complete:!truncated,
+  departments:[...codes].filter(Boolean).sort().map(code=>{
+   const channel=existing.get(code);
+   return {department_code:code,
+    channel_created:Boolean(channel),
+    channel_id:channel?.id??null,
+    classification:channel?.classification??null,
+    state:channel?.state??"NOT_PROVISIONED",
+    active_assignment_count:truncated?null:counts.get(code)?.size??0,
+    updated_at:channel?.updated_at??null,
+   };
+  }),
+  disclaimer:"Read-only governance inventory. A department's existence never grants you message or membership access. Channel creation and classification changes must follow the canonical change request and independent review; no action is executed here.",
+ };
+}
