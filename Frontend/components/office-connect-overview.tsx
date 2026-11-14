@@ -47,10 +47,12 @@ function when(value: string) {
  }).format(date);
 }
 
-export function OfficeConnectOverview({ conversations, conversationsLoading, conversationsError }: {
+export function OfficeConnectOverview({ conversations, conversationsLoading, conversationsError, liveRevision, liveState }: {
   conversations: Conversation[];
   conversationsLoading: boolean;
   conversationsError: string;
+  liveRevision:number;
+  liveState:"idle"|"live"|"reconnecting"|"restricted"|"polling";
 }) {
  const { permissions } = useOfficeWorkspace();
  const [work, setWork] = useState<SourceResult<Work>>({ state: "unavailable" });
@@ -85,7 +87,7 @@ export function OfficeConnectOverview({ conversations, conversationsLoading, con
    setUnread(unreadResult);
   }).finally(() => { if (active) setLoading(false); });
   return () => { active = false; };
- }, [refresh]);
+ }, [refresh,liveRevision]);
 
  const pendingApprovals = work.value?.approvals.filter(approval => approval.request) ?? [];
  const assigned = it.value?.tickets.filter(ticket => ticket.owner_user_id === it.value?.actor.user_id
@@ -114,6 +116,7 @@ export function OfficeConnectOverview({ conversations, conversationsLoading, con
   </div>
   <p className={styles.policy}><ShieldCheck size={16} aria-hidden="true"/>
    All figures are limited to your current authorized sources. Unavailable or restricted sources never display invented zeroes.
+   <span role="status">{liveState==="live"?" · Private live inbox":" · Private refresh fallback"}</span>
   </p>
   <div className={styles.metrics} aria-busy={loading}>
    {metrics.map(metric => <article key={metric.label}>
