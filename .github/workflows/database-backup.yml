@@ -105,3 +105,4 @@ jobs:
         if: always()
         shell: bash
         run: rm -f "$RUNNER_TEMP/kravia-office-backup.tar.gz.gpg"
+# Office 5.0 pre-release encrypted backup checkpoint (2026-11-14).
