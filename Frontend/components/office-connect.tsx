@@ -22,7 +22,7 @@ type ListResponse = { actor_user_id: string; conversations: Conversation[] };
 type Member={user_id:string;display_name:string};
 type MessageResponse = { actor_user_id: string; can_pin:boolean; messages: Message[];older_cursor:ChatHistoryCursor|null };
 type ComposerTool = "attach"|"emoji"|"templates"|null;
-type MessageTemplate = {title:string;body:string};
+type MessageTemplate = {id?:string;title:string;body:string};
 const EMOJIS=["😀","😃","😄","😁","😊","😍","😂","🥹","😉","🤔","😎","😮","🙏","👏","👍","👎","❤️","💙","✅","🎉","🔥","⭐","💯","👀","🙌","💡","📌","📎","📅","📢","💬","🚀","🤝","🎯","🌟","☕","🙋","👌","💪","🤗","🎂","🎊"];
 const QUICK_TEMPLATES:MessageTemplate[]=[
   {title:"Quick update",body:"Quick update: "},
@@ -82,7 +82,6 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
   const imagePicker=useRef<HTMLInputElement|null>(null);
   const videoPicker=useRef<HTMLInputElement|null>(null);
   const gifPicker=useRef<HTMLInputElement|null>(null);
-  const mentionPicker=false; // Deprecated standalone mention button: typing @ opens the scoped people menu.
 
   const nonce = useRef<string | null>(null);
   const activeId = initialConversationId;
@@ -101,13 +100,13 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
     person.display_name.toLocaleLowerCase().includes(mentionTerm.toLocaleLowerCase())).slice(0,8);
   useEffect(()=>{
     if(!actor)return;
-    try{
-      const saved=JSON.parse(window.localStorage.getItem("kravia.connect.templates."+actor)??"[]") as unknown;
-      if(Array.isArray(saved))setCustomTemplates(saved.filter((row):row is MessageTemplate=>
-        !!row&&typeof row==="object"&&"title" in row&&"body" in row&&
-        typeof row.title==="string"&&typeof row.body==="string").slice(0,12));
-    }catch{setCustomTemplates([]);}
+    let active=true;
+    void json<{templates:MessageTemplate[]}>("/api/office-chat/templates")
+      .then(result=>{if(active)setCustomTemplates(result.templates??[]);})
+      .catch(()=>{if(active)setCustomTemplates([]);});
+    return()=>{active=false;};
   },[actor]);
+
   function updateDraft(value:string,caret:number){
     nonce.current=null;setDraft(value);setSendStatus("");
     const token=value.slice(0,caret).match(/(?:^|\s)@([\p{L}\p{N} ._-]{0,42})$/u);
@@ -133,15 +132,31 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
     insertText("@"+person.display_name+" ",true);
     setPickedMentions(ids=>ids.includes(person.user_id)?ids:[...ids,person.user_id]);
   }
-  function saveCustomTemplate(){
+  async function saveCustomTemplate(){
     const name=templateTitle.trim();
     if(!actor||!name||!draft.trim())return;
-    const next=[...customTemplates.filter(x=>x.title!==name),{title:name.slice(0,60),body:draft.slice(0,4000)}].slice(-12);
-    try{window.localStorage.setItem("kravia.connect.templates."+actor,JSON.stringify(next));}
-    catch{setSendStatus("This browser could not save the template.");return;}
-    setCustomTemplates(next);setTemplateTitle("");setComposerTool(null);
-    setSendStatus("Template saved on this browser only. Do not store sensitive credentials.");
+    try{
+      const response=await json<{template:MessageTemplate}>("/api/office-chat/templates",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({action:"SAVE",title:name,body:draft.trim()})
+      });
+      setCustomTemplates(templates=>[response.template,
+        ...templates.filter(t=>t.title!==response.template.title)].slice(0,12));
+      setTemplateTitle("");setComposerTool(null);
+      setSendStatus("Personal template saved to your private Office account");
+    }catch(error){setSendStatus(error instanceof Error?error.message:"Template not saved");}
   }
+  async function deleteCustomTemplate(template:MessageTemplate){
+    if(!template.id)return;
+    try{
+      await json<{deleted:boolean}>("/api/office-chat/templates",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({action:"DELETE",id:template.id})
+      });
+      setCustomTemplates(items=>items.filter(x=>x.id!==template.id));
+    }catch(error){setSendStatus(error instanceof Error?error.message:"Template deletion not confirmed");}
+  }
+
 
   const waitingMessage=!messageError&&(messageLoading||messageScope!==activeId);
   useLayoutEffect(()=>{
@@ -449,7 +464,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
                   onMouseDown={e=>e.preventDefault()} onClick={()=>chooseMention(person)}>
                   {person.display_name}</button>):<p>No matching current members</p>}
             </div>:null}
-            {composerTool?<div className="chat-tool-panel" role="dialog" aria-label="Composer tools">
+            {composerTool?<div className="chat-tool-panel" id="office-chat-tool-panel" role="dialog" aria-label="Composer tools">
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
                 <strong style={{fontSize:12}}>{composerTool==="attach"?"Attach securely":composerTool==="emoji"?"Insert emoji":"Message templates"}</strong>
                 <button type="button" title="Close tools" aria-label="Close tools" onClick={()=>setComposerTool(null)}><X size={15}/></button>
@@ -466,19 +481,25 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
                   aria-label={"Insert emoji "+emoji} onClick={()=>insertText(emoji)}>{emoji}</button>)}
               </div>:null}
               {composerTool==="templates"?<div className="chat-template-list">
-                {[...QUICK_TEMPLATES,...customTemplates].map(t=><button type="button"
-                  key={t.title} onClick={()=>{setDraft(t.body);setComposerTool(null);composerInput.current?.focus();}}>{t.title}</button>)}
+                {QUICK_TEMPLATES.map(t=><button type="button" key={"built-in-"+t.title}
+                  onClick={()=>{setDraft(t.body);setComposerTool(null);composerInput.current?.focus();}}>{t.title}</button>)}
+                {customTemplates.map(t=><div key={t.id??t.title} style={{display:"flex",alignItems:"center",gap:6}}>
+                  <button type="button" style={{flex:1}}
+                    onClick={()=>{setDraft(t.body);setComposerTool(null);composerInput.current?.focus();}}>{t.title}</button>
+                  <button type="button" title={"Delete "+t.title} aria-label={"Delete "+t.title}
+                    onClick={()=>void deleteCustomTemplate(t)}><X size={15}/></button>
+                </div>)}
                 <div className="chat-template-save">
                   <input aria-label="Name for current draft template" maxLength={60} placeholder="Template title"
                     value={templateTitle} onChange={e=>setTemplateTitle(e.target.value)}/>
-                  <button type="button" disabled={!templateTitle.trim()||!draft.trim()} onClick={saveCustomTemplate}>Save draft</button>
+                  <button type="button" disabled={!templateTitle.trim()||!draft.trim()} onClick={()=>void saveCustomTemplate()}>Save draft</button>
                 </div>
-                <small>Personal templates stay in this browser; do not save private data or credentials.</small>
+                <small>Personal templates sync with your verified Office account. Do not save passwords or OTPs.</small>
               </div>:null}
             </div>:null}
             <div className="chat-composer-frame">
               <button type="button" className="chat-tool" aria-label="Attach file or media" title="Attach"
-                aria-expanded={composerTool==="attach"} aria-controls="office-chat-file-picker"
+                aria-expanded={composerTool==="attach"} aria-controls="office-chat-tool-panel"
                 disabled={submitting||fileLoading||selectedFiles.length>=5}
                 onClick={()=>{setMentionTerm(null);setComposerTool(v=>v==="attach"?null:"attach");}}>
                 <Plus size={20}/></button>
