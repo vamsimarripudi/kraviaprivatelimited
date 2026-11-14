@@ -26,6 +26,19 @@ export function OfficeConnectKnowledge({articleId}:{articleId?:string}){
  const [refresh,setRefresh]=useState(0);
  const [query,setQuery]=useState("");
  const [category,setCategory]=useState("ALL");
+ // A role transfer can invalidate a previously readable article while its
+ // tab is suspended. Hide cached content and refetch on return to visibility.
+ useEffect(()=>{
+  const revalidate=()=>{
+   if(document.visibilityState==="visible"){
+    setLoading(true);
+    setRefresh(value=>value+1);
+   }
+  };
+  document.addEventListener("visibilitychange",revalidate);
+  return()=>document.removeEventListener("visibilitychange",revalidate);
+ },[]);
+
  useEffect(()=>{
   const controller=new AbortController();
   void (async()=>{
