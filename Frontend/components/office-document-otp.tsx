@@ -59,7 +59,7 @@ export function OfficeDocumentOtpStamp({ approval }: { approval: DocumentOtpAppr
       <span>Location accuracy <b>±{Number(approval.accuracy_m).toFixed(1)} m</b></span>
     </div>
     <small><MapPin size={12} aria-hidden="true"/>
-      Coordinates were reported by the signer's permitted browser location service
+      Coordinates were reported by the signer&apos;s permitted browser location service
       at {ist(approval.location_captured_at)}. They are not independently GPS-attested.
     </small>
     <small>Internal approval receipt bound to the document PDF hash. Not a certificate-based digital signature.</small>
@@ -185,7 +185,7 @@ export function OfficeDocumentOtpButton({
           onClick={() => setOpened(false)}><X size={17}/></button>
       </header>
       <div className={styles.dialogBody}>
-        <p>This approval belongs to your signed-in Office identity. It cannot approve another person's document.</p>
+        <p>This approval belongs to your signed-in Office identity. It cannot approve another person&apos;s document.</p>
         {loading && !email ? <p role="status"><LoaderCircle size={14}/> Verifying signer identity…</p> : null}
         {email ? <div className={styles.email}>
           <MailCheck size={18} aria-hidden="true"/>
