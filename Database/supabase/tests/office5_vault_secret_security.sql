@@ -12,7 +12,7 @@ declare
  doc uuid:='00000000-0000-4000-8000-000000000080';
  version uuid:='00000000-0000-4000-8000-000000000090';
  rejected uuid:='00000000-0000-4000-8000-000000000091';
- request_id uuid; grant_id uuid;
+ v_request_id uuid; grant_id uuid;
 begin
  if has_table_privilege('authenticated','public.office_vault_secret_documents','SELECT')
  or has_table_privilege('anon','public.office_vault_secret_versions','INSERT')
@@ -67,12 +67,12 @@ begin
  exception when raise_exception then
   if sqlerrm='Approved evidence mutated' then raise; end if;
  end;
- request_id:=public.office_vault_request_access(reader,'secrets',doc,'DOWNLOAD',
+ v_request_id:=public.office_vault_request_access(reader,'secrets',doc,'DOWNLOAD',
   'Need a controlled board record for approved company work',now()+interval '7 days');
- if public.office_vault_review_access(reviewer,request_id,true,
+ if public.office_vault_review_access(reviewer,v_request_id,true,
   'Verified current duties and independent document scope')<>'APPROVED'
  then raise exception 'Secret-specific permission approval did not commit'; end if;
- select id into grant_id from public.office_vault_access_grants where request_id=request_id;
+ select g.id into grant_id from public.office_vault_access_grants g where g.request_id=v_request_id;
  if grant_id is null then raise exception 'Approved per-secret grant missing'; end if;
  if not public.office_vault_revoke_access(reviewer,grant_id,
   'Access completed and no longer needed for this role')
