@@ -193,14 +193,33 @@ export async function setPayrollAttendance(input: { periodId: string; employment
   if (previous.data && (!input.correctionReason || input.correctionReason.trim().length < 12)) {
     throw new OfficePayrollError(400, "Provide an evidence-backed reason to update an existing snapshot");
   }
-  const { data, error } = await current.admin.rpc("office_payroll_set_attendance_snapshot", {
+  const { data, error } = await current.admin.rpc("office_payroll_set_attendance_snapshot_v2", {
     p_actor: current.identity.userId, p_period: input.periodId, p_employment: input.employmentId,
     p_basis: input.basisUnits, p_payable: input.payableUnits, p_paid_leave: input.paidLeaveUnits ?? 0,
     p_unpaid_leave: input.unpaidLeaveUnits ?? 0, p_absence: input.absenceUnits ?? 0,
     p_unresolved: input.unresolvedUnits ?? 0, p_source: input.sourceSnapshot ?? {},
+    p_expected_updated_at: input.expectedUpdatedAt || null,
+    p_correction_reason: input.correctionReason?.trim() || null,
   });
   if (error || typeof data !== "string") throw new OfficePayrollError(400, error?.message ?? "Unable to record payroll attendance snapshot");
   return { attendance_snapshot_id: data };
+}
+
+export async function reviewPayrollAttendance(input: { snapshotId: string; decision: "APPROVE" | "REJECT"; note: string }) {
+  const current = await requirePermission("payroll.run.review");
+  if (input.note.trim().length < 12) {
+    throw new OfficePayrollError(400, "Record an independent evidence review note before deciding attendance");
+  }
+  const { data, error } = await current.admin.rpc("office_payroll_review_attendance", {
+    p_actor: current.identity.userId,
+    p_snapshot: input.snapshotId,
+    p_decision: input.decision,
+    p_note: input.note.trim(),
+  });
+  if (error || typeof data !== "string") {
+    throw new OfficePayrollError(409, error?.message ?? "Unable to independently review attendance");
+  }
+  return { status: data, bank_execution: false };
 }
 
 export async function addPayrollAdjustment(input: { periodId: string; employmentId: string; kind: "EARNING" | "DEDUCTION" | "EMPLOYER_COST"; code: string; label: string; amountMinor: number; currency: string; sourceReference: string; note?: string }) {
