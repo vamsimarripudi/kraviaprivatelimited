@@ -50,11 +50,14 @@ export async function getOfficePayrollOverview() {
     allowed(current, "payroll.payment.prepare"),
   ]);
   if (!canReadRun && !canReadCompensation && !canReadRules) throw new OfficePayrollError(403, "Payroll read permission is required");
+  // Payroll rule-only readers must never receive the private employee directory.
+  const canReadEmployeePayroll = canReadRun || canReadCompensation || canManageCompensation || canPrepare;
+  const empty = { data: [], error: null };
 
   const [employment, identities, jobs, periods, rules, compensation, snapshots, adjustments, results, batches, entries] = await Promise.all([
-    current.admin.from("office_employment_registry").select("employment_id,employment_code,identity_user_id,relationship_type,status,start_date,end_date,end_reason").in("status", ["PLANNED", "ACTIVE", "ON_LEAVE", "ENDED"]).order("employment_code"),
-    current.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").order("display_name"),
-    current.admin.from("office_job_assignments").select("user_id,position_code,department_code,reports_to_user_id,status,start_date,end_date").in("status", ["PLANNED", "ACTIVE", "ON_LEAVE", "ENDED"]),
+    canReadEmployeePayroll ? current.admin.from("office_employment_registry").select("employment_id,employment_code,identity_user_id,relationship_type,status,start_date,end_date,end_reason").in("status", ["PLANNED", "ACTIVE", "ON_LEAVE", "ENDED"]).order("employment_code") : Promise.resolve(empty),
+    canReadEmployeePayroll ? current.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").order("display_name") : Promise.resolve(empty),
+    canReadEmployeePayroll ? current.admin.from("office_job_assignments").select("user_id,position_code,department_code,reports_to_user_id,status,start_date,end_date").in("status", ["PLANNED", "ACTIVE", "ON_LEAVE", "ENDED"]) : Promise.resolve(empty),
     canReadRun ? current.admin.from("office_payroll_periods").select("id,period_code,period_kind,starts_on,ends_on,attendance_cutoff_at,pay_date,status,approval_request_id,calculation_version,approved_by,approved_at,created_at,updated_at").order("starts_on", { ascending: false }).limit(36) : Promise.resolve({ data: [], error: null }),
     canReadRules ? current.admin.from("office_payroll_rule_versions").select("id,rule_code,version,rule_kind,title,jurisdiction,effective_from,effective_to,configuration,source_reference,status,created_by,approved_by,approved_at,created_at,updated_at").order("rule_code").order("version", { ascending: false }).limit(300) : Promise.resolve({ data: [], error: null }),
     canReadCompensation ? current.admin.from("office_compensation_versions").select("id,compensation_code,employment_id,employee_user_id,grade_code,annual_ctc_minor,monthly_gross_minor,currency,components,effective_from,effective_to,reason,status,approval_request_id,created_by,approved_by,approved_at,created_at,updated_at").order("effective_from", { ascending: false }).limit(500) : Promise.resolve({ data: [], error: null }),
