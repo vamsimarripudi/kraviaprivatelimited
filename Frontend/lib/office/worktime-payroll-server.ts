@@ -198,6 +198,7 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
 }
 export async function officeWorktimeAction(input:
   | { action: "SUBMIT"; employeeId?: string; sessionId?: string; startAt: string; endAt: string; breaks: unknown[]; sourceKind: "RECORDED_SESSION" | "HISTORICAL_CORRECTION"; sourceReference: string; reason: string }
+  | { action: "AMEND_PENDING"; caseId: string; startAt: string; endAt: string; breaks: unknown[]; sourceReference: string; reason: string }
   | { action: "DECIDE"; caseId: string; decision: "APPROVE" | "REJECT"; note?: string }
   | { action: "REQUEST_FLEX"; weekMonday: string; leaveDate: string }
   | { action: "DECIDE_FLEX"; flexId: string; decision: "APPROVE" | "REJECT"; note?: string }
@@ -224,6 +225,20 @@ export async function officeWorktimeAction(input:
       rpcName = "office_worktime_submit";
       params = { p_actor: user, p_employee: input.employeeId || user, p_attendance: input.sessionId || null, p_start: input.startAt, p_end: input.endAt,
         p_breaks: input.breaks, p_source_kind: input.sourceKind, p_source_reference: input.sourceReference, p_reason: input.reason };
+      break;
+    }
+    case "AMEND_PENDING": {
+      const start = Date.parse(input.startAt);
+      const end = Date.parse(input.endAt);
+      if (!Number.isFinite(start) || !Number.isFinite(end) ||
+          start < Date.parse("2026-07-31T18:30:00Z") ||
+          start >= end || end > Date.now() + 60_000) {
+        throw new OfficeWorktimeError(400, "Historical amendment must have completed times from 1 August 2026");
+      }
+      rpcName = "office_worktime_amend_pending";
+      params = { p_actor: user, p_case: input.caseId, p_start: input.startAt,
+        p_end: input.endAt, p_breaks: input.breaks,
+        p_source_reference: input.sourceReference, p_reason: input.reason };
       break;
     }
     case "DECIDE":
