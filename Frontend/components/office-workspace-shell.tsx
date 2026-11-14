@@ -140,6 +140,7 @@ export function OfficeWorkspaceShell({
   const item = (sections as Record<string, WorkspaceSection>)[section];
   const isConnect = workspace === "office" && (pathname === "/office/chat" || pathname.startsWith("/office/chat/"));
   const isVault = workspace === "office" && (pathname === "/office/k-vault" || pathname.startsWith("/office/k-vault/"));
+  const isChatConversation = isConnect && /^\/office\/chat\/(?:dm|groups|channels|threads)\//.test(pathname);
   // Entry navigation never substitutes for per-record server authorization.
   const vaultEntry = workspace === "office" && permissions.some((permission) => [
     "custody.read", "document.instance.read", "document.template.read",
@@ -255,7 +256,7 @@ export function OfficeWorkspaceShell({
   const navId = workspace + "-workspace-mega-navigation";
   return <OfficeWorkspaceProvider identity={identity} permissions={permissions}>
     <main className={"office office-v2 office-v4 office-modern office-floating-rail workspace-shell workspace-" + workspace}
-      data-ui-theme={theme} data-menu-expanded={megaExpanded}>
+      data-ui-theme={theme} data-menu-expanded={megaExpanded} data-chat-conversation={isChatConversation}>
       <OfficeAmbientField variant="workspace" />
       <a className="office-skip-link" href="#office-main-content">Skip to main content</a>
       <OfficePrefetchRoutes hrefs={prefetchedRoutes}/>

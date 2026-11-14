@@ -146,6 +146,24 @@ def detect_mime(data: bytes) -> str:
         return "image/png"
     if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
         return "image/webp"
+    if data[:6] in (b"GIF87a", b"GIF89a"):
+        return "image/gif"
+    if len(data) >= 12 and data[4:8] == b"ftyp" and data[8:12] in (
+        b"isom", b"iso2", b"mp41", b"mp42", b"avc1", b"M4V ", b"MSNV"
+    ):
+        return "video/mp4"
+    if data.startswith(b"\x1a\x45\xdf\xa3") and b"webm" in data[:128].lower():
+        return "video/webm"
+    if data and len(data) <= 4 * 1024 * 1024 and b"\x00" not in data:
+        # Plain UTF-8 notes are attachments, never executable active content.
+        try:
+            text_value = data.decode("utf-8-sig")
+        except UnicodeError:
+            text_value = ""
+        if text_value and not any(
+            ord(char) < 32 and char not in "\t\r\n" for char in text_value
+        ) and not data.startswith(b"PK\x03\x04"):
+            return "text/plain"
     if data.startswith(b"PK\x03\x04"):
         try:
             with zipfile.ZipFile(io.BytesIO(data)) as archive:

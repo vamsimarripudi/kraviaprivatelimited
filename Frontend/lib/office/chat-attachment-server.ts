@@ -6,21 +6,59 @@ import {requireOfficeChatConversation,listOfficeChatConversations} from "@/lib/o
 
 const quarantine="office-quarantine";
 const released="office-chat-attachments";
-const MAX_BYTES=10_485_760;
+const MAX_BYTES=4_194_304;
 
 export class OfficeChatAttachmentError extends Error {
  constructor(public readonly status:number,message:string){super(message);this.name="OfficeChatAttachmentError";}
 }
 
-function detect(bytes:Buffer):{mime:string;extension:string}{
- if(bytes.length>=5&&bytes.toString("ascii",0,5)==="%PDF-")return {mime:"application/pdf",extension:"pdf"};
- if(bytes.length>=8&&bytes.subarray(0,8).equals(Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a])))
-  return {mime:"image/png",extension:"png"};
- if(bytes.length>=3&&bytes[0]===0xff&&bytes[1]===0xd8&&bytes[2]===0xff)
-  return {mime:"image/jpeg",extension:"jpg"};
- if(bytes.length>=12&&bytes.toString("ascii",0,4)==="RIFF"&&bytes.toString("ascii",8,12)==="WEBP")
-  return {mime:"image/webp",extension:"webp"};
- throw new OfficeChatAttachmentError(415,"Only genuine PDF, JPEG, PNG or WebP files are accepted");
+function detect(bytes:Buffer,filename:string):{mime:string;extension:string}{
+ const ext=filename.toLowerCase().split(".").at(-1)??"";
+ const typeMap:Record<string,{mime:string;extension:string}>={
+  pdf:{mime:"application/pdf",extension:"pdf"},
+  jpg:{mime:"image/jpeg",extension:"jpg"},jpeg:{mime:"image/jpeg",extension:"jpg"},
+  png:{mime:"image/png",extension:"png"},webp:{mime:"image/webp",extension:"webp"},
+  gif:{mime:"image/gif",extension:"gif"},
+  mp4:{mime:"video/mp4",extension:"mp4"},webm:{mime:"video/webm",extension:"webm"},
+  txt:{mime:"text/plain",extension:"txt"},
+  docx:{mime:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",extension:"docx"},
+  xlsx:{mime:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",extension:"xlsx"},
+ };
+ const expected=typeMap[ext];
+ if(!expected)throw new OfficeChatAttachmentError(415,"Unsupported chat attachment extension");
+ let detected="";
+ if(bytes.length>=5&&bytes.toString("ascii",0,5)==="%PDF-")detected="application/pdf";
+ else if(bytes.length>=8&&bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))
+  detected="image/png";
+ else if(bytes.length>=3&&bytes[0]===0xff&&bytes[1]===0xd8&&bytes[2]===0xff)
+  detected="image/jpeg";
+ else if(bytes.length>=12&&bytes.toString("ascii",0,4)==="RIFF"&&bytes.toString("ascii",8,12)==="WEBP")
+  detected="image/webp";
+ else if(["GIF87a","GIF89a"].includes(bytes.toString("ascii",0,6)))detected="image/gif";
+ else if(bytes.length>=12&&bytes.toString("ascii",4,8)==="ftyp"&&
+  ["isom","iso2","mp41","mp42","avc1","M4V ","MSNV"].includes(bytes.toString("ascii",8,12)))
+  detected="video/mp4";
+ else if(bytes.length>=8&&bytes.subarray(0,4).equals(Buffer.from([26,69,223,163]))&&
+   bytes.subarray(0,128).toString("latin1").toLowerCase().includes("webm"))
+  detected="video/webm";
+ else if(bytes.length>=4&&bytes.toString("latin1",0,4)==="PK\x03\x04"){
+  // OOXML is never rendered in the browser; ClamAV must also confirm clean.
+  const listing=bytes.toString("latin1");
+  if(listing.includes("../")||listing.includes("..\\")||listing.includes("vbaProject.bin")||
+    listing.includes("activeX/"))throw new OfficeChatAttachmentError(415,"Unsafe Office archive blocked");
+  if(listing.includes("[Content_Types].xml")&&listing.includes("word/document.xml"))
+   detected=typeMap.docx.mime;
+  if(listing.includes("[Content_Types].xml")&&listing.includes("xl/workbook.xml"))
+   detected=typeMap.xlsx.mime;
+ }else if(ext==="txt"&&bytes.length<=MAX_BYTES&&!bytes.includes(0)){
+  try{
+   const data=new TextDecoder("utf-8",{fatal:true}).decode(bytes);
+   if(data&&!/[\u0001-\u0008\u000b\u000c\u000e-\u001f]/.test(data))detected="text/plain";
+  }catch{detected="";}
+ }
+ if(detected!==expected.mime)throw new OfficeChatAttachmentError(415,
+  "File extension, signature and declared media type must match");
+ return expected;
 }
 function safeFilename(name:string){
  const value=name.replace(/[\u0000-\u001f\u007f\\/]/g,"_").trim().slice(0,180);
@@ -90,7 +128,7 @@ async function advanceScan(id:string){
  const bytes=Buffer.from(await download.data.arrayBuffer());
  if(bytes.length!==Number(attachment.byte_size)||bytes.length>MAX_BYTES)
   throw new OfficeChatAttachmentError(409,"Quarantined file-size integrity check failed");
- const type=detect(bytes);
+ const type=detect(bytes,attachment.original_filename);
  if(type.mime!==attachment.detected_mime_type||
    createHash("sha256").update(bytes).digest("hex")!==attachment.sha256)
   throw new OfficeChatAttachmentError(409,"Quarantined content integrity mismatch");
@@ -133,9 +171,9 @@ async function advanceScan(id:string){
 export async function uploadOfficeChatAttachment(input:{conversationId:string;file:File}){
  const current=await requireOfficeChatConversation(input.conversationId);
  if(input.file.size<1||input.file.size>MAX_BYTES)
-  throw new OfficeChatAttachmentError(413,"Private attachment must be between 1 byte and 10 MiB");
+  throw new OfficeChatAttachmentError(413,"Private attachment must be between 1 byte and 4 MiB");
  const bytes=Buffer.from(await input.file.arrayBuffer());
- const type=detect(bytes);
+ const type=detect(bytes,input.file.name);
  if(input.file.type&&input.file.type!==type.mime)
   throw new OfficeChatAttachmentError(415,"Declared MIME does not match the file contents");
  const sha=createHash("sha256").update(bytes).digest("hex");

@@ -30,6 +30,28 @@ def test_detect_mime_common_types(payload, expected):
     assert file_security.detect_mime(payload) == expected
 
 
+@pytest.mark.parametrize(
+    ("payload", "expected"),
+    [
+        (b"GIF89a\x01\x00\x01\x00\x80\x00\x00", "image/gif"),
+        (b"GIF87a\x01\x00\x01\x00\x80\x00\x00", "image/gif"),
+        (b"\x00\x00\x00\x18ftypisom\x00\x00\x00\x00", "video/mp4"),
+        (b"\x1a\x45\xdf\xa3\x87\x81webm", "video/webm"),
+        (b"Meeting follow-up\nNext actions", "text/plain"),
+    ],
+)
+def test_detect_mime_private_chat_media(payload, expected):
+    assert file_security.detect_mime(payload) == expected
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [b"\x00\x00binary", b"<svg xmlns='http://www.w3.org/2000/svg'/>\x00"],
+)
+def test_private_chat_text_detector_never_accepts_embedded_null(payload):
+    assert file_security.detect_mime(payload) == "application/octet-stream"
+
+
 def test_detect_mime_office_open_xml():
     assert file_security.detect_mime(_zip_with("word/document.xml")) == (
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document"

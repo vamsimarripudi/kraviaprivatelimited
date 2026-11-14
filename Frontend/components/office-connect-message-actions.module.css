@@ -27,3 +27,20 @@
 .reactions button[aria-pressed="true"]{border:2px solid var(--office-ui-accent);background:color-mix(in srgb,var(--office-ui-accent) 8%,var(--office-ui-surface))}
 .reactions button span{font-size:11px;font-weight:700}
 .reactions button:hover:not(:disabled){border-color:var(--office-ui-accent)}
+
+/* Connect 5.0: compact icon-only message actions and deliberate reaction panel. */
+.actions{gap:4px;margin-top:7px}
+.actions nav{gap:3px}
+.actions nav :is(button,a){
+  width:32px;min-width:32px;min-height:32px;height:32px;
+  border-radius:9px;padding:0!important;justify-content:center;
+  background:var(--office-ui-surface)!important;
+  color:var(--office-ui-muted)!important;line-height:1;
+}
+.actions nav :is(button,a):hover,.actions nav :is(button,a):focus-visible{
+  color:var(--office-ui-accent)!important;
+  background:var(--office-ui-surface-alt)!important;
+}
+.reactions{gap:4px;padding-top:5px}
+.reactions button{min-width:37px;min-height:37px;font-size:15px}
+@media(max-width:767px){.actions nav :is(button,a){width:36px;min-width:36px;height:36px;min-height:36px}}
