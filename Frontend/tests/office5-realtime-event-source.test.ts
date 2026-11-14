@@ -1,7 +1,7 @@
 import {readFileSync} from "node:fs";
 import {describe,expect,it} from "vitest";
 const route=readFileSync(new URL("../app/api/office-chat/conversations/[id]/events/route.ts",import.meta.url),"utf8");
-const migration=readFileSync(new URL("../../Database/supabase/migrations/202611140014_office_chat_private_realtime.sql",import.meta.url),"utf8");
+const migration=readFileSync(new URL("../../Database/supabase/migrations/202611140015_office_chat_private_realtime.sql",import.meta.url),"utf8");
 describe("Office Connect private event streaming",()=>{
  it("requires fresh membership for each event batch, never streaming message payload",()=>{
   expect(route).toContain("await requireOfficeChatConversation(id);");

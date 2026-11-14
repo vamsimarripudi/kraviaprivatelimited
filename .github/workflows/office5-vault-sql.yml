@@ -3,9 +3,9 @@ name: Office 5.0 K-Vault isolated PostgreSQL security
 on:
   pull_request:
     paths:
-      - "Database/supabase/migrations/202611140003_office_vault_record_access.sql"
-      - "Database/supabase/migrations/202611140004_office_vault_request_withdraw.sql"
-      - "Database/supabase/migrations/202611140016_office_vault_sealed_locker.sql"
+      - "Database/supabase/migrations/202611140004_office_vault_record_access.sql"
+      - "Database/supabase/migrations/202611140005_office_vault_request_withdraw.sql"
+      - "Database/supabase/migrations/202611140017_office_vault_sealed_locker.sql"
       - "Database/supabase/tests/office5_vault_access_security.sql"
       - "Database/supabase/tests/office5_vault_secret_security.sql"
       - "Database/supabase/tests/office5_vault_stub.sql"
@@ -48,9 +48,9 @@ jobs:
           # Test-only service-authority stubs; they do NOT replace the existing
           # production Office identity and effective-permission engine.
           pg --file Database/supabase/tests/office5_vault_stub.sql
-          pg --file Database/supabase/migrations/202611140003_office_vault_record_access.sql
-          pg --file Database/supabase/migrations/202611140004_office_vault_request_withdraw.sql
-          pg --file Database/supabase/migrations/202611140016_office_vault_sealed_locker.sql
+          pg --file Database/supabase/migrations/202611140004_office_vault_record_access.sql
+          pg --file Database/supabase/migrations/202611140005_office_vault_request_withdraw.sql
+          pg --file Database/supabase/migrations/202611140017_office_vault_sealed_locker.sql
           pg --file Database/supabase/tests/office5_vault_access_security.sql
           pg --file Database/supabase/tests/office5_vault_secret_security.sql
           counts="$(pg --tuples-only --no-align --command "select (select count(*) from public.office_vault_access_requests),(select count(*) from public.office_vault_access_grants),(select count(*) from public.office_vault_access_events)")"
