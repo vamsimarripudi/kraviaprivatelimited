@@ -9,6 +9,7 @@ import { InternalWorkspaceScreen } from "@/components/internal-workspace-screen"
 import { OfficeVaultAccessCenter } from "@/components/office-vault-access-center";
 import {OfficeVaultCategoryBrowser} from "@/components/office-vault-category-browser";
 import {OfficeVaultCompanyMaster} from "@/components/office-vault-company-master";
+import {OfficeVaultSecretLocker} from "@/components/office-vault-secret-locker";
 import {OfficeVaultDocumentDirectory,type VaultDocumentSummary} from "@/components/office-vault-document-directory";
 import {OfficeVaultSettings} from "@/components/office-vault-settings";
 import { OfficeVaultOverview } from "@/components/office-vault-overview";
@@ -80,12 +81,16 @@ export default async function VaultPages({params}:Props){
   ["Overview","/office/k-vault"],["Company Master","/office/k-vault/company"],
   ["Categories","/office/k-vault/categories"],["Documents","/office/k-vault/documents"],
   ["Access requests","/office/k-vault/requests"],
+  ["Secret locker","/office/k-vault/secrets"],
  ];
  let title="K-Vault";
  let subtitle="A permission-first index of authoritative corporate records. Values and files remain in their source systems.";
  let content:React.ReactNode;
  if (!route) {
    content=<OfficeVaultOverview categories={categories}/>;
+ } else if(route==="secrets"){
+   title="Secret locker";subtitle="Sealed company documents, quarantined scans, independent reviews and revocable access.";
+   content=<OfficeVaultSecretLocker/>;
  } else if(route==="categories"){
    title="Categories";subtitle="Only resource categories authorized for the current employee.";
    content=<OfficeVaultCategoryBrowser categories={categories}/>;
