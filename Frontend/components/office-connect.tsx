@@ -381,16 +381,17 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
   }
 
   return <section className={styles.connect} aria-label="KRAVIA Connect" data-thread={!!activeId}>
-    <header className={styles.header}>
+    <header className={styles.header} data-chat-home-header>
       <div><p className={styles.eyebrow}>KRAVIA OFFICE · CONNECT</p>
-        <h1>{activeId ? selected?.title ?? "Private conversation" : "Communication home"}</h1>
-        <p>Employee-only conversations. Formal approvals, access grants and payments remain in their governed systems.</p></div>
+        <h1>{activeId ? selected?.title ?? "Private conversation" : "Messages"}</h1>
+        <p>Private employee conversations · approvals remain in their governed workspaces</p></div>
       <div className={styles.headerActions}>
-        <Link href="/office/chat/directory"><Search size={17} aria-hidden="true"/>Find employee</Link>
-        <Link href="/office/chat/groups/new"><MessageSquareText size={17} aria-hidden="true"/>Create group</Link>
-        {identity.department?<Link href={"/office/chat/channels/"+identity.department.toLowerCase()}>
-          <MessageSquareText size={17} aria-hidden="true"/>My department</Link>:null}
-        <button type="button" onClick={() => setReloadCount(v => v + 1)} aria-label="Refresh Connect" title="Refresh"><RefreshCw size={17}/></button>
+        <Link href="/office/chat/directory" aria-label="Find employee" title="Find employee"><Search size={18}/></Link>
+        <Link href="/office/chat/groups/new" aria-label="Create group" title="Create group"><MessageSquareText size={18}/></Link>
+        {identity.department?<Link href={"/office/chat/channels/"+identity.department.toLowerCase()}
+          aria-label="My department channel" title="Department channel"><UsersRound size={18}/></Link>:null}
+        <button type="button" onClick={() => setReloadCount(v => v + 1)}
+          aria-label="Refresh Connect" title="Refresh"><RefreshCw size={18}/></button>
       </div>
     </header>
     <div className={styles.grid} data-home={!activeId}>
