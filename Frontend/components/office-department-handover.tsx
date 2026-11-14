@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowRightLeft, Check, CircleAlert, LoaderCircle, ShieldCheck, X } from "lucide-react";
 import styles from "./office-department-handover.module.css";
 
@@ -30,6 +31,7 @@ async function api<T>(body?: Record<string, unknown>): Promise<T> {
 }
 
 export function OfficeDepartmentHandover({ mode = "manage" }: { mode?: "manage" | "recipient" }) {
+  const router = useRouter();
   const [data, setData] = useState<Response>();
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -52,6 +54,9 @@ export function OfficeDepartmentHandover({ mode = "manage" }: { mode?: "manage" 
     try {
       await api(body);
       await refresh();
+      // Accepting a department changes the authority matrix; refresh the server
+      // layout to rebuild the sidebar from effective grants without a new login.
+      if (body.action === "ACCEPT") router.refresh();
       setSelected(undefined); setRecipient(""); setReason("");
       setNotice(success);
     } catch (err) {
