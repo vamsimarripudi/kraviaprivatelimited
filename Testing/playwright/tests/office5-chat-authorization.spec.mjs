@@ -103,3 +103,10 @@ test("anonymous accounts cannot enumerate channel provisioning or job-assignment
  const body=await response.text();
  expect(body).not.toContain("active_assignment_count");
 });
+
+test("anonymous sessions cannot inspect communication retention or legal holds",async({request})=>{
+ const response=await request.get("/api/office-chat/governance/retention");
+ expect([401,403,503]).toContain(response.status());
+ expect(response.headers()["cache-control"]).toContain("no-store");
+ expect(await response.text()).not.toContain("legal_holds");
+});
