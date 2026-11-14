@@ -13,7 +13,7 @@ declare
  a uuid:='00000000-0000-4000-8000-000000000001';
  b uuid:='00000000-0000-4000-8000-000000000002';
  outsider uuid:='00000000-0000-4000-8000-000000000003';
- dm uuid;dept uuid;msg uuid;dep_msg uuid;total integer;mine boolean;
+ dm uuid;dept uuid;msg uuid;dep_msg uuid;total integer;v_mine boolean;
 begin
  if has_table_privilege('authenticated','public.office_chat_message_reactions','SELECT')
  or has_function_privilege('anon','public.office_chat_set_reaction(uuid,uuid,text,boolean)','EXECUTE')
@@ -36,13 +36,13 @@ begin
  perform public.office_chat_set_reaction(a,msg,'👍',true);
  perform public.office_chat_set_reaction(a,msg,'👍',true);
  perform public.office_chat_set_reaction(b,msg,'👍',true);
- select reaction_count,mine into total,mine from public.office_chat_reaction_snapshot(a,dm,array[msg])
-  where emoji='👍' and message_id=msg;
- if total<>2 or mine is distinct from true then raise exception 'Reaction snapshot incorrect'; end if;
+ select snapshot.reaction_count,snapshot.mine into total,v_mine from public.office_chat_reaction_snapshot(a,dm,array[msg])
+  as snapshot where snapshot.emoji='👍' and snapshot.message_id=msg;
+ if total<>2 or v_mine is distinct from true then raise exception 'Reaction snapshot incorrect'; end if;
  perform public.office_chat_set_reaction(a,msg,'👍',false);
- select reaction_count,mine into total,mine from public.office_chat_reaction_snapshot(a,dm,array[msg])
-  where emoji='👍' and message_id=msg;
- if total<>1 or mine is distinct from false then raise exception 'Reaction removal not reflected'; end if;
+ select snapshot.reaction_count,snapshot.mine into total,v_mine from public.office_chat_reaction_snapshot(a,dm,array[msg])
+  as snapshot where snapshot.emoji='👍' and snapshot.message_id=msg;
+ if total<>1 or v_mine is distinct from false then raise exception 'Reaction removal not reflected'; end if;
  if (select count(*) from public.office_chat_audit_events where event_type='REACTION_ADDED')<>2 then
   raise exception 'Reaction idempotency audit duplicated'; end if;
  begin
