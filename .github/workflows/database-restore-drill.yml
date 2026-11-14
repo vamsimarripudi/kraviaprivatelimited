@@ -454,8 +454,8 @@ jobs:
             ordinal=$((ordinal+1))
           done
 
-          # The temporary project holds the ACTUAL restored migration history,
-          # never renamed historical repository aliases or an unscoped push.
+          # The sanitized backup intentionally omits Supabase's internal migration
+          # history; this disposable clone applies only the 17 reviewed SQL files.
           tmp="$RUNNER_TEMP/office5-cli-rehearsal"
           mkdir -p "$tmp/supabase/migrations"
           printf 'project_id = "kravia-office5-rehearsal"\n' > "$tmp/supabase/config.toml"
@@ -463,9 +463,6 @@ jobs:
             cp "$migration" "$tmp/supabase/migrations/"
           done
           cd "$tmp"
-          npx -y "supabase@${SUPABASE_CLI_VERSION}" migration fetch --db-url "$RESTORE_DATABASE_URL"
-          # Fetch must never replace the 17 user-reviewed pending source files.
-          for migration in "${migrations[@]}"; do :; done
           npx -y "supabase@${SUPABASE_CLI_VERSION}" db push --db-url "$RESTORE_DATABASE_URL" --dry-run
           npx -y "supabase@${SUPABASE_CLI_VERSION}" db push --db-url "$RESTORE_DATABASE_URL" --yes
 
