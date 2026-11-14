@@ -105,7 +105,7 @@ export function OfficeConnectOverview({ conversations, conversationsLoading, con
     detail: escalations.state === "ok" ? "Assigned to your identity" : "Source " + escalations.state },
  ];
 
- return <div className={styles.overview} aria-label="Communication home overview">
+ return <div className={styles.overview} aria-label="Communication home overview" data-chat-overview>
   <div className={styles.actions}>
    <Link href="/office/chat/directory"><Plus size={17} aria-hidden="true"/>New message</Link>
 {permissions.includes("it.service.request")?<Link href="/office/chat/support/new"><Headphones size={17} aria-hidden="true"/>New IT ticket</Link>:null}
