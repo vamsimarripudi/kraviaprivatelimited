@@ -21,3 +21,13 @@
 .form select,.form textarea{width:100%;font:inherit;border:1px solid var(--border-color,#bdc5d0);border-radius:9px;background:var(--surface-color,transparent);color:inherit;padding:.7rem}
 .form textarea{min-height:85px;resize:vertical}
 .empty{color:var(--text-secondary,#667085)}
+
+.reauth{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;border:1px solid rgba(73,118,145,.35);border-radius:14px;padding:14px 16px;background:rgba(64,119,151,.075)}
+.reauth>div{display:flex;align-items:center;gap:10px;min-width:0}
+.reauth>div>svg{flex:none;color:#5785ad}
+.reauth span{display:grid;gap:5px}
+.reauth strong{font-size:.9rem}
+.reauth small{font-size:.78rem;line-height:1.6;max-width:700px;opacity:.78}
+.reauth button{display:inline-flex;justify-content:center;align-items:center;min-height:44px;padding:10px 14px;border:1px solid currentColor;border-radius:11px;background:transparent;color:inherit;cursor:pointer;font-size:.82rem;font-weight:700}
+.reauth button:disabled{opacity:.55;cursor:wait}
+@media(max-width:650px){.reauth{align-items:stretch}.reauth button{width:100%}}
