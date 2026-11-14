@@ -56,13 +56,17 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
   const [members,setMembers] = useState<Member[]>([]);
   const [memberPanel,setMemberPanel]=useState(false);
   const [pickedMentions,setPickedMentions] = useState<string[]>([]);
+  const [typingPeople,setTypingPeople]=useState<Member[]>([]);
+  const [typingRefresh,setTypingRefresh]=useState(0);
+  const lastTypingSignal=useRef(0);
   const [mentionPicker,setMentionPicker] = useState(false);
   const nonce = useRef<string | null>(null);
   const activeId = initialConversationId;
   const live=useOfficeChatLive(activeId,
     ()=>setReloadCount(count=>count+1),
     ()=>{setMessageError("Conversation access has changed. Reload after authorization is restored.");
-      setMessages([]);setMessageScope(null);setReloadCount(count=>count+1);});
+      setMessages([]);setMessageScope(null);setTypingPeople([]);setReloadCount(count=>count+1);},
+    ()=>setTypingRefresh(value=>value+1));
   const selected = conversations.find(row => row.id === activeId);
   const visibleMessages=messageScope===activeId?messages:[];
   const waitingMessage=!messageError&&(messageLoading||messageScope!==activeId);
@@ -156,6 +160,37 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
   }, [activeId, reloadCount]);
 
 
+  useEffect(()=>{
+    if(!activeId)return;
+    const controller=new AbortController();
+    const refreshTyping=async()=>{
+      try{
+        const result=await fetch("/api/office-chat/conversations/"+
+          encodeURIComponent(activeId)+"/typing",{
+          credentials:"same-origin",cache:"no-store",signal:controller.signal});
+        if(!result.ok)throw new Error("Typing status unavailable");
+        const body=await result.json() as {typing?:Member[]};
+        if(!controller.signal.aborted)
+          setTypingPeople(Array.isArray(body.typing)?body.typing:[]);
+      }catch{if(!controller.signal.aborted)setTypingPeople([]);}
+    };
+    void refreshTyping();
+    const interval=window.setInterval(()=>void refreshTyping(),5000);
+    return()=>{controller.abort();window.clearInterval(interval);};
+  },[activeId,typingRefresh]);
+
+  function signalTyping(isTyping:boolean){
+    if(!activeId||messageError)return;
+    const now=Date.now();
+    if(isTyping&&now-lastTypingSignal.current<3500)return;
+    lastTypingSignal.current=isTyping?now:0;
+    void fetch("/api/office-chat/conversations/"+encodeURIComponent(activeId)+"/typing",{
+      method:"POST",credentials:"same-origin",keepalive:true,
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({typing:isTyping}),
+    }).catch(()=>{/* Presence is optional and never blocks message delivery. */});
+  }
+
   async function loadOlder(){
     if(!activeId||!olderCursor||olderLoading||messageScope!==activeId)return;
     const currentId=activeId;
@@ -238,7 +273,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
         body: JSON.stringify({ body: draft.trim(), client_nonce: nonce.current, mention_user_ids:pickedMentions, attachment_ids:selectedFiles.map(f=>f.id).filter(Boolean) }),
       });
       nonce.current = null;
-      setDraft("");setPickedMentions([]);setMentionPicker(false);setSelectedFiles([]);
+      setDraft("");signalTyping(false);setPickedMentions([]);setMentionPicker(false);setSelectedFiles([]);
       setSendStatus("Message stored in the private conversation");
       setReloadCount(value => value + 1);
     } catch (error) {
@@ -314,11 +349,17 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
                 pinned={message.pinned} canPin={canPin} reactions={message.reactions??[]} own={message.sender_user_id===actor} onDone={()=>setReloadCount(v=>v+1)}/>
             </article>)}
           </div>
+          {typingPeople.length?<p className={styles.typingNotice} role="status" aria-live="polite">
+            {typingPeople.slice(0,2).map(p=>p.display_name).join(", ")}
+            {typingPeople.length===1?" is typing…":" are typing…"}
+          </p>:null}
           <form className={styles.composer} onSubmit={send}>
             <label htmlFor="office-chat-message">Message</label>
             <div><textarea id="office-chat-message" value={draft} maxLength={4000} rows={2}
               placeholder="Write a message for verified participants…" disabled={submitting || !!messageError}
-              onChange={event => { nonce.current = null; setDraft(event.target.value); setSendStatus(""); }}
+              onChange={event => { nonce.current = null; setDraft(event.target.value);
+                signalTyping(Boolean(event.target.value.trim()));setSendStatus(""); }}
+              onBlur={()=>signalTyping(false)}
               onKeyDown={event => { if ((event.ctrlKey || event.metaKey) && event.key === "Enter") event.currentTarget.form?.requestSubmit(); }}/>
               <button type="submit" disabled={!draft.trim() || submitting || fileLoading || selectedFiles.some(file=>file.status!=="available") || !!messageError}><Send size={16}/> {submitting ? "Sending…" : "Send"}</button>
             </div>

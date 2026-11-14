@@ -96,3 +96,6 @@
 .liveStatus::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--office-ui-soft);flex:none}
 .liveStatus[data-state="live"]{color:var(--office-ui-accent)}.liveStatus[data-state="live"]::before{background:var(--office-ui-accent)}
 .liveStatus[data-state="restricted"]{color:var(--office-ui-danger)}.liveStatus[data-state="restricted"]::before{background:var(--office-ui-danger)}
+
+.typingNotice{display:flex;align-items:center;gap:8px;color:var(--office-ui-muted);font-size:12px;line-height:1.45;margin:0;padding:8px 16px;overflow-wrap:anywhere}
+.typingNotice::before{content:"";width:7px;height:7px;display:inline-block;flex:none;border-radius:50%;background:var(--office-ui-accent)}
