@@ -66,6 +66,10 @@ describe("KRAVIA Office 5.0 source-backed implementation guardrails", () => {
    expect(server).toContain('.eq("actor_user_id",current.identity.userId)');
    expect(activity).toContain('data.scope !== "OWN"');
    expect(server).toContain('resource_scoped:row.resource_id!==null');
+   expect(server).toContain('current.admin.from("office_vault_secret_events")');
+   expect(server).toContain('id:"secrets:"+String(row.id)');
+   expect(server).toContain('category_slug:"secrets"');
+   expect(activity).toContain('secrets:"Sealed documents"');
    expect(activity).not.toContain('item.resource_id');
    expect(vault).toContain('<OfficeVaultActivity/>');
  });
