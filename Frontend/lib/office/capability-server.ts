@@ -3,6 +3,7 @@ import "server-only";
 import { createOfficeServiceClient, OfficePermissionError, requireOfficeActor } from "@/lib/office/permission-engine";
 import type { OfficeIdentity } from "@/lib/office/auth-server";
 import { officeAccessProfileIsEffective } from "@/lib/office/access-profile-effective";
+import { currentOfficeTrustedDeviceId } from "@/lib/office/device-binding-server";
 
 export class OfficeCapabilityError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -54,7 +55,7 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
   }
   const catalog = await admin
     .from("office_permission_catalog")
-    .select("code,active")
+    .select("code,active,owner_bypass,high_risk,requires_managed_device")
     .eq("active", true)
     .order("code", { ascending: true });
   if (catalog.error) throw new OfficeCapabilityError(503, "Authorization catalog is temporarily unavailable");
@@ -68,7 +69,7 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
       .eq("effect", "DENY")
       .eq("scope_type", "COMPANY"),
     admin.from("office_department_former_owners")
-      .select("department_code").eq("user_id", identity.userId),
+      .select("department_code").eq("user_id",identity.userId),
   ]);
   if (departmentDeltaResult.error || globalDeniesResult.error || formerOwnerResult.error || !departmentDeltaResult.data ||
       typeof departmentDeltaResult.data !== "object" || Array.isArray(departmentDeltaResult.data)) {
@@ -80,24 +81,34 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
   }
   const denied = new Set(changes.denied.filter((code): code is string => typeof code === "string"));
   const owned = new Set(changes.owned.filter((code): code is string => typeof code === "string"));
-  const delegatedDepartments = Array.from(new Set((formerOwnerResult.data ?? [])
-    .map((record) => record.department_code).filter((code): code is string => typeof code === "string")));
+  const delegatedDepartments=Array.from(new Set((formerOwnerResult.data??[])
+    .map(record=>String(record.department_code??"").toUpperCase()).filter(Boolean)));
   for (const row of globalDeniesResult.data ?? []) {
     if (active(row.expires_at)) denied.add(String(row.permission_code));
   }
-  const activeCodes = new Set((catalog.data ?? [])
-    .map((row) => String(row.code))
-    .filter((code) => !denied.has(code)));
-
-  if (identity.roles.includes("OWNER")) {
-    const permissions = Array.from(activeCodes).sort();
-    return {
-      generated_at: new Date().toISOString(),
-      permissions,
-      delegatedDepartments,
-      scopes: permissions.map((permission) => ({ permission, source: "OWNER" as const, scope_type: "COMPANY", scope_key: null })),
-    };
+  // A rendered action must not contradict the enforcement on the API.
+  // If managed-device enforcement is enabled, fail closed on revoked, absent
+  // or non-managed device bindings for every high-risk catalog entry.
+  const deviceEnforced=process.env.OFFICE_DEVICE_ENFORCEMENT?.toLowerCase()==="true";
+  let managedDeviceValid=false;
+  if(deviceEnforced){
+    const deviceId=await currentOfficeTrustedDeviceId(admin,identity.userId);
+    if(deviceId){
+      const device=await admin.from("office_device_registry")
+        .select("trust_state,company_managed,revoked_at")
+        .eq("id",deviceId).eq("user_id",identity.userId).maybeSingle();
+      managedDeviceValid=!device.error&&Boolean(device.data)&&
+        device.data?.trust_state==="TRUSTED"&&device.data?.company_managed===true&&
+        !device.data?.revoked_at;
+    }
   }
+  const activeCodes = new Set((catalog.data ?? [])
+    .filter(row=>{
+      const code=String(row.code);
+      return !denied.has(code)&&
+        (!deviceEnforced || (!row.high_risk&&!row.requires_managed_device) || managedDeviceValid);
+    })
+    .map((row) => String(row.code)));
 
   const [profilesResult, overridesResult] = await Promise.all([
     admin
@@ -123,6 +134,18 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
   if (mappingsResult.error) throw new OfficeCapabilityError(503, "Authorization profile map is temporarily unavailable");
 
   const scopes: OfficeCapabilityScope[] = [];
+  // The effective permission engine allows OWNER authority only for catalog
+  // entries whose owner_bypass is enabled. Explicit profile grants are still
+  // evaluated below for non-bypass permissions, never by title alone.
+  if(identity.roles.includes("OWNER")){
+    for(const entry of catalog.data??[]){
+      const code=String(entry.code);
+      if(!activeCodes.has(code)||entry.owner_bypass===false)continue;
+      scopes.push({
+        permission:code,source:"OWNER",scope_type:"COMPANY",scope_key:null
+      });
+    }
+  }
   // Department ownership is effective even without a broad company profile.
   // The database excludes permission codes whose owner_bypass flag is false.
   for (const permission of owned) {

@@ -1,0 +1,14 @@
+.shell{margin:16px clamp(12px,2vw,24px) 25px;display:grid;gap:15px;color:var(--office-ui-ink)}.back{display:inline-flex;align-items:center;gap:6px;min-height:44px;color:var(--office-ui-accent);text-decoration:none}
+.shell header{display:flex;gap:15px;align-items:start;justify-content:space-between;flex-wrap:wrap}
+.shell header h1{font-size:26px!important;margin:3px 0 7px}.shell header p{margin:0;color:var(--office-ui-accent);font-size:11px;letter-spacing:.13em;font-weight:700}
+.shell header span{color:var(--office-ui-muted);font-size:12px;line-height:1.5}
+.shell header button,.search button,.list button,.list a{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:8px 12px;min-height:44px;border:1px solid var(--office-ui-line);border-radius:10px;background:var(--office-ui-surface);color:var(--office-ui-ink);text-decoration:none;font:inherit;cursor:pointer}
+.search{display:grid;gap:7px;max-width:700px}.search label{font-size:12px;font-weight:700}.search>div{display:flex;gap:9px}
+.search input{box-sizing:border-box;min-width:0;flex:1;min-height:44px;padding:10px;border:1px solid var(--office-ui-line);border-radius:10px;color:var(--office-ui-ink);background:var(--office-ui-surface)}
+.search button{background:var(--office-ui-accent);border:0;color:#fff}
+.list{display:grid;gap:11px}.list article,.empty{display:grid;gap:12px;padding:18px;border:1px solid var(--office-ui-line);border-radius:16px;background:var(--office-ui-surface)}
+.list article>div{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:9px}.list article span{color:var(--office-ui-muted);font-size:11px}
+.list article p{margin:0;white-space:pre-wrap;line-height:1.65;overflow-wrap:anywhere}
+.list footer{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.list a{color:var(--office-ui-accent)}
+.empty{color:var(--office-ui-muted)}.error{color:var(--office-ui-danger)}.notice{display:flex;align-items:center;gap:6px}
+@media(max-width:767px){.shell{margin:9px 12px 24px}.list article{padding:14px}}

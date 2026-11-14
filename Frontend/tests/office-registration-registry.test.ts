@@ -27,6 +27,11 @@ describe("KRAVIA company registration registry",()=>{
   expect(server).toContain("Registration creator cannot independently review the same record");
   expect(component).toContain("Creation is always UNVERIFIED");
  });
+ it("does not bypass explicit denial, device policy or effective profile based on title",()=>{
+  expect(server).not.toContain("roleFallback(");
+  expect(server).toContain("currentOfficeTrustedDeviceId(");
+  expect(server).toContain('resolveOfficePermission(current.admin,current.identity,code,{type:"COMPANY"},device)');
+ });
  it("keeps tables private to the service role and mutations same-origin",()=>{
   expect(migration).toContain("enable row level security");
   expect(migration).toContain("revoke all on public.office_company_registrations,public.office_registration_events from public,anon,authenticated");

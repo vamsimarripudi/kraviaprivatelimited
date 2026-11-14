@@ -1,0 +1,13 @@
+.master{display:grid;gap:14px;min-width:0;color:var(--office-ui-ink)}
+.master>header{display:flex;align-items:start;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.master>header h2{margin:0;font-size:21px!important}.master>header p{color:var(--office-ui-muted);margin:4px 0;line-height:1.6;font-size:12px}
+.master a{display:inline-flex;align-items:center;gap:5px;color:var(--office-ui-accent);min-height:44px;text-decoration:none}
+.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}.metrics article{display:grid;gap:7px;padding:16px;border:1px solid var(--office-ui-line);border-radius:15px;background:var(--office-ui-surface)}
+.metrics strong{font-size:26px;font-variant-numeric:tabular-nums}.metrics span{font-size:11px;color:var(--office-ui-muted)}
+.filters{display:grid;grid-template-columns:2fr 1fr;gap:12px}.filters label{display:grid;gap:7px;font-weight:700;font-size:12px}.filters input,.filters select{width:100%;min-width:0;box-sizing:border-box;min-height:44px;padding:9px 11px;border:1px solid var(--office-ui-line);border-radius:10px;background:var(--office-ui-surface);color:var(--office-ui-ink);font:inherit}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:12px}.grid article{display:grid;gap:12px;padding:18px;background:var(--office-ui-surface);border:1px solid var(--office-ui-line);border-radius:16px;min-width:0}
+.grid header{display:flex;gap:10px;align-items:start}.grid header svg{flex:none;color:var(--office-ui-accent)}.grid header div{min-width:0;flex:1}.grid h3{margin:0;font-size:15px!important}.grid header small,.grid footer small{color:var(--office-ui-muted);font-size:11px}.grid header strong{font-size:11px;border:1px solid var(--office-ui-line);border-radius:8px;padding:5px;max-width:100px;overflow-wrap:anywhere}
+.grid dl{display:grid;grid-template-columns:1fr 1.25fr;gap:8px 12px;margin:0}.grid dt{font-size:11px;color:var(--office-ui-muted)}.grid dd{margin:0;font-size:12px;overflow-wrap:anywhere}.grid footer{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.note,.empty{color:var(--office-ui-muted);font-size:11px;line-height:1.6}.note{display:flex;align-items:center;gap:7px;margin:0}.empty{padding:20px;border:1px solid var(--office-ui-line);border-radius:12px}
+.master :is(a,input,select):focus-visible{outline:2px solid var(--office-ui-accent);outline-offset:3px}
+@media(max-width:767px){.filters{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.grid article{padding:14px}.metrics article{padding:10px}}

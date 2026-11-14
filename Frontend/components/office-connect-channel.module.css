@@ -1,0 +1,7 @@
+.shell{display:grid;gap:12px;margin:16px clamp(12px,2vw,24px) 25px;color:var(--office-ui-ink);max-width:750px}.shell>a{display:inline-flex;align-items:center;gap:6px;min-height:44px;color:var(--office-ui-accent);text-decoration:none}
+.shell h1{margin:0;font-size:26px!important}.shell p{color:var(--office-ui-muted);line-height:1.65;margin:0}
+.card{display:grid;gap:12px;padding:25px;background:var(--office-ui-surface);border:1px solid var(--office-ui-line);border-radius:16px}
+.card h2{margin:0;font-size:18px!important}.card>svg{color:var(--office-ui-accent)}
+.card button,.error button{min-height:44px;width:max-content;padding:10px 14px;border:0;border-radius:10px;background:var(--office-ui-accent);color:#fff;cursor:pointer}
+.card button:disabled{opacity:.6}.error{padding:12px;border:1px solid var(--office-ui-danger);border-radius:12px}
+@media(max-width:767px){.shell{margin:9px 12px 25px}.card{padding:16px}}

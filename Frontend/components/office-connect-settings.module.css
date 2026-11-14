@@ -1,0 +1,28 @@
+.shell{display:grid;align-content:start;gap:16px;min-width:0;margin:16px clamp(12px,2vw,24px) 32px;color:var(--office-ui-ink)}
+.back,.link{display:inline-flex;align-items:center;gap:8px;min-height:44px;width:max-content;max-width:100%;text-decoration:none;color:var(--office-ui-accent);font-size:13px}
+.shell>header h1{font-size:clamp(23px,3vw,31px)!important;margin:5px 0 9px}
+.shell>header p:last-child{color:var(--office-ui-muted);line-height:1.6;max-width:780px;margin:0}
+.eyebrow{color:var(--office-ui-accent);font-size:11px;letter-spacing:.14em;font-weight:720;margin:0}
+.columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
+.card{display:grid;gap:14px;align-content:start;border:1px solid var(--office-ui-line);border-radius:16px;background:var(--office-ui-surface);padding:20px;min-width:0}
+.card h2{display:flex;align-items:center;gap:8px;margin:0;font-size:18px!important}.card h3{display:flex;align-items:center;gap:8px;margin:10px 0 0;font-size:14px!important}
+.card>p{font-size:12px;color:var(--office-ui-muted);margin:0;line-height:1.6}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:15px;min-height:62px;padding:12px;border:1px solid var(--office-ui-line);border-radius:12px;cursor:pointer}
+.switch span,.policy span{display:grid;gap:5px;min-width:0}.switch strong,.policy strong{font-size:13px}.switch small,.policy small{font-size:11px;line-height:1.5;color:var(--office-ui-muted)}
+.switch input{flex:none;width:20px;height:20px;accent-color:var(--office-ui-accent);cursor:pointer}
+.options{display:flex;gap:10px;flex-wrap:wrap}.options button{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:8px 18px;border:1px solid var(--office-ui-line);border-radius:11px;background:var(--office-ui-surface);color:var(--office-ui-ink);cursor:pointer}
+.options button[data-selected="true"]{border-color:var(--office-ui-accent);box-shadow:0 0 0 2px var(--office-ui-ring)}
+.motion{min-width:0;border:1px solid var(--office-ui-line);border-radius:12px;display:grid;gap:8px;padding:14px}
+.motion legend{font-size:12px;font-weight:700;padding:0 6px}
+.motion label{display:flex;align-items:center;gap:10px;min-height:44px;font-size:12px;cursor:pointer}.motion input{width:18px;height:18px;accent-color:var(--office-ui-accent)}
+.policy{display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid var(--office-ui-line);border-radius:12px}.policy>svg{color:var(--office-ui-accent);flex:none}
+.notice,.footer{margin:0;color:var(--office-ui-muted);display:flex;align-items:center;gap:8px;font-size:12px;line-height:1.6}
+.notice{padding:12px;border:1px solid var(--office-ui-line);border-radius:10px;background:var(--office-ui-surface-alt)}
+.shell :is(button,input,a):focus-visible{outline:2px solid var(--office-ui-accent);outline-offset:3px}
+@media(max-width:950px){.columns{grid-template-columns:1fr}}
+@media(max-width:767px){.shell{margin:10px 12px 24px}.card{padding:15px}.switch{align-items:flex-start}.switch input{margin-top:3px}}
+
+.serverForm{display:grid;gap:9px;min-width:0}
+.serverForm>button{min-height:44px;width:max-content;max-width:100%;border:1px solid transparent;border-radius:10px;background:var(--office-ui-accent);padding:10px 15px;color:#fff;font-weight:700;cursor:pointer}
+.serverForm>button:disabled{opacity:.65;cursor:wait}
+.notice button{min-height:44px;border:1px solid var(--office-ui-line);background:var(--office-ui-surface);border-radius:10px;padding:9px;color:var(--office-ui-ink);cursor:pointer}

@@ -2,7 +2,7 @@ name: KRAVIA Office document OTP approval PostgreSQL
 on:
   pull_request:
     paths:
-      - 'Database/supabase/migrations/202611140001_office_document_email_otp_approval.sql'
+      - 'Database/supabase/migrations/20261114110233_office_document_email_otp_approval_20261114.sql'
       - 'Database/supabase/tests/office-document-otp-*.sql'
       - '.github/workflows/office-document-otp-db.yml'
   workflow_dispatch:
@@ -43,7 +43,7 @@ jobs:
               --dbname office_document_otp_ci --set ON_ERROR_STOP=1 "$@"
           }
           pg -f Database/supabase/tests/office-document-otp-fixture.sql
-          pg -f Database/supabase/migrations/202611140001_office_document_email_otp_approval.sql
+          pg -f Database/supabase/migrations/20261114110233_office_document_email_otp_approval_20261114.sql
           result="$(pg --tuples-only --no-align \
             -f Database/supabase/tests/office-document-otp-smoke.sql | tail -n 1)"
           test "$result" = "OFFICE_DOCUMENT_OTP_APPROVAL_GATES_VERIFIED"

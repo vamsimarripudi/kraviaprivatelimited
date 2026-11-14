@@ -1,0 +1,349 @@
+/*
+ * KRAVIA Office 5.0 — implementation layer (14 Nov 2026).
+ * Applied after all legacy Office generations; no business logic or privilege
+ * changes. Restrict selectors to Office/Finance so public pages are untouched.
+ */
+.kravia-office .office-v2.office-modern.office-floating-rail {
+  --office5-rail: 76px;
+  --office5-context: 304px;
+  --office5-gap: 16px;
+  --office5-outer: 20px;
+  display: grid !important;
+  grid-template-columns: calc(var(--office5-rail) + var(--office5-gap) + var(--office5-context)) minmax(0,1fr) !important;
+  gap: var(--office5-gap) !important;
+  padding: var(--office5-outer) !important;
+  min-height: 100dvh !important;
+  width: 100% !important;
+  overflow-x: clip;
+  box-sizing: border-box;
+  align-items: start;
+  background: var(--office-ui-canvas) !important;
+}
+.kravia-office .office-v2.office-modern.office-floating-rail[data-menu-expanded="false"] {
+  grid-template-columns: var(--office5-rail) minmax(0,1fr) !important;
+  padding-left: var(--office5-outer) !important;
+}
+.kravia-office .office-v2.office-modern.office-floating-rail > .office-mega-aside,
+.kravia-office .office-v2.office-modern.office-floating-rail > .office-mega-aside[data-menu-expanded="false"] {
+  position: sticky !important;
+  inset: var(--office5-outer) auto auto !important;
+  margin: 0 !important;
+  width: 100% !important;
+  height: calc(100dvh - 2 * var(--office5-outer)) !important;
+  max-height: calc(100dvh - 2 * var(--office5-outer)) !important;
+  min-height: 0 !important;
+  display: grid !important;
+  grid-template-columns: var(--office5-rail) minmax(0,var(--office5-context)) !important;
+  gap: var(--office5-gap) !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+.kravia-office .office-v2.office-modern.office-floating-rail > .office-mega-aside[data-menu-expanded="false"] {
+  grid-template-columns: var(--office5-rail) 0 !important;
+  gap: 0 !important;
+}
+.kravia-office .office-v2.office-modern.office-floating-rail .office-icon-rail,
+.kravia-office .office-v2.office-modern.office-floating-rail .office-mega-panel {
+  border-radius: 22px !important;
+  min-width: 0;
+  height: 100%;
+  box-sizing: border-box;
+  box-shadow: 0 14px 44px rgba(10,22,40,.10);
+}
+.kravia-office .office-v2.office-modern.office-floating-rail .office-icon-rail {
+  background: #10151e !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  padding: 12px 9px !important;
+}
+.kravia-office .office-v2.office-modern.office-floating-rail .office-mega-panel {
+  background: var(--office-ui-surface) !important;
+  border: 1px solid var(--office-ui-line) !important;
+  color: var(--office-ui-ink) !important;
+  overflow: hidden !important;
+}
+.kravia-office .office-v2.office-modern .office-mega-panel :is(.office-menu-heading,.office-menu-identity) {
+  color: var(--office-ui-ink) !important;
+  border-color: var(--office-ui-line) !important;
+}
+.kravia-office .office-v2.office-modern .office-menu-heading :is(strong,small,button),
+.kravia-office .office-v2.office-modern .office-menu-identity :is(strong,small),
+.kravia-office .office-v2.office-modern .office-mega-subgroup > summary,
+.kravia-office .office-v2.office-modern .office-mega-link-list a {
+  color: var(--office-ui-ink) !important;
+}
+.kravia-office .office-v2.office-modern .office-menu-heading small,
+.kravia-office .office-v2.office-modern .office-menu-identity small,
+.kravia-office .office-v2.office-modern .office-mega-subgroup > summary {
+  color: var(--office-ui-muted) !important;
+}
+.kravia-office .office-v2.office-modern .office-mega-link-list a {
+  min-height: 44px !important;
+  padding: 10px 12px !important;
+  border-radius: 10px !important;
+  font-size: 13px !important;
+}
+.kravia-office .office-v2.office-modern .office-mega-link-list a:is(:hover,[aria-current="page"]) {
+  background: var(--office-ui-surface-alt) !important;
+  color: var(--office-ui-accent) !important;
+}
+.kravia-office .office-v2.office-modern .office-mega-link-list a > svg:first-child {
+  color: currentColor !important;
+}
+.kravia-office .office-v2.office-modern .office-rail-category {
+  min-height: 48px !important;
+  border-radius: 12px !important;
+}
+.kravia-office .office-v2.office-modern .office-sidebar-footer :is(.office-rail-action,.workspace-signout) {
+  min-height: 44px !important;
+  height: 44px !important;
+  width: 44px !important;
+}
+.kravia-office .office-v2.office-modern.office-floating-rail > .office-main {
+  min-height: calc(100dvh - 2 * var(--office5-outer)) !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 0 24px !important;
+  background: var(--office-ui-surface) !important;
+  border: 1px solid var(--office-ui-line) !important;
+  border-radius: 22px !important;
+  box-shadow: var(--office-ui-shadow) !important;
+}
+.kravia-office .office-v2.office-modern.office-floating-rail .office-topbar-compact {
+  position: sticky !important;
+  top: 0 !important;
+  height: 64px !important;
+  min-height: 64px !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--office-ui-line) !important;
+  border-radius: 22px 22px 0 0 !important;
+  padding: 10px 24px !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+.kravia-office .office-v2.office-modern.office-floating-rail .office-main > section:not(.office-topbar) {
+  margin-inline: clamp(12px,2vw,24px) !important;
+}
+.kravia-office .office-v2.office-modern .office-main :where(button,a,input,textarea,select,[tabindex]):focus-visible {
+  outline: 2px solid var(--office-ui-accent) !important;
+  outline-offset: 3px !important;
+}
+.kravia-office .office-v2.office-modern :where(button,input,select,textarea):disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+.kravia-office .office-v2.office-modern .office-main :where([role="dialog"],[aria-modal="true"],dialog) {
+  border-radius: 20px !important;
+}
+.kravia-office .office-v2.office-modern .office-main dialog[open] {
+  max-height: calc(100dvh - 48px) !important;
+  max-width: calc(100dvw - 32px) !important;
+}
+.kravia-office .office-v2.office-modern .office-main :where([class*="_dialog__"],[class*="_modal__"],[class*="_drawer__"]) {
+  min-width: 0;
+  max-width: min(640px,calc(100dvw - 32px));
+}
+.kravia-office .office-v2.office-modern .office-main :where(table) {
+  width: 100%;
+}
+.kravia-office .office-v2.office-modern .office-main :where([class*="_tableWrap__"],[class*="_tableContainer__"]) {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+.kravia-office .office-v2.office-modern .office-more-card[data-open="true"] {
+  z-index: 500 !important;
+  max-height: calc(100dvh - 88px);
+  overflow-y: auto;
+}
+.kravia-office .office-v2.office-modern .office-more-shortcuts :is(a,button) {
+  min-height: 44px;
+}
+/* Native shared auth shell, both Office and Finance, preserves first-party flows. */
+.kravia-office [data-office-auth-layout] [class*="brand__"],
+.kravia-office [data-office-auth-layout] > section:first-child {
+  background: #10151e !important;
+  color: #fff !important;
+}
+.kravia-office [data-office-auth-layout] :where([class*="glowOne"],[class*="glowTwo"]) {
+  display: none !important;
+}
+.kravia-office [data-office-auth-layout] [class*="formSide"] {
+  background: #f6f7fa !important;
+}
+.kravia-office[data-office-theme="dark"] [data-office-auth-layout] [class*="formSide"] {
+  background: #050609 !important;
+}
+.kravia-office [data-office-auth-layout] :where([class*="primary"],[class*="secondary"]) {
+  min-height: 44px;
+  border-radius: 10px !important;
+}
+.kravia-office [data-office-auth-layout] [class*="primary"] {
+  background: #1559ce !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+.kravia-office [data-office-auth-layout] [class*="primary"]:hover:not(:disabled) {
+  background: #0a45ab !important;
+}
+.kravia-office [data-office-auth-layout] :where(input,button,a):focus-visible {
+  outline: 2px solid #1559ce !important;
+  outline-offset: 3px !important;
+}
+.kravia-office .office5-mobile-dock { display: none; }
+@media (min-width: 901px) and (max-width: 1279px) {
+  .kravia-office .office-v2.office-modern.office-floating-rail {
+    --office5-rail: 62px;
+    --office5-context: 248px;
+    --office5-gap: 10px;
+    --office5-outer: 12px;
+  }
+}
+@media (min-width: 768px) and (max-width: 900px) {
+  .kravia-office .office-v2.office-modern.office-floating-rail {
+    --office5-rail: 62px;
+    --office5-outer: 12px;
+    display: grid !important;
+    grid-template-columns: 62px minmax(0,1fr) !important;
+    gap: 12px !important;
+    padding: 12px !important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail > .office-mega-aside {
+    position: sticky !important;
+    inset: 12px auto auto !important;
+    width: 62px !important;
+    height: calc(100dvh - 24px) !important;
+    grid-template-columns: 62px 0 !important;
+    transform: none !important;
+    border-radius: 22px !important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail .office-mega-panel { display: none !important; }
+  .kravia-office .office-v2.office-modern.office-floating-rail > .office-main {
+    min-height: calc(100dvh - 24px) !important;
+    border-radius: 22px !important;
+  }
+}
+@media (max-width: 767px) {
+  .kravia-office .office-v2.office-modern.office-floating-rail {
+    display: block !important;
+    padding: 0 !important;
+    min-height: 100dvh !important;
+    overflow-x: clip;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail > .office-mega-aside {
+    position: fixed !important;
+    z-index: 240 !important;
+    inset: 0 auto 0 0 !important;
+    display: grid !important;
+    width: min(340px,94vw) !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    grid-template-columns: 62px minmax(0,1fr) !important;
+    gap: 0 !important;
+    transform: translateX(-105%);
+    background: var(--office-ui-surface) !important;
+    border-radius: 0 !important;
+    overflow: hidden !important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail > .office-mega-aside[data-mobile-open="true"] {
+    transform: translateX(0) !important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail .office-mega-panel {
+    display: flex !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    border-radius: 0 !important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail > .office-main {
+    min-height: 100dvh !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding-bottom: calc(94px + env(safe-area-inset-bottom,0px)) !important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail .office-topbar-compact {
+    height: 58px !important;
+    min-height: 58px !important;
+    border-radius: 0 !important;
+    padding: 7px 12px !important;
+  }
+  .kravia-office .office-v2.office-modern .office-main :where(input,textarea,select) { font-size: 16px !important; }
+  .kravia-office .office-v2.office-modern .office-main :where([class*="_dialog__"],[class*="_modal__"],[role="dialog"],[aria-modal="true"]) {
+    max-width: calc(100dvw - 24px) !important;
+    max-height: calc(94dvh - env(safe-area-inset-bottom,0px)) !important;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .kravia-office .office-v2.office-modern .office-more-card[data-open="true"] {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    right: auto !important;
+    width: min(420px,calc(100vw - 28px)) !important;
+    max-height: 80dvh !important;
+    transform: translate(-50%,-50%) !important;
+    border-radius: 20px !important;
+    box-shadow: 0 32px 84px rgba(0,0,0,.28) !important;
+  }
+  .kravia-office .office5-mobile-dock {
+    position: fixed;
+    z-index: 210;
+    bottom: max(10px,env(safe-area-inset-bottom,0px));
+    left: 12px;
+    right: 12px;
+    display: flex !important;
+    justify-content: space-evenly;
+    align-items: center;
+    gap: 4px;
+    min-height: 62px;
+    padding: 6px 8px;
+    background: var(--office-ui-surface);
+    border: 1px solid var(--office-ui-line);
+    border-radius: 20px;
+    box-shadow: 0 12px 38px rgba(0,0,0,.18);
+  }
+  .kravia-office .office5-mobile-dock :is(a,button) {
+    display: flex; flex: 1; align-items: center; justify-content: center;
+    flex-direction: column; gap: 2px; min-height: 44px; min-width: 44px;
+    background: transparent; color: var(--office-ui-ink); border: 0;
+    border-radius: 12px; font: inherit; font-size: 11px; text-decoration: none;
+  }
+  .kravia-office .office5-mobile-dock :is(a[aria-current="page"],a:hover,button:hover) {
+    background: var(--office-ui-surface-alt); color: var(--office-ui-accent);
+  }
+  .kravia-office .office-v2.office-modern .office-main :where([class*="_tableWrap__"]) { overflow-x: auto; }
+  .kravia-office [data-office-auth-layout] [class*="formSide"] [class*="card"] {
+    max-height: calc(100dvh - 100px) !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kravia-office .office-v2.office-modern.office-floating-rail *,
+  .kravia-office [data-office-auth-layout] * {
+    animation-duration: .01ms !important; transition-duration: .01ms !important;
+  }
+}
+
+/* Finance sign-in retains the explicit AAL2 badge and source-owned control
+   statement that existing mobile browser tests and employees rely upon. */
+.kravia-office .office5-finance-assurance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+  color: var(--office-ui-ink);
+  font-size: 12px;
+  font-weight: 650;
+}
+.kravia-office .office5-finance-assurance span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  border-radius: 9px;
+  padding: 5px 10px;
+  border: 1px solid var(--office-ui-line);
+  background: var(--office-ui-surface-alt);
+}

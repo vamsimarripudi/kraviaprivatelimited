@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 function read(path: string) {
   return readFileSync(new URL("../" + path, import.meta.url), "utf8");
 }
-const schema = read("../Database/supabase/migrations/202611140001_office_document_email_otp_approval.sql");
+const schema = read("../Database/supabase/migrations/20261114110233_office_document_email_otp_approval_20261114.sql");
 const service = read("lib/office/document-otp-server.ts");
 const email = read("lib/office/document-otp-email.ts");
 const route = read("app/api/office-documents/otp/route.ts");
@@ -65,6 +65,7 @@ describe("First-party Office document OTP approvals", () => {
     expect(studio).toContain("<OfficeDocumentOtpStamp");
     expect(studioServer).toContain('from("office_document_otp_approvals")');
     expect(studioServer).toContain('eq("signer_user_id", current.identity.userId)');
+    expect(studioServer).toContain("ownerSigningReviewer && companyInstance.allowed");
     expect(ui).toContain("APPROVED · EMAIL OTP");
     expect(ui).toContain("signer_email_masked");
     expect(ui).toContain("accuracy_m");

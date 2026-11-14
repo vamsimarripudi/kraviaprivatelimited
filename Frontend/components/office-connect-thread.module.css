@@ -1,0 +1,16 @@
+.thread{display:grid;gap:15px;margin:16px clamp(12px,2vw,24px) 25px;min-width:0;color:var(--office-ui-ink)}
+.back{display:inline-flex;align-items:center;gap:7px;min-height:44px;color:var(--office-ui-accent);text-decoration:none}
+.thread header p{margin:0;color:var(--office-ui-accent);font-size:10px;letter-spacing:.14em;font-weight:700}
+.thread header h1{margin:5px 0;font-size:25px!important}.thread header span,.footer{font-size:12px;color:var(--office-ui-muted)}
+.messages{display:grid;gap:10px}.messages article{padding:18px;border:1px solid var(--office-ui-line);border-radius:16px;background:var(--office-ui-surface)}
+.messages article[data-parent=true]{border-left:3px solid var(--office-ui-accent)}
+.messages article>div{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.messages article strong{font-size:13px}
+.messages article time{color:var(--office-ui-muted);font-size:11px}.messages article p{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6}
+.composer{display:grid;gap:8px}.composer label{font-size:12px;font-weight:700}.composer>div{display:flex;gap:10px;align-items:end}
+.composer textarea{flex:1;min-width:0;min-height:70px;padding:12px;border:1px solid var(--office-ui-line);border-radius:12px;color:var(--office-ui-ink);background:var(--office-ui-surface);resize:vertical}
+.composer button,.error button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:10px 14px;border:0;border-radius:10px;background:var(--office-ui-accent);color:#fff;cursor:pointer}
+.composer button:disabled{opacity:.5;cursor:not-allowed}
+.state,.error,.notice{padding:14px;border:1px solid var(--office-ui-line);border-radius:12px}
+.error{color:var(--office-ui-danger);display:flex;justify-content:space-between;gap:10px;align-items:center}
+.footer{display:flex;gap:9px;align-items:center}
+@media(max-width:767px){.thread{margin:9px 12px 25px}.composer>div{flex-direction:column;align-items:stretch}}

@@ -1391,3 +1391,49 @@ if WEB_DIR.exists():
 @app.get("/", include_in_schema=False)
 def office_root():
     return RedirectResponse(url="/office/")
+
+
+# Reusable first-party private byte scanner for the Next.js attachment and
+# sealed K-Vault brokers. It stores nothing and returns a content hash only.
+# A scanner failure must never be interpreted as clean.
+@app.post("/api/v1/security/file-scan", include_in_schema=False)
+async def scan_private_office_upload(
+    request: Request,
+    ctx=Depends(actor_context),
+):
+    from .file_security import detect_mime, scan_bytes, scanner_configured
+    if ctx.get("auth_mode") != "first_party":
+        raise HTTPException(status_code=403, detail="First-party AAL2 Office identity is required")
+    if not scanner_configured():
+        raise HTTPException(status_code=503, detail="Corporate malware scanning is unavailable")
+    declared = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    allowed = {
+        "application/pdf",
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    }
+    max_bytes = 10 * 1024 * 1024
+    payload = bytearray()
+    async for part in request.stream():
+        if len(payload) + len(part) > max_bytes:
+            raise HTTPException(status_code=413, detail="Private attachment exceeds the 10 MiB scan ceiling")
+        payload.extend(part)
+    if not payload:
+        raise HTTPException(status_code=422, detail="The private attachment is empty")
+    actual = detect_mime(bytes(payload))
+    if actual not in allowed or declared != actual:
+        raise HTTPException(status_code=415, detail="Private attachment type verification failed")
+    try:
+        outcome = scan_bytes(bytes(payload))
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Scanner verdict could not be confirmed") from exc
+    if not outcome.get("clean"):
+        raise HTTPException(status_code=422, detail="Malware scanner blocked the file")
+    return {
+        "clean": True,
+        "sha256": hashlib.sha256(payload).hexdigest(),
+        "byte_size": len(payload),
+    }

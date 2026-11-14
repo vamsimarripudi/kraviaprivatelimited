@@ -96,13 +96,10 @@ export function capabilityCanAccessSection(
   roles: readonly OfficeRole[],
   permissions: readonly string[],
 ) {
+  // OWNER label is not navigation authorization: use the effective capability snapshot,
+  // including explicit denies and department transfers, for all business sections.
   const required = requiredCapabilities(workspace, section);
-  // OWNER identity is not an operational Finance permission once the
-  // department has been transferred. The snapshot excludes revoked writes,
-  // so Finance navigation must respect that snapshot too.
-  if (roles.includes("OWNER") && workspace === "office") return true;
-  if (!required.length) return (workspace === "office" && personalOfficeSections.has(section)) ||
-    (workspace === "finance" && ["my-role","info","worktime","settings"].includes(section));
+  if (!required.length) return (workspace === "office" && personalOfficeSections.has(section)) || (workspace === "finance" && ["my-role","info","worktime","settings"].includes(section));
   const granted = new Set(permissions);
   return required.some((permission) => granted.has(permission));
 }

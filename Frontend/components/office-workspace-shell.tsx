@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 import {
   ArrowRightLeft, BookOpen, BriefcaseBusiness, Building2, CalendarDays, ChevronDown, ChevronRight,
   ClipboardCheck, Cog, FileText, Folders, GitBranch, Landmark,
-  LayoutDashboard, Menu, Moon, MoreHorizontal, PanelLeftClose,
-  PanelLeftOpen, Scale, Settings, ShieldCheck, Sun, Users, Wallet, X,
+  LayoutDashboard, Menu, MessageSquareText, Moon, MoreHorizontal, PanelLeftClose,
+  PanelLeftOpen, Scale, Settings, ShieldCheck, Sun, Users, Vault, Wallet, X,
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { OfficeNavLink } from "@/components/office-nav-link";
@@ -29,7 +29,7 @@ import {
 } from "@/lib/office/workspaces";
 
 const iconByCategory = {
-  "My work": LayoutDashboard, People: Users, Engineering: GitBranch,
+  "My work": LayoutDashboard, Connect: MessageSquareText, "K-Vault": Vault, People: Users, Engineering: GitBranch,
   Commercial: BriefcaseBusiness, Operations: Building2, Finance: Landmark,
   Governance: Scale, Administration: ShieldCheck, Overview: LayoutDashboard,
   Revenue: Wallet, Treasury: Landmark, Tax: FileText, Books: FileText,
@@ -127,7 +127,7 @@ export function OfficeWorkspaceShell({
 }) {
   const pathname = usePathname();
   const [mobileNav, setMobileNav] = useState(false);
-  const [megaExpanded, setMegaExpanded] = useState(false);
+  const [megaExpanded, setMegaExpanded] = useState(true);
   const [pickedCategory, setPickedCategory] = useState<string | null>(null);
   const [pickedSubgroup, setPickedSubgroup] = useState<string | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -138,6 +138,14 @@ export function OfficeWorkspaceShell({
   const sections = workspace === "finance" ? financeSections : officeSections;
   const section = sectionFromPath(pathname, workspace);
   const item = (sections as Record<string, WorkspaceSection>)[section];
+  const isConnect = workspace === "office" && (pathname === "/office/chat" || pathname.startsWith("/office/chat/"));
+  const isVault = workspace === "office" && (pathname === "/office/k-vault" || pathname.startsWith("/office/k-vault/"));
+  // Entry navigation never substitutes for per-record server authorization.
+  const vaultEntry = workspace === "office" && permissions.some((permission) => [
+    "custody.read", "document.instance.read", "document.template.read",
+    "secretarial.board.read", "compliance.rules.read", "access.audit.read",
+    "finance.bank.read", "people.basic.read", "master.product.read",
+  ].includes(permission));
 
   const entries = useMemo(() => sectionEntries(workspace).filter(([slug,value]) =>
     roleCanAccessSection(value, identity.roles) &&
@@ -146,10 +154,15 @@ export function OfficeWorkspaceShell({
     [workspace, identity.roles, permissions]);
   const categories = useMemo(() => {
     const order = workspace === "office" ? categoryOrder : financeOrder;
-    return [...new Set(entries.map(([slug,value]) => categoryOf(workspace,slug,value)))]
-      .sort((a,b) => order.indexOf(a) - order.indexOf(b));
-  }, [entries, workspace]);
-  const currentCategory = item ? categoryOf(workspace, section, item) : categories[0];
+    const labels = entries.map(([slug,value]) => categoryOf(workspace,slug,value));
+    if (workspace === "office") labels.push("Connect");
+    if (vaultEntry) labels.push("K-Vault");
+    return [...new Set(labels)].sort((a,b) => {
+      const rank = (label:string) => order.includes(label) ? order.indexOf(label) : label === "Connect" ? 1 : 2;
+      return rank(a)-rank(b);
+    });
+  }, [entries, workspace, vaultEntry]);
+  const currentCategory = isConnect ? "Connect" : isVault ? "K-Vault" : item ? categoryOf(workspace, section, item) : categories[0];
   const selectedCategory = pickedCategory && categories.includes(pickedCategory) ? pickedCategory : currentCategory;
   const links = entries.filter(([slug,value]) => categoryOf(workspace,slug,value) === selectedCategory);
   const subgroups = [...new Set(links.map(([,value]) => value.group))];
@@ -165,8 +178,6 @@ export function OfficeWorkspaceShell({
   const canSwitch = roleCanAccessWorkspace(switchWorkspace,identity.roles)
     && roleCanAccessSection(switchDashboard,identity.roles)
     && capabilityCanAccessSection(switchWorkspace,"dashboard",identity.roles,permissions)
-    // Transferred Finance is Company Oversight, not a second Founder
-    // operational workspace in the primary account rail.
     && !(workspace === "office" && switchWorkspace === "finance" && financeDelegated);
 
   useEffect(() => {
@@ -237,6 +248,7 @@ export function OfficeWorkspaceShell({
     window.dispatchEvent(new CustomEvent("kravia-office-theme-change", { detail: next }));
   }
 
+  const activePageTitle = isConnect ? "KRAVIA Connect" : isVault ? "K-Vault" : item?.title ?? section;
   const settingsHref = workspace === "finance" ? "/office/settings" : definition.basePath + "/settings";
   const canOpenSettings = workspace === "office" || canSwitch;
 
@@ -313,6 +325,20 @@ export function OfficeWorkspaceShell({
                 })}
               </div>
             </details>)}
+            {workspace === "office" && selectedCategory === "Connect" ?
+              <div className="office-mega-link-list" data-office5-quick-links>
+                <OfficeNavLink href="/office/chat"><MessageSquareText size={16}/>Communications</OfficeNavLink>
+                <OfficeNavLink href="/office/chat/support"><ShieldCheck size={16}/>Support & IT</OfficeNavLink>
+                <OfficeNavLink href="/office/chat/approvals"><ClipboardCheck size={16}/>Approvals</OfficeNavLink>
+                <OfficeNavLink href="/office/chat/activity"><CalendarDays size={16}/>Activity</OfficeNavLink>
+              </div> : null}
+            {workspace === "office" && selectedCategory === "K-Vault" && vaultEntry ?
+              <div className="office-mega-link-list" data-office5-quick-links>
+                <OfficeNavLink href="/office/k-vault"><Vault size={16}/>Overview</OfficeNavLink>
+                <OfficeNavLink href="/office/k-vault/categories"><Folders size={16}/>Categories</OfficeNavLink>
+                <OfficeNavLink href="/office/k-vault/documents"><FileText size={16}/>Documents</OfficeNavLink>
+                <OfficeNavLink href="/office/k-vault/requests"><ShieldCheck size={16}/>Access requests</OfficeNavLink>
+              </div> : null}
             {workspace === "office" && identity.roles.includes("OWNER") &&
               selectedCategory === "Administration" ?
               <details className="office-mega-subgroup" open={expandedSubgroup === "Public content"}>
@@ -342,7 +368,7 @@ export function OfficeWorkspaceShell({
             <ChevronRight size={14} aria-hidden="true"/>
             <span>{currentCategory}</span>
             <ChevronRight size={14} aria-hidden="true"/>
-            <strong aria-current="page">{item?.title ?? section}</strong>
+            <strong aria-current="page">{activePageTitle}</strong>
           </nav>
           <div className="office-topbar-tools">
             <OfficeIstClock/>
@@ -380,7 +406,7 @@ export function OfficeWorkspaceShell({
         {financeDelegated && workspace === "finance" ? <aside className={delegatedStyles.banner} role="status" aria-label="Delegated Finance oversight">
           <div><Landmark size={18} aria-hidden="true"/><span>
             <strong>Finance · Read-only Founder oversight</strong>
-            <small>Finance operations belong to the current department owner. Your former departmental approvals and edits are restricted.</small>
+            <small>Finance operations belong to the current department owner. Former departmental approvals and edits remain restricted.</small>
           </span></div>
           <OfficeNavLink href="/office/requests" className={delegatedStyles.request}>
             Raise a Finance request <ChevronRight size={15} aria-hidden="true"/>
@@ -388,6 +414,12 @@ export function OfficeWorkspaceShell({
         </aside> : null}
         {children}
       </section>
+      <nav className="office5-mobile-dock" aria-label="Office mobile navigation">
+        <OfficeNavLink href={definition.basePath + "/dashboard"}><LayoutDashboard size={18} aria-hidden="true"/><span>Home</span></OfficeNavLink>
+        {workspace === "office" ? <OfficeNavLink href="/office/chat"><MessageSquareText size={18} aria-hidden="true"/><span>Connect</span></OfficeNavLink> : null}
+        {vaultEntry ? <OfficeNavLink href="/office/k-vault"><Vault size={18} aria-hidden="true"/><span>Vault</span></OfficeNavLink> : null}
+        <button type="button" onClick={() => { setMegaExpanded(true); setMobileNav(true); }} aria-label="Open more navigation"><Menu size={18} aria-hidden="true"/><span>More</span></button>
+      </nav>
     </main>
   </OfficeWorkspaceProvider>;
 }

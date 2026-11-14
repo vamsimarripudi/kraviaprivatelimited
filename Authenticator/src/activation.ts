@@ -4,6 +4,7 @@ import type {
   PendingDeviceApproval,
 } from "./storage";
 import { KRAVIA_ISSUER } from "./types";
+import {isOfficeUuid} from "./identifiers";
 
 export type PendingEmailOtpChallenge = {
   challengeId: string;
@@ -154,7 +155,7 @@ async function requestJson<T>(
 }
 
 function validId(value: unknown): value is string {
-  return typeof value === "string" && /^[0-9a-f-]{36}$/i.test(value);
+  return isOfficeUuid(value);
 }
 function validSecret(value: unknown): value is string {
   return typeof value === "string" && /^[A-Za-z0-9_-]{32,}$/.test(value);

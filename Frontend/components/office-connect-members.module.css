@@ -1,0 +1,17 @@
+.panel{width:min(100%,480px);max-width:100%;box-sizing:border-box;margin:8px 0 12px auto;padding:16px;display:grid;gap:12px;border:1px solid var(--office-ui-line);border-radius:16px;background:var(--office-ui-surface);box-shadow:0 12px 32px rgba(0,0,0,.08);color:var(--office-ui-ink)}
+.panel header,.panel header>div{display:flex;align-items:center;gap:9px}.panel header{justify-content:space-between}
+.panel h2{font-size:15px;margin:0}.panel p{font-size:12px;color:var(--office-ui-muted);line-height:1.5;margin:0}
+.panel button{display:inline-flex;gap:8px;align-items:center;justify-content:center;min-height:44px;padding:9px 12px;border:1px solid var(--office-ui-line);border-radius:11px;background:transparent;color:var(--office-ui-ink);cursor:pointer}
+.panel button:focus-visible,.panel select:focus-visible,.panel input:focus-visible{outline:2px solid var(--office-ui-accent);outline-offset:2px}
+.panel .count{font-weight:700;color:var(--office-ui-ink)}
+.people{margin:0;padding:0;list-style:none;display:grid;gap:8px;max-height:264px;overflow-y:auto}
+.people li{display:flex;align-items:center;gap:10px;font-size:13px;overflow-wrap:anywhere}
+.avatar{width:32px;height:32px;display:grid;place-items:center;flex:none;border-radius:50%;border:1px solid var(--office-ui-line)}
+.panel .addToggle,.form button[type=submit]{border-color:transparent;background:var(--office-ui-accent);color:#fff}
+.form{display:grid;gap:10px}
+.form label{display:grid;gap:6px;font-size:12px;font-weight:700}
+.form select,.form input{min-height:44px;border-radius:10px;border:1px solid var(--office-ui-line);padding:9px;color:var(--office-ui-ink);background:var(--office-ui-surface);min-width:0}
+.panel .error{color:var(--office-ui-danger,#c12828)}
+.panel .success{color:var(--office-ui-ink)}
+.panel footer{display:flex;align-items:flex-start;gap:8px;font-size:11px;color:var(--office-ui-muted)}
+@media(max-width:767px){.panel{width:100%;margin:0 0 12px;padding:12px;border-radius:14px}}

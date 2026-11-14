@@ -8,7 +8,7 @@ const officeLayout = read("app/office/(workspace)/layout.tsx");
 const financeLayout = read("app/finance/(workspace)/layout.tsx");
 const shell = read("components/office-workspace-shell.tsx");
 const handover = read("components/office-department-handover.tsx");
-const migration = read("../Database/supabase/migrations/202611140002_department_handover_access_sync.sql");
+const migration = read("../Database/supabase/migrations/20261114102312_office_department_handover_access_sync_20261114.sql");
 
 describe("KRAVIA immediate delegated authority and reauthentication", () => {
   it("never treats the Founder role as a bypass for transferred Finance screens", () => {

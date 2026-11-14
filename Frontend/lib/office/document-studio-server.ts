@@ -4,6 +4,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { Buffer } from "node:buffer";
 import { getOfficeRuntimeOrigin } from "@/lib/env/office";
 import { getOfficeSessionContext } from "@/lib/office/auth-server";
+import {sourceVisibleDocumentInstances} from "@/lib/office/document-source-scope";
+import { currentOfficeTrustedDeviceId } from "@/lib/office/device-binding-server";
 import {
   OfficePermissionError,
   requireOfficeActor,
@@ -21,6 +23,22 @@ export class OfficeDocumentStudioError extends Error {
 type Actor = Awaited<ReturnType<typeof requireOfficeActor>>;
 type Row = Record<string, unknown>;
 
+/** Bind a single verified device to every source-record action and read gate.
+ * Cache for the duration of this request actor, not across employees/sessions. */
+const deviceForActor=new WeakMap<Actor,Promise<string|null>>();
+function currentDocumentDevice(current:Actor):Promise<string|null>{
+ let cached=deviceForActor.get(current);
+ if(!cached){
+   cached=currentOfficeTrustedDeviceId(current.admin,current.identity.userId);
+   deviceForActor.set(current,cached);
+ }
+ return cached;
+}
+async function documentPermission(current:Actor,code:string,scope:OfficeResourceScope){
+ return resolveOfficePermission(current.admin,current.identity,code,scope,
+   await currentDocumentDevice(current));
+}
+
 async function actor(): Promise<Actor> {
   try { return await requireOfficeActor(); }
   catch (error) {
@@ -36,7 +54,7 @@ async function decision(current: Actor, permission: string, ownerUserId?: string
     ...(ownerUserId ? [{ type: "OWN" as const, ownerUserId }] : []),
   ];
   for (const resource of scopes) {
-    const result = await resolveOfficePermission(current.admin, current.identity, permission, resource);
+    const result = await documentPermission(current, permission, resource);
     if (result.allowed) return result;
   }
   return null;
@@ -50,6 +68,41 @@ async function requirePermission(current: Actor, permission: string, ownerUserId
 
 function fail(error: { message?: string } | null, message: string) {
   if (error) throw new OfficeDocumentStudioError(503, message);
+}
+
+async function hasCurrentOfficeDepartment(current:Actor,department:string){
+ const {count,error}=await current.admin.from("office_job_assignments")
+  .select("user_id",{count:"exact",head:true})
+  .eq("user_id",current.identity.userId).eq("department_code",department).eq("status","ACTIVE");
+ if(error||typeof count!=="number")throw new OfficeDocumentStudioError(503,"Department authority unavailable");
+ return count>0;
+}
+/** The source instance, not the actor's current department or their creator role,
+ * determines read, render, delivery and signature authority. */
+async function requireInstanceAuthority(
+ current:Actor,permission:string,
+ instance:{owner_user_id?:string|null;template_id?:string|null},
+){
+ const actorId=current.identity.userId;
+ const company=await documentPermission(current,permission,{type:"COMPANY"});
+ if(company.allowed)return;
+ if(instance.owner_user_id===actorId){
+  const own=await documentPermission(current,permission,
+   {type:"OWN",ownerUserId:actorId});
+  if(own.allowed)return;
+ }
+ if(instance.template_id){
+  const {data:template,error}=await current.admin.from("office_document_templates")
+   .select("owner_department").eq("id",instance.template_id).maybeSingle();
+  if(error)throw new OfficeDocumentStudioError(503,"Document department authority unavailable");
+  const department=template?.owner_department;
+  if(department&&await hasCurrentOfficeDepartment(current,department)){
+   const scoped=await documentPermission(current,permission,
+    {type:"DEPARTMENT",key:department});
+   if(scoped.allowed)return;
+  }
+ }
+ throw new OfficeDocumentStudioError(403,"Record-level "+permission+" permission is required");
 }
 
 function text(value: unknown) { return typeof value === "string" ? value : value == null ? "" : String(value); }
@@ -66,78 +119,134 @@ export async function getOfficeDocumentStudioOverview() {
     decision(current, "document.signature.record", current.identity.userId, current.identity.department),
     decision(current, "document.delivery.record", current.identity.userId, current.identity.department),
   ]);
-  const ownerOverride = current.identity.roles.includes("OWNER");
-  if (!canReadTemplates && !canReadInstances && !ownerOverride) throw new OfficeDocumentStudioError(403, "Document Studio permission is required");
+  const ownerSigningReviewer = current.identity.roles.includes("OWNER");
+  if (!canReadTemplates && !canReadInstances) throw new OfficeDocumentStudioError(403, "Document Studio permission is required");
 
   const [templates, versions, clauses, clauseVersions, instances, renders, signatures, deliveries, identities] = await Promise.all([
-    canReadTemplates || ownerOverride ? current.admin.from("office_document_templates").select("id,template_code,title,category,owner_department,classification,required_creator_permission,requires_instance_approval,allowed_outputs,status,created_by,created_at,updated_at").eq("status", "ACTIVE").order("category").order("title") : Promise.resolve({ data: [], error: null }),
-    canReadTemplates || ownerOverride ? current.admin.from("office_document_template_versions").select("id,template_id,version,design_schema,content_schema,variables_schema,clause_rules,clause_snapshot,source_reference,source_hash,effective_from,effective_to,status,created_by,published_by,published_at,created_at,updated_at").order("version", { ascending: false }).limit(500) : Promise.resolve({ data: [], error: null }),
-    canReadTemplates || ownerOverride ? current.admin.from("office_document_clauses").select("id,clause_code,title,category,owner_department,status,created_by,created_at,updated_at").eq("status", "ACTIVE").order("category").order("title") : Promise.resolve({ data: [], error: null }),
-    canReadTemplates || ownerOverride ? current.admin.from("office_document_clause_versions").select("id,clause_id,version,content,variables_schema,source_reference,content_hash,effective_from,status,created_by,published_by,published_at,created_at,updated_at").order("version", { ascending: false }).limit(500) : Promise.resolve({ data: [], error: null }),
-    canReadInstances || ownerOverride ? current.admin.from("office_document_instances").select("id,document_code,template_id,template_version_id,subject_type,subject_reference,business_record_type,business_record_key,title,classification,owner_user_id,input_hash,approval_request_id,status,created_by,approved_by,approved_at,signed_at,delivered_at,created_at,updated_at").order("created_at", { ascending: false }).limit(500) : Promise.resolve({ data: [], error: null }),
-    canReadInstances || ownerOverride ? current.admin.from("office_document_renders").select("id,document_instance_id,output_format,mime_type,storage_reference,sha256,byte_size,status,generated_by,generated_at").order("generated_at", { ascending: false }).limit(1000) : Promise.resolve({ data: [], error: null }),
-    canReadInstances || ownerOverride ? current.admin.from("office_document_signature_evidence").select("id,document_instance_id,source_render_id,provider,provider_reference,signature_method,signer_reference_masked,signed_sha256,byte_size,status,signed_at,recorded_by,recorded_at").order("recorded_at", { ascending: false }).limit(1000) : Promise.resolve({ data: [], error: null }),
-    canReadInstances || ownerOverride ? current.admin.from("office_document_delivery_events").select("id,delivery_code,document_instance_id,render_id,channel,destination_masked,provider_reference,event_type,metadata,actor_user_id,created_at").order("created_at", { ascending: false }).limit(1000) : Promise.resolve({ data: [], error: null }),
+    canReadTemplates ? current.admin.from("office_document_templates").select("id,template_code,title,category,owner_department,classification,required_creator_permission,requires_instance_approval,allowed_outputs,status,created_by,created_at,updated_at").eq("status", "ACTIVE").order("category").order("title") : Promise.resolve({ data: [], error: null }),
+    canReadTemplates ? current.admin.from("office_document_template_versions").select("id,template_id,version,design_schema,content_schema,variables_schema,clause_rules,clause_snapshot,source_reference,source_hash,effective_from,effective_to,status,created_by,published_by,published_at,created_at,updated_at").order("version", { ascending: false }).limit(500) : Promise.resolve({ data: [], error: null }),
+    canReadTemplates ? current.admin.from("office_document_clauses").select("id,clause_code,title,category,owner_department,status,created_by,created_at,updated_at").eq("status", "ACTIVE").order("category").order("title") : Promise.resolve({ data: [], error: null }),
+    canReadTemplates ? current.admin.from("office_document_clause_versions").select("id,clause_id,version,content,variables_schema,source_reference,content_hash,effective_from,status,created_by,published_by,published_at,created_at,updated_at").order("version", { ascending: false }).limit(500) : Promise.resolve({ data: [], error: null }),
+    canReadInstances ? current.admin.from("office_document_instances").select("id,document_code,template_id,template_version_id,subject_type,subject_reference,business_record_type,business_record_key,title,classification,owner_user_id,input_hash,approval_request_id,status,created_by,approved_by,approved_at,signed_at,delivered_at,created_at,updated_at").order("created_at", { ascending: false }).limit(500) : Promise.resolve({ data: [], error: null }),
+    canReadInstances ? current.admin.from("office_document_renders").select("id,document_instance_id,output_format,mime_type,storage_reference,sha256,byte_size,status,generated_by,generated_at").order("generated_at", { ascending: false }).limit(1000) : Promise.resolve({ data: [], error: null }),
+    canReadInstances ? current.admin.from("office_document_signature_evidence").select("id,document_instance_id,source_render_id,provider,provider_reference,signature_method,signer_reference_masked,signed_sha256,byte_size,status,signed_at,recorded_by,recorded_at").order("recorded_at", { ascending: false }).limit(1000) : Promise.resolve({ data: [], error: null }),
+    canReadInstances ? current.admin.from("office_document_delivery_events").select("id,delivery_code,document_instance_id,render_id,channel,destination_masked,provider_reference,event_type,metadata,actor_user_id,created_at").order("created_at", { ascending: false }).limit(1000) : Promise.resolve({ data: [], error: null }),
     current.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").eq("status", "ACTIVE").order("display_name"),
   ]);
   for (const result of [templates, versions, clauses, clauseVersions, instances, renders, signatures, deliveries, identities]) fail(result.error, "Document Studio data is temporarily unavailable");
 
   // External signatory evidence is high-risk: only the current AAL2 Owner
   // can read attestations, and no record is created by opening the dashboard.
-  const signingReviews = ownerOverride
+  const signingReviews = ownerSigningReviewer && canReadInstances
     ? await current.admin.from("office_signing_issuance_reviews")
       .select("delivery_event_id,status,reviewed_by,reviewed_at,revoked_at")
       .order("reviewed_at", { ascending: false }).limit(500)
     : { data: [], error: null };
   fail(signingReviews.error, "Signing issuance review state unavailable");
 
-  const otpApprovalsQuery = current.admin.from("office_document_otp_approvals")
-    .select("id,document_instance_id,render_id,signer_user_id,signer_name,employee_reference,signer_email_masked,render_sha256,latitude,longitude,accuracy_m,location_captured_at,location_source,approved_at,method,status")
-    .order("approved_at", { ascending: false }).limit(500);
-  // Precise browser-reported coordinates are visible only to the Owner and
-  // to the individual whose own email OTP was verified.
-  const otpApprovals = canReadInstances || ownerOverride
-    ? ownerOverride ? await otpApprovalsQuery
-      : await otpApprovalsQuery.eq("signer_user_id", current.identity.userId)
-    : { data: [], error: null };
-  fail(otpApprovals.error, "Internal document approval receipts unavailable");
+  // The service client bypasses PostgREST RLS: narrow every response to the
+  // canonical *record* owner, a true COMPANY grant, or a currently assigned
+  // department whose template is the source of that document instance.
+  const actorId=current.identity.userId;
+  const [companyInstance,ownInstance,departmentInstance,
+    companyTemplate,ownTemplate,departmentTemplate]=await Promise.all([
+    documentPermission(current,"document.instance.read",{type:"COMPANY"}),
+    documentPermission(current,"document.instance.read",{type:"OWN",ownerUserId:actorId}),
+    current.identity.department
+     ?documentPermission(current,"document.instance.read",
+       {type:"DEPARTMENT",key:current.identity.department})
+     :Promise.resolve({allowed:false}),
+    documentPermission(current,"document.template.read",{type:"COMPANY"}),
+    documentPermission(current,"document.template.read",{type:"OWN",ownerUserId:actorId}),
+    current.identity.department
+     ?documentPermission(current,"document.template.read",
+       {type:"DEPARTMENT",key:current.identity.department})
+     :Promise.resolve({allowed:false}),
+  ]);
+  const department=current.identity.department;
+  const wantsDepartment=Boolean(department&&(departmentInstance.allowed||departmentTemplate.allowed));
+  const validDepartment=wantsDepartment&&department
+   ?await hasCurrentOfficeDepartment(current,department):false;
+  const templateIds=[...new Set((instances.data??[]).map(row=>row.template_id)
+   .filter((id):id is string=>typeof id==="string"&&Boolean(id)))];
+  const templateScopeResult=templateIds.length
+   ?await current.admin.from("office_document_templates")
+     .select("id,owner_department").in("id",templateIds)
+   :{data:[],error:null};
+  fail(templateScopeResult.error,"Document source department references are unavailable");
+  const departmentInstanceTemplates=new Set(
+   validDepartment&&departmentInstance.allowed
+    ?(templateScopeResult.data??[]).filter(row=>row.owner_department===department)
+       .map(row=>String(row.id)) :[]);
+  const visibleInstances=sourceVisibleDocumentInstances(instances.data??[],actorId,
+   companyInstance.allowed,ownInstance.allowed,departmentInstanceTemplates);
+  const visibleInstanceIds=new Set(visibleInstances.map(row=>String(row.id)));
+  const visibleRenders=(renders.data??[]).filter(row=>visibleInstanceIds.has(String(row.document_instance_id)));
+  const visibleSignatures=(signatures.data??[]).filter(row=>visibleInstanceIds.has(String(row.document_instance_id)));
+  const visibleDeliveries=(deliveries.data??[]).filter(row=>visibleInstanceIds.has(String(row.document_instance_id)));
+  const visibleDeliveryIds=new Set(visibleDeliveries.map(row=>String(row.id)));
+  const visibleTemplates=(templates.data??[]).filter(row=>
+   companyTemplate.allowed ||
+   (ownTemplate.allowed&&row.created_by===actorId) ||
+   (validDepartment&&departmentTemplate.allowed&&row.owner_department===department));
+  const visibleTemplateIds=new Set(visibleTemplates.map(row=>String(row.id)));
+  const visibleVersions=(versions.data??[]).filter(row=>visibleTemplateIds.has(String(row.template_id)));
+  const visibleClauses=(clauses.data??[]).filter(row=>
+   companyTemplate.allowed ||
+   (ownTemplate.allowed&&row.created_by===actorId) ||
+   (validDepartment&&departmentTemplate.allowed&&row.owner_department===department));
+  const visibleClauseIds=new Set(visibleClauses.map(row=>String(row.id)));
+  const visibleClauseVersions=(clauseVersions.data??[]).filter(row=>visibleClauseIds.has(String(row.clause_id)));
+  // OTP receipts are not broad directory data. An Owner only sees receipts
+  // for document instances already authorized by the current source model.
+  // Every other signer sees only their own receipt in that readable scope.
+  const otpInstanceIds=visibleInstances.map(row=>String(row.id));
+  const otpQuery=otpInstanceIds.length
+    ?current.admin.from("office_document_otp_approvals")
+      .select("id,document_instance_id,render_id,signer_user_id,signer_name,employee_reference,signer_email_masked,render_sha256,latitude,longitude,accuracy_m,location_captured_at,location_source,approved_at,method,status")
+      .in("document_instance_id",otpInstanceIds)
+      .order("approved_at",{ascending:false}).limit(500):null;
+  const otpApprovals=otpQuery
+    ?await (ownerSigningReviewer && companyInstance.allowed ? otpQuery : otpQuery.eq("signer_user_id", current.identity.userId))
+    :{data:[],error:null};
+  fail(otpApprovals.error,"Internal document approval receipts unavailable");
 
-  const requestIds = (instances.data ?? []).map((row) => row.approval_request_id).filter((value): value is string => typeof value === "string" && Boolean(value));
+  const requestIds = visibleInstances.map((row) => row.approval_request_id).filter((value): value is string => typeof value === "string" && Boolean(value));
   const approvals = requestIds.length ? await current.admin.from("office_requests").select("id,title,status,current_step_order,due_at,submitted_at,completed_at,updated_at").in("id", requestIds) : { data: [], error: null };
   fail(approvals.error, "Document approval state is temporarily unavailable");
 
-  const templateRows = (templates.data ?? []) as Row[];
+  const templateRows = visibleTemplates as Row[];
   const creatorPermissions = Array.from(new Set(templateRows.map((row) => text(row.required_creator_permission)).filter(Boolean)));
   const permissionMap = new Map<string, boolean>();
   for (const permission of creatorPermissions) {
-    permissionMap.set(permission, Boolean(await decision(current, permission, current.identity.userId, current.identity.department)) || ownerOverride);
+    permissionMap.set(permission, Boolean(await decision(current, permission, current.identity.userId, current.identity.department)));
   }
 
   return {
     actor: { user_id: current.identity.userId, roles: current.identity.roles, department: current.identity.department ?? null },
     capabilities: {
-      read_templates: Boolean(canReadTemplates) || ownerOverride,
-      manage_templates: Boolean(canManageTemplates) || ownerOverride,
-      publish_templates: Boolean(canPublishTemplates) || ownerOverride,
-      read_instances: Boolean(canReadInstances) || ownerOverride,
-      review_instances: Boolean(canReviewInstances) || ownerOverride,
-      render: Boolean(canRender) || ownerOverride,
-      sign: Boolean(canSign) || ownerOverride,
-      deliver: Boolean(canDeliver) || ownerOverride,
+      read_templates: Boolean(canReadTemplates),
+      manage_templates: Boolean(canManageTemplates),
+      publish_templates: Boolean(canPublishTemplates),
+      read_instances: Boolean(canReadInstances),
+      review_instances: Boolean(canReviewInstances),
+      render: Boolean(canRender),
+      sign: Boolean(canSign),
+      deliver: Boolean(canDeliver),
     },
     creator_permissions: Object.fromEntries(permissionMap),
-    templates: templates.data ?? [],
-    versions: versions.data ?? [],
-    clauses: clauses.data ?? [],
-    clause_versions: clauseVersions.data ?? [],
-    instances: instances.data ?? [],
-    renders: renders.data ?? [],
-    signatures: signatures.data ?? [],
-    deliveries: deliveries.data ?? [],
-    signing_reviews: signingReviews.data ?? [],
-    otp_approvals: otpApprovals.data ?? [],
+    templates: visibleTemplates,
+    versions: visibleVersions,
+    clauses: visibleClauses,
+    clause_versions: visibleClauseVersions,
+    instances: visibleInstances,
+    renders: visibleRenders,
+    signatures: visibleSignatures,
+    deliveries: visibleDeliveries,
+    signing_reviews: (signingReviews.data??[]).filter(row=>visibleDeliveryIds.has(String(row.delivery_event_id))),
     identities: identities.data ?? [],
     approvals: approvals.data ?? [],
+    otp_approvals: otpApprovals.data ?? [],
     disclaimer: "The canonical document is the published template version plus immutable input snapshot. PDF, DOCX, HTML and XLSX are rendered outputs and never replace historical source data.",
   };
 }
@@ -213,10 +322,11 @@ export async function syncDocumentInstanceApproval(instanceId: string) {
 
 export async function renderOfficeDocument(instanceId: string, outputFormat: "PDF" | "DOCX" | "HTML" | "XLSX") {
   const current = await actor();
-  await requirePermission(current, "document.render", current.identity.userId, current.identity.department);
   const instanceResult = await current.admin.from("office_document_instances").select("id,document_code,title,status,template_id,template_version_id,created_by,owner_user_id,input_snapshot").eq("id", instanceId).maybeSingle();
   if (instanceResult.error || !instanceResult.data) throw new OfficeDocumentStudioError(404, "Document instance not found");
   const instance = instanceResult.data;
+  await requireInstanceAuthority(current,"document.instance.read",instance);
+  await requireInstanceAuthority(current,"document.render",instance);
   if (!["APPROVED", "RENDERED", "SIGNING", "SIGNED"].includes(instance.status)) throw new OfficeDocumentStudioError(409, "Document must be approved before rendering");
   const [templateResult, versionResult] = await Promise.all([
     current.admin.from("office_document_templates").select("template_code,allowed_outputs,classification").eq("id", instance.template_id).maybeSingle(),
@@ -273,12 +383,12 @@ export async function queueOfficeSignedDocumentEvidence(input: {
   const current = await actor();
   const instanceResult = await current.admin
     .from("office_document_instances")
-    .select("id,document_code,owner_user_id,created_by,status")
+    .select("id,document_code,owner_user_id,created_by,status,template_id")
     .eq("id", input.instanceId)
     .maybeSingle();
   if (instanceResult.error || !instanceResult.data) throw new OfficeDocumentStudioError(404, "Document instance not found");
   const instance = instanceResult.data;
-  await requirePermission(current, "document.signature.record", instance.owner_user_id, current.identity.department);
+  await requireInstanceAuthority(current,"document.signature.record",instance);
 
   const renderResult = await current.admin
     .from("office_document_renders")
@@ -380,11 +490,11 @@ export async function downloadOfficeSignedDocument(signatureId: string) {
 
   const instanceResult = await current.admin
     .from("office_document_instances")
-    .select("document_code,title,created_by,owner_user_id,classification")
+    .select("document_code,title,created_by,owner_user_id,classification,template_id")
     .eq("id", signatureResult.data.document_instance_id)
     .maybeSingle();
   if (instanceResult.error || !instanceResult.data) throw new OfficeDocumentStudioError(404, "Document instance not found");
-  await requirePermission(current, "document.instance.read", instanceResult.data.owner_user_id, current.identity.department);
+  await requireInstanceAuthority(current,"document.instance.read",instanceResult.data);
 
   const download = await current.admin.storage.from("office-documents").download(signatureResult.data.signed_storage_reference);
   if (download.error || !download.data) throw new OfficeDocumentStudioError(503, "Signed document is temporarily unavailable");
@@ -445,11 +555,11 @@ export async function recordOfficeDocumentDelivery(input: {
   const current = await actor();
   const instanceResult = await current.admin
     .from("office_document_instances")
-    .select("id,owner_user_id,status")
+    .select("id,owner_user_id,status,template_id")
     .eq("id", input.instanceId)
     .maybeSingle();
   if (instanceResult.error || !instanceResult.data) throw new OfficeDocumentStudioError(404, "Document instance not found");
-  await requirePermission(current, "document.delivery.record", instanceResult.data.owner_user_id, current.identity.department);
+  await requireInstanceAuthority(current,"document.delivery.record",instanceResult.data);
   const { data, error } = await current.admin.rpc("office_document_record_delivery", {
     p_actor: current.identity.userId,
     p_instance: input.instanceId,
@@ -468,10 +578,9 @@ export async function downloadOfficeDocumentRender(renderId: string) {
   const current = await actor();
   const renderResult = await current.admin.from("office_document_renders").select("id,document_instance_id,output_format,mime_type,storage_reference,sha256,byte_size,status").eq("id", renderId).maybeSingle();
   if (renderResult.error || !renderResult.data) throw new OfficeDocumentStudioError(404, "Document output not found");
-  const instanceResult = await current.admin.from("office_document_instances").select("document_code,title,created_by,owner_user_id,classification").eq("id", renderResult.data.document_instance_id).maybeSingle();
+  const instanceResult = await current.admin.from("office_document_instances").select("document_code,title,created_by,owner_user_id,classification,template_id").eq("id", renderResult.data.document_instance_id).maybeSingle();
   if (instanceResult.error || !instanceResult.data) throw new OfficeDocumentStudioError(404, "Document instance not found");
-  const owns = instanceResult.data.created_by === current.identity.userId || instanceResult.data.owner_user_id === current.identity.userId;
-  if (!owns && !await decision(current, "document.instance.read", current.identity.userId, current.identity.department)) throw new OfficeDocumentStudioError(403, "Document read permission is required");
+  await requireInstanceAuthority(current,"document.instance.read",instanceResult.data);
   const download = await current.admin.storage.from("office-documents").download(renderResult.data.storage_reference);
   if (download.error || !download.data) throw new OfficeDocumentStudioError(503, "Document output is unavailable from the private vault");
   const bytes = Buffer.from(await download.data.arrayBuffer());

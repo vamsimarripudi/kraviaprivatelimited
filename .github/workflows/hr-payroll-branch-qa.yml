@@ -1,9 +1,25 @@
 name: KRAVIA HR salary and overtime branch QA
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Frontend/lib/office/attendance-salary-preview.ts'
+      - 'Frontend/lib/office/hr-attendance-workbook.ts'
+      - 'Frontend/lib/office/hr-attendance-import-server.ts'
+      - 'Frontend/components/office-hr-attendance-import.tsx'
+      - 'Frontend/components/office-payroll-console.tsx'
+      - 'Database/supabase/migrations/20261114120547_hr_hours_payroll_revision_guards_20261114.sql'
+      - 'Database/supabase/migrations/20261114120559_hr_payroll_independent_review_20261114.sql'
+      - 'Database/supabase/migrations/20261114120612_hr_leave_evidence_20261114.sql'
+      - 'Database/supabase/migrations/20261114120622_hr_payroll_maker_checker_20261114.sql'
+      - 'Database/supabase/migrations/20261114140609_hr_attendance_workbook_import_20261114.sql'
+      - 'Database/supabase/tests/hr-attendance-workbook-import-smoke.sql'
+      - '.github/workflows/hr-payroll-branch-qa.yml'
   push:
     branches:
       - feature/hr-hours-auto-payroll-audit-20261114
       - feature/hr-attendance-workbook-import-20261114
+      - feature/kravia-office-5-implementation-20261114
     paths:
       - 'Frontend/lib/office/attendance-salary-preview.ts'
       - 'Frontend/lib/office/hr-attendance-workbook.ts'
@@ -13,7 +29,7 @@ on:
       - 'Frontend/components/office-hr-attendance-import.module.css'
       - 'Frontend/components/internal-workspace-screen.tsx'
       - 'Frontend/tests/office-hr-attendance-workbook.test.ts'
-      - 'Database/supabase/migrations/202611140007_hr_attendance_workbook_import.sql'
+      - 'Database/supabase/migrations/20261114140609_hr_attendance_workbook_import_20261114.sql'
       - 'Database/supabase/tests/hr-attendance-workbook-import-smoke.sql'
       - 'Frontend/lib/office/salary-components.ts'
       - 'Frontend/lib/office/worktime-payroll-server.ts'
@@ -26,10 +42,10 @@ on:
       - 'Frontend/tests/office-salary-components.test.ts'
       - 'Frontend/tests/office-approved-leave-payroll.test.ts'
       - 'Frontend/tests/office-hr-hours-payroll-safety.test.ts'
-      - 'Database/supabase/migrations/202611140003_hr_hours_payroll_revision_guards.sql'
-      - 'Database/supabase/migrations/202611140004_hr_payroll_independent_review.sql'
-      - 'Database/supabase/migrations/202611140005_hr_leave_evidence.sql'
-      - 'Database/supabase/migrations/202611140006_hr_payroll_maker_checker.sql'
+      - 'Database/supabase/migrations/20261114120547_hr_hours_payroll_revision_guards_20261114.sql'
+      - 'Database/supabase/migrations/20261114120559_hr_payroll_independent_review_20261114.sql'
+      - 'Database/supabase/migrations/20261114120612_hr_leave_evidence_20261114.sql'
+      - 'Database/supabase/migrations/20261114120622_hr_payroll_maker_checker_20261114.sql'
       - 'Database/supabase/tests/hr-payroll-guards-*.sql'
       - 'Database/supabase/tests/hr-leave-workflow-smoke.sql'
       - 'Database/supabase/tests/hr-payroll-maker-checker-smoke.sql'
@@ -106,13 +122,13 @@ jobs:
           pg -f Database/supabase/migrations/202611130001_future_effective_hr_access.sql
           pg -f Database/supabase/migrations/202611130002_hr_worktime_evidence_authority.sql
           pg -f Database/supabase/tests/hr-payroll-guards-fixture.sql
-          pg -f Database/supabase/migrations/202611140003_hr_hours_payroll_revision_guards.sql
-          pg -f Database/supabase/migrations/202611140004_hr_payroll_independent_review.sql
-          pg -f Database/supabase/migrations/202611140005_hr_leave_evidence.sql
-          pg -f Database/supabase/migrations/202611140006_hr_payroll_maker_checker.sql
-          pg -f Database/supabase/migrations/202611140007_hr_attendance_workbook_import.sql
+          pg -f Database/supabase/migrations/20261114120547_hr_hours_payroll_revision_guards_20261114.sql
+          pg -f Database/supabase/migrations/20261114120559_hr_payroll_independent_review_20261114.sql
+          pg -f Database/supabase/migrations/20261114120612_hr_leave_evidence_20261114.sql
+          pg -f Database/supabase/migrations/20261114120622_hr_payroll_maker_checker_20261114.sql
+          pg -f Database/supabase/migrations/20261114140609_hr_attendance_workbook_import_20261114.sql
           test "$(pg --tuples-only --no-align -f Database/supabase/tests/hr-payroll-guards-smoke.sql | tail -n 1)" = "HR_PAYROLL_CORRECTION_GUARDS_VERIFIED"
           test "$(pg --tuples-only --no-align -f Database/supabase/tests/hr-leave-workflow-smoke.sql | tail -n 1)" = "HR_LEAVE_INDEPENDENT_PAYROLL_VERIFIED"
           test "$(pg --tuples-only --no-align -f Database/supabase/tests/hr-payroll-maker-checker-smoke.sql | tail -n 1)" = "HR_PAYROLL_MAKER_CHECKER_VERIFIED"
           test "$(pg --tuples-only --no-align -f Database/supabase/tests/hr-attendance-workbook-import-smoke.sql | tail -n 1)" = "HR_WORKBOOK_REVIEW_GUARDS_VERIFIED"
-          echo "HR payroll and overtime guards passed in disposable PostgreSQL."
+          echo "HR payroll, overtime, and attendance evidence guards passed in disposable PostgreSQL."

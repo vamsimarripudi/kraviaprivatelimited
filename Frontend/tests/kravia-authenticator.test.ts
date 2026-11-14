@@ -87,7 +87,7 @@ describe("KRAVIA Authenticator verified-device boundary", () => {
   });
 
   it("ships a native Android/iOS Expo app with scoped camera and network permissions", () => {
-    expect(packageJson).toContain('"expo": "~57.0.32"');
+    expect(packageJson).toContain('"expo": "~57.0.33"');
     expect(packageJson).toContain('"expo-splash-screen": "~57.0.11"');
     expect(packageJson).toContain('"vite": "8.3.8"');
     expect(packageJson).toContain('"expo-secure-store"');
