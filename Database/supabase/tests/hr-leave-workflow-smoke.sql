@@ -7,7 +7,7 @@ declare
   emp uuid;
   leave_id uuid;
   other_leave_id uuid;
-  period_id uuid;
+  v_period uuid;
   failed boolean;
 begin
   insert into public.office_employment_registry(employment_code,identity_user_id,status,start_date)
@@ -43,13 +43,13 @@ begin
 
   insert into public.office_payroll_periods(period_code,starts_on,ends_on,status)
     values('HR-LEAVE-2026-10','2026-10-01','2026-10-31','ATTENDANCE_READY')
-    returning id into period_id;
+    returning id into v_period;
   insert into public.office_payroll_attendance_snapshots(period_id,employment_id,
       prepared_by,source_snapshot)
-    values(period_id,emp,director,'{"source":"HR_EVIDENCE_REVIEW","evidence_reference":"TIMESHEET-001","note":"Payroll hours need leave review"}'::jsonb);
+    values(v_period,emp,director,'{"source":"HR_EVIDENCE_REVIEW","evidence_reference":"TIMESHEET-001","note":"Payroll hours need leave review"}'::jsonb);
   failed:=false;
   begin
-    perform public.office_hr_leave_payroll_guard(period_id);
+    perform public.office_hr_leave_payroll_guard(v_period);
   exception when others then failed:=true; end;
   if not failed then raise exception 'Payroll accepted an approved leave entry omitted from the snapshot'; end if;
 
@@ -58,9 +58,9 @@ begin
       'evidence_reference','TIMESHEET-001',
       'note','The approved leave record was reconciled',
       'source_leave_ids',jsonb_build_array(leave_id::text))
-    where period_id=period_id;
+    where period_id=v_period;
   -- Avoid ambiguity with local variable: only this ephemeral request is present.
-  perform public.office_hr_leave_payroll_guard(period_id);
+  perform public.office_hr_leave_payroll_guard(v_period);
 end;
 $qa$;
 select 'HR_LEAVE_INDEPENDENT_PAYROLL_VERIFIED' as result;
