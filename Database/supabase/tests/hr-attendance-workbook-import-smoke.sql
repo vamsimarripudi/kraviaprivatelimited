@@ -8,6 +8,8 @@ declare
   first_row uuid;
   second_batch uuid;
   blocked boolean;
+  before_payroll integer;
+  before_worktime integer;
   source jsonb:=jsonb_build_array(jsonb_build_object(
     'key','Oct 2026:15','sheet','Oct 2026','row',15,
     'employee_user_id',employee,'work_date','2026-10-19',
@@ -26,6 +28,8 @@ begin
   insert into public.office_employment_registry(
     employment_code,identity_user_id,status,start_date)
     values('HR-IMPORT-EMP-1',employee,'ACTIVE','2026-08-01');
+  select count(*) into before_payroll from public.office_payroll_results;
+  select count(*) into before_worktime from public.office_worktime_review_cases;
   v_batch:=public.office_hr_attendance_import_stage(
     uploader,'KRAVIA-test.xlsx',repeat('a',64),source);
   if not exists(select 1 from public.office_hr_attendance_import_rows
@@ -53,9 +57,9 @@ begin
   if not exists(select 1 from public.office_hr_attendance_import_rows
     where id=first_row and status='ACCEPTED' and reviewed_by=reviewer) then
     raise exception 'Accepted review metadata missing';end if;
-  if exists(select 1 from public.office_payroll_results) then
-    raise exception 'Spreadsheet import generated unauthorized payroll';end if;
-  if exists(select 1 from public.office_worktime_review_cases) then
+  if (select count(*) from public.office_payroll_results)<>before_payroll then
+    raise exception 'Spreadsheet import changed pre-existing payroll';end if;
+  if (select count(*) from public.office_worktime_review_cases)<>before_worktime then
     raise exception 'Spreadsheet import fabricated time intervals';end if;
 
   blocked:=false;
