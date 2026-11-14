@@ -6,19 +6,19 @@ Date: 2026-11-14 (Asia/Kolkata) · Draft PR: https://github.com/vamsimarripudi/k
 - Source designs: `KRAVIA_Office_5_0_Complete_Approval_Wireframes_REVISED.pdf` (281 pages); `KRAVIA_Office_5_0_Authentication_Private_Screens_Addendum.pdf` (76 pages); `KRAVIA_Connect_Complete_Wireframes.pdf` (93 pages); `KRAVIA_K-Vault_Skeleton_Wireframes.pdf` (32 pages).
 - Reference examples: Office atlas p. 9 adaptive work dashboard, Connect p. 4 communication home, K-Vault p. 5 overview; the 76-page auth addendum explicitly calls out QR approval vs device enrollment and security-documentation drift (p. 2).
 - Backend sources: canonical FastAPI Office runtime, Supabase versioned migrations, first-party AAL2 sessions, effective-dated Office access profiles and scope-aware permission engine. No roles, production data or company facts have been fabricated.
-- Repository base: `main` at `7fda55c835a3b5d8e121b1a745c608bb431599e6`, incorporating merged multi-role fix PR #155.
-- Implementation branch: `feature/kravia-office-5-implementation-20261114`. Draft PR #157 remains unmerged. No production Vercel/Railway deployment, IAM changes, employee messages, invitations or production DB migrations are authorized.
+- Historical source baseline: `main` at `7fda55c835a3b5d8e121b1a745c608bb431599e6` included PR #155. Subsequent `main` changes through `8927e81ccff247de4e3a8ee4dd03712d4b3e0f27` (department transfers, OTP approval, IST clock, HR/payroll) have been integrated into this same feature branch.
+- Implementation branch: `feature/kravia-office-5-implementation-20261114`. Draft PR #157 remains unmerged. Vercel previews and deployment are excluded by user instruction. No IAM mutations, employee invitations, outgoing notices or production database migrations were performed in this Office 5.0 feature-branch reconciliation.
 - Test terminology: **Coded** means a route/component exists, not certified. **Bridge** means source-owned workflows are exposed without a dedicated Connect/Vault implementation. **Acceptance outstanding** means authenticated UI and role-matrix testing has not been demonstrated.
 
 ## Implementation status, verified against the branch
 
 | Area | Source inventory | Implemented on branch | Remaining acceptance |
 |---|---|---|---|
-| Existing Office registry | 55 | 55 unchanged route definitions, 5.0 shared shell | Individual route interaction/keyboard/role QA at 360–1920px |
+| Existing Office registry | 55 original wireframe routes + `my-transfers` | 56 registered Office routes with the recipient-only transfer inbox and shared 5.0 shell | Individual route interaction/keyboard/role QA at 360–1920px |
 | Existing Finance registry | 24 | 24 unchanged route definitions, shared 5.0 CSS and Finance sign-in | Per-module layout, finance SoD, access and responsive regression |
 | Existing secure access | 15 audit tracks | Existing password/email/MFA/QR/recovery logic preserved; shared layouts | Detailed 76-page addendum state validation, native Authenticator UX |
-| Connect | 38 atlas route designs | Private DM/group/department chat, keyed message pagination and revision audit, scoped search/saved/mentions, reactions/pins, governed settings, permissions/channels/retention, IT and customer support case queues, source-bounded analytics and governance home | Remaining generic activity, macros, AI, approval list, integration lifecycle, push/presence/SLA policy editing; full 41 overlays and 8 mobile acceptance |
-| K-Vault | 12 atlas routes | Permission-filtered source directory, governed grants and requests, current evidence downloads/previews, own audit log/overview; newly scoped and independently reviewed Registration Registry evidence queue | Other source categories' independent verification, evidence upload and version proposals, full grant/revocation and restricted-role QA |
+| Connect | 38 atlas route designs | Private DM/group/department chat, typed events and pagination, scoped search/saved/mentions, reactions/pins, activity, source-owned approvals, published knowledge, read-only mail integrations, settings, permissions/channels/retention, IT and Customer Support projections, source-bounded analytics and governance | Complete private multi-actor integration, macros/AI governance, push/presence/SLA policy verification and all 41 overlays / 8 mobile-state acceptance |
+| K-Vault | 12 atlas routes plus encrypted locker | Source-permission-and-active-grant directory, requests/approvals/revocations, masked Company Master, document filters, private source audit, encrypted sealed versions with 1 MiB chunk upload, scan and independent review | Production-like scanner/keyring/private-bucket integration, reviewer/transfer/expiry QA, retention policy and end-to-end rollback/restore |
 
 ## Existing Office routes — 55
 
@@ -218,7 +218,7 @@ All routes below continue to use their canonical implementation. 5.0 shell styli
 ## CI and release gates
 
 - [x] Green CI existed on branch commit `35de78ce9750c327e486e0dc39fdbb91f6830ddb`: frontend, backend, Office browser E2E, isolated Connect/Vault/IT security, discovery.
-- [ ] Recheck all gates after **latest branch changes**, including the 202611140015 unread snapshot and the updated dashboard/activity screens. Do not call them green without commit-matched check results.
+- [ ] Recheck all gates after **latest branch changes**, including the 20261114130009 unread snapshot and the updated dashboard/activity screens. Do not call them green without commit-matched check results.
 - [ ] Rehearse the entire ordered Supabase migration chain against an isolated copy of the relevant canonical Office schema and private storage policies; unit test stubs alone are insufficient.
 - [ ] AAL2 session security and role matrix: Owner, Director/Finance/HR/Member/Product Admin, delegated heads, ordinary employee, trainee, restricted adviser and no-onboarding employee.
 - [ ] Browser E2E screenshots at 360, 390, 430, 768, 900, 1024, 1280, 1440 and 1920 px in light and dark modes; screenshot artifacts must represent real rendered application screens.
@@ -249,6 +249,15 @@ The feature branch has continued beyond the initial 35-commit checkpoint. New Gi
 
 ### Acceptance and release boundary
 
-- **Code committed does not mean 281-page Office / 76-page Auth / 93-page Connect / 32-page K-Vault acceptance is complete.** The shared 5.0 shell covers all 55 Office and 24 Finance route definitions, but specialized screen-by-screen interactions, overlays, mobile states, keyboard/focus/contrast and genuine multi-role behavior are not yet fully tested.
+- **Code committed does not mean 281-page Office / 76-page Auth / 93-page Connect / 32-page K-Vault acceptance is complete.** The shared 5.0 shell covers the original 55 Office routes plus `my-transfers` (56 total) and all 24 Finance route definitions, but specialized screen-by-screen interactions, overlays, mobile states, keyboard/focus/contrast and genuine multi-role behavior are not yet fully tested.
 - Required before production authorization: complete isolated full-schema migration rehearsal (new chat/Vault migrations), verified scanner and private storage, real AAL2 role scenarios (including HR/Finance separation, restricted employee, Manohar access), revoked-grant and document-IDOR test identities, Authenticator native testing, responsive 360–1920 authenticated artifacts, WCAG 2.2 AA checks, release rollback runbook.
 - The latest complete GH Actions check run **must** be attached to the exact final branch head before declaring green. Passing older commits is not evidence for later code. No Vercel preview, production deployment, database migration or main merge should occur until an explicit separate release instruction.
+
+
+## 14 November migration reconciliation (read-only)
+
+- See `docs/office5-migration-reconciliation-20261114.md` and the associated automated migration-history test.
+- Six November 14 department handover, document-OTP and HR/payroll SQL source hashes were compared to the already-applied Supabase migration statements; all six matched. Their repo filenames now match live 14-digit versions exactly.
+- Seventeen feature-only Office 5.0 migrations remain **unapplied** and are ordered as `20261114130001` to `20261114130017`, after the last known applied production version `20261114120622`.
+- Dedicated authentication, Vault secret locker and Connect views are coded, but **end-to-end production validation is outstanding**. Isolated stub-based PostgreSQL checks and browser private-route E2E do not replace a full-schema migration/restore drill.
+- GitHub commit, CI, native app, device grants, restricted HR/Finance roles, 360–1920px authenticated screenshots, and production-like scanner/storage checks require final verification. Vercel is excluded.
