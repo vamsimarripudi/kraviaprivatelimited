@@ -10,7 +10,8 @@ type Version={
 };
 type Document={
 id:string;title:string;classification:string;state:string;
- created_at:string;updated_at:string;is_owner:boolean;grant_active:boolean;versions:Version[];
+ created_at:string;updated_at:string;is_owner:boolean;grant_active:boolean;
+ preview_allowed:boolean;download_allowed:boolean;versions:Version[];
 };
 type Data={
  as_of:string;actor_user_id:string;capabilities:{upload:boolean;review:boolean;read:boolean};
@@ -154,7 +155,7 @@ export function OfficeVaultSecretLocker(){
   {!loading&&data?<><div className={styles.metrics}>
     <article><span>Accessible evidence references</span><strong>{data.documents.length}</strong></article>
     <article><span>Pending independent reviews</span><strong>{data.documents.flatMap(d=>d.versions).filter(v=>v.review_state==="PENDING").length}</strong></article>
-    <article><span>Currently downloadable</span><strong>{data.documents.filter(d=>d.grant_active)
+    <article><span>Currently downloadable</span><strong>{data.documents.filter(d=>d.download_allowed)
       .flatMap(d=>d.versions).filter(v=>v.review_state==="APPROVED"&&v.scan_state==="CLEAN").length}</strong></article>
    </div>
    <div className={styles.filters}>
@@ -178,12 +179,12 @@ export function OfficeVaultSecretLocker(){
         <button ref={reviewFocus} type="button" disabled={busy}
          onClick={event=>openReview(version,event.currentTarget)}>
          <FileCheck2 size={15}/>Review</button>:null}
-       {doc.grant_active&&version.scan_state==="CLEAN"&&version.review_state==="APPROVED"?<>
-        {["application/pdf","image/jpeg","image/png","image/webp"].includes(version.mime_type)?
+       {version.scan_state==="CLEAN"&&version.review_state==="APPROVED"?<>
+        {doc.preview_allowed&&["application/pdf","image/jpeg","image/png","image/webp"].includes(version.mime_type)?
          <button type="button" onClick={event=>showPreview(version,event.currentTarget)}>
           <Eye size={15}/>Protected preview</button>:null}
-        <a href={"/api/office-vault/secrets/"+version.id+"/download"}>
-          <Download size={15}/>Download (grant checked)</a>
+        {doc.download_allowed?<a href={"/api/office-vault/secrets/"+version.id+"/download"}>
+          <Download size={15}/>Download (grant checked)</a>:null}
        </>:null}
       </div>
      </li>)}</ol>
