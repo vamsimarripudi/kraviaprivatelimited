@@ -40,6 +40,8 @@ begin
       'Independent reviewer should reject duplicate pay classifications');
   exception when others then failed:=true; end;
   if not failed then raise exception 'Overlapping paid and unpaid leave were both approved'; end if;
+  perform public.office_hr_leave_decide(reviewer,other_leave_id,'REJECT',
+    'Reject duplicate overlapping paid or unpaid leave request');
 
   insert into public.office_payroll_periods(period_code,starts_on,ends_on,status)
     values('HR-LEAVE-2026-10','2026-10-01','2026-10-31','ATTENDANCE_READY')
@@ -72,6 +74,20 @@ begin
     set payable_units=12,paid_leave_units=6,unresolved_units=114
     where period_id=v_period;
   perform public.office_hr_leave_payroll_guard(v_period);
+  -- A new undecided leave cannot be treated as unpaid or ignored in wages.
+  other_leave_id:=public.office_hr_leave_submit(employee,employee,
+    '2026-10-20','2026-10-20','UNPAID_LEAVE',180,
+    'HR pending leave evidence 2026-003',null,
+    'Independent leave review is not completed yet');
+  failed:=false;
+  begin
+    perform public.office_hr_leave_payroll_guard(v_period);
+  exception when others then failed:=true; end;
+  if not failed then raise exception 'Pending weekday leave did not block payroll review'; end if;
+  perform public.office_hr_leave_decide(reviewer,other_leave_id,'REJECT',
+    'Pending leave request rejected after independent review');
+  perform public.office_hr_leave_payroll_guard(v_period);
+
   failed:=false;
   begin
     update public.office_payroll_attendance_snapshots
