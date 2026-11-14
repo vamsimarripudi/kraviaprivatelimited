@@ -56,7 +56,8 @@ begin
   -- Forged source references must NOT silently validate leave when payable
   -- hours still omit the six-hour paid entitlement.
   update public.office_payroll_attendance_snapshots
-    set source_snapshot=jsonb_build_object('source','HR_EVIDENCE_REVIEW',
+    set payable_units=12,paid_leave_units=6,unresolved_units=114,
+        source_snapshot=jsonb_build_object('source','HR_EVIDENCE_REVIEW',
       'evidence_reference','TIMESHEET-001',
       'note','The approved leave record was reconciled',
       'source_leave_ids',jsonb_build_array(leave_id::text))
