@@ -353,8 +353,9 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
 
   async function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if(!activeId||!draft.trim()||submitting||fileLoading||selectedFiles.some(file=>file.status!=="available"))return;
-    const body=draft.trim();
+    if(!activeId||(!draft.trim()&&!selectedFiles.length)||submitting||fileLoading||
+      selectedFiles.some(file=>file.status!=="available"))return;
+    const body=draft.trim()||"📎 Shared attachment";
     setSubmitting(true);setSendStatus("");setComposerTool(null);setMentionTerm(null);
     nonce.current??=window.crypto.randomUUID();
     const sendingNonce=nonce.current;
@@ -535,7 +536,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
                 aria-expanded={composerTool==="templates"} onClick={()=>{setMentionTerm(null);setComposerTool(v=>v==="templates"?null:"templates");}}>
                 <BookMarked size={18}/></button>
               <button type="submit" className="chat-tool chat-send" aria-label={submitting?"Sending message":"Send message"}
-                title="Send · Enter" disabled={!draft.trim()||submitting||fileLoading||
+                title="Send · Enter" disabled={(!draft.trim()&&!selectedFiles.length)||submitting||fileLoading||
                   selectedFiles.some(file=>file.status!=="available")||!!messageError}>
                 <Send size={18} aria-hidden="true"/></button>
             </div>
