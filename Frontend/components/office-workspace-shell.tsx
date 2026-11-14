@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
-  BookOpen, BriefcaseBusiness, Building2, CalendarDays, ChevronDown, ChevronRight,
+  ArrowRightLeft, BookOpen, BriefcaseBusiness, Building2, CalendarDays, ChevronDown, ChevronRight,
   ClipboardCheck, Cog, FileText, Folders, GitBranch, Landmark,
   LayoutDashboard, Menu, Moon, MoreHorizontal, PanelLeftClose,
   PanelLeftOpen, Scale, Settings, ShieldCheck, Sun, Users, Wallet, X,
@@ -35,7 +35,7 @@ const iconByCategory = {
 } as const;
 
 const officeCategoryBySlug: Record<string, string> = {
-  dashboard:"My work", "my-role":"My work", info:"My work", notifications:"My work",
+  dashboard:"My work", "my-role":"My work", "my-transfers":"My work", info:"My work", notifications:"My work",
   tasks:"My work",calendar:"My work",requests:"My work",approvals:"My work",
   manager:"People",recruitment:"People",people:"People",emergency:"People",
   development:"People",worktime:"People",
@@ -65,7 +65,7 @@ const financeCategory: Record<string,string> = {
   Books:"Books",Payables:"Payables",Evidence:"Evidence","Corporate Finance":"Treasury",
 };
 const iconBySlug: Record<string, typeof LayoutDashboard> = {
-  dashboard:LayoutDashboard,"my-role":Users,info:BookOpen,notifications:ShieldCheck,
+  dashboard:LayoutDashboard,"my-role":Users,"my-transfers":ArrowRightLeft,info:BookOpen,notifications:ShieldCheck,
   tasks:ClipboardCheck,calendar:CalendarDays,requests:FileText,approvals:ShieldCheck,
   manager:Users,people:Users,recruitment:Users,development:Users,
   emergency:ShieldCheck,worktime:CalendarDays,payroll:Wallet,budget:Wallet,
@@ -79,7 +79,7 @@ const iconBySlug: Record<string, typeof LayoutDashboard> = {
 // view, not an invitation to execute every other department's operations.
 // Backend permissions still control every API operation and can be delegated.
 const founderNavigation = new Set([
-  "dashboard", "my-role", "notifications", "tasks", "calendar", "requests",
+  "dashboard", "my-role", "my-transfers", "notifications", "tasks", "calendar", "requests",
   "approvals", "worktime", "manager", "department-ownership", "role-packages",
   "decisions", "strategy", "intelligence", "products", "portfolio", "engineering",
   "quality", "ai", "integrations", "domains", "security", "devices", "it",
