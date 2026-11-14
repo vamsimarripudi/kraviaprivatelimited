@@ -7,6 +7,7 @@ import {requireOfficeActor,resolveOfficePermission,OfficePermissionError} from "
 import {currentOfficeTrustedDeviceId} from "@/lib/office/device-binding-server";
 import {requireOfficeVaultRecord} from "@/lib/office/vault-access-server";
 import {loadVaultKeyring,openVaultContent,sealVaultContent,type SecretStoredEnvelope} from "@/lib/office/vault-secret-crypto";
+import {secretGrantRights,secretDocumentVisible,secretVersionVisible} from "@/lib/office/vault-secret-visibility";
 
 const BUCKET="office-vault-secrets";
 const MAX_BYTES=10_485_760;
@@ -217,22 +218,28 @@ export async function reviewOfficeVaultSecret(input:{versionId:string;approve:bo
 }
 export async function getOfficeVaultSecretLocker(){
  const current=await actor();
- const [mayUpload,mayReview,mayRead]=await Promise.all([
+ const [mayUpload,mayReview,mayRead,mayDownload]=await Promise.all([
   hasPermission(current,"vault.secret.upload"),
   hasPermission(current,"vault.secret.review"),
   hasPermission(current,"vault.secret.read"),
+  hasPermission(current,"vault.secret.download"),
  ]);
  if(!mayUpload&&!mayReview&&!mayRead)throw new SecretLockerError(403,"Secret locker authority is not assigned");
  const grants=mayRead?await current.admin.from("office_vault_access_grants")
-  .select("resource_id").eq("grantee_user_id",current.identity.userId)
+  .select("resource_id,action").eq("grantee_user_id",current.identity.userId)
   .eq("category_slug","secrets").is("revoked_at",null)
   .gt("expires_at",new Date().toISOString())
   .in("action",["READ","PREVIEW","DOWNLOAD"]).limit(500):
   {data:[],error:null};
  if(grants.error)throw new SecretLockerError(503,"Secret grant authority unavailable");
- const resourceIds=[...new Set((grants.data??[])
-  .map(row=>row.resource_id).filter((v):v is string=>typeof v==="string"))];
- const full=(grants.data??[]).some(row=>row.resource_id===null);
+ // A reviewer is authorized to see pending-review records only. A global
+ // review capability is not a blanket corporate-document browse grant.
+ const pending=mayReview?await current.admin.from("office_vault_secret_versions")
+  .select("document_id").eq("review_state","PENDING").limit(1000):
+  {data:[],error:null};
+ if(pending.error)throw new SecretLockerError(503,"Independent review queue unavailable");
+ const pendingDocumentIds=new Set((pending.data??[]).map(row=>String(row.document_id)));
+ const currentGrants=grants.data??[];
  // Read strictly limited: owner uploads, currently granted records, and
  // independently reviewable pending versions. No global employee file search.
  const rows=await current.admin.from("office_vault_secret_documents")
@@ -240,11 +247,14 @@ export async function getOfficeVaultSecretLocker(){
   .eq("state","ACTIVE").order("updated_at",{ascending:false}).limit(500);
  if(rows.error)throw new SecretLockerError(503,"Secret locker registry unavailable");
  const documents=(rows.data??[]) as SecretDocument[];
- const owned=new Set(documents.filter(row=>row.owner_user_id===current.identity.userId)
-  .map(row=>row.id));
- const reviewable=mayReview;
- const visible=documents.filter(row=>
-   (mayUpload&&owned.has(row.id))||(mayRead&&(full||resourceIds.includes(row.id)))||reviewable);
+ const visible=documents.filter(row=>{
+  const rights=secretGrantRights(currentGrants,row.id);
+  return secretDocumentVisible({
+   isOwner:row.owner_user_id===current.identity.userId,canUpload:mayUpload,
+   canRead:mayRead,readGrant:rights.read,canReview:mayReview,
+   hasPendingReview:pendingDocumentIds.has(row.id),
+  });
+ });
  const versions=visible.length?await current.admin.from("office_vault_secret_versions")
   .select("id,document_id,version_number,uploaded_by,filename,mime_type,byte_size,scan_state,review_state,created_at,reviewed_at")
   .in("document_id",visible.map(row=>row.id)).order("created_at",{ascending:false}).limit(900):
@@ -254,22 +264,31 @@ export async function getOfficeVaultSecretLocker(){
  return {as_of:new Date().toISOString(),
   actor_user_id:current.identity.userId,
   capabilities:{upload:mayUpload,review:mayReview,read:mayRead},
-  documents:visible.map(d=>({
+  documents:visible.map(d=>{
+   const rights=secretGrantRights(currentGrants,d.id);
+   const isOwner=d.owner_user_id===current.identity.userId;
+   const granted=mayRead&&rights.read;
+   return {
     id:d.id,title:d.title,classification:d.classification,state:d.state,
     created_at:d.created_at,updated_at:d.updated_at,
-    is_owner:d.owner_user_id===current.identity.userId,
-    grant_active:mayRead&&(full||resourceIds.includes(d.id)),
+    is_owner:isOwner,grant_active:granted,
+    preview_allowed:granted&&rights.preview,
+    download_allowed:granted&&mayDownload&&rights.download,
     versions:listings.filter(v=>v.document_id===d.id)
-      .filter(v=>v.review_state==="APPROVED"&&v.scan_state==="CLEAN"||
-       d.owner_user_id===current.identity.userId||
-       (mayReview&&v.review_state==="PENDING"))
+      .filter(v=>secretVersionVisible({
+       ownerUpload:isOwner&&mayUpload,
+       independentReview:mayReview&&pendingDocumentIds.has(d.id),
+       grantedRead:granted,
+       reviewState:String(v.review_state),scanState:String(v.scan_state),
+      }))
       .map(v=>({
        id:v.id,version_number:v.version_number,filename:v.filename,
        mime_type:v.mime_type,byte_size:v.byte_size,
        scan_state:v.scan_state,review_state:v.review_state,
        created_at:v.created_at,reviewed_at:v.reviewed_at,
       })),
-   })).filter(d=>d.versions.length>0),
+   };
+  }).filter(d=>d.versions.length>0),
  };
 }
 export async function downloadOfficeVaultSecret(versionId:string,action:"PREVIEW"|"DOWNLOAD"){
