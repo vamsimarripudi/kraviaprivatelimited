@@ -8,7 +8,7 @@ export type SecretEnvelope={
  wrappedKey:string;wrapNonce:string;wrapTag:string;keyId:string;
 };
 export type SecretKeyring={activeId:string;keys:ReadonlyMap<string,Buffer>};
-export function loadVaultKeyring(env:NodeJS.ProcessEnv=process.env):SecretKeyring{
+export function loadVaultKeyring(env:Readonly<Record<string,string|undefined>>=process.env):SecretKeyring{
  const activeId=(env.OFFICE_VAULT_ACTIVE_KEY_ID||"").trim();
  const raw=env.OFFICE_VAULT_KEYRING_JSON;
  if(!activeId||!raw||activeId.length>60)throw new Error("Server-only K-Vault keyring is not configured");
