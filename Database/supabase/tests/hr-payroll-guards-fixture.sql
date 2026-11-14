@@ -1,4 +1,9 @@
 -- Isolated HR payroll regression fixture. Never apply to production.
+-- The pre-existing workforce CI fixture intentionally stubs the payroll period.
+-- Reproduce the real period columns used by the draft invalidation trigger.
+alter table public.office_payroll_periods
+  add column if not exists approval_request_id uuid,
+  add column if not exists updated_at timestamptz not null default now();
 alter table public.office_payroll_adjustments
   add column if not exists amount_minor bigint not null default 0,
   add column if not exists status text not null default 'DRAFT',
