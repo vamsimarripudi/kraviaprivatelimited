@@ -11,7 +11,8 @@ describe("K-Vault governed policy settings",()=>{
  });
  it("does not invent local policy editing or direct grant mutations",()=>{
   expect(code).toContain("getOfficeVaultAccessCenter()");
-  expect(code).not.toMatch(/\\.rpc\\(|fetch\\(/);
+  expect(code).not.toContain(".rpc(");
+  expect(code).not.toContain("fetch(");
   expect(page).toContain("<OfficeVaultSettings/>");
  });
 });
