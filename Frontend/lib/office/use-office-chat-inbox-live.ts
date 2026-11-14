@@ -1,10 +1,10 @@
 "use client";
 import {useEffect,useRef,useState} from "react";
 export type OfficeInboxLiveState="idle"|"live"|"reconnecting"|"restricted"|"polling";
-export function useOfficeChatInboxLive(onChange:()=>void):OfficeInboxLiveState{
+export function useOfficeChatInboxLive(onChange:()=>void,onRevoked?:()=>void):OfficeInboxLiveState{
  const [state,setState]=useState<OfficeInboxLiveState>("idle");
- const callback=useRef(onChange);
- useEffect(()=>{callback.current=onChange;},[onChange]);
+ const callback=useRef(onChange),revoked=useRef(onRevoked);
+ useEffect(()=>{callback.current=onChange;revoked.current=onRevoked;},[onChange,onRevoked]);
  useEffect(()=>{
   if(typeof EventSource==="undefined"){return;}
   let active=true,blocked=false,stream:EventSource|null=null;
@@ -23,7 +23,7 @@ export function useOfficeChatInboxLive(onChange:()=>void):OfficeInboxLiveState{
     debounce=setTimeout(()=>{if(active)callback.current();},240);
    });
    next.addEventListener("access-revoked",()=>{
-    blocked=true;next.close();setState("restricted");callback.current();
+    blocked=true;next.close();setState("restricted");revoked.current?.();callback.current();
    });
    next.addEventListener("unavailable",()=>{if(active)setState("polling");});
    next.onerror=()=>{if(active&&!blocked)setState("reconnecting");};
