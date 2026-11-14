@@ -1,0 +1,193 @@
+name: KRAVIA Office 5.0 controlled private media and templates migration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/office5-media-release-20261115.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kravia-office5-media-prod-migration-20261115
+  cancel-in-progress: false
+
+jobs:
+  media-migration:
+    name: Backup, verify and migrate KRAVIA Office media/templates
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BACKUP_DATABASE_URL: ${{ secrets.KRAVIA_BACKUP_DATABASE_URL }}
+      BACKUP_ENCRYPTION_KEY: ${{ secrets.KRAVIA_DB_BACKUP_KEY }}
+      SUPABASE_CLI_VERSION: "2.117.0"
+      EXPECTED_REF: "xjtazosozxmudkbxqhjl"
+      REQUIRED_BASE: "20261114150017"
+      NEW_VERSION: "20261114215001"
+    steps:
+      - name: Checkout exact reviewed Connect/Vault PR commit
+        uses: actions/checkout@v7
+        with:
+          ref: "3a2697b3166e0e137dc813af3a59b9a34505a35d"
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Verify exact SQL source and target credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "3a2697b3166e0e137dc813af3a59b9a34505a35d"
+          file=Database/supabase/migrations/20261114215001_office_chat_media_and_personal_templates.sql
+          test "$(git hash-object "$file")" = "418e0760c94d96f0e6bd4e6a6b3afd19fc21b2f1" || { echo "::error::Migration source has changed"; exit 1; }
+          test -n "$BACKUP_DATABASE_URL" || { echo "::error::Database URL missing"; exit 1; }
+          test -n "$BACKUP_ENCRYPTION_KEY" || { echo "::error::Encrypted backup key missing"; exit 1; }
+          test "${#BACKUP_ENCRYPTION_KEY}" -ge 48 || { echo "::error::Backup key policy failed"; exit 1; }
+          case "$BACKUP_DATABASE_URL" in *"$EXPECTED_REF"*) ;; *) echo "::error::Unexpected database project"; exit 1;; esac
+          python3 - <<'PY'
+          import os
+          from urllib.parse import parse_qsl,urlencode,urlsplit,urlunsplit
+          value=os.environ["BACKUP_DATABASE_URL"]
+          p=urlsplit(value)
+          pairs=parse_qsl(p.query,keep_blank_values=True)
+          legacy=[v for k,v in pairs if k=="sshmode"]
+          actual=[v for k,v in pairs if k=="sslmode"]
+          if legacy:
+            assert len(legacy)==1 and not actual and legacy[0] in {"disable","allow","prefer","require","verify-ca","verify-full"}
+            pairs=[("sslmode",v) if k=="sshmode" else (k,v) for k,v in pairs]
+          safe=urlunsplit((p.scheme,p.netloc,p.path,urlencode(pairs),p.fragment))
+          print("::add-mask::"+safe)
+          with open(os.environ["GITHUB_ENV"],"a",encoding="utf8") as handle:
+            handle.write("BACKUP_DATABASE_URL="+safe+"\n")
+          PY
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -qq -y postgresql-client
+          fi
+      - name: Verify production version and current private storage before any write
+        shell: bash
+        run: |
+          set -euo pipefail
+          live=$(psql "$BACKUP_DATABASE_URL" -X -Atqc "select max(version) from supabase_migrations.schema_migrations")
+          test "$live" = "$REQUIRED_BASE" || { echo "::error::Migration history drift; latest is $live"; exit 1; }
+          test "$(psql "$BACKUP_DATABASE_URL" -X -Atqc "select count(*) from supabase_migrations.schema_migrations where version='$NEW_VERSION'")" = "0"
+          test "$(psql "$BACKUP_DATABASE_URL" -X -Atqc "select to_regclass('public.office_chat_attachment_objects') is not null and to_regclass('public.office_chat_personal_templates') is null and (select public=false from storage.buckets where id='office-chat-attachments')")" = "t"
+      - name: Create encrypted full pre-migration backup with integrity manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          dir="$RUNNER_TEMP/office5-media-before"
+          mkdir -p "$dir"
+          npx -y "supabase@$SUPABASE_CLI_VERSION" db dump --db-url "$BACKUP_DATABASE_URL" --role-only -f "$dir/roles.sql"
+          npx -y "supabase@$SUPABASE_CLI_VERSION" db dump --db-url "$BACKUP_DATABASE_URL" -f "$dir/schema.sql"
+          npx -y "supabase@$SUPABASE_CLI_VERSION" db dump --db-url "$BACKUP_DATABASE_URL" --use-copy --data-only -x storage.buckets_vectors -x storage.vector_indexes -f "$dir/data.sql"
+          test -s "$dir/roles.sql" && test -s "$dir/schema.sql" && test -s "$dir/data.sql"
+          (cd "$dir" && sha256sum roles.sql schema.sql data.sql > SHA256SUMS)
+          printf 'source_sha=%s\ncreated_utc=%s\nbase_version=%s\n' "3a2697b3166e0e137dc813af3a59b9a34505a35d" "$(date -u +%FT%TZ)" "$REQUIRED_BASE" > "$dir/METADATA"
+          tar -C "$dir" -czf "$RUNNER_TEMP/office5-media-pre.tar.gz" roles.sql schema.sql data.sql SHA256SUMS METADATA
+          gpg --batch --yes --pinentry-mode loopback --symmetric --cipher-algo AES256 \
+            --passphrase "$BACKUP_ENCRYPTION_KEY" \
+            --output "$RUNNER_TEMP/office5-media-pre.tar.gz.gpg" "$RUNNER_TEMP/office5-media-pre.tar.gz"
+          test -s "$RUNNER_TEMP/office5-media-pre.tar.gz.gpg"
+          shred -u "$RUNNER_TEMP/office5-media-pre.tar.gz" || rm -f "$RUNNER_TEMP/office5-media-pre.tar.gz"
+          rm -rf "$dir"
+      - name: Persist encrypted recovery artifact BEFORE any schema write
+        uses: actions/upload-artifact@v4
+        with:
+          name: kravia-office5-media-pre-migration-${{ github.run_id }}
+          path: ${{ runner.temp }}/office5-media-pre.tar.gz.gpg
+          retention-days: 14
+          if-no-files-found: error
+          compression-level: 0
+      - name: Build scoped Supabase migration manifest from live authoritative history
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os,pathlib,re,subprocess
+          root=pathlib.Path(os.environ["RUNNER_TEMP"])/"office5-media-migration"/"supabase"
+          (root/"migrations").mkdir(parents=True,exist_ok=True)
+          (root/"config.toml").write_text('project_id = "kravia-office5-media"\n')
+          data=subprocess.check_output(["psql",os.environ["BACKUP_DATABASE_URL"],"-X","-At","-F","|",
+            "-v","ON_ERROR_STOP=1","-c","select version,name from supabase_migrations.schema_migrations order by version"],text=True)
+          versions=set()
+          for line in data.strip().splitlines():
+            version,name=line.split("|",1)
+            assert re.fullmatch(r"[0-9]{14}",version)
+            assert re.fullmatch(r"[A-Za-z0-9_]+",name)
+            assert version not in versions
+            versions.add(version)
+            (root/"migrations"/f"{version}_{name}.sql").write_text("-- Already applied; never execute.\n")
+          assert max(versions)==os.environ["REQUIRED_BASE"]
+          expected=os.environ["NEW_VERSION"]
+          assert expected not in versions
+          source=pathlib.Path("Database/supabase/migrations")/(expected+"_office_chat_media_and_personal_templates.sql")
+          target=root/"migrations"/source.name
+          target.write_bytes(source.read_bytes())
+          print(f"Manifest created with {len(versions)} existing versions and one pending reviewed migration.")
+          PY
+      - name: Require exact one-file dry run and unchanged production baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/office5-media-migration"
+          test "$(psql "$BACKUP_DATABASE_URL" -X -Atqc 'select max(version) from supabase_migrations.schema_migrations')" = "$REQUIRED_BASE"
+          npx -y "supabase@$SUPABASE_CLI_VERSION" db push --db-url "$BACKUP_DATABASE_URL" --dry-run --yes > "$RUNNER_TEMP/media-dry-run.log" 2>&1
+          python3 - <<'PY'
+          import os,pathlib,re
+          s=(pathlib.Path(os.environ["RUNNER_TEMP"])/"media-dry-run.log").read_text()
+          discovered=set(re.findall(r'20261114\d{6}_[a-z0-9_]+\.sql',s))
+          expected={"20261114215001_office_chat_media_and_personal_templates.sql"}
+          assert discovered==expected, f"Unexpected pending versions ({sorted(discovered)})"
+          print("Dry-run confirmed exactly the one approved SQL migration.")
+          PY
+      - name: Apply exact approved additive migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/office5-media-migration"
+          npx -y "supabase@$SUPABASE_CLI_VERSION" db push --db-url "$BACKUP_DATABASE_URL" --yes
+      - name: Verify live history, private bucket, RLS and no public table grants
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql "$BACKUP_DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+          do $office5$
+          begin
+            if (select max(version) from supabase_migrations.schema_migrations)<>'20261114215001' then
+              raise exception 'Latest migration not the exact reviewed version';
+            end if;
+            if (select count(*) from supabase_migrations.schema_migrations where version='20261114215001'
+                 and name='office_chat_media_and_personal_templates')<>1 then
+              raise exception 'Approved migration absent';
+            end if;
+            if to_regclass('public.office_chat_personal_templates') is null or
+               not (select relrowsecurity from pg_class where oid='public.office_chat_personal_templates'::regclass) then
+              raise exception 'Private templates table/RLS absent';
+            end if;
+            if has_table_privilege('anon','public.office_chat_personal_templates','SELECT') or
+               has_table_privilege('authenticated','public.office_chat_personal_templates','SELECT') then
+              raise exception 'Public browser DB grant found';
+            end if;
+            if (select public from storage.buckets where id='office-chat-attachments') is distinct from false then
+              raise exception 'Private attachments bucket not private';
+            end if;
+            if not (select 'video/mp4'=any(allowed_mime_types) and
+                      'video/webm'=any(allowed_mime_types) and
+                      'image/gif'=any(allowed_mime_types)
+                   from storage.buckets where id='office-chat-attachments') then
+              raise exception 'Approved media types absent';
+            end if;
+          end $office5$;
+          SQL
+          echo "KRAVIA Office media and templates production migration VERIFIED."
+      - name: Securely remove temporary backup and database-source files
+        if: always()
+        shell: bash
+        run: |
+          rm -rf "$RUNNER_TEMP/office5-media-migration" "$RUNNER_TEMP/office5-media-before" \
+            "$RUNNER_TEMP/office5-media-pre.tar.gz" "$RUNNER_TEMP/office5-media-pre.tar.gz.gpg" \
+            "$RUNNER_TEMP/media-dry-run.log"
