@@ -24,7 +24,7 @@ describe("KRAVIA canonical product/customer master data",()=>{
   expect(permissions).toContain("'master.product.create'");
   expect(permissions).toContain("Product creation is intentionally not assigned to a normal profile");
   expect(backend).toContain('ctx=Depends(require_roles("OWNER"))');
-  expect(screen).toContain('identity.roles.includes("OWNER") || permissions.includes("master.product.create")');
+  expect(screen).toContain('identity.roles.includes("OWNER") && permissions.includes("master.product.create")');
  });
 
  it("creates customers only through the canonical FastAPI runtime",()=>{

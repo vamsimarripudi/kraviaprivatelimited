@@ -16,7 +16,7 @@ describe("Office command and search boundary", () => {
     expect(capabilities).toContain('"office:crm": ["sales.crm.read", "sales.crm.write"]');
     expect(capabilities).toContain('"office:engineering"');
     expect(capabilities).toContain('"office:people"');
-    expect(capabilities).toContain('roles.includes("OWNER")');
+    expect(capabilities).not.toContain('if (roles.includes("OWNER")) return true');
     expect(screen).toContain("capabilityCanAccessSection");
     expect(officeWorkspaceLayout).toContain("getOfficeCapabilitySnapshot");
     expect(shell).toContain("capabilityCanAccessSection");
