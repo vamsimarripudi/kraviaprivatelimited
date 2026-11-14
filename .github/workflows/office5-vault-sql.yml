@@ -6,8 +6,10 @@ on:
       - "Database/supabase/migrations/202611140004_office_vault_record_access.sql"
       - "Database/supabase/migrations/202611140005_office_vault_request_withdraw.sql"
       - "Database/supabase/migrations/202611140017_office_vault_sealed_locker.sql"
+      - "Database/supabase/migrations/202611140018_office_vault_chunked_ingress.sql"
       - "Database/supabase/tests/office5_vault_access_security.sql"
       - "Database/supabase/tests/office5_vault_secret_security.sql"
+      - "Database/supabase/tests/office5_vault_ingress_security.sql"
       - "Database/supabase/tests/office5_vault_stub.sql"
       - ".github/workflows/office5-vault-sql.yml"
   workflow_dispatch:
@@ -51,7 +53,9 @@ jobs:
           pg --file Database/supabase/migrations/202611140004_office_vault_record_access.sql
           pg --file Database/supabase/migrations/202611140005_office_vault_request_withdraw.sql
           pg --file Database/supabase/migrations/202611140017_office_vault_sealed_locker.sql
+          pg --file Database/supabase/migrations/202611140018_office_vault_chunked_ingress.sql
           pg --file Database/supabase/tests/office5_vault_access_security.sql
           pg --file Database/supabase/tests/office5_vault_secret_security.sql
+          pg --file Database/supabase/tests/office5_vault_ingress_security.sql
           counts="$(pg --tuples-only --no-align --command "select (select count(*) from public.office_vault_access_requests),(select count(*) from public.office_vault_access_grants),(select count(*) from public.office_vault_access_events)")"
           test "$counts" = "0|0|0"
