@@ -156,10 +156,39 @@ export default async function VaultPages({params}:Props){
    const actions=await getOfficeVaultAllowedActions("documents",segments[1]);
    const renders=records.renders.filter(row=>row.document_instance_id===document.id&&
      ["GENERATED","SIGNED"].includes(row.status));
+   // Reuse the canonical Document Studio's already-scoped render, signature,
+   // and delivery evidence. A Vault read grant never creates or edits evidence.
+   const chronology=[
+     ...records.renders.filter(row=>row.document_instance_id===document.id).map(row=>({
+       id:"render:"+row.id,kind:"Generated output",state:row.status,
+       occurredAt:row.generated_at||null,detail:row.output_format,
+     })),
+     ...records.signatures.filter(row=>row.document_instance_id===document.id).map(row=>({
+       id:"signature:"+row.id,kind:"Signature evidence",state:row.status,
+       occurredAt:row.recorded_at||row.signed_at||null,detail:row.signature_method,
+     })),
+     ...records.deliveries.filter(row=>row.document_instance_id===document.id).map(row=>({
+       id:"delivery:"+row.id,kind:"Delivery event",state:row.event_type,
+       occurredAt:row.created_at||null,detail:row.channel,
+     })),
+   ].sort((a,b)=>Date.parse(b.occurredAt??"")-Date.parse(a.occurredAt??""));
+   const sourceTemplateVersion=records.versions.find(row=>row.id===document.template_version_id);
+
    content=<article className={styles.record}>
      <FileLock2 size={30} aria-hidden="true"/><h2>{document.title}</h2>
      <dl><dt>Document code</dt><dd>{document.document_code}</dd><dt>Classification</dt><dd>{document.classification}</dd>
      <dt>Status</dt><dd>{document.status}</dd><dt>Recorded</dt><dd>{document.created_at}</dd></dl>
+     <h3>Source and version evidence</h3>
+     <dl><dt>Document source</dt><dd>Canonical Document Studio</dd>
+       <dt>Template version</dt><dd>{sourceTemplateVersion?.version??"Not visible to this identity"}</dd>
+       <dt>Approval status</dt><dd>{document.status}</dd></dl>
+     <h3>Evidence chronology</h3>
+     {chronology.length?<ol className={styles.chronology}>{chronology.map(event=>
+       <li key={event.id}><div><strong>{event.kind}</strong><small>{event.detail} · {event.state}</small></div>
+        <time dateTime={event.occurredAt??undefined}>{event.occurredAt
+         ?new Date(event.occurredAt).toLocaleString("en-IN",{timeZone:"Asia/Kolkata",dateStyle:"medium",timeStyle:"short"})
+         :"Time not recorded"}</time>
+       </li>)}</ol>:<p>No accessible generation, signature or delivery events have been recorded.</p>}
      <h3>Available authorized outputs</h3>
      {renders.length?<ul>{renders.map(render=><li key={render.id}>
        <strong>{render.output_format}</strong> · {render.status} · {render.byte_size.toLocaleString("en-IN")} bytes

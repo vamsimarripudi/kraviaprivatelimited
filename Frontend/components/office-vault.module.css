@@ -29,3 +29,12 @@
 .record li{line-height:1.7}.record li>a{margin-left:12px}
 .record li details{padding:8px 0}.record li details>summary{display:inline-flex;align-items:center;cursor:pointer;min-height:44px;color:var(--office-ui-accent)}
 @media(max-width:767px){.documentPreview{height:min(450px,57dvh)}}
+
+/* Document Studio evidence chronology; only source-authorized metadata. */
+.chronology{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.chronology li{display:flex;align-items:start;justify-content:space-between;gap:12px;min-width:0;padding:12px 14px;border:1px solid var(--office-ui-line);background:var(--office-ui-surface-alt);border-radius:12px}
+.chronology li>div{display:grid;gap:5px;min-width:0}
+.chronology strong{font-size:13px;overflow-wrap:anywhere}
+.chronology small{font-size:11px;color:var(--office-ui-muted);overflow-wrap:anywhere}
+.chronology time{font-size:11px;flex:none;color:var(--office-ui-muted)}
+@media(max-width:600px){.chronology li{flex-wrap:wrap}.chronology time{flex-basis:100%}}
