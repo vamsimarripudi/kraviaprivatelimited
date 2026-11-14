@@ -521,7 +521,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
                     if(event.key==="Enter"||event.key==="Tab"){event.preventDefault();chooseMention(mentionSuggestions[mentionIndex]??mentionSuggestions[0]);return;}
                   }
                   if(event.key==="Escape"){setMentionTerm(null);setComposerTool(null);return;}
-                  if(event.key==="Enter"&&!event.shiftKey&&!event.isComposing){
+                  if(event.key==="Enter"&&!event.shiftKey&&!event.nativeEvent.isComposing){
                     event.preventDefault();event.currentTarget.form?.requestSubmit();
                   }
                 }}/>
