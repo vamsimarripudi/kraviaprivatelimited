@@ -8,7 +8,7 @@ import styles from "./office-department-handover.module.css";
 type Department = { code: string; label: string };
 type Person = { user_id: string; display_name?: string | null };
 type Ownership = { department_code: string; owner_user_id: string; previous_owner_user_id?: string | null; version: number };
-type Transfer = { id: string; department_code: string; from_owner_user_id: string; to_owner_user_id: string; status: string; reason: string };
+type Transfer = { id: string; department_code: string; from_owner_user_id: string; to_owner_user_id: string; status: string; reason: string; decided_at?: string | null };
 type Response = {
   actor: { user_id: string; founder: boolean };
   departments: Department[];
@@ -39,7 +39,46 @@ export function OfficeDepartmentHandover({ mode = "manage" }: { mode?: "manage" 
   const [recipient, setRecipient] = useState("");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
-  const refresh = useCallback(async () => setData(await api<Response>()), []);
+  const [reauthRequired, setReauthRequired] = useState(false);
+  const refresh = useCallback(async () => {
+    const fresh = await api<Response>();
+    setData(fresh);
+    return fresh;
+  }, []);
+  useEffect(() => {
+    if (mode !== "recipient" || !data) return;
+    const incoming = data.transfers.filter(t => t.to_owner_user_id === data.actor.user_id);
+    const latest = incoming.filter(t => t.status === "ACCEPTED")
+      .map(t => t.decided_at || t.id).sort().join("|");
+    const noPending = !incoming.some(t => t.status === "PENDING");
+    let acknowledged = false;
+    try {
+      acknowledged = window.sessionStorage.getItem("kravia.office.transfer.reauth." + data.actor.user_id) === latest;
+    } catch { /* Browser may disallow session storage. */ }
+    const frame = window.requestAnimationFrame(() => {
+      setReauthRequired(noPending && latest.length > 0 && !acknowledged);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [mode, data]);
+
+  async function signOutForHandover() {
+    setBusy(true); setError("");
+    try {
+      const response = await fetch("/api/office-auth/sign-out", { method: "POST", credentials: "same-origin" });
+      if (!response.ok) throw new Error("Sign-out failed. Use the account menu and retry.");
+      if (data) {
+        const latest = data.transfers.filter(t => t.to_owner_user_id === data.actor.user_id && t.status === "ACCEPTED")
+          .map(t => t.decided_at || t.id).sort().join("|");
+        try { window.sessionStorage.setItem("kravia.office.transfer.reauth." + data.actor.user_id, latest); }
+        catch { /* No storage persistence required for security. */ }
+      }
+      router.replace("/office/login");
+      router.refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to sign out");
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -89,6 +128,15 @@ export function OfficeDepartmentHandover({ mode = "manage" }: { mode?: "manage" 
     </header>
     {notice ? <p className={styles.notice}><ShieldCheck size={17}/>{notice}</p> : null}
     {error ? <p className={styles.error}><CircleAlert size={17}/>{error}</p> : null}
+    {mode === "recipient" && reauthRequired && pendingCount === 0 ? <div role="status" className={styles.reauth}>
+      <div><ShieldCheck size={20} aria-hidden="true"/><span>
+        <strong>All incoming department transfers accepted</strong>
+        <small>Your accepted ownership is now effective in the backend. Sign out and sign in again to reload your updated role authority, Finance navigation and other department permissions.</small>
+      </span></div>
+      <button type="button" disabled={busy} onClick={() => void signOutForHandover()}>
+        Sign out to refresh access
+      </button>
+    </div> : null}
     {departments.length ? <div className={styles.grid}>{departments.map((dept) => {
       const record = data.ownership.find((item) => item.department_code === dept.code);
       const pending = visibleTransfers.find((item) => item.department_code === dept.code && item.status === "PENDING");

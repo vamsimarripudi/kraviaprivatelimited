@@ -96,9 +96,13 @@ export function capabilityCanAccessSection(
   roles: readonly OfficeRole[],
   permissions: readonly string[],
 ) {
-  if (roles.includes("OWNER")) return true;
   const required = requiredCapabilities(workspace, section);
-  if (!required.length) return (workspace === "office" && personalOfficeSections.has(section)) || (workspace === "finance" && ["my-role","info","worktime"].includes(section));
+  // OWNER identity is not an operational Finance permission once the
+  // department has been transferred. The snapshot excludes revoked writes,
+  // so Finance navigation must respect that snapshot too.
+  if (roles.includes("OWNER") && workspace === "office") return true;
+  if (!required.length) return (workspace === "office" && personalOfficeSections.has(section)) ||
+    (workspace === "finance" && ["my-role","info","worktime","settings"].includes(section));
   const granted = new Set(permissions);
   return required.some((permission) => granted.has(permission));
 }

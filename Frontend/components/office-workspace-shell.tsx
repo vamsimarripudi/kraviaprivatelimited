@@ -17,6 +17,7 @@ import { OfficeIntelligencePeek } from "@/components/office-intelligence-peek";
 import { WorkspaceSignOutButton } from "@/components/workspace-sign-out-button";
 import { OfficeWorkspaceProvider } from "@/components/office-workspace-context";
 import { OfficeAmbientField } from "@/components/office-experience-ambient";
+import delegatedStyles from "./office-delegation-banner.module.css";
 import type { OfficeIdentity } from "@/lib/office/auth-server";
 import {
   capabilityCanAccessSection, navigationCommands,
@@ -114,11 +115,12 @@ function IdentityCard({ identity }: { identity: OfficeIdentity }) {
 }
 
 export function OfficeWorkspaceShell({
-  workspace, identity, permissions, children,
+  workspace, identity, permissions, delegatedDepartments = [], children,
 }: {
   workspace: WorkspaceKind;
   identity: OfficeIdentity;
   permissions: readonly string[];
+  delegatedDepartments?: readonly string[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -155,11 +157,15 @@ export function OfficeWorkspaceShell({
   const prefetchedRoutes = useMemo(() => entries.map(([slug]) => definition.basePath + "/" + slug),
     [entries,definition.basePath]);
 
+  const financeDelegated = identity.roles.includes("OWNER") && delegatedDepartments.includes("FINANCE");
   const switchWorkspace: WorkspaceKind = workspace === "office" ? "finance" : "office";
   const switchDashboard = switchWorkspace === "finance" ? financeSections.dashboard : officeSections.dashboard;
   const canSwitch = roleCanAccessWorkspace(switchWorkspace,identity.roles)
     && roleCanAccessSection(switchDashboard,identity.roles)
-    && capabilityCanAccessSection(switchWorkspace,"dashboard",identity.roles,permissions);
+    && capabilityCanAccessSection(switchWorkspace,"dashboard",identity.roles,permissions)
+    // Transferred Finance is Company Oversight, not a second Founder
+    // operational workspace in the primary account rail.
+    && !(workspace === "office" && switchWorkspace === "finance" && financeDelegated);
 
   useEffect(() => {
     let current = true;
@@ -368,6 +374,15 @@ export function OfficeWorkspaceShell({
           <ShieldCheck size={14} aria-hidden="true"/>
           <p>{item.description}</p>
         </div> : null}
+        {financeDelegated && workspace === "finance" ? <aside className={delegatedStyles.banner} role="status" aria-label="Delegated Finance oversight">
+          <div><Landmark size={18} aria-hidden="true"/><span>
+            <strong>Finance · Read-only Founder oversight</strong>
+            <small>Finance operations belong to the current department owner. Your former departmental approvals and edits are restricted.</small>
+          </span></div>
+          <OfficeNavLink href="/office/requests" className={delegatedStyles.request}>
+            Raise a Finance request <ChevronRight size={15} aria-hidden="true"/>
+          </OfficeNavLink>
+        </aside> : null}
         {children}
       </section>
     </main>
