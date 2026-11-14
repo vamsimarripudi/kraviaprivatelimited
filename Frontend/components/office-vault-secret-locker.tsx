@@ -35,8 +35,11 @@ export function OfficeVaultSecretLocker(){
  const [revision,setRevision]=useState("");
  const [reviewNote,setReviewNote]=useState("");
  const [reviewVersion,setReviewVersion]=useState<Version|null>(null);
+ const [previewVersion,setPreviewVersion]=useState<Version|null>(null);
  const uploadDialog=useRef<HTMLDialogElement>(null);
  const reviewDialog=useRef<HTMLDialogElement>(null);
+ const previewDialog=useRef<HTMLDialogElement>(null);
+ const previewTrigger=useRef<HTMLButtonElement>(null);
  const uploadFocus=useRef<HTMLButtonElement>(null);
  const reviewFocus=useRef<HTMLButtonElement>(null);
  useEffect(()=>{
@@ -117,6 +120,16 @@ export function OfficeVaultSecretLocker(){
   reviewFocus.current=trigger;setReviewVersion(version);setReviewNote("");
   reviewDialog.current?.showModal();
  }
+ function showPreview(version:Version,trigger:HTMLButtonElement){
+  previewTrigger.current=trigger;
+  setPreviewVersion(version);
+  previewDialog.current?.showModal();
+ }
+ function closePreview(){
+  previewDialog.current?.close();
+  setPreviewVersion(null);
+  previewTrigger.current?.focus();
+ }
  function closeReview(){
   if(busy)return;
   reviewDialog.current?.close();setReviewVersion(null);setReviewNote("");
@@ -167,8 +180,8 @@ export function OfficeVaultSecretLocker(){
          <FileCheck2 size={15}/>Review</button>:null}
        {doc.grant_active&&version.scan_state==="CLEAN"&&version.review_state==="APPROVED"?<>
         {["application/pdf","image/jpeg","image/png","image/webp"].includes(version.mime_type)?
-         <a href={"/api/office-vault/secrets/"+version.id+"/preview"} target="_blank" rel="noreferrer">
-          <Eye size={15}/>Protected preview</a>:null}
+         <button type="button" onClick={event=>showPreview(version,event.currentTarget)}>
+          <Eye size={15}/>Protected preview</button>:null}
         <a href={"/api/office-vault/secrets/"+version.id+"/download"}>
           <Download size={15}/>Download (grant checked)</a>
        </>:null}
@@ -187,6 +200,18 @@ export function OfficeVaultSecretLocker(){
    </nav>
   </>:null}
   <p className={styles.notice}><LockKeyhole size={16}/>Stored objects are encrypted. Uploading never authorizes reading; a clean scanner verdict, independent review and a current per-record grant are required before any file is released.</p>
+  <dialog ref={previewDialog} className={styles.previewDialog} onClose={()=>{
+   setPreviewVersion(null);previewTrigger.current?.focus();
+  }}>
+   <header><div><p className={styles.eyebrow}>SECURE READ-ONLY PREVIEW</p>
+    <h2>{previewVersion?.filename||"Restricted document"}</h2></div>
+    <button type="button" aria-label="Close protected preview" onClick={closePreview}><X size={20}/></button>
+   </header>
+   <p>Verified approved document version. Access is rechecked server-side on every preview and logged.</p>
+   {previewVersion?<iframe title={"Secure preview: "+previewVersion.filename}
+    src={"/api/office-vault/secrets/"+previewVersion.id+"/preview"}
+    sandbox="allow-same-origin" referrerPolicy="no-referrer" loading="lazy"/>:null}
+  </dialog>
   <dialog className={styles.dialog} ref={uploadDialog} onCancel={e=>{if(busy)e.preventDefault();}}>
    <form onSubmit={upload}>
     <header><div><p className={styles.eyebrow}>PRIVATE COMPANY EVIDENCE</p>
