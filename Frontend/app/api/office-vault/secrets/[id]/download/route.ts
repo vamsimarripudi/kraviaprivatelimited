@@ -2,6 +2,7 @@ import {NextResponse} from "next/server";
 import {z} from "zod";
 import {downloadOfficeVaultSecret,SecretLockerError} from "@/lib/office/vault-secret-server";
 import {streamSealedDocument} from "@/lib/office/vault-secret-byte-stream";
+import {privateDocumentDisposition} from "@/lib/office/vault-download-disposition";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 type Context={params:Promise<{id:string}>};
@@ -12,13 +13,13 @@ export async function GET(_:Request,{params}:Context){
   return NextResponse.json({detail:"Document unavailable"},{status:404,headers});
  try{
   const file=await downloadOfficeVaultSecret(id,"DOWNLOAD");
-  const name=file.filename.replaceAll('"',"").replaceAll("\\","_");
+  const disposition=privateDocumentDisposition(file.filename);
   return new Response(streamSealedDocument(file.bytes),{headers:{
    ...headers,
    "Content-Type":file.mime,
-   "Content-Disposition":'attachment; filename="'+name+'"',
+   "Content-Disposition":disposition,
    "Content-Security-Policy":"sandbox",
-   "ETag":'"'+file.sha256+'"',
+   "Referrer-Policy":"no-referrer",
   }});
  }catch(error){
   const status=error instanceof SecretLockerError?error.status:503;
