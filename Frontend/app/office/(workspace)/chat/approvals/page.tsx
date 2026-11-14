@@ -1,4 +1,2 @@
-import { InternalWorkspaceScreen } from "@/components/internal-workspace-screen";
-export default function ConnectApprovals(){
- return <InternalWorkspaceScreen workspace="office" section="approvals"/>;
-}
+import {OfficeConnectApprovals} from "@/components/office-connect-approvals";
+export default function ConnectApprovals(){return <OfficeConnectApprovals/>;}
