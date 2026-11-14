@@ -63,7 +63,10 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
   const [mentionPicker,setMentionPicker] = useState(false);
   const nonce = useRef<string | null>(null);
   const activeId = initialConversationId;
-  const inboxLive=useOfficeChatInboxLive(()=>setReloadCount(x=>x+1));
+  const inboxLive=useOfficeChatInboxLive(()=>setReloadCount(x=>x+1),()=>{
+    setConversations([]);setActor("");setMessages([]);setMessageScope(null);
+    setListError("Office membership was revoked. Sign in again to restore authorized access.");
+  });
   const live=useOfficeChatLive(activeId,
     ()=>setReloadCount(count=>count+1),
     ()=>{setMessageError("Conversation access has changed. Reload after authorization is restored.");
@@ -91,7 +94,8 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
         setActor(result.actor_user_id);
         setListError("");
       } catch (error) {
-        if (live) setListError(error instanceof Error ? error.message : "Unable to load conversations");
+        if(live){setConversations([]);setActor("");
+          setListError(error instanceof Error?error.message:"Unable to load conversations");}
       } finally {
         if (live) setListLoading(false);
       }
