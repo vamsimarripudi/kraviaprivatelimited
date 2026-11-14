@@ -15,11 +15,15 @@ describe("K-Vault protected download headers",()=>{
   expect(disposition).not.toContain("\n");
   expect(disposition).not.toContain("X-Injected:yes/");
  });
+ it("does not throw for malformed Unicode inherited from old metadata",()=>{
+  expect(privateDocumentDisposition("broken\\uD800name.pdf")).toContain("filename*=UTF-8''");
+ });
  it("keeps private document hashes out of HTTP cache identifiers",()=>{
   expect(route).toContain('privateDocumentDisposition(file.filename)');
   expect(route).toContain('Cache-Control":"private, no-store"');
   expect(route).toContain('"Referrer-Policy":"no-referrer"');
   expect(route).not.toContain('"ETag"');
   expect(route).not.toContain("createSignedUrl");
+  expect(route).toContain("if(!transferred)file.bytes.fill(0)");
  });
 });

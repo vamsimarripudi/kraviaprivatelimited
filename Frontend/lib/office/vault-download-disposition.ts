@@ -6,7 +6,13 @@ export function privateDocumentDisposition(filename:string):string{
  // Fallback is header-safe ASCII; extended parameter retains UTF-8.
  const fallback=name.normalize("NFKD").replace(/[^\x20-\x7e]/g,"_")
   .replace(/["\\]/g,"_").slice(0,150)||"protected-document";
- const encoded=encodeURIComponent(name).replace(/['()*]/g,char=>
+ // A malformed legacy filename can contain an unmatched UTF-16 surrogate.
+ // Keep private response construction fail-safe instead of retaining bytes
+ // when encodeURIComponent rejects that input.
+ let encoded="";
+ try{encoded=encodeURIComponent(name);}
+ catch{encoded=encodeURIComponent(fallback);}
+ encoded=encoded.replace(/['()*]/g,char=>
   "%"+char.charCodeAt(0).toString(16).toUpperCase());
  return 'attachment; filename="'+fallback+'"; filename*=UTF-8'+"''"+encoded;
 }

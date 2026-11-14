@@ -12,16 +12,22 @@ export async function GET(_:Request,{params}:Context){
   return NextResponse.json({detail:"Document unavailable"},{status:404,headers});
  try{
   const file=await downloadOfficeVaultSecret(id,"PREVIEW");
-  if(file.mime!=="application/pdf"&&!file.mime.startsWith("image/"))
+  if(file.mime!=="application/pdf"&&!file.mime.startsWith("image/")){
+   file.bytes.fill(0);
    return NextResponse.json({detail:"Secure preview is limited to PDF and images"},
     {status:415,headers});
-  return new Response(streamSealedDocument(file.bytes),{headers:{
+  }
+  let transferred=false;
+  try{
+  const response=new Response(streamSealedDocument(file.bytes),{headers:{
    ...headers,
    "Content-Type":file.mime,
    "Content-Disposition":"inline",
    "Content-Security-Policy":"sandbox",
    "X-Frame-Options":"SAMEORIGIN",
   }});
+  transferred=true;return response;
+  }finally{if(!transferred)file.bytes.fill(0);}
  }catch(error){
   const status=error instanceof SecretLockerError?error.status:503;
   return NextResponse.json({detail:"Document unavailable"},
