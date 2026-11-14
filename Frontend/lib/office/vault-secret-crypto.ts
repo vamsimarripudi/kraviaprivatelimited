@@ -36,6 +36,20 @@ const decodeHex=(hex:string,bytes:number)=>{
  return Buffer.from(hex,"hex");
 };
 function sha(value:Buffer){return createHash("sha256").update(value).digest("hex");}
+
+/** AES-GCM authenticates only on final(). Clear any unverified output from
+ * update() whether authentication succeeds or final() throws. */
+function decryptAuthenticated(
+ decipher:ReturnType<typeof createDecipheriv>,encrypted:Buffer,
+):Buffer{
+ const initial=decipher.update(encrypted);
+ try{
+  const trailing=decipher.final();
+  try{return Buffer.concat([initial,trailing]);}
+  finally{trailing.fill(0);}
+ }finally{initial.fill(0);}
+}
+
 export function sealVaultContent(
  content:Buffer,documentId:string,versionId:string,keyring:SecretKeyring,
 ):SecretEnvelope{
@@ -43,6 +57,7 @@ export function sealVaultContent(
  const master=keyring.keys.get(keyring.activeId);
  if(!master||master.length!==32)throw new Error("Active encryption key unavailable");
  const key=randomBytes(32),contentNonce=randomBytes(12),wrapNonce=randomBytes(12);
+ try{
  const context=aad(documentId,versionId);
  const cipher=createCipheriv("aes-256-gcm",key,contentNonce);
  cipher.setAAD(context);
@@ -51,11 +66,11 @@ export function sealVaultContent(
  const wrapper=createCipheriv("aes-256-gcm",master,wrapNonce);
  wrapper.setAAD(context);
  const wrappedKey=Buffer.concat([wrapper.update(key),wrapper.final()]);
- key.fill(0);
  return {ciphertext,sha256:sha(content),contentNonce:contentNonce.toString("hex"),
   contentTag:contentTag.toString("hex"),wrappedKey:wrappedKey.toString("base64"),
   wrapNonce:wrapNonce.toString("hex"),wrapTag:wrapper.getAuthTag().toString("hex"),
   keyId:keyring.activeId};
+ }finally{key.fill(0);}
 }
 export type SecretStoredEnvelope={
  key_id:string;wrapped_key:string;wrap_nonce:string;wrap_tag:string;
@@ -72,11 +87,11 @@ export function openVaultContent(
  if(wrapped.length!==32)throw new Error("Invalid wrapped content key");
  const wrap=createDecipheriv("aes-256-gcm",master,decodeHex(stored.wrap_nonce,12));
  wrap.setAAD(context);wrap.setAuthTag(decodeHex(stored.wrap_tag,16));
- const contentKey=Buffer.concat([wrap.update(wrapped),wrap.final()]);
+ const contentKey=decryptAuthenticated(wrap,wrapped);
  try{
   const cipher=createDecipheriv("aes-256-gcm",contentKey,decodeHex(stored.content_nonce,12));
   cipher.setAAD(context);cipher.setAuthTag(decodeHex(stored.content_tag,16));
-  const plaintext=Buffer.concat([cipher.update(ciphertext),cipher.final()]);
+  const plaintext=decryptAuthenticated(cipher,ciphertext);
   try{
    if(plaintext.length!==stored.byte_size||sha(plaintext)!==stored.sha256)
     throw new Error("Secret document failed integrity verification");
