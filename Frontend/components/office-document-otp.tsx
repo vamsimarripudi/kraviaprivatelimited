@@ -5,7 +5,7 @@ import { BadgeCheck, FileSignature, LoaderCircle, MailCheck, MapPin, ShieldCheck
 import styles from "./office-document-otp.module.css";
 
 export type DocumentOtpApproval = {
-  id: string; document_instance_id: string; render_id: string;
+  id: string; document_instance_id: string; render_id: string; signer_user_id: string;
   signer_name: string; employee_reference: string; signer_email_masked: string;
   latitude: number; longitude: number; accuracy_m: number;
   location_captured_at: string; location_source: string;
