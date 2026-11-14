@@ -99,13 +99,17 @@ begin
   if decision not in ('APPROVE','REJECT') then raise exception 'Invalid attendance decision'; end if;
   if not public.office_effective_permission(p_actor,'payroll.run.review','COMPANY',null,null) then
     raise exception 'Independent payroll review permission is required'; end if;
-  select * into snap from public.office_payroll_attendance_snapshots where id=p_snapshot for update;
-  if not found or snap.status<>'DRAFT' then raise exception 'Only draft attendance can be reviewed'; end if;
-  if p_actor=snap.prepared_by or p_actor=snap.employee_user_id then
-    raise exception 'Attendance preparer and beneficiary cannot review their own payroll hours'; end if;
+  select * into snap from public.office_payroll_attendance_snapshots where id=p_snapshot;
+  if not found then raise exception 'Attendance snapshot not found'; end if;
+  -- Lock ordering mirrors the attendance writer: period first, then snapshot.
   select * into per from public.office_payroll_periods where id=snap.period_id for update;
   if not found or per.status not in ('DRAFT','ATTENDANCE_READY','CALCULATED') then
     raise exception 'Payroll attendance review is locked after submission'; end if;
+  select * into snap from public.office_payroll_attendance_snapshots where id=p_snapshot for update;
+  if not found or snap.period_id<>per.id or snap.status<>'DRAFT' then
+    raise exception 'Only current draft attendance can be reviewed'; end if;
+  if p_actor=snap.prepared_by or p_actor=snap.employee_user_id then
+    raise exception 'Attendance preparer and beneficiary cannot review their own payroll hours'; end if;
   if decision='APPROVE' then
     if snap.unresolved_units>0 then raise exception 'Unresolved worktime, paid leave and holiday evidence must be reviewed first'; end if;
     if abs(snap.payable_units+snap.unpaid_leave_units+snap.absence_units+snap.unresolved_units-snap.basis_units)>0.001 then
@@ -187,6 +191,24 @@ begin
  return result_count;
 end; $$;
 
+
+-- Database-level invariants also guard against accidental direct service writes.
+-- Reject inconsistent existing rows instead of silently reclassifying wages.
+do $kravia_hr_constraint$
+begin
+  if not exists(select 1 from pg_constraint where conname='office_payroll_hours_reconcile_v2') then
+    alter table public.office_payroll_attendance_snapshots
+      add constraint office_payroll_hours_reconcile_v2
+      check (paid_leave_units<=payable_units
+        and abs(payable_units+unpaid_leave_units+absence_units+unresolved_units-basis_units)<=0.001);
+  end if;
+  if not exists(select 1 from pg_constraint where conname='office_payroll_review_independence_v2') then
+    alter table public.office_payroll_attendance_snapshots
+      add constraint office_payroll_review_independence_v2
+      check (status='DRAFT' or (reviewed_by is not null and reviewed_at is not null
+        and reviewed_by<>prepared_by and reviewed_by<>employee_user_id));
+  end if;
+end; $kravia_hr_constraint$;
 
 -- The previous draft-change trigger must allow ONLY the normal
 -- REVIEWED -> LOCKED status transition performed by approved payroll sync.
