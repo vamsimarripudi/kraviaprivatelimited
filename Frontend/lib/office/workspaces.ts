@@ -36,6 +36,7 @@ const everyAdmittedRole: readonly OfficeRole[] = officeRoles;
 export const officeSections = {
   dashboard: { title: "My work", eyebrow: "KRAVIA OFFICE", description: "Your role-scoped company workspace, pending work, approvals, requests and governed operational modules.", roles: everyAdmittedRole, group: "My Work" },
   "my-role": { title: "My roles & onboarding", eyebrow: "EMPLOYEE PROFILE", description: "My assigned functional responsibilities, working pattern and evidence-backed onboarding checklist.", roles: everyAdmittedRole, group: "My Work" },
+  "my-portfolio": { title: "My role portfolio", eyebrow: "ROLE SEATS · RESPONSIBILITIES", description: "Separate role authority, current holders, operational access, governed handovers and former-holder evidence.", roles: everyAdmittedRole, group: "My Work" },
   info: { title: "Info & Help", eyebrow: "EMPLOYEE HANDBOOK", description: "Private common and role-specific manuals, route directions and versioned acknowledgement receipts.", roles: everyAdmittedRole, group: "My Work" },
   notifications: { title: "Notifications", eyebrow: "ATTENTION CENTER", description: "Personal workflow, task and security signals with explicit read and dismissal state.", roles: everyAdmittedRole, group: "My Work" },
   tasks: { title: "Company inbox", eyebrow: "ACTIONABLE WORK", description: "Assigned tasks, blockers and execution work kept separate from approvals and authority decisions.", roles: everyAdmittedRole, group: "My Work" },
@@ -94,6 +95,7 @@ export const officeSections = {
 export const financeSections = {
   dashboard: { title: "Finance overview", eyebrow: "KRAVIA FINANCE", description: "Finance, GST, accounting and reconciliation work for authorised finance professionals.", roles: financeCore, group: "Overview" },
   "my-role": { title: "My roles & onboarding", eyebrow: "PERSONAL FINANCE IDENTITY", description: "Private self-service employee evidence and role assignments for Finance-only staff.", roles: financeCore, group: "Overview" },
+  "my-portfolio": { title: "My role portfolio", eyebrow: "FINANCE ROLE AUTHORITY", description: "Role-seat assignments, responsibilities, recipient acceptance and verified operational handover.", roles: financeCore, group: "Overview" },
   worktime: { title: "Attendance & salary slips", eyebrow: "PERSONAL FINANCE WORKTIME", description: "Self-only recorded attendance, corrected hours and verified salary slips for authorised Finance-only identities.", roles: financeCore, group: "Overview" },
   info: { title: "Info & Help", eyebrow: "FINANCE EMPLOYEE HANDBOOK", description: "Your common Office handbook, role-specific instructions and acknowledgement receipts.", roles: financeCore, group: "Overview" },
   customers: { title: "Customer master", eyebrow: "CANONICAL BILLING IDENTITY", description: "Canonical customer identities used by invoices, receipts, tax and reconciliation. Customer creation remains backend-authorised.", roles: financeCore, group: "Revenue" },

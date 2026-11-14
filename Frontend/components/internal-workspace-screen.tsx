@@ -32,6 +32,7 @@ const OfficeDepartmentHandover = dynamic(() => import("@/components/office-depar
 const OfficeRolePackageStudio = dynamic(() => import("@/components/office-role-package-studio").then((module) => module.OfficeRolePackageStudio), { loading: ModuleLoading });
 const OfficeEmployeeSummary = dynamic(() => import("@/components/office-employee-summary").then((module) => module.OfficeEmployeeSummary), { loading: ModuleLoading });
 const OfficeManualHub = dynamic(() => import("@/components/office-manual-hub").then((module) => module.OfficeManualHub), { loading: ModuleLoading });
+const OfficeRolePortfolio = dynamic(() => import("@/components/office-role-portfolio").then((module) => module.OfficeRolePortfolio), { loading: ModuleLoading });
 const OfficeEmployeeIntake = dynamic(() => import("@/components/office-employee-intake").then((module) => module.OfficeEmployeeIntake), { loading: ModuleLoading });
 const WorkforceLiveOverview = dynamic(() => import("@/components/workforce-live-overview").then((module) => module.WorkforceLiveOverview), { loading: ModuleLoading });
 const OfficeWorkforceLifecycle = dynamic(() => import("@/components/office-workforce-lifecycle").then((module) => module.OfficeWorkforceLifecycle), { loading: ModuleLoading });
@@ -141,6 +142,7 @@ export function InternalWorkspaceScreen({ workspace, section }: Props) {
       {permitted && item ? (
         <>
           {workspace === "office" && section === "role-packages" ? <OfficeRolePackageStudio view="admin" />
+          : section === "my-portfolio" ? <OfficeRolePortfolio />
           : section === "info" ? <OfficeManualHub />
           : (workspace === "office" || workspace === "finance") && section === "my-role" ? <><OfficeEmployeeSummary/>
             <details className="office-employee-full-record"><summary>Personal details, education, bank and signed onboarding · Expand</summary><OfficeEmployeeIntake view="self"/></details>

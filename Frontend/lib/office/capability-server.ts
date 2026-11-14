@@ -13,7 +13,7 @@ export class OfficeCapabilityError extends Error {
 
 export type OfficeCapabilityScope = {
   permission: string;
-  source: "OWNER" | "DEPARTMENT_OWNER" | "PROFILE" | "OVERRIDE_ALLOW";
+  source: "OWNER" | "DEPARTMENT_OWNER" | "ROLE_SEAT" | "PROFILE" | "OVERRIDE_ALLOW";
   scope_type: string;
   scope_key: string | null;
   profile_code?: string;
@@ -59,13 +59,14 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
   if (catalog.error) throw new OfficeCapabilityError(503, "Authorization catalog is temporarily unavailable");
   // The Founder continues to see transferred departments, but their write
   // permissions must disappear from the action capability snapshot.
-  const [departmentDeltaResult, globalDeniesResult] = await Promise.all([
+  const [departmentDeltaResult, globalDeniesResult, seatDeltaResult] = await Promise.all([
     admin.rpc("office_department_capability_changes", { p_actor: identity.userId }),
     admin.from("office_user_permission_overrides")
       .select("permission_code,expires_at")
       .eq("user_id", identity.userId)
       .eq("effect", "DENY")
       .eq("scope_type", "COMPANY"),
+    admin.rpc("office_role_seat_capability_changes", { p_actor: identity.userId }),
   ]);
   if (departmentDeltaResult.error || globalDeniesResult.error || !departmentDeltaResult.data ||
       typeof departmentDeltaResult.data !== "object" || Array.isArray(departmentDeltaResult.data)) {
@@ -75,7 +76,20 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
   if (!Array.isArray(changes.denied) || !Array.isArray(changes.owned)) {
     throw new OfficeCapabilityError(503, "Invalid department capability response");
   }
+  if (seatDeltaResult.error || !seatDeltaResult.data || typeof seatDeltaResult.data !== "object" ||
+      Array.isArray(seatDeltaResult.data)) {
+    throw new OfficeCapabilityError(503, "Role-seat authority is unavailable");
+  }
+  const seatChanges = seatDeltaResult.data as {
+    denied?: unknown; held?: unknown;
+  };
+  if (!Array.isArray(seatChanges.denied) || !Array.isArray(seatChanges.held)) {
+    throw new OfficeCapabilityError(503, "Invalid role-seat authority response");
+  }
   const denied = new Set(changes.denied.filter((code): code is string => typeof code === "string"));
+  for (const code of seatChanges.denied) {
+    if (typeof code === "string") denied.add(code);
+  }
   const owned = new Set(changes.owned.filter((code): code is string => typeof code === "string"));
   for (const row of globalDeniesResult.data ?? []) {
     if (active(row.expires_at)) denied.add(String(row.permission_code));
@@ -117,6 +131,20 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
   if (mappingsResult.error) throw new OfficeCapabilityError(503, "Authorization profile map is temporarily unavailable");
 
   const scopes: OfficeCapabilityScope[] = [];
+  // A role seat is a revocable, scoped authority source. A transferred-away
+  // exclusive right must never reappear from an unrelated profile.
+  for (const raw of seatChanges.held) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+    const grant = raw as Record<string, unknown>;
+    const permission = grant.permission;
+    const scopeType = grant.scope_type;
+    if (typeof permission !== "string" || typeof scopeType !== "string" ||
+        !activeCodes.has(permission)) continue;
+    scopes.push({
+      permission, source: "ROLE_SEAT", scope_type: scopeType,
+      scope_key: typeof grant.scope_key === "string" ? grant.scope_key : null,
+    });
+  }
   // Department ownership is effective even without a broad company profile.
   // The database excludes permission codes whose owner_bypass flag is false.
   for (const permission of owned) {
