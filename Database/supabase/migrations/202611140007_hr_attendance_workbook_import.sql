@@ -156,6 +156,9 @@ declare
 begin
   if decision not in ('ACCEPT','REJECT') or length(trim(coalesce(p_note,'')))<12 then
     raise exception 'Independent review decision with a source-based note is required'; end if;
+  if not exists(select 1 from public.office_identity_users
+    where user_id=p_actor and status='ACTIVE') then
+    raise exception 'An active authorized HR reviewer is required'; end if;
   if not public.office_effective_permission(p_actor,'people.update','COMPANY',null,null)
     or not (
       exists(select 1 from public.office_user_roles r where r.user_id=p_actor
