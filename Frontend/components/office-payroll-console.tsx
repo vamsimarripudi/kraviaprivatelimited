@@ -101,7 +101,7 @@ export function OfficePayrollConsole() {
       return action({ action: "CREATE_COMPENSATION", employment_id: draft.employment_id, grade: draft.grade || undefined,
         annual_ctc_minor: annual, monthly_gross_minor: gross, currency: draft.currency || "INR",
         components, effective_from: draft.effective_from, reason: draft.reason },
-        "A proposed compensation version was drafted; no role pay is active until independently approved.");
+        "Historical compensation has not been overwritten. Proposed role pay remains inactive until independently approved.");
     }
     if (modal.kind === "RULE") {
       let configuration: Record<string, unknown>; try { const parsed = JSON.parse(draft.configuration || "{}"); if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") throw new Error(); configuration = parsed; } catch { return setError("Rule configuration must be a valid JSON object."); }
