@@ -8,10 +8,11 @@ export default async function AuthenticatedFinanceLayout({
   children: React.ReactNode;
 }) {
   const identity = await requireWorkspaceIdentity("finance", "/finance/dashboard");
-  const permissions = (await getOfficeCapabilitySnapshot(identity)).permissions;
+  const authorization = await getOfficeCapabilitySnapshot(identity);
 
   return (
-    <OfficeWorkspaceShell workspace="finance" identity={identity} permissions={permissions}>
+    <OfficeWorkspaceShell workspace="finance" identity={identity}
+      permissions={authorization.permissions} delegatedDepartments={authorization.delegatedDepartments}>
       {children}
     </OfficeWorkspaceShell>
   );
