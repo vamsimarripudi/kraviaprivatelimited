@@ -19,6 +19,8 @@ describe("Connect event stream client and secure fallback",()=>{
  it("does not advertise presence based on connection creation alone",()=>{
   expect(component).toContain('live==="live"?"Live updates · private"');
   expect(hook).toContain('source.addEventListener("ready"');
+  expect(hook).toContain("changeRef.current();");
+  expect(hook).toContain("Close the initial GET -> stream cursor race");
   expect(component).toContain('},15000)');
  });
 });
