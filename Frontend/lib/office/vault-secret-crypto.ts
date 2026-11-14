@@ -1,4 +1,5 @@
-import "server-only";
+// Pure Node crypto module; only imported by server-only Vault service.
+// Kept import-free of Next sentinels so isolation tests can verify tamper detection.
 import {createCipheriv,createDecipheriv,createHash,randomBytes} from "node:crypto";
 
 /** AES-256-GCM envelope encryption. The random per-version content key is
