@@ -26,7 +26,7 @@ describe("KRAVIA HR hours and payroll integration safety", () => {
   });
   it("keeps corrections source-backed and never silently marks missing time absent", () => {
     expect(server).toContain("unpaidLeaveUnits: 0, absenceUnits: 0");
-    expect(server).toContain("missing");
+    expect(server).toContain("UNRESOLVED");
     expect(payroll).toContain("expectedUpdatedAt");
     expect(api).toContain("AMEND_PENDING");
     expect(api).toContain("AUTO_ATTENDANCE");
