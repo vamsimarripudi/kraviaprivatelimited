@@ -21,3 +21,8 @@
 .shell :is(button,input,a):focus-visible{outline:2px solid var(--office-ui-accent);outline-offset:3px}
 @media(max-width:950px){.columns{grid-template-columns:1fr}}
 @media(max-width:767px){.shell{margin:10px 12px 24px}.card{padding:15px}.switch{align-items:flex-start}.switch input{margin-top:3px}}
+
+.serverForm{display:grid;gap:9px;min-width:0}
+.serverForm>button{min-height:44px;width:max-content;max-width:100%;border:1px solid transparent;border-radius:10px;background:var(--office-ui-accent);padding:10px 15px;color:#fff;font-weight:700;cursor:pointer}
+.serverForm>button:disabled{opacity:.65;cursor:wait}
+.notice button{min-height:44px;border:1px solid var(--office-ui-line);background:var(--office-ui-surface);border-radius:10px;padding:9px;color:var(--office-ui-ink);cursor:pointer}
