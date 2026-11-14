@@ -138,8 +138,14 @@ async function decryptStored(current:Actor,version:SecretVersion){
  try{return openVaultContent(ciphertext,version.document_id,version.id,evidence,loadVaultKeyring());}
  catch{throw new SecretLockerError(503,"Document integrity verification failed");}
 }
+/** Server-internal authority check for staged encrypted ingestion. */
+export async function requireOfficeVaultSecretUploader(){
+ const current=await actor();
+ await permission(current,"vault.secret.upload");
+ return current;
+}
 export async function uploadOfficeVaultSecret(input:{
- file:File;title:string;classification:string;documentId?:string;
+ file:File;title:string;classification:string;documentId?:string;versionId?:string;
 }){
  const current=await actor();
  await permission(current,"vault.secret.upload");
@@ -153,7 +159,7 @@ export async function uploadOfficeVaultSecret(input:{
  // when validation, private storage, registration, or scanning fails.
  try{
  const mime=detectMime(data,filename,input.file.type||"");
- const documentId=input.documentId||randomUUID(),versionId=randomUUID();
+ const documentId=input.documentId||randomUUID(),versionId=input.versionId||randomUUID();
  const sealed=sealVaultContent(data,documentId,versionId,loadVaultKeyring());
  const path=documentId+"/"+versionId+".sealed";
  const object=await current.admin.storage.from(BUCKET).upload(path,sealed.ciphertext,{
