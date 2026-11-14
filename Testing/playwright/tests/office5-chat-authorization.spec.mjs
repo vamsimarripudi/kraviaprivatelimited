@@ -110,3 +110,15 @@ test("anonymous sessions cannot inspect communication retention or legal holds",
  expect(response.headers()["cache-control"]).toContain("no-store");
  expect(await response.text()).not.toContain("legal_holds");
 });
+
+test("anonymous accounts cannot inspect or alter Connect personal preferences",async({request})=>{
+ const read=await request.get("/api/office-chat/preferences");
+ expect([401,403,503]).toContain(read.status());
+ expect(read.headers()["cache-control"]).toContain("no-store");
+ const change=await request.put("/api/office-chat/preferences",{
+  data:{notify_direct:true,notify_mentions:true,notify_ticket_updates:true,
+   email_digest_opt_in:true,share_read_receipts:true,reduce_motion:true}
+ });
+ expect([401,403,503]).toContain(change.status());
+ expect(change.headers()["cache-control"]).toContain("no-store");
+});
