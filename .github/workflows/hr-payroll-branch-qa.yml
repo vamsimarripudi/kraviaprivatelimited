@@ -5,6 +5,7 @@ on:
       - feature/hr-hours-auto-payroll-audit-20261114
     paths:
       - 'Frontend/lib/office/attendance-salary-preview.ts'
+      - 'Frontend/lib/office/salary-components.ts'
       - 'Frontend/lib/office/worktime-payroll-server.ts'
       - 'Frontend/lib/office/payroll-server.ts'
       - 'Frontend/app/api/office-worktime/route.ts'
@@ -12,6 +13,7 @@ on:
       - 'Frontend/components/office-worktime-console.tsx'
       - 'Frontend/components/office-payroll-console.tsx'
       - 'Frontend/tests/office-attendance-salary-preview.test.ts'
+      - 'Frontend/tests/office-salary-components.test.ts'
       - 'Frontend/tests/office-hr-hours-payroll-safety.test.ts'
       - 'Database/supabase/migrations/202611140003_hr_hours_payroll_revision_guards.sql'
       - 'Database/supabase/migrations/202611140004_hr_payroll_independent_review.sql'
@@ -44,10 +46,10 @@ jobs:
         run: npm run typecheck
       - name: HR payroll regression tests
         working-directory: Frontend
-        run: npx vitest run tests/office-attendance-salary-preview.test.ts tests/office-hr-hours-payroll-safety.test.ts tests/office-worktime-payroll-policy.test.ts tests/office-worktime-payroll-integration.test.ts tests/office-payroll-engine.test.ts tests/office-hr-effective-dated-attendance.test.ts
+        run: npx vitest run tests/office-attendance-salary-preview.test.ts tests/office-salary-components.test.ts tests/office-hr-hours-payroll-safety.test.ts tests/office-worktime-payroll-policy.test.ts tests/office-worktime-payroll-integration.test.ts tests/office-payroll-engine.test.ts tests/office-hr-effective-dated-attendance.test.ts
       - name: ESLint changed HR modules
         working-directory: Frontend
-        run: npx eslint lib/office/attendance-salary-preview.ts lib/office/worktime-payroll-server.ts lib/office/payroll-server.ts app/api/office-worktime/route.ts app/api/office-payroll/route.ts components/office-worktime-console.tsx components/office-payroll-console.tsx tests/office-attendance-salary-preview.test.ts tests/office-hr-hours-payroll-safety.test.ts
+        run: npx eslint lib/office/attendance-salary-preview.ts lib/office/salary-components.ts lib/office/worktime-payroll-server.ts lib/office/payroll-server.ts app/api/office-worktime/route.ts app/api/office-payroll/route.ts components/office-worktime-console.tsx components/office-payroll-console.tsx tests/office-attendance-salary-preview.test.ts tests/office-hr-hours-payroll-safety.test.ts
 
   database:
     name: Disposable PostgreSQL 17 HR payroll guards
