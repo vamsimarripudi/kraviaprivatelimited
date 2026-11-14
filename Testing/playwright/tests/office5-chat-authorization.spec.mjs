@@ -79,3 +79,11 @@ test("anonymous requests to revisions, pins, reactions and group membership neve
   expect(response.headers()["cache-control"],url).toContain("no-store");
  }
 });
+
+test("anonymous accounts cannot enumerate communication IAM profile mappings",async({request})=>{
+ const response=await request.get("/api/office-chat/governance");
+ expect([401,403,503]).toContain(response.status());
+ expect(response.headers()["cache-control"]).toContain("no-store");
+ const body=await response.text();
+ expect(body).not.toContain("profile_mappings");
+});
