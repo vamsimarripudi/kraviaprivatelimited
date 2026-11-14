@@ -13,6 +13,7 @@ import {OfficeConnectAdmin} from "@/components/office-connect-admin";
 import {OfficeConnectServiceGovernance} from "@/components/office-connect-service-governance";
 import {OfficeConnectCustomerWorkspace} from "@/components/office-connect-customer-workspace";
 import {OfficeConnectMacros} from "@/components/office-connect-macros";
+import {OfficeConnectAnnouncements} from "@/components/office-connect-announcements";
 import {OfficeConnectApprovals} from "@/components/office-connect-approvals";
 import {OfficeConnectIntegrations} from "@/components/office-connect-integrations";
 type Props={params:Promise<{segments:string[]}>};
@@ -42,6 +43,7 @@ export default async function OtherConnectRoute({params}:Props){
  if(path==="support/customers"||path==="support/analytics")return <OfficeConnectCustomerWorkspace mode={path==="support/analytics"?"analytics":"customers"}/>;
  if(path==="admin/queues"||path==="admin/sla")return <OfficeConnectServiceGovernance mode={path==="admin/queues"?"queues":"sla"}/>;
  if(path==="support/macros")return <OfficeConnectMacros/>;
+ if(path==="announcements")return <OfficeConnectAnnouncements/>;
  if(/^approvals\/[0-9a-f-]{36}$/i.test(path))return <OfficeConnectApprovals requestId={segments[1]}/>;
  if(path==="admin")return <OfficeConnectAdmin/>;
  if(path==="admin/permissions")return <OfficeConnectGovernance/>;
