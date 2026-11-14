@@ -30,6 +30,7 @@ type Snapshot = {
   actor: { user_id: string; roles: string[] }; employee: Employee; employees: Employee[];
   month: string; target_payment: { date: string; time: string; bankHolidayVerificationRequired: boolean };
   claims: Claim[]; policies: Policy[]; approved_policy: Policy | null; attendance_targets: WorktimeTargets;
+  recorded_sessions: Array<{ id: string; check_in_at: string; check_out_at: string; status: string; needs_review: boolean }>;
   payroll_periods: Array<{ id: string; period_code: string; starts_on: string; ends_on: string; status: string }>;
   preview: Premium | null; salary_preview: SalaryPreview; approved_monthly_gross_minor: number | null; salary_slips: Slip[];
   capabilities: { self: boolean; review_worktime: boolean; propose_policy: boolean; prepare_payroll: boolean };
@@ -206,6 +207,22 @@ export function OfficeWorktimeConsole() {
             <span><b>{week.monday} – {week.through}</b><small>{week.status === "HISTORICAL" ? "Historical / boundary week" : week.status === "TARGET_MET" ? "Weekly target met" : "Worktime still to verify"}</small></span>
             <span><strong>{formatHours(week.tracked_minutes)}</strong><small>{week.target_minutes ? formatHours(week.target_minutes) + " goal · " + week.completed_weekdays + "/5 days ≥ 6h · " + formatHours(week.remaining_minutes) + " time remaining · " + formatHours(week.weekend_minutes) + " weekend" : "Target not assessed for this week"}</small></span>
           </div>)}</div>
+        </article>
+        <article className={styles.panel}>
+          <div className={styles.heading}><h3>Recorded attendance awaiting independent review</h3><small>Actual completed check-ins only · never fabricated</small></div>
+          {data.recorded_sessions.length ?
+            data.recorded_sessions.slice(-30).reverse().map(session => <div className={styles.record} key={session.id}>
+              <span><b>{istTimestamp(session.check_in_at)}</b><small>Checked out {istTimestamp(session.check_out_at)}</small></span>
+              <div>
+                {session.needs_review ?
+                  <button type="button" disabled={busy} onClick={() =>
+                    void mutate({ action: "QUEUE_RECORDED", employeeId: data.employee.user_id, sessionId: session.id },
+                      "Real attendance queued for independent review. This has not paid or approved any hours.")}>
+                    Queue for HR review
+                  </button> : <em>Pending / reviewed</em>}
+              </div>
+            </div>) :
+            <p className={styles.empty}>No completed recorded sessions. Employees must explicitly check in, record breaks and check out; login events never count.</p>}
         </article>
         <div className={styles.columns}>
           <article className={styles.panel}>
