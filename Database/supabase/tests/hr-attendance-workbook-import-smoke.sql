@@ -4,7 +4,7 @@ declare
   uploader constant uuid := 'f0000000-0000-4000-8000-000000000003';
   reviewer constant uuid := 'f0000000-0000-4000-8000-000000000005';
   employee constant uuid := 'f0000000-0000-4000-8000-000000000004';
-  batch_id uuid;
+  v_batch uuid;
   first_row uuid;
   second_batch uuid;
   blocked boolean;
@@ -26,13 +26,13 @@ begin
   insert into public.office_employment_registry(
     employment_code,identity_user_id,status,start_date)
     values('HR-IMPORT-EMP-1',employee,'ACTIVE','2026-08-01');
-  batch_id:=public.office_hr_attendance_import_stage(
+  v_batch:=public.office_hr_attendance_import_stage(
     uploader,'KRAVIA-test.xlsx',repeat('a',64),source);
   if not exists(select 1 from public.office_hr_attendance_import_rows
-    where batch_id=batch_id and status='PENDING' and payable_candidate_minutes=360) then
+    where batch_id=v_batch and status='PENDING' and payable_candidate_minutes=360) then
     raise exception 'Staged hours missing from independent HR review'; end if;
   select id into first_row from public.office_hr_attendance_import_rows
-    where batch_id=batch_id;
+    where batch_id=v_batch;
 
   blocked:=false;
   begin
