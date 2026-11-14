@@ -38,7 +38,7 @@ async function ownMembership(current: OfficeChatActor, id: string) {
   if (error) throw internalFailure("The communication service is unavailable");
   if (!data) throw new OfficeChatError(404, "Conversation not found");
   const conversation = await current.admin.from("office_chat_conversations")
-    .select("id,kind,state,department_code").eq("id", id).eq("state", "ACTIVE").maybeSingle();
+    .select("id,kind,state,department_code,created_by").eq("id", id).eq("state", "ACTIVE").maybeSingle();
   if (conversation.error) throw internalFailure("The communication service is unavailable");
   if (!conversation.data) throw new OfficeChatError(404, "Conversation not found");
   if(conversation.data.kind==="DEPARTMENT"){
@@ -126,7 +126,7 @@ export async function startOfficeChatDm(recipientUserId: string) {
 
 export async function getOfficeChatMessages(conversationId: string) {
   const current = await actor();
-  await ownMembership(current, conversationId);
+  const conversation=await ownMembership(current, conversationId);
   const result = await current.admin.from("office_chat_messages")
     .select("id,sender_user_id,body,created_at,edited_at")
     .eq("conversation_id", conversationId).is("deleted_at", null)
@@ -140,16 +140,24 @@ export async function getOfficeChatMessages(conversationId: string) {
   if (people.error) throw internalFailure("Message author context is unavailable");
   const names = new Map((people.data ?? []).map(row => [String(row.user_id), String(row.display_name ?? "Employee")]));
   const ids=rows.map(row=>String(row.id));
-  const fileResult=ids.length?await current.admin.from("office_chat_attachment_objects")
+  const [fileResult,pinResult]=await Promise.all([
+   ids.length?current.admin.from("office_chat_attachment_objects")
     .select("id,message_id,original_filename,detected_mime_type,byte_size")
     .in("message_id",ids).eq("conversation_id",conversationId).eq("status","CLEAN")
-    .limit(200):{data:[],error:null};
-  if(fileResult.error)throw internalFailure("Message attachments unavailable");
+    .limit(200):Promise.resolve({data:[],error:null}),
+   ids.length?current.admin.from("office_chat_pinned_messages")
+    .select("message_id").in("message_id",ids).eq("conversation_id",conversationId)
+    .limit(100):Promise.resolve({data:[],error:null}),
+  ]);
+  if(fileResult.error||pinResult.error)throw internalFailure("Message history is unavailable");
+  const pinned=new Set((pinResult.data??[]).map(pin=>String(pin.message_id)));
   return { actor_user_id: current.identity.userId,
+    can_pin:conversation.kind!=="GROUP"||conversation.created_by===current.identity.userId,
     messages: rows.map(row => ({
       id: row.id, sender_user_id: row.sender_user_id,
       sender_name: names.get(String(row.sender_user_id)) ?? "Employee",
       body: row.body, created_at: row.created_at, edited_at: row.edited_at,
+      pinned:pinned.has(String(row.id)),
       attachments:(fileResult.data??[]).filter(file=>file.message_id===row.id).map(file=>({id:file.id,name:file.original_filename,mime:file.detected_mime_type,size:file.byte_size})),
     })) };
 }
@@ -450,4 +458,16 @@ export async function getOfficeChatMessageRevisions(messageId:string){
   current_body:message.body,previous_versions:(revisions??[]).map(row=>({
     id:row.id,body:row.previous_body,revised_at:row.revised_at,
   }))};
+}
+
+/** A pin is shared within the current conversation. The GROUP creator moderates
+ * group pins; current DM and department members may pin with an audited change. */
+export async function setOfficeChatMessagePin(messageId:string,pin:boolean){
+ const current=await actor();
+ await authorizeMessageMutation(current,messageId);
+ const {data,error}=await current.admin.rpc("office_chat_set_pin",{
+  p_actor:current.identity.userId,p_message:messageId,p_pin:pin,
+ });
+ if(error||data!==true)throw new OfficeChatError(403,"Conversation pin authority is unavailable");
+ return {pinned:pin};
 }

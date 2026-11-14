@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, MessageSquareText, RefreshCw, Search, Send, Paperclip } from "lucide-react";
+import { ArrowLeft, ArrowRight, MessageSquareText, RefreshCw, Search, Send, Paperclip, Pin } from "lucide-react";
 import styles from "./office-connect.module.css";
 import { OfficeConnectMessageActions } from "@/components/office-connect-message-actions";
 import { OfficeConnectOverview } from "@/components/office-connect-overview";
@@ -10,12 +10,12 @@ import { Office5FileCard, type Office5FileStatus } from "@/components/office5-pr
 import { useOfficeWorkspace } from "@/components/office-workspace-context";
 
 type Conversation = { id: string; kind: string; title: string; department_code?: string | null; updated_at: string };
-type Message = { id: string; sender_user_id: string; sender_name: string; body: string; created_at: string; edited_at?: string | null;
+type Message = { id: string; sender_user_id: string; sender_name: string; body: string; created_at: string; edited_at?: string | null; pinned?:boolean;
  attachments?: {id:string;name:string;mime:string;size:number}[] };
 type SelectedFile={id?:string;key:string;name:string;status:Office5FileStatus;message?:string};
 type ListResponse = { actor_user_id: string; conversations: Conversation[] };
 type Member={user_id:string;display_name:string};
-type MessageResponse = { actor_user_id: string; messages: Message[] };
+type MessageResponse = { actor_user_id: string; can_pin:boolean; messages: Message[] };
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { credentials: "same-origin", cache: "no-store", ...init });
@@ -31,6 +31,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
   const [listError, setListError] = useState("");
   const [listLoading, setListLoading] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [canPin,setCanPin]=useState(false);
   const [messageError, setMessageError] = useState("");
   const [messageLoading, setMessageLoading] = useState(!!initialConversationId);
   const [reloadCount, setReloadCount] = useState(0);
@@ -82,6 +83,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
         const response = await json<MessageResponse>("/api/office-chat/conversations/" + encodeURIComponent(activeId) + "/messages");
         if (!live) return;
         setMessages(response.messages);
+        setCanPin(response.can_pin===true);
         setActor(response.actor_user_id);
         setMessageError("");
         void fetch("/api/office-chat/conversations/"+encodeURIComponent(activeId)+"/messages",{method:"PATCH",credentials:"same-origin"});
@@ -210,6 +212,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
             {!messageLoading && !messageError && !messages.length ? <div className={styles.empty}>No messages yet. Start the conversation below.</div> : null}
             {messages.map(message => <article key={message.id} className={styles.message} data-own={message.sender_user_id === actor}>
               <strong>{message.sender_user_id === actor ? "You" : message.sender_name}</strong>
+              {message.pinned?<span className={styles.pinned}><Pin size={13} aria-hidden="true"/>Pinned in this conversation</span>:null}
               <p>{message.body}</p>
               <time dateTime={message.created_at}>{new Date(message.created_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</time>
               {message.attachments?.length?<div className={styles.messageFiles} aria-label="Scanned shared attachments">
@@ -218,7 +221,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
                   {file.name} · {Math.ceil(file.size/1024)} KiB</a>)}
               </div>:null}
               <OfficeConnectMessageActions id={message.id} body={message.body} editedAt={message.edited_at}
-                own={message.sender_user_id===actor} onDone={()=>setReloadCount(v=>v+1)}/>
+                pinned={message.pinned} canPin={canPin} own={message.sender_user_id===actor} onDone={()=>setReloadCount(v=>v+1)}/>
             </article>)}
           </div>
           <form className={styles.composer} onSubmit={send}>

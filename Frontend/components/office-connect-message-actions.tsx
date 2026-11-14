@@ -1,9 +1,9 @@
 "use client";
 import {useState,type FormEvent} from "react";
 import Link from "next/link";
-import {Bookmark,CornerDownRight,Edit3,Flag,History,Trash2} from "lucide-react";
+import {Bookmark,CornerDownRight,Edit3,Flag,History,Pin,PinOff,Trash2} from "lucide-react";
 import styles from "./office-connect-message-actions.module.css";
-type Props={id:string;body:string;own:boolean;editedAt?:string|null;onDone:()=>void};
+type Props={id:string;body:string;own:boolean;pinned?:boolean;canPin?:boolean;editedAt?:string|null;onDone:()=>void};
 type RevisionResponse={created_at:string;edited_at:string|null;current_body:string;
  previous_versions:{id:number;body:string;revised_at:string}[]};
 async function mutation<T>(url:string,method:string,payload?:Record<string,unknown>):Promise<T>{
@@ -13,7 +13,7 @@ async function mutation<T>(url:string,method:string,payload?:Record<string,unkno
  if(!response.ok)throw new Error(data.detail||"Action not confirmed");
  return data;
 }
-export function OfficeConnectMessageActions({id,body,own,editedAt,onDone}:Props){
+export function OfficeConnectMessageActions({id,body,own,pinned=false,canPin=false,editedAt,onDone}:Props){
  const [editing,setEditing]=useState(false);
  const [remove,setRemove]=useState(false);
  const [draft,setDraft]=useState(body);
@@ -38,6 +38,14 @@ export function OfficeConnectMessageActions({id,body,own,editedAt,onDone}:Props)
   try{await mutation("/api/office-chat/messages/"+id,"PATCH",{body:draft.trim()});
    setEditing(false);onDone();}
   catch(e){setNotice(e instanceof Error?e.message:"Edit not confirmed")}
+  finally{setBusy(false)}
+ }
+ async function togglePin(){
+  setBusy(true);setNotice("");
+  try{
+   await mutation("/api/office-chat/messages/"+id+"/pin","POST",{pin:!pinned});
+   onDone();setNotice(pinned?"Pin removed":"Pinned for this conversation");
+  }catch(e){setNotice(e instanceof Error?e.message:"Pin not confirmed")}
   finally{setBusy(false)}
  }
  async function toggleHistory(){
@@ -78,6 +86,8 @@ export function OfficeConnectMessageActions({id,body,own,editedAt,onDone}:Props)
   <nav aria-label="Message actions">
    <Link href={"/office/chat/threads/"+id}><CornerDownRight size={14}/>Reply</Link>
    <button type="button" disabled={busy} onClick={()=>void save()}><Bookmark size={14}/>Save</button>
+   {canPin?<button type="button" disabled={busy} onClick={()=>void togglePin()}>
+    {pinned?<PinOff size={14}/>:<Pin size={14}/>} {pinned?"Unpin":"Pin"}</button>:null}
    {own?<button type="button" disabled={busy} onClick={()=>{setDraft(body);setEditing(true);setRemove(false);}}><Edit3 size={14}/>Edit</button>:null}
    {own?<button type="button" disabled={busy} onClick={()=>{setRemove(true);setEditing(false);}}><Trash2 size={14}/>Remove</button>:null}
    {editedAt?<button type="button" disabled={busy} aria-expanded={historyOpen}
