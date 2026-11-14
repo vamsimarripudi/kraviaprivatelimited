@@ -11,8 +11,10 @@ export function useOfficeChatLive(
 ):OfficeChatLiveStatus{
  const [status,setStatus]=useState<OfficeChatLiveStatus>("idle");
  const changeRef=useRef(onChange),revokedRef=useRef(onRevoked);
- changeRef.current=onChange;
- revokedRef.current=onRevoked;
+ useEffect(()=>{
+  changeRef.current=onChange;
+  revokedRef.current=onRevoked;
+ },[onChange,onRevoked]);
  useEffect(()=>{
   if(!conversationId){return;}
   if(typeof EventSource==="undefined"){return;}
