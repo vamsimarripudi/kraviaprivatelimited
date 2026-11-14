@@ -112,3 +112,63 @@ after insert or update on public.office_payroll_adjustments
 for each row execute function public.office_payroll_invalidate_changed_draft();
 
 revoke all on function public.office_payroll_invalidate_changed_draft() from public,anon,authenticated;
+
+-- Create a review case from an actual completed Office attendance session.
+-- HR can queue a subordinate's session, but cannot approve what HR submitted.
+-- The session is locked to stop duplicate concurrent preparations.
+create or replace function public.office_worktime_queue_recorded(
+  p_actor uuid,p_employee uuid,p_attendance uuid
+) returns uuid language plpgsql security definer set search_path='' as $kravia_hr$
+declare
+  recorded public.office_attendance_sessions%rowtype;
+  canonical_breaks jsonb;
+  new_case uuid;
+begin
+  if not exists(select 1 from public.office_identity_users
+                where user_id=p_actor and status='ACTIVE') then
+    raise exception 'Active Office employee identity required'; end if;
+  if p_actor<>p_employee and (
+    not public.office_effective_permission(p_actor,'people.update','COMPANY',null,null)
+    or not (
+      exists(select 1 from public.office_user_roles r
+        where r.user_id=p_actor and r.role in ('OWNER','DIRECTOR')
+          and (r.expires_at is null or r.expires_at>now()))
+      or exists(select 1 from public.office_user_access_profiles h
+        where h.user_id=p_actor and h.profile_code='HR_MANAGER' and h.status='ACTIVE'
+          and (h.effective_from is null or h.effective_from<=now())
+          and (h.expires_at is null or h.expires_at>now()))
+    )
+  ) then raise exception 'Current HR/Director authority required to queue other employees'; end if;
+  select * into recorded from public.office_attendance_sessions
+    where id=p_attendance and user_id=p_employee for update;
+  if not found or recorded.check_out_at is null
+     or recorded.check_out_at <= recorded.check_in_at
+     or recorded.check_in_at < timestamptz '2026-07-31 18:30:00+00'
+     or recorded.check_out_at > now() + interval '1 minute' then
+    raise exception 'Only completed real attendance from 1 August 2026 may be queued'; end if;
+  if exists(select 1 from public.office_attendance_breaks b
+            where b.attendance_session_id=p_attendance and b.ended_at is null) then
+    raise exception 'Open attendance breaks must be completed before review'; end if;
+  if exists(select 1 from public.office_worktime_review_cases
+            where attendance_session_id=p_attendance and status in ('PENDING','APPROVED')) then
+    raise exception 'Recorded attendance is already pending or approved'; end if;
+  select coalesce(jsonb_agg(jsonb_build_object(
+     'startAt',b.started_at,'endAt',b.ended_at) order by b.started_at),'[]'::jsonb)
+    into canonical_breaks from public.office_attendance_breaks b
+    where b.attendance_session_id=p_attendance;
+  insert into public.office_worktime_review_cases(
+    employee_user_id,attendance_session_id,work_starts_at,work_ends_at,breaks,
+    source_kind,source_reference,requested_by,request_reason
+  ) values (
+    p_employee,p_attendance,recorded.check_in_at,recorded.check_out_at,canonical_breaks,
+    'RECORDED_SESSION','OFFICE_ATTENDANCE:' || p_attendance::text,
+    p_actor,'Queued from actual completed KRAVIA Office attendance; independent evidence review required'
+  ) returning id into new_case;
+  insert into public.office_worktime_events(case_id,actor_user_id,event_type,context)
+  values(new_case,p_actor,'SUBMITTED',jsonb_build_object(
+    'action','QUEUE_RECORDED','canonical_attendance_session',p_attendance));
+  return new_case;
+end; $kravia_hr$;
+
+revoke all on function public.office_worktime_queue_recorded(uuid,uuid,uuid) from public,anon,authenticated;
+grant execute on function public.office_worktime_queue_recorded(uuid,uuid,uuid) to service_role;
