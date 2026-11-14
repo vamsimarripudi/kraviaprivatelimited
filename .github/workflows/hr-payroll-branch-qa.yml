@@ -1,0 +1,93 @@
+name: KRAVIA HR salary and overtime branch QA
+on:
+  push:
+    branches:
+      - feature/hr-hours-auto-payroll-audit-20261114
+    paths:
+      - 'Frontend/lib/office/attendance-salary-preview.ts'
+      - 'Frontend/lib/office/worktime-payroll-server.ts'
+      - 'Frontend/lib/office/payroll-server.ts'
+      - 'Frontend/app/api/office-worktime/route.ts'
+      - 'Frontend/app/api/office-payroll/route.ts'
+      - 'Frontend/components/office-worktime-console.tsx'
+      - 'Frontend/components/office-payroll-console.tsx'
+      - 'Frontend/tests/office-attendance-salary-preview.test.ts'
+      - 'Frontend/tests/office-hr-hours-payroll-safety.test.ts'
+      - 'Database/supabase/migrations/202611140003_hr_hours_payroll_revision_guards.sql'
+      - 'Database/supabase/tests/hr-payroll-guards-*.sql'
+      - '.github/workflows/hr-payroll-branch-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Payroll TS, lint and regression tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+      - name: Install dependencies
+        working-directory: Frontend
+        run: npm ci --no-fund --no-audit
+      - name: TypeScript check
+        working-directory: Frontend
+        run: npm run typecheck
+      - name: HR payroll regression tests
+        working-directory: Frontend
+        run: npx vitest run tests/office-attendance-salary-preview.test.ts tests/office-hr-hours-payroll-safety.test.ts tests/office-worktime-payroll-policy.test.ts tests/office-worktime-payroll-integration.test.ts tests/office-payroll-engine.test.ts tests/office-hr-effective-dated-attendance.test.ts
+      - name: ESLint changed HR modules
+        working-directory: Frontend
+        run: npx eslint lib/office/attendance-salary-preview.ts lib/office/worktime-payroll-server.ts lib/office/payroll-server.ts app/api/office-worktime/route.ts app/api/office-payroll/route.ts components/office-worktime-console.tsx components/office-payroll-console.tsx tests/office-attendance-salary-preview.test.ts tests/office-hr-hours-payroll-safety.test.ts
+
+  database:
+    name: Disposable PostgreSQL 17 HR payroll guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: kravia_hr_qa
+          POSTGRES_PASSWORD: ci-postgres-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kravia_hr_qa"
+          --health-interval 3s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Run isolated HR payroll migration and correction regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg() {
+            docker run --rm --network host -v "$PWD:/repo:ro" --workdir /repo \
+              --env PGPASSWORD=ci-postgres-only postgres:17 \
+              psql --host 127.0.0.1 --username postgres --dbname kravia_hr_qa \
+                --set ON_ERROR_STOP=1 "$@"
+          }
+          pg -f Database/supabase/tests/workforce-release-fixture.sql
+          pg -f Database/supabase/migrations/202611100001_permanent_department_ownership.sql
+          pg -f Database/supabase/migrations/202611100002_worktime_salary_evidence.sql
+          pg -f Database/supabase/migrations/202611100003_flex_day_credits.sql
+          pg -f Database/supabase/migrations/202611110002_harden_salary_settlement_trigger_execute.sql
+          pg -f Database/supabase/migrations/202611130001_future_effective_hr_access.sql
+          pg -f Database/supabase/migrations/202611130002_hr_worktime_evidence_authority.sql
+          pg -f Database/supabase/tests/hr-payroll-guards-fixture.sql
+          pg -f Database/supabase/migrations/202611140003_hr_hours_payroll_revision_guards.sql
+          test "$(pg --tuples-only --no-align -f Database/supabase/tests/hr-payroll-guards-smoke.sql | tail -n 1)" = "HR_PAYROLL_CORRECTION_GUARDS_VERIFIED"
+          echo "HR payroll and overtime guards passed in disposable PostgreSQL."
