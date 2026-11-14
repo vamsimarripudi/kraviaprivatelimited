@@ -13,5 +13,17 @@ create function public.office_effective_permission(
  p_key text default null,p_owner uuid default null
 ) returns boolean language sql stable as $$
  select p_actor='00000000-0000-4000-8000-000000000002'::uuid
-  and p_permission in ('access.profile.assign','registration.review','document.instance.review')
+  and p_permission in ('access.profile.assign','registration.review','document.instance.review','vault.secret.review','vault.secret.upload')
 $$;
+
+-- Minimal isolated schemas for the sealed locker migration; never deployed.
+create schema if not exists storage;
+create table if not exists storage.buckets(
+ id text primary key,name text not null,public boolean not null,
+ file_size_limit bigint,allowed_mime_types text[]
+);
+create table public.office_permission_catalog(
+ code text primary key,module text,action text,label text,description text,
+ sensitivity text,high_risk boolean,requires_managed_device boolean,
+ active boolean,owner_bypass boolean
+);
