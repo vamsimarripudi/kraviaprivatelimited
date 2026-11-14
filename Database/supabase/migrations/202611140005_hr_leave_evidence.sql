@@ -154,3 +154,122 @@ grant execute on function public.office_hr_leave_submit(uuid,uuid,date,date,text
   to service_role;
 grant execute on function public.office_hr_leave_decide(uuid,uuid,text,text)
   to service_role;
+
+
+-- Do not submit or settle a payroll result whose source snapshot omits an
+-- approved leave/holiday that overlaps the payroll period. The reference must
+-- be in the salary snapshot's approved source_leave_ids array.
+create or replace function public.office_hr_leave_payroll_guard(p_period uuid)
+returns void language plpgsql security definer set search_path='' as $kravia_leave$
+declare per public.office_payroll_periods%rowtype;
+begin
+  select * into per from public.office_payroll_periods where id=p_period;
+  if not found then raise exception 'Payroll period missing'; end if;
+  if exists (
+    select 1 from public.office_payroll_attendance_snapshots s
+    join public.office_hr_leave_requests l on l.employee_user_id=s.employee_user_id
+    where s.period_id=per.id and l.status='APPROVED'
+      and l.starts_on<=per.ends_on and l.ends_on>=per.starts_on
+      and not coalesce((s.source_snapshot->'source_leave_ids') ? l.id::text,false)
+  ) then
+    raise exception 'Payroll is missing approved leave evidence; refresh attendance and obtain independent review before calculation, approval or payment';
+  end if;
+end; $kravia_leave$;
+revoke all on function public.office_hr_leave_payroll_guard(uuid) from public,anon,authenticated;
+grant execute on function public.office_hr_leave_payroll_guard(uuid) to service_role;
+
+-- Preserve existing payroll transition semantics while enforcing the leave
+-- freshness gate inside the database, not only in browser UI.
+
+create or replace function public.office_payroll_calculate(p_actor uuid,p_period uuid)
+returns integer language plpgsql security definer set search_path='' as $$
+declare per public.office_payroll_periods%rowtype; snap record; comp public.office_compensation_versions%rowtype; pending_count integer; calc_version integer; earn bigint; deduct bigint; employer bigint; prorated bigint; net bigint; payload jsonb; hash text; result_count integer:=0; midperiod_count integer;
+begin
+ if not public.office_effective_permission(p_actor,'payroll.run.prepare','COMPANY',null,null) then raise exception 'Payroll preparation permission is required'; end if;
+ select * into per from public.office_payroll_periods where id=p_period for update;
+ if per.id is null or per.status not in ('ATTENDANCE_READY','CALCULATED') then raise exception 'Payroll attendance must be ready before calculation'; end if;
+ perform public.office_hr_leave_payroll_guard(per.id);
+ select count(*) into pending_count from public.office_payroll_attendance_snapshots where period_id=per.id and unresolved_units>0;
+ if pending_count>0 then raise exception 'Payroll contains unresolved attendance units'; end if;
+  select count(*) into pending_count from public.office_payroll_attendance_snapshots
+  where period_id=per.id and (status<>'REVIEWED' or reviewed_by is null
+    or reviewed_by=prepared_by or reviewed_by=employee_user_id or reviewed_at is null);
+  if pending_count>0 then raise exception 'Independently reviewed attendance snapshots are required before payroll calculation'; end if;
+  if exists(select 1 from public.office_payroll_attendance_snapshots
+    where period_id=per.id and
+      abs(payable_units+unpaid_leave_units+absence_units+unresolved_units-basis_units)>0.001) then
+    raise exception 'Payroll attendance allocation is not reconciled'; end if;
+ if per.period_kind='MONTHLY' and exists(
+    select 1 from public.office_payroll_attendance_snapshots s
+    join public.office_employment_registry e on e.employment_id=s.employment_id
+    where s.period_id=per.id and (e.status='PLANNED' or e.start_date is null
+      or e.start_date>per.ends_on or (e.end_date is not null and e.end_date<per.starts_on))
+ ) then raise exception 'Monthly payroll requires verified employment dates, not planned roles'; end if;
+ select count(*) into pending_count from public.office_payroll_adjustments where period_id=per.id and status='DRAFT';
+ if pending_count>0 then raise exception 'Payroll contains unreviewed adjustments'; end if;
+ calc_version:=per.calculation_version+1;
+ update public.office_payroll_results set status='SUPERSEDED' where period_id=per.id and status='CALCULATED';
+ for snap in select * from public.office_payroll_attendance_snapshots where period_id=per.id order by employment_id loop
+   select count(*) into midperiod_count from public.office_compensation_versions where employment_id=snap.employment_id and status='APPROVED' and effective_from>per.starts_on and effective_from<=per.ends_on;
+   if midperiod_count>0 then raise exception 'Mid-period compensation change requires an explicit arrears/off-cycle adjustment before calculation'; end if;
+   select * into comp from public.office_compensation_versions where employment_id=snap.employment_id and status='APPROVED' and effective_from<=per.starts_on and (effective_to is null or effective_to>=per.starts_on) order by effective_from desc limit 1;
+   if comp.id is null then raise exception 'Approved compensation is missing for payroll employment %',snap.employment_id; end if;
+   select coalesce(sum(amount_minor),0) into earn from public.office_payroll_adjustments where period_id=per.id and employment_id=snap.employment_id and status='APPROVED' and adjustment_kind='EARNING' and currency=comp.currency;
+   select coalesce(sum(amount_minor),0) into deduct from public.office_payroll_adjustments where period_id=per.id and employment_id=snap.employment_id and status='APPROVED' and adjustment_kind='DEDUCTION' and currency=comp.currency;
+   select coalesce(sum(amount_minor),0) into employer from public.office_payroll_adjustments where period_id=per.id and employment_id=snap.employment_id and status='APPROVED' and adjustment_kind='EMPLOYER_COST' and currency=comp.currency;
+   if exists(select 1 from public.office_payroll_adjustments where period_id=per.id and employment_id=snap.employment_id and status='APPROVED' and currency<>comp.currency) then raise exception 'Payroll adjustments must match compensation currency'; end if;
+   prorated:=round(comp.monthly_gross_minor::numeric*snap.payable_units/snap.basis_units)::bigint;
+   net:=prorated+earn-deduct;
+   if net<0 then raise exception 'Payroll deductions exceed payable earnings'; end if;
+   payload:=jsonb_build_object('period_id',per.id,'employment_id',snap.employment_id,'compensation_version_id',comp.id,'monthly_gross_minor',comp.monthly_gross_minor,'basis_units',snap.basis_units,'payable_units',snap.payable_units,'paid_leave_units',snap.paid_leave_units,'unpaid_leave_units',snap.unpaid_leave_units,'absence_units',snap.absence_units,'earnings_minor',earn,'deductions_minor',deduct,'employer_costs_minor',employer,'net_pay_minor',net,'currency',comp.currency,'calculation_version',calc_version);
+   hash:=encode(extensions.digest(convert_to(payload::text,'UTF8'),'sha256'),'hex');
+   insert into public.office_payroll_results(period_id,employment_id,employee_user_id,compensation_version_id,currency,base_gross_minor,prorated_gross_minor,additional_earnings_minor,deductions_minor,employer_costs_minor,net_pay_minor,line_items,calculation_snapshot,calculation_hash,calculation_version,calculated_by)
+   values(per.id,snap.employment_id,snap.employee_user_id,comp.id,comp.currency,comp.monthly_gross_minor,prorated,earn,deduct,employer,net,jsonb_build_array(jsonb_build_object('code','BASE_GROSS','amount_minor',prorated),jsonb_build_object('code','ADDITIONAL_EARNINGS','amount_minor',earn),jsonb_build_object('code','DEDUCTIONS','amount_minor',deduct),jsonb_build_object('code','EMPLOYER_COSTS','amount_minor',employer)),payload,hash,calc_version,p_actor);
+   result_count:=result_count+1;
+ end loop;
+ if result_count=0 then raise exception 'No payroll attendance snapshots are available'; end if;
+ update public.office_payroll_periods set status='CALCULATED',calculation_version=calc_version,approval_request_id=null,updated_at=now() where id=per.id;
+ insert into public.office_payroll_events(actor_user_id,period_id,event_type,metadata) values(p_actor,per.id,'PAYROLL_CALCULATED',jsonb_build_object('calculation_version',calc_version,'employee_count',result_count));
+ return result_count;
+end; $$;
+
+create or replace function public.office_payroll_submit(p_actor uuid,p_period uuid)
+returns uuid language plpgsql security definer set search_path='' as $$
+declare per public.office_payroll_periods%rowtype; approval uuid; total bigint; employees integer; currencies integer;
+begin
+ if not public.office_effective_permission(p_actor,'payroll.run.prepare','COMPANY',null,null) then raise exception 'Payroll preparation permission is required'; end if;
+ select * into per from public.office_payroll_periods where id=p_period for update;
+ if per.id is null or per.status<>'CALCULATED' then raise exception 'Calculated payroll period is required'; end if;
+ perform public.office_hr_leave_payroll_guard(per.id);
+ select count(*),coalesce(sum(net_pay_minor),0),count(distinct currency) into employees,total,currencies from public.office_payroll_results where period_id=per.id and calculation_version=per.calculation_version and status='CALCULATED';
+ if employees=0 then raise exception 'Payroll results are missing'; end if;
+ if currencies<>1 then raise exception 'A payroll approval request must contain a single currency batch'; end if;
+ approval:=public.office_create_request(p_actor,'PAYROLL_RUN_APPROVAL','Payroll approval · '||per.period_code,'Review '||employees::text||' payroll results with total net pay minor units '||total::text,jsonb_build_object('period_id',per.id,'period_code',per.period_code,'calculation_version',per.calculation_version,'employee_count',employees,'net_total_minor',total),'HIGH',null,'PAYROLL_PERIOD',per.id::text);
+ update public.office_payroll_periods set status='PENDING_REVIEW',approval_request_id=approval,updated_at=now() where id=per.id;
+ insert into public.office_payroll_events(actor_user_id,period_id,event_type,metadata) values(p_actor,per.id,'PAYROLL_SUBMITTED',jsonb_build_object('approval_request_id',approval,'employee_count',employees,'net_total_minor',total));
+ return approval;
+end; $$;
+
+create or replace function public.office_payroll_sync_approval(p_actor uuid,p_period uuid)
+returns text language plpgsql security definer set search_path='' as $$
+declare per public.office_payroll_periods%rowtype; r public.office_requests%rowtype; final_approver uuid; state text;
+begin
+ select * into per from public.office_payroll_periods where id=p_period for update;
+ if per.id is null or per.approval_request_id is null then raise exception 'Payroll approval request is missing'; end if;
+ if not public.office_effective_permission(p_actor,'payroll.run.read','COMPANY',null,null) and not public.office_effective_permission(p_actor,'payroll.run.prepare','COMPANY',null,null) then raise exception 'Payroll read permission is required'; end if;
+ select * into r from public.office_requests where id=per.approval_request_id;
+ if r.id is null then raise exception 'Payroll approval workflow not found'; end if;
+ if r.status='APPROVED' then
+   perform public.office_hr_leave_payroll_guard(per.id);
+   select decision_by into final_approver from public.office_request_steps where request_id=r.id and status='APPROVED' order by step_order desc limit 1;
+   update public.office_payroll_periods set status='APPROVED',approved_by=final_approver,approved_at=now(),updated_at=now() where id=per.id;
+   update public.office_payroll_results set status='LOCKED' where period_id=per.id and calculation_version=per.calculation_version and status='CALCULATED';
+   update public.office_payroll_attendance_snapshots set status='LOCKED',updated_at=now() where period_id=per.id;
+   state:='APPROVED';
+ elsif r.status='REJECTED' then
+   update public.office_payroll_periods set status='CALCULATED',approval_request_id=null,updated_at=now() where id=per.id;
+   state:='REJECTED';
+ else state:='PENDING_REVIEW'; end if;
+ insert into public.office_payroll_events(actor_user_id,period_id,event_type,metadata) values(p_actor,per.id,'PAYROLL_APPROVAL_SYNCED',jsonb_build_object('workflow_status',r.status,'payroll_status',state));
+ return state;
+end; $$;
