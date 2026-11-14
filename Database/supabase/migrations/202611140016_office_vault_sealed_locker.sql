@@ -98,6 +98,25 @@ grant select,insert,update on public.office_vault_secret_documents,public.office
 grant select,insert on public.office_vault_secret_events to service_role;
 grant usage,select on sequence public.office_vault_secret_events_id_seq to service_role;
 
+-- The corporate classification and original custodian are immutable once
+-- evidence is sealed. A human-readable title cannot be rewritten later.
+create or replace function public.office_vault_secret_document_integrity()
+returns trigger language plpgsql security invoker set search_path=public as $
+begin
+ if row(new.owner_user_id,new.title,new.classification,new.created_at)
+   is distinct from row(old.owner_user_id,old.title,old.classification,old.created_at)
+ then raise exception 'Sealed document custody and classification are immutable'; end if;
+ if new.state<>old.state and not(old.state='ACTIVE' and new.state='RETIRED')
+ then raise exception 'Sealed document retirement is one-way'; end if;
+ return new;
+end; $;
+revoke all on function public.office_vault_secret_document_integrity() from public,anon,authenticated;
+grant execute on function public.office_vault_secret_document_integrity() to service_role;
+drop trigger if exists office_vault_secret_document_no_rewrite on public.office_vault_secret_documents;
+create trigger office_vault_secret_document_no_rewrite before update
+ on public.office_vault_secret_documents for each row
+ execute function public.office_vault_secret_document_integrity();
+
 create or replace function public.office_vault_secret_version_immutability()
 returns trigger language plpgsql security invoker set search_path=public as $$
 begin
