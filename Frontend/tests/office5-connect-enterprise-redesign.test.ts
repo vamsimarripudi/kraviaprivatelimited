@@ -10,6 +10,7 @@ const attachment=read("lib/office/chat-attachment-server.ts");
 const api=read("app/api/office-chat/templates/route.ts");
 const sql=read("../Database/supabase/migrations/20261114215001_office_chat_media_and_personal_templates.sql");
 const backend=read("../Backend/backend/main.py");
+const preview=read("app/api/office-chat/attachments/[id]/preview/route.ts");
 
 describe("KRAVIA Office 5.0 enterprise Connect screen",()=>{
  it("preserves the collapsed rail's workspace canvas and centered logout",()=>{
@@ -83,6 +84,16 @@ describe("KRAVIA Office 5.0 enterprise Connect screen",()=>{
   expect(backend).toContain('"video/webm"');
   expect(sql).toContain("update storage.buckets set");
   expect(sql).toContain("public=false");
+ });
+ it("limits inline GIF/video previews to source-authorized clean media",()=>{
+  expect(preview).toContain("downloadOfficeChatAttachment(id)");
+  expect(preview).toContain('new Set(["image/jpeg","image/png","image/webp","image/gif","video/mp4","video/webm"])');
+  expect(preview).toContain('"Content-Security-Policy":"sandbox"');
+  expect(preview).toContain('"Cache-Control":"private, no-store"');
+  expect(preview).toContain('X-Content-Type-Options');
+  expect(preview).not.toContain("createSignedUrl");
+  expect(connect).toContain('className="chat-inline-media"');
+  expect(connect).toContain('/preview');
  });
  it("does not mistake routine SSE rotations for permanent disconnections",()=>{
   expect(live).toContain("setTimeout");
