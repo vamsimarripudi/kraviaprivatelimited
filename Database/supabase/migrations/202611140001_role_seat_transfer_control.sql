@@ -161,14 +161,20 @@ $$;
 
 create or replace function public.office_role_seat_is_independent_reviewer(
   p_actor uuid, p_from uuid, p_to uuid
-) returns boolean language sql stable security definer set search_path to '' as $$
-  select p_actor is distinct from p_from and p_actor is distinct from p_to
-     and exists(select 1 from public.office_identity_users i
-       join public.office_user_roles r on r.user_id=i.user_id
-       where i.user_id=p_actor and i.status='ACTIVE'
-         and r.role in ('OWNER','ADMIN','DIRECTOR')
-         and (r.expires_at is null or r.expires_at>now()));
-$$;
+) returns boolean language plpgsql stable security definer set search_path to '' as $
+begin
+  if p_actor is not distinct from p_from or p_actor is not distinct from p_to then return false; end if;
+  if not exists(select 1 from public.office_identity_users i
+     join public.office_user_roles r on r.user_id=i.user_id
+     where i.user_id=p_actor and i.status='ACTIVE'
+       and r.role in ('OWNER','ADMIN','DIRECTOR')
+       and (r.expires_at is null or r.expires_at>now())) then return false; end if;
+  -- A title alone never supplies reviewer authority. The reviewer must have
+  -- independent COMPANY-scoped access administration or security review rights.
+  return public.office_effective_permission(p_actor,'access.profile.assign','COMPANY',null,null)
+      or public.office_effective_permission(p_actor,'security.change.review','COMPANY',null,null);
+end;
+$;
 
 create or replace function public.office_role_seat_create(
  p_actor uuid,p_code text,p_label text,p_position text,p_department text,
