@@ -181,8 +181,8 @@ export async function setPayrollAttendance(input: { periodId: string; employment
   const unresolved = input.unresolvedUnits ?? 0;
   const entries = [input.basisUnits,payable,paidLeave,unpaid,absence,unresolved];
   if (entries.some(x => !Number.isFinite(x) || x < 0) || input.basisUnits <= 0 ||
-      paidLeave > payable || payable + unpaid + absence + unresolved > input.basisUnits + 0.001) {
-    throw new OfficePayrollError(400, "Invalid reviewed payroll hours. Paid leave is part of payable hours; unresolved time cannot be silently deducted");
+      paidLeave > payable || Math.abs(payable + unpaid + absence + unresolved - input.basisUnits) > 0.001) {
+    throw new OfficePayrollError(400, "Invalid reviewed payroll hours. Paid leave is within payable; payable plus unpaid leave, verified absence and unresolved must exactly equal the period basis");
   }
   if (!input.sourceSnapshot || typeof input.sourceSnapshot.source !== "string") {
     throw new OfficePayrollError(400, "Verifiable attendance evidence is required");
