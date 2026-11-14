@@ -17,7 +17,7 @@ export type OfficeResourceScope = {
 export type OfficePermissionDecision = {
   allowed: boolean;
   permission: string;
-  source?: "OWNER" | "DEPARTMENT_OWNER" | "DEPARTMENT_DENY" | "PROFILE" | "OVERRIDE_ALLOW" | "OVERRIDE_DENY";
+  source?: "OWNER" | "DEPARTMENT_OWNER" | "DEPARTMENT_DENY" | "ROLE_SEAT" | "ROLE_SEAT_DENY" | "PROFILE" | "OVERRIDE_ALLOW" | "OVERRIDE_DENY";
   profileCode?: string;
   scopeType?: OfficeScopeType;
   scopeKey?: string | null;
@@ -99,6 +99,30 @@ export async function resolveOfficePermission(
   const deny = (overrides ?? []).find((row) => row.effect === "DENY" && active(row.expires_at) && scopeMatches(row.scope_type as OfficeScopeType, row.scope_key, resource, identity.userId));
   if (deny) {
     return { allowed: false, permission: permissionCode, source: "OVERRIDE_DENY", scopeType: deny.scope_type as OfficeScopeType, scopeKey: deny.scope_key, reason: "Explicit permission deny" };
+  }
+
+  // Role-seat transfer restrictions precede OWNER shortcuts and legacy profiles.
+  // The database RPC also enforces the same rule for canonical backend checks.
+  const { data: seatVerdict, error: seatError } = await admin.rpc("office_role_seat_permission_verdict", {
+    p_actor: identity.userId,
+    p_permission: permissionCode,
+    p_scope_type: resource.type,
+    p_scope_key: resource.key ?? null,
+    p_owner_user_id: resource.ownerUserId ?? null,
+  });
+  if (seatError || !["DEFAULT", "GRANTED", "DENY"].includes(String(seatVerdict))) {
+    return { allowed: false, permission: permissionCode, reason: "Role-seat authority is unavailable" };
+  }
+  if (seatVerdict === "DENY") {
+    return { allowed: false, permission: permissionCode, source: "ROLE_SEAT_DENY",
+      reason: "Exclusive operational authority was transferred to the current role holder" };
+  }
+  if (seatVerdict === "GRANTED") {
+    return enforceDevice(admin, identity.userId, permissionCode, permissionResult.data, {
+      allowed: true, permission: permissionCode, source: "ROLE_SEAT",
+      scopeType: resource.type, scopeKey: resource.key ?? null,
+      reason: "Explicit active role-seat permission",
+    }, deviceId);
   }
 
   if (permissionResult.data.owner_bypass !== false && (identity.roles.includes("OWNER") || verdict === "DEPARTMENT_OWNER")) {
