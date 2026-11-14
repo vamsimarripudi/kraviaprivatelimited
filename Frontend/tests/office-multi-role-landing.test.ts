@@ -15,6 +15,13 @@ describe("KRAVIA Office multi-role sign-in and effective-dated authority", () =>
     expect(capabilityCanAccessSection("office", "people", assigned, [])).toBe(false);
   });
 
+  it("does not expose denied operational modules by OWNER title alone", () => {
+    expect(capabilityCanAccessSection("office", "dashboard", ["OWNER"], [])).toBe(true);
+    expect(capabilityCanAccessSection("finance", "payments", ["OWNER"], [])).toBe(false);
+    expect(capabilityCanAccessSection("office", "people", ["OWNER"], [])).toBe(false);
+    expect(capabilityCanAccessSection("office", "people", ["OWNER"], ["people.basic.read"])).toBe(true);
+  });
+
   it("lands finance-only joiners on their own authorized profile rather than denied finance dashboard", () => {
     expect(preferredLandingPath(["FINANCE"])).toBe("/finance/my-role");
     expect(preferredLandingPath(["CA"])).toBe("/finance/my-role");

@@ -96,7 +96,8 @@ export function capabilityCanAccessSection(
   roles: readonly OfficeRole[],
   permissions: readonly string[],
 ) {
-  if (roles.includes("OWNER")) return true;
+  // OWNER label is not navigation authorization: use the effective capability snapshot,
+  // including explicit denies and department transfers, for all business sections.
   const required = requiredCapabilities(workspace, section);
   if (!required.length) return (workspace === "office" && personalOfficeSections.has(section)) || (workspace === "finance" && ["my-role","info","worktime"].includes(section));
   const granted = new Set(permissions);
