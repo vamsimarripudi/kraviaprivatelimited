@@ -72,7 +72,7 @@ create or replace function public.office_hr_attendance_import_stage(
 declare
   result_id uuid;
   raw jsonb;
-  user_id uuid;
+  v_employee_id uuid;
   requested_date date;
   minutes_pay integer;
   minutes_leave integer;
@@ -108,7 +108,7 @@ begin
     if key is null or length(key) not between 5 and 80 or key=any(used_keys) then
       raise exception 'Invalid or repeated source row ID'; end if;
     used_keys:=array_append(used_keys,key);
-    user_id:=(raw->>'employee_user_id')::uuid;
+    v_employee_id:=(raw->>'employee_user_id')::uuid;
     requested_date:=(raw->>'work_date')::date;
     minutes_pay:=(raw->>'payable_minutes')::integer;
     minutes_leave:=(raw->>'paid_leave_minutes')::integer;
@@ -120,17 +120,17 @@ begin
       or minutes_pay+minutes_leave+minutes_ot=0 then
       raise exception 'Impossible or future source day'; end if;
     if not exists(select 1 from public.office_identity_users
-       where user_id=user_id and status='ACTIVE') then
+       where user_id=v_employee_id and status='ACTIVE') then
       raise exception 'Workbook beneficiary must be an active Office identity'; end if;
     if not exists(select 1 from public.office_employment_registry
-      where identity_user_id=user_id and status in ('ACTIVE','ON_LEAVE')) then
+      where identity_user_id=v_employee_id and status in ('ACTIVE','ON_LEAVE')) then
       raise exception 'Planned or unknown employment cannot be uploaded as payable evidence'; end if;
     insert into public.office_hr_attendance_import_rows(
       batch_id,row_key,source_sheet,source_row,employee_user_id,work_date,
       payable_candidate_minutes,paid_leave_candidate_minutes,overtime_candidate_minutes,
       evidence_reference,workbook_decision,source_status
     ) values (
-      result_id,key,raw->>'sheet',(raw->>'row')::integer,user_id,requested_date,
+      result_id,key,raw->>'sheet',(raw->>'row')::integer,v_employee_id,requested_date,
       minutes_pay,minutes_leave,minutes_ot,trim(raw->>'evidence_reference'),
       left(coalesce(raw->>'workbook_decision',''),80),
       left(coalesce(raw->>'source_status',''),140)
