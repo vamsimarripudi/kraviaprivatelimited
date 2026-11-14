@@ -74,7 +74,7 @@ values ('00000000-0000-0000-0000-000000000002','INDEPENDENT_REVIEW','ACTIVE',now
 insert into public.office_access_profile_permissions(profile_code,permission_code,effect)
 values ('INDEPENDENT_REVIEW','access.profile.assign','ALLOW');
 
-do $
+do $role_smoke$
 declare
  owner_id uuid:='00000000-0000-0000-0000-000000000001';
  reviewer uuid:='00000000-0000-0000-0000-000000000002';
@@ -187,4 +187,4 @@ begin
 
  raise notice 'PASS: Founder protected; independent role seats; controlled transfers; former CTO denied; Developer retained; audit immutable';
 end;
-$$;
+$role_smoke$;
