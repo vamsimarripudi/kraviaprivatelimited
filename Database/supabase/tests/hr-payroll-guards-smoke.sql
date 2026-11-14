@@ -84,7 +84,52 @@ begin
   exception when unique_violation then failed:=true; end;
   if not failed then raise exception 'Second active OT premium accepted'; end if;
 
+  -- No "REVIEWED" status may appear without a distinct human approval.
+  failed:=false;
+  begin
+    update public.office_payroll_attendance_snapshots set status='REVIEWED'
+    where period_id=period;
+  exception when check_violation then failed:=true; end;
+  if not failed then raise exception 'Attendance was falsely marked reviewed without a reviewer'; end if;
+
+  update public.office_payroll_attendance_snapshots
+    set payable_units=126,unresolved_units=0,
+        source_snapshot='{"source":"HR_EVIDENCE_REVIEW","evidence_reference":"QA-WORKLOG-001","note":"Reviewed independent source evidence"}'::jsonb
+    where period_id=period;
+  -- Returning without an independently approved review note is impossible.
+  failed:=false;
+  begin
+    perform public.office_payroll_review_attendance(founder,
+      (select id from public.office_payroll_attendance_snapshots where period_id=period),
+      'APPROVE','Self approval must not be accepted');
+  exception when others then failed:=true; end;
+  if not failed then raise exception 'Attendance preparer self-approved'; end if;
+  if public.office_payroll_review_attendance(reviewer,
+      (select id from public.office_payroll_attendance_snapshots where period_id=period),
+      'APPROVE','Independent review of genuine timesheet evidence completed')<>'REVIEWED' then
+    raise exception 'Independent attendance review did not complete'; end if;
+  if not exists(select 1 from public.office_payroll_attendance_snapshots
+      where period_id=period and status='REVIEWED' and reviewed_by=reviewer) then
+    raise exception 'Independent reviewer was not persisted'; end if;
+
+  update public.office_payroll_adjustments set employee_user_id=employee
+    where period_id=period and adjustment_code='WORKTIME_WEEKDAY_OT';
+  failed:=false;
+  begin
+    perform public.office_payroll_review_adjustment(employee,
+      (select id from public.office_payroll_adjustments where period_id=period limit 1),
+      'APPROVE');
+  exception when others then failed:=true; end;
+  if not failed then raise exception 'Overtime beneficiary self-approved their own adjustment'; end if;
+
+  -- Approved payroll legitimately LOCKS a previously reviewed attendance
+  -- snapshot; this must not be mistaken for retroactive hours tampering.
   update public.office_payroll_periods set status='APPROVED' where id=period;
+  update public.office_payroll_attendance_snapshots set status='LOCKED',updated_at=now()
+    where period_id=period;
+  if not exists(select 1 from public.office_payroll_attendance_snapshots
+     where period_id=period and status='LOCKED') then
+    raise exception 'Approved payroll failed to lock reviewed attendance'; end if;
   failed:=false;
   begin
     update public.office_payroll_attendance_snapshots
