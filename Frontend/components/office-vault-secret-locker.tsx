@@ -6,10 +6,10 @@ import {ArrowRight,FileCheck2,FileLock2,FolderLock,KeyRound,LockKeyhole,
 import styles from "./office-vault-secret-locker.module.css";
 type Version={
  id:string;version_number:number;filename:string;mime_type:string;byte_size:number;
- scan_state:string;review_state:string;uploaded_by:string;created_at:string;reviewed_at:string|null;
+ scan_state:string;review_state:string;created_at:string;reviewed_at:string|null;
 };
 type Document={
- id:string;owner_user_id:string;title:string;classification:string;state:string;
+id:string;title:string;classification:string;state:string;
  created_at:string;updated_at:string;is_owner:boolean;grant_active:boolean;versions:Version[];
 };
 type Data={
