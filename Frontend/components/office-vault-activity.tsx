@@ -52,7 +52,7 @@ export function OfficeVaultActivity() {
  return <section className={styles.shell} aria-label="My Vault access audit">
   <header className={styles.heading}><div><p>PRIVATE AUDIT HISTORY</p>
    <h2>My Vault activity</h2>
-   <span>Only access events attributed to your verified Office identity are returned. Record identifiers and other employees' activities are not exposed.</span>
+   <span>Only access events attributed to your verified Office identity are returned. Record identifiers and activity of other employees are not exposed.</span>
   </div><button type="button" disabled={loading} onClick={()=>{setLoading(true);setRefresh(v=>v+1);}}>
    <RefreshCw size={17} aria-hidden="true"/>{loading?"Loading…":"Refresh"}
   </button></header>
