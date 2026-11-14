@@ -2,6 +2,13 @@
 -- Schema-only: NO employee is appointed, transferred, granted rights, or notified.
 -- Apply with approved migration tooling BEFORE deploying matching server/client code.
 
+-- Register the reusable job vocabulary without assigning it to any person.
+insert into public.office_position_catalog
+  (code,label,family,level,is_manager,description,active)
+values ('FULL_STACK_DEVELOPER','Full Stack Developer','ENGINEERING',5,false,
+  'Frontend, backend, database, integration and test delivery under assigned project/repository scope',true)
+on conflict (code) do nothing;
+
 create table if not exists public.office_role_seats (
   id uuid primary key default gen_random_uuid(),
   seat_code text not null unique check (seat_code ~ '^[A-Z][A-Z0-9_]{2,63}$'),
