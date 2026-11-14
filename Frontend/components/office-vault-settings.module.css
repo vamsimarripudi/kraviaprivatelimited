@@ -1,0 +1,14 @@
+.settings{display:grid;gap:16px;min-width:0;color:var(--office-ui-ink)}
+.settings>header h2{margin:6px 0;font-size:22px!important}.settings>header p{margin:0;color:var(--office-ui-muted);font-size:12px;line-height:1.6}
+.settings .eyebrow{color:var(--office-ui-accent);letter-spacing:.13em;font-size:11px;font-weight:700}
+.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.metrics article{display:grid;gap:8px;border:1px solid var(--office-ui-line);border-radius:16px;background:var(--office-ui-surface);padding:17px}
+.metrics span{font-size:11px;color:var(--office-ui-muted)}.metrics strong{font-size:28px;font-variant-numeric:tabular-nums}
+.settings h3{margin:0;font-size:17px!important}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:12px}
+.cards article{display:flex;align-items:start;gap:12px;min-width:0;padding:18px;border:1px solid var(--office-ui-line);border-radius:16px;background:var(--office-ui-surface);flex-wrap:wrap}
+.cards article>svg{flex:none;color:var(--office-ui-accent)}.cards article>div{flex:1;min-width:0}.cards h4{margin:0;font-size:14px}.cards p{font-size:12px;color:var(--office-ui-muted);line-height:1.6}.cards small{font-size:11px;color:var(--office-ui-muted)}
+.cards a,.boundary a,.denied a{display:inline-flex;gap:6px;align-items:center;min-height:44px;color:var(--office-ui-accent);text-decoration:none}
+.cards a{margin-left:32px}.boundary{display:flex;align-items:start;gap:12px;padding:18px;border:1px solid var(--office-ui-line);border-radius:16px;background:var(--office-ui-surface)}
+.boundary>svg{flex:none;color:var(--office-ui-accent)}.boundary p,.denied p{font-size:12px;color:var(--office-ui-muted);line-height:1.6}.denied{display:grid;gap:10px;padding:25px;border:1px solid var(--office-ui-line);border-radius:16px;color:var(--office-ui-ink)}
+.settings :is(a,button):focus-visible{outline:2px solid var(--office-ui-accent);outline-offset:3px}
+@media(max-width:767px){.metrics{grid-template-columns:1fr 1fr}.metrics article{padding:11px}.cards{grid-template-columns:1fr}.boundary{padding:14px}}
+@media(max-width:375px){.metrics{grid-template-columns:1fr}}

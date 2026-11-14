@@ -9,6 +9,7 @@ import { InternalWorkspaceScreen } from "@/components/internal-workspace-screen"
 import { OfficeVaultAccessCenter } from "@/components/office-vault-access-center";
 import {OfficeVaultCategoryBrowser} from "@/components/office-vault-category-browser";
 import {OfficeVaultCompanyMaster} from "@/components/office-vault-company-master";
+import {OfficeVaultSettings} from "@/components/office-vault-settings";
 import { OfficeVaultOverview } from "@/components/office-vault-overview";
 import { OfficeVaultActivity } from "@/components/office-vault-activity";
 import { OfficeVaultVerificationQueue } from "@/components/office-vault-verification-queue";
@@ -122,7 +123,7 @@ export default async function VaultPages({params}:Props){
  } else if(route==="settings"){
    title="Vault settings";subtitle="Source-system policy controls remain governed and independently reviewed.";
    if(!allowed.includes("access.profile.assign")) notFound();
-   content=<InternalWorkspaceScreen workspace="office" section="settings"/>;
+   content=<OfficeVaultSettings/>;
  } else if(segments.length===2&&segments[0]==="records"){
    if(!visible("registrations")||!/^[0-9a-f-]{36}$/i.test(segments[1])) notFound();
    try {
