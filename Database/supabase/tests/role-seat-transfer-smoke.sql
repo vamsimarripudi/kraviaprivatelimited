@@ -56,7 +56,7 @@ insert into public.office_user_roles(user_id,role) values
  ('00000000-0000-0000-0000-000000000001','OWNER'),
  ('00000000-0000-0000-0000-000000000002','ADMIN'),
  ('00000000-0000-0000-0000-000000000003','MEMBER'),
- ('00000000-0000-0000-0000-000000000004','MEMBER');
+ ('00000000-0000-0000-0000-000000000004','ADMIN');
 insert into public.office_department_catalog(code,label,active) values
  ('EXECUTIVE','Executive',true),('ENGINEERING','Engineering',true),('FINANCE','Finance',true);
 insert into public.office_position_catalog(code,label,active) values
@@ -65,9 +65,16 @@ insert into public.office_permission_catalog(code,action,high_risk,owner_bypass,
  ('engineering.issue.manage','UPDATE',false,true,true),
  ('engineering.maintenance.approve','APPROVE_MAINTENANCE',true,true,true),
  ('engineering.repo.read','READ',false,true,true),
- ('finance.read','READ',false,true,true);
+ ('finance.read','READ',false,true,true),
+ ('access.profile.assign','ASSIGN',true,true,true);
 
-do $$
+insert into public.office_user_access_profiles
+  (user_id,profile_code,status,effective_from,expires_at,scope_type,scope_key)
+values ('00000000-0000-0000-0000-000000000002','INDEPENDENT_REVIEW','ACTIVE',now(),null,'COMPANY',null);
+insert into public.office_access_profile_permissions(profile_code,permission_code,effect)
+values ('INDEPENDENT_REVIEW','access.profile.assign','ALLOW');
+
+do $
 declare
  owner_id uuid:='00000000-0000-0000-0000-000000000001';
  reviewer uuid:='00000000-0000-0000-0000-000000000002';
@@ -98,6 +105,12 @@ begin
    raise exception 'Self-review was incorrectly allowed';
  exception when others then
    if SQLERRM='Self-review was incorrectly allowed' then raise; end if;
+ end;
+ begin
+   perform public.office_role_seat_review_grant(stranger,grant_id,true,'No reviewer capability');
+   raise exception 'Unprivileged ADMIN reviewer was incorrectly allowed';
+ exception when others then
+   if SQLERRM='Unprivileged ADMIN reviewer was incorrectly allowed' then raise; end if;
  end;
  perform public.office_role_seat_review_grant(reviewer,grant_id,true,'Independent security policy review');
 
