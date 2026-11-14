@@ -1,0 +1,276 @@
+name: KRAVIA Office 5.0 controlled production database migration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/office5-production-migrations.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kravia-office5-production-database-migration
+  cancel-in-progress: false
+
+jobs:
+  controlled-migration:
+    name: Backup, preflight, apply and verify 17 Office 5.0 migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      BACKUP_DATABASE_URL: ${{ secrets.KRAVIA_BACKUP_DATABASE_URL }}
+      BACKUP_ENCRYPTION_KEY: ${{ secrets.KRAVIA_DB_BACKUP_KEY }}
+      EXPECTED_PROJECT_REF: xjtazosozxmudkbxqhjl
+      EXPECTED_BASE_VERSION: "20261114140609"
+      SUPABASE_CLI_VERSION: "2.117.0"
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Verify connection, tools and protected backup configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$BACKUP_DATABASE_URL" || { echo "::error::Backup database connection not configured"; exit 1; }
+          test -n "$BACKUP_ENCRYPTION_KEY" || { echo "::error::Encrypted backup key not configured"; exit 1; }
+          test "${#BACKUP_ENCRYPTION_KEY}" -ge 48 || { echo "::error::Backup key does not meet the policy"; exit 1; }
+          case "$BACKUP_DATABASE_URL" in
+            *"$EXPECTED_PROJECT_REF"*) ;;
+            *) echo "::error::Database connection cannot be tied to the approved KRAVIA Office project"; exit 1 ;;
+          esac
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-client
+          fi
+          psql --version
+
+      - name: Verify exact approved source and migration history before any write
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import os
+          import pathlib
+          import re
+          import subprocess
+
+          root = pathlib.Path("Database/supabase/migrations")
+          source_blobs = [
+            "61fe5157d4927a11fb2b5974e0ca4552d2b4f750",
+            "7ec94c712139d6caa1541142101b3bc6723b2a08",
+            "09683b8e5ff3d4fe2c07a51b1aa3c5c08c93a7b9",
+            "28be465fb7c6c5d35a03e1fe807469220f15a2cb",
+            "bacde1d74fcc1b0da911ebde7645f6f704c3f5f3",
+            "2363e1e4fa5167fe0d436eb9e57dc448233faf98",
+            "d884d6c946ac461a0c50164be951888f05e3a014",
+            "fd549fc9fd337de3de7505b7161b343189c33351",
+            "07fa2e0a7498ad1f0a5639d23bba9907810d3622",
+            "043379036cf4c5e42ec80f55e08ced4cd2adefc4",
+            "a451bedb94ecb52d32cd7782916fb87b903f6cf3",
+            "2d227c0885520092095554e1a63e38ad42b8ce74",
+            "e36dfff5b12e8f275fc0704d0c2c18cf4c152a92",
+            "a3c331ecf6797b815b74ec40b23ac31957dea8dc",
+            "8cc25fa431921a1a777d6bbc15f5562a714bc5ce",
+            "c0fd830b75d4ce32dc539a783082529ba43e7d3c",
+            "d8b5c55b51d3b91571f0430f320e5fc74fb3bac3",
+          ]
+          files = sorted(root.glob("202611141500*.sql"))
+          assert len(files) == 17, f"Expected 17 SQL files, got {len(files)}"
+          for i, (path, blob) in enumerate(zip(files,source_blobs),1):
+            assert path.name.startswith(f"202611141500{i:02d}_"), f"Unexpected version or order: {path.name}"
+            actual = subprocess.check_output(["git","hash-object",str(path)],text=True).strip()
+            assert actual == blob, f"Source migration modified without reapproval: {path.name}"
+
+          db = os.environ["BACKUP_DATABASE_URL"]
+          def read(sql):
+            return subprocess.check_output(["psql",db,"-At","-F","|","-v","ON_ERROR_STOP=1","-c",sql],text=True).strip()
+          version = read("select max(version) from supabase_migrations.schema_migrations")
+          assert version == os.environ["EXPECTED_BASE_VERSION"], f"Migration history advanced to {version}; aborting"
+          exists = read("select count(*) from supabase_migrations.schema_migrations where version between '20261114150001' and '20261114150017'")
+          assert exists == "0", "Office 5.0 migrations were already applied; aborting"
+          baseline_versions=[
+            "20261114102312","20261114110233","20261114120547","20261114120559",
+            "20261114120612","20261114120622","20261114140609",
+          ]
+          hash_rows=read("select version,md5(statements[1]) from supabase_migrations.schema_migrations "
+                         "where version between '20261114102312' and '20261114140609'")
+          hashes=dict(line.split("|",1) for line in hash_rows.splitlines())
+          for v in baseline_versions:
+            paths=list(root.glob(f"{v}_*.sql"))
+            assert len(paths)==1 and v in hashes, f"Missing live baseline source {v}"
+            assert hashlib.md5(paths[0].read_bytes()).hexdigest()==hashes[v], f"Live/repo baseline drift: {v}"
+          prerequisites=read("select to_regclass('public.office_identity_users') is not null "
+                             "and to_regclass('public.office_permission_catalog') is not null "
+                             "and to_regclass('public.office_it_service_tickets') is not null "
+                             "and to_regclass('public.office_chat_conversations') is null "
+                             "and to_regclass('public.office_vault_secret_documents') is null "
+                             "and not exists(select 1 from storage.buckets where id in "
+                             "('office-chat-attachments','office-vault-secrets'))")
+          assert prerequisites=="t", "Production schema did not satisfy the approved additive migration preflight"
+          print("Verified 17 immutable source files, seven historical SQL hashes and exact live dependency baseline.")
+          PY
+
+      - name: Create a fresh encrypted roles, schema and data backup
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$RUNNER_TEMP/kravia-office5-backup"
+          dir="$RUNNER_TEMP/kravia-office5-backup"
+          npx -y "supabase@$SUPABASE_CLI_VERSION" db dump --db-url "$BACKUP_DATABASE_URL" -f "$dir/roles.sql" --role-only
+          npx -y "supabase@$SUPABASE_CLI_VERSION" db dump --db-url "$BACKUP_DATABASE_URL" -f "$dir/schema.sql"
+          npx -y "supabase@$SUPABASE_CLI_VERSION" db dump --db-url "$BACKUP_DATABASE_URL" -f "$dir/data.sql" --use-copy --data-only -x "storage.buckets_vectors" -x "storage.vector_indexes"
+          test -s "$dir/roles.sql" && test -s "$dir/schema.sql" && test -s "$dir/data.sql"
+          (
+            cd "$dir"
+            sha256sum roles.sql schema.sql data.sql > SHA256SUMS
+            printf 'created_utc=%s\nsource_commit=%s\nbaseline_version=%s\n' \
+              "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$GITHUB_SHA" "$EXPECTED_BASE_VERSION" > BACKUP_METADATA
+          )
+          tar -C "$dir" -czf "$RUNNER_TEMP/kravia-office5-pre-migration.tar.gz" \
+            roles.sql schema.sql data.sql SHA256SUMS BACKUP_METADATA
+          gpg --batch --yes --pinentry-mode loopback --symmetric --cipher-algo AES256 \
+            --passphrase "$BACKUP_ENCRYPTION_KEY" \
+            --output "$RUNNER_TEMP/kravia-office5-pre-migration.tar.gz.gpg" \
+            "$RUNNER_TEMP/kravia-office5-pre-migration.tar.gz"
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$BACKUP_ENCRYPTION_KEY" \
+            --decrypt "$RUNNER_TEMP/kravia-office5-pre-migration.tar.gz.gpg" 2>/dev/null \
+            | tar -tzf - | grep -q '^SHA256SUMS$'
+          shred -u "$RUNNER_TEMP/kravia-office5-pre-migration.tar.gz" || rm -f "$RUNNER_TEMP/kravia-office5-pre-migration.tar.gz"
+          rm -rf "$dir"
+          echo "Fresh encrypted backup generated and authenticated."
+
+      - name: Retain verified encrypted pre-migration backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: kravia-office5-pre-migration-${{ github.run_id }}
+          path: ${{ runner.temp }}/kravia-office5-pre-migration.tar.gz.gpg
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+      - name: Build isolated migration CLI manifest with only the 17 approved pending files
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import pathlib
+          import re
+          import shutil
+          import subprocess
+
+          target=pathlib.Path(os.environ["RUNNER_TEMP"])/"office5-cli"/"supabase"
+          (target/"migrations").mkdir(parents=True,exist_ok=True)
+          shutil.copy2("Database/supabase/config.toml",target/"config.toml")
+          output=subprocess.check_output(
+            ["psql",os.environ["BACKUP_DATABASE_URL"],"-At","-F","|","-v","ON_ERROR_STOP=1",
+             "-c","select version,name from supabase_migrations.schema_migrations order by version"],
+            text=True).strip()
+          seen=set()
+          for row in output.splitlines():
+            version,name=row.split("|",1)
+            assert re.fullmatch(r"[0-9]{14}",version),f"Invalid live migration version {version}"
+            assert re.fullmatch(r"[A-Za-z0-9_]+",name),f"Invalid live migration name {version}"
+            assert version not in seen,f"Duplicate live migration {version}"
+            seen.add(version)
+            (target/"migrations"/f"{version}_{name}.sql").write_text(
+              "-- Placeholder for an already-applied live migration; never executed.\n",encoding="utf-8")
+          assert max(seen)==os.environ["EXPECTED_BASE_VERSION"],"Migration history changed while backing up"
+          files=sorted(pathlib.Path("Database/supabase/migrations").glob("202611141500*.sql"))
+          assert len(files)==17,"Approved migration source changed"
+          for index,file in enumerate(files,1):
+            version=f"202611141500{index:02d}"
+            assert file.name.startswith(version+"_"),f"Unexpected migration file {file.name}"
+            assert version not in seen,f"Unexpectedly applied migration {version}"
+            shutil.copy2(file,target/"migrations"/file.name)
+          print(f"Constructed history-safe local manifest: {len(seen)} existing versions + 17 approved pending.")
+          PY
+
+      - name: Require dry-run to report exactly the 17 proposed migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/office5-cli"
+          if ! npx -y "supabase@$SUPABASE_CLI_VERSION" db push \
+            --db-url "$BACKUP_DATABASE_URL" --dry-run --yes > "$RUNNER_TEMP/office5-dry-run.log" 2>&1; then
+            echo "::error::Supabase migration dry-run failed; no production schema changes made."
+            exit 1
+          fi
+          python3 - <<'PY'
+          import os
+          import pathlib
+          import re
+          root=pathlib.Path(os.environ["RUNNER_TEMP"])/"office5-cli"/"supabase"/"migrations"
+          approved={p.name for p in root.glob("202611141500*.sql")}
+          output=(pathlib.Path(os.environ["RUNNER_TEMP"])/"office5-dry-run.log").read_text()
+          listed=set(re.findall(r"202611141500\d{2}_[a-z0-9_]+\.sql",output))
+          assert len(approved)==17 and listed==approved, (
+             f"Dry run did not enumerate exactly the 17 approved files: {len(listed)}/17."
+          )
+          # The isolated manifest contains no older pending source files.
+          assert len(list(root.glob("*.sql")))-len(approved)>0
+          print("Dry run confirmed exactly the 17 Office 5.0 migration filenames.")
+          PY
+
+      - name: Apply only the 17 reviewed migrations to the approved production project
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/office5-cli"
+          npx -y "supabase@$SUPABASE_CLI_VERSION" db push --db-url "$BACKUP_DATABASE_URL" --yes
+
+      - name: Verify applied migration SQL hashes, private buckets, RLS and source objects
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import os
+          import pathlib
+          import subprocess
+
+          db=os.environ["BACKUP_DATABASE_URL"]
+          def read(sql):
+            return subprocess.check_output(["psql",db,"-At","-F","|","-v","ON_ERROR_STOP=1","-c",sql],text=True).strip()
+          rows=read("select version,name,md5(statements[1]) from supabase_migrations.schema_migrations "
+                    "where version between '20261114150001' and '20261114150017' order by version")
+          records=[line.split("|",2) for line in rows.splitlines()]
+          sources=sorted(pathlib.Path("Database/supabase/migrations").glob("202611141500*.sql"))
+          assert len(records)==len(sources)==17,f"Only {len(records)}/17 new migrations were committed"
+          for source,record in zip(sources,records):
+            version,name,digest=record
+            assert version+"_"+name+".sql"==source.name,f"Remote migration name differs: {version}"
+            assert hashlib.md5(source.read_bytes()).hexdigest()==digest, f"Remote SQL body mismatch: {version}"
+          objects=read("select to_regclass('public.office_chat_conversations') is not null "
+                       "and to_regclass('public.office_chat_change_events') is not null "
+                       "and to_regclass('public.office_vault_secret_documents') is not null "
+                       "and to_regclass('public.office_vault_secret_ingress_sessions') is not null")
+          assert objects=="t","Required Office 5.0 relations are not all present"
+          bucket_rows=read("select id,public from storage.buckets "
+                           "where id in ('office-chat-attachments','office-vault-secrets') order by id")
+          assert bucket_rows.splitlines()==[
+            "office-chat-attachments|f","office-vault-secrets|f"
+          ],"Private storage bucket policy is not as expected"
+          rls=read("select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace "
+                   "where n.nspname='public' and c.relkind='r' "
+                   "and (c.relname like 'office_chat_%' or c.relname like 'office_vault_secret_%' "
+                   "or c.relname in ('office_vault_access_requests','office_vault_access_grants','office_vault_access_events')) "
+                   "and not c.relrowsecurity")
+          assert rls=="0","One or more new company data tables are missing RLS"
+          print("Office 5.0 production database migration verified: 17/17 exact SQL hashes, sealed buckets and RLS.")
+          PY
+
+      - name: Erase runner-local backup ciphertext and temporary staging data
+        if: always()
+        shell: bash
+        run: |
+          rm -rf "$RUNNER_TEMP/office5-cli" "$RUNNER_TEMP/kravia-office5-backup" \
+            "$RUNNER_TEMP/kravia-office5-pre-migration.tar.gz" \
+            "$RUNNER_TEMP/kravia-office5-pre-migration.tar.gz.gpg" \
+            "$RUNNER_TEMP/office5-dry-run.log"
