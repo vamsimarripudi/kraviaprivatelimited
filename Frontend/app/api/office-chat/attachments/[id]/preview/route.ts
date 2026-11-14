@@ -21,7 +21,7 @@ export async function GET(_:Request,{params}:Context){
   const file=await downloadOfficeChatAttachment(id);
   if(!allowed.has(file.mime))
    return NextResponse.json({detail:"This attachment cannot be previewed"},{status:415,headers});
-  const safeName=file.filename.replace(/[\u0000-\u001f\u007f\\"\\]/g,"_");
+  const safeName=file.filename.replace(/[^A-Za-z0-9 ._()-]/g,"_").slice(0,140);
   return new NextResponse(new Uint8Array(file.bytes),{headers:{
    ...headers,"Content-Type":file.mime,
    "Content-Disposition":'inline; filename="'+safeName+'"',
