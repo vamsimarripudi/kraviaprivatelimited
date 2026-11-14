@@ -13,7 +13,6 @@ type Employee={kind:string;enabled:boolean;approved_at:string|null;effective_fro
  count_by_status?:Record<string,number|null>;note:string;detail?:string};
 type Status<T>={status:"ok";data:T}|{status:"denied"|"unavailable";detail:string};
 type View={lifecycle:Status<Lifecycle>;employee:Status<Employee>};
-const unknown:<T>()=>Status<T>=()=>({status:"unavailable",detail:"Source not loaded"});
 async function inspect<T>(path:string,signal:AbortSignal):Promise<Status<T>>{
  try{
   const response=await fetch(path,{cache:"no-store",credentials:"same-origin",signal});

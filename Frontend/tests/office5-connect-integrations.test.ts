@@ -9,7 +9,7 @@ describe("Connect integrations are source-bound and non-sending",()=>{
   expect(route).toContain('if(path==="admin/integrations")return <OfficeConnectIntegrations/>;');
   expect(view).toContain('"/api/office-lifecycle-mail-policy"');
   expect(view).toContain('"/api/office-employee-mail-policy"');
-  expect(view).toContain('method:"POST"').toBe(false);
+  expect(view).not.toContain('method:"POST"');
  });
  it("leaves mail controls under the existing AAL2 Owner authority",()=>{
   expect(lifecycle).toContain('result.identity.roles.includes("OWNER")');
