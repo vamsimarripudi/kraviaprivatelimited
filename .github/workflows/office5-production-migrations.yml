@@ -31,6 +31,35 @@ jobs:
         with:
           node-version: 22
 
+      - name: Normalize misspelled legacy SSL query parameter in runner memory only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+          original=os.environ.get("BACKUP_DATABASE_URL","")
+          if not original:
+            raise SystemExit("Database connection secret is not configured")
+          parts=urlsplit(original)
+          pairs=parse_qsl(parts.query,keep_blank_values=True)
+          bad=[value for key,value in pairs if key=="sshmode"]
+          existing=[value for key,value in pairs if key=="sslmode"]
+          if bad:
+            if len(bad)!=1 or existing or bad[0] not in {
+              "disable","allow","prefer","require","verify-ca","verify-full"
+            }:
+              raise SystemExit("Invalid legacy SSL connection parameter")
+            pairs=[("sslmode",value) if key=="sshmode" else (key,value) for key,value in pairs]
+          normalized=urlunsplit((parts.scheme,parts.netloc,parts.path,urlencode(pairs),parts.fragment))
+          # GitHub must mask the normalized secret before it enters later step environments.
+          print("::add-mask::"+normalized)
+          with open(os.environ["GITHUB_ENV"],"a",encoding="utf-8") as output:
+            output.write("BACKUP_DATABASE_URL="+normalized+"\n")
+          print("PostgreSQL connection parameter normalization completed without disclosing credentials.")
+          PY
+
       - name: Verify connection, tools and protected backup configuration
         shell: bash
         run: |
