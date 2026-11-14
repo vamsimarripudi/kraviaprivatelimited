@@ -341,13 +341,26 @@ export async function importVerifiedWorktimePremiums(input: { periodId: string; 
     { code: "WORKTIME_WEEKEND", label: "Approved Saturday/Sunday work (3x)", amount: approved.weekendPremiumMinor },
     { code: "WORKTIME_NIGHT", label: "Approved night-work premium", amount: approved.nightPremiumMinor },
   ].filter(row => row.amount > 0);
+  // A new evidence digest must never add a second approved OT entry for
+  // the same employee, month and earning type. Reject stale imports instead
+  // of silently accumulating both the old and revised premium.
+  const knownCodes = ["WORKTIME_WEEKDAY_OT", "WORKTIME_WEEKEND", "WORKTIME_NIGHT"];
+  const existing = await actor.admin.from("office_payroll_adjustments")
+    .select("id,adjustment_code,source_reference,amount_minor,status")
+    .eq("period_id", input.periodId).eq("employment_id", employmentId)
+    .in("adjustment_code", knownCodes);
+  check(existing, "Existing payroll premium evidence unavailable");
+  for (const item of existing.data ?? []) {
+    const expected = rows.find(row => row.code === item.adjustment_code);
+    if (!expected || item.source_reference !== reference ||
+        Number(item.amount_minor) !== expected.amount || item.status === "REJECTED") {
+      throw new OfficeWorktimeError(409, "Existing overtime adjustments differ from verified attendance. Do not re-import or double-pay; resolve the prior adjustment through a separately approved correction.");
+    }
+  }
   const imported: string[] = [];
   for (const row of rows) {
-    const existing = await actor.admin.from("office_payroll_adjustments")
-      .select("id").eq("period_id", input.periodId).eq("employment_id", employmentId)
-      .eq("adjustment_code", row.code).eq("source_reference", reference).maybeSingle();
-    check(existing, "Existing adjustment check unavailable");
-    if (existing.data) { imported.push(existing.data.id); continue; }
+    const duplicate = (existing.data ?? []).find(item => item.adjustment_code === row.code);
+    if (duplicate) { imported.push(duplicate.id); continue; }
     const result = await actor.admin.rpc("office_payroll_add_adjustment", {
       p_actor: actor.identity.userId, p_period: input.periodId, p_employment: employmentId,
       p_kind: "EARNING", p_code: row.code, p_label: row.label, p_amount: row.amount,
