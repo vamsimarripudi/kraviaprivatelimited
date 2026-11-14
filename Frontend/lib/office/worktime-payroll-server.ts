@@ -99,9 +99,9 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
   const range = monthRange(month);
   const employeeId = input.employeeUserId || actor.identity.userId;
   const self = employeeId === actor.identity.userId;
-  const [canReadOthers, canReviewWorktime, canPreparePayroll] = await Promise.all([
+  const [canReadOthers, canReviewWorktime, canPreparePayroll, canReviewPolicy] = await Promise.all([
     Promise.all([can(actor, "people.sensitive.read"), can(actor, "payroll.run.read")]).then(([people, payroll]) => people || payroll),
-    can(actor, "people.update"), can(actor, "payroll.run.prepare"),
+    can(actor, "people.update"), can(actor, "payroll.run.prepare"), can(actor, "payroll.run.review"),
   ]);
   if (!self && !canReadOthers) throw new OfficeWorktimeError(403, "Employee record is not assigned to you");
   const [identityResult, policiesResult, claimsResult, compensationResult, issuesResult, directoryResult, periodResult, flexResult, sessionsResult] = await Promise.all([
@@ -203,7 +203,7 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
     approved_monthly_gross_minor: compensation ? Number(compensation.monthly_gross_minor) : null,
     approved_gross_currency: compensation?.currency ?? null,
     salary_slips: salarySlips,
-    capabilities: { self, review_worktime: canReviewWorktime && (isDirector || hrManagerActive), propose_policy: policyProposal, prepare_payroll: canPreparePayroll },
+    capabilities: { self, review_worktime: canReviewWorktime && (isDirector || hrManagerActive), review_policy: canReviewPolicy && isDirector, propose_policy: policyProposal, prepare_payroll: canPreparePayroll },
     notice: "Salary previews use approved compensation and independently verified net hours. Missing time remains UNRESOLVED, never automatically unpaid. Overtime requires approved policy and independent review. No payment is executed automatically.",
   };
 }
