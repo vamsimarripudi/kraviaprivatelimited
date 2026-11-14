@@ -88,7 +88,7 @@ function xmlText(text:string):string {
 }
 type Cell=string|number|null;
 type SheetRows=Map<number,Map<number,Cell>>;
-function parseSheet(xml:string,strings:string[]):SheetRows{
+function parseSheet(xml:string,strings:string[],editableSheet:boolean):SheetRows{
   const rows:SheetRows=new Map();
   let count=0;
   for(const match of xml.matchAll(/<(?:[A-Za-z][\w.-]*:)?row\b([^>]*)>([\s\S]*?)<\/(?:[A-Za-z][\w.-]*:)?row>/g)){
@@ -102,7 +102,7 @@ function parseSheet(xml:string,strings:string[]):SheetRows{
       if(col>30)continue;
       if(cells.has(col))reject("Duplicate XLSX cell");
       const raw=cell[2]||"";
-      if(col>=9&&col<=13&&/<(?:[A-Za-z][\w.-]*:)?f\b/.test(raw))
+      if(editableSheet&&col>=9&&col<=13&&/<(?:[A-Za-z][\w.-]*:)?f\b/.test(raw))
         reject("HR-editable cells must be literal values, not spreadsheet formulas");
       const v=raw.match(/<(?:[A-Za-z][\w.-]*:)?v\b[^>]*>([\s\S]*?)<\/(?:[A-Za-z][\w.-]*:)?v>/)?.[1];
       const t=attr(cell[1],"t");
@@ -138,7 +138,8 @@ function readSheets(parts:Map<string,string>):Map<string,SheetRows>{
   const sheets=new Map<string,SheetRows>();
   for(const x of workbook.matchAll(/<(?:[A-Za-z][\w.-]*:)?sheet\b([^>]*?)(?:\/>|>)/g)){
     const name=attr(x[1],"name"),id=attr(x[1],"r:id"),path=links.get(id);
-    if(name&&path&&parts.has(path))sheets.set(name,parseSheet(parts.get(path)!,strings));
+    if(name&&path&&parts.has(path)&&(name==="Source Sessions"||MONTHS.some(m=>m===name)))
+      sheets.set(name,parseSheet(parts.get(path)!,strings,name!=="Source Sessions"));
   }
   return sheets;
 }
