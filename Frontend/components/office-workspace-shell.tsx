@@ -14,6 +14,7 @@ import { OfficePrefetchRoutes } from "@/components/office-prefetch-routes";
 import { OfficePresenceControl } from "@/components/office-presence-control";
 import { OfficeCommandPalette } from "@/components/office-command-palette";
 import { OfficeIntelligencePeek } from "@/components/office-intelligence-peek";
+import { OfficeIstClock } from "@/components/office-ist-clock";
 import { WorkspaceSignOutButton } from "@/components/workspace-sign-out-button";
 import { OfficeWorkspaceProvider } from "@/components/office-workspace-context";
 import { OfficeAmbientField } from "@/components/office-experience-ambient";
@@ -83,6 +84,7 @@ const founderNavigation = new Set([
   "dashboard", "my-role", "my-transfers", "notifications", "tasks", "calendar", "requests",
   "approvals", "worktime", "manager", "department-ownership", "role-packages",
   "decisions", "strategy", "intelligence", "products", "portfolio", "engineering",
+  "documents",
   "quality", "ai", "integrations", "domains", "security", "devices", "it",
   "data", "readiness", "access", "audit", "settings",
 ]);
@@ -369,6 +371,7 @@ export function OfficeWorkspaceShell({
             <strong aria-current="page">{activePageTitle}</strong>
           </nav>
           <div className="office-topbar-tools">
+            <OfficeIstClock/>
             {workspace === "office" && identity.roles.some(role => role === "OWNER" || role === "DIRECTOR") ?
               <OfficeIntelligencePeek key={pathname}/> : null}
           <div className="office-more-wrapper" ref={moreRef}>

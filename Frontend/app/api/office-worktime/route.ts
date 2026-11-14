@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { officeMutationIsSameOrigin } from "@/lib/office/request-security";
-import { officeWorktimeOverview, officeWorktimeAction, importVerifiedWorktimePremiums, OfficeWorktimeError } from "@/lib/office/worktime-payroll-server";
+import { officeWorktimeOverview, officeWorktimeAction, importVerifiedWorktimePremiums, prepareVerifiedHoursPayroll, OfficeWorktimeError } from "@/lib/office/worktime-payroll-server";
 
 const uuid = z.string().uuid();
 const datetime = z.string().datetime({ offset: true });
@@ -13,8 +13,22 @@ const schema = z.discriminatedUnion("action", [
     sourceKind: z.enum(["RECORDED_SESSION","HISTORICAL_CORRECTION"]),
     sourceReference: z.string().trim().min(5).max(600), reason: z.string().trim().min(8).max(1000),
   }),
+  z.object({ action: z.literal("QUEUE_RECORDED"), employeeId: uuid, sessionId: uuid }),
+  z.object({ action: z.literal("AMEND_PENDING"), caseId: uuid, startAt: datetime, endAt: datetime,
+    breaks: z.array(z.object({ startAt: datetime, endAt: datetime })).max(40).default([]),
+    sourceReference: z.string().trim().min(5).max(600),
+    reason: z.string().trim().min(8).max(1000) }),
   z.object({ action: z.literal("DECIDE"), caseId: uuid,
     decision: z.enum(["APPROVE","REJECT"]), note: z.string().max(1000).optional() }),
+  z.object({ action: z.literal("REQUEST_LEAVE"), employeeId: uuid,
+    startsOn: z.string().date(), endsOn: z.string().date(),
+    payClass: z.enum(["PAID_LEAVE","UNPAID_LEAVE","SICK_PAID","HOLIDAY_PAID"]),
+    minutesPerWeekday: z.number().int().min(30).max(360),
+    evidenceReference: z.string().trim().min(8).max(600),
+    authorityReference: z.string().trim().min(10).max(600).optional(),
+    reason: z.string().trim().min(12).max(1000) }),
+  z.object({ action: z.literal("DECIDE_LEAVE"), leaveId: uuid,
+    decision: z.enum(["APPROVE","REJECT"]), note: z.string().trim().min(12).max(1000) }),
   z.object({ action: z.literal("REQUEST_FLEX"), weekMonday: z.string().date(), leaveDate: z.string().date() }),
   z.object({ action: z.literal("DECIDE_FLEX"), flexId: uuid,
     decision: z.enum(["APPROVE","REJECT"]), note: z.string().max(1000).optional() }),
@@ -22,6 +36,9 @@ const schema = z.discriminatedUnion("action", [
     authorityReference: z.string().trim().min(12).max(300) }),
   z.object({ action: z.literal("DECIDE_POLICY"), policyId: uuid, decision: z.enum(["APPROVE","REJECT"]) }),
   z.object({ action: z.literal("IMPORT_PREMIUMS"), periodId: uuid, employeeId: uuid }),
+  z.object({ action: z.literal("AUTO_ATTENDANCE"), periodId: uuid, employeeId: uuid,
+    replaceExisting: z.boolean().optional(), expectedUpdatedAt: datetime.optional(),
+    reason: z.string().trim().min(12).max(1000).optional() }),
   z.object({ action: z.literal("ISSUE_SLIP"), payrollResultId: uuid }),
   z.object({ action: z.literal("SUBMIT_SETTLEMENT"), payrollResultId: uuid,
     amountMinor: z.number().int().positive(), creditedAt: datetime,
@@ -55,7 +72,10 @@ export async function POST(request: Request) {
     const input = parsed.data;
     const result = input.action === "IMPORT_PREMIUMS"
       ? await importVerifiedWorktimePremiums({ periodId: input.periodId, employeeId: input.employeeId })
-      : await officeWorktimeAction(input);
+      : input.action === "AUTO_ATTENDANCE"
+        ? await prepareVerifiedHoursPayroll({ periodId: input.periodId, employeeId: input.employeeId,
+            replaceExisting: input.replaceExisting, expectedUpdatedAt: input.expectedUpdatedAt, reason: input.reason })
+        : await officeWorktimeAction(input);
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (e) { return err(e); }
 }

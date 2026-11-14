@@ -17,7 +17,8 @@ const sourceMapping = read("../Database/supabase/migrations/202611130110_externa
 
 describe("KRAVIA Office external signing and offboarding audit gates", () => {
   it("never presents local record-entry as actual third-party eSign issuance", () => {
-    expect(studio).toContain("Record issued eSign request");
+    expect(studio).toContain("Record external provider request");
+    expect(studio).toContain("Record renewed eSign request");
     expect(studio).not.toContain("Issue provider eSign request");
     expect(studio).toContain("Issue this request in your verified eSign provider first.");
     expect(studio).toContain("KRAVIA does not fabricate signing links or email tokens.");

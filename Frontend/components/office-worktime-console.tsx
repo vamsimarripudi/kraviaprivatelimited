@@ -9,12 +9,25 @@ type Employee = { user_id: string; display_name: string | null };
 type Claim = {
   id: string; employee_user_id: string; work_starts_at: string; work_ends_at: string;
   status: "PENDING" | "APPROVED" | "REJECTED"; requested_by: string; reviewed_by: string | null;
-  source_reference: string; review_note: string | null;
+  source_reference: string; review_note: string | null; request_reason?: string;
+  source_kind: "HISTORICAL_CORRECTION" | "RECORDED_SESSION";
+  breaks?: Array<{ startAt: string; endAt: string }>;
 };
 type Policy = { id: string; status: string; effective_from: string; authority_reference: string; weekend_bps: number; weekday_ot_bps: number; night_premium_bps: number; proposed_by: string; employee_user_id: string };
 type Premium = {
   workedMinutes: number; weekdayOvertimeMinutes: number; weekendMinutes: number; nightMinutes: number;
   totalAdditionalEarningsMinor: number; flexDaysEarnedThisMonth: number; warnings: string[];
+};
+type SalaryPreview = { basisMinutes: number; approvedRegularMinutes: number; approvedPaidLeaveMinutes: number; approvedUnpaidLeaveMinutes: number; unresolvedMinutes: number;
+  potentialWeekdayOvertimeMinutes: number; optionalWeekendMinutes: number;
+  scheduledWeekdays: number; verifiedWeekdays: number; estimatedRegularGrossMinor: number | null;
+  readyForPayroll: boolean; sourceSessionIds: string[]; sourceLeaveIds: string[] };
+type LeaveRequest = {
+  id: string; employee_user_id: string; starts_on: string; ends_on: string;
+  pay_class: "PAID_LEAVE" | "UNPAID_LEAVE" | "SICK_PAID" | "HOLIDAY_PAID";
+  minutes_per_weekday: number; status: string; requested_by: string;
+  reviewed_by: string | null; evidence_reference: string;
+  authority_reference: string | null; request_reason: string; review_note: string | null;
 };
 type Slip = {
   id: string; code: string; period: string; due_date: string | null; status: string;
@@ -23,15 +36,19 @@ type Slip = {
 type Snapshot = {
   actor: { user_id: string; roles: string[] }; employee: Employee; employees: Employee[];
   month: string; target_payment: { date: string; time: string; bankHolidayVerificationRequired: boolean };
-  claims: Claim[]; policies: Policy[]; approved_policy: Policy | null; attendance_targets: WorktimeTargets;
+  claims: Claim[]; policies: Policy[]; leave_requests: LeaveRequest[]; approved_policy: Policy | null; attendance_targets: WorktimeTargets;
+  recorded_sessions: Array<{ id: string; check_in_at: string; check_out_at: string; status: string; needs_review: boolean }>;
   payroll_periods: Array<{ id: string; period_code: string; starts_on: string; ends_on: string; status: string }>;
-  preview: Premium | null; salary_slips: Slip[];
-  capabilities: { self: boolean; review_worktime: boolean; propose_policy: boolean; prepare_payroll: boolean };
+  preview: Premium | null; salary_preview: SalaryPreview; approved_monthly_gross_minor: number | null; salary_slips: Slip[];
+  capabilities: { self: boolean; review_worktime: boolean; review_policy: boolean; propose_policy: boolean; prepare_payroll: boolean };
   notice: string;
 };
 function money(minor?: number) { return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format((minor || 0) / 100); }
 function formatHours(minutes: number) { return (minutes / 60).toFixed(2) + " hrs"; }
 function istTimestamp(iso: string) { return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" }).format(new Date(iso)); }
+function asISTInput(value: string) {
+  return new Date(Date.parse(value) + 330 * 60_000).toISOString().slice(0, 16);
+}
 function localIST(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) throw new Error("Provide an IST date and time");
   const parsed = new Date(value + ":00+05:30");
@@ -59,7 +76,7 @@ export function OfficeWorktimeConsole() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
-  const [mode, setMode] = useState<"CORRECTION" | "POLICY" | "IMPORT" | null>(null);
+  const [mode, setMode] = useState<"CORRECTION" | "EDIT_PENDING" | "AUTO" | "POLICY" | "IMPORT" | "LEAVE" | "LEAVE_DECISION" | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -78,6 +95,17 @@ export function OfficeWorktimeConsole() {
       setData(next); setNotice(success); setDraft({}); setMode(null);
     } catch (e) { setError(e instanceof Error ? e.message : "Action failed"); }
     finally { setBusy(false); }
+  }
+  function editPending(claim: Claim) {
+    if (claim.status !== "PENDING" || claim.requested_by !== data?.actor.user_id ||
+        claim.source_kind !== "HISTORICAL_CORRECTION") return;
+    setDraft({
+      caseId: claim.id, startAt: asISTInput(claim.work_starts_at),
+      endAt: asISTInput(claim.work_ends_at),
+      evidence: claim.source_reference, reason: claim.request_reason || "",
+      breakLines: (claim.breaks || []).map(b => asISTInput(b.startAt) + " | " + asISTInput(b.endAt)).join("\n"),
+    });
+    setMode("EDIT_PENDING");
   }
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -98,6 +126,46 @@ export function OfficeWorktimeConsole() {
           endAt: endsAt, breaks,
           sourceReference: draft.evidence, reason: draft.reason },
         "Historical attendance evidence submitted for independent review. No wage or attendance was fabricated.");
+      } else if (mode === "EDIT_PENDING") {
+        const startAt = localIST(draft.startAt);
+        const endAt = localIST(draft.endAt);
+        const breaks = (draft.breakLines || "").split("\n").map(line => line.trim()).filter(Boolean).map(line => {
+          const timestamps = line.split("|").map(part => part.trim());
+          if (timestamps.length !== 2) throw new Error("Each break line needs start and end separated by |");
+          return { startAt: localIST(timestamps[0]), endAt: localIST(timestamps[1]) };
+        });
+        void mutate({ action: "AMEND_PENDING", caseId: draft.caseId, startAt, endAt,
+          breaks, sourceReference: draft.evidence, reason: draft.reason },
+          "Pending worktime correction updated with previous evidence preserved in audit history.");
+      } else if (mode === "LEAVE") {
+        const amount = Number(draft.minutesPerWeekday || "360");
+        if (!Number.isInteger(amount) || amount < 30 || amount > 360) {
+          throw new Error("Provide 30–360 verified leave minutes for each scheduled weekday");
+        }
+        if (!draft.startsOn || !draft.endsOn || draft.endsOn < draft.startsOn) {
+          throw new Error("Leave requires valid start and end dates");
+        }
+        const payClass = draft.payClass || "PAID_LEAVE";
+        if (payClass !== "UNPAID_LEAVE" && (!draft.authorityReference || draft.authorityReference.trim().length < 10)) {
+          throw new Error("Paid leave and company holidays require a written policy reference");
+        }
+        void mutate({ action: "REQUEST_LEAVE", employeeId: data?.employee.user_id,
+          startsOn: draft.startsOn, endsOn: draft.endsOn, payClass,
+          minutesPerWeekday: amount, evidenceReference: draft.evidenceReference,
+          authorityReference: draft.authorityReference || undefined, reason: draft.reason },
+          "Leave evidence submitted. Only independently approved time affects the salary preview; no payment was made.");
+      } else if (mode === "LEAVE_DECISION") {
+        if (!draft.leaveId || !draft.leaveDecision || !draft.reviewNote || draft.reviewNote.trim().length < 12) {
+          throw new Error("Select an independent leave decision and provide a meaningful review note");
+        }
+        void mutate({ action: "DECIDE_LEAVE", leaveId: draft.leaveId,
+          decision: draft.leaveDecision, note: draft.reviewNote },
+          "Leave decision recorded with source audit. Any stale payroll requires reconciliation.");
+      } else if (mode === "AUTO") {
+        void mutate({ action: "AUTO_ATTENDANCE", periodId: draft.periodId,
+          employeeId: data?.employee.user_id, replaceExisting: draft.replaceExisting === "yes",
+          reason: draft.replaceExisting === "yes" ? draft.reason : undefined },
+          "Verified regular hours added to Payroll OS. Unresolved time needs HR review; no salary or overtime was paid.");
       } else if (mode === "POLICY") {
         void mutate({ action: "PROPOSE_POLICY", employeeId: data?.employee.user_id,
           effectiveFrom: draft.effectiveFrom, authorityReference: draft.authority },
@@ -132,6 +200,26 @@ export function OfficeWorktimeConsole() {
           <article><CalendarClock size={20}/><small>Scheduled pay target</small><strong>{data.target_payment.date}</strong><span>6:00 P.M. IST · confirm bank holidays</span></article>
         </div>
         <article className={styles.panel}>
+          <div className={styles.heading}><h3>HR salary calculator · verified hours</h3>
+            {data.capabilities.prepare_payroll && data.approved_monthly_gross_minor !== null ?
+              <button type="button" disabled={busy} onClick={() => { setDraft({}); setMode(mode === "AUTO" ? null : "AUTO"); }}>
+                Auto-fill / update payroll hours
+              </button> : null}
+          </div>
+          <p>Contract gross {data.approved_monthly_gross_minor === null ? "not approved" : money(data.approved_monthly_gross_minor)} · 6 net hours per weekday. Estimated base is PROVISIONAL until all scheduled hours, holidays, leave and exceptions are independently reviewed.</p>
+          <div className={styles.metrics}>
+            <span>Scheduled regular <b>{formatHours(data.salary_preview.basisMinutes)}</b></span>
+            <span>Independently approved work <b>{formatHours(data.salary_preview.approvedRegularMinutes)}</b></span>
+            <span>Approved paid leave / holidays <b>{formatHours(data.salary_preview.approvedPaidLeaveMinutes)}</b></span>
+            <span>Approved unpaid leave <b>{formatHours(data.salary_preview.approvedUnpaidLeaveMinutes)}</b></span>
+            <span>Unresolved — not absent <b>{formatHours(data.salary_preview.unresolvedMinutes)}</b></span>
+            <span>Provisional regular gross <b>{data.salary_preview.estimatedRegularGrossMinor === null ? "Awaiting approved salary" : money(data.salary_preview.estimatedRegularGrossMinor)}</b></span>
+            <span>Weekday OT candidate <b>{formatHours(data.salary_preview.potentialWeekdayOvertimeMinutes)}</b></span>
+            <span>Optional weekend work <b>{formatHours(data.salary_preview.optionalWeekendMinutes)}</b></span>
+          </div>
+          <p>Overtime is a separate addition only after a valid approved rate, verified worktime and an independent payroll adjustment review. Auto-fill does not issue a payslip or transfer funds.</p>
+        </article>
+        <article className={styles.panel}>
           <div className={styles.heading}><h3>Daily attendance · net time</h3><small>Effective tracking from 14 Nov 2026 · historical evidence from 1 Aug</small></div>
           <p>{data.attendance_targets.message}</p>
           <div className={styles.dailyLedger}>
@@ -153,12 +241,31 @@ export function OfficeWorktimeConsole() {
             <span><strong>{formatHours(week.tracked_minutes)}</strong><small>{week.target_minutes ? formatHours(week.target_minutes) + " goal · " + week.completed_weekdays + "/5 days ≥ 6h · " + formatHours(week.remaining_minutes) + " time remaining · " + formatHours(week.weekend_minutes) + " weekend" : "Target not assessed for this week"}</small></span>
           </div>)}</div>
         </article>
+        <article className={styles.panel}>
+          <div className={styles.heading}><h3>Recorded attendance awaiting independent review</h3><small>Actual completed check-ins only · never fabricated</small></div>
+          {data.recorded_sessions.length ?
+            data.recorded_sessions.slice(-30).reverse().map(session => <div className={styles.record} key={session.id}>
+              <span><b>{istTimestamp(session.check_in_at)}</b><small>Checked out {istTimestamp(session.check_out_at)}</small></span>
+              <div>
+                {session.needs_review ?
+                  <button type="button" disabled={busy} onClick={() =>
+                    void mutate({ action: "QUEUE_RECORDED", employeeId: data.employee.user_id, sessionId: session.id },
+                      "Real attendance queued for independent review. This has not paid or approved any hours.")}>
+                    Queue for HR review
+                  </button> : <em>Pending / reviewed</em>}
+              </div>
+            </div>) :
+            <p className={styles.empty}>No completed recorded sessions. Employees must explicitly check in, record breaks and check out; login events never count.</p>}
+        </article>
         <div className={styles.columns}>
           <article className={styles.panel}>
             <div className={styles.heading}><h3>Attendance & approvals</h3><button type="button" onClick={() => { setDraft({}); setMode(mode === "CORRECTION" ? null : "CORRECTION"); }}>{data.capabilities.review_worktime ? "Add / correct employee hours" : "Request correction"}</button></div>
             {data.claims.length ? data.claims.map(claim => <div className={styles.record} key={claim.id}>
               <span><b>{istTimestamp(claim.work_starts_at)}</b><small>Until {istTimestamp(claim.work_ends_at)}</small><small>{claim.source_reference}</small></span>
-              <div><em>{claim.status}</em>{data.capabilities.review_worktime && claim.status === "PENDING" &&
+              <div><em>{claim.status}</em>{claim.status === "PENDING" && claim.requested_by === data.actor.user_id &&
+                claim.source_kind === "HISTORICAL_CORRECTION" ?
+                <button type="button" disabled={busy} onClick={() => editPending(claim)}>Edit pending</button> : null}
+                {data.capabilities.review_worktime && claim.status === "PENDING" &&
                   claim.requested_by !== data.actor.user_id && claim.employee_user_id !== data.actor.user_id ? <div className={styles.actions}>
                     <button type="button" disabled={busy} onClick={() => void mutate({ action: "DECIDE", caseId: claim.id, decision: "APPROVE", note: "Verified evidence reviewed" }, "Approved independently.")}>Approve</button>
                     <button type="button" disabled={busy} onClick={() => void mutate({ action: "DECIDE", caseId: claim.id, decision: "REJECT", note: "Further evidence required" }, "Correction rejected with evidence request.")}>Reject</button>
@@ -177,7 +284,7 @@ export function OfficeWorktimeConsole() {
             </div> : null}
             {data.policies.filter(p => p.status === "DRAFT").map(p => <div className={styles.record} key={p.id}>
               <span><b>Pending policy</b><small>{p.effective_from}</small></span>
-              {data.capabilities.review_worktime && p.proposed_by !== data.actor.user_id && p.employee_user_id !== data.actor.user_id ? <div className={styles.actions}>
+              {data.capabilities.review_policy && p.proposed_by !== data.actor.user_id && p.employee_user_id !== data.actor.user_id ? <div className={styles.actions}>
                 <button type="button" onClick={() => void mutate({ action: "DECIDE_POLICY", policyId: p.id, decision: "APPROVE" }, "Policy approved by an independent director.")}>Approve</button>
                 <button type="button" onClick={() => void mutate({ action: "DECIDE_POLICY", policyId: p.id, decision: "REJECT" }, "Policy rejected.")}>Reject</button>
               </div> : <em>Awaiting independent director</em>}
@@ -186,6 +293,32 @@ export function OfficeWorktimeConsole() {
           </article>
         </div>
         <article className={styles.panel}>
+          <div className={styles.heading}>
+            <h3>Leave and paid-holiday evidence</h3>
+            {data.capabilities.self || data.capabilities.review_worktime ?
+              <button type="button" disabled={busy} onClick={() => { setDraft({ startsOn: month + "-01",
+                endsOn: month + "-01", payClass: "PAID_LEAVE", minutesPerWeekday: "360" });
+                setMode(mode === "LEAVE" ? null : "LEAVE"); }}>Request leave / record approved holiday</button> : null}
+          </div>
+          <p>Only a real leave request, a written entitlement reference and independent HR review can affect the draft monthly wage calculation. Leave is not inferred from missing logins.</p>
+          {data.leave_requests.length ? data.leave_requests.map(leave =>
+            <div className={styles.record} key={leave.id}>
+              <span><b>{leave.pay_class.replaceAll("_", " ")} · {leave.starts_on} – {leave.ends_on}</b>
+                <small>{leave.minutes_per_weekday} minutes per weekday · {leave.evidence_reference}</small>
+                <small>{leave.status === "APPROVED" ? "Included in verified salary preview" : "No payable change until approved"}</small>
+              </span>
+              <div><em>{leave.status}</em>
+                {leave.status === "PENDING" && data.capabilities.review_worktime &&
+                  leave.requested_by !== data.actor.user_id && leave.employee_user_id !== data.actor.user_id ?
+                  <button type="button" disabled={busy} onClick={() => {
+                    setDraft({ leaveId: leave.id, leaveDecision: "APPROVE", reviewNote: "" });
+                    setMode("LEAVE_DECISION");
+                  }}>Review</button> : null}
+              </div>
+            </div>) :
+            <p className={styles.empty}>No documented leave or paid holiday approvals for this month.</p>}
+        </article>
+        <article className={styles.panel}>
           <div className={styles.heading}><h3>Salary slips and unpaid wage balances</h3><small>Employee-only download</small></div>
           {data.salary_slips.length ? data.salary_slips.map(slip => <div className={styles.record} key={slip.id}>
             <span><b>{slip.period} · {slip.code}</b><small>{money(slip.net_pay_minor)} net · confirmed {money(slip.confirmedMinor)} · outstanding {money(slip.balanceMinor)}</small></span>
@@ -193,15 +326,63 @@ export function OfficeWorktimeConsole() {
           </div>) : <p className={styles.empty}>No approved issued payslips. Issuance requires an approved locked payroll result and independent payroll reviewer; bank preparation does not prove payment.</p>}
         </article>
         {mode ? <form className={styles.form} onSubmit={submit}>
-          <div className={styles.heading}><h3>{mode === "CORRECTION" ? "Submit historical attendance evidence" : mode === "POLICY" ? "Propose effective-dated worktime policy" : "Import separately reviewed premiums"}</h3><button type="button" onClick={() => setMode(null)}>Cancel</button></div>
-          {mode === "CORRECTION" ? <>
+          <div className={styles.heading}><h3>{mode === "CORRECTION" ? "Submit historical attendance evidence" : mode === "EDIT_PENDING" ? "Edit your pending attendance evidence" : mode === "AUTO" ? "Auto-fill verified payroll hours" : mode === "LEAVE" ? "Request evidence-backed leave" : mode === "LEAVE_DECISION" ? "Independent leave approval" : mode === "POLICY" ? "Propose effective-dated worktime policy" : "Import separately reviewed premiums"}</h3><button type="button" onClick={() => setMode(null)}>Cancel</button></div>
+          {(mode === "CORRECTION" || mode === "EDIT_PENDING") ? <>
             <p>Backfill from 1 August 2026 using actual work records. Do not enter a six-hour default, fabricate past logins, or approve your own claim. For another employee, choose them from the Employee selector above.</p>
             <label>Actual start time (IST)<input type="datetime-local" required min="2026-08-01T00:00" value={draft.startAt || ""} onChange={e => setDraft({ ...draft, startAt: e.target.value })}/></label>
             <label>Actual end time (IST)<input type="datetime-local" required min="2026-08-01T00:00" value={draft.endAt || ""} onChange={e => setDraft({ ...draft, endAt: e.target.value })}/></label>
-            <label>Unpaid break start (IST, optional)<input type="datetime-local" value={draft.breakStart || ""} onChange={e => setDraft({ ...draft, breakStart: e.target.value })}/></label>
-            <label>Unpaid break end (IST, optional)<input type="datetime-local" value={draft.breakEnd || ""} onChange={e => setDraft({ ...draft, breakEnd: e.target.value })}/></label>
+            {mode === "CORRECTION" ? <>
+              <label>Unpaid break start (IST, optional)<input type="datetime-local" value={draft.breakStart || ""} onChange={e => setDraft({ ...draft, breakStart: e.target.value })}/></label>
+              <label>Unpaid break end (IST, optional)<input type="datetime-local" value={draft.breakEnd || ""} onChange={e => setDraft({ ...draft, breakEnd: e.target.value })}/></label>
+            </> : <label>Unpaid breaks · one start | end per line, IST
+              <textarea value={draft.breakLines || ""} placeholder="2026-11-16T13:00 | 2026-11-16T13:30" onChange={e => setDraft({ ...draft, breakLines: e.target.value })}/>
+            </label>}
             <label>Evidence reference<input required minLength={5} placeholder="Attendance export / signed work record" value={draft.evidence || ""} onChange={e => setDraft({ ...draft, evidence: e.target.value })}/></label>
             <label>Reason<textarea required minLength={8} value={draft.reason || ""} onChange={e => setDraft({ ...draft, reason: e.target.value })}/></label>
+          </> : null}
+          {mode === "LEAVE" ? <>
+            <p>Paid leave, paid sick days and company holidays require the actual written policy reference. No automatic leave entitlement or historical attendance is created.</p>
+            <label>Classification<select value={draft.payClass || "PAID_LEAVE"} onChange={e => setDraft({ ...draft, payClass: e.target.value })}>
+              <option value="PAID_LEAVE">Paid leave</option>
+              <option value="UNPAID_LEAVE">Approved unpaid leave</option>
+              <option value="SICK_PAID">Paid sick leave</option>
+              <option value="HOLIDAY_PAID">Paid company holiday</option>
+            </select></label>
+            <label>First date<input required type="date" min="2026-08-01" value={draft.startsOn || ""} onChange={e => setDraft({ ...draft, startsOn: e.target.value })}/></label>
+            <label>Last date<input required type="date" min="2026-08-01" value={draft.endsOn || ""} onChange={e => setDraft({ ...draft, endsOn: e.target.value })}/></label>
+            <label>Approved minutes per weekday<input required type="number" min="30" max="360" step="1"
+              value={draft.minutesPerWeekday || "360"} onChange={e => setDraft({ ...draft, minutesPerWeekday: e.target.value })}/></label>
+            <label>Original evidence reference<input required minLength={8} value={draft.evidenceReference || ""}
+              onChange={e => setDraft({ ...draft, evidenceReference: e.target.value })}/></label>
+            {draft.payClass !== "UNPAID_LEAVE" ? <label>Written paid-leave / holiday policy reference
+              <input required minLength={10} value={draft.authorityReference || ""}
+                onChange={e => setDraft({ ...draft, authorityReference: e.target.value })}/></label> : null}
+            <label>Reason<textarea required minLength={12} value={draft.reason || ""} onChange={e => setDraft({ ...draft, reason: e.target.value })}/></label>
+          </> : null}
+          {mode === "LEAVE_DECISION" ? <>
+            <p>Only an independently authorized HR Manager or Director may decide. The requester and beneficiary cannot approve. Approval does not execute payroll.</p>
+            <label>Decision<select value={draft.leaveDecision || "APPROVE"} onChange={e => setDraft({ ...draft, leaveDecision: e.target.value })}>
+              <option value="APPROVE">Approve documented leave</option>
+              <option value="REJECT">Reject and request correction</option>
+            </select></label>
+            <label>Actual evidence review note<textarea required minLength={12} value={draft.reviewNote || ""}
+              onChange={e => setDraft({ ...draft, reviewNote: e.target.value })}/></label>
+          </> : null}
+          {mode === "AUTO" ? <>
+            <label>Monthly payroll period<select required value={draft.periodId || ""} onChange={e => setDraft({ ...draft, periodId: e.target.value })}>
+              <option value="">Select an editable monthly payroll period</option>
+              {data.payroll_periods.filter(period => ["DRAFT","ATTENDANCE_READY","CALCULATED"].includes(period.status)).map(period =>
+                <option key={period.id} value={period.id}>{period.period_code} · {period.status}</option>)}
+            </select></label>
+            <label><input type="checkbox" checked={draft.replaceExisting === "yes"}
+              onChange={e => setDraft({ ...draft, replaceExisting: e.target.checked ? "yes" : "" })}/>
+              Update an existing draft snapshot instead of adding a new one
+            </label>
+            {draft.replaceExisting === "yes" ?
+              <label>Required evidence-backed correction reason
+                <textarea required minLength={12} value={draft.reason || ""} onChange={e => setDraft({ ...draft, reason: e.target.value })}/>
+              </label> : null}
+            <p>Any missing verified hours remain unresolved and block final payroll. Approved paid and unpaid leave is imported from the HR evidence ledger; unresolved absences still require review with a source reference in Payroll OS. Existing approved runs cannot be changed.</p>
           </> : null}
           {mode === "POLICY" ? <><label>Effective from<input required type="date" value={draft.effectiveFrom || ""} onChange={e => setDraft({ ...draft, effectiveFrom: e.target.value })}/></label><label>Signed policy / Board authority reference<input required minLength={12} value={draft.authority || ""} onChange={e => setDraft({ ...draft, authority: e.target.value })}/></label><p>The proposed rates remain inactive until a separate director authorises them. This does not retrospectively rewrite existing payslips.</p></> : null}
           {mode === "IMPORT" ? <><label>Monthly payroll period<select required value={draft.periodId || ""} onChange={e => setDraft({ ...draft, periodId: e.target.value })}><option value="">Select an existing editable period</option>{data.payroll_periods.filter(period => ["DRAFT","ATTENDANCE_READY","CALCULATED"].includes(period.status)).map(period => <option key={period.id} value={period.id}>{period.period_code} · {period.status}</option>)}</select></label><p>This creates only independently reviewable draft earnings adjustments, never a bank transfer or paid slip. If none is listed, open a monthly period in Payroll OS first.</p></> : null}

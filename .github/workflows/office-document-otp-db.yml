@@ -1,0 +1,50 @@
+name: KRAVIA Office document OTP approval PostgreSQL
+on:
+  pull_request:
+    paths:
+      - 'Database/supabase/migrations/202611140001_office_document_email_otp_approval.sql'
+      - 'Database/supabase/tests/office-document-otp-*.sql'
+      - '.github/workflows/office-document-otp-db.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: office_document_otp_ci
+          POSTGRES_PASSWORD: synthetic-document-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d office_document_otp_ci"
+          --health-interval 3s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Test authentic OTP, location, immutable identities, no forgery
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg() {
+            docker run --rm --network host \
+              -v "$PWD:/repo:ro" --workdir /repo \
+              --env PGPASSWORD=synthetic-document-ci-only \
+              postgres:17 \
+              psql --host 127.0.0.1 --username postgres \
+              --dbname office_document_otp_ci --set ON_ERROR_STOP=1 "$@"
+          }
+          pg -f Database/supabase/tests/office-document-otp-fixture.sql
+          pg -f Database/supabase/migrations/202611140001_office_document_email_otp_approval.sql
+          result="$(pg --tuples-only --no-align \
+            -f Database/supabase/tests/office-document-otp-smoke.sql | tail -n 1)"
+          test "$result" = "OFFICE_DOCUMENT_OTP_APPROVAL_GATES_VERIFIED"
+          echo "Source, OTP failures, coordinates, employee reference, no replay and private audit verified."

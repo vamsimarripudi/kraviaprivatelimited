@@ -197,6 +197,20 @@ export async function getOfficeDocumentStudioOverview() {
    (validDepartment&&departmentTemplate.allowed&&row.owner_department===department));
   const visibleClauseIds=new Set(visibleClauses.map(row=>String(row.id)));
   const visibleClauseVersions=(clauseVersions.data??[]).filter(row=>visibleClauseIds.has(String(row.clause_id)));
+  // OTP receipts are not broad directory data. An Owner only sees receipts
+  // for document instances already authorized by the current source model.
+  // Every other signer sees only their own receipt in that readable scope.
+  const otpInstanceIds=visibleInstances.map(row=>String(row.id));
+  const otpQuery=otpInstanceIds.length
+    ?current.admin.from("office_document_otp_approvals")
+      .select("id,document_instance_id,render_id,signer_user_id,signer_name,employee_reference,signer_email_masked,render_sha256,latitude,longitude,accuracy_m,location_captured_at,location_source,approved_at,method,status")
+      .in("document_instance_id",otpInstanceIds)
+      .order("approved_at",{ascending:false}).limit(500):null;
+  const otpApprovals=otpQuery
+    ?await (ownerOverride?otpQuery:otpQuery.eq("signer_user_id",current.identity.userId))
+    :{data:[],error:null};
+  fail(otpApprovals.error,"Internal document approval receipts unavailable");
+
   const requestIds = visibleInstances.map((row) => row.approval_request_id).filter((value): value is string => typeof value === "string" && Boolean(value));
   const approvals = requestIds.length ? await current.admin.from("office_requests").select("id,title,status,current_step_order,due_at,submitted_at,completed_at,updated_at").in("id", requestIds) : { data: [], error: null };
   fail(approvals.error, "Document approval state is temporarily unavailable");
@@ -232,6 +246,7 @@ export async function getOfficeDocumentStudioOverview() {
     signing_reviews: (signingReviews.data??[]).filter(row=>visibleDeliveryIds.has(String(row.delivery_event_id))),
     identities: identities.data ?? [],
     approvals: approvals.data ?? [],
+    otp_approvals: otpApprovals.data ?? [],
     disclaimer: "The canonical document is the published template version plus immutable input snapshot. PDF, DOCX, HTML and XLSX are rendered outputs and never replace historical source data.",
   };
 }

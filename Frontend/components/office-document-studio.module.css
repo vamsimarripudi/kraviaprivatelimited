@@ -10,3 +10,7 @@
 .actions button,.toolbar button{border-radius:10px!important;transition:transform 140ms ease}.actions button:hover,.toolbar button:hover{transform:translateY(-1px)}
 @media(max-width:620px){.actions button:hover,.toolbar button:hover{transform:none}}
 @media(prefers-reduced-motion:reduce){.actions button,.toolbar button{transition:none}}
+
+/* Read-only first-party OTP approval receipts do not alter the source PDF. */
+.otpEvidence { display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:8px;padding:8px 12px 12px;min-width:0; }
+.otpAction { display:flex;align-items:center;padding:8px 12px 12px;min-width:0; }
