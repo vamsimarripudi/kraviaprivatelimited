@@ -1,5 +1,20 @@
 name: KRAVIA HR salary and overtime branch QA
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Frontend/lib/office/attendance-salary-preview.ts'
+      - 'Frontend/lib/office/hr-attendance-workbook.ts'
+      - 'Frontend/lib/office/hr-attendance-import-server.ts'
+      - 'Frontend/components/office-hr-attendance-import.tsx'
+      - 'Frontend/components/office-payroll-console.tsx'
+      - 'Database/supabase/migrations/20261114120547_hr_hours_payroll_revision_guards_20261114.sql'
+      - 'Database/supabase/migrations/20261114120559_hr_payroll_independent_review_20261114.sql'
+      - 'Database/supabase/migrations/20261114120612_hr_leave_evidence_20261114.sql'
+      - 'Database/supabase/migrations/20261114120622_hr_payroll_maker_checker_20261114.sql'
+      - 'Database/supabase/migrations/20261114140609_hr_attendance_workbook_import_20261114.sql'
+      - 'Database/supabase/tests/hr-attendance-workbook-import-smoke.sql'
+      - '.github/workflows/hr-payroll-branch-qa.yml'
   push:
     branches:
       - feature/hr-hours-auto-payroll-audit-20261114
