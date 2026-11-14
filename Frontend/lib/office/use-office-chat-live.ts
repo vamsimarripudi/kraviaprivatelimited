@@ -23,6 +23,10 @@ export function useOfficeChatLive(
   let active=true;
   let stream:EventSource|null=null;
   let debounce:ReturnType<typeof setTimeout>|undefined;
+  let reconnectDelay:ReturnType<typeof setTimeout>|undefined;
+  // The first-party SSE endpoint rotates its 24-second transport by design.
+  // Suppress transient reconnect labels while EventSource renews itself.
+  const clearReconnect=()=>{if(reconnectDelay)clearTimeout(reconnectDelay);reconnectDelay=undefined;};
   let rejected=false;
   const connect=()=>{
    if(!active||rejected||document.visibilityState==="hidden")return;
@@ -33,7 +37,7 @@ export function useOfficeChatLive(
    stream=source;
    source.addEventListener("ready",()=>{
     if(!active||document.visibilityState!=="visible")return;
-    setStatus("live");
+    clearReconnect();setStatus("live");
     // Close the initial GET -> stream cursor race, and catch up after every
     // restart even if the server had no backlog to replay.
     changeRef.current();
@@ -52,16 +56,22 @@ export function useOfficeChatLive(
     rejected=true;setStatus("restricted");source.close();revokedRef.current();
    });
    source.addEventListener("unavailable",()=>{
-    if(active)setStatus("polling");
+    if(active){clearReconnect();setStatus("polling");}
    });
-   source.onerror=()=>{if(active&&!rejected)setStatus("reconnecting");};
+   source.onerror=()=>{
+    if(!active||rejected)return;
+    clearReconnect();
+    reconnectDelay=setTimeout(()=>{
+     if(active&&!rejected&&document.visibilityState==="visible")setStatus("polling");
+    },4500);
+   };
   };
   const visibility=()=>{
    if(document.visibilityState==="hidden"){
-    stream?.close();stream=null;
+    clearReconnect();stream?.close();stream=null;
     setStatus("polling");
    }else{
-    stream?.close();stream=null;
+    clearReconnect();stream?.close();stream=null;
     connect();
     changeRef.current();
    }
@@ -74,7 +84,7 @@ export function useOfficeChatLive(
    active=false;window.cancelAnimationFrame(deferred);
    document.removeEventListener("visibilitychange",visibility);
    if(debounce)clearTimeout(debounce);
-   stream?.close();
+   clearReconnect();stream?.close();
   };
  },[conversationId]);
  return !conversationId?"idle":status;
