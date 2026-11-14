@@ -51,7 +51,7 @@ describe("KRAVIA Office 5.0 enterprise Connect screen",()=>{
   expect(connect).toContain('aria-label="Choose emoji"');
   expect(connect).toContain('aria-label="Choose GIF"');
   expect(connect).toContain('aria-label="Message templates"');
-  expect(connect).toContain('aria-label="Send message"'.replace("Send message","Send message").slice(0,11));
+  expect(connect).toContain('submitting?"Sending message":"Send message"');
   expect(connect).toContain('"/api/office-chat/templates"');
   expect(connect).toContain('aria-autocomplete="list"');
   expect(connect).toContain('filePicker.current?.click()');
