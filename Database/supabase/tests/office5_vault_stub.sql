@@ -12,8 +12,10 @@ create function public.office_effective_permission(
  p_actor uuid,p_permission text,p_scope text default 'COMPANY',
  p_key text default null,p_owner uuid default null
 ) returns boolean language sql stable as $$
- select p_actor='00000000-0000-4000-8000-000000000002'::uuid
-  and p_permission in ('access.profile.assign','registration.review','document.instance.review','vault.secret.review','vault.secret.upload')
+ select (p_actor='00000000-0000-4000-8000-000000000002'::uuid
+  and p_permission in ('access.profile.assign','registration.review','document.instance.review','vault.secret.review'))
+  or (p_actor='00000000-0000-4000-8000-000000000010'::uuid
+  and p_permission='vault.secret.upload')
 $$;
 
 -- Minimal isolated schemas for the sealed locker migration; never deployed.

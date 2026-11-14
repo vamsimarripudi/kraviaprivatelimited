@@ -134,16 +134,15 @@ begin
    where user_id=p_actor and status='ACTIVE')
  or not public.office_effective_permission(p_actor,'vault.secret.upload','COMPANY',null,null)
  then raise exception 'Sealed document upload authority required'; end if;
- if p_document is null then
-   v_document:=gen_random_uuid();
+ if p_document is null then raise exception 'A controlled document identifier is required'; end if;
+ v_document:=p_document;
+ select owner_user_id into v_owner from public.office_vault_secret_documents
+  where id=v_document and state='ACTIVE' for update;
+ if v_owner is null then
    insert into public.office_vault_secret_documents(id,owner_user_id,title,classification)
    values(v_document,p_actor,trim(p_title),p_classification);
- else
-   v_document:=p_document;
-   select owner_user_id into v_owner from public.office_vault_secret_documents
-    where id=v_document and state='ACTIVE' for update;
-   if v_owner is null or v_owner<>p_actor
-   then raise exception 'Only the original document custodian may submit a new version'; end if;
+ elsif v_owner<>p_actor then
+   raise exception 'Only the original document custodian may submit a new version';
  end if;
  select coalesce(max(version_number),0)+1 into v_number
    from public.office_vault_secret_versions where document_id=v_document;
