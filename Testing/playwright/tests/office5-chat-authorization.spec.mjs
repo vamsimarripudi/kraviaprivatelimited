@@ -33,7 +33,8 @@ test("untrusted origins cannot create groups, DMs or messages",async({request})=
 test("anonymous callers cannot search, enumerate mentions or access saved content",async({request})=>{
  const id="00000000-0000-4000-8000-000000000001";
  for(const url of ["/api/office-chat/mentions","/api/office-chat/saved","/api/office-chat/search?q=private",
-  "/api/office-chat/threads/"+id,"/api/office-chat/conversations/"+id+"/members"]){
+  "/api/office-chat/threads/"+id,"/api/office-chat/conversations/"+id+"/members",
+  "/api/office-chat/messages/"+id+"/revisions"]){
   const result=await request.get(url);
   expect([401,403,404,503],url).toContain(result.status());
   expect(result.headers()["cache-control"],url).toContain("no-store");
@@ -48,10 +49,33 @@ test("external origins cannot alter saved, mentions, edits or threads",async({re
   request.post("/api/office-chat/threads/"+id,{headers:origin,data:{body:"Not trusted",client_nonce:id}}),
   request.patch("/api/office-chat/messages/"+id,{headers:origin,data:{body:"Not trusted"}}),
   request.delete("/api/office-chat/messages/"+id,{headers:origin}),
+  request.post("/api/office-chat/messages/"+id+"/pin",{headers:origin,data:{pin:true}}),
+  request.post("/api/office-chat/messages/"+id+"/reactions",{headers:origin,data:{emoji:"👍",react:true}}),
+  request.post("/api/office-chat/conversations/"+id+"/members",{headers:origin,data:{user_id:id}}),
  ];
  for(const call of attacks){
   const result=await call;
   expect(result.status()).toBe(403);
   expect(result.headers()["cache-control"]).toContain("no-store");
+ }
+});
+
+test("anonymous requests to revisions, pins, reactions and group membership never gain private data",async({request})=>{
+ const id="00000000-0000-4000-8000-000000000001";
+ for(const url of ["/api/office-chat/messages/"+id+"/revisions",
+  "/api/office-chat/conversations/"+id+"/members"]){
+  const response=await request.get(url);
+  expect([401,403,404,503],url).toContain(response.status());
+  expect(response.headers()["cache-control"],url).toContain("no-store");
+  expect(await response.text(),url).not.toContain("previous_body");
+ }
+ for(const {url,data} of [
+  {url:"/api/office-chat/messages/"+id+"/pin",data:{pin:true}},
+  {url:"/api/office-chat/messages/"+id+"/reactions",data:{emoji:"👍",react:true}},
+  {url:"/api/office-chat/conversations/"+id+"/members",data:{user_id:id}},
+ ]){
+  const response=await request.post(url,{data});
+  expect([401,403,404,503],url).toContain(response.status());
+  expect(response.headers()["cache-control"],url).toContain("no-store");
  }
 });
