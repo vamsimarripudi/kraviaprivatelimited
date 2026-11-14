@@ -31,6 +31,11 @@ const QUICK_TEMPLATES:MessageTemplate[]=[
   {title:"Acknowledgement",body:"Received, thank you. I will review and follow up."},
 ];
 const MAX_CHAT_UPLOAD_BYTES=4_194_304; // Vercel Function request body is capped at 4.5 MB; reserve multipart overhead.
+// Railway has not deployed the new content-signature scanner yet. Allow only the
+// four MIME types already supported by the live API until explicitly enabled
+// in a separately reviewed production build after its backend release.
+const chatExtendedMediaReady=process.env.NEXT_PUBLIC_KRAVIA_CHAT_EXTENDED_MEDIA==="true";
+const liveScannerTypes=new Set(["application/pdf","image/jpeg","image/png","image/webp"]);
 
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
@@ -307,6 +312,13 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
     const key=window.crypto.randomUUID();
     const entry:SelectedFile={key,name:file.name,status:"selected"};
     setSelectedFiles(prev=>[...prev,entry]);
+    const nativeType=file.type.toLowerCase();
+    if(!chatExtendedMediaReady&&!liveScannerTypes.has(nativeType)&&
+      !/\.(pdf|jpe?g|png|webp)$/i.test(file.name)){
+      setSelectedFiles(prev=>prev.map(f=>f.key===key?{...f,status:"blocked",
+        message:"This media type requires the upgraded private scanner; use PDF or a standard photo for now."}:f));
+      return;
+    }
     if(file.size<1||file.size>MAX_CHAT_UPLOAD_BYTES){
       setSelectedFiles(prev=>prev.map(f=>f.key===key?{...f,status:"blocked",message:"Files must be 1 byte–4 MiB for this secure transfer endpoint"}:f));
       return;
@@ -487,9 +499,15 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
               {composerTool==="attach"?<div className="chat-attachment-menu">
                 <button type="button" onClick={()=>filePicker.current?.click()}><FileText size={17}/>Documents and files</button>
                 <button type="button" onClick={()=>imagePicker.current?.click()}><Image size={17}/>Photos</button>
-                <button type="button" onClick={()=>videoPicker.current?.click()}><Video size={17}/>Video clips</button>
-                <button type="button" onClick={()=>gifPicker.current?.click()}><FileImage size={17}/>Animated GIF file</button>
-                <small>Scanner-verified · up to 4 MiB per upload · 5 attachments</small>
+                <button type="button" disabled={!chatExtendedMediaReady}
+                  title={chatExtendedMediaReady?"Attach video":"Requires Railway scanner release"}
+                  onClick={()=>videoPicker.current?.click()}><Video size={17}/>Video clips</button>
+                <button type="button" disabled={!chatExtendedMediaReady}
+                  title={chatExtendedMediaReady?"Attach GIF":"Requires Railway scanner release"}
+                  onClick={()=>gifPicker.current?.click()}><FileImage size={17}/>Animated GIF file</button>
+                <small>{chatExtendedMediaReady?"Scanner-verified images, GIF, video and documents":
+                  "PDF and JPEG/PNG/WebP photos available; other types need the new Railway scanner"}
+                  {" · Up to 4 MiB per file · 5 attachments"}</small>
               </div>:null}
               {composerTool==="emoji"?<div className="chat-emoji-grid">
                 {EMOJIS.map(emoji=><button key={emoji} type="button" title={emoji}
@@ -543,8 +561,9 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
               <button type="button" className="chat-tool" aria-label="Choose emoji" title="Emoji"
                 aria-expanded={composerTool==="emoji"} onClick={()=>{setMentionTerm(null);setComposerTool(v=>v==="emoji"?null:"emoji");}}>
                 <Smile size={19}/></button>
-              <button type="button" className="chat-tool" aria-label="Choose GIF" title="GIF"
-                onClick={()=>gifPicker.current?.click()}><FileImage size={19}/></button>
+              <button type="button" className="chat-tool" aria-label="Choose GIF"
+                title={chatExtendedMediaReady?"Choose GIF":"GIF uploads require the new Railway scanner"}
+                disabled={!chatExtendedMediaReady} onClick={()=>gifPicker.current?.click()}><FileImage size={19}/></button>
               <button type="button" className="chat-tool" aria-label="Message templates" title="Templates"
                 aria-expanded={composerTool==="templates"} onClick={()=>{setMentionTerm(null);setComposerTool(v=>v==="templates"?null:"templates");}}>
                 <BookMarked size={18}/></button>
@@ -555,16 +574,18 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
             </div>
             <div id="office-chat-file-picker" className="chat-sr-only" aria-hidden="true">Private attachment selections</div>
             <input className="chat-file-input" ref={filePicker} type="file" aria-label="Choose a scanned file"
-              accept=".pdf,.txt,.docx,.xlsx,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm"
+              accept={chatExtendedMediaReady?".pdf,.txt,.docx,.xlsx,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm":
+                ".pdf,.jpg,.jpeg,.png,.webp"}
               onChange={e=>{const file=e.target.files?.[0];e.target.value="";if(file)void uploadFile(file);}}/>
             <input className="chat-file-input" ref={imagePicker} type="file" aria-label="Choose an image"
-              accept="image/jpeg,image/png,image/webp,image/gif" 
+              accept={chatExtendedMediaReady?"image/jpeg,image/png,image/webp,image/gif":
+                "image/jpeg,image/png,image/webp"} 
               onChange={e=>{const file=e.target.files?.[0];e.target.value="";if(file)void uploadFile(file);}}/>
             <input className="chat-file-input" ref={videoPicker} type="file" aria-label="Choose a video"
-              accept="video/mp4,video/webm" 
+              disabled={!chatExtendedMediaReady} accept="video/mp4,video/webm" 
               onChange={e=>{const file=e.target.files?.[0];e.target.value="";if(file)void uploadFile(file);}}/>
             <input className="chat-file-input" ref={gifPicker} type="file" aria-label="Choose a GIF"
-              accept="image/gif,.gif"
+              disabled={!chatExtendedMediaReady} accept="image/gif,.gif"
               onChange={e=>{const file=e.target.files?.[0];e.target.value="";if(file)void uploadFile(file);}}/>
             {selectedFiles.length?<div className="chat-file-queue" aria-label="Attachment scan status">
               {selectedFiles.map(file=><Office5FileCard key={file.key} name={file.name} status={file.status}
