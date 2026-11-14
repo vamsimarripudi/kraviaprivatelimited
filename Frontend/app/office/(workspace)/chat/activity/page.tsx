@@ -1,4 +1,4 @@
-import { InternalWorkspaceScreen } from "@/components/internal-workspace-screen";
+import {OfficeConnectActivity} from "@/components/office-connect-activity";
 export default function ConnectActivity(){
- return <InternalWorkspaceScreen workspace="office" section="notifications"/>;
+ return <OfficeConnectActivity/>;
 }

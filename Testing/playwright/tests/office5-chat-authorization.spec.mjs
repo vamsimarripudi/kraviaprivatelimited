@@ -87,3 +87,11 @@ test("anonymous accounts cannot enumerate communication IAM profile mappings",as
  const body=await response.text();
  expect(body).not.toContain("profile_mappings");
 });
+
+test("anonymous sessions cannot aggregate personal notifications or assigned escalations",async({request})=>{
+ for(const url of ["/api/office-notifications","/api/office-chat/support/escalations"]){
+  const response=await request.get(url);
+  expect([401,403,503],url).toContain(response.status());
+  expect(response.headers()["cache-control"],url).toContain("no-store");
+ }
+});
