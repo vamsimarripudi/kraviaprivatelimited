@@ -3,6 +3,11 @@ import {readFileSync} from "node:fs";
 const service=readFileSync(new URL("../lib/office/vault-secret-ingress.ts",import.meta.url),"utf8");
 const migration=readFileSync(new URL("../../Database/supabase/migrations/202611140018_office_vault_chunked_ingress.sql",import.meta.url),"utf8");
 describe("K-Vault 10 MiB encrypted chunk ingress",()=>{
+ it("accepts generic browser MIME only for known types and preserves source verification",()=>{
+  expect(service).toContain('input.mime!=="application/octet-stream"');
+  expect(service).toContain("declared_mime:allowed[ext]");
+  expect(service).toContain("uploadOfficeVaultSecret({");
+ });
  it("limits request parts to one MiB and prevents browser direct DB access",()=>{
   expect(service).toContain("SECRET_UPLOAD_PART_SIZE=1_048_576");
   expect(service).toContain("TOTAL_LIMIT=10_485_760");

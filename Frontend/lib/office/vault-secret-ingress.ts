@@ -80,7 +80,8 @@ export async function startOfficeVaultSecretIngress(input:{
  const current=await requireOfficeVaultSecretUploader();
  const name=cleanFilename(input.filename);
  const ext=name.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1]??"";
- if(!allowed[ext]||allowed[ext]!==input.mime)
+ if(!allowed[ext]||(
+   input.mime!=="application/octet-stream"&&input.mime!==allowed[ext]))
   throw new SecretLockerError(415,"Document type and declared MIME do not match");
  if(input.bytes<1||input.bytes>TOTAL_LIMIT||!Number.isInteger(input.bytes)||
   !isSha(input.sha256)||input.title.trim().length<3||input.title.trim().length>180||
@@ -100,7 +101,7 @@ export async function startOfficeVaultSecretIngress(input:{
  const created=await current.admin.from("office_vault_secret_ingress_sessions").insert({
   id,owner_user_id:current.identity.userId,document_id:documentId,
   version_id:versionId,title:input.title.trim(),classification:input.classification,
-  filename:name,declared_mime:input.mime,total_bytes:input.bytes,sha256:input.sha256,
+  filename:name,declared_mime:allowed[ext],total_bytes:input.bytes,sha256:input.sha256,
   part_size:SECRET_UPLOAD_PART_SIZE,part_count:expected,expires_at:expires,
  }).select("id").single();
  if(created.error||!created.data)throw new SecretLockerError(503,"Private upload session not recorded");
