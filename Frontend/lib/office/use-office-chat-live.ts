@@ -31,7 +31,14 @@ export function useOfficeChatLive(
     "/api/office-chat/conversations/"+encodeURIComponent(conversationId)+"/events",
     {withCredentials:true});
    stream=source;
-   source.addEventListener("ready",()=>{if(active)setStatus("live");});
+   source.addEventListener("ready",()=>{
+    if(!active||document.visibilityState!=="visible")return;
+    setStatus("live");
+    // Close the initial GET -> stream cursor race, and catch up after every
+    // restart even if the server had no backlog to replay.
+    changeRef.current();
+    presenceRef.current?.();
+   });
    source.addEventListener("change",()=>{
     if(!active||document.visibilityState!=="visible")return;
     if(debounce)clearTimeout(debounce);
