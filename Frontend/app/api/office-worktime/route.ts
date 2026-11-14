@@ -13,6 +13,7 @@ const schema = z.discriminatedUnion("action", [
     sourceKind: z.enum(["RECORDED_SESSION","HISTORICAL_CORRECTION"]),
     sourceReference: z.string().trim().min(5).max(600), reason: z.string().trim().min(8).max(1000),
   }),
+  z.object({ action: z.literal("QUEUE_RECORDED"), employeeId: uuid, sessionId: uuid }),
   z.object({ action: z.literal("AMEND_PENDING"), caseId: uuid, startAt: datetime, endAt: datetime,
     breaks: z.array(z.object({ startAt: datetime, endAt: datetime })).max(40).default([]),
     sourceReference: z.string().trim().min(5).max(600),
