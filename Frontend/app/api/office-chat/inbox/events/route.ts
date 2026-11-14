@@ -1,5 +1,6 @@
 import {NextResponse} from "next/server";
 import {listOfficeChatConversations,OfficeChatError} from "@/lib/office/chat-server";
+import {requireOfficeActor} from "@/lib/office/permission-engine";
 import {z} from "zod";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -24,6 +25,15 @@ export async function GET(request:Request){
    status:error instanceof OfficeChatError?error.status:503,headers});
  }
  let since=parsed||"0",cancelled=false;
+ if(!parsed&&initial.conversations.length){
+  const current=await requireOfficeActor();
+  const ids=initial.conversations.map(row=>String(row.id));
+  const latest=await current.admin.from("office_chat_change_events")
+   .select("id").in("conversation_id",ids).order("id",{ascending:false}).limit(1);
+  if(latest.error)return NextResponse.json({detail:"Private inbox changes unavailable"},
+   {status:503,headers});
+  since=latest.data?.[0]?.id==null?"0":String(latest.data[0].id);
+ }
  const known=new Set(initial.conversations.map(c=>String(c.id)));
  const actor=initial.actor_user_id;
  // Only authorized conversation IDs are queried, never all company messages.
@@ -45,7 +55,6 @@ export async function GET(request:Request){
        send(event("change",{kind:"MEMBERSHIP"}));
       }
       if(ids.length){
-       const {requireOfficeActor}=await import("@/lib/office/permission-engine");
        const currentActor=await requireOfficeActor();
        const results=await currentActor.admin.from("office_chat_change_events")
         .select("id").in("conversation_id",ids).gt("id",since)
