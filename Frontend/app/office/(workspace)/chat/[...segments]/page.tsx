@@ -14,6 +14,7 @@ import {OfficeConnectServiceGovernance} from "@/components/office-connect-servic
 import {OfficeConnectCustomerWorkspace} from "@/components/office-connect-customer-workspace";
 import {OfficeConnectMacros} from "@/components/office-connect-macros";
 import {OfficeConnectApprovals} from "@/components/office-connect-approvals";
+import {OfficeConnectIntegrations} from "@/components/office-connect-integrations";
 type Props={params:Promise<{segments:string[]}>};
 export const dynamic="force-dynamic";
 const permittedPaths=new Set([
@@ -46,6 +47,7 @@ export default async function OtherConnectRoute({params}:Props){
  if(path==="admin/permissions")return <OfficeConnectGovernance/>;
  if(path==="admin/channels")return <OfficeConnectChannels/>;
  if(path==="admin/retention")return <OfficeConnectRetention/>;
+ if(path==="admin/integrations")return <OfficeConnectIntegrations/>;
  if(path==="settings")return <OfficeConnectSettings/>;
  if(path==="search"||path==="saved"||path==="mentions")
    return <OfficeConnectMessageIndex kind={path}/>;
