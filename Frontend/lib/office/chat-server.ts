@@ -118,6 +118,9 @@ export async function startOfficeChatDm(recipientUserId: string) {
     p_actor: current.identity.userId, p_recipient: recipientUserId,
   });
   if (error || typeof data !== "string") throw new OfficeChatError(400, "Unable to start a private conversation");
+  // An existing DM may contain a revoked membership. Never report creation as
+  // successful or redirect into a conversation the employee cannot read.
+  await ownMembership(current, data);
   return { conversation_id: data };
 }
 
