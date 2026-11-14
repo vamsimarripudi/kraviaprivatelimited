@@ -16,7 +16,9 @@ export function OfficeConnectMessageIndex({kind}:{kind:Kind}){
  const [submitted,setSubmitted]=useState("");
  const [refresh,setRefresh]=useState(0);
  const [pending,setPending]=useState("");
- useOfficeChatInboxLive(()=>setRefresh(value=>value+1));
+ useOfficeChatInboxLive(()=>setRefresh(value=>value+1),()=>{
+  setItems([]);setError("Your Office authorization changed. Private indexed messages were cleared.");
+ });
  useEffect(()=>{
   let live=true;
   void (async()=>{try{
@@ -25,7 +27,7 @@ export function OfficeConnectMessageIndex({kind}:{kind:Kind}){
     const result=await response.json().catch(()=>({})) as {messages?:Item[];detail?:string};
     if(!response.ok)throw new Error(result.detail||"Private index unavailable");
     if(live){setItems(result.messages??[]);setError("");}
-   }catch(e){if(live)setError(e instanceof Error?e.message:"Index unavailable");}
+   }catch(e){if(live){setItems([]);setError(e instanceof Error?e.message:"Index unavailable");}}
    finally{if(live)setLoading(false);}
   })();
   return()=>{live=false;};
