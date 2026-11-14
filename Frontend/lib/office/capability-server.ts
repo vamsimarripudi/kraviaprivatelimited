@@ -53,7 +53,7 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
   }
   const catalog = await admin
     .from("office_permission_catalog")
-    .select("code,active")
+    .select("code,active,owner_bypass")
     .eq("active", true)
     .order("code", { ascending: true });
   if (catalog.error) throw new OfficeCapabilityError(503, "Authorization catalog is temporarily unavailable");
@@ -84,15 +84,6 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
     .map((row) => String(row.code))
     .filter((code) => !denied.has(code)));
 
-  if (identity.roles.includes("OWNER")) {
-    const permissions = Array.from(activeCodes).sort();
-    return {
-      generated_at: new Date().toISOString(),
-      permissions,
-      scopes: permissions.map((permission) => ({ permission, source: "OWNER" as const, scope_type: "COMPANY", scope_key: null })),
-    };
-  }
-
   const [profilesResult, overridesResult] = await Promise.all([
     admin
       .from("office_user_access_profiles")
@@ -117,6 +108,18 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
   if (mappingsResult.error) throw new OfficeCapabilityError(503, "Authorization profile map is temporarily unavailable");
 
   const scopes: OfficeCapabilityScope[] = [];
+  // The effective permission engine allows OWNER authority only for catalog
+  // entries whose owner_bypass is enabled. Explicit profile grants are still
+  // evaluated below for non-bypass permissions, never by title alone.
+  if(identity.roles.includes("OWNER")){
+    for(const entry of catalog.data??[]){
+      const code=String(entry.code);
+      if(!activeCodes.has(code)||entry.owner_bypass===false)continue;
+      scopes.push({
+        permission:code,source:"OWNER",scope_type:"COMPANY",scope_key:null
+      });
+    }
+  }
   // Department ownership is effective even without a broad company profile.
   // The database excludes permission codes whose owner_bypass flag is false.
   for (const permission of owned) {

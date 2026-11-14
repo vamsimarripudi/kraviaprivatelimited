@@ -14,6 +14,13 @@ describe("Office 5.0 effective action entitlements",()=>{
   }
   expect(screen).not.toContain('identity.roles.includes("OWNER") || permissions.includes("finance.invoice.create")');
  });
+ it("keeps OWNER's non-bypass permissions behind explicit grants and effective denies",()=>{
+  const cap=readFileSync(new URL("../lib/office/capability-server.ts",import.meta.url),"utf8");
+  expect(cap).toContain('.select("code,active,owner_bypass")');
+  expect(cap).toContain("entry.owner_bypass===false");
+  expect(cap).not.toContain("const permissions = Array.from(activeCodes).sort()");
+  expect(cap).toContain("officeAccessProfileIsEffective(row)");
+ });
  it("keeps the Manohar-style multi-role Office entry without granting HR or Finance actions",()=>{
   const roles=["DIRECTOR","FINANCE","HR","MEMBER","PRODUCT_ADMIN"] as const;
   expect(capabilityCanAccessSection("office","dashboard",roles,[])).toBe(true);
