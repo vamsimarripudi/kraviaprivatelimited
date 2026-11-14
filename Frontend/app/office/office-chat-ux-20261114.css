@@ -1,0 +1,472 @@
+/* KRAVIA Office 5.0: source-backed compact workspace and accessibility repair.
+   Imported after all Office V2-V5 compatibility layers. Scoped to authenticated Office. */
+@media (min-width: 768px) {
+  .kravia-office .office-v2.office-modern.office-floating-rail > .office-mega-aside {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    align-self: start !important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail > .office-main {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    align-self: start !important;
+    position: relative !important;
+    transform: none !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    max-width: 100% !important;
+  }
+}
+.kravia-office .office-v2.office-modern .office-icon-rail {
+  min-width: 0 !important;
+}
+.kravia-office .office-v2.office-modern .office-sidebar-footer {
+  width: 100% !important;
+  flex: none !important;
+  gap: 8px !important;
+  padding: 10px 0 0 !important;
+  margin-top: auto !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
+}
+.kravia-office .office-v2.office-modern .office-sidebar-footer :is(.workspace-signout,.office-rail-action) {
+  display: grid !important;
+  place-items: center !important;
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  padding: 0 !important;
+  margin: 0 auto !important;
+  border-radius: 12px !important;
+  line-height: 1 !important;
+  flex: 0 0 44px !important;
+}
+.kravia-office .office-v2.office-modern .office-sidebar-footer :is(.workspace-signout,.office-rail-action) svg {
+  display: block !important;
+  position: static !important;
+  transform: none !important;
+  margin: 0 auto !important;
+  width: 19px !important;
+  height: 19px !important;
+}
+.kravia-office .office-v2.office-modern .office-icon-rail .office-rail-category-list {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+}
+.kravia-office .office-v2.office-modern .office-main section[aria-label="KRAVIA Connect"] {
+  box-sizing: border-box !important;
+  color: var(--office-ui-ink) !important;
+  min-width: 0;
+}
+.kravia-office .office-v2.office-modern .office-main section[aria-label="KRAVIA Connect"] [data-chat-list] {
+  background: var(--office-ui-surface) !important;
+  border-color: var(--office-ui-line) !important;
+  color: var(--office-ui-ink) !important;
+}
+.kravia-office .office-v2.office-modern .office-main section[aria-label="KRAVIA Connect"] [data-chat-list] :is(h2,strong,small,p,span) {
+  color: var(--office-ui-ink);
+}
+.kravia-office .office-v2.office-modern .office-main section[aria-label="KRAVIA Connect"] [data-chat-list] small {
+  color: var(--office-ui-muted) !important;
+}
+.kravia-office .office-v2.office-modern .office-main section[aria-label="KRAVIA Connect"] [data-chat-list] a[aria-current="page"] {
+  background: var(--office-ui-surface-alt) !important;
+  box-shadow: inset 3px 0 var(--office-ui-accent);
+}
+.kravia-office .office-v2.office-modern .office-main section[aria-label="KRAVIA Connect"][data-thread="true"] {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  width: 100%;
+}
+.kravia-office .office-v2.office-modern .office-main section[aria-label="KRAVIA Connect"][data-thread="true"] > header {
+  display: none !important;
+}
+.kravia-office .office-v2.office-modern .office-main section[aria-label="KRAVIA Connect"][data-thread="true"] > div {
+  display: grid !important;
+  grid-template-columns: minmax(190px,235px) minmax(0,1fr) !important;
+  gap: 0 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 500px !important;
+  height: calc(100dvh - 108px) !important;
+  max-height: none !important;
+  overflow: hidden !important;
+}
+.kravia-office .office-v2.office-modern .office-main section[aria-label="KRAVIA Connect"][data-thread="true"] [data-chat-list] {
+  border: 0 !important;
+  border-right: 1px solid var(--office-ui-line) !important;
+  border-radius: 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+}
+.kravia-office .office-v2.office-modern .office-main section[aria-label="KRAVIA Connect"][data-thread="true"] [data-chat-body] {
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: var(--office-ui-surface) !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-thread-header] {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-height: 56px;
+  padding: 8px 14px;
+  gap: 12px;
+  border-bottom: 1px solid var(--office-ui-line);
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-thread-header] strong {
+  flex: 1;
+  font-size: 13px !important;
+  line-height: 1.35;
+  font-weight: 680;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-thread-header] .chat-status-indicator {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px !important;
+  gap: 6px;
+  color: var(--office-ui-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-thread-header] button {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  padding: 0;
+  background: transparent;
+  color: var(--office-ui-ink);
+  border: 1px solid var(--office-ui-line);
+  border-radius: 10px;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline] {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: auto !important;
+  overscroll-behavior: contain;
+  padding: 18px clamp(12px,2vw,26px) !important;
+  scroll-behavior: smooth;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline] article {
+  border-radius: 14px !important;
+  box-shadow: none !important;
+  background: var(--office-ui-surface-alt) !important;
+  border: 1px solid var(--office-ui-line) !important;
+  max-width: min(78%,650px) !important;
+  font-size: 12.5px !important;
+  line-height: 1.5 !important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline] article[data-own="true"] {
+  background: color-mix(in srgb,var(--office-ui-accent) 8%,var(--office-ui-surface)) !important;
+  border-color: color-mix(in srgb,var(--office-ui-accent) 24%,var(--office-ui-line)) !important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline] article :is(strong,p,time) {
+  color: var(--office-ui-ink) !important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline] article time {
+  color: var(--office-ui-muted) !important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] {
+  flex: none !important;
+  position: relative;
+  z-index: 2;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  padding: 10px 16px 14px !important;
+  border-top: 1px solid var(--office-ui-line);
+  background: var(--office-ui-surface) !important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-composer-frame {
+  display: flex;
+  min-width: 0;
+  align-items: flex-end;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid var(--office-ui-line);
+  border-radius: 16px;
+  background: var(--office-ui-surface-alt) !important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-composer-frame:focus-within {
+  border-color: var(--office-ui-accent);
+  box-shadow: 0 0 0 3px var(--office-ui-ring);
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] textarea {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-height: 144px;
+  min-height: 38px;
+  height: 40px;
+  resize: none !important;
+  font: inherit;
+  font-size: 12.5px !important;
+  line-height: 1.5;
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 9px 5px !important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-tool {
+  display: inline-grid !important;
+  flex: none;
+  place-items: center !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  min-width: 36px !important;
+  padding: 0 !important;
+  border-radius: 10px !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--office-ui-muted) !important;
+  cursor: pointer;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-tool[aria-expanded="true"],
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-tool:hover {
+  color: var(--office-ui-accent) !important;
+  background: var(--office-ui-surface) !important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-send {
+  color: white !important;
+  background: var(--office-ui-accent) !important;
+  border-radius: 10px !important;
+  align-self: flex-end !important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-send:disabled {
+  opacity: .44;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-tool-panel {
+  position: absolute;
+  bottom: calc(100% - 10px);
+  left: 14px;
+  z-index: 20;
+  width: min(350px,calc(100% - 28px));
+  padding: 12px;
+  background: var(--office-ui-surface) !important;
+  color: var(--office-ui-ink);
+  border: 1px solid var(--office-ui-line);
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(20,30,50,.16);
+  max-height: min(330px,48dvh);
+  overflow-y: auto;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-tool-panel button {
+  color: var(--office-ui-ink);
+  background: var(--office-ui-surface);
+  border: 1px solid var(--office-ui-line);
+  border-radius: 9px;
+  padding: 8px 10px;
+  min-height: 38px;
+  text-align: left;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-tool-panel button:hover,
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-tool-panel button[aria-selected="true"] {
+  background: var(--office-ui-surface-alt);
+  border-color: var(--office-ui-accent);
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(7,minmax(0,1fr));
+  gap: 3px;
+  margin-top: 9px;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-emoji-grid button {
+  padding: 3px;
+  display: grid;
+  place-items: center;
+  min-height: 37px;
+  font-size: 20px;
+  border-color: transparent;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-attachment-menu {
+  display: grid;
+  gap: 7px;
+  margin-top: 8px;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-attachment-menu button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-template-list {
+  display: grid;
+  gap: 7px;
+  margin-top: 8px;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-composer-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: var(--office-ui-muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-mention-menu {
+  position: absolute;
+  z-index: 21;
+  left: 12px;
+  bottom: calc(100% - 8px);
+  width: min(340px,calc(100% - 24px));
+  display: grid;
+  gap: 2px;
+  padding: 7px;
+  background: var(--office-ui-surface) !important;
+  border: 1px solid var(--office-ui-line);
+  box-shadow: 0 16px 42px rgba(16,32,60,.17);
+  border-radius: 13px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-mention-menu button {
+  background: transparent;
+  color: var(--office-ui-ink);
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-align: left;
+  min-height: 40px;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-mention-menu button[aria-selected="true"] {
+  background: var(--office-ui-surface-alt);
+  color: var(--office-ui-accent);
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-file-input {
+  position: absolute !important;
+  height: 1px !important;
+  width: 1px !important;
+  opacity: 0;
+  pointer-events: none;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-template-save {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-template-save input {
+  min-width: 0;
+  flex: 1;
+  width: auto;
+  padding: 8px;
+  border: 1px solid var(--office-ui-line);
+  border-radius: 8px;
+  background: var(--office-ui-control);
+  color: var(--office-ui-ink);
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-file-queue {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  max-height: 155px;
+  padding: 2px;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-file-queue > * {flex:0 0 min(210px,70vw);}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-file-queue > p {
+  font-size: 11px;
+  color: var(--office-ui-muted);
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-attachment-note {
+  font-size: 10px;
+  color: var(--office-ui-muted);
+  margin: 5px 0 0;
+}
+.kravia-office .office-v2.office-modern .office-main section[aria-label="KRAVIA Connect"][data-thread="true"] [data-chat-timeline] [data-chat-pending="true"] {
+  opacity: .75;
+  border-style: dashed !important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-overview] {
+  font-size: 12px;
+  color: var(--office-ui-ink);
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-overview] :is(h2,h3) {
+  font-size: clamp(13px,1.2vw,16px) !important;
+  line-height: 1.35;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-overview] :is(p,small) {
+  font-size: 11px;
+  line-height: 1.5;
+}
+@media (max-width: 1200px) and (min-width: 768px) {
+  .kravia-office .office-v2.office-modern .office-main section[aria-label="KRAVIA Connect"][data-thread="true"] > div {
+    grid-template-columns: minmax(170px,195px) minmax(0,1fr) !important;
+  }
+}
+@media (max-width: 767px) {
+  .kravia-office .office-v2.office-modern.office-floating-rail > .office-main {
+    min-height: 100dvh !important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail[data-chat-conversation="true"] > .office-main {
+    padding-bottom: 0 !important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail[data-chat-conversation="true"] .office5-mobile-dock {
+    display: none !important;
+  }
+  .kravia-office .office-v2.office-modern .office-main section[aria-label="KRAVIA Connect"][data-thread="true"] > div {
+    display: block !important;
+    height: calc(100dvh - 58px - env(safe-area-inset-bottom,0px)) !important;
+    min-height: 0 !important;
+    max-height: none !important;
+  }
+  .kravia-office .office-v2.office-modern .office-main section[aria-label="KRAVIA Connect"][data-thread="true"] [data-chat-list] {
+    display: none !important;
+  }
+  .kravia-office .office-v2.office-modern .office-main section[aria-label="KRAVIA Connect"][data-thread="true"] [data-chat-body] {
+    min-height: 0 !important;
+    height: 100% !important;
+  }
+  .kravia-office .office-v2.office-modern .office-main [data-chat-thread-header] {padding: 7px 10px;gap:8px;min-height:52px;}
+  .kravia-office .office-v2.office-modern .office-main [data-chat-thread-header] strong {font-size:12px !important;}
+  .kravia-office .office-v2.office-modern .office-main [data-chat-thread-header] .chat-status-indicator {max-width:55px;font-size:0!important;}
+  .kravia-office .office-v2.office-modern .office-main [data-chat-thread-header] .chat-status-indicator svg {width:14px;height:14px;}
+  .kravia-office .office-v2.office-modern .office-main [data-chat-composer] {padding:9px 8px calc(10px + env(safe-area-inset-bottom,0px)) !important;}
+  .kravia-office .office-v2.office-modern .office-main [data-chat-composer] textarea {font-size:16px!important;}
+  .kravia-office .office-v2.office-modern .office-main [data-chat-timeline] {padding:12px 10px!important;}
+  .kravia-office .office-v2.office-modern .office-main [data-chat-timeline] article {max-width:92%!important;}
+  .kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-tool {width:32px!important;min-width:32px!important;height:34px!important;min-height:34px!important;}
+  .kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-composer-foot {font-size:9px;}
+  .kravia-office .office-v2.office-modern .office-main [data-chat-overview] {padding:12px 9px;}
+}
+@media (prefers-reduced-motion: no-preference) {
+  .kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-tool svg {
+    transition: transform .16s ease;
+  }
+  .kravia-office .office-v2.office-modern .office-main [data-chat-composer] .chat-tool:hover svg {
+    transform: scale(1.08) rotate(-4deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kravia-office .office-v2.office-modern .office-main [data-chat-timeline] {
+    scroll-behavior: auto !important;
+  }
+}
