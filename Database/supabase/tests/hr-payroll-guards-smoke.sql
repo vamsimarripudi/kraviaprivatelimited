@@ -18,14 +18,14 @@ begin
 
   insert into public.office_worktime_review_cases (
     employee_user_id,work_starts_at,work_ends_at,source_kind,source_reference,requested_by,request_reason
-  ) values (employee,'2026-11-16 09:00+05:30','2026-11-16 15:00+05:30','HISTORICAL_CORRECTION',
+  ) values (employee,'2026-10-16 09:00+05:30','2026-10-16 15:00+05:30','HISTORICAL_CORRECTION',
     'HR-QA-ORIGINAL',employee,'Original corrected worked interval') returning id into claim;
   perform public.office_worktime_amend_pending(
-    employee,claim,'2026-11-16 10:00+05:30','2026-11-16 17:00+05:30','[{"startAt":"2026-11-16T13:00:00+05:30","endAt":"2026-11-16T13:30:00+05:30"}]'::jsonb,
+    employee,claim,'2026-10-16 10:00+05:30','2026-10-16 17:00+05:30','[{"startAt":"2026-10-16T13:00:00+05:30","endAt":"2026-10-16T13:30:00+05:30"}]'::jsonb,
     'HR-QA-REVISED','Corrected employee timesheet after reviewer request');
   if not exists(select 1 from public.office_worktime_review_cases
       where id=claim and source_reference='HR-QA-REVISED'
-        and work_starts_at='2026-11-16 10:00+05:30'::timestamptz) then
+        and work_starts_at='2026-10-16 10:00+05:30'::timestamptz) then
     raise exception 'Pending correction failed'; end if;
   if not exists(select 1 from public.office_worktime_events
       where case_id=claim and context->>'previous_source'='HR-QA-ORIGINAL') then
@@ -34,13 +34,13 @@ begin
   failed:=false;
   begin
     perform public.office_worktime_amend_pending(
-      founder,claim,'2026-11-16 10:00+05:30','2026-11-16 17:00+05:30','[]'::jsonb,
+      founder,claim,'2026-10-16 10:00+05:30','2026-10-16 17:00+05:30','[]'::jsonb,
       'HR-QA-UNAUTHORIZED','Unauthorized attempt');
   exception when others then failed:=true; end;
   if not failed then raise exception 'Unauthorized edit passed'; end if;
 
   insert into public.office_attendance_sessions(user_id,check_in_at,check_out_at)
-  values(employee,'2026-11-17 10:00+05:30','2026-11-17 16:00+05:30')
+  values(employee,'2026-10-17 10:00+05:30','2026-10-17 16:00+05:30')
   returning id into session;
   sample_id:=public.office_worktime_queue_recorded(employee,employee,session);
   if not exists(select 1 from public.office_worktime_review_cases
@@ -54,7 +54,7 @@ begin
   if not failed then raise exception 'Duplicate recorded attendance accepted'; end if;
 
   insert into public.office_payroll_periods(period_code,starts_on,ends_on,status)
-  values('2026-11-HRQA','2026-11-01','2026-11-30','CALCULATED') returning id into period;
+  values('2026-10-HRQA','2026-10-01','2026-10-31','CALCULATED') returning id into period;
   insert into public.office_payroll_results(
     period_id,employee_user_id,employment_id,compensation_version_id,
     currency,base_gross_minor,prorated_gross_minor,additional_earnings_minor,
