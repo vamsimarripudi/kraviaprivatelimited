@@ -33,7 +33,7 @@ type Snapshot = {
   recorded_sessions: Array<{ id: string; check_in_at: string; check_out_at: string; status: string; needs_review: boolean }>;
   payroll_periods: Array<{ id: string; period_code: string; starts_on: string; ends_on: string; status: string }>;
   preview: Premium | null; salary_preview: SalaryPreview; approved_monthly_gross_minor: number | null; salary_slips: Slip[];
-  capabilities: { self: boolean; review_worktime: boolean; propose_policy: boolean; prepare_payroll: boolean };
+  capabilities: { self: boolean; review_worktime: boolean; review_policy: boolean; propose_policy: boolean; prepare_payroll: boolean };
   notice: string;
 };
 function money(minor?: number) { return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format((minor || 0) / 100); }
@@ -251,7 +251,7 @@ export function OfficeWorktimeConsole() {
             </div> : null}
             {data.policies.filter(p => p.status === "DRAFT").map(p => <div className={styles.record} key={p.id}>
               <span><b>Pending policy</b><small>{p.effective_from}</small></span>
-              {data.capabilities.review_worktime && p.proposed_by !== data.actor.user_id && p.employee_user_id !== data.actor.user_id ? <div className={styles.actions}>
+              {data.capabilities.review_policy && p.proposed_by !== data.actor.user_id && p.employee_user_id !== data.actor.user_id ? <div className={styles.actions}>
                 <button type="button" onClick={() => void mutate({ action: "DECIDE_POLICY", policyId: p.id, decision: "APPROVE" }, "Policy approved by an independent director.")}>Approve</button>
                 <button type="button" onClick={() => void mutate({ action: "DECIDE_POLICY", policyId: p.id, decision: "REJECT" }, "Policy rejected.")}>Reject</button>
               </div> : <em>Awaiting independent director</em>}
