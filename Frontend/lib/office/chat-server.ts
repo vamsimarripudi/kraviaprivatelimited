@@ -89,19 +89,21 @@ export async function listOfficeChatConversations() {
   if (personResult.error) throw internalFailure("The communication directory is unavailable");
   const names = new Map((personResult.data ?? []).map(row => [String(row.user_id), String(row.display_name ?? "Employee")]));
   const job=await current.admin.from("office_job_assignments").select("department_code")
-    .eq("user_id",current.identity.userId).eq("status","ACTIVE").maybeSingle();
+    .eq("user_id",current.identity.userId).eq("status","ACTIVE");
   if(job.error)throw internalFailure("Current department is unavailable");
-  const assignedDepartment=job.data?.department_code??null;
+  const assignedDepartments=new Set((job.data??[])
+    .map(row=>String(row.department_code??"").toUpperCase()).filter(Boolean));
   return {
     actor_user_id: current.identity.userId,
     conversations: (conversations.data ?? []).filter(row=>
-      row.kind!=="DEPARTMENT"||Boolean(assignedDepartment&&assignedDepartment===row.department_code)
+      row.kind!=="DEPARTMENT"||assignedDepartments.has(String(row.department_code??"").toUpperCase())
     ).map(row => {
       const membersOfConversation = (participants.data ?? []).filter(m => m.conversation_id === row.id);
       const namesOfOthers = membersOfConversation
         .filter(m => m.user_id !== current.identity.userId)
         .map(m => names.get(String(m.user_id)) ?? "Employee");
       return { id: row.id, kind: row.kind,
+        department_code: row.kind === "DEPARTMENT" ? row.department_code : null,
         title: row.kind === "DM" ? namesOfOthers.join(", ") || "Private conversation"
           : row.title ?? "Conversation",
         updated_at: row.updated_at };
@@ -209,10 +211,18 @@ async function myConversationIds(current:OfficeChatActor){
  if(error)throw internalFailure("Conversation membership authority is unavailable");
  const ids=(data??[]).map(row=>String(row.conversation_id));
  if(!ids.length)return [];
- const conversations=await current.admin.from("office_chat_conversations")
-  .select("id,kind,department_code").in("id",ids).eq("state","ACTIVE");
- if(conversations.error)throw internalFailure("Conversation membership authority is unavailable");
- return (conversations.data??[]).map(row=>String(row.id));
+ const [conversations,assignments]=await Promise.all([
+  current.admin.from("office_chat_conversations")
+   .select("id,kind,department_code").in("id",ids).eq("state","ACTIVE"),
+  current.admin.from("office_job_assignments").select("department_code")
+   .eq("user_id",current.identity.userId).eq("status","ACTIVE"),
+ ]);
+ if(conversations.error||assignments.error)throw internalFailure("Conversation membership authority is unavailable");
+ const effectiveDepartments=new Set((assignments.data??[])
+  .map(row=>String(row.department_code??"").toUpperCase()).filter(Boolean));
+ return (conversations.data??[])
+  .filter(row=>row.kind!=="DEPARTMENT"||effectiveDepartments.has(String(row.department_code??"").toUpperCase()))
+  .map(row=>String(row.id));
 }
 async function enriched(current:OfficeChatActor,raw:Array<{
  id:string;conversation_id:string;sender_user_id:string;body:string;created_at:string;parent_message_id?:string|null;

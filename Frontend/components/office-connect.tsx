@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, ClipboardCheck, MessageSquareText, RefreshCw, Search, Send, ShieldCheck, Paperclip } from "lucide-react";
+import { ArrowLeft, ArrowRight, MessageSquareText, RefreshCw, Search, Send, Paperclip } from "lucide-react";
 import styles from "./office-connect.module.css";
 import { OfficeConnectMessageActions } from "@/components/office-connect-message-actions";
 import { OfficeConnectOverview } from "@/components/office-connect-overview";
 import { Office5FileCard, type Office5FileStatus } from "@/components/office5-primitives";
 import { useOfficeWorkspace } from "@/components/office-workspace-context";
 
-type Conversation = { id: string; kind: string; title: string; updated_at: string };
+type Conversation = { id: string; kind: string; title: string; department_code?: string | null; updated_at: string };
 type Message = { id: string; sender_user_id: string; sender_name: string; body: string; created_at: string; edited_at?: string | null;
  attachments?: {id:string;name:string;mime:string;size:number}[] };
 type SelectedFile={id?:string;key:string;name:string;status:Office5FileStatus;message?:string};
@@ -190,7 +190,10 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
           ? <div className={styles.empty}><MessageSquareText size={22} aria-hidden="true"/><p>No conversations yet.</p><Link href="/office/chat/directory">Start a private conversation</Link></div>
           : null}
         <nav className={styles.conversations} aria-label="Conversation list">
-          {conversations.map(item => <Link key={item.id} href={(item.kind === "GROUP" ? "/office/chat/groups/" : "/office/chat/dm/") + item.id}
+          {conversations.map(item => <Link key={item.id}
+            href={item.kind === "DEPARTMENT" && item.department_code
+              ? "/office/chat/channels/" + encodeURIComponent(item.department_code.toLowerCase())
+              : (item.kind === "GROUP" ? "/office/chat/groups/" : "/office/chat/dm/") + item.id}
             aria-current={item.id === activeId ? "page" : undefined}>
             <span className={styles.avatar} aria-hidden="true">{item.title.trim().charAt(0).toUpperCase() || "K"}</span>
             <span className={styles.conversationName}><strong>{item.title}</strong><small>{item.kind === "DM" ? "Private · members only" : item.kind}</small></span>

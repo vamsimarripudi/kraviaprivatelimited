@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowRight, BellRing, CheckCircle2, ClipboardCheck, Headphones, MessageCircle, Plus, RefreshCw, ShieldCheck, TriangleAlert } from "lucide-react";
 import styles from "./office-connect-overview.module.css";
 
-type Conversation = { id: string; kind: string; title: string; updated_at: string };
+type Conversation = { id: string; kind: string; title: string; department_code?: string | null; updated_at: string };
 type Work = {
  approvals: Array<{ request: { id: string; title: string; priority: string; status: string } | null }>;
 };
@@ -112,8 +112,9 @@ export function OfficeConnectOverview({ conversations }: { conversations: Conver
      ? <div className={styles.empty}><MessageCircle size={21} aria-hidden="true"/>No authorized conversations yet.</div>
      : <div className={styles.rows}>
       {conversations.slice(0,5).map(row => <Link key={row.id}
-       href={(row.kind==="GROUP" ? "/office/chat/groups/" : row.kind==="DEPARTMENT"
-        ? "/office/chat" : "/office/chat/dm/") + (row.kind==="DEPARTMENT"?"":row.id)}>
+       href={row.kind==="DEPARTMENT" && row.department_code
+         ? "/office/chat/channels/" + encodeURIComponent(row.department_code.toLowerCase())
+         : (row.kind==="GROUP" ? "/office/chat/groups/" : "/office/chat/dm/") + row.id}>
        <MessageCircle size={18} aria-hidden="true"/>
        <span><strong>{row.title}</strong><small>{row.kind==="DM"?"Private conversation":row.kind==="GROUP"?"Member group":"Department"} · {when(row.updated_at)}</small></span>
        <ArrowRight size={15} aria-hidden="true"/>
