@@ -9,13 +9,19 @@ type Employee = { user_id: string; display_name: string | null };
 type Claim = {
   id: string; employee_user_id: string; work_starts_at: string; work_ends_at: string;
   status: "PENDING" | "APPROVED" | "REJECTED"; requested_by: string; reviewed_by: string | null;
-  source_reference: string; review_note: string | null;
+  source_reference: string; review_note: string | null; request_reason?: string;
+  source_kind: "HISTORICAL_CORRECTION" | "RECORDED_SESSION";
+  breaks?: Array<{ startAt: string; endAt: string }>;
 };
 type Policy = { id: string; status: string; effective_from: string; authority_reference: string; weekend_bps: number; weekday_ot_bps: number; night_premium_bps: number; proposed_by: string; employee_user_id: string };
 type Premium = {
   workedMinutes: number; weekdayOvertimeMinutes: number; weekendMinutes: number; nightMinutes: number;
   totalAdditionalEarningsMinor: number; flexDaysEarnedThisMonth: number; warnings: string[];
 };
+type SalaryPreview = { basisMinutes: number; approvedRegularMinutes: number; unresolvedMinutes: number;
+  potentialWeekdayOvertimeMinutes: number; optionalWeekendMinutes: number;
+  scheduledWeekdays: number; verifiedWeekdays: number; estimatedRegularGrossMinor: number | null;
+  readyForPayroll: boolean; sourceSessionIds: string[] };
 type Slip = {
   id: string; code: string; period: string; due_date: string | null; status: string;
   net_pay_minor: number; confirmedMinor: number; balanceMinor: number;
@@ -25,13 +31,16 @@ type Snapshot = {
   month: string; target_payment: { date: string; time: string; bankHolidayVerificationRequired: boolean };
   claims: Claim[]; policies: Policy[]; approved_policy: Policy | null; attendance_targets: WorktimeTargets;
   payroll_periods: Array<{ id: string; period_code: string; starts_on: string; ends_on: string; status: string }>;
-  preview: Premium | null; salary_slips: Slip[];
+  preview: Premium | null; salary_preview: SalaryPreview; salary_slips: Slip[];
   capabilities: { self: boolean; review_worktime: boolean; propose_policy: boolean; prepare_payroll: boolean };
   notice: string;
 };
 function money(minor?: number) { return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format((minor || 0) / 100); }
 function formatHours(minutes: number) { return (minutes / 60).toFixed(2) + " hrs"; }
 function istTimestamp(iso: string) { return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" }).format(new Date(iso)); }
+function asISTInput(value: string) {
+  return new Date(Date.parse(value) + 330 * 60_000).toISOString().slice(0, 16);
+}
 function localIST(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) throw new Error("Provide an IST date and time");
   const parsed = new Date(value + ":00+05:30");
@@ -59,7 +68,7 @@ export function OfficeWorktimeConsole() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
-  const [mode, setMode] = useState<"CORRECTION" | "POLICY" | "IMPORT" | null>(null);
+  const [mode, setMode] = useState<"CORRECTION" | "EDIT_PENDING" | "AUTO" | "POLICY" | "IMPORT" | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -78,6 +87,17 @@ export function OfficeWorktimeConsole() {
       setData(next); setNotice(success); setDraft({}); setMode(null);
     } catch (e) { setError(e instanceof Error ? e.message : "Action failed"); }
     finally { setBusy(false); }
+  }
+  function editPending(claim: Claim) {
+    if (claim.status !== "PENDING" || claim.requested_by !== data?.actor.user_id ||
+        claim.source_kind !== "HISTORICAL_CORRECTION") return;
+    setDraft({
+      caseId: claim.id, startAt: asISTInput(claim.work_starts_at),
+      endAt: asISTInput(claim.work_ends_at),
+      evidence: claim.source_reference, reason: claim.request_reason || "",
+      breakLines: (claim.breaks || []).map(b => asISTInput(b.startAt) + " | " + asISTInput(b.endAt)).join("\n"),
+    });
+    setMode("EDIT_PENDING");
   }
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -98,6 +118,22 @@ export function OfficeWorktimeConsole() {
           endAt: endsAt, breaks,
           sourceReference: draft.evidence, reason: draft.reason },
         "Historical attendance evidence submitted for independent review. No wage or attendance was fabricated.");
+      } else if (mode === "EDIT_PENDING") {
+        const startAt = localIST(draft.startAt);
+        const endAt = localIST(draft.endAt);
+        const breaks = (draft.breakLines || "").split("\n").map(line => line.trim()).filter(Boolean).map(line => {
+          const timestamps = line.split("|").map(part => part.trim());
+          if (timestamps.length !== 2) throw new Error("Each break line needs start and end separated by |");
+          return { startAt: localIST(timestamps[0]), endAt: localIST(timestamps[1]) };
+        });
+        void mutate({ action: "AMEND_PENDING", caseId: draft.caseId, startAt, endAt,
+          breaks, sourceReference: draft.evidence, reason: draft.reason },
+          "Pending worktime correction updated with previous evidence preserved in audit history.");
+      } else if (mode === "AUTO") {
+        void mutate({ action: "AUTO_ATTENDANCE", periodId: draft.periodId,
+          employeeId: data?.employee.user_id, replaceExisting: draft.replaceExisting === "yes",
+          reason: draft.replaceExisting === "yes" ? draft.reason : undefined },
+          "Verified regular hours added to Payroll OS. Unresolved time needs HR review; no salary or overtime was paid.");
       } else if (mode === "POLICY") {
         void mutate({ action: "PROPOSE_POLICY", employeeId: data?.employee.user_id,
           effectiveFrom: draft.effectiveFrom, authorityReference: draft.authority },
