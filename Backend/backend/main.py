@@ -1412,6 +1412,10 @@ async def scan_private_office_upload(
         "image/jpeg",
         "image/png",
         "image/webp",
+        "image/gif",
+        "video/mp4",
+        "video/webm",
+        "text/plain",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     }
