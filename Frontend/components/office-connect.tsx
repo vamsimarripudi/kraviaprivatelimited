@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, MessageSquareText, RefreshCw, Search, Send, Paperclip, Pin } from "lucide-react";
+import { ArrowLeft, ArrowRight, MessageSquareText, RefreshCw, Search, Send, Paperclip, Pin, UsersRound } from "lucide-react";
 import styles from "./office-connect.module.css";
 import { OfficeConnectMessageActions } from "@/components/office-connect-message-actions";
 import { OfficeConnectOverview } from "@/components/office-connect-overview";
+import { OfficeConnectMembers } from "@/components/office-connect-members";
 import { Office5FileCard, type Office5FileStatus } from "@/components/office5-primitives";
 import { useOfficeWorkspace } from "@/components/office-workspace-context";
 
@@ -42,6 +43,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
   const [selectedFiles,setSelectedFiles] = useState<SelectedFile[]>([]);
   const [fileLoading,setFileLoading] = useState(false);
   const [members,setMembers] = useState<Member[]>([]);
+  const [memberPanel,setMemberPanel]=useState(false);
   const [pickedMentions,setPickedMentions] = useState<string[]>([]);
   const [mentionPicker,setMentionPicker] = useState(false);
   const nonce = useRef<string | null>(null);
@@ -205,7 +207,11 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
       </aside>
       <section className={styles.body} data-home={!activeId} aria-label={activeId ? "Private messages" : "Connect workspace"}>
         {!activeId ? <OfficeConnectOverview conversations={conversations} conversationsLoading={listLoading} conversationsError={listError}/> : <>
-          <div className={styles.threadHeader}><Link href="/office/chat" className={styles.back}><ArrowLeft size={17}/>All conversations</Link><span>Verified membership · Internal</span></div>
+          <div className={styles.threadHeader}><Link href="/office/chat" className={styles.back}><ArrowLeft size={17}/>All conversations</Link>
+             <span>Verified membership · Internal</span>
+             <button type="button" aria-expanded={memberPanel} aria-controls="office-connect-members"
+              onClick={()=>setMemberPanel(open=>!open)}><UsersRound size={16} aria-hidden="true"/>Members</button></div>
+          {memberPanel?<OfficeConnectMembers key={activeId} conversationId={activeId} onChanged={()=>setReloadCount(n=>n+1)}/>:null}
           <div className={styles.timeline} role="log" aria-label="Message history" aria-live="polite">
             {messageLoading ? <div className={styles.skeleton}>Opening private history…</div> : null}
             {messageError ? <div className={styles.error} role="alert"><p>{messageError}</p>
