@@ -12,6 +12,11 @@ begin
  if per.id is null or per.status not in ('DRAFT','ATTENDANCE_READY','CALCULATED') then raise exception 'Payroll period is not open for attendance preparation'; end if;
  select * into emp from public.office_employment_registry where employment_id=p_employment;
  if emp.employment_id is null then raise exception 'Employment record not found'; end if;
+ if per.period_kind='MONTHLY' and (
+      emp.status='PLANNED' or emp.start_date is null or emp.start_date>per.ends_on
+      or (emp.end_date is not null and emp.end_date<per.starts_on)) then
+    raise exception 'Monthly payroll requires verified employment dates covering the pay month';
+ end if;
  if p_basis is null or p_payable is null or p_basis<=0 or p_payable<0 or p_payable>p_basis then
     raise exception 'Invalid payroll attendance units';
   end if;
@@ -163,6 +168,12 @@ begin
     where period_id=per.id and
       abs(payable_units+unpaid_leave_units+absence_units+unresolved_units-basis_units)>0.001) then
     raise exception 'Payroll attendance allocation is not reconciled'; end if;
+ if per.period_kind='MONTHLY' and exists(
+    select 1 from public.office_payroll_attendance_snapshots s
+    join public.office_employment_registry e on e.employment_id=s.employment_id
+    where s.period_id=per.id and (e.status='PLANNED' or e.start_date is null
+      or e.start_date>per.ends_on or (e.end_date is not null and e.end_date<per.starts_on))
+ ) then raise exception 'Monthly payroll requires verified employment dates, not planned roles'; end if;
  select count(*) into pending_count from public.office_payroll_adjustments where period_id=per.id and status='DRAFT';
  if pending_count>0 then raise exception 'Payroll contains unreviewed adjustments'; end if;
  calc_version:=per.calculation_version+1;
