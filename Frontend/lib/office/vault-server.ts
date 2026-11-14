@@ -2,6 +2,7 @@ import "server-only";
 import { requireOfficeActor, resolveOfficePermission } from "@/lib/office/permission-engine";
 import { currentOfficeTrustedDeviceId } from "@/lib/office/device-binding-server";
 import { vaultCategories, type VaultCategory } from "@/lib/office/vault-categories";
+import {visibleVaultCategories} from "@/lib/office/vault-category-visibility";
 
 export async function getOfficeVaultAccess(): Promise<{ categories: VaultCategory[]; allowed: string[] }> {
  const current=await requireOfficeActor();
@@ -17,8 +18,19 @@ export async function getOfficeVaultAccess(): Promise<{ categories: VaultCategor
    return own.allowed?code:null;
  }));
  const permitted=allowed.filter((code):code is string=>code!==null);
+ // A source permission alone is not a K-Vault entry grant. Only expose
+ // categories where this identity has a current, unrevoked read grant.
+ const grants=await current.admin.from("office_vault_access_grants")
+  .select("category_slug")
+  .eq("grantee_user_id",current.identity.userId)
+  .is("revoked_at",null)
+  .gt("expires_at",new Date().toISOString())
+  .in("action",["READ","PREVIEW","DOWNLOAD"])
+  .limit(1000);
+ if(grants.error)throw new Error("Vault category-grant authority unavailable");
+ const grantedCategories=new Set((grants.data??[]).map(row=>String(row.category_slug)));
  return {
-   categories:vaultCategories.filter(row=>row.permissions.some(code=>permitted.includes(code))),
+   categories:visibleVaultCategories(vaultCategories,new Set(permitted),grantedCategories),
    allowed:permitted,
  };
 }
