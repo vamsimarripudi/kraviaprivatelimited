@@ -218,7 +218,7 @@ All routes below continue to use their canonical implementation. 5.0 shell styli
 ## CI and release gates
 
 - [x] Green CI existed on branch commit `35de78ce9750c327e486e0dc39fdbb91f6830ddb`: frontend, backend, Office browser E2E, isolated Connect/Vault/IT security, discovery.
-- [ ] Recheck all gates after **latest branch changes**, including the 20261114130009 unread snapshot and the updated dashboard/activity screens. Do not call them green without commit-matched check results.
+- [ ] Recheck all gates after **latest branch changes**, including the 20261114150009 unread snapshot and the updated dashboard/activity screens. Do not call them green without commit-matched check results.
 - [ ] Rehearse the entire ordered Supabase migration chain against an isolated copy of the relevant canonical Office schema and private storage policies; unit test stubs alone are insufficient.
 - [ ] AAL2 session security and role matrix: Owner, Director/Finance/HR/Member/Product Admin, delegated heads, ordinary employee, trainee, restricted adviser and no-onboarding employee.
 - [ ] Browser E2E screenshots at 360, 390, 430, 768, 900, 1024, 1280, 1440 and 1920 px in light and dark modes; screenshot artifacts must represent real rendered application screens.
@@ -257,7 +257,7 @@ The feature branch has continued beyond the initial 35-commit checkpoint. New Gi
 ## 14 November migration reconciliation (read-only)
 
 - See `docs/office5-migration-reconciliation-20261114.md` and the associated automated migration-history test.
-- Six November 14 department handover, document-OTP and HR/payroll SQL source hashes were compared to the already-applied Supabase migration statements; all six matched. Their repo filenames now match live 14-digit versions exactly.
-- Seventeen feature-only Office 5.0 migrations remain **unapplied** and are ordered as `20261114130001` to `20261114130017`, after the last known applied production version `20261114120622`.
+- Seven November 14 department handover, document-OTP and HR/payroll SQL source hashes were compared to the already-applied Supabase migration statements; all seven matched. Their repo filenames now match live 14-digit versions exactly.
+- Seventeen feature-only Office 5.0 migrations remain **unapplied** and are ordered as `20261114150001` to `20261114150017`, after the last known applied production version `20261114140609`.
 - Dedicated authentication, Vault secret locker and Connect views are coded, but **end-to-end production validation is outstanding**. Isolated stub-based PostgreSQL checks and browser private-route E2E do not replace a full-schema migration/restore drill.
 - GitHub commit, CI, native app, device grants, restricted HR/Finance roles, 360–1920px authenticated screenshots, and production-like scanner/storage checks require final verification. Vercel is excluded.

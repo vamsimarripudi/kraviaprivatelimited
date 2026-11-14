@@ -6,7 +6,7 @@
 
 Project reference: xjtazosozxmudkbxqhjl, PostgreSQL 17. Using a read-only query
 against supabase_migrations.schema_migrations, we compared md5(statements[1])
-for six applied migrations with the byte-for-byte GitHub SQL source. **All six
+for seven applied migrations with the byte-for-byte GitHub SQL source. **All seven
 hashes matched.** The discrepancy was the repository's earlier 12-digit
 migration version prefixes, not the SQL content.
 
@@ -18,8 +18,9 @@ migration version prefixes, not the SQL content.
 | 20261114120559 | 20261114120559_hr_payroll_independent_review_20261114.sql | 5c18e7d9722337c4d09247eaf6c82f58 |
 | 20261114120612 | 20261114120612_hr_leave_evidence_20261114.sql | 7db886381bf5628816b7c01c0d3b8a3b |
 | 20261114120622 | 20261114120622_hr_payroll_maker_checker_20261114.sql | 0d9c7692a9a09d44f03a426cdfa72c02 |
+| 20261114140609 | 20261114140609_hr_attendance_workbook_import_20261114.sql | 0000843e1c378f912e46cbc82daebea0 |
 
-**Do not reapply these six migrations.** They are already recorded in the
+**Do not reapply these seven migrations.** They are already recorded in the
 production migration history. Normalized repository filenames intentionally
 preserve every source byte, including original internal comment references.
 
@@ -27,8 +28,8 @@ preserve every source byte, including original internal comment references.
 
 The original feature-only 12-digit versions 202611140007–202611140023
 are normalized, in the same relative order, to **14-digit versions
-20261114130001–20261114130017**, all after the last already-applied
-production version 20261114120622. New SQL remains branch-only; no
+20261114150001–20261114150017**, all after the last already-applied
+production version 20261114140609. New SQL remains branch-only; no
 production mutation or migration history repair was performed.
 
 New additions cover private chat, groups, Vault access and requests,

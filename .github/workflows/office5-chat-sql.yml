@@ -3,17 +3,17 @@ name: Office 5.0 isolated chat SQL rehearsal
 on:
   pull_request:
     paths:
-      - "Database/supabase/migrations/20261114130001_office_chat_private_messages.sql"
-      - "Database/supabase/migrations/20261114130002_office_chat_private_groups.sql"
-      - "Database/supabase/migrations/20261114130005_office_chat_threads_and_search.sql"
-      - "Database/supabase/migrations/20261114130006_office_chat_department_channels.sql"
-      - "Database/supabase/migrations/20261114130009_office_chat_unread_snapshot.sql"
-      - "Database/supabase/migrations/20261114130010_office_chat_pinned_messages.sql"
-      - "Database/supabase/migrations/20261114130011_office_chat_reactions.sql"
-      - "Database/supabase/migrations/20261114130012_office_chat_scope_triggers.sql"
-      - "Database/supabase/migrations/20261114130013_office_chat_user_preferences.sql"
-      - "Database/supabase/migrations/20261114130014_office_chat_private_realtime.sql"
-      - "Database/supabase/migrations/20261114130015_office_chat_private_typing.sql"
+      - "Database/supabase/migrations/20261114150001_office_chat_private_messages.sql"
+      - "Database/supabase/migrations/20261114150002_office_chat_private_groups.sql"
+      - "Database/supabase/migrations/20261114150005_office_chat_threads_and_search.sql"
+      - "Database/supabase/migrations/20261114150006_office_chat_department_channels.sql"
+      - "Database/supabase/migrations/20261114150009_office_chat_unread_snapshot.sql"
+      - "Database/supabase/migrations/20261114150010_office_chat_pinned_messages.sql"
+      - "Database/supabase/migrations/20261114150011_office_chat_reactions.sql"
+      - "Database/supabase/migrations/20261114150012_office_chat_scope_triggers.sql"
+      - "Database/supabase/migrations/20261114150013_office_chat_user_preferences.sql"
+      - "Database/supabase/migrations/20261114150014_office_chat_private_realtime.sql"
+      - "Database/supabase/migrations/20261114150015_office_chat_private_typing.sql"
       - "Database/supabase/tests/office5_chat_security.sql"
       - "Database/supabase/tests/office5_chat_extended_security.sql"
       - "Database/supabase/tests/office5_chat_department_security.sql"
@@ -61,21 +61,21 @@ jobs:
               --set ON_ERROR_STOP=1 "$@"
           }
           pg --command "create role anon nologin; create role authenticated nologin; create role service_role nologin; create extension if not exists pgcrypto; create table public.office_identity_users(user_id uuid primary key, status text not null); create table public.office_job_assignments(user_id uuid primary key, department_code text, status text);"
-          pg --file Database/supabase/migrations/20261114130001_office_chat_private_messages.sql
-          pg --file Database/supabase/migrations/20261114130002_office_chat_private_groups.sql
-          pg --file Database/supabase/migrations/20261114130005_office_chat_threads_and_search.sql
-          pg --file Database/supabase/migrations/20261114130006_office_chat_department_channels.sql
-          pg --file Database/supabase/migrations/20261114130009_office_chat_unread_snapshot.sql
-          pg --file Database/supabase/migrations/20261114130010_office_chat_pinned_messages.sql
-          pg --file Database/supabase/migrations/20261114130011_office_chat_reactions.sql
-          pg --file Database/supabase/migrations/20261114130012_office_chat_scope_triggers.sql
-          pg --file Database/supabase/migrations/20261114130013_office_chat_user_preferences.sql
+          pg --file Database/supabase/migrations/20261114150001_office_chat_private_messages.sql
+          pg --file Database/supabase/migrations/20261114150002_office_chat_private_groups.sql
+          pg --file Database/supabase/migrations/20261114150005_office_chat_threads_and_search.sql
+          pg --file Database/supabase/migrations/20261114150006_office_chat_department_channels.sql
+          pg --file Database/supabase/migrations/20261114150009_office_chat_unread_snapshot.sql
+          pg --file Database/supabase/migrations/20261114150010_office_chat_pinned_messages.sql
+          pg --file Database/supabase/migrations/20261114150011_office_chat_reactions.sql
+          pg --file Database/supabase/migrations/20261114150012_office_chat_scope_triggers.sql
+          pg --file Database/supabase/migrations/20261114150013_office_chat_user_preferences.sql
           # The private attachment source is not loaded in this isolated chat
           # fixture; its independently scanned storage table is mocked only
           # for trigger installation, never granted to browser SQL roles.
           pg --command "create table public.office_chat_attachment_objects(id uuid primary key,conversation_id uuid not null references public.office_chat_conversations(id),status text,message_id uuid);"
-          pg --file Database/supabase/migrations/20261114130014_office_chat_private_realtime.sql
-          pg --file Database/supabase/migrations/20261114130015_office_chat_private_typing.sql
+          pg --file Database/supabase/migrations/20261114150014_office_chat_private_realtime.sql
+          pg --file Database/supabase/migrations/20261114150015_office_chat_private_typing.sql
           pg --file Database/supabase/tests/office5_chat_security.sql
           pg --file Database/supabase/tests/office5_chat_extended_security.sql
           pg --file Database/supabase/tests/office5_chat_department_security.sql
