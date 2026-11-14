@@ -35,14 +35,14 @@ function cleanFilename(raw:string){
  if(!name||name==="."||name==="..")throw new SecretLockerError(400,"A safe filename is required");
  return name;
 }
-async function session(current:Actor,id:string):Promise<Ingress>{
+async function session(current:Actor,id:string,allowExpired=false):Promise<Ingress>{
  if(!validUuid(id))throw new SecretLockerError(404,"Upload session unavailable");
  const result=await current.admin.from("office_vault_secret_ingress_sessions")
   .select("id,owner_user_id,document_id,version_id,title,classification,filename,declared_mime,total_bytes,sha256,part_size,part_count,expires_at,state,updated_at")
   .eq("id",id).eq("owner_user_id",current.identity.userId).maybeSingle();
  if(result.error)throw new SecretLockerError(503,"Staging authority is unavailable");
  if(!result.data)throw new SecretLockerError(404,"Upload session unavailable");
- if(result.data.state!=="DONE"&&Date.parse(result.data.expires_at)<=Date.now())
+ if(!allowExpired&&result.data.state!=="DONE"&&Date.parse(result.data.expires_at)<=Date.now())
   throw new SecretLockerError(410,"Encrypted upload session expired");
  return result.data as Ingress;
 }
@@ -55,13 +55,42 @@ async function parts(current:Actor,id:string):Promise<Part[]>{
 }
 async function purge(current:Actor,id:string){
  const existing=await parts(current,id);
- if(!existing.length)return true;
- const paths=existing.map(p=>p.sealed_path);
- const removed=await current.admin.storage.from(BUCKET).remove(paths);
- if(removed.error)return false;
+ // Also find encrypted orphans left by storage-provider unknown outcomes.
+ // This prefix is authorized by the caller's verified session ownership.
+ const listed=await current.admin.storage.from(BUCKET).list("ingress/"+id,{
+  limit:100,sortBy:{column:"name",order:"asc"}
+ });
+ if(listed.error)return false;
+ const paths=[...new Set([
+  ...existing.map(p=>p.sealed_path),
+  ...(listed.data??[]).filter(p=>p.name.endsWith(".sealed"))
+    .map(p=>"ingress/"+id+"/"+p.name),
+ ])];
+ if(paths.length){
+  const removed=await current.admin.storage.from(BUCKET).remove(paths);
+  if(removed.error)return false;
+ }
  const deleted=await current.admin.from("office_vault_secret_ingress_parts")
   .delete().eq("session_id",id);
  return !deleted.error;
+}
+async function cleanupExpired(current:Actor){
+ const old=await current.admin.from("office_vault_secret_ingress_sessions")
+  .select("id,state").eq("owner_user_id",current.identity.userId)
+  .in("state",["OPEN","FINALIZING"]).lt("expires_at",new Date().toISOString())
+  .limit(10);
+ if(old.error)return false;
+ let clean=true;
+ for(const item of old.data??[]){
+  const changed=await current.admin.from("office_vault_secret_ingress_sessions")
+   .update({state:"ABORTED",updated_at:new Date().toISOString()})
+   .eq("id",item.id).eq("owner_user_id",current.identity.userId)
+   .eq("state",item.state).lt("expires_at",new Date().toISOString())
+   .select("id").maybeSingle();
+  if(changed.error){clean=false;continue;}
+  if(changed.data&&!await purge(current,String(item.id)))clean=false;
+ }
+ return clean;
 }
 async function finished(current:Actor,info:Ingress){
  const result=await current.admin.from("office_vault_secret_versions")
@@ -78,6 +107,7 @@ export async function startOfficeVaultSecretIngress(input:{
  bytes:number;sha256:string;documentId?:string;
 }){
  const current=await requireOfficeVaultSecretUploader();
+ const cleanupComplete=await cleanupExpired(current);
  const name=cleanFilename(input.filename);
  const ext=name.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1]??"";
  if(!allowed[ext]||(
@@ -105,7 +135,8 @@ export async function startOfficeVaultSecretIngress(input:{
   part_size:SECRET_UPLOAD_PART_SIZE,part_count:expected,expires_at:expires,
  }).select("id").single();
  if(created.error||!created.data)throw new SecretLockerError(503,"Private upload session not recorded");
- return {session_id:id,chunk_size:SECRET_UPLOAD_PART_SIZE,total_chunks:expected,expires_at:expires};
+ return {session_id:id,chunk_size:SECRET_UPLOAD_PART_SIZE,total_chunks:expected,expires_at:expires,
+  expired_cleanup_pending:!cleanupComplete};
 }
 export async function getOfficeVaultSecretIngress(id:string){
  const current=await requireOfficeVaultSecretUploader();
@@ -253,12 +284,14 @@ export async function completeOfficeVaultSecretIngress(id:string){
 }
 export async function abortOfficeVaultSecretIngress(id:string){
  const current=await requireOfficeVaultSecretUploader();
- const record=await session(current,id);
- if(record.state!=="OPEN")throw new SecretLockerError(409,"Only open sessions may be cancelled");
+ const record=await session(current,id,true);
+ if(!["OPEN","FINALIZING"].includes(record.state)||
+   (record.state==="FINALIZING"&&Date.parse(record.expires_at)>Date.now()))
+  throw new SecretLockerError(409,"Only open or expired sessions may be cancelled");
  const result=await current.admin.from("office_vault_secret_ingress_sessions")
   .update({state:"ABORTED",updated_at:new Date().toISOString()})
   .eq("id",id).eq("owner_user_id",current.identity.userId)
-  .eq("state","OPEN").select("id").maybeSingle();
+  .eq("state",record.state).select("id").maybeSingle();
  if(result.error||!result.data)throw new SecretLockerError(409,"Encrypted upload cancellation not confirmed");
  return {aborted:true,cleanup_pending:!(await purge(current,id))};
 }

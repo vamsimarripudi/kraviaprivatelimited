@@ -72,6 +72,7 @@ begin
  end if;
  if old.state='OPEN' and new.state not in ('OPEN','FINALIZING','ABORTED')
   or old.state='FINALIZING' and new.state not in ('OPEN','FINALIZING','DONE')
+    and not(new.state='ABORTED' and old.expires_at<=now())
  then raise exception 'Invalid sealed ingress transition'; end if;
  return new;
 end; $$;

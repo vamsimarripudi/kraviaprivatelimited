@@ -31,6 +31,13 @@ describe("K-Vault 10 MiB encrypted chunk ingress",()=>{
   expect(service).toContain('.eq("state","FINALIZING")');
   expect(service).toContain("versionId:record.version_id");
  });
+ it("can clean stale encrypted part storage and expire abandoned sessions",()=>{
+  expect(service).toContain('list("ingress/"+id');
+  expect(service).toContain("cleanupExpired(current)");
+  expect(service).toContain('state:"ABORTED"');
+  expect(service).toContain('expired_cleanup_pending:!cleanupComplete');
+  expect(migration).toContain("old.expires_at<=now()");
+ });
  it("preserves scan, independent reviewer and source registration",()=>{
   expect(service).toContain("uploadOfficeVaultSecret({");
   expect(service).toContain("const prior=await current.admin.from");
