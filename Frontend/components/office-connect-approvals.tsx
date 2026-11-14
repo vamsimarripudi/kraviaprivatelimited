@@ -129,7 +129,7 @@ export function OfficeConnectApprovals({requestId}:{requestId?:string}){
      <article><span>Past recorded due date</span><strong>{rows.filter(r=>r.request?.due_at&&Date.parse(r.request.due_at)<Date.now()).length}</strong></article>
     </div>
     <div className={styles.filters}><label><Filter size={16}/>Filter
-      <select value={filter} onChange={e=>setFilter(e.target.value)}>
+      <select value={filter} onChange={e=>{const value=e.target.value;if(value==="ALL"||value==="URGENT"||value==="DUE")setFilter(value);}}>
        <option value="ALL">All assigned</option><option value="URGENT">High priority</option>
        <option value="DUE">Past recorded due date</option>
       </select></label>
