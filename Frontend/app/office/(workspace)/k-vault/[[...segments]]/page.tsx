@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, FileLock2, FolderClosed, LockKeyhole, ShieldCheck } from "lucide-react";
+import { ArrowRight, FileLock2, LockKeyhole, ShieldCheck } from "lucide-react";
 import { getOfficeVaultAccess } from "@/lib/office/vault-server";
 import { getOfficeRegistrationOverview } from "@/lib/office/registration-server";
 import { getOfficeDocumentStudioOverview } from "@/lib/office/document-studio-server";
@@ -13,7 +13,6 @@ import { OfficeVaultOverview } from "@/components/office-vault-overview";
 import { OfficeVaultActivity } from "@/components/office-vault-activity";
 import { OfficeVaultVerificationQueue } from "@/components/office-vault-verification-queue";
 import { requireOfficeVaultRecord, getOfficeVaultGrantedResources, getOfficeVaultAllowedActions, getOfficeVaultSourceVisibleRecordIds, OfficeVaultAccessError } from "@/lib/office/vault-access-server";
-import { vaultCategories, type VaultCategory } from "@/lib/office/vault-categories";
 import styles from "@/components/office-vault.module.css";
 
 
@@ -67,21 +66,6 @@ async function GrantedCustody(){
 
 export const dynamic="force-dynamic";
 type Props={params:Promise<{segments?:string[]}>};
-function link(category:VaultCategory){
- return <Link href={"/office/k-vault/categories/"+category.slug} key={category.slug} className={styles.category}>
-  <FolderClosed size={21} aria-hidden="true"/>
-  <span><strong>{category.title}</strong><small>{category.description}</small></span>
-  <ArrowRight size={18} aria-hidden="true"/>
- </Link>;
-}
-function Restricted({request=false}:{request?:boolean}){
- return <section className={styles.restricted} role="status">
-   <LockKeyhole aria-hidden="true" size={30}/>
-   <h2>Records are restricted</h2>
-   <p>{request?"No categories are assigned to your current authority.":"This resource is unavailable to your current authorized scope."} Record names and values are not disclosed.</p>
-   <Link href="/office/requests">Open formal access requests</Link>
- </section>;
-}
 export default async function VaultPages({params}:Props){
  const {segments=[]}=await params;
  const route=segments.join("/");
