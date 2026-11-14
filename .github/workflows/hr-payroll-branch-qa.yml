@@ -19,8 +19,10 @@ on:
       - 'Database/supabase/migrations/202611140003_hr_hours_payroll_revision_guards.sql'
       - 'Database/supabase/migrations/202611140004_hr_payroll_independent_review.sql'
       - 'Database/supabase/migrations/202611140005_hr_leave_evidence.sql'
+      - 'Database/supabase/migrations/202611140006_hr_payroll_maker_checker.sql'
       - 'Database/supabase/tests/hr-payroll-guards-*.sql'
       - 'Database/supabase/tests/hr-leave-workflow-smoke.sql'
+      - 'Database/supabase/tests/hr-payroll-maker-checker-smoke.sql'
       - '.github/workflows/hr-payroll-branch-qa.yml'
   workflow_dispatch:
 
@@ -97,6 +99,8 @@ jobs:
           pg -f Database/supabase/migrations/202611140003_hr_hours_payroll_revision_guards.sql
           pg -f Database/supabase/migrations/202611140004_hr_payroll_independent_review.sql
           pg -f Database/supabase/migrations/202611140005_hr_leave_evidence.sql
+          pg -f Database/supabase/migrations/202611140006_hr_payroll_maker_checker.sql
           test "$(pg --tuples-only --no-align -f Database/supabase/tests/hr-payroll-guards-smoke.sql | tail -n 1)" = "HR_PAYROLL_CORRECTION_GUARDS_VERIFIED"
           test "$(pg --tuples-only --no-align -f Database/supabase/tests/hr-leave-workflow-smoke.sql | tail -n 1)" = "HR_LEAVE_INDEPENDENT_PAYROLL_VERIFIED"
+          test "$(pg --tuples-only --no-align -f Database/supabase/tests/hr-payroll-maker-checker-smoke.sql | tail -n 1)" = "HR_PAYROLL_MAKER_CHECKER_VERIFIED"
           echo "HR payroll and overtime guards passed in disposable PostgreSQL."
