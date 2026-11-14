@@ -9,6 +9,7 @@ import {OfficeConnectGovernance} from "@/components/office-connect-governance";
 import {OfficeConnectChannels} from "@/components/office-connect-channels";
 import {OfficeConnectRetention} from "@/components/office-connect-retention";
 import {OfficeConnectSettings} from "@/components/office-connect-settings";
+import {OfficeConnectAdmin} from "@/components/office-connect-admin";
 type Props={params:Promise<{segments:string[]}>};
 export const dynamic="force-dynamic";
 const permittedPaths=new Set([
@@ -33,6 +34,7 @@ export default async function OtherConnectRoute({params}:Props){
  if(path==="support/escalations" || /^support\/escalations\/[0-9a-f-]{36}$/i.test(path))
    return <OfficeConnectEscalations detailId={segments[2]}/>;
  if(path==="files")return <OfficeConnectSharedFiles/>;
+ if(path==="admin")return <OfficeConnectAdmin/>;
  if(path==="admin/permissions")return <OfficeConnectGovernance/>;
  if(path==="admin/channels")return <OfficeConnectChannels/>;
  if(path==="admin/retention")return <OfficeConnectRetention/>;
