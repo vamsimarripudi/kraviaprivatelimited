@@ -39,7 +39,7 @@ const inline=(cell:string,value:string)=>
   '<c r="'+cell+'" t="inlineStr"><is><t>'+value+'</t></is></c>';
 const numeric=(cell:string,value:number)=>'<c r="'+cell+'"><v>'+value+'</v></c>';
 const row=(id:number,content:string)=>'<row r="'+id+'">'+content+'</row>';
-function workbook(options?:{missingEvidence?:boolean;duplicate?:boolean;editSource?:boolean}):Buffer{
+function workbook(options?:{missingEvidence?:boolean;duplicate?:boolean;editSource?:boolean;namespaced?:boolean;editableFormula?:boolean}):Buffer{
   const sheets=["Source Sessions","Aug 2026","Sep 2026","Oct 2026","Nov 2026"];
   const files:Record<string,string>={
     "xl/workbook.xml":'<workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+
@@ -68,6 +68,15 @@ function workbook(options?:{missingEvidence?:boolean;duplicate?:boolean;editSour
   });
   if(options?.editSource) files["xl/worksheets/sheet1.xml"]=
     files["xl/worksheets/sheet1.xml"].replace('Session ID','Changed');
+  if(options?.editableFormula)files["xl/worksheets/sheet5.xml"]=
+    files["xl/worksheets/sheet5.xml"].replace(numeric("J5",360),
+      '<c r="J5"><f>6*60</f><v>360</v></c>');
+  if(options?.namespaced){
+    for(const name of Object.keys(files)){
+      if(name==="xl/workbook.xml"||name.startsWith("xl/worksheets/"))
+        files[name]=files[name].replace(/(<\/?)(sheet|row|c|v|t|si|is)(?=[\s/>])/g,"$1x:$2");
+    }
+  }
   return zip(files);
 }
 describe("KRAVIA template-specific HR attendance extraction",()=>{
@@ -82,6 +91,14 @@ describe("KRAVIA template-specific HR attendance extraction",()=>{
     });
     expect(result.issues.some(item=>item.severity==="WARNING"&&item.detail.includes("OT requires"))).toBe(true);
     expect(result.candidates[0]).not.toHaveProperty("status","APPROVED");
+  });
+  it("supports the namespace-prefixed XML used by the actual KRAVIA template",()=>{
+    const parsed=extractKraviaAttendanceWorkbook(workbook({namespaced:true}));
+    expect(parsed.candidates).toHaveLength(1);
+    expect(parsed.candidates[0].workDate).toBe("2026-11-13");
+  });
+  it("rejects formula-generated hours in HR-editable columns",()=>{
+    expect(()=>extractKraviaAttendanceWorkbook(workbook({editableFormula:true}))).toThrow(/literal values/);
   });
   it("rejects missing evidence and duplicate employee/day rows",()=>{
     expect(extractKraviaAttendanceWorkbook(workbook({missingEvidence:true})).issues.some(x=>x.severity==="ERROR")).toBe(true);
