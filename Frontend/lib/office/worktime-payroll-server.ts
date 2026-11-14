@@ -1,5 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
+import { calculateVerifiedMonthlyAttendance } from "@/lib/office/attendance-salary-preview";
+import { setPayrollAttendance } from "@/lib/office/payroll-server";
 import { requireOfficeActor, resolveOfficePermission, type OfficePermissionDecision } from "@/lib/office/permission-engine";
 import { monthlyFlexibleWorktime, type TrackedSession, type WorktimeBreak, type HistoricalWorkClaim } from "@/lib/office/flexible-worktime";
 import { calculateApprovedWorkPremiums, reconcileWageDebt, targetSalaryDate,
@@ -145,12 +147,22 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
   const policy = policies.find(x => x.status === "APPROVED");
   const compensation = (compensationResult.data ?? [])[0] as CompensationRow | undefined;
   let preview = null;
+  const approvedClaims = claims.filter(x => x.status === "APPROVED").map(toApprovedSession);
+  let salaryPreview;
+  try {
+    salaryPreview = calculateVerifiedMonthlyAttendance({
+      month, employeeUserId: employeeId, sessions: approvedClaims,
+      monthlyGrossMinor: compensation?.currency === "INR" ? Number(compensation.monthly_gross_minor) : null,
+    });
+  } catch (error) {
+    throw new OfficeWorktimeError(409, error instanceof Error ? error.message : "Salary evidence needs reconciliation");
+  }
   if (policy && compensation && compensation.currency === "INR") {
     try {
       preview = calculateApprovedWorkPremiums({
         month, employeeUserId: employeeId, monthlyGrossMinor: Number(compensation.monthly_gross_minor),
         policy: asApprovedPolicy(policy),
-        sessions: claims.filter(x => x.status === "APPROVED").map(toApprovedSession),
+        sessions: approvedClaims,
       });
     } catch (error) {
       throw new OfficeWorktimeError(409, error instanceof Error ? error.message : "Approved time needs reconciliation");
@@ -176,12 +188,12 @@ export async function officeWorktimeOverview(input: { month?: string; employeeUs
   return {
     actor: { user_id: actor.identity.userId, roles: actor.identity.roles },
     employee: identityResult.data, employees: directoryResult.data ?? [], payroll_periods: periodResult.data ?? [], flex_days: flexResult.data ?? [], month, target_payment: targetSalaryDate(month),
-    approved_policy: policy ?? null, policies, claims, preview, attendance_targets: attendanceTargets,
+    approved_policy: policy ?? null, policies, claims, preview, salary_preview: salaryPreview, attendance_targets: attendanceTargets,
     approved_monthly_gross_minor: compensation ? Number(compensation.monthly_gross_minor) : null,
     approved_gross_currency: compensation?.currency ?? null,
     salary_slips: salarySlips,
     capabilities: { self, review_worktime: canReviewWorktime && (isDirector || hrManagerActive), propose_policy: policyProposal, prepare_payroll: canPreparePayroll },
-    notice: "Attendance targets reflect tracked net time plus independently approved historical corrections; they are not wage evidence. Unpaid salary is not marked PAID without verified bank evidence. No overtime rates or payroll are created automatically.",
+    notice: "Salary previews use approved compensation and independently verified net hours. Missing time remains UNRESOLVED, never automatically unpaid. Overtime requires approved policy and independent review. No payment is executed automatically.",
   };
 }
 export async function officeWorktimeAction(input:
