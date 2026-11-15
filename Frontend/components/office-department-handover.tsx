@@ -93,12 +93,14 @@ export function OfficeDepartmentHandover({ mode = "manage" }: { mode?: "manage" 
     setBusy(true); setError(""); setNotice("");
     try {
       await api(body);
-      await refresh();
-      // Accepting a department changes the authority matrix; refresh the server
-      // layout to rebuild the sidebar from effective grants without a new login.
-      if (body.action === "ACCEPT") router.refresh();
+      // The authoritative mutation is complete; refreshing a read-only list
+      // must never turn a successful transfer into a false failure message.
       setSelected(undefined); setRecipient(""); setReason("");
       setNotice(success);
+      try { await refresh(); }
+      catch { setError("Transfer recorded. Refresh the ownership list to see the latest state."); }
+      // Acceptance changes the effective authority matrix and navigation.
+      if (body.action === "ACCEPT") router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to complete handover");
     } finally { setBusy(false); }

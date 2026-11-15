@@ -313,6 +313,9 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
     const key=activeId+":"+latest.id;
     const acknowledge=()=>{
       if(document.visibilityState!=="visible"||!document.hasFocus()||lastReadMessage.current===key)return;
+      const timeline=timelineRef.current;
+      // A background tab or a scrolled-up conversation is not proof of reading.
+      if(!timeline||timeline.scrollHeight-timeline.scrollTop-timeline.clientHeight>110)return;
       lastReadMessage.current=key;
       void fetch("/api/office-chat/conversations/"+encodeURIComponent(activeId)+"/messages",{
         method:"PATCH",credentials:"same-origin",
@@ -322,8 +325,11 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
     acknowledge();
     window.addEventListener("focus",acknowledge);
     document.addEventListener("visibilitychange",acknowledge);
+    const timeline=timelineRef.current;
+    timeline?.addEventListener("scroll",acknowledge,{passive:true});
     return()=>{window.removeEventListener("focus",acknowledge);
-      document.removeEventListener("visibilitychange",acknowledge);};
+      document.removeEventListener("visibilitychange",acknowledge);
+      timeline?.removeEventListener("scroll",acknowledge);};
   },[activeId,actor,messageScope,visibleMessages,messageError]);
 
   function signalTyping(isTyping:boolean){

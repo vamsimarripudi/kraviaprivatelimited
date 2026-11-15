@@ -25,7 +25,8 @@ describe("private, source-confirmed Connect message receipts",()=>{
   expect(api).toContain(".max(100)");
  });
  it("only marks read in focused foreground conversation",()=>{
-  expect(connect).toContain('document.visibilityState==="visible"&&document.hasFocus()');
+  expect(connect).toContain('document.visibilityState!=="visible"||!document.hasFocus()');
+  expect(connect).toContain('timeline.scrollHeight-timeline.scrollTop-timeline.clientHeight>110');
   expect(connect).toContain('/deliver"');
   expect(connect).toContain('delivery_status');
   expect(connect).not.toContain("WifiOff size");
