@@ -866,7 +866,7 @@ export function OfficeGstTaxWorkspace({
         </section>
         <details className={styles.settingsBlock} open>
           <summary><span>Core and non-core registration changes</span><em>PORTAL REVIEW</em></summary>
-          <p className={styles.helper}>Review <b>My Saved Applications</b> on the official GST portal. A saved draft is not a submitted amendment. Check the portal's own expiry date and retain the submitted ARN and amended registration certificate only when issued.</p>
+          <p className={styles.helper}>Review <b>My Saved Applications</b> on the official GST portal. A saved draft is not a submitted amendment. Check the portal expiry date and retain the submitted ARN and amended registration certificate only when issued.</p>
           <div className={styles.detailGrid}>
             <span><b>Core fields</b><small>Legal name, principal business address and other core amendments require the applicable tax-officer review.</small></span>
             <span><b>Non-core fields</b><small>Authorised signatories, bank details and applicable non-core registration particulars are filed on the GST portal.</small></span>
