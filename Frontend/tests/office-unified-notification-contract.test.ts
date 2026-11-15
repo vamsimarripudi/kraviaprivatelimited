@@ -10,7 +10,7 @@ const audio=read("app/api/office-notifications/sound/[sound]/route.ts");
 const migration=read("../Database/supabase/migrations/20261115164000_office_unified_notification_delivery.sql");
 const chat=read("lib/office/chat-server.ts");
 const workflow=read("lib/office/workflow-server.ts");
-const it=read("lib/office/it-service-server.ts");
+const itService=read("lib/office/it-service-server.ts");
 const support=read("lib/office/support-server.ts");
 const shell=read("components/office-workspace-shell.tsx");
 const center=read("components/office-notification-center.tsx");
@@ -29,7 +29,7 @@ describe("Office notification event wiring and enterprise privacy",()=>{
   it("hooks actual chat, approval, IT and support server operations",()=>{
     expect(chat).toContain("dispatchOfficeChatMessage");
     expect(workflow).toContain("dispatchOfficeWorkNotice");
-    expect(it).toContain("dispatchOfficeITNotice");
+    expect(itService).toContain("dispatchOfficeITNotice");
     expect(support).toContain("dispatchOfficeSupportNotice");
     expect(dispatch).toContain("office_chat_memberships");
     expect(dispatch).toContain("office_job_assignments");
