@@ -137,3 +137,86 @@
   .summary, .panel, .actionsMenu > summary { animation: none; transition: none; }
   .panel::backdrop { backdrop-filter: none; }
 }
+
+
+/* Mobile defect repair: keep Actions and Close beside the heading, and anchor
+   the attendance/OOO menu inside the native modal instead of a narrow <details>.
+   The menu remains independently scrollable and cannot extend beyond the dialog. */
+@media (max-width: 767px) {
+  .panel {
+    width: min(440px, calc(100dvw - 24px)) !important;
+    max-width: calc(100dvw - 24px) !important;
+    max-height: calc(100dvh - 28px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    min-height: 0;
+    padding: 14px !important;
+    border-radius: 16px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+  .panel:has(.actionsMenu[open]) {
+    min-height: min(440px, calc(100dvh - 48px - env(safe-area-inset-bottom, 0px))) !important;
+  }
+  .heading {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding-bottom: 12px !important;
+  }
+  .headingText { min-width: 0 !important; }
+  .headingText h2 {
+    font-size: 18px !important;
+    line-height: 1.2 !important;
+    overflow-wrap: anywhere;
+  }
+  .headingActions {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-self: end !important;
+    gap: 6px !important;
+    margin-left: auto !important;
+  }
+  .closeButton {
+    display: grid !important;
+    place-items: center !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    padding: 0 !important;
+  }
+  .actionsMenu { position: static !important; }
+  .actionsMenu > summary {
+    display: grid !important;
+    place-items: center !important;
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 !important;
+    border-radius: 11px !important;
+  }
+  .actionsMenu > summary > span,
+  .actionsMenu > summary > svg:last-child { display: none !important; }
+  .actionsContent {
+    position: absolute !important;
+    top: 72px !important;
+    right: 14px !important;
+    left: auto !important;
+    z-index: 55 !important;
+    box-sizing: border-box !important;
+    width: min(306px, calc(100% - 28px)) !important;
+    max-width: calc(100% - 28px) !important;
+    max-height: min(48dvh, 315px) !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    background: var(--office-ui-surface, #fff);
+    border-radius: 12px !important;
+    padding: 11px !important;
+    box-shadow: 0 14px 42px rgba(5, 13, 24, .25) !important;
+  }
+  .statusSummary > div { min-width: 0; gap: 9px; }
+  .statusSummary span { flex: 0 0 auto; }
+  .statusSummary strong { min-width: 0; overflow-wrap: anywhere; }
+}

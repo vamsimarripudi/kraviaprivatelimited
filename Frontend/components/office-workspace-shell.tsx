@@ -61,6 +61,16 @@ const categoryOrder = [
   "My work","People","Engineering","Commercial","Operations",
   "Finance","Governance","Administration",
 ];
+// Short visible category labels only on narrow mobile rails; the full names remain
+// available through each button's aria-label and in the contextual navigation.
+const mobileCategoryLabels: Record<string, string> = {
+  "My work": "Work", People: "People", Connect: "Chat",
+  Engineering: "Build", "K-Vault": "Vault", Commercial: "Sales",
+  Operations: "Ops", Finance: "Finance", Governance: "Govern",
+  Administration: "Admin", Overview: "Home", Revenue: "Revenue",
+  Treasury: "Treasury", Payables: "Pay", Tax: "Tax", Books: "Books",
+  Evidence: "Evidence",
+};
 const financeOrder = ["Overview","Revenue","Treasury","Payables","Tax","Books","Evidence"];
 const financeCategory: Record<string,string> = {
   Overview:"Overview",Revenue:"Revenue",Treasury:"Treasury",Tax:"Tax",
@@ -316,10 +326,19 @@ export function OfficeWorkspaceShell({
               title={name} aria-label={name} aria-expanded={selectedCategory === name && megaExpanded}
               data-active={selectedCategory === name}
               onClick={() => {
-                if (selectedCategory === name && megaExpanded) changeSidebar(false);
-                else { setPickedCategory(name); setPickedSubgroup(null); changeSidebar(true); }
+                // Do not collapse the contextual panel inside an open mobile drawer.
+                // That made the drawer appear blank after tapping the active category.
+                if (window.matchMedia("(max-width: 767px)").matches) {
+                  setPickedCategory(name); setPickedSubgroup(null); changeSidebar(true);
+                } else if (selectedCategory === name && megaExpanded) {
+                  changeSidebar(false);
+                } else {
+                  setPickedCategory(name); setPickedSubgroup(null); changeSidebar(true);
+                }
               }}>
-              <CategoryIcon name={name}/><span>{name}</span>
+              <CategoryIcon name={name}/>
+              <span className="office-category-full-label">{name}</span>
+              <span className="office-category-compact-label" aria-hidden="true">{mobileCategoryLabels[name] ?? name}</span>
             </button>)}
           </div>
           <div className="office-sidebar-footer">
