@@ -70,7 +70,7 @@ export async function OfficeVaultOverview({ categories, canUpload = false }: { c
       </Link>)}
     </nav> : <div className={styles.empty}>
       <OfficeActionState kind="not-found" label="No accessible Vault categories." compact/>
-      <Link href="/office/k-vault/requests">Request access</Link></div>
+      <Link href="/office/k-vault/requests">Request access</Link></div>}
    </section>
    <section className={styles.panel} aria-labelledby="vault-overview-access">
     <header><h2 id="vault-overview-access">My access summary</h2>
