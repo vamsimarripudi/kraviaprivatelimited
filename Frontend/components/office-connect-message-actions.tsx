@@ -2,7 +2,7 @@
 import {useState,useEffect,useLayoutEffect,useRef,type FormEvent} from "react";
 import {createPortal} from "react-dom";
 import Link from "next/link";
-import {Bookmark,CornerDownRight,Edit3,Flag,History,Pin,PinOff,Trash2,SmilePlus,MoreHorizontal} from "lucide-react";
+import {Bookmark,Copy,CornerDownRight,Edit3,Flag,History,Pin,PinOff,Trash2,SmilePlus,MoreHorizontal} from "lucide-react";
 import styles from "./office-connect-message-actions.module.css";
 type Reaction={emoji:string;count:number;mine:boolean};
 type Props={id:string;body:string;own:boolean;pinned?:boolean;canPin?:boolean;
@@ -178,7 +178,7 @@ export function OfficeConnectMessageActions({id,body,own,pinned=false,canPin=fal
    </button>
    <Link href={"/office/chat/threads/"+id} aria-label="Reply in thread" title="Reply in thread"><CornerDownRight size={16}/><span>Reply in thread</span></Link>
    <button type="button" aria-label="Copy message text" title="Copy" onClick={()=>void copyText()}>
-     <Bookmark size={16}/><span>Copy text</span>
+     <Copy size={16}/><span>Copy text</span>
    </button>
    <button type="button" aria-label="Save message" title="Save" disabled={busy}
      onClick={()=>void save()}><Bookmark size={16}/><span>Save message</span></button>
