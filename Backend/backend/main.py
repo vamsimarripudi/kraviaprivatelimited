@@ -1441,3 +1441,8 @@ async def scan_private_office_upload(
         "sha256": hashlib.sha256(payload).hexdigest(),
         "byte_size": len(payload),
     }
+
+
+# HDFC ENet statement evidence adapter. Bank-approved API connectivity is separate.
+from .hdfc_statement_import import build_hdfc_statement_router
+app.include_router(build_hdfc_statement_router(get_db, require_roles))
