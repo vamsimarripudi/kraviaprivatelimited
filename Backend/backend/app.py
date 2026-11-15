@@ -20,6 +20,7 @@ from .finance_ownership import build_finance_ownership_router
 from .file_security import build_file_security_router
 from .drive_integration import build_google_drive_router
 from .email_delivery import close_email_delivery_client
+from .brevo_readiness import build_brevo_readiness_router
 from .identity_auth import build_identity_router
 from .public_intake_email import build_public_intake_email_router
 from .public_access_email import build_public_access_email_router
@@ -63,6 +64,7 @@ app.include_router(build_gst_compliance_router(get_db, office_main.actor_context
 app.include_router(build_fynamics_gsp_router(get_db, office_main.actor_context, require_roles))
 app.include_router(build_finance_ownership_router(get_db, require_roles))
 app.include_router(build_google_drive_router(get_db, require_roles))
+app.include_router(build_brevo_readiness_router(require_roles))
 app.include_router(build_period_control_router(get_db, require_roles))
 app.include_router(build_audit_retention_router(get_db, require_roles))
 app.include_router(build_document_engine_router(require_roles))
