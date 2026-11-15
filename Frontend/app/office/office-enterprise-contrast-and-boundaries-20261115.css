@@ -645,7 +645,7 @@
  [data-connect-unread-toggle] >span:nth-of-type(2){width:42px!important;height:26px!important;padding:3px!important}
  [data-connect-unread-toggle] >span{width:20px!important;height:20px!important}
  [data-connect-unread-toggle] input{width:42px!important;height:28px!important}
- [data-connect-unread-toggle] input:checked+>span:nth-of-type(2) >span{
+ [data-connect-unread-toggle] input:checked+span:nth-of-type(2)>span{
   transform:translateX(16px)!important}
  [data-connect-mobile-filters]>a{width:36px!important;height:36px!important;
   min-width:36px!important;min-height:36px!important;max-width:36px!important;max-height:36px!important}
@@ -663,8 +663,8 @@
   -webkit-overflow-scrolling:touch;padding:0 12px 12px!important;scrollbar-width:none!important;
  }
  [data-connect-mobile-inbox]::-webkit-scrollbar{display:none!important}
- [data-connect-mobile-inbox] [class*="mobile-home_conversation"]{min-height:64px!important;padding:9px 2px!important;gap:10px!important}
- [data-connect-mobile-inbox] [class*="mobile-home_avatar"]{
+ [data-connect-mobile-inbox] [class*="mobile-home_conversation__"]{min-height:64px!important;padding:9px 2px!important;gap:10px!important}
+ [data-connect-mobile-inbox] [class*="mobile-home_avatar__"]{
   width:40px!important;height:40px!important;min-width:40px!important;border-radius:12px!important;font-size:15px!important}
  [data-connect-mobile-inbox] [class*="mobile-home_conversationText"] strong{font-size:14px!important}
  [data-connect-mobile-inbox] [class*="mobile-home_conversationText"] small{font-size:11px!important}
