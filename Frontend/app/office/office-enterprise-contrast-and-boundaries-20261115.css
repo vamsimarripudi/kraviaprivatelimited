@@ -642,10 +642,10 @@
  [data-connect-unread-toggle]{display:flex!important;align-items:center!important;gap:5px!important;
   font-size:11px!important;white-space:nowrap!important}
  [data-connect-unread-toggle] >span:first-child{font-size:11px!important}
- [data-connect-unread-toggle] [class*="unreadFilter_track"]{width:42px!important;height:26px!important;padding:3px!important}
- [data-connect-unread-toggle] [class*="unreadFilter_thumb"]{width:20px!important;height:20px!important}
+ [data-connect-unread-toggle] >span:nth-of-type(2){width:42px!important;height:26px!important;padding:3px!important}
+ [data-connect-unread-toggle] >span{width:20px!important;height:20px!important}
  [data-connect-unread-toggle] input{width:42px!important;height:28px!important}
- [data-connect-unread-toggle] input:checked+[class*="unreadFilter_track"] [class*="unreadFilter_thumb"]{
+ [data-connect-unread-toggle] input:checked+>span:nth-of-type(2) >span{
   transform:translateX(16px)!important}
  [data-connect-mobile-filters]>a{width:36px!important;height:36px!important;
   min-width:36px!important;min-height:36px!important;max-width:36px!important;max-height:36px!important}
@@ -684,4 +684,14 @@
  [aria-label="KRAVIA K-Vault"]>nav{margin:0!important;min-height:43px!important;padding:4px!important}
  .kravia-office .office-v2.office-modern.office-floating-rail .office-main
  [aria-label="K-Vault enterprise secret locker"]{gap:10px!important}
+}
+
+/* On touch, long-press opens the first-party action sheet rather than the
+   Safari text-selection strip. Copy text remains available in that sheet. */
+@media(max-width:767px) and (hover:none){
+ .kravia-office .office-v2.office-modern .office-main
+ [data-chat-timeline] article[data-own] [data-chat-message-line="true"]{
+  -webkit-user-select:none!important;user-select:none!important;
+  -webkit-touch-callout:none!important;
+ }
 }
