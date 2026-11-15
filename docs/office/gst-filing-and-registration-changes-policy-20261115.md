@@ -39,3 +39,12 @@ Official guidance:
 - https://tutorial.gst.gov.in/userguide/returns/FAQs_change_profile.htm
 - https://tutorial.gst.gov.in/userguide/registration/Non-Core_Fields.htm
 - https://www.gst.gov.in/
+
+## CA / tax professional delegated Office access
+
+- The authorised Office OWNER/ADMIN may invite the firm's verified Chartered Accountant as role **CA**, within the Office TAX department. Do not assign the role based only on a public support mailbox, company name or an unverified contact.
+- Assign the active **CA_TAX** profile scoped to **COMPANY** for the explicitly appointed CA. Profile permissions include GST preparation, GST return/ITC approval, company registration management, financial-evidence document review/create/render, and read-only bank-reference visibility. Other existing compliance review capabilities remain governed by their original permissions.
+- Access requires an active Office identity, AAL2 MFA, and a trusted managed device for high-risk GST and registration actions; every action remains auditable and may be independently denied by an explicit override.
+- The profile does **not** authorize bank payments, Owner-level administration, user/role grants, publishing company secrets or e-invoice/IRN generation.
+- GSP EVC and final statutory signing remain reserved for a GST Portal authorised signatory. The CA role alone does **not** confer signatory authority. If the company later appoints the CA as an authorised GST signatory, first establish written/portal evidence and approve a separate audited technical delegation.
+- Until the trusted CA Office identity is onboarded, profile changes are only preparatory and must not be represented as a working CA login.
