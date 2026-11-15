@@ -14,5 +14,9 @@ describe("KRAVIA Connect delivery while in any Office workspace",()=>{
   expect(route).toContain("acknowledgeOfficeChatInbox()");
   expect(hub).toContain("/api/office-chat/delivery/pump");
   expect(hub).toContain('document.visibilityState==="visible"');
+  expect(hub).toContain("openRoute===window.location.pathname");
+  expect(hub).not.toContain('pathname.startsWith("/office/chat")');
+  expect(hub).toContain('stream=new EventSource("/api/office-notifications/events"');
+  expect(hub).not.toContain('if(document.visibilityState!=="visible")return;');
  });
 });

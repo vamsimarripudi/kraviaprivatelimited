@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, ClipboardCheck, Clock3, FolderClosed, LockKeyhole, ShieldCheck, UploadCloud, FileLock2 } from "lucide-react";
+import { ArrowRight, ClipboardCheck, Clock3, FolderClosed, ShieldCheck, UploadCloud, FileLock2 } from "lucide-react";
+import { OfficeActionState } from "@/components/office-action-state";
 import { getOfficeVaultAccessCenter, OfficeVaultAccessError } from "@/lib/office/vault-access-server";
 import type { VaultCategory } from "@/lib/office/vault-categories";
 import styles from "./office-vault-overview.module.css";
@@ -43,10 +44,10 @@ export async function OfficeVaultOverview({ categories, canUpload = false }: { c
     <span className={styles.uploadIcon}><FileLock2 size={23}/></span>
     <div><h2>Secure document intake</h2>
       <p>{canUpload?
-        "You may submit sealed company PDFs and documents. Uploads are encrypted and quarantined until malware scanning, independent review and current record grants are complete.":
-        "Only employees granted secure document-upload permission can add company PDFs and files. Existing records stay private to their current owners and reviewers."}
+        "Upload company files securely. Files stay encrypted and quarantined until scanning, review and permission checks are complete.":
+        "Company records require permission. Request upload access to add files."}
       </p>
-      <small>Supported: PDF, JPEG, PNG, WebP, DOCX, XLSX · Maximum 10 MiB per file · No secrets or raw credentials</small>
+      <small>PDF, JPEG, PNG, WebP, DOCX, XLSX · Up to 10 MiB · Never upload passwords or credentials</small>
     </div>
     {canUpload?<Link href="/office/k-vault/secrets"><UploadCloud size={17}/>Upload secure document</Link>:
       <Link href="/office/k-vault/requests">Request upload access <ArrowRight size={17}/></Link>}
@@ -67,15 +68,15 @@ export async function OfficeVaultOverview({ categories, canUpload = false }: { c
        <FolderClosed size={19} aria-hidden="true"/><span>{category.title}</span>
        <ArrowRight size={15} aria-hidden="true"/>
       </Link>)}
-    </nav> : <div className={styles.empty}><LockKeyhole size={20} aria-hidden="true"/>
-      Your current authority has no readable Vault categories.
-      <Link href="/office/k-vault/requests">Request governed access</Link></div>}
+    </nav> : <div className={styles.empty}>
+      <OfficeActionState kind="not-found" label="No accessible Vault categories." compact/>
+      <Link href="/office/k-vault/requests">Request access</Link></div>
    </section>
    <section className={styles.panel} aria-labelledby="vault-overview-access">
     <header><h2 id="vault-overview-access">My access summary</h2>
      <Link href="/office/k-vault/requests">Review access <ArrowRight size={15}/></Link>
     </header>
-    {access === null ? <div className={styles.empty}>Access grant ledger unavailable. Current permissions have not been inferred.</div>
+    {access === null ? <OfficeActionState kind="error" label="Access status unavailable. Permissions remain unchanged." compact/>
      : effective.length === 0 ? <div className={styles.empty}>No active additional Vault grants. Canonical source permissions remain independently enforced.</div>
      : <ul className={styles.grants}>
        {effective.slice(0,4).map(grant => <li key={grant.id}>

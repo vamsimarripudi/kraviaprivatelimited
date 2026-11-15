@@ -3,12 +3,13 @@
 import {useEffect,useMemo,useState} from "react";
 import Link from "next/link";
 import {
-  ArrowRight,ChevronRight,MessageCircle,MessagesSquare,
+  ArrowRight,ChevronRight,MessagesSquare,
   Plus,RefreshCw,Search,UsersRound,
 } from "lucide-react";
 import type {OfficeInboxLiveState} from "@/lib/office/use-office-chat-inbox-live";
 import {useOfficeWorkspace} from "@/components/office-workspace-context";
 import {OfficeConnectRoleInbox,type RoleInboxKind} from "@/components/office-connect-role-inbox";
+import {OfficeActionState} from "@/components/office-action-state";
 import styles from "./office-connect-chat-list.module.css";
 
 type Conversation={
@@ -120,16 +121,18 @@ export function OfficeConnectChatList({
     </div>
     <div className={styles.chatList} role="region" aria-label="Your conversations" aria-live="polite">
       {loading?<p className={styles.state} role="status">Loading your private chats…</p>:null}
-      {error?<div className={styles.state} role="alert"><p>{error}</p>
+      {error?<div className={styles.state}>
+        <OfficeActionState kind="error" label={error} compact/>
         <button type="button" onClick={onRefresh}><RefreshCw size={15}/>Retry</button>
       </div>:null}
       {!loading&&!error&&filter==="unread"&&unreadState!=="ready"?
-        <div className={styles.state} role="status">Unread status is unavailable.
+        <div className={styles.state}>
+          <OfficeActionState kind="error" label="Unread status is unavailable." compact/>
           <button type="button" onClick={onRefresh}><RefreshCw size={15}/>Retry</button>
         </div>:null}
       {!loading&&!error&&canShow&&shown.length===0?<div className={styles.empty}>
-        <MessageCircle size={27} aria-hidden="true"/>
-        <strong>{filter==="unread"?"No unread chats":query?"No matching chats":"No chats to show"}</strong>
+        <OfficeActionState kind="not-found" compact
+          label={filter==="unread"?"No unread chats":query?"No matching chats":"No chats to show"}/>
         {filter==="all"&&!query?<Link href="/office/chat/directory">Start a conversation <ArrowRight size={15}/></Link>:null}
       </div>:null}
       {!loading&&!error&&canShow?shown.map(item=>{

@@ -109,7 +109,8 @@ export function OfficeNotificationHub(){
         // Connect already shows this conversation's messages and unread counts.
         // Suppress redundant floating toasts while the user is looking at Connect;
         // the notification remains in the durable Office inbox.
-        if(cat==="chat"&&window.location.pathname.startsWith("/office/chat")
+        const openRoute=new URL(safeNotificationHref(notice.target_path),window.location.origin).pathname;
+        if(cat==="chat"&&openRoute===window.location.pathname
            &&document.visibilityState==="visible"&&document.hasFocus())continue;
         const selected=prefRef.current;
         if(!selected.categories[cat])continue;
@@ -173,7 +174,8 @@ export function OfficeNotificationHub(){
     let stream:EventSource|null=null;
     const start=()=>{
       stream?.close();stream=null;
-      if(document.visibilityState!=="visible")return;
+      // Authorized event transport continues when Office is in a background tab;
+      // it carries only invalidation signals, never private message contents.
       stream=new EventSource("/api/office-notifications/events",{withCredentials:true});
       stream.addEventListener("change",()=>void refresh());
       stream.addEventListener("unavailable",()=>stream?.close());

@@ -12,6 +12,11 @@ describe("Connect transient typing UI",()=>{
   expect(source).not.toContain("JSON.stringify({typing:isTyping,draft})");
   expect(source).toContain("now-lastTypingSignal.current<1600");
  });
+ it("clears typing activity after a pause and preserves privacy",()=>{
+  expect(source).toContain("typingIdleTimer");
+  expect(source).toContain("setTimeout(()=>signalTyping(false),2200)");
+  expect(source).toContain("clearTimeout(typingIdleTimer.current)");
+ });
  it("never blocks a valid send on optional typing failures",()=>{
   expect(source).toContain("Presence is optional and never blocks message delivery");
   expect(source).toContain("signalTyping(false)");

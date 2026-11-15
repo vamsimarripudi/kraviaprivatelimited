@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, MessageSquareText, RefreshCw, Search, Send, Paperclip, Pin, UsersRound, Smile, Image, Video, FileText, FileImage, BookMarked, Plus, X, Check, CheckCheck } from "lucide-react";
 import styles from "./office-connect.module.css";
 import { OfficeConnectMessageActions } from "@/components/office-connect-message-actions";
+import { OfficeActionState } from "@/components/office-action-state";
 import { OfficeConnectChatList, OfficeConnectWelcome } from "@/components/office-connect-chat-list";
 import { OfficeConnectMobileHome } from "@/components/office-connect-mobile-home";
 import { OfficeConnectMembers } from "@/components/office-connect-members";
@@ -92,6 +93,8 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
   const [typingPeople,setTypingPeople]=useState<Member[]>([]);
   const [typingRefresh,setTypingRefresh]=useState(0);
   const lastTypingSignal=useRef(0);
+  const typingIdleTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  useEffect(()=>()=>{if(typingIdleTimer.current)clearTimeout(typingIdleTimer.current);},[initialConversationId]);
   const deliveredIds=useRef<Set<string>>(new Set());
   const lastReadMessage=useRef("");
   const [mentionTerm,setMentionTerm] = useState<string|null>(null);
@@ -136,7 +139,9 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
     setMentionTerm(token?token[1]:null);setMentionIndex(0);
     setPickedMentions(existing=>existing.filter(id=>members.some(person=>
       person.user_id===id&&value.includes("@"+person.display_name))));
+    if(typingIdleTimer.current)clearTimeout(typingIdleTimer.current);
     signalTyping(Boolean(value.trim()));
+    if(value.trim())typingIdleTimer.current=setTimeout(()=>signalTyping(false),2200);
   }
   function insertText(value:string,replaceMention=false){
     const field=composerInput.current;
@@ -147,6 +152,9 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
     const from=mention?start-mention[0].length+(mention[0].startsWith(" ")?1:0):start;
     const result=draft.slice(0,from)+value+draft.slice(end);
     setDraft(result);setMentionTerm(null);setComposerTool(null);nonce.current=null;
+    if(typingIdleTimer.current)clearTimeout(typingIdleTimer.current);
+    signalTyping(Boolean(result.trim()));
+    if(result.trim())typingIdleTimer.current=setTimeout(()=>signalTyping(false),2200);
     window.requestAnimationFrame(()=>{
       field?.focus();const cursor=from+value.length;field?.setSelectionRange(cursor,cursor);
     });
@@ -442,7 +450,9 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
       setMessages(previous=>previous.some(m=>m.id===confirmed.message_id)?previous:[
         ...previous,{id:confirmed.message_id,sender_user_id:actor,
           sender_name:"You",body,created_at:new Date().toISOString()}]);
-      setDraft("");signalTyping(false);setPickedMentions([]);setSelectedFiles([]);
+      setDraft("");
+      if(typingIdleTimer.current)clearTimeout(typingIdleTimer.current);
+      signalTyping(false);setPickedMentions([]);setSelectedFiles([]);
       setSendStatus("Sent");setReloadCount(v=>v+1);
       scrollIntent.current="initial";
     }catch(error){
@@ -483,7 +493,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
           {memberPanel?<OfficeConnectMembers key={activeId} conversationId={activeId} onChanged={()=>setReloadCount(n=>n+1)}/>:null}
           <div ref={timelineRef} className={styles.timeline} data-chat-timeline role="log" aria-label="Message history" aria-live="polite">
             {waitingMessage ? <div className={styles.skeleton} role="status">Opening authorized history…</div> : null}
-            {messageError ? <div className={styles.error} role="alert"><p>{messageError}</p>
+            {messageError ? <div className={styles.error}><OfficeActionState kind="error" label={messageError} compact/>
               <button type="button" onClick={() => setReloadCount(v=>v+1)}>Retry</button></div> : null}
             {!waitingMessage&&!messageError&&olderCursor?<button type="button"
              className={styles.olderButton} disabled={olderLoading}
@@ -618,7 +628,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
                   input.style.height="auto";
                   input.style.height=Math.min(144,Math.max(40,input.scrollHeight))+"px";
                 }}
-                onBlur={()=>signalTyping(false)}
+                onBlur={()=>{if(typingIdleTimer.current)clearTimeout(typingIdleTimer.current);signalTyping(false);}}
                 onKeyDown={event=>{
                   if(mentionTerm!==null&&mentionSuggestions.length){
                     if(event.key==="ArrowDown"){event.preventDefault();setMentionIndex(i=>(i+1)%mentionSuggestions.length);return;}
