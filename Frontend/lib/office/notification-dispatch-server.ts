@@ -1,6 +1,6 @@
 import "server-only";
 
-import {createOfficeServiceClient} from "@/lib/office/permission-engine";
+import {createOfficeServiceClient,requireOfficeActor} from "@/lib/office/permission-engine";
 import type {OfficeNotificationPriority} from "@/lib/office/notification-types";
 
 type Admin = ReturnType<typeof createOfficeServiceClient>;
@@ -23,6 +23,10 @@ const safePath = /^\/(?:office|finance)\/[a-z0-9/_?=&%.-]{1,240}$/i;
  * Failure never changes the source transaction or grants access to the record.
  */
 export async function dispatchOfficeNotice(admin: Admin, event: OfficeDelivery) {
+  // Explicit first-party actor check in this service-authority write layer,
+  // in addition to the authorization performed by the source workflow.
+  const current=await requireOfficeActor();
+  if(current.identity.workspaceStatus!=="ACTIVE")return;
   if(!uuid.test(event.sourceId) || !safePath.test(event.targetPath)
     || !/^[a-z0-9:._-]{8,190}$/i.test(event.eventKey))return;
   const ids=[...new Set(event.recipients.filter((s):s is string=>

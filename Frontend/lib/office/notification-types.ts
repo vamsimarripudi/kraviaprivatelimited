@@ -43,10 +43,10 @@ export function notificationCategory(kind: string): OfficeNotificationCategory {
   if(k.includes("CHAT")||k.includes("MENTION")||k.includes("MESSAGE"))return "chat";
   if(k.includes("SUPPORT")||k.includes("IT_")||k.includes("TICKET"))return "support";
   if(k.includes("APPROVAL")||k.includes("DECISION"))return "approval";
-  if(k.includes("DEPARTMENT")||k.includes("TRANSFER")||k.includes("REQUEST"))return "department";
-  if(k.includes("HR_")||k.includes("LEAVE")||k.includes("ATTENDANCE")||k.includes("EMPLOYEE"))return "hr";
-  if(k.includes("FINANCE")||k.includes("PAYROLL")||k.includes("PAYS"))return "finance";
   if(k.includes("VAULT")||k.includes("DOCUMENT"))return "vault";
+  if(k.includes("FINANCE")||k.includes("PAYROLL")||k.includes("PAYS"))return "finance";
+  if(k.includes("HR_")||k.includes("LEAVE")||k.includes("ATTENDANCE")||k.includes("EMPLOYEE"))return "hr";
+  if(k.includes("DEPARTMENT")||k.includes("TRANSFER")||k.includes("REQUEST"))return "department";
   return "system";
 }
 export function notificationSound(notice: Pick<OfficeNotice,"kind" | "priority">): OfficeNotificationSound {
