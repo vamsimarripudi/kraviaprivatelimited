@@ -11,7 +11,8 @@ import hashlib
 import hmac
 import io
 import re
-from datetime import datetime, date
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from decimal import Decimal, InvalidOperation
 from typing import Literal
 
@@ -75,7 +76,7 @@ def _date(value: str) -> str:
     for fmt in DATE_FORMATS:
         try:
             parsed = datetime.strptime(value, fmt).date()
-            if parsed.year < 2000 or parsed > date.today():
+            if parsed.year < 2000 or parsed > datetime.now(ZoneInfo("Asia/Kolkata")).date():
                 break
             return parsed.isoformat()
         except ValueError:
