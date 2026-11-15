@@ -245,6 +245,15 @@ export function OfficeWorkspaceShell({
     return () => document.removeEventListener("mousedown",outside);
   }, [moreOpen]);
 
+  useEffect(() => {
+    const openMobileNavigation = () => {
+      setMegaExpanded(true);
+      setMobileNav(true);
+    };
+    window.addEventListener("kravia-office-open-navigation", openMobileNavigation);
+    return () => window.removeEventListener("kravia-office-open-navigation", openMobileNavigation);
+  }, []);
+
   function switchTheme() {
     const next: Theme = theme === "dark" ? "light" : "dark";
     setTheme(next);
@@ -288,7 +297,8 @@ export function OfficeWorkspaceShell({
   const navId = workspace + "-workspace-mega-navigation";
   return <OfficeWorkspaceProvider identity={identity} permissions={permissions}>
     <main className={"office office-v2 office-v4 office-modern office-floating-rail workspace-shell workspace-" + workspace}
-      data-ui-theme={theme} data-density={density} data-menu-expanded={megaExpanded} data-chat-conversation={isChatConversation}>
+      data-ui-theme={theme} data-density={density} data-menu-expanded={megaExpanded} data-chat-conversation={isChatConversation}
+      data-connect-home={workspace === "office" && pathname === "/office/chat"}>
       <OfficeAmbientField variant="workspace" />
       <a className="office-skip-link" href="#office-main-content">Skip to main content</a>
       <OfficePrefetchRoutes hrefs={prefetchedRoutes}/>

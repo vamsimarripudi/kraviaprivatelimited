@@ -1,0 +1,72 @@
+/*
+ * KRAVIA Connect native-like mobile home based on an approved screenshot reference.
+ * Only /office/chat at <=767px. Conversation threads, desktop, Finance and
+ * company authentication are intentionally outside this presentation scope.
+ */
+@media (max-width:767px) {
+  .kravia-office .office-v2.office-modern.office-floating-rail[data-connect-home="true"] {
+    --office-ui-canvas:#1d1e20;
+    background:#1d1e20!important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail[data-connect-home="true"] > .office-main {
+    background:#1d1e20!important;
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+    margin:0!important;
+    padding:0!important;
+    min-height:100dvh!important;
+    max-width:100vw!important;
+    overflow:visible!important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail[data-connect-home="true"] .office-topbar-compact,
+  .kravia-office .office-v2.office-modern.office-floating-rail[data-connect-home="true"] .office-compact-notice,
+  .kravia-office .office-v2.office-modern.office-floating-rail[data-connect-home="true"] .office5-mobile-dock {
+    display:none!important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail[data-connect-home="true"]
+    .office-main > section[aria-label="KRAVIA Connect"][data-thread="false"] {
+    display:block!important;
+    margin:0!important;
+    padding:0!important;
+    gap:0!important;
+    min-width:0!important;
+    width:100%!important;
+    max-width:100vw!important;
+    min-height:100dvh!important;
+    background:#1d1e20!important;
+    color:#f6f7f8!important;
+    border:0!important;
+    box-shadow:none!important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail[data-connect-home="true"]
+    .office-main section[aria-label="KRAVIA Connect"][data-thread="false"] > [data-chat-home-header],
+  .kravia-office .office-v2.office-modern.office-floating-rail[data-connect-home="true"]
+    .office-main section[aria-label="KRAVIA Connect"][data-thread="false"] > [data-home="true"] {
+    display:none!important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail[data-connect-home="true"]
+    .office-main [data-connect-mobile-home] {
+    display:flex!important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail[data-connect-home="true"]
+    .office-main [data-connect-mobile-home] h1,
+  .kravia-office .office-v2.office-modern.office-floating-rail[data-connect-home="true"]
+    .office-main [data-connect-mobile-home] h2 {
+    color:#f4f5f7!important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail[data-connect-home="true"]
+    .office-main [data-connect-mobile-home] :where(a,button) {
+    -webkit-tap-highlight-color:transparent;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail[data-connect-home="true"]
+    .office-main [data-connect-mobile-home] :where(a,button):focus-visible {
+    outline:2px solid #94cbff!important;
+    outline-offset:3px!important;
+  }
+  /* The global Office backdrop remains available for the hamburger drawer. */
+  .kravia-office .office-v2.office-modern.office-floating-rail[data-connect-home="true"]
+    > .office-mega-aside[data-mobile-open="true"] {
+    z-index:240!important;
+  }
+}

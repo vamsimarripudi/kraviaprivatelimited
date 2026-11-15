@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, MessageSquareText, RefreshCw, Search, Send, Pape
 import styles from "./office-connect.module.css";
 import { OfficeConnectMessageActions } from "@/components/office-connect-message-actions";
 import { OfficeConnectOverview } from "@/components/office-connect-overview";
+import { OfficeConnectMobileHome } from "@/components/office-connect-mobile-home";
 import { OfficeConnectMembers } from "@/components/office-connect-members";
 import { Office5FileCard, type Office5FileStatus } from "@/components/office5-primitives";
 import { useOfficeWorkspace } from "@/components/office-workspace-context";
@@ -394,6 +395,9 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
   }
 
   return <section className={styles.connect} aria-label="KRAVIA Connect" data-thread={!!activeId}>
+    {!activeId ? <OfficeConnectMobileHome
+      conversations={conversations} loading={listLoading} error={listError}
+      liveRevision={reloadCount} onRefresh={() => setReloadCount(n => n + 1)}/> : null}
     <header className={styles.header} data-chat-home-header>
       <div><p className={styles.eyebrow}>KRAVIA OFFICE · CONNECT</p>
         <h1>{activeId ? selected?.title ?? "Private conversation" : "Messages"}</h1>
