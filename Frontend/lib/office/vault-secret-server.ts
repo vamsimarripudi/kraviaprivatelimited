@@ -2,6 +2,7 @@ import "server-only";
 import {randomUUID,createHash} from "node:crypto";
 import {Buffer} from "node:buffer";
 import {getOfficeRuntimeOrigin} from "@/lib/env/office";
+import {requireOfficeVaultEntry} from "@/lib/office/vault-entry-server";
 import {getOfficeSessionContext} from "@/lib/office/auth-server";
 import {requireOfficeActor,resolveOfficePermission,OfficePermissionError} from "@/lib/office/permission-engine";
 import {currentOfficeTrustedDeviceId} from "@/lib/office/device-binding-server";
@@ -67,6 +68,7 @@ async function actor():Promise<Actor>{
  try{
   const current=await requireOfficeActor();
   if(current.identity.workspaceStatus!=="ACTIVE")throw new SecretLockerError(403,"An active Office identity is required");
+  await requireOfficeVaultEntry(current);
   return current;
  }catch(error){
   if(error instanceof OfficePermissionError)throw new SecretLockerError(error.status,error.message);

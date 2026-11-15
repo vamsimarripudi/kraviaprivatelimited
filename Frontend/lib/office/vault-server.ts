@@ -3,10 +3,12 @@ import { requireOfficeActor, resolveOfficePermission } from "@/lib/office/permis
 import { currentOfficeTrustedDeviceId } from "@/lib/office/device-binding-server";
 import { vaultCategories, type VaultCategory } from "@/lib/office/vault-categories";
 import {visibleVaultCategories} from "@/lib/office/vault-category-visibility";
+import {requireOfficeVaultEntry} from "@/lib/office/vault-entry-server";
 
 export async function getOfficeVaultAccess(): Promise<{ categories: VaultCategory[]; allowed: string[] }> {
  const current=await requireOfficeActor();
  if(current.identity.workspaceStatus!=="ACTIVE") return {categories:[],allowed:[]};
+ await requireOfficeVaultEntry(current);
  const deviceId=await currentOfficeTrustedDeviceId(current.admin,current.identity.userId);
  const codes=[...new Set(vaultCategories.flatMap(row=>row.permissions).concat([
    "access.profile.assign","access.audit.read","registration.review","document.instance.review","audit.read",

@@ -1,5 +1,7 @@
 import "server-only";
 import {getOfficeRegistrationOverview,reviewOfficeRegistration} from "@/lib/office/registration-server";
+import {requireOfficeVaultEntry} from "@/lib/office/vault-entry-server";
+import {OfficePermissionError} from "@/lib/office/permission-engine";
 import {getOfficeVaultSourceVisibleRecordIds,getOfficeVaultGrantedResources,
  requireOfficeVaultRecord,OfficeVaultAccessError} from "@/lib/office/vault-access-server";
 
@@ -10,6 +12,13 @@ type Category="registrations"|"identity";
 /** Only source-authorized, explicitly Vault-granted records enter this review
  * queue. Pending access requests and mere job titles never grant visibility. */
 export async function getOfficeVaultVerificationQueue(){
+ // Authorize entry before fetching the source registration queue.
+ try{await requireOfficeVaultEntry();}
+ catch(error){
+  if(error instanceof OfficePermissionError)
+   throw new OfficeVaultVerificationError(error.status,error.message);
+  throw error;
+ }
  const registrations=await getOfficeRegistrationOverview();
  if(!registrations.capabilities.review)throw new OfficeVaultVerificationError(403,
   "Independent registration review permission is required");

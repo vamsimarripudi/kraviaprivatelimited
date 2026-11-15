@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight, FileLock2, LockKeyhole, ShieldCheck } from "lucide-react";
 import { getOfficeVaultAccess } from "@/lib/office/vault-server";
+import {requireOfficeVaultEntry} from "@/lib/office/vault-entry-server";
+import {OfficePermissionError} from "@/lib/office/permission-engine";
 import { getOfficeRegistrationOverview } from "@/lib/office/registration-server";
 import { getOfficeDocumentStudioOverview } from "@/lib/office/document-studio-server";
 import { getSecureCustodyOverview } from "@/lib/office/custody-server";
@@ -74,6 +76,12 @@ export const dynamic="force-dynamic";
 type Props={params:Promise<{segments?:string[]}>};
 export default async function VaultPages({params}:Props){
  const {segments=[]}=await params;
+ // A direct URL must not bypass the restricted K-Vault entry.
+ try{await requireOfficeVaultEntry();}
+ catch(error){
+  if(error instanceof OfficePermissionError && error.status===403)notFound();
+  throw error;
+ }
  const route=segments.join("/");
  const {categories,allowed}=await getOfficeVaultAccess();
  const visible=(slug:string)=>categories.find(row=>row.slug===slug);
