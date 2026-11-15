@@ -83,7 +83,7 @@ export function OfficeHdfcStatementImport({accounts,canImport,disabled,onImporte
      <div><small>HDFC BANK · READ-ONLY BANK EVIDENCE</small><h3 id="office-hdfc-heading">Review account statement</h3></div>
      <button type="button" disabled={busy} aria-label="Close HDFC statement import" onClick={close}><X size={18}/></button>
     </header>
-    <p className={styles.disclaimer}>HDFC's ENet export is supplied by you, not retrieved through a connected API.
+    <p className={styles.disclaimer}>The HDFC ENet export is supplied by you, not retrieved through a connected API.
      No transfers, bank credentials, OTPs or live balance updates occur here.</p>
     <div className={styles.fields}>
      <label>Masked HDFC account
