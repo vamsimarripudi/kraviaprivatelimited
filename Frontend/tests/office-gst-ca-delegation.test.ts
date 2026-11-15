@@ -8,6 +8,7 @@ const screen=read("components/internal-workspace-screen.tsx");
 const gst=read("components/office-gst-tax.tsx");
 const backend=read("../Backend/backend/gst_compliance.py");
 const gsp=read("../Backend/backend/gst_gsp_fynamics.py");
+const irp=read("../Backend/backend/gst_integration.py");
 const permissions=read("lib/office/permission-engine.ts");
 
 describe("CA professional: complete operational GST delegation",()=>{
@@ -36,6 +37,13 @@ describe("CA professional: complete operational GST delegation",()=>{
   expect(gsp).toContain('require_roles("CA")');
   expect(gsp).toContain('require_roles("OWNER")');
   expect(backend).toContain('require_roles("OWNER", "CA")');
+ });
+ it("enforces company e-invoicing deferral on the backend, even if provider secrets exist",()=>{
+  expect(irp).toContain("GST_EINVOICE_RELEASED_BY_COMPANY = False");
+  expect(irp).toContain("if not GST_EINVOICE_RELEASED_BY_COMPANY:");
+  expect(irp).toContain('KRAVIA company policy currently defers GST e-invoicing');
+  expect(irp).toContain('"ready_for_live_irn": bool(GST_EINVOICE_RELEASED_BY_COMPANY and');
+  expect(irp).toContain('"company_policy": "EINVOICING_DEFERRED"');
  });
  it("leaves GST electronic invoicing gated off and retains registration/filing tabs",()=>{
   expect(gst).toContain("const EINVOICE_UI_ENABLED = false;");
