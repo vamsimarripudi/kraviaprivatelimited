@@ -20,7 +20,7 @@ const mimeByExt:Readonly<Record<string,string>>={
 const classifications=["CONFIDENTIAL","RESTRICTED","BOARD","FINANCE","HR","LEGAL","SECURITY"] as const;
 export type SecretClassification=typeof classifications[number];
 export class SecretLockerError extends Error{
- constructor(public readonly status:number,message:string){super(message);this.name="SecretLockerError";}
+ constructor(public readonly status:number,message:string,public readonly code?:string){super(message);this.name="SecretLockerError";}
 }
 type Actor=Awaited<ReturnType<typeof requireOfficeActor>>;
 type SecretDocument={id:string;owner_user_id:string;title:string;classification:string;state:string;created_at:string;updated_at:string};
@@ -230,13 +230,28 @@ export async function reviewOfficeVaultSecret(input:{versionId:string;approve:bo
 }
 export async function getOfficeVaultSecretLocker(){
  const current=await actor();
+ // Do not mistake missing managed-device binding for an absent role. Secret
+ // documents remain inaccessible until an approved company device is linked.
+ const device=await currentOfficeTrustedDeviceId(current.admin,current.identity.userId);
+ if(!device)throw new SecretLockerError(403,
+  "An approved company-managed device must be linked before using Secret Locker.",
+  "MANAGED_DEVICE_REQUIRED");
+ const linked=await current.admin.from("office_device_registry")
+  .select("trust_state,company_managed,revoked_at").eq("id",device)
+  .eq("user_id",current.identity.userId).maybeSingle();
+ if(linked.error)throw new SecretLockerError(503,"Unable to verify company device trust");
+ if(!linked.data||linked.data.trust_state!=="TRUSTED"||
+    linked.data.company_managed!==true||linked.data.revoked_at)
+  throw new SecretLockerError(403,
+    "Secret Locker requires a trusted company-managed device.",
+    "MANAGED_DEVICE_REQUIRED");
  const [mayUpload,mayReview,mayRead,mayDownload]=await Promise.all([
   hasPermission(current,"vault.secret.upload"),
   hasPermission(current,"vault.secret.review"),
   hasPermission(current,"vault.secret.read"),
   hasPermission(current,"vault.secret.download"),
  ]);
- if(!mayUpload&&!mayReview&&!mayRead)throw new SecretLockerError(403,"Secret locker authority is not assigned");
+ if(!mayUpload&&!mayReview&&!mayRead)throw new SecretLockerError(403,"Secret Locker permission is not assigned. Request approved access.","SECRET_ACCESS_REQUIRED");
  const grants=mayRead?await current.admin.from("office_vault_access_grants")
   .select("resource_id,action").eq("grantee_user_id",current.identity.userId)
   .eq("category_slug","secrets").is("revoked_at",null)
