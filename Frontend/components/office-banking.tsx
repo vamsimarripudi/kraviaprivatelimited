@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, BanknoteArrowDown, Building2, CircleAlert, Landmark, LoaderCircle, RefreshCw, SearchCheck, ShieldCheck, X } from "lucide-react";
 import styles from "./office-banking.module.css";
+import { OfficeHdfcStatementImport } from "./office-hdfc-statement-import";
 
 type Mode = "banking" | "reconciliation";
 
@@ -244,6 +245,13 @@ export function OfficeBankingWorkspace({
       {mode === "banking" && canRegisterAccount ? <button type="button" disabled={busy} onClick={() => { setDraft({}); setDialog({ kind: "ACCOUNT" }); }}><Building2 /> Register account</button> : null}
       {mode === "banking" && canImportTransaction ? <button type="button" disabled={busy || !accounts.length} onClick={() => { setDraft({ direction: "CREDIT", source: "MANUAL_IMPORT", transaction_date: new Date().toISOString().slice(0, 10) }); setDialog({ kind: "TRANSACTION" }); }}><BanknoteArrowDown /> Add transaction evidence</button> : null}
     </div>
+
+    {mode === "banking" ? <OfficeHdfcStatementImport
+      accounts={accounts} canImport={canImportTransaction} disabled={busy || loading}
+      onImported={async (result) => {
+        await refreshAfter(`HDFC statement reviewed: ${result.imported} transaction(s) recorded, ${result.duplicates_skipped} duplicate(s) skipped. No bank-side transfer occurred.`);
+      }}
+    /> : null}
 
     {notice ? <div className={styles.notice}><BadgeCheck />{notice}</div> : null}
     {error ? <div className={styles.error}><CircleAlert />{error}</div> : null}
