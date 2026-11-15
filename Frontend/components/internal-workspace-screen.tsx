@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { ArrowRight, BriefcaseBusiness, Building2, ClipboardCheck, FileLock2, Files, Gauge, Landmark, LayoutDashboard, Scale, Settings, ShieldCheck, TriangleAlert, Users } from "lucide-react";
+import { ArrowRight, BriefcaseBusiness, Building2, CalendarDays, ClipboardCheck, FileLock2, Files, Gauge, Landmark, LayoutDashboard, Scale, Settings, ShieldCheck, TriangleAlert, Users } from "lucide-react";
 import type { OfficeIdentity } from "@/lib/office/auth-server";
 import { useOfficeWorkspace } from "@/components/office-workspace-context";
 import {

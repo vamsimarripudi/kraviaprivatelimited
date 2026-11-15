@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   ArrowUpRight, Bell, BookOpen, CalendarDays, ChevronRight, Fingerprint,
@@ -59,7 +59,7 @@ function Toggle({ title, detail, checked, onChange }: {
 export function OfficeSettingsHub({ identity }: { identity: OfficeIdentity }) {
   const isOwner = identity.roles.includes("OWNER");
   const isFinance = usePathname().startsWith("/finance/");
-  const allowed = tabs.filter(item => (!item.ownerOnly || isOwner) && (!isFinance || ["overview", "account", "preferences", "security", "work"].includes(item.id)));
+  const allowed = useMemo(() => tabs.filter(item => (!item.ownerOnly || isOwner) && (!isFinance || ["overview", "account", "preferences", "security", "work"].includes(item.id))), [isOwner, isFinance]);
   const profileHref = isFinance ? "/finance/my-role" : "/office/my-role";
   const worktimeHref = isFinance ? "/finance/worktime" : "/office/worktime";
   const [tab, setTab] = useState<Tab>("overview");
@@ -97,7 +97,7 @@ export function OfficeSettingsHub({ identity }: { identity: OfficeIdentity }) {
       window.cancelAnimationFrame(frame);
       window.removeEventListener("kravia-office-theme-change", onTheme);
     };
-  }, [isOwner]);
+  }, [allowed]);
   function pick(next: Tab) {
     if (!allowed.some(item => item.id === next)) return;
     setTab(next);
