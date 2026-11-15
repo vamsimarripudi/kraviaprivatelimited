@@ -26,6 +26,7 @@ export function OfficeVaultSecretLocker(){
  const [loading,setLoading]=useState(true);
  const [refresh,setRefresh]=useState(0);
  const [error,setError]=useState("");
+ const [accessBlock,setAccessBlock]=useState<"MANAGED_DEVICE_REQUIRED"|"SECRET_ACCESS_REQUIRED"|null>(null);
  const [notice,setNotice]=useState("");
  const [filter,setFilter]=useState("");
  const [classification,setClassification]=useState("ALL");
@@ -51,13 +52,21 @@ export function OfficeVaultSecretLocker(){
    try{
     const response=await fetch("/api/office-vault/secrets",{
      credentials:"same-origin",cache:"no-store",signal:controller.signal});
-    const body=await response.json().catch(()=>({})) as Data;
-    if(!response.ok||!Array.isArray(body.documents))
+    const body=await response.json().catch(()=>({})) as Data&{code?:string};
+    if(!response.ok||!Array.isArray(body.documents)){
+     if(response.status===403&&
+        (body.code==="MANAGED_DEVICE_REQUIRED"||body.code==="SECRET_ACCESS_REQUIRED")){
+      if(!controller.signal.aborted){
+       setData(null);setError(body.detail||"Secret Locker access restricted");setAccessBlock(body.code);
+      }
+      return;
+     }
      throw new Error(body.detail||"Sealed document locker unavailable");
-    if(!controller.signal.aborted){setData(body);setError("");}
+    }
+    if(!controller.signal.aborted){setData(body);setError("");setAccessBlock(null);}
    }catch(e){
     if(!controller.signal.aborted){
-     setData(null);setError(e instanceof Error?e.message:"Vault authority unavailable");
+     setData(null);setAccessBlock(null);setError(e instanceof Error?e.message:"Vault authority unavailable");
     }
    }finally{if(!controller.signal.aborted)setLoading(false);}
   })();
@@ -196,8 +205,8 @@ export function OfficeVaultSecretLocker(){
  }
  return <section className={styles.locker} aria-label="K-Vault enterprise secret locker">
   <header className={styles.head}><div><p className={styles.eyebrow}>K-VAULT · ENCRYPTED CUSTODY</p>
-    <h2><FolderLock size={24}/> Secret document locker</h2>
-    <p>Sealed versions, independent malware scanning, maker-checker review, managed-device assurance and expiring read grants.</p>
+    <h2><FolderLock size={21}/> Secret locker</h2>
+    <p>Encrypted company documents with independent approval.</p>
    </div>
    <div className={styles.actions}>
     <button type="button" disabled={loading||busy} onClick={()=>{setLoading(true);setRefresh(x=>x+1);}}>
@@ -207,7 +216,20 @@ export function OfficeVaultSecretLocker(){
    </div>
   </header>
   {notice?<p className={styles.notice} role="status"><ShieldCheck size={16}/>{notice}</p>:null}
-  {error?<div className={styles.error} role="alert"><AlertTriangle size={17}/>{error}
+  {accessBlock?<section className={styles.accessRequired} role="status" aria-label="Secret Locker access requirements">
+    <ShieldCheck size={21} aria-hidden="true"/>
+    <div><strong>{accessBlock==="MANAGED_DEVICE_REQUIRED"?"Managed device required":"Access approval required"}</strong>
+      <p>{accessBlock==="MANAGED_DEVICE_REQUIRED"?
+        "Secret Locker is limited to approved company-managed devices. Ask IT to approve and link a device before opening files.":
+        "Your current role has no Secret Locker permission. Request scoped access from your administrator."}</p>
+      <div className={styles.accessLinks}>
+        {accessBlock==="MANAGED_DEVICE_REQUIRED"?
+          <Link href="/office/devices">Device controls <ArrowRight size={15}/></Link>:
+          <Link href="/office/k-vault/requests">Request access <ArrowRight size={15}/></Link>}
+        <Link href="/office/it">IT service desk <ArrowRight size={15}/></Link>
+      </div>
+    </div>
+  </section>:error?<div className={styles.error} role="alert"><AlertTriangle size={17}/>{error}
     <button type="button" onClick={()=>{setLoading(true);setRefresh(x=>x+1);}}>Retry</button></div>:null}
   {loading?<p className={styles.empty} role="status" aria-busy="true">Verifying current device assurance and document grants…</p>:null}
   {!loading&&data?<><div className={styles.metrics}>
@@ -258,7 +280,7 @@ export function OfficeVaultSecretLocker(){
     {data.capabilities.review?<Link href="/office/k-vault/reviews"><FileCheck2 size={17}/>Source reviews</Link>:null}
    </nav>
   </>:null}
-  <p className={styles.notice}><LockKeyhole size={16}/>Stored objects are encrypted. Uploading never authorizes reading; a clean scanner verdict, independent review and a current per-record grant are required before any file is released.</p>
+  {!accessBlock?<p className={styles.notice}><LockKeyhole size={16}/>Files require a clean scan, independent review and an active record grant.</p>:null}
   <dialog ref={previewDialog} className={styles.previewDialog} onClose={()=>{
    setPreviewVersion(null);previewTrigger.current?.focus();
   }}>
