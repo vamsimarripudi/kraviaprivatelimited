@@ -127,6 +127,28 @@ def inspect_brevo(*, probe: bool = False, transport: httpx.BaseTransport | None 
     return flags
 
 
+
+def build_brevo_readiness_router(require_roles):
+    """Owner-only status and deliberate read-only live verification.
+
+    No provider calls happen unless the Owner requests probe=true; neither
+    path can send an email or reveal a token.
+    """
+    from fastapi import APIRouter, Depends
+    from fastapi.responses import JSONResponse
+
+    router = APIRouter(prefix="/api/v1/integrations/brevo", tags=["Brevo readiness"])
+
+    @router.get("/readiness", include_in_schema=False)
+    def readiness(probe: bool = False, _actor=Depends(require_roles("OWNER"))):
+        return JSONResponse(
+            inspect_brevo(probe=probe),
+            headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+        )
+
+    return router
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Brevo read-only verification; never sends email")
     parser.add_argument("--probe", action="store_true", help="Make read-only GET calls to Brevo")
