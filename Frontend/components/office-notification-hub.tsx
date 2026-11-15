@@ -43,6 +43,23 @@ export function OfficeNotificationHub(){
   const triggerRef=useRef<HTMLDivElement>(null);
   const flyoutRef=useRef<HTMLDivElement>(null);
 
+  // A live signed-in Office browser acknowledges delivery independently of
+  // which workspace is open. This never marks private messages as read.
+  useEffect(()=>{
+    let active=true;
+    const pump=()=>{
+      if(!active)return;
+      void fetch("/api/office-chat/delivery/pump",{method:"POST",credentials:"same-origin",
+        cache:"no-store"}).catch(()=>{/* Optional inbox transport never blocks Office. */});
+    };
+    pump();
+    const interval=window.setInterval(pump,9000);
+    const onVisibility=()=>{if(document.visibilityState==="visible")pump();};
+    document.addEventListener("visibilitychange",onVisibility);
+    return()=>{active=false;window.clearInterval(interval);
+      document.removeEventListener("visibilitychange",onVisibility);};
+  },[]);
+
   useEffect(()=>{prefRef.current=pref;},[pref]);
   useEffect(()=>{
     const frame=requestAnimationFrame(()=>setPortal(document.body));

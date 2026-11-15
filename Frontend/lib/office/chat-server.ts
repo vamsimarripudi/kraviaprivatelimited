@@ -226,6 +226,45 @@ export async function sendOfficeChatMessage(conversationId: string, body: string
   return { message_id: result.data };
 }
 
+/** One authorized running Office client acknowledges its private inbox, even
+ * when it is not on the Connect page. This does not change read cursors.
+ * Only IDs from current membership-filtered channels are considered. */
+export async function acknowledgeOfficeChatInbox() {
+  const current=await actor();
+  const listing=await listOfficeChatConversations();
+  const ids=listing.conversations.map(row=>String(row.id)).slice(0,100);
+  if(!ids.length)return {acknowledged:0};
+  const messages=await current.admin.from("office_chat_messages")
+    .select("id,conversation_id").in("conversation_id",ids)
+    .neq("sender_user_id",current.identity.userId).is("deleted_at",null)
+    .order("created_at",{ascending:false}).limit(180);
+  if(messages.error)throw internalFailure("Inbox delivery unavailable");
+  const rows=messages.data??[];
+  if(!rows.length)return {acknowledged:0};
+  const existing=await current.admin.from("office_chat_message_deliveries")
+    .select("message_id").eq("recipient_user_id",current.identity.userId)
+    .in("message_id",rows.map(row=>row.id)).limit(180);
+  if(existing.error)throw internalFailure("Inbox delivery unavailable");
+  const known=new Set((existing.data??[]).map(row=>String(row.message_id)));
+  const pending=rows.filter(row=>!known.has(String(row.id))).slice(0,100);
+  if(!pending.length)return {acknowledged:0};
+  const groups=new Map<string,string[]>();
+  for(const msg of pending){
+    const group=String(msg.conversation_id);
+    groups.set(group,[...(groups.get(group)??[]),String(msg.id)]);
+  }
+  let acknowledged=0;
+  for(const [conversationId,messageIds] of groups){
+    const {data,error}=await current.admin.rpc("office_chat_ack_delivery",{
+      p_actor:current.identity.userId,p_conversation:conversationId,p_message_ids:messageIds,
+    });
+    // Concurrent revocation must never be reported as a delivered message.
+    if(error||typeof data!=="number")continue;
+    acknowledged+=data;
+  }
+  return {acknowledged};
+}
+
 export async function markOfficeChatDelivered(conversationId:string,messageIds:readonly string[]) {
   const current=await actor();
   await ownMembership(current,conversationId);
