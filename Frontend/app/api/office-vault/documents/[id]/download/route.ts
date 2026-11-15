@@ -3,6 +3,7 @@ import {z} from "zod";
 import {downloadOfficeDocumentRender,OfficeDocumentStudioError} from "@/lib/office/document-studio-server";
 import {OfficeVaultAccessError,requireOfficeVaultRecord} from "@/lib/office/vault-access-server";
 import {requireOfficeActor,OfficePermissionError} from "@/lib/office/permission-engine";
+import {requireOfficeVaultEntry} from "@/lib/office/vault-entry-server";
 export const dynamic="force-dynamic";
 type Props={params:Promise<{id:string}>};
 export async function GET(_:Request,{params}:Props){
@@ -11,6 +12,7 @@ export async function GET(_:Request,{params}:Props){
   {status:404,headers:{"Cache-Control":"no-store"}});
  try{
   const current=await requireOfficeActor();
+  await requireOfficeVaultEntry(current);
   const {data:render,error}=await current.admin.from("office_document_renders")
     .select("document_instance_id,status").eq("id",id).maybeSingle();
   if(error)throw new OfficeVaultAccessError(503,"Document authority unavailable");

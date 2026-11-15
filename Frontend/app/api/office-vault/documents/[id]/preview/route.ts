@@ -1,6 +1,7 @@
 import {NextResponse} from "next/server";
 import {z} from "zod";
 import {requireOfficeActor,OfficePermissionError} from "@/lib/office/permission-engine";
+import {requireOfficeVaultEntry} from "@/lib/office/vault-entry-server";
 import {OfficeVaultAccessError,requireOfficeVaultRecord} from "@/lib/office/vault-access-server";
 import {downloadOfficeDocumentRender,OfficeDocumentStudioError} from "@/lib/office/document-studio-server";
 export const dynamic="force-dynamic";
@@ -11,6 +12,7 @@ export async function GET(_:Request,{params}:Props){
   return NextResponse.json({detail:"Resource unavailable"},{status:404,headers:{"Cache-Control":"no-store"}});
  try{
   const current=await requireOfficeActor();
+  await requireOfficeVaultEntry(current);
   const {data:render,error}=await current.admin.from("office_document_renders")
     .select("document_instance_id,output_format,mime_type,status").eq("id",id).maybeSingle();
   if(error)throw new OfficeVaultAccessError(503,"Document authority unavailable");

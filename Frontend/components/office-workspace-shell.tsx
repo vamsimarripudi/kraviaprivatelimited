@@ -156,12 +156,8 @@ export function OfficeWorkspaceShell({
   const isConnect = workspace === "office" && (pathname === "/office/chat" || pathname.startsWith("/office/chat/"));
   const isVault = workspace === "office" && (pathname === "/office/k-vault" || pathname.startsWith("/office/k-vault/"));
   const isChatConversation = isConnect && /^\/office\/chat\/(?:dm|groups|channels|threads)\//.test(pathname);
-  // Entry navigation never substitutes for per-record server authorization.
-  const vaultEntry = workspace === "office" && permissions.some((permission) => [
-    "custody.read", "document.instance.read", "document.template.read",
-    "secretarial.board.read", "compliance.rules.read", "access.audit.read",
-    "finance.bank.read", "people.basic.read", "master.product.read",
-  ].includes(permission));
+  // Do not infer K-Vault entry from Finance, Director, Admin or document capabilities.
+  const vaultEntry = workspace === "office" && permissions.includes("vault.entry");
 
   const entries = useMemo(() => sectionEntries(workspace).filter(([slug,value]) =>
     roleCanAccessSection(value, identity.roles) &&

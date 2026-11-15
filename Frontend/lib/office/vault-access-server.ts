@@ -3,6 +3,7 @@ import "server-only";
 import { OfficePermissionError, requireOfficeActor, resolveOfficePermission } from "@/lib/office/permission-engine";
 import { currentOfficeTrustedDeviceId } from "@/lib/office/device-binding-server";
 import {vaultCategories} from "@/lib/office/vault-categories";
+import {requireOfficeVaultEntry} from "@/lib/office/vault-entry-server";
 import {visibleVaultRecordIds} from "@/lib/office/vault-record-visibility";
 
 export class OfficeVaultAccessError extends Error {
@@ -57,6 +58,7 @@ async function actor():Promise<Actor>{
  try{
   const current=await requireOfficeActor();
   if(current.identity.workspaceStatus!=="ACTIVE")throw new OfficeVaultAccessError(403,"An active Office workspace is required");
+  await requireOfficeVaultEntry(current);
   return current;
  }catch(error){
   if(error instanceof OfficePermissionError)throw new OfficeVaultAccessError(error.status,error.message);
