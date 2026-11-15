@@ -1,4 +1,5 @@
 import "server-only";
+import {dispatchOfficeSupportNotice} from "@/lib/office/notification-dispatch-server";
 
 import { readOfficeRuntimeResult } from "@/lib/office/runtime-read-server";
 
@@ -155,6 +156,7 @@ export async function createOfficeSupportCase(input: CaseInput) {
     p_due_at: input.dueAt ?? null,
   });
   if (error || typeof data !== "string") throw new OfficeSupportError(400, error?.message ?? "Unable to create support case");
+  await dispatchOfficeSupportNotice(write.admin,data,write.identity.userId,"CREATED").catch(()=>{});
   return { case_id: data };
 }
 
@@ -167,6 +169,7 @@ export async function transitionOfficeSupportCase(input: { caseId: string; statu
     p_note: input.note?.trim() || null,
   });
   if (error || typeof data !== "string") throw new OfficeSupportError(400, error?.message ?? "Unable to transition support case");
+  await dispatchOfficeSupportNotice(write.admin,input.caseId,write.identity.userId,data).catch(()=>{});
   return { status: data };
 }
 

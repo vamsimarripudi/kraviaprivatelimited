@@ -1,4 +1,5 @@
 import "server-only";
+import {dispatchOfficeITNotice} from "@/lib/office/notification-dispatch-server";
 
 import {
   OfficePermissionError,
@@ -91,6 +92,7 @@ export async function createItTicket(input: { category: string; priority: string
     p_due: input.dueAt ?? null,
   });
   if (error || typeof data !== "string") throw new OfficeItError(400, error?.message ?? "Unable to create IT ticket");
+  await dispatchOfficeITNotice(current.admin,data,current.identity.userId,"CREATED").catch(()=>{});
   return { ticket_id: data };
 }
 
@@ -104,6 +106,7 @@ export async function transitionItTicket(input: { ticketId: string; status: stri
     p_note: input.note?.trim() || null,
   });
   if (error || typeof data !== "string") throw new OfficeItError(400, error?.message ?? "Unable to update IT ticket");
+  await dispatchOfficeITNotice(current.admin,input.ticketId,current.identity.userId,data).catch(()=>{});
   return { status: data };
 }
 

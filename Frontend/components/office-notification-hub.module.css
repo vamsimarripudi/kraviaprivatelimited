@@ -1,0 +1,29 @@
+.wrapper{display:inline-flex;position:relative;align-items:center;flex:none}
+.trigger{display:grid;place-items:center;position:relative;min-width:38px;width:38px;height:38px;min-height:38px;padding:0;border:1px solid var(--office-ui-line);border-radius:10px;background:var(--office-ui-surface);color:var(--office-ui-ink);cursor:pointer}
+.trigger[aria-expanded="true"]{border-color:var(--office-ui-accent);color:var(--office-ui-accent)}
+.count{position:absolute;top:-4px;right:-5px;display:grid;place-items:center;min-width:18px;height:18px;padding:1px 4px;border:2px solid var(--office-ui-surface);border-radius:99px;background:#185dd4;color:#fff;font-size:10px;line-height:1;font-weight:800}
+.flyout{position:absolute;z-index:500;right:0;top:calc(100% + 10px);width:min(380px,calc(100vw - 28px));max-height:min(64dvh,550px);display:flex;flex-direction:column;border:1px solid var(--office-ui-line);border-radius:14px;background:var(--office-ui-surface);color:var(--office-ui-ink);box-shadow:0 28px 64px rgba(5,14,32,.23);overflow:hidden}
+.flyout header{display:flex;align-items:center;gap:8px;padding:12px 13px;border-bottom:1px solid var(--office-ui-line)}
+.flyout header span{display:flex;align-items:center;gap:7px;flex:1;font-size:13px;font-weight:720}
+.flyout header a{display:flex;align-items:center;gap:4px;white-space:nowrap;font-size:11px;color:var(--office-ui-accent);text-decoration:none}
+.flyout header button{display:grid;place-items:center;width:31px;height:31px;padding:0;background:transparent;border:0;color:var(--office-ui-muted);cursor:pointer}
+.flyoutList{min-height:0;max-height:420px;overflow-y:auto;overscroll-behavior:contain}
+.flyoutList a{display:grid;gap:5px;padding:12px 14px;border-bottom:1px solid var(--office-ui-line);text-decoration:none;color:var(--office-ui-ink)}
+.flyoutList a[data-unread="true"]{box-shadow:inset 3px 0 var(--office-ui-accent);background:var(--office-ui-surface-alt)}
+.flyoutList strong{font-size:12px}.flyoutList small{font-size:11px;color:var(--office-ui-muted);line-height:1.5}
+.flyoutList p{padding:15px;color:var(--office-ui-muted);font-size:12px}
+.flyout footer{display:flex;align-items:flex-start;gap:6px;padding:10px 12px;font-size:10px;color:var(--office-ui-muted);line-height:1.4}
+.flyout footer svg{flex:none}.error{color:var(--office-ui-danger);font-size:11px;padding:9px}
+.toastLayer{position:fixed;z-index:1300;top:calc(72px + env(safe-area-inset-top,0px));right:16px;display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:none;width:min(380px,calc(100vw - 26px))}
+.toast{pointer-events:auto;display:grid;grid-template-columns:38px minmax(0,1fr) 28px;gap:10px;align-items:start;width:100%;max-width:100%;min-width:0;padding:13px;border:1px solid #d7dde8;border-radius:14px;background:#fff;color:#192131;box-shadow:0 18px 48px rgba(12,23,41,.2);animation:kraviaToastEnter .23s ease both;box-sizing:border-box}
+.toast[data-priority="HIGH"]{border-left:3px solid #2867c8}.toast[data-priority="CRITICAL"]{border-left:4px solid #cb3346}
+.toastIcon{width:38px;height:38px;display:grid;place-items:center;border-radius:11px;background:#edf3fb;color:#275da5}
+.toastBody{display:grid;align-content:start;gap:4px;min-width:0}
+.toastBody small{font-size:10px;letter-spacing:.06em;font-weight:760;color:#647185}
+.toastBody strong{font-size:13px;line-height:1.35;color:#172232}
+.toastBody p{font-size:12px;line-height:1.45;margin:0;overflow-wrap:anywhere;color:#4c5a6d}
+.toastBody a{display:inline-flex;align-items:center;gap:5px;justify-self:start;margin-top:4px;font-size:12px;font-weight:700;text-decoration:none;color:#1559ce}
+.toastClose{display:grid;place-items:center;width:28px;height:28px;min-height:28px;padding:0;border:0;background:transparent;color:#6a7484;cursor:pointer}
+@keyframes kraviaToastEnter{from{opacity:0;transform:translateX(32px)}to{opacity:1;transform:translateX(0)}}
+@media(max-width:767px){.trigger{width:36px;height:36px;min-width:36px;min-height:36px}.flyout{position:fixed;top:calc(62px + env(safe-area-inset-top,0px));right:12px;left:12px;width:auto;max-height:65dvh}.toastLayer{top:calc(66px + env(safe-area-inset-top,0px));right:12px;width:calc(100vw - 24px)}.toast{padding:11px;grid-template-columns:34px minmax(0,1fr) 25px}.toastIcon{width:34px;height:34px}}
+@media(prefers-reduced-motion:reduce){.toast{animation:none}}

@@ -15,6 +15,7 @@ import {
 } from "@/lib/office/connect-preferences";
 import { OfficeSecuritySettings } from "@/components/office-security-settings";
 import { OfficeConnectSettings } from "@/components/office-connect-settings";
+import { OfficeNotificationPreferencesPanel } from "@/components/office-notification-preferences-panel";
 import { OfficeEmployeeMailControls } from "@/components/office-employee-mail-controls";
 import { OfficeLifecycleMailControls } from "@/components/office-lifecycle-mail-controls";
 import styles from "./office-settings-hub.module.css";
@@ -59,7 +60,7 @@ function Toggle({ title, detail, checked, onChange }: {
 export function OfficeSettingsHub({ identity }: { identity: OfficeIdentity }) {
   const isOwner = identity.roles.includes("OWNER");
   const isFinance = usePathname().startsWith("/finance/");
-  const allowed = useMemo(() => tabs.filter(item => (!item.ownerOnly || isOwner) && (!isFinance || ["overview", "account", "preferences", "security", "work"].includes(item.id))), [isOwner, isFinance]);
+  const allowed = useMemo(() => tabs.filter(item => (!item.ownerOnly || isOwner) && (!isFinance || ["overview", "account", "preferences", "notifications", "security", "work"].includes(item.id))), [isOwner, isFinance]);
   const profileHref = isFinance ? "/finance/my-role" : "/office/my-role";
   const worktimeHref = isFinance ? "/finance/worktime" : "/office/worktime";
   const [tab, setTab] = useState<Tab>("overview");
@@ -235,11 +236,12 @@ export function OfficeSettingsHub({ identity }: { identity: OfficeIdentity }) {
           </Panel>
         </div> : null}
         {tab === "notifications" ? <div className={styles.stack}>
+          <OfficeNotificationPreferencesPanel/>
           <Panel title="Company notifications" subtitle="Source-owned event history">
             <ActionRow title="My notifications" detail="Read approved company notices" href="/office/notifications"
               action="Open inbox"/>
           </Panel>
-          <OfficeConnectSettings embedded/>
+          {!isFinance ? <OfficeConnectSettings embedded/> : null}
         </div> : null}
         {tab === "security" ? <div className={styles.stack}>
           <div className={styles.subnav} role="group" aria-label="Security categories">

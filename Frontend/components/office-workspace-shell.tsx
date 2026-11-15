@@ -13,6 +13,7 @@ import { OfficeNavLink } from "@/components/office-nav-link";
 import { OfficePrefetchRoutes } from "@/components/office-prefetch-routes";
 import { OfficePresenceControl } from "@/components/office-presence-control";
 import { OfficeCommandPalette } from "@/components/office-command-palette";
+import { OfficeNotificationHub } from "@/components/office-notification-hub";
 import { OfficeIntelligencePeek } from "@/components/office-intelligence-peek";
 import { OfficeIstClock } from "@/components/office-ist-clock";
 import { WorkspaceSignOutButton } from "@/components/workspace-sign-out-button";
@@ -434,6 +435,7 @@ export function OfficeWorkspaceShell({
           </nav>
           <div className="office-topbar-tools">
             <OfficeCommandPalette commands={commands}/>
+            <OfficeNotificationHub/>
             <OfficeIstClock/>
             {workspace === "office" && identity.roles.some(role => role === "OWNER" || role === "DIRECTOR") ?
               <OfficeIntelligencePeek key={pathname}/> : null}

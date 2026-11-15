@@ -4,7 +4,7 @@ import {useEffect, useMemo, useState} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  ArrowRight, Bookmark, ChevronRight, House, Layers, Menu,
+  ArrowRight, Bell, Bookmark, ChevronRight, House, Layers, Menu,
   MessageCircle, MoreHorizontal, Plus, RefreshCw, Search, Settings2,
   UsersRound, X,
 } from "lucide-react";
@@ -197,6 +197,7 @@ export function OfficeConnectMobileHome({
         <div className={styles.moreTitle}><strong>Connect tools</strong>
           <button type="button" aria-label="Close tools" onClick={() => setMoreOpen(false)}><X size={18}/></button>
         </div>
+        <Link href="/office/notifications"><Bell size={17}/>Office notifications</Link>
         <Link href="/office/chat/mentions"><MessageCircle size={17}/>My mentions</Link>
         <Link href="/office/chat/saved"><Bookmark size={17}/>Saved messages</Link>
         <Link href="/office/chat/groups/new"><UsersRound size={17}/>New group</Link>

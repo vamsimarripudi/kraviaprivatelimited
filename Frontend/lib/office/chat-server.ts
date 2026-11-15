@@ -1,4 +1,5 @@
 import "server-only";
+import {dispatchOfficeChatMessage} from "@/lib/office/notification-dispatch-server";
 
 import { requireOfficeActor, OfficePermissionError } from "@/lib/office/permission-engine";
 import {CHAT_HISTORY_PAGE_SIZE,chatHistoryFilter,type ChatHistoryCursor} from "@/lib/office/chat-history";
@@ -197,6 +198,7 @@ export async function sendOfficeChatMessage(conversationId: string, body: string
   if (result.error || typeof result.data !== "string") {
     throw new OfficeChatError(503, "The message was not confirmed. Retry safely using the same draft.");
   }
+  await dispatchOfficeChatMessage(current.admin,conversationId,result.data,current.identity.userId,mentions).catch(()=>{});
   return { message_id: result.data };
 }
 
@@ -339,6 +341,7 @@ export async function sendOfficeChatReply(parentId:string,body:string,nonce:stri
  const result=await current.admin.rpc("office_chat_send_reply",{p_actor:current.identity.userId,
   p_parent:parentId,p_nonce:nonce,p_body:body});
  if(result.error||typeof result.data!=="string")throw new OfficeChatError(409,"Thread reply not confirmed; retain the same nonce");
+ await dispatchOfficeChatMessage(current.admin,String(parent.data.conversation_id),result.data,current.identity.userId,[]).catch(()=>{});
  return {message_id:result.data};
 }
 export async function saveOfficeChatMessage(messageId:string,save:boolean){

@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Bell, CheckCheck, Circle, LoaderCircle, MailOpen, Search, X } from "lucide-react";
 import { officeMutation, officeQuery } from "@/lib/office/http-client";
+import {safeNotificationHref} from "@/lib/office/notification-types";
 import styles from "./office-notification-center.module.css";
 
-type Notification = { id: string; request_id?: string | null; kind: string; title: string; body: string; status: string; created_at: string; read_at?: string | null };
+type Notification = { id: string; request_id?: string | null; kind: string; title: string; body: string; status: string; created_at: string; read_at?: string | null;target_path?:string|null };
 type Center = { unread: number; notifications: Notification[] };
 
 async function json<T>(url: string, options?: RequestInit): Promise<T> {
@@ -79,7 +80,7 @@ export function OfficeNotificationCenter() {
     <div className={styles.toolbar}><label><Search /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search notifications" /></label><strong>{rows.length} visible</strong></div>
     <div className={styles.list}>{rows.length ? rows.map((item) => <article className={styles.item} key={item.id} data-unread={item.status === "UNREAD"}>
       <div className={styles.icon}>{item.status === "UNREAD" ? <Circle /> : <MailOpen />}</div>
-      <div className={styles.copy}><div><span>{item.kind.replaceAll("_", " ")}</span><small>{readable(item.created_at)}</small></div><h3>{item.title}</h3><p>{item.body}</p>{item.request_id ? <Link href="/office/requests">Open related request →</Link> : null}</div>
+      <div className={styles.copy}><div><span>{item.kind.replaceAll("_", " ")}</span><small>{readable(item.created_at)}</small></div><h3>{item.title}</h3><p>{item.body}</p>{item.target_path ? <Link href={safeNotificationHref(item.target_path)}>Open related record →</Link> : item.request_id ? <Link href="/office/requests">Open related request →</Link> : null}</div>
       <div className={styles.actions}>{item.status === "UNREAD" ? <button type="button" disabled={busy === item.id} onClick={() => void mutate("READ", item.id)}>Read</button> : <button type="button" disabled={busy === item.id} onClick={() => void mutate("UNREAD", item.id)}>Unread</button>}<button aria-label="Dismiss" type="button" disabled={busy === item.id} onClick={() => void mutate("DISMISS", item.id)}><X /></button></div>
     </article>) : <div className={styles.empty}><Bell /><div><b>No matching notifications</b><p>New workflow, task and security signals will appear here.</p></div></div>}</div>
   </section>;

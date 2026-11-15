@@ -1,4 +1,5 @@
 import "server-only";
+import {dispatchOfficeWorkNotice} from "@/lib/office/notification-dispatch-server";
 import { createOfficeServiceClient, OfficePermissionError } from "@/lib/office/permission-engine";
 import { getOfficeSessionContext, officeIdentityIsProvisioned } from "@/lib/office/auth-server";
 import { officeAccessProfileIsEffective } from "@/lib/office/access-profile-effective";
@@ -131,6 +132,7 @@ export async function createOfficeRequest(input: {
     p_resource_key: input.resourceKey ?? null,
   });
   if (error || typeof data !== "string") throw new OfficeWorkflowError(400, error?.message ?? "Unable to create request");
+  await dispatchOfficeWorkNotice(admin,data,identity.userId,"CREATED").catch(()=>{});
   return { request_id: data };
 }
 
@@ -143,5 +145,6 @@ export async function decideOfficeRequest(input: { requestId: string; decision: 
     p_note: input.note?.trim() || null,
   });
   if (error || typeof data !== "string") throw new OfficeWorkflowError(400, error?.message ?? "Unable to record request decision");
+  await dispatchOfficeWorkNotice(admin,input.requestId,identity.userId,"DECISION_"+data).catch(()=>{});
   return { status: data };
 }
