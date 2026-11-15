@@ -20,7 +20,7 @@ export function WorkspaceSignOutButton({ workspace, iconOnly = false }: { worksp
     }
   }
 
-  return <button type="button" className="workspace-signout" onClick={signOut} disabled={pending}
+  return <button type="button" className="workspace-signout" data-icon-only={iconOnly} onClick={signOut} disabled={pending}
     aria-label={pending ? "Signing out" : "Sign out of KRAVIA Office"} title={pending ? "Signing out" : "Sign out"}>
     <LogOut aria-hidden="true" />{!iconOnly ? <span>{pending ? "Signing out…" : "Sign out"}</span> : null}
   </button>;

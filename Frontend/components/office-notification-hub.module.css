@@ -27,3 +27,58 @@
 @keyframes kraviaToastEnter{from{opacity:0;transform:translateX(32px)}to{opacity:1;transform:translateX(0)}}
 @media(max-width:767px){.trigger{width:36px;height:36px;min-width:36px;min-height:36px}.flyout{position:fixed;top:calc(62px + env(safe-area-inset-top,0px));right:12px;left:12px;width:auto;max-height:65dvh}.toastLayer{top:calc(66px + env(safe-area-inset-top,0px));right:12px;width:calc(100vw - 24px)}.toast{padding:11px;grid-template-columns:34px minmax(0,1fr) 25px}.toastIcon{width:34px;height:34px}}
 @media(prefers-reduced-motion:reduce){.toast{animation:none}}
+
+/* Portal-based inbox. The popover is rendered under document.body instead of
+   inside the 38px topbar trigger, preventing narrow, clipped column rendering.
+   Colors are self-contained because body is outside Office's theme scope. */
+.flyout{
+  position:fixed!important;top:calc(72px + env(safe-area-inset-top,0px))!important;
+  right:clamp(12px,2vw,24px)!important;left:auto!important;
+  z-index:1500!important;box-sizing:border-box!important;
+  width:min(392px,calc(100vw - 24px))!important;min-width:0!important;
+  max-width:calc(100vw - 24px)!important;max-height:min(74dvh,570px)!important;
+  margin:0!important;padding:0!important;
+  border:1px solid #3b414d!important;border-radius:15px!important;
+  background:#16191f!important;color:#f2f5fb!important;
+  box-shadow:0 26px 72px rgba(0,0,0,.42)!important;
+  display:flex!important;flex-direction:column!important;
+  overflow:hidden!important;overflow-wrap:anywhere!important;
+  font-family:var(--font-sans,Inter,"Segoe UI",Arial,sans-serif);
+}
+.flyout header{display:flex!important;align-items:center!important;gap:10px!important;
+  min-height:55px!important;padding:10px 14px!important;border-bottom:1px solid #343a45!important;
+  background:#1c2027!important}
+.flyout header span{display:inline-flex!important;align-items:center!important;gap:8px!important;
+  flex:1 1 auto!important;min-width:0!important;font-size:14px!important;
+  font-weight:720!important;color:#f3f5f9!important}
+.flyout header a{display:inline-flex!important;align-items:center!important;flex:none!important;
+  min-height:37px!important;gap:4px!important;font-size:12px!important;font-weight:670!important;
+  text-decoration:none!important;color:#8bb8ff!important}
+.flyout header button{flex:none!important;display:grid!important;place-items:center!important;
+  width:35px!important;height:35px!important;min-height:35px!important;padding:0!important;
+  color:#c5ccda!important;background:transparent!important;border:0!important}
+.flyoutList{display:flex!important;flex-direction:column!important;flex:1 1 auto!important;
+  min-height:0!important;max-height:none!important;overflow-y:auto!important;
+  overflow-x:hidden!important;overscroll-behavior:contain!important}
+.flyoutList a{display:grid!important;gap:6px!important;min-height:65px!important;
+  padding:12px 14px!important;border:0!important;border-bottom:1px solid #343a45!important;
+  text-decoration:none!important;color:#f3f5f9!important;white-space:normal!important;
+  min-width:0!important;max-width:100%!important;box-sizing:border-box!important}
+.flyoutList a[data-unread="true"]{background:#202738!important;box-shadow:inset 3px 0 #5791eb!important}
+.flyoutList a:hover{background:#252b35!important}
+.flyoutList strong{font-size:13px!important;font-weight:700!important;line-height:1.38!important;
+  color:#f5f7fb!important;white-space:normal!important;overflow-wrap:anywhere!important}
+.flyoutList small{font-size:12px!important;line-height:1.48!important;color:#bec8da!important;
+  white-space:normal!important;overflow-wrap:anywhere!important}
+.flyoutList p{margin:0!important;padding:26px 15px!important;color:#b9c3d4!important;
+  line-height:1.45!important;font-size:12px!important}
+.flyout footer{display:flex!important;align-items:center!important;gap:7px!important;
+  flex:none!important;min-height:40px!important;padding:10px 13px!important;
+  border-top:1px solid #343a45!important;background:#1c2027!important;
+  color:#b7c2d4!important;font-size:10px!important;line-height:1.4!important}
+.flyout .error{background:#311f26;color:#ffd5db;padding:11px 14px}
+@media(max-width:767px){
+  .flyout{top:calc(64px + env(safe-area-inset-top,0px))!important;
+    right:12px!important;left:12px!important;width:auto!important;
+    max-width:none!important;max-height:min(76dvh,590px)!important}
+}

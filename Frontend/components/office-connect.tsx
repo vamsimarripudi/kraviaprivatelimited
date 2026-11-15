@@ -2,10 +2,10 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, MessageSquareText, RefreshCw, Search, Send, Paperclip, Pin, UsersRound, Smile, Image, Video, FileText, FileImage, BookMarked, Plus, X, Wifi, WifiOff } from "lucide-react";
+import { ArrowLeft, MessageSquareText, RefreshCw, Search, Send, Paperclip, Pin, UsersRound, Smile, Image, Video, FileText, FileImage, BookMarked, Plus, X, Wifi, WifiOff } from "lucide-react";
 import styles from "./office-connect.module.css";
 import { OfficeConnectMessageActions } from "@/components/office-connect-message-actions";
-import { OfficeConnectOverview } from "@/components/office-connect-overview";
+import { OfficeConnectChatList, OfficeConnectWelcome } from "@/components/office-connect-chat-list";
 import { OfficeConnectMobileHome } from "@/components/office-connect-mobile-home";
 import { OfficeConnectMembers } from "@/components/office-connect-members";
 import { Office5FileCard, type Office5FileStatus } from "@/components/office5-primitives";
@@ -394,14 +394,14 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
     }finally{setPendingMessage(null);setSubmitting(false);}
   }
 
-  return <section className={styles.connect} aria-label="KRAVIA Connect" data-thread={!!activeId}>
+  return <section className={styles.connect} aria-label="KRAVIA Connect" data-thread={!!activeId} data-connect-chat-layout>
     {!activeId ? <OfficeConnectMobileHome
       conversations={conversations} loading={listLoading} error={listError}
       liveRevision={reloadCount} onRefresh={() => setReloadCount(n => n + 1)}/> : null}
     <header className={styles.header} data-chat-home-header>
       <div><p className={styles.eyebrow}>KRAVIA OFFICE · CONNECT</p>
-        <h1>{activeId ? selected?.title ?? "Private conversation" : "Messages"}</h1>
-        <p>Private employee conversations · approvals remain in their governed workspaces</p></div>
+        <h1>{activeId ? selected?.title ?? "Private conversation" : "My Chats"}</h1>
+        <p>Authorized conversations with your KRAVIA colleagues.</p></div>
       <div className={styles.headerActions}>
         <Link href="/office/chat/directory" aria-label="Find employee" title="Find employee"><Search size={18}/></Link>
         <Link href="/office/chat/groups/new" aria-label="Create group" title="Create group"><MessageSquareText size={18}/></Link>
@@ -412,26 +412,11 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
       </div>
     </header>
     <div className={styles.grid} data-home={!activeId}>
-      <aside className={styles.sidebar} aria-label="Conversations" data-chat-list>
-        <div className={styles.sideHeading}><h2>My conversations</h2><span>{listLoading?"…":listError?"—":conversations.length}</span></div>
-        {listLoading ? <div className={styles.skeleton} role="status">Loading authorized conversations…</div> : null}
-        {listError ? <div className={styles.error} role="alert"><p>{listError}</p><button type="button" onClick={() => setReloadCount(n => n + 1)}>Retry</button></div> : null}
-        {!listLoading && !listError && !conversations.length
-          ? <div className={styles.empty}><MessageSquareText size={22} aria-hidden="true"/><p>No conversations yet.</p><Link href="/office/chat/directory">Start a private conversation</Link></div>
-          : null}
-        <nav className={styles.conversations} aria-label="Conversation list">
-          {conversations.map(item => <Link key={item.id}
-            href={item.kind === "DEPARTMENT" && item.department_code
-              ? "/office/chat/channels/" + encodeURIComponent(item.department_code.toLowerCase())
-              : (item.kind === "GROUP" ? "/office/chat/groups/" : "/office/chat/dm/") + item.id}
-            aria-current={item.id === activeId ? "page" : undefined}>
-            <span className={styles.avatar} aria-hidden="true">{item.title.trim().charAt(0).toUpperCase() || "K"}</span>
-            <span className={styles.conversationName}><strong>{item.title}</strong><small>{item.kind === "DM" ? "Private · members only" : item.kind}</small></span>
-            <ArrowRight size={15} aria-hidden="true"/></Link>)}
-        </nav>
-      </aside>
+      <OfficeConnectChatList conversations={conversations} activeId={activeId}
+        loading={listLoading} error={listError} liveRevision={reloadCount}
+        liveState={inboxLive} onRefresh={() => setReloadCount(v=>v+1)}/>
       <section className={styles.body} data-home={!activeId} data-chat-body aria-label={activeId ? "Private messages" : "Connect workspace"}>
-        {!activeId ? <OfficeConnectOverview conversations={conversations} conversationsLoading={listLoading} conversationsError={listError} liveRevision={reloadCount} liveState={inboxLive}/> : <>
+        {!activeId ? <OfficeConnectWelcome/> : <>
           <div className={styles.threadHeader} data-chat-thread-header>
              <Link href="/office/chat" className={styles.back} aria-label="Back to conversations" title="All conversations">
                <ArrowLeft size={17} aria-hidden="true"/></Link>

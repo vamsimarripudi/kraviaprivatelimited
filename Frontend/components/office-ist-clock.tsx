@@ -38,6 +38,5 @@ export function OfficeIstClock() {
     <span className="office-ist-clock-separator" aria-hidden="true">•</span>
     <span className="office-ist-clock-date" aria-hidden="true">{now ? dateFormatter.format(now) : "-- --- ----"}</span>
     <span className="office-ist-clock-date-small" aria-hidden="true">{now ? shortDateFormatter.format(now) : "--/--"}</span>
-    <span className="office-ist-clock-zone" aria-hidden="true">IST</span>
   </time>;
 }

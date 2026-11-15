@@ -3,6 +3,7 @@ import {readFileSync} from "node:fs";
 const read=(path:string)=>readFileSync(new URL("../"+path,import.meta.url),"utf8");
 const shell=read("components/office-workspace-shell.tsx");
 const connect=read("components/office-connect.tsx");
+const chatList=read("components/office-connect-chat-list.tsx");
 const tool=read("components/office-connect-message-actions.tsx");
 const css=read("app/office/office-chat-ux-20261114.css");
 const live=read("lib/office/use-office-chat-live.ts");
@@ -22,7 +23,8 @@ describe("KRAVIA Office 5.0 enterprise Connect screen",()=>{
   expect(css).not.toContain("background:#102720");
  });
  it("gives thread conversation the full work area and a contained mobile composer",()=>{
-  for(const token of ["data-thread={!!activeId}","data-chat-list","data-chat-body",
+  expect(chatList).toContain("data-chat-list");
+  for(const token of ["data-thread={!!activeId}","data-chat-body",
     "data-chat-timeline","data-chat-composer","data-chat-thread-header"]){
    expect(connect).toContain(token);
   }

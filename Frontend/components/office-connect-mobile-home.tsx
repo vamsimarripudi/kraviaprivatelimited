@@ -4,7 +4,7 @@ import {useEffect, useMemo, useState} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  ArrowRight, Bell, Bookmark, ChevronRight, House, Layers, Menu,
+  ArrowRight, Bell, Bookmark, ChevronRight, House, Menu,
   MessageCircle, MoreHorizontal, Plus, RefreshCw, Search, Settings2,
   UsersRound, X,
 } from "lucide-react";
@@ -58,7 +58,7 @@ export function OfficeConnectMobileHome({
   liveRevision: number;
   onRefresh: () => void;
 }) {
-  const [unreadOnly, setUnreadOnly] = useState(true);
+  const [unreadOnly, setUnreadOnly] = useState(false);
   const [screen, setScreen] = useState<"home" | "chats">("home");
   const [moreOpen, setMoreOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<UnreadSnapshot | null>(null);
@@ -120,7 +120,7 @@ export function OfficeConnectMobileHome({
   };
   const choose = (next: "home" | "chats") => {
     setScreen(next);
-    setUnreadOnly(next === "home");
+    setUnreadOnly(next === "chats");
     setMoreOpen(false);
   };
 
@@ -141,7 +141,7 @@ export function OfficeConnectMobileHome({
     </header>
 
     <div className={styles.filterbar}>
-      <h1>{screen === "home" ? "Home" : "Chats"}</h1>
+      <h1>My Chats</h1>
       <label className={styles.unreadFilter}>
         <span>Unread</span>
         <input type="checkbox" role="switch" aria-label="Show unread conversations only"
@@ -202,20 +202,21 @@ export function OfficeConnectMobileHome({
         <Link href="/office/chat/saved"><Bookmark size={17}/>Saved messages</Link>
         <Link href="/office/chat/groups/new"><UsersRound size={17}/>New group</Link>
         <Link href="/office/chat/settings"><Settings2 size={17}/>Preferences</Link>
+        <Link href="/office/chat/support"><UsersRound size={17}/>Support workspace</Link>
         <button type="button" onClick={() => {setMoreOpen(false);refresh();}}>
           <RefreshCw size={17}/>Refresh inbox</button>
       </div> : null}
       <nav className={styles.bottomPill} aria-label="Connect mobile navigation">
-        <button type="button" aria-label="Connect home" aria-current={screen === "home" ? "page" : undefined}
+        <button type="button" aria-label="All chats" title="All chats" aria-current={screen === "home" ? "page" : undefined}
           data-active={screen === "home"} onClick={() => choose("home")}>
           <House size={23} aria-hidden="true"/>
         </button>
-        <button type="button" aria-label="All conversations" aria-current={screen === "chats" ? "page" : undefined}
+        <button type="button" aria-label="Unread chats" title="Unread chats" aria-current={screen === "chats" ? "page" : undefined}
           data-active={screen === "chats"} onClick={() => choose("chats")}>
           <MessageCircle size={23} aria-hidden="true"/>
         </button>
-        <Link href="/office/chat/support" aria-label="Support work">
-          <Layers size={23} aria-hidden="true"/>
+        <Link href="/office/chat/groups/new" aria-label="New group" title="New group">
+          <UsersRound size={23} aria-hidden="true"/>
         </Link>
         <button type="button" aria-label="More Connect tools" aria-expanded={moreOpen}
           onClick={() => setMoreOpen(value => !value)}>

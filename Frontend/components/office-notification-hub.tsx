@@ -40,6 +40,8 @@ export function OfficeNotificationHub(){
   const queue=useRef<OfficeNotice[]>([]);
   const pending=useRef(false);
   const bc=useRef<BroadcastChannel|null>(null);
+  const triggerRef=useRef<HTMLDivElement>(null);
+  const flyoutRef=useRef<HTMLDivElement>(null);
 
   useEffect(()=>{prefRef.current=pref;},[pref]);
   useEffect(()=>{
@@ -183,9 +185,20 @@ export function OfficeNotificationHub(){
     }catch{}
   }
 
+  useEffect(()=>{
+    if(!open)return;
+    const closeOutside=(event:PointerEvent)=>{
+      if(event.target instanceof Node
+        && !triggerRef.current?.contains(event.target)
+        && !flyoutRef.current?.contains(event.target))setOpen(false);
+    };
+    document.addEventListener("pointerdown",closeOutside);
+    return()=>document.removeEventListener("pointerdown",closeOutside);
+  },[open]);
+
   const unread=data?.unread??0;
   const inbox=data?.notifications.slice(0,12)??[];
-  return <div className={styles.wrapper}>
+  return <div className={styles.wrapper} ref={triggerRef}>
     <button type="button" className={styles.trigger} title="Notifications"
       aria-label={"Open Office notifications"+(unread?" ("+unread+" unread)":"")}
       aria-expanded={open} aria-haspopup="dialog"
@@ -193,7 +206,7 @@ export function OfficeNotificationHub(){
       <Bell size={19} aria-hidden="true"/>
       {unread>0?<span className={styles.count}>{unread>99?"99+":unread}</span>:null}
     </button>
-    {open?<div className={styles.flyout} role="dialog" aria-label="Office notification inbox">
+    {open && portal ? createPortal(<div className={styles.flyout} ref={flyoutRef} role="dialog" aria-label="Office notification inbox">
       <header><span><BellRing size={16}/>Notifications</span>
         <Link href="/office/notifications" onClick={()=>setOpen(false)}>View all <ArrowUpRight size={14}/></Link>
         <button type="button" aria-label="Close notifications" onClick={()=>setOpen(false)}><X size={16}/></button>
@@ -207,7 +220,7 @@ export function OfficeNotificationHub(){
         </Link>
       ):<p>No notifications to display</p>}</div>
       <footer><CheckCheck size={14}/> All alerts remain available in your private Notification Center.</footer>
-    </div>:null}
+    </div>,portal):null}
 
     {portal?createPortal(<div className={styles.toastLayer} aria-label="Floating Office notifications">
       {toasts.map(item=><article className={styles.toast} key={item.id}

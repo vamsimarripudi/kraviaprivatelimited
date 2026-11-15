@@ -8,10 +8,11 @@ type Props = {
   href: string;
   children: React.ReactNode;
   className?: string;
+  title?: string;
   "aria-label"?: string;
 };
 
-export function OfficeNavLink({ href, children, className, "aria-label": ariaLabel }: Props) {
+export function OfficeNavLink({ href, children, className, title, "aria-label": ariaLabel }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const active = pathname === href;
@@ -25,6 +26,7 @@ export function OfficeNavLink({ href, children, className, "aria-label": ariaLab
       href={href}
       prefetch
       className={className}
+      title={title}
       aria-label={ariaLabel}
       aria-current={active ? "page" : undefined}
       onMouseEnter={prefetch}

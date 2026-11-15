@@ -10,6 +10,7 @@ import "../office/office-surface-integrity.css";
 import "../office/office-experience-5.css";
 import "../office/office-experience-6.css";
 import "../office/office-mobile-repair-20261115.css";
+import "../office/office-layout-stability-chat-first-20261115.css";
 import { OfficeAppearanceRoot } from "@/components/office-appearance-root";
 
 export const metadata: Metadata = {

@@ -272,7 +272,7 @@ export function OfficeWorkspaceShell({
     window.dispatchEvent(new CustomEvent("kravia-office-theme-change", { detail: next }));
   }
 
-  const activePageTitle = isConnect ? "KRAVIA Connect" : isVault ? "K-Vault" : item?.title ?? section;
+  const activePageTitle = isConnect ? "My Chats" : isVault ? "K-Vault" : item?.title ?? section;
   const settingsHref = workspace === "finance" ? "/office/settings" : definition.basePath + "/settings";
   const canOpenSettings = workspace === "office" || canSwitch;
 
@@ -344,10 +344,11 @@ export function OfficeWorkspaceShell({
           </div>
           <div className="office-sidebar-footer">
             {canOpenSettings ? <OfficeNavLink href={settingsHref} className="office-rail-action"
-              aria-label="Office settings"><Settings size={18} aria-hidden="true"/></OfficeNavLink> : null}
+              aria-label="Office settings" title="Office settings"><Settings size={18} aria-hidden="true"/></OfficeNavLink> : null}
             {canSwitch ? <OfficeNavLink href={"/" + switchWorkspace + "/dashboard"}
                 className="office-rail-action"
-                aria-label={"Open " + (switchWorkspace === "finance" ? "Finance" : "Office")}>
+                aria-label={"Open " + (switchWorkspace === "finance" ? "Finance" : "Office")}
+                title={"Switch to " + (switchWorkspace === "finance" ? "Finance" : "Office")}>
               <Landmark size={18} aria-hidden="true"/>
             </OfficeNavLink> : null}
             <button className="office-rail-action" type="button" onClick={switchTheme}
@@ -390,10 +391,10 @@ export function OfficeWorkspaceShell({
             </details>)}
             {workspace === "office" && selectedCategory === "Connect" ?
               <div className="office-mega-link-list" data-office5-quick-links>
-                <OfficeNavLink href="/office/chat"><MessageSquareText size={16}/>Communications</OfficeNavLink>
-                <OfficeNavLink href="/office/chat/support"><ShieldCheck size={16}/>Support & IT</OfficeNavLink>
-                <OfficeNavLink href="/office/chat/approvals"><ClipboardCheck size={16}/>Approvals</OfficeNavLink>
-                <OfficeNavLink href="/office/chat/activity"><CalendarDays size={16}/>Activity</OfficeNavLink>
+                <OfficeNavLink href="/office/chat"><MessageSquareText size={16}/>My Chats</OfficeNavLink>
+                
+                
+                
               </div> : null}
             {workspace === "office" && selectedCategory === "K-Vault" && vaultEntry ?
               <div className="office-mega-link-list" data-office5-quick-links>
