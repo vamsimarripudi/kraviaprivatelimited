@@ -131,7 +131,7 @@ export function OfficeConnectMobileHome({
   };
 
   return <div className={styles.home} data-connect-mobile-home>
-    <header className={styles.topbar}>
+    <header className={styles.topbar} data-connect-mobile-header>
       <button className={styles.menuButton} type="button" aria-label="Open KRAVIA Office navigation"
         onClick={() => window.dispatchEvent(new Event("kravia-office-open-navigation"))}>
         <Menu size={25} aria-hidden="true"/>
@@ -146,9 +146,9 @@ export function OfficeConnectMobileHome({
       </Link>
     </header>
 
-    <div className={styles.filterbar}>
+    <div className={styles.filterbar} data-connect-mobile-filters>
       <h1>My Chats</h1>
-      <label className={styles.unreadFilter}>
+      <label className={styles.unreadFilter} data-connect-unread-toggle>
         <span>Unread</span>
         <input type="checkbox" role="switch" aria-label="Show unread conversations only"
           checked={unreadOnly} onChange={event => setUnreadOnly(event.target.checked)}/>
@@ -158,7 +158,7 @@ export function OfficeConnectMobileHome({
         aria-label="Saved messages"><Bookmark size={20} aria-hidden="true"/></Link>
     </div>
 
-    {showIT||showSupport?<nav className={styles.roleTabs} aria-label="Available Connect workspaces">
+    {showIT||showSupport?<nav className={styles.roleTabs} data-connect-mobile-tabs aria-label="Available Connect workspaces">
       <button type="button" data-active={workspaceMode==="chats"}
         aria-pressed={workspaceMode==="chats"} onClick={()=>setWorkspaceMode("chats")}>Chats</button>
       {showIT?<button type="button" data-active={workspaceMode==="it"}
@@ -167,7 +167,7 @@ export function OfficeConnectMobileHome({
         aria-pressed={workspaceMode==="support"} onClick={()=>setWorkspaceMode("support")}>Support</button>:null}
     </nav>:null}
 
-    <section className={styles.inbox} aria-label="Connect messages" aria-live="polite"
+    <section className={styles.inbox} data-connect-mobile-inbox aria-label="Connect messages" aria-live="polite"
       aria-busy={workspaceMode==="chats"&&(loading||(unreadOnly&&unreadState==="loading"))}>
       {workspaceMode==="chats"?<>
       {loading ? <p className={styles.loadState} role="status">Loading your conversations…</p> : null}
@@ -210,7 +210,7 @@ export function OfficeConnectMobileHome({
       </>:<OfficeConnectRoleInbox kind={workspaceMode}/>}
     </section>
 
-    <div className={styles.bottomControls}>
+    <div className={styles.bottomControls} data-connect-mobile-dock>
       {moreOpen ? <div className={styles.toolsMenu} role="dialog" aria-label="More Connect tools">
         <div className={styles.moreTitle}><strong>Connect tools</strong>
           <button type="button" aria-label="Close tools" onClick={() => setMoreOpen(false)}><X size={18}/></button>
