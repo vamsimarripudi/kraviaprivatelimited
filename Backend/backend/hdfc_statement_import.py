@@ -218,12 +218,12 @@ def build_hdfc_statement_router(get_db, require_roles) -> APIRouter:
     router = APIRouter(prefix="/api/v1/banking/hdfc", tags=["hdfc-statements"])
     finance = require_roles("OWNER", "FINANCE", "CA")
 
-    @router.post("/statement/preview")
+    @router.post("/statement/preview", include_in_schema=False)
     def preview(payload: StatementRequest, db: Session = Depends(get_db), ctx=Depends(finance)):
         summary, _ = _prepare(db, payload)
         return summary
 
-    @router.post("/statement/confirm")
+    @router.post("/statement/confirm", include_in_schema=False)
     def confirm(payload: ConfirmRequest, db: Session = Depends(get_db), ctx=Depends(finance)):
         # Parse and verify again, never trust rows previously returned to the browser.
         summary, fresh = _prepare(db, payload)
