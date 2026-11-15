@@ -3,7 +3,7 @@
 import {useEffect,useMemo,useState} from "react";
 import Link from "next/link";
 import {
-  ArrowRight,Check,ChevronRight,MessageCircle,MessagesSquare,
+  ArrowRight,ChevronRight,MessageCircle,MessagesSquare,
   Plus,RefreshCw,Search,UsersRound,
 } from "lucide-react";
 import type {OfficeInboxLiveState} from "@/lib/office/use-office-chat-inbox-live";
@@ -152,9 +152,8 @@ export function OfficeConnectChatList({
       }):null}
     </div>
     </>:<OfficeConnectRoleInbox kind={workspaceMode}/>}
-    <div className={styles.foot}><span data-state={liveState} aria-hidden="true"><Check size={14}/></span>
-      <small>{liveState==="live"?"Live private messaging":liveState==="restricted"?
-        "Chat access changed":"Secure refresh enabled"}</small>
+    <div className={styles.foot}>
+      <small>{liveState==="restricted"?"Chat access changed":"My conversations"}</small>
       <button type="button" aria-label="Refresh conversations" title="Refresh"
         onClick={onRefresh}><RefreshCw size={17} aria-hidden="true"/></button>
     </div>
@@ -165,9 +164,9 @@ export function OfficeConnectWelcome(){
   return <div className={styles.welcome} data-chat-welcome>
     <div className={styles.welcomeArtwork}><MessagesSquare size={48} strokeWidth={1.5} aria-hidden="true"/></div>
     <span className={styles.welcomeKicker}>KRAVIA CONNECT</span>
-    <h2>Messages that move work forward.</h2>
-    <p>Choose a conversation from My Chats, or start a private message with a colleague.</p>
+    <h2>Your conversations</h2>
+    <p>Select a chat or start a message.</p>
     <Link href="/office/chat/directory">New message <ArrowRight size={17}/></Link>
-    <small>Company conversations remain private to authorized participants.</small>
+    <small></small>
   </div>;
 }
