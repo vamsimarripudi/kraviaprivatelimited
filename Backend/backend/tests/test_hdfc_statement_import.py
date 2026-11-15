@@ -106,9 +106,10 @@ def test_hdfc_statement_missing_reference_or_invalid_date_is_fail_closed():
     assert issues[0]["row"] == 2
     assert "reference" in issues[0]["reason"].lower()
     with pytest.raises(HTTPException):
-        parse_hdfc_statement(HDFC_CSV.replace("05/11/2025", "99/99/2025")) if False else parse_hdfc_statement(
-            HDFC_CSV.replace("Date,Narration", "BadHeader,Narration")
-        )
+        parse_hdfc_statement(HDFC_CSV.replace("Date,Narration", "BadHeader,Narration"))
+    rows, issues = parse_hdfc_statement(HDFC_CSV.replace("05/11/2025", "99/99/2025"))
+    assert len(rows) == 1
+    assert issues and "date" in issues[0]["reason"].lower()
     with pytest.raises(HTTPException):
         parse_hdfc_statement(HDFC_CSV + "\x00")
     with pytest.raises(HTTPException):
@@ -124,3 +125,18 @@ def test_hdfc_banking_requires_hdfc_account_and_finance_permission():
         denied_role = client.post("/api/v1/banking/hdfc/statement/preview",
                                   headers=h("EMPLOYEE"), json=request)
         assert denied_role.status_code == 403
+
+
+def test_server_never_persists_an_unmasked_account_number():
+    with TestClient(app) as client:
+        unmasked = client.post("/api/v1/banking/accounts", headers=h("OWNER"), json={
+            "bank_name": "HDFC Bank", "account_name": "KRAVIA PRIVATE LIMITED",
+            "masked_account": "1234567890123456", "purpose": "Synthetic test",
+        })
+        assert unmasked.status_code == 422
+        masked = client.post("/api/v1/banking/accounts", headers=h("OWNER"), json={
+            "bank_name": "HDFC Bank", "account_name": "KRAVIA PRIVATE LIMITED",
+            "masked_account": "XXXXXXXX1234", "purpose": "Synthetic test",
+        })
+        assert masked.status_code == 201
+        assert masked.json()["masked_account"] == "••••1234"
