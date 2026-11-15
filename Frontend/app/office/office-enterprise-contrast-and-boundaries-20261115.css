@@ -1,0 +1,556 @@
+/*
+ * KRAVIA Office — verified theme/overflow repair.
+ * Final import after all legacy Office CSS generations. The active theme's
+ * design-system tokens are authoritative, not hard-coded green / white cards.
+ */
+.kravia-office .office-v2.office-modern.office-floating-rail > .office-main {
+  max-width:100%!important;min-width:0!important;box-sizing:border-box!important;
+}
+.kravia-office .office-v2.office-modern.office-floating-rail .office-main > section:not(.office-topbar):not([data-connect-chat-layout]) {
+  width:calc(100% - 44px)!important;
+  max-width:calc(100% - 44px)!important;
+  min-width:0!important;box-sizing:border-box!important;
+  margin-left:22px!important;margin-right:22px!important;
+}
+.kravia-office .office-v2.office-modern.office-floating-rail .office-main
+  :where([class*="office-worktime-console_shell"],[class*="office-work-hub_hub"],[class*="request-collaboration-workspace_shell"],
+         [class*="office-notification-center_shell"],[class*="office-support-operations_shell"],
+         [class*="office-vault-overview_overview"]) {
+  min-width:0!important;max-width:100%!important;box-sizing:border-box!important;
+  overflow-wrap:anywhere!important;
+}
+.kravia-office .office-v2.office-modern.office-floating-rail .office-main
+  :where([class*="_summary__"],[class*="_metrics__"],[class*="_cards__"],[class*="_grid__"],[class*="_columns__"]) {
+  min-width:0!important;max-width:100%!important;box-sizing:border-box!important;
+}
+.kravia-office .office-v2.office-modern .office-main :where(
+ input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+ textarea,select
+) {
+  background:var(--office-ui-control)!important;
+  color:var(--office-ui-ink)!important;
+  border-color:var(--office-ui-line)!important;
+  box-shadow:none!important;
+}
+.kravia-office .office-v2.office-modern .office-main :where(
+ input:not([type="checkbox"]):not([type="radio"]),textarea
+)::placeholder {color:var(--office-ui-muted)!important;opacity:1!important}
+.kravia-office .office-v2.office-modern .office-main :where(input,textarea,select,button,a):focus-visible {
+  outline:2px solid var(--office-ui-accent)!important;outline-offset:2px!important;
+}
+/* White and green legacy controls: scoped fixes preserve source validity labels. */
+.kravia-office .office-v2.office-modern .office-main [data-office-work-hub] {
+  max-width:100%!important;min-width:0!important;color:var(--office-ui-ink)!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-office-work-hub]
+  :where([class*="office-work-hub_toolbar"],[class*="office-work-hub_panel"],
+         [class*="office-work-hub_metrics"] > article,[class*="office-work-hub_tableWrap"],
+         [class*="office-work-hub_actionList"] > button,[class*="office-work-hub_compactRows"] > button) {
+  background:var(--office-ui-surface)!important;color:var(--office-ui-ink)!important;
+  border-color:var(--office-ui-line)!important;box-shadow:none!important;
+  min-width:0!important;max-width:100%!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-office-work-hub]
+  :where([class*="office-work-hub_toolbar"] > label,[class*="office-work-hub_inlineSearch"]) {
+  display:flex!important;align-items:center!important;min-width:0!important;
+  background:var(--office-ui-surface-alt)!important;color:var(--office-ui-muted)!important;
+  border-color:var(--office-ui-line)!important;
+  box-shadow:none!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-office-work-hub]
+  [class*="office-work-hub_toolbar"] > label input {
+  flex:1!important;width:100%!important;min-width:0!important;max-width:100%!important;
+  background:transparent!important;border:0!important;color:var(--office-ui-ink)!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-office-work-hub]
+  :where([class*="office-work-hub_workspaceHead"],[class*="office-work-hub_panelHeader"],
+         [class*="office-work-hub_heroCopy"]) :where(h1,h2,h3,p,span) {
+  color:inherit!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-office-work-hub]
+  [class*="office-work-hub_hero"]{
+  background:linear-gradient(135deg,#121722,#202c41)!important;
+  color:#f6f8fc!important;border-color:#38475f!important;box-shadow:none!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-office-work-hub]
+  [class*="office-work-hub_hero"] :where(h1,h2,h3,span,p) {
+  color:#eef3ff!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-office-work-hub]
+  :where([class*="office-work-hub_metrics"] > article,[class*="office-work-hub_panel"])
+  :where(span,small,p,h3,strong){
+  color:var(--office-ui-ink)!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-office-work-hub]
+  [class*="office-work-hub_metrics"] article small{color:var(--office-ui-muted)!important}
+.kravia-office .office-v2.office-modern .office-main [data-office-work-hub]
+  [class*="office-work-hub_viewToggle"] button[data-active="true"]{
+  color:#fff!important;background:#1559ce!important;
+}
+/* Request collaboration: no gray blocks with white-on-white copy. */
+.kravia-office .office-v2.office-modern .office-main
+  [class*="request-collaboration-workspace_shell"] {
+  min-width:0!important;
+  padding:clamp(12px,1.5vw,20px)!important;
+  background:var(--office-ui-surface)!important;color:var(--office-ui-ink)!important;
+  border:1px solid var(--office-ui-line)!important;box-shadow:none!important;
+}
+.kravia-office .office-v2.office-modern .office-main
+  [class*="request-collaboration-workspace_shell"]
+  :where([class*="_requestMeta"],[class*="_composer"] > div,[class*="_thread"] article,[class*="_empty"]) {
+  background:var(--office-ui-surface-alt)!important;color:var(--office-ui-ink)!important;
+  border:1px solid var(--office-ui-line)!important;box-shadow:none!important;
+  min-width:0!important;max-width:100%!important;
+}
+.kravia-office .office-v2.office-modern .office-main
+  [class*="request-collaboration-workspace_shell"] :where(h2,h3,span,small,b,p,label) {
+  color:var(--office-ui-ink)!important;
+}
+.kravia-office .office-v2.office-modern .office-main
+  [class*="request-collaboration-workspace_shell"]
+  :where([class*="_header"] span,[class*="_requestMeta"] small,[class*="_empty"] p,[class*="_thread"] time) {
+  color:var(--office-ui-muted)!important;
+}
+.kravia-office .office-v2.office-modern .office-main
+  [class*="request-collaboration-workspace_shell"] [class*="_composer"] button {
+  background:#1559ce!important;color:#fff!important;border-color:#1559ce!important;
+}
+.kravia-office .office-v2.office-modern .office-main
+  [class*="request-collaboration-workspace_shell"] [class*="_controls"] {
+  display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,240px)!important;
+  gap:9px!important;max-width:100%!important;min-width:0!important;
+}
+.kravia-office .office-v2.office-modern .office-main
+  [class*="request-collaboration-workspace_shell"] [class*="_controls"] > * {
+  min-width:0!important;max-width:100%!important;overflow-wrap:anywhere!important;
+}
+.kravia-office .office-v2.office-modern .office-main
+  [class*="request-collaboration-workspace_shell"] [class*="_requestMeta"] {
+  min-width:0!important;overflow:hidden!important;
+}
+.kravia-office .office-v2.office-modern .office-main
+  [class*="request-collaboration-workspace_shell"] [class*="_requestMeta"] :is(span,b,small){
+  min-width:0!important;white-space:normal!important;overflow-wrap:anywhere!important;
+}
+/* Worktime metrics and summaries remain within the real content box. */
+.kravia-office .office-v2.office-modern .office-main
+  [class*="office-worktime-console_shell"] {
+  width:100%!important;margin-left:auto!important;margin-right:auto!important;
+  padding:0 0 25px!important;
+  background:transparent!important;color:var(--office-ui-ink)!important;
+}
+.kravia-office .office-v2.office-modern .office-main
+  [class*="office-worktime-console_summary"] {
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))!important;
+  min-width:0!important;max-width:100%!important;gap:10px!important;
+}
+.kravia-office .office-v2.office-modern .office-main
+  [class*="office-worktime-console_summary"] article{
+  min-width:0!important;max-width:100%!important;box-sizing:border-box!important;
+  background:var(--office-ui-surface)!important;color:var(--office-ui-ink)!important;
+  border:1px solid var(--office-ui-line)!important;
+}
+.kravia-office .office-v2.office-modern .office-main
+  [class*="office-worktime-console_shell"]
+  :where([class*="_panel"],[class*="_form"]) {
+  background:var(--office-ui-surface)!important;border-color:var(--office-ui-line)!important;
+  color:var(--office-ui-ink)!important;max-width:100%!important;min-width:0!important;
+}
+.kravia-office .office-v2.office-modern .office-main
+  [class*="office-worktime-console_shell"]
+  :where([class*="_summary"],[class*="_panel"]) :where(small,span,p){
+  color:var(--office-ui-muted)!important;
+}
+.kravia-office .office-v2.office-modern .office-main
+  [class*="office-worktime-console_summary"] article strong{
+  color:var(--office-ui-ink)!important;
+}
+/* Consistent neutral empty states. An unavailable source is not a fake zero. */
+.kravia-office .office-v2.office-modern .office-main
+  :where([class*="office-notification-center_empty"],[class*="office-work-hub_empty"],
+    [class*="office-worktime-console_empty"],[class*="office-vault-overview_empty"],
+    [class*="request-collaboration-workspace_empty"]) {
+  background:var(--office-ui-surface-alt)!important;
+  color:var(--office-ui-muted)!important;border:1px dashed var(--office-ui-line)!important;
+  border-radius:14px!important;max-width:100%!important;
+  min-height:72px!important;box-shadow:none!important;
+}
+.kravia-office .office-v2.office-modern .office-main
+  :where([class*="_empty"],[data-state="empty"]) :where(b,strong,h3) {
+  color:var(--office-ui-ink)!important;
+}
+.kravia-office .office-v2.office-modern .office-main
+  :where([class*="_empty"],[data-state="empty"]) :where(p,small) {
+  color:var(--office-ui-muted)!important;
+}
+/* Fix contrast of controls and data fields without touching meaningful status. */
+.kravia-office .office-v2.office-modern .office-main
+  :where([class*="_tableWrap"],[class*="_toolbar"],[class*="_input"],[class*="_search"]) {
+  max-width:100%!important;min-width:0!important;
+}
+.kravia-office .office-v2.office-modern .office-main
+  :where([class*="_toolbar"] > label,[class*="_search"]):has(input[type="search"]) {
+  background:var(--office-ui-surface-alt)!important;
+  border-color:var(--office-ui-line)!important;color:var(--office-ui-ink)!important;
+}
+@media(max-width:850px){
+ .kravia-office .office-v2.office-modern.office-floating-rail .office-main > section:not(.office-topbar):not([data-connect-chat-layout]) {
+   margin-inline:12px!important;width:calc(100% - 24px)!important;
+   max-width:calc(100% - 24px)!important;
+ }
+ .kravia-office .office-v2.office-modern .office-main
+   [class*="request-collaboration-workspace_shell"] [class*="_controls"] {
+   grid-template-columns:minmax(0,1fr)!important;
+ }
+ .kravia-office .office-v2.office-modern .office-main [class*="office-worktime-console_summary"]{
+   grid-template-columns:repeat(2,minmax(0,1fr))!important;
+ }
+}
+@media(max-width:440px){
+ .kravia-office .office-v2.office-modern .office-main [class*="office-worktime-console_summary"]{
+   grid-template-columns:minmax(0,1fr)!important;
+ }
+}
+
+
+/* Chat presentation: restrained, original KRAVIA wallpaper in both themes.
+   Bubble text, date separators and scanned media remain readable and light. */
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]{
+  background-color:var(--office-ui-canvas)!important;
+  background-image:radial-gradient(circle at 12px 12px,color-mix(in srgb,var(--office-ui-muted) 8%,transparent) 1px,transparent 1.6px),
+    linear-gradient(145deg,color-mix(in srgb,var(--office-ui-accent) 4%,transparent),transparent 37%,
+    color-mix(in srgb,var(--office-ui-accent) 3%,transparent))!important;
+  background-size:26px 26px,100% 100%!important;
+  background-attachment:local!important;
+  gap:8px!important;
+  padding:15px clamp(10px,2vw,25px)!important;
+  overflow-x:hidden!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+  [class*="office-connect_dateDivider"] {
+  position:relative!important;z-index:1!important;display:flex!important;
+  align-items:center!important;justify-content:center!important;align-self:stretch!important;
+  min-width:0!important;max-width:100%!important;min-height:30px!important;
+  margin:5px 0 9px!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+  [class*="office-connect_dateDivider"] span{
+  display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  border:1px solid var(--office-ui-line)!important;border-radius:99px!important;
+  padding:5px 13px!important;min-height:28px!important;box-sizing:border-box!important;
+  color:var(--office-ui-muted)!important;background:var(--office-ui-surface)!important;
+  font-size:10px!important;line-height:1.2!important;white-space:nowrap!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline] article[data-own] {
+  position:relative!important;
+  display:block!important;flex:0 0 auto!important;align-self:flex-start!important;
+  box-sizing:border-box!important;max-width:min(78%,580px)!important;
+  width:max-content!important;min-width:min(120px,100%)!important;
+  margin:0!important;padding:8px 11px 7px!important;
+  border:1px solid var(--office-ui-line)!important;
+  border-radius:16px 16px 16px 5px!important;
+  background:var(--office-ui-surface)!important;
+  color:var(--office-ui-ink)!important;
+  font-size:13px!important;line-height:1.45!important;
+  box-shadow:0 1px 6px rgba(0,0,0,.045)!important;
+  overflow:visible!important;overflow-wrap:anywhere!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline] article[data-own="true"]{
+  align-self:flex-end!important;border-radius:16px 16px 5px 16px!important;
+  border-color:color-mix(in srgb,var(--office-ui-accent) 24%,var(--office-ui-line))!important;
+  background:color-mix(in srgb,var(--office-ui-accent) 8%,var(--office-ui-surface))!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline] article[data-own] > strong {
+  display:block!important;margin:0 30px 4px 0!important;font-size:10px!important;
+  font-weight:750!important;line-height:1.3!important;color:var(--office-ui-accent)!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline] article[data-own="true"] > strong{
+  display:none!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+  article[data-own] [class*="office-connect_messageLine"]{
+  display:block!important;max-width:100%!important;min-width:0!important;
+  padding:0!important;margin:0!important;color:var(--office-ui-ink)!important;
+  line-height:1.48!important;white-space:pre-wrap!important;font-size:13px!important;
+  overflow-wrap:anywhere!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+  article[data-own] [class*="office-connect_messageLine"] time{
+  display:inline-block!important;white-space:nowrap!important;
+  color:var(--office-ui-muted)!important;font-size:10px!important;
+  font-variant-numeric:tabular-nums!important;line-height:1.2!important;
+  margin-left:8px!important;vertical-align:baseline!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+ article[data-own] .chat-inline-media :is(img,video){
+  border-radius:15px!important;max-width:100%!important;
+  width:auto!important;height:auto!important;max-height:min(400px,46dvh)!important;
+  object-fit:contain!important;box-sizing:border-box!important;
+  border:1px solid var(--office-ui-line)!important;
+  background:var(--office-ui-surface-alt)!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+ article[data-own] [class*="office-connect_messageFiles"] {
+  display:grid!important;gap:7px!important;min-width:0!important;max-width:100%!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+ article[data-own] [class*="office-connect-message-actions_actions"]{
+  position:absolute!important;top:3px!important;right:3px!important;
+  z-index:9!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+ article[data-own] [class*="office-connect-message-actions_actions"][data-open="true"] {
+  z-index:90!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+ article[data-own] [class*="office-connect-message-actions_menuTrigger"]{
+  border:1px solid var(--office-ui-line)!important;border-radius:9px!important;
+  background:var(--office-ui-surface)!important;color:var(--office-ui-muted)!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+ article[data-own] [class*="office-connect-message-actions_actions"] > nav {
+  background:var(--office-ui-surface)!important;border-color:var(--office-ui-line)!important;
+  max-width:min(270px,85vw)!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+ article[data-own] [class*="office-connect-message-actions_actions"] > nav :is(button,a) {
+  width:100%!important;min-width:0!important;max-width:100%!important;
+  height:auto!important;min-height:41px!important;
+  padding:8px 10px!important;display:flex!important;align-items:center!important;
+  justify-content:flex-start!important;gap:11px!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+ [class*="office-connect_empty"]{
+  display:grid!important;place-items:center!important;align-content:center!important;
+  min-height:170px!important;align-self:center!important;max-width:480px!important;
+  width:100%!important;padding:24px!important;text-align:center!important;
+  border:1px dashed var(--office-ui-line)!important;border-radius:16px!important;
+  color:var(--office-ui-muted)!important;background:var(--office-ui-surface-alt)!important;
+}
+/* Isolate canonical ticket reply components from document/case cards. */
+.kravia-office .office-v2.office-modern .office-main
+ [aria-label="IT ticket conversation"],
+.kravia-office .office-v2.office-modern .office-main
+ [aria-label="Support case conversation"] {
+  max-width:calc(100% - 24px)!important;min-width:0!important;
+}
+/* Hover tooltips never replace accessible names; reduced-motion users see no motion. */
+.office-vault-loading{
+  display:grid;gap:15px;min-width:0;min-height:320px;
+  margin:20px 22px;padding:20px;
+  border:1px solid var(--office-ui-line);border-radius:15px;
+  background:var(--office-ui-surface);color:var(--office-ui-ink);
+}
+.office-vault-loading-heading{display:flex;align-items:center;gap:13px;min-width:0}
+.office-vault-loading-heading>span{display:grid;place-items:center;flex:none;
+  width:49px;height:49px;border-radius:12px;background:var(--office-ui-surface-alt);color:var(--office-ui-accent)}
+.office-vault-loading-heading>div{flex:1;min-width:0}
+.office-vault-loading-heading strong{display:block;font-size:17px}
+.office-vault-loading-heading p{font-size:12px;line-height:1.5;color:var(--office-ui-muted)}
+.office-vault-loading-heading>svg{flex:none;color:var(--office-ui-accent)}
+.office-vault-loading-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.office-vault-loading-tiles>div{height:92px;min-width:0;border-radius:13px;background:var(--office-ui-surface-alt)}
+.office-vault-loading-table{display:grid;gap:11px}.office-vault-loading-table i{display:block;height:38px;border-radius:10px;background:var(--office-ui-surface-alt)}
+.office-ticket-admin-disclosure{box-sizing:border-box;min-width:0;max-width:100%;
+ margin:10px 20px 20px;border:1px solid var(--office-ui-line);border-radius:13px;
+ padding:9px 12px;background:var(--office-ui-surface);color:var(--office-ui-muted);font-size:12px}
+.office-ticket-admin-disclosure>summary{cursor:pointer;min-height:39px;display:flex;align-items:center;font-weight:690}
+@media(max-width:767px){
+ .kravia-office .office-v2.office-modern .office-main [data-chat-timeline] article[data-own]{
+  max-width:90%!important;
+ }
+ .office-vault-loading{margin:12px;padding:13px}.office-vault-loading-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .office-ticket-admin-disclosure{margin:10px 12px}
+}
+@media(prefers-reduced-motion:reduce){
+ .kravia-office .office-v2.office-modern .office-main [data-chat-timeline] *{
+  transition:none!important;animation:none!important;
+ }
+}
+
+
+/* Anchor the on-demand list inside the visible screen, on the correct bubble side. */
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+ article[data-own="false"] [class*="office-connect-message-actions_actions"] > nav,
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+ article[data-own="false"] [class*="office-connect-message-actions_details"] {
+  right:auto!important;left:0!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+ article[data-own="true"] [class*="office-connect-message-actions_actions"] > nav,
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+ article[data-own="true"] [class*="office-connect-message-actions_details"] {
+  left:auto!important;right:0!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+ article[data-own] [class*="office-connect-message-actions_details"]{
+  top:34px!important;
+}
+
+/* Pending message state remains visible even though confirmed own-message labels are compact. */
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+ article[data-chat-pending="true"] > strong{display:block!important;color:var(--office-ui-muted)!important}
+
+
+/*
+ * Stable UI hooks — do not depend on CSS module local class names.
+ * Tokens resolve through the currently selected Office/Finance UI theme.
+ */
+.kravia-office .office-v2.office-modern .office-main [data-office-worktime]{
+  min-width:0!important;max-width:100%!important;overflow-wrap:anywhere!important;
+  color:var(--office-ui-ink)!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-worktime-summary]{
+  display:grid!important;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))!important;
+  gap:10px!important;min-width:0!important;max-width:100%!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-worktime-summary]>article{
+  box-sizing:border-box!important;min-width:0!important;max-width:100%!important;
+  border:1px solid var(--office-ui-line)!important;
+  border-radius:13px!important;
+  background:var(--office-ui-surface)!important;color:var(--office-ui-ink)!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-worktime-summary]>article small,
+.kravia-office .office-v2.office-modern .office-main [data-worktime-summary]>article span{
+  color:var(--office-ui-muted)!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-office-notification-center]{
+  max-width:100%!important;min-width:0!important;color:var(--office-ui-ink)!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-office-notification-center] article{
+  min-width:0!important;max-width:100%!important;box-sizing:border-box!important;
+  background:var(--office-ui-surface)!important;
+  color:var(--office-ui-ink)!important;border-color:var(--office-ui-line)!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-office-notification-toolbar]{
+  display:flex!important;gap:10px!important;align-items:center!important;
+  min-width:0!important;max-width:100%!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-office-notification-toolbar]>label{
+  display:flex!important;align-items:center!important;flex:1 1 auto!important;
+  max-width:100%!important;min-width:0!important;
+  background:var(--office-ui-surface-alt)!important;
+  color:var(--office-ui-ink)!important;border:1px solid var(--office-ui-line)!important;
+  box-shadow:none!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-office-notification-toolbar]>label input{
+  flex:1!important;width:100%!important;min-width:0!important;
+  background:transparent!important;color:var(--office-ui-ink)!important;
+  border:0!important;box-shadow:none!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-office-request-collab]{
+  box-sizing:border-box!important;width:100%!important;min-width:0!important;
+  max-width:100%!important;
+  border:1px solid var(--office-ui-line)!important;
+  background:var(--office-ui-surface)!important;
+  color:var(--office-ui-ink)!important;box-shadow:none!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-office-request-collab]
+ :where(article,[data-office-collab-meta],textarea){
+  box-sizing:border-box!important;min-width:0!important;
+  max-width:100%!important;background:var(--office-ui-surface-alt)!important;
+  color:var(--office-ui-ink)!important;border-color:var(--office-ui-line)!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-office-collab-controls]{
+  display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,240px)!important;
+  gap:9px!important;min-width:0!important;max-width:100%!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-office-collab-controls]>*{
+  min-width:0!important;max-width:100%!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-office-collab-meta]
+ :is(strong,b,small,span){min-width:0!important;white-space:normal!important;
+  overflow-wrap:anywhere!important;color:var(--office-ui-ink)!important}
+.kravia-office .office-v2.office-modern .office-main [data-office-work-hub] [data-office-work-toolbar]{
+  display:flex!important;align-items:center!important;flex-wrap:wrap!important;
+  gap:8px!important;max-width:100%!important;min-width:0!important;
+  background:var(--office-ui-surface)!important;
+  color:var(--office-ui-ink)!important;border-color:var(--office-ui-line)!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-office-work-hub]
+ [data-office-work-toolbar]>label{
+  flex:1 1 auto!important;display:flex!important;align-items:center!important;
+  width:100%!important;min-width:0!important;max-width:100%!important;
+  box-sizing:border-box!important;
+  background:var(--office-ui-surface-alt)!important;
+  color:var(--office-ui-ink)!important;border-color:var(--office-ui-line)!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-office-work-hub]
+ [data-office-work-toolbar]>label input{
+  flex:1 1 auto!important;width:100%!important;min-width:0!important;
+  background:transparent!important;border:0!important;
+  color:var(--office-ui-ink)!important;
+}
+/* Data-driven hooks for chat UI; generated module hashes may change. */
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+ [data-chat-day-divider="true"]{
+  display:flex!important;justify-content:center!important;align-items:center!important;
+  width:100%!important;min-width:0!important;min-height:30px!important;
+  margin:4px auto 9px!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+ [data-chat-day-divider="true"] span{
+  display:inline-flex!important;align-items:center!important;
+  justify-content:center!important;min-height:29px!important;
+  padding:6px 14px!important;border:1px solid var(--office-ui-line)!important;
+  border-radius:999px!important;background:var(--office-ui-surface)!important;
+  color:var(--office-ui-muted)!important;font-size:11px!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+ [data-chat-message-line="true"]{
+  display:block!important;margin:0!important;min-width:0!important;
+  color:var(--office-ui-ink)!important;white-space:pre-wrap!important;
+  line-height:1.48!important;font-size:13px!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+ [data-chat-message-line="true"] time{
+  display:inline-block!important;margin-left:7px!important;
+  color:var(--office-ui-muted)!important;font-size:10px!important;
+  white-space:nowrap!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+ [data-chat-message-actions="true"]{
+  position:absolute!important;top:4px!important;right:4px!important;
+  width:30px!important;height:30px!important;max-width:none!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+ [data-chat-action-menu="true"]{
+  position:absolute!important;display:grid!important;
+  grid-template-columns:1fr!important;gap:2px!important;
+  top:34px!important;right:0!important;left:auto!important;
+  width:min(226px,calc(100vw - 28px))!important;
+  max-height:65dvh!important;overflow-y:auto!important;
+  padding:6px!important;border:1px solid var(--office-ui-line)!important;
+  border-radius:12px!important;background:var(--office-ui-surface)!important;
+  box-shadow:0 15px 35px rgba(0,0,0,.24)!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+ [data-chat-action-menu="true"] :is(a,button){
+  display:flex!important;align-items:center!important;justify-content:flex-start!important;
+  gap:10px!important;width:100%!important;height:auto!important;
+  min-height:40px!important;max-width:none!important;padding:8px 10px!important;
+  color:var(--office-ui-ink)!important;background:transparent!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+ [data-chat-action-menu="true"] :is(a,button):hover{
+  color:var(--office-ui-accent)!important;background:var(--office-ui-surface-alt)!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-timeline]
+ [data-chat-message-files="true"] .chat-inline-media :is(img,video){
+  box-sizing:border-box!important;max-width:100%!important;
+  border-radius:15px!important;border:1px solid var(--office-ui-line)!important;
+}
+@media(max-width:850px){
+ .kravia-office .office-v2.office-modern .office-main [data-office-collab-controls]{
+   grid-template-columns:minmax(0,1fr)!important;
+ }
+ .kravia-office .office-v2.office-modern .office-main [data-worktime-summary]{
+   grid-template-columns:repeat(2,minmax(0,1fr))!important;
+ }
+}
+@media(max-width:440px){
+ .kravia-office .office-v2.office-modern .office-main [data-worktime-summary]{
+   grid-template-columns:minmax(0,1fr)!important;
+ }
+}

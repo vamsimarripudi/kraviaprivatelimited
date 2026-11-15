@@ -209,7 +209,7 @@ export function OfficeVaultSecretLocker(){
   {notice?<p className={styles.notice} role="status"><ShieldCheck size={16}/>{notice}</p>:null}
   {error?<div className={styles.error} role="alert"><AlertTriangle size={17}/>{error}
     <button type="button" onClick={()=>{setLoading(true);setRefresh(x=>x+1);}}>Retry</button></div>:null}
-  {loading?<p className={styles.empty} role="status" aria-busy="true">Verifying AAL2, managed device and document grants…</p>:null}
+  {loading?<p className={styles.empty} role="status" aria-busy="true">Verifying current device assurance and document grants…</p>:null}
   {!loading&&data?<><div className={styles.metrics}>
     <article><span>Accessible evidence references</span><strong>{data.documents.length}</strong></article>
     <article><span>Pending independent reviews</span><strong>{data.documents.flatMap(d=>d.versions).filter(v=>v.review_state==="PENDING").length}</strong></article>

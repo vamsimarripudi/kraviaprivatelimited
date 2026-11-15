@@ -173,6 +173,25 @@ export async function transitionOfficeSupportCase(input: { caseId: string; statu
   return { status: data };
 }
 
+/** Audited support-team case conversation, independent of status/refund changes. */
+export async function replyOfficeSupportCase(input:{caseId:string;body:string}){
+  const write=await writableCase(input.caseId);
+  const body=input.body.trim();
+  if(body.length<1||body.length>4000)
+    throw new OfficeSupportError(400,"Support reply must contain 1–4000 characters");
+  if(write.supportCase.status==="CLOSED")
+    throw new OfficeSupportError(409,"Closed support cases are read-only");
+  const {data:event,error}=await write.admin.from("office_support_case_events").insert({
+    case_id:input.caseId,actor_user_id:write.identity.userId,
+    event_type:"CASE_REPLY",note:body,
+    previous_status:write.supportCase.status,new_status:write.supportCase.status,
+  }).select("id").single();
+  if(error||!event)throw new OfficeSupportError(503,"Support reply was not recorded");
+  await dispatchOfficeSupportNotice(write.admin,input.caseId,write.identity.userId,
+    "REPLY_"+String(event.id)).catch(()=>{});
+  return {reply_id:String(event.id)};
+}
+
 export async function requestOfficeSupportRefund(input: { caseId: string; amountMinor: number; currency: string; reason: string }) {
   const write = await writableCase(input.caseId);
   const supportCase = write.supportCase;

@@ -1,11 +1,11 @@
 "use client";
 import {useState,type FormEvent} from "react";
 import Link from "next/link";
-import {Bookmark,CornerDownRight,Edit3,Flag,History,Pin,PinOff,Trash2,SmilePlus} from "lucide-react";
+import {Bookmark,CornerDownRight,Edit3,Flag,History,Pin,PinOff,Trash2,SmilePlus,MoreHorizontal} from "lucide-react";
 import styles from "./office-connect-message-actions.module.css";
 type Reaction={emoji:string;count:number;mine:boolean};
 type Props={id:string;body:string;own:boolean;pinned?:boolean;canPin?:boolean;
- reactions?:Reaction[];editedAt?:string|null;onDone:()=>void};
+ reactions?:Reaction[];editedAt?:string|null;sentAt?:string;onDone:()=>void;menuOpen?:boolean;onToggleMenu?:()=>void};
 type RevisionResponse={created_at:string;edited_at:string|null;current_body:string;
  previous_versions:{id:number;body:string;revised_at:string}[]};
 async function mutation<T>(url:string,method:string,payload?:Record<string,unknown>):Promise<T>{
@@ -15,7 +15,11 @@ async function mutation<T>(url:string,method:string,payload?:Record<string,unkno
  if(!response.ok)throw new Error(data.detail||"Action not confirmed");
  return data;
 }
-export function OfficeConnectMessageActions({id,body,own,pinned=false,canPin=false,reactions=[],editedAt,onDone}:Props){
+export function OfficeConnectMessageActions({id,body,own,pinned=false,canPin=false,reactions=[],editedAt,sentAt,onDone,menuOpen,onToggleMenu}:Props){
+ const [localMenuOpen,setLocalMenuOpen]=useState(false);
+ const isOpen=menuOpen??localMenuOpen;
+ const toggleMenu=onToggleMenu??(()=>setLocalMenuOpen(value=>!value));
+ const [infoOpen,setInfoOpen]=useState(false);
  const [editing,setEditing]=useState(false);
  const [remove,setRemove]=useState(false);
  const [draft,setDraft]=useState(body);
@@ -93,25 +97,42 @@ export function OfficeConnectMessageActions({id,body,own,pinned=false,canPin=fal
   catch(e){setNotice(e instanceof Error?e.message:"Deletion not confirmed")}
   finally{setBusy(false)}
  }
- return <div className={styles.actions}>
-  <nav aria-label="Message actions">
-   <Link href={"/office/chat/threads/"+id} aria-label="Reply in thread" title="Reply in thread"><CornerDownRight size={16}/></Link>
+ return <div className={styles.actions} data-chat-message-actions="true" data-open={isOpen}>
+  <button className={styles.menuTrigger} data-chat-action-trigger="true" type="button" title="Message actions"
+    aria-label="Message actions" aria-expanded={isOpen} aria-controls={"office-message-actions-"+id}
+    onClick={toggleMenu}><MoreHorizontal size={17}/></button>
+  {isOpen?<nav data-chat-action-menu="true" id={"office-message-actions-"+id} aria-label="Message actions">
+   <button type="button" aria-label="Message information" title="Message information"
+     aria-expanded={infoOpen} onClick={()=>setInfoOpen(v=>!v)}>
+     <History size={16}/><span>Message details</span>
+   </button>
+   <Link href={"/office/chat/threads/"+id} aria-label="Reply in thread" title="Reply in thread"><CornerDownRight size={16}/><span>Reply in thread</span></Link>
    <button type="button" aria-label="Save message" title="Save" disabled={busy}
-     onClick={()=>void save()}><Bookmark size={16}/></button>
+     onClick={()=>void save()}><Bookmark size={16}/><span>Save message</span></button>
    {canPin?<button type="button" aria-label={pinned?"Unpin message":"Pin message"} title={pinned?"Unpin":"Pin"}
-     disabled={busy} onClick={()=>void togglePin()}>{pinned?<PinOff size={16}/>:<Pin size={16}/>}</button>:null}
+     disabled={busy} onClick={()=>void togglePin()}>{pinned?<PinOff size={16}/>:<Pin size={16}/>}<span>{pinned?"Unpin":"Pin message"}</span></button>:null}
    {own?<button type="button" aria-label="Edit message" title="Edit" disabled={busy}
-     onClick={()=>{setDraft(body);setEditing(true);setRemove(false);}}><Edit3 size={16}/></button>:null}
+     onClick={()=>{setDraft(body);setEditing(true);setRemove(false);}}><Edit3 size={16}/><span>Edit</span></button>:null}
    {own?<button type="button" aria-label="Remove message" title="Remove" disabled={busy}
-     onClick={()=>{setRemove(true);setEditing(false);}}><Trash2 size={16}/></button>:null}
+     onClick={()=>{setRemove(true);setEditing(false);}}><Trash2 size={16}/><span>Remove</span></button>:null}
    {editedAt?<button type="button" aria-label="Message edit history" title="History"
-     disabled={busy} aria-expanded={historyOpen} onClick={()=>void toggleHistory()}><History size={16}/></button>:null}
+     disabled={busy} aria-expanded={historyOpen} onClick={()=>void toggleHistory()}><History size={16}/><span>Edit history</span></button>:null}
    <button type="button" aria-label="Confidentially report message" title="Report" disabled={busy}
      aria-expanded={reportOpen}
-     onClick={()=>{setReportOpen(open=>!open);setEditing(false);setRemove(false);}}><Flag size={16}/></button>
+     onClick={()=>{setReportOpen(open=>!open);setEditing(false);setRemove(false);}}><Flag size={16}/><span>Report</span></button>
    <button type="button" aria-label="React to message" title="React" aria-expanded={reactionsExpanded}
-     disabled={busy} onClick={()=>setReactionsExpanded(v=>!v)}><SmilePlus size={16}/></button>
-  </nav>
+     disabled={busy} onClick={()=>setReactionsExpanded(v=>!v)}><SmilePlus size={16}/><span>React</span></button>
+  </nav>:null}
+  {infoOpen&&isOpen?<section className={styles.details} data-chat-action-details="true" aria-label="Message information">
+    <strong>Message details</strong>
+    {sentAt?<time dateTime={sentAt}>{new Date(sentAt).toLocaleString("en-IN",{
+      dateStyle:"medium",timeStyle:"short",timeZone:"Asia/Kolkata"})}</time>:
+      <span>Timestamp unavailable</span>}
+    <span>{own?"Sent by you":"Received in this conversation"}</span>
+    <span>{editedAt?"Edited message":"Original text"} · {pinned?"Pinned":"Not pinned"}</span>
+    <small>Delivery and read receipts are not inferred.</small>
+    <button type="button" onClick={()=>setInfoOpen(false)}>Back to actions</button>
+  </section>:null}
   {reactionsExpanded?<div className={styles.reactions} role="group" aria-label="Message reactions">
    {["👍","❤️","✅","🎉","👀","🤔"].map(emoji=>{
     const current=reactions.find(reaction=>reaction.emoji===emoji);

@@ -9,6 +9,8 @@ import {
   UsersRound, X,
 } from "lucide-react";
 import styles from "./office-connect-mobile-home.module.css";
+import {useOfficeWorkspace} from "@/components/office-workspace-context";
+import {OfficeConnectRoleInbox,type RoleInboxKind} from "@/components/office-connect-role-inbox";
 
 type Conversation = {
   id: string; kind: string; title: string;
@@ -58,6 +60,10 @@ export function OfficeConnectMobileHome({
   liveRevision: number;
   onRefresh: () => void;
 }) {
+  const {permissions}=useOfficeWorkspace();
+  const showIT=permissions.includes("it.service.manage")||permissions.includes("it.service.read");
+  const showSupport=permissions.includes("support.case.read")||permissions.includes("support.case.manage");
+  const [workspaceMode,setWorkspaceMode]=useState<"chats"|RoleInboxKind>("chats");
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [screen, setScreen] = useState<"home" | "chats">("home");
   const [moreOpen, setMoreOpen] = useState(false);
@@ -152,7 +158,18 @@ export function OfficeConnectMobileHome({
         aria-label="Saved messages"><Bookmark size={20} aria-hidden="true"/></Link>
     </div>
 
-    <section className={styles.inbox} aria-label="Connect messages" aria-live="polite" aria-busy={loading || (unreadOnly && unreadState === "loading")}>
+    {showIT||showSupport?<nav className={styles.roleTabs} aria-label="Available Connect workspaces">
+      <button type="button" data-active={workspaceMode==="chats"}
+        aria-pressed={workspaceMode==="chats"} onClick={()=>setWorkspaceMode("chats")}>Chats</button>
+      {showIT?<button type="button" data-active={workspaceMode==="it"}
+        aria-pressed={workspaceMode==="it"} onClick={()=>setWorkspaceMode("it")}>IT tickets</button>:null}
+      {showSupport?<button type="button" data-active={workspaceMode==="support"}
+        aria-pressed={workspaceMode==="support"} onClick={()=>setWorkspaceMode("support")}>Support</button>:null}
+    </nav>:null}
+
+    <section className={styles.inbox} aria-label="Connect messages" aria-live="polite"
+      aria-busy={workspaceMode==="chats"&&(loading||(unreadOnly&&unreadState==="loading"))}>
+      {workspaceMode==="chats"?<>
       {loading ? <p className={styles.loadState} role="status">Loading your conversations…</p> : null}
       {!loading && error ? <div className={styles.failState} role="alert">
         <strong>Conversations unavailable</strong><p>{error}</p>
@@ -190,6 +207,7 @@ export function OfficeConnectMobileHome({
           </Link>;
         })}
       </nav> : null}
+      </>:<OfficeConnectRoleInbox kind={workspaceMode}/>}
     </section>
 
     <div className={styles.bottomControls}>

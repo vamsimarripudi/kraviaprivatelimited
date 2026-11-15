@@ -176,7 +176,7 @@ export function OfficeWorktimeConsole() {
       }
     } catch (e) { setError(e instanceof Error ? e.message : "Invalid worktime input"); }
   }
-  return <section className={styles.shell}>
+  return <section className={styles.shell} data-office-worktime="true">
     <header className={styles.header}>
       <div><span className={styles.eyebrow}>KRAVIA OFFICE · WORKFORCE</span><h2>Worktime, Flex Days & Wage Records</h2>
         <p>Flexible six-hour weekdays · 30 net hours Monday-Friday · no fixed shift · track breaks · OT requires independent approval</p></div>
@@ -191,7 +191,7 @@ export function OfficeWorktimeConsole() {
     {notice ? <div className={styles.notice}><CheckCircle2 size={18}/>{notice}<button onClick={() => setNotice("")} aria-label="Dismiss notification"><X size={15}/></button></div> : null}
     {!data ? <p className={styles.loading}><LoaderCircle size={17}/>Loading verified attendance and payroll evidence…</p> :
       <>
-        <div className={styles.summary}>
+        <div className={styles.summary} data-worktime-summary="true">
           <article><Timer size={20}/><small>Daily tracked work</small><strong>{formatHours(data.attendance_targets.today?.total_minutes ?? 0)}</strong><span>6 net hours on weekdays · {formatHours(data.attendance_targets.today?.remaining_minutes ?? 0)} remaining</span></article>
           <article><CalendarClock size={20}/><small>Current weekly worktime</small><strong>{formatHours(data.attendance_targets.current_week?.tracked_minutes ?? 0)}</strong><span>30h target Mon-Fri · {formatHours(data.attendance_targets.current_week?.remaining_minutes ?? 0)} remaining</span></article>
           <article><ShieldCheck size={20}/><small>Recorded / approved historical</small><strong>{formatHours(data.attendance_targets.total_minutes)}</strong><span>{formatHours(data.attendance_targets.approved_historical_minutes)} in historical approvals · selected month</span></article>

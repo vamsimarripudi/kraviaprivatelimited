@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowLeft, MessageSquareText, RefreshCw, Search, Send, Paperclip, Pin, UsersRound, Smile, Image, Video, FileText, FileImage, BookMarked, Plus, X, Wifi, WifiOff } from "lucide-react";
 import styles from "./office-connect.module.css";
@@ -31,6 +31,16 @@ const QUICK_TEMPLATES:MessageTemplate[]=[
   {title:"Status request",body:"Could you share the current status and any blockers when convenient?"},
   {title:"Acknowledgement",body:"Received, thank you. I will review and follow up."},
 ];
+function messageDay(date:string){
+ const parsed=new Date(date);
+ return Number.isNaN(parsed.valueOf())?"Unknown date":
+ new Intl.DateTimeFormat("en-IN",{timeZone:"Asia/Kolkata",day:"numeric",month:"short",year:"numeric"}).format(parsed);
+}
+function messageTime(date:string){
+ const parsed=new Date(date);
+ return Number.isNaN(parsed.valueOf())?"":
+ new Intl.DateTimeFormat("en-IN",{timeZone:"Asia/Kolkata",hour:"numeric",minute:"2-digit",hour12:true}).format(parsed);
+}
 const MAX_CHAT_UPLOAD_BYTES=4_194_304; // Vercel Function request body is capped at 4.5 MB; reserve multipart overhead.
 // Railway has not deployed the new content-signature scanner yet. Allow only the
 // four MIME types already supported by the live API until explicitly enabled
@@ -60,6 +70,11 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
   const conversationRef=useRef<string|null>(null);
   const historyInitialized=useRef(false);
   const timelineRef=useRef<HTMLDivElement|null>(null);
+  const holdTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const [menuFor,setMenuFor]=useState<string|null>(null);
+  function cancelMessageHold(){
+    if(holdTimer.current!==null){clearTimeout(holdTimer.current);holdTimer.current=null;}
+  }
   const scrollIntent=useRef<"initial"|"older"|null>(null);
   const scrollAnchor=useRef<{top:number;height:number}|null>(null);
   const [canPin,setCanPin]=useState(false);
@@ -438,12 +453,26 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
             {olderError?<p role="alert" className={styles.olderError}>{olderError}
              <button type="button" disabled={olderLoading} onClick={()=>void loadOlder()}>Retry</button></p>:null}
             {!waitingMessage && !messageError && !visibleMessages.length ? <div className={styles.empty}>No messages yet. Start the conversation below.</div> : null}
-            {visibleMessages.map(message => <article key={message.id} className={styles.message} data-own={message.sender_user_id === actor}>
+            {visibleMessages.map((message,index) => <Fragment key={message.id}>
+             {index===0||messageDay(visibleMessages[index-1].created_at)!==messageDay(message.created_at)?
+               <div className={styles.dateDivider} data-chat-day-divider="true" role="separator" aria-label={"Messages on "+messageDay(message.created_at)}>
+                 <span>{messageDay(message.created_at)}</span>
+               </div>:null}
+             <article className={styles.message} data-own={message.sender_user_id === actor}
+               data-actions-open={menuFor===message.id}
+               onContextMenu={event=>{event.preventDefault();cancelMessageHold();setMenuFor(message.id);}}
+               onPointerDown={event=>{if(event.pointerType==="touch"){
+                 cancelMessageHold();holdTimer.current=setTimeout(()=>setMenuFor(message.id),520);
+               }}}
+               onPointerUp={cancelMessageHold} onPointerCancel={cancelMessageHold} onPointerLeave={cancelMessageHold}
+               onKeyDown={event=>{if(event.key==="F10"&&event.shiftKey){event.preventDefault();setMenuFor(message.id);}}}>
               <strong>{message.sender_user_id === actor ? "You" : message.sender_name}</strong>
               {message.pinned?<span className={styles.pinned}><Pin size={13} aria-hidden="true"/>Pinned in this conversation</span>:null}
-              <p>{message.body}</p>
-              <time dateTime={message.created_at}>{new Date(message.created_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</time>
-              {message.attachments?.length?<div className={styles.messageFiles} aria-label="Scanned shared attachments">
+              <div className={styles.messageLine} data-chat-message-line="true">
+               <span>{message.body}</span>
+               <time dateTime={message.created_at}>{messageTime(message.created_at)}</time>
+              </div>
+              {message.attachments?.length?<div className={styles.messageFiles} data-chat-message-files="true" aria-label="Scanned shared attachments">
                 {message.attachments.map(file=><div key={file.id} className="chat-inline-media">
                   {["image/jpeg","image/png","image/webp","image/gif"].includes(file.mime)?
                    // Only server-authorized CLEAN linked message attachments may load.
@@ -461,9 +490,13 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
                    <Paperclip size={14}/>{file.name} · {Math.ceil(file.size/1024)} KiB</a>
                  </div>)}
               </div>:null}
-              <OfficeConnectMessageActions id={message.id} body={message.body} editedAt={message.edited_at}
-                pinned={message.pinned} canPin={canPin} reactions={message.reactions??[]} own={message.sender_user_id===actor} onDone={()=>setReloadCount(v=>v+1)}/>
-            </article>)}
+              <OfficeConnectMessageActions id={message.id} body={message.body} editedAt={message.edited_at} sentAt={message.created_at}
+                pinned={message.pinned} canPin={canPin} reactions={message.reactions??[]}
+                own={message.sender_user_id===actor} menuOpen={menuFor===message.id}
+                onToggleMenu={()=>setMenuFor(id=>id===message.id?null:message.id)}
+                onDone={()=>setReloadCount(v=>v+1)}/>
+             </article>
+            </Fragment>)}
             {pendingMessage?<article className={styles.message} data-own="true" data-chat-pending="true">
               <strong>You · sending…</strong><p>{pendingMessage.body}</p>
             </article>:null}

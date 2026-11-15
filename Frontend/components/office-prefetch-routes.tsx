@@ -8,13 +8,13 @@ export function OfficePrefetchRoutes({ hrefs }: { hrefs: readonly string[] }) {
 
   useEffect(() => {
     let cancelled = false;
-    const unique = Array.from(new Set(hrefs)).slice(0, 20);
+    const unique = Array.from(new Set(hrefs)).slice(0, 8);
     const warm = () => {
       if (cancelled) return;
       unique.forEach((href, index) => {
         window.setTimeout(() => {
           if (!cancelled) router.prefetch(href);
-        }, index * 35);
+        }, index * 120);
       });
     };
 

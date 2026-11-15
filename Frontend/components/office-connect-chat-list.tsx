@@ -7,6 +7,8 @@ import {
   Plus,RefreshCw,Search,UsersRound,
 } from "lucide-react";
 import type {OfficeInboxLiveState} from "@/lib/office/use-office-chat-inbox-live";
+import {useOfficeWorkspace} from "@/components/office-workspace-context";
+import {OfficeConnectRoleInbox,type RoleInboxKind} from "@/components/office-connect-role-inbox";
 import styles from "./office-connect-chat-list.module.css";
 
 type Conversation={
@@ -34,6 +36,10 @@ export function OfficeConnectChatList({
   loading:boolean;error:string;liveRevision:number;liveState:OfficeInboxLiveState;
   onRefresh:()=>void;
 }){
+  const {permissions}=useOfficeWorkspace();
+  const showIT=permissions.includes("it.service.manage")||permissions.includes("it.service.read");
+  const showSupport=permissions.includes("support.case.read")||permissions.includes("support.case.manage");
+  const [workspaceMode,setWorkspaceMode]=useState<"chats"|RoleInboxKind>("chats");
   const [filter,setFilter]=useState<Filter>("all");
   const [query,setQuery]=useState("");
   const [unread,setUnread]=useState<UnreadResult|null>(null);
@@ -81,6 +87,18 @@ export function OfficeConnectChatList({
         <Link href="/office/chat/directory" className={styles.create} aria-label="New message" title="New message"><Plus size={21}/></Link>
       </div>
     </div>
+    {showIT||showSupport?<div className={styles.workspaces} role="group" aria-label="Assigned chat workspaces">
+      <button type="button" data-active={workspaceMode==="chats"}
+        aria-pressed={workspaceMode==="chats"} onClick={()=>setWorkspaceMode("chats")}>
+        Chats</button>
+      {showIT?<button type="button" data-active={workspaceMode==="it"}
+        aria-pressed={workspaceMode==="it"} onClick={()=>setWorkspaceMode("it")}>
+        IT tickets</button>:null}
+      {showSupport?<button type="button" data-active={workspaceMode==="support"}
+        aria-pressed={workspaceMode==="support"} onClick={()=>setWorkspaceMode("support")}>
+        Support</button>:null}
+    </div>:null}
+    {workspaceMode==="chats"?<>
     <div className={styles.searchWrap}>
       <label className={styles.search}>
         <Search size={18} aria-hidden="true"/>
@@ -133,6 +151,7 @@ export function OfficeConnectChatList({
         </Link>;
       }):null}
     </div>
+    </>:<OfficeConnectRoleInbox kind={workspaceMode}/>}
     <div className={styles.foot}><span data-state={liveState} aria-hidden="true"><Check size={14}/></span>
       <small>{liveState==="live"?"Live private messaging":liveState==="restricted"?
         "Chat access changed":"Secure refresh enabled"}</small>

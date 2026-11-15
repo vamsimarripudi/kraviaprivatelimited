@@ -270,7 +270,7 @@ function WorkspaceDashboard({ workspace, section, identity, permissions }: { wor
         <summary>More work context <span>Company inbox · Recent activity</span></summary>
         <div className="office-dashboard-extras-content"><OfficeCompanyInbox compact /><OfficeActivityTimeline /></div>
       </details>
-    </> : <section className="workspace-hero-panel"><div><p className="eyebrow">VERIFIED AAL2 SESSION</p><h2>Finance work without mixing ownership, tax and treasury.</h2></div><ShieldCheck aria-hidden="true" /></section>}
+    </> : <section className="workspace-hero-panel"><div><p className="eyebrow">VERIFIED FINANCE WORKSPACE</p><h2>Finance work without mixing ownership, tax and treasury.</h2></div><ShieldCheck aria-hidden="true" /></section>}
     <details className="office-dashboard-extras office-dashboard-resources">
       <summary>Explore your other workspaces <span>Role-specific tools and records</span></summary>
       {runtime && !onlyShellRoles ? <WorkspaceRuntimePanel title={workspace === "finance" ? "Finance overview" : "Office overview"} spec={runtime} /> : null}

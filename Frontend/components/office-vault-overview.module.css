@@ -10,3 +10,11 @@
 @media(max-width:1250px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.columns{grid-template-columns:1fr}}
 @media(max-width:767px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metrics article{padding:12px}.panel{padding:14px}.quick{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:375px){.quick{grid-template-columns:1fr}.metrics article{padding:10px}}
+
+/* Private upload access is advertised only when the effective uploader permission exists. */
+.uploadEntry{display:flex;align-items:center;gap:13px;min-width:0;max-width:100%;padding:15px 16px;box-sizing:border-box;border:1px solid var(--office-ui-line);border-radius:14px;background:var(--office-ui-surface);color:var(--office-ui-ink)}
+.uploadIcon{display:grid;place-items:center;flex:none;width:47px;height:47px;border-radius:12px;background:var(--office-ui-surface-alt);color:var(--office-ui-accent)}
+.uploadEntry>div{flex:1;display:grid;gap:5px;min-width:0}.uploadEntry h2{margin:0!important;color:var(--office-ui-ink)!important;font-size:16px!important}.uploadEntry p{margin:0!important;line-height:1.5;color:var(--office-ui-muted);font-size:12px}.uploadEntry small{font-size:10px;color:var(--office-ui-muted);line-height:1.5}
+.uploadEntry>a{display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:none;min-height:42px;padding:9px 12px;border:1px solid var(--office-ui-line);border-radius:10px;background:#1559ce;color:#fff;text-decoration:none;font-size:12px;font-weight:670}
+.uploadEntry>a svg{flex:none}.uploadEntry>a:hover{background:#0b49b6}
+@media(max-width:850px){.uploadEntry{flex-wrap:wrap;padding:12px}.uploadEntry>div{flex-basis:calc(100% - 65px)}.uploadEntry>a{width:100%}}

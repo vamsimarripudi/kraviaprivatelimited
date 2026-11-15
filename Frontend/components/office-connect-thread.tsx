@@ -15,6 +15,9 @@ export function OfficeConnectThread({id}:{id:string}){
  const [draft,setDraft]=useState("");
  const [sending,setSending]=useState(false);
  const nonce=useRef<string|null>(null);
+ const hold=useRef<ReturnType<typeof setTimeout>|null>(null);
+ const [menuFor,setMenuFor]=useState<string|null>(null);
+ function endHold(){if(hold.current!==null){clearTimeout(hold.current);hold.current=null;}}
  useEffect(()=>{
   let live=true;
   void (async()=>{try{
@@ -48,11 +51,21 @@ export function OfficeConnectThread({id}:{id:string}){
    <button type="button" onClick={()=>{setLoading(true);setRetry(v=>v+1);}}>Retry</button></div>:null}
   {notice?<p className={styles.notice} role="status">{notice}</p>:null}
   {data?<div className={styles.messages}>
-   {data.messages.map((message,i)=><article key={message.id} data-parent={i===0}>
+   {data.messages.map((message,i)=><article key={message.id} data-parent={i===0}
+    data-actions-open={menuFor===message.id}
+    onContextMenu={event=>{event.preventDefault();endHold();setMenuFor(message.id);}}
+    onPointerDown={event=>{if(event.pointerType==="touch"){
+      endHold();hold.current=setTimeout(()=>setMenuFor(message.id),520);
+    }}}
+    onPointerCancel={endHold} onPointerUp={endHold} onPointerLeave={endHold}>
     <div><strong>{message.sender_name}</strong><time dateTime={message.created_at}>
      {new Date(message.created_at).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"})}
     </time></div><p>{message.body}</p>
-    <OfficeConnectMessageActions id={message.id} body={message.body} own={message.sender_user_id===data.actor_user_id} onDone={()=>setRetry(v=>v+1)}/>
+    <OfficeConnectMessageActions id={message.id} body={message.body}
+      sentAt={message.created_at} own={message.sender_user_id===data.actor_user_id}
+      menuOpen={menuFor===message.id}
+      onToggleMenu={()=>setMenuFor(x=>x===message.id?null:message.id)}
+      onDone={()=>setRetry(v=>v+1)}/>
    </article>)}
   </div>:null}
   {data?<form className={styles.composer} onSubmit={submit}>

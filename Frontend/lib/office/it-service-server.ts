@@ -59,9 +59,15 @@ export async function getOfficeItOverview() {
   }
 
   const ticketIds = (ticketResult.data ?? []).map((row) => String(row.id));
-  const events = ticketIds.length && (manage || readCompany)
-    ? await current.admin.from("office_it_events").select("id,ticket_id,license_id,assignment_id,actor_user_id,event_type,previous_status,new_status,note,metadata,created_at").in("ticket_id", ticketIds).order("created_at", { ascending: false }).limit(800)
-    : { data: [], error: null };
+  // The requester can read explicit ticket replies; internal transition notes
+  // and privileged audit metadata remain visible only to IT managers/readers.
+  const eventQuery = current.admin.from("office_it_events")
+    .select("id,ticket_id,license_id,assignment_id,actor_user_id,event_type,previous_status,new_status,note,metadata,created_at")
+    .in("ticket_id",ticketIds.length?ticketIds:["00000000-0000-0000-0000-000000000000"])
+    .order("created_at",{ascending:false}).limit(800);
+  const events = ticketIds.length
+    ? await (manage || readCompany ? eventQuery : eventQuery.eq("event_type","TICKET_REPLY"))
+    : {data:[],error:null};
   if (events.error) throw new OfficeItError(503, "IT service history is temporarily unavailable");
 
   return {
@@ -108,6 +114,32 @@ export async function transitionItTicket(input: { ticketId: string; status: stri
   if (error || typeof data !== "string") throw new OfficeItError(400, error?.message ?? "Unable to update IT ticket");
   await dispatchOfficeITNotice(current.admin,input.ticketId,current.identity.userId,data).catch(()=>{});
   return { status: data };
+}
+
+/** First-party ticket conversation. Only the verified requester/owner or an
+ * effective IT service manager may add a note; status and access never change.
+ */
+export async function replyOfficeItTicket(input:{ticketId:string;body:string}) {
+  const current=await actor();
+  const body=input.body.trim();
+  if(body.length<1||body.length>1000)throw new OfficeItError(400,"Reply must contain 1–1000 characters");
+  const {data:ticket,error:readError}=await current.admin.from("office_it_service_tickets")
+    .select("id,requester_user_id,owner_user_id,status").eq("id",input.ticketId).maybeSingle();
+  if(readError)throw new OfficeItError(503,"Ticket permission read unavailable");
+  if(!ticket)throw new OfficeItError(404,"IT ticket unavailable");
+  const participant=current.identity.userId===ticket.requester_user_id
+    ||current.identity.userId===ticket.owner_user_id;
+  const manages=participant?false:await can(current,"it.service.manage");
+  if(!participant&&!manages)throw new OfficeItError(404,"IT ticket unavailable");
+  if(["CLOSED","CANCELLED"].includes(ticket.status))throw new OfficeItError(409,"Closed tickets are read-only");
+  const {data:event,error:insertError}=await current.admin.from("office_it_events").insert({
+    ticket_id:input.ticketId,actor_user_id:current.identity.userId,
+    event_type:"TICKET_REPLY",note:body,previous_status:ticket.status,new_status:ticket.status,
+  }).select("id").single();
+  if(insertError||!event)throw new OfficeItError(503,"IT reply was not recorded");
+  await dispatchOfficeITNotice(current.admin,input.ticketId,current.identity.userId,
+    "REPLY_"+String(event.id)).catch(()=>{});
+  return {reply_id:String(event.id)};
 }
 
 export async function createSoftwareLicense(input: { ownerUserId: string; vendor: string; product: string; plan?: string; cycle?: string; seats?: number; currency?: string; costMinor?: number; renewalAt?: string; noticeAt?: string; autoRenew?: boolean; contractReference?: string; procurementReference?: string }) {

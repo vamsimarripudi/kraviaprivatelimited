@@ -74,10 +74,10 @@ export function OfficeNotificationCenter() {
 
   if (!data && !error) return <section className={styles.state}><LoaderCircle className="spin" /><div><h2>Opening notifications</h2><p>Resolving your private Office inbox.</p></div></section>;
 
-  return <section className={styles.shell}>
+  return <section className={styles.shell} data-office-notification-center="true">
     <header className={styles.hero}><div><p>NOTIFICATION CENTER</p><h2>Signals that need your attention.</h2><span>{data?.unread ?? 0} unread · personal to your Office identity</span></div><button type="button" disabled={!data?.unread || Boolean(busy)} onClick={() => void mutate("READ_ALL")}><CheckCheck /> Mark all read</button></header>
     {error ? <div className={styles.error}>{error}</div> : null}
-    <div className={styles.toolbar}><label><Search /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search notifications" /></label><strong>{rows.length} visible</strong></div>
+    <div className={styles.toolbar} data-office-notification-toolbar="true"><label><Search /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search notifications" /></label><strong>{rows.length} visible</strong></div>
     <div className={styles.list}>{rows.length ? rows.map((item) => <article className={styles.item} key={item.id} data-unread={item.status === "UNREAD"}>
       <div className={styles.icon}>{item.status === "UNREAD" ? <Circle /> : <MailOpen />}</div>
       <div className={styles.copy}><div><span>{item.kind.replaceAll("_", " ")}</span><small>{readable(item.created_at)}</small></div><h3>{item.title}</h3><p>{item.body}</p>{item.target_path ? <Link href={safeNotificationHref(item.target_path)}>Open related record →</Link> : item.request_id ? <Link href="/office/requests">Open related request →</Link> : null}</div>

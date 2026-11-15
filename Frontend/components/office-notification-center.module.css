@@ -5,3 +5,31 @@
 .toolbar label{border-radius:13px;background:rgba(255,255,255,.8);box-shadow:0 8px 20px rgba(12,31,22,.03)}
 .item{border-radius:16px;background:rgba(255,255,255,.76);box-shadow:0 10px 26px rgba(12,31,22,.035);backdrop-filter:blur(14px);transition:transform 160ms ease,border-color 160ms ease,box-shadow 160ms ease}.item:hover{transform:translateY(-2px);border-color:rgba(37,95,73,.16);box-shadow:0 16px 32px rgba(12,31,22,.06)}.item[data-unread="true"]{background:linear-gradient(90deg,rgba(235,246,239,.88),rgba(255,255,255,.78));box-shadow:inset 3px 0 0 #2f6a52,0 10px 26px rgba(12,31,22,.035)}.icon{border-radius:11px}.actions button{border-radius:10px;transition:transform 150ms ease,background 150ms ease}.actions button:hover{transform:translateY(-1px);background:#f1f5f2}
 @media(max-width:620px){.item:hover,.actions button:hover{transform:none}}@media(prefers-reduced-motion:reduce){.item,.actions button{transition:none}}
+
+/* KRAVIA UI unification: notification surfaces follow the active Office tokens
+   in both themes, never the legacy white/green static palette. */
+.shell{min-width:0;max-width:100%;box-sizing:border-box;color:var(--office-ui-ink)}
+.hero{border:1px solid var(--office-ui-line);border-radius:15px;background:linear-gradient(135deg,#141924,#222d44);color:#f8faff;box-shadow:none}
+.hero:after{border-color:rgba(189,207,245,.12);box-shadow:none}
+.hero :is(h2,p,span){color:#eef3ff!important}
+.hero button{background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.22);color:#fff}
+.toolbar{min-width:0;max-width:100%;flex-wrap:wrap}
+.toolbar label{min-width:0;max-width:100%;box-sizing:border-box;border:1px solid var(--office-ui-line);border-radius:11px;background:var(--office-ui-surface-alt);color:var(--office-ui-muted);box-shadow:none}
+.toolbar input{flex:1;min-width:0;max-width:100%;background:transparent!important;color:var(--office-ui-ink)!important;font-size:13px}
+.toolbar strong{color:var(--office-ui-muted);font-size:11px}
+.item{min-width:0;max-width:100%;box-sizing:border-box;background:var(--office-ui-surface);color:var(--office-ui-ink);border-color:var(--office-ui-line);border-radius:12px;backdrop-filter:none;box-shadow:none}
+.item:hover{transform:none;border-color:var(--office-ui-accent);box-shadow:none}
+.item[data-unread="true"]{background:var(--office-ui-selected);border-color:var(--office-ui-line);box-shadow:inset 3px 0 var(--office-ui-accent)}
+.icon{background:var(--office-ui-surface-alt);color:var(--office-ui-accent)}
+.copy span{color:var(--office-ui-muted)}
+.copy small{color:var(--office-ui-muted)}
+.copy h3{color:var(--office-ui-ink)!important;font-size:14px}
+.copy p{color:var(--office-ui-muted)!important;font-size:12px}
+.copy a{color:var(--office-ui-accent);font-size:12px}
+.actions button{background:var(--office-ui-surface-alt);border-color:var(--office-ui-line);color:var(--office-ui-ink);font-size:12px}
+.actions button:hover{background:var(--office-ui-selected)}
+.empty,.state{min-width:0;max-width:100%;box-sizing:border-box;border:1px dashed var(--office-ui-line);background:var(--office-ui-surface-alt);color:var(--office-ui-muted)}
+.empty :is(b,h2),.state :is(b,h2){color:var(--office-ui-ink)!important}
+.empty p,.state p{color:var(--office-ui-muted)!important}
+.error{color:var(--office-ui-danger);background:var(--office-ui-surface-alt);border-color:var(--office-ui-line);font-size:12px}
+@media(max-width:767px){.shell{margin-inline:12px}.hero{padding:16px}.toolbar label{width:100%}.empty{padding:20px}}

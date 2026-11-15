@@ -99,3 +99,11 @@
 
 .typingNotice{display:flex;align-items:center;gap:8px;color:var(--office-ui-muted);font-size:12px;line-height:1.45;margin:0;padding:8px 16px;overflow-wrap:anywhere}
 .typingNotice::before{content:"";width:7px;height:7px;display:inline-block;flex:none;border-radius:50%;background:var(--office-ui-accent)}
+
+
+/* KRAVIA chat timeline: compact WhatsApp-like bubbles, source-confirmed IST dates. */
+.dateDivider{display:flex;justify-content:center;align-items:center;width:100%;min-height:34px;margin:6px 0 13px}
+.dateDivider span{display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:6px 13px;border:1px solid var(--office-ui-line);border-radius:999px;background:var(--office-ui-surface);color:var(--office-ui-muted);font-size:11px;font-weight:680;box-shadow:0 3px 12px rgba(0,0,0,.05)}
+.messageLine{display:block;min-width:0;font-size:13px;line-height:1.45;overflow-wrap:anywhere;white-space:pre-wrap;color:var(--office-ui-ink)}
+.messageLine>span{font-weight:450}
+.messageLine time{display:inline-block;white-space:nowrap;margin-left:9px;font-size:10px;line-height:1.2;color:var(--office-ui-muted);vertical-align:baseline;font-variant-numeric:tabular-nums}

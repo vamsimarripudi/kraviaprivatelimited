@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, ClipboardCheck, Clock3, FolderClosed, LockKeyhole, ShieldCheck } from "lucide-react";
+import { ArrowRight, ClipboardCheck, Clock3, FolderClosed, LockKeyhole, ShieldCheck, UploadCloud, FileLock2 } from "lucide-react";
 import { getOfficeVaultAccessCenter, OfficeVaultAccessError } from "@/lib/office/vault-access-server";
 import type { VaultCategory } from "@/lib/office/vault-categories";
 import styles from "./office-vault-overview.module.css";
@@ -17,7 +17,7 @@ function date(value: string) {
  }).format(parsed);
 }
 
-export async function OfficeVaultOverview({ categories }: { categories: VaultCategory[] }) {
+export async function OfficeVaultOverview({ categories, canUpload = false }: { categories: VaultCategory[]; canUpload?:boolean }) {
  let access: Awaited<ReturnType<typeof getOfficeVaultAccessCenter>> | null = null;
  try {
   access = await getOfficeVaultAccessCenter();
@@ -39,6 +39,18 @@ export async function OfficeVaultOverview({ categories }: { categories: VaultCat
   { label: "Pending access requests", value: access ? pending.length.toLocaleString("en-IN") : "—", note: access ? "Submitted by your identity" : "Access ledger unavailable" },
  ];
  return <div className={styles.overview} aria-label="K-Vault overview">
+  <section className={styles.uploadEntry} aria-label="Secure company document intake">
+    <span className={styles.uploadIcon}><FileLock2 size={23}/></span>
+    <div><h2>Secure document intake</h2>
+      <p>{canUpload?
+        "You may submit sealed company PDFs and documents. Uploads are encrypted and quarantined until malware scanning, independent review and current record grants are complete.":
+        "Only employees granted secure document-upload permission can add company PDFs and files. Existing records stay private to their current owners and reviewers."}
+      </p>
+      <small>Supported: PDF, JPEG, PNG, WebP, DOCX, XLSX · Maximum 10 MiB per file · No secrets or raw credentials</small>
+    </div>
+    {canUpload?<Link href="/office/k-vault/secrets"><UploadCloud size={17}/>Upload secure document</Link>:
+      <Link href="/office/k-vault/requests">Request upload access <ArrowRight size={17}/></Link>}
+  </section>
   <div className={styles.metrics}>
    {metrics.map(metric => <article key={metric.label}>
     <h2>{metric.label}</h2><strong>{metric.value}</strong><small>{metric.note}</small>

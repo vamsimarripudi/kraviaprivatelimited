@@ -182,7 +182,7 @@ export function OfficeWorkHub({ identity, mode }: { identity: OfficeIdentity; mo
         <h2>{mode === "approvals" ? "Decisions with context, authority and traceability." : mode === "manager" ? "Your team, requests and delegated decisions." : "One request center for every department."}</h2>
         <p>{overview.job?.department_code ?? identity.department ?? "KRAVIA"}{overview.job?.team_key ? ` · ${overview.job.team_key}` : ""}{overview.profiles.length ? ` · ${overview.profiles.map((profile) => profile.profile_code).join(" · ")}` : ""}</p>
       </div>
-      <div className={styles.heroActions}><button className={styles.primary} type="button" onClick={() => setNewOpen(true)}><Plus /> New request</button><span className={styles.authBadge}><ShieldCheck /> AAL2 · authz v{identity.authzVersion}</span></div>
+      <div className={styles.heroActions}><button className={styles.primary} type="button" onClick={() => setNewOpen(true)}><Plus /> New request</button><span className={styles.authBadge} title="Current company permissions enforced"><ShieldCheck /> Verified permissions</span></div>
     </section>}
 
     <section className={styles.metrics} data-office-work-metrics="true" aria-label="Work summary">
@@ -239,7 +239,7 @@ function Dashboard({ overview, onOpen, onApprove }: { overview: Overview; onOpen
 function RequestWorkspace({ overview, requests, search, setSearch, view, setView, onOpen, onNew }: { overview: Overview; requests: WorkRequest[]; search: string; setSearch: (value: string) => void; view: "list" | "board"; setView: (value: "list" | "board") => void; onOpen: (request: WorkRequest) => void; onNew: () => void }) {
   return <section className={styles.panel}>
     <div className={styles.workspaceHead}><div><p className="eyebrow">UNIVERSAL REQUEST CENTER</p><h2>Requests across every function</h2><span>One workflow model for access, people, engineering, finance, legal, product, operations and customers.</span></div><button className={styles.primary} type="button" onClick={onNew}><Plus /> New request</button></div>
-    <div className={styles.toolbar}><label><Search /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search requests, resources or status" /></label><button type="button"><Filter /> Filters</button><div className={styles.viewToggle}><button type="button" data-active={view === "list"} onClick={() => setView("list")} aria-label="List view"><LayoutList /></button><button type="button" data-active={view === "board"} onClick={() => setView("board")} aria-label="Board view"><Columns3 /></button></div></div>
+    <div className={styles.toolbar} data-office-work-toolbar="true"><label><Search /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search requests, resources or status" /></label><button type="button"><Filter /> Filters</button><div className={styles.viewToggle}><button type="button" data-active={view === "list"} onClick={() => setView("list")} aria-label="List view"><LayoutList /></button><button type="button" data-active={view === "board"} onClick={() => setView("board")} aria-label="Board view"><Columns3 /></button></div></div>
     {view === "list" ? <RequestTable requests={requests} types={overview.request_types} onOpen={onOpen} /> : <RequestBoard requests={requests} types={overview.request_types} onOpen={onOpen} />}
   </section>;
 }

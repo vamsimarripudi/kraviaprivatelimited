@@ -39,3 +39,7 @@
 .welcome>small{font-size:11px;line-height:1.5;color:var(--office-ui-muted);margin-top:9px}
 @media(max-width:900px){.head{padding:12px}.searchWrap{padding-inline:12px}.filters{padding-inline:12px}.chat{padding-inline:12px}.welcome{padding:22px 16px}}
 @media(max-width:767px){.sidebar{display:none!important}.welcome{display:none!important}}
+
+.workspaces{display:flex;gap:5px;align-items:center;padding:6px 14px 9px;border-top:1px solid var(--office-ui-line);overflow-x:auto}
+.workspaces button{display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;flex:none;min-height:33px;padding:6px 11px;border:1px solid var(--office-ui-line);border-radius:999px;background:var(--office-ui-surface);color:var(--office-ui-muted);font:inherit;font-size:11px;cursor:pointer}
+.workspaces button[data-active="true"]{background:#1a4d96;color:#fff;border-color:#3974c6}

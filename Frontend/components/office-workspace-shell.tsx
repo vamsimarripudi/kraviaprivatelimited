@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowRightLeft, BookOpen, BriefcaseBusiness, Building2, CalendarDays, ChevronDown, ChevronRight,
   ClipboardCheck, Cog, FileText, Folders, GitBranch, Landmark,
@@ -139,6 +139,7 @@ export function OfficeWorkspaceShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileNav, setMobileNav] = useState(false);
   const [megaExpanded, setMegaExpanded] = useState(true);
   const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
@@ -326,6 +327,8 @@ export function OfficeWorkspaceShell({
             {categories.map(name => <button className="office-rail-category" type="button" key={name}
               title={name} aria-label={name} aria-expanded={selectedCategory === name && megaExpanded}
               data-active={selectedCategory === name}
+              onPointerEnter={()=>{if(name==="K-Vault")router.prefetch("/office/k-vault");}}
+              onFocus={()=>{if(name==="K-Vault")router.prefetch("/office/k-vault");}}
               onClick={() => {
                 // Do not collapse the contextual panel inside an open mobile drawer.
                 // That made the drawer appear blank after tapping the active category.

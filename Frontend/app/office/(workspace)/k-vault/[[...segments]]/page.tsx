@@ -87,7 +87,7 @@ export default async function VaultPages({params}:Props){
  let subtitle="A permission-first index of authoritative corporate records. Values and files remain in their source systems.";
  let content:React.ReactNode;
  if (!route) {
-   content=<OfficeVaultOverview categories={categories}/>;
+   content=<OfficeVaultOverview categories={categories} canUpload={allowed.includes("vault.secret.upload")}/>;
  } else if(route==="secrets"){
    title="Secret locker";subtitle="Sealed company documents, quarantined scans, independent reviews and revocable access.";
    content=<OfficeVaultSecretLocker/>;

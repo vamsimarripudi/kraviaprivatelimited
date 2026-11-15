@@ -7,6 +7,7 @@ import {
   OfficeSupportError,
   requestOfficeSupportRefund,
   transitionOfficeSupportCase,
+  replyOfficeSupportCase,
 } from "@/lib/office/support-server";
 
 const optionalText = (max: number) => z.string().trim().max(max).optional();
@@ -23,6 +24,7 @@ const schema = z.discriminatedUnion("action", [
     priority: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).optional(),
     due_at: z.string().datetime({ offset: true }).optional(),
   }),
+  z.object({action:z.literal("REPLY_CASE"),case_id:z.string().uuid(),body:z.string().trim().min(1).max(4000)}),
   z.object({
     action: z.literal("TRANSITION_CASE"),
     case_id: z.string().uuid(),
@@ -66,6 +68,8 @@ export async function POST(request: Request) {
         priority: parsed.data.priority,
         dueAt: parsed.data.due_at,
       });
+    } else if (parsed.data.action === "REPLY_CASE") {
+      result=await replyOfficeSupportCase({caseId:parsed.data.case_id,body:parsed.data.body});
     } else if (parsed.data.action === "TRANSITION_CASE") {
       result = await transitionOfficeSupportCase({ caseId: parsed.data.case_id, status: parsed.data.status, note: parsed.data.note });
     } else {

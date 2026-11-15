@@ -72,11 +72,11 @@ export function RequestCollaborationWorkspace() {
     }
   }
 
-  return <section className={styles.shell}>
+  return <section className={styles.shell} data-office-request-collab="true">
     <header className={styles.header}><div><p className="eyebrow">REQUEST COLLABORATION</p><h2>Keep decisions and context attached to the workflow.</h2><span>Comments are immutable request evidence. Mention a KRAVIA work email to notify that participant.</span></div><MessageSquareText aria-hidden="true" /></header>
-    <div className={styles.controls}>
+    <div className={styles.controls} data-office-collab-controls="true">
       <EnterpriseCombobox label="Request" value={selected} options={options} onChange={setSelected} placeholder="Choose a request" />
-      {current ? <div className={styles.requestMeta}><ShieldCheck /><span><b>{current.status.replaceAll("_", " ")}</b><small>{current.resource_key || current.request_type_code.replaceAll("_", " ")}</small></span></div> : null}
+      {current ? <div className={styles.requestMeta} data-office-collab-meta="true"><ShieldCheck /><span><b>{current.status.replaceAll("_", " ")}</b><small>{current.resource_key || current.request_type_code.replaceAll("_", " ")}</small></span></div> : null}
     </div>
     {error ? <div className={styles.error} role="status">{error}</div> : null}
     <div className={styles.thread} aria-live="polite">

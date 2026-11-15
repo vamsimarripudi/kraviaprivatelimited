@@ -44,3 +44,48 @@
 .reactions{gap:4px;padding-top:5px}
 .reactions button{min-width:37px;min-height:37px;font-size:15px}
 @media(max-width:767px){.actions nav :is(button,a){width:36px;min-width:36px;height:36px;min-height:36px}}
+
+
+/* Message actions are an on-demand popover, not a permanent heavy toolbar. */
+.actions{position:absolute;top:4px;right:4px;display:flex;flex-direction:column;align-items:flex-end;gap:5px;z-index:15;margin:0!important;max-width:min(270px,90vw)}
+.menuTrigger{display:grid;place-items:center;width:30px;height:30px;min-height:30px;padding:0;border:1px solid var(--office-ui-line);border-radius:9px;background:var(--office-ui-surface);color:var(--office-ui-muted);cursor:pointer;opacity:0;transition:opacity .14s ease}
+.actions:hover .menuTrigger,.menuTrigger:focus-visible,.actions[data-open="true"] .menuTrigger{opacity:1}
+.actions>nav{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:4px;width:max-content;max-width:min(266px,85vw);padding:6px;border:1px solid var(--office-ui-line);border-radius:12px;background:var(--office-ui-surface);box-shadow:0 10px 35px rgba(0,0,0,.18);z-index:2}
+.actions[data-open="true"]{z-index:55}
+.actions .form,.actions .history,.actions .confirm{position:relative;max-height:65dvh;overflow:auto;width:min(280px,83vw);min-width:0;padding:11px;box-shadow:0 14px 30px rgba(0,0,0,.17)}
+.actions .reactions{background:var(--office-ui-surface);border:1px solid var(--office-ui-line);border-radius:11px;padding:6px;box-shadow:0 6px 20px rgba(0,0,0,.12)}
+.actions>p{padding:7px 9px;border:1px solid var(--office-ui-line);border-radius:8px;background:var(--office-ui-surface);max-width:min(270px,83vw)}
+@media(hover:hover){.actions:focus-within .menuTrigger{opacity:1}}
+@media(hover:none){.menuTrigger{opacity:.68;width:27px;height:27px;min-height:27px}.actions:not([data-open="true"]) .menuTrigger{opacity:0;pointer-events:none}}
+@media(prefers-reduced-motion:reduce){.menuTrigger{transition:none}}
+
+
+/* The long-press/right-click actions appear as a compact vertical list. */
+.actions{width:30px!important;height:30px!important;max-width:none!important;align-items:flex-end!important}
+.actions>nav{position:absolute!important;top:34px!important;right:0!important;
+ display:grid!important;grid-template-columns:1fr!important;justify-items:stretch!important;
+ align-content:start!important;gap:2px!important;
+ width:min(226px,calc(100vw - 28px))!important;max-width:calc(100vw - 28px)!important;
+ max-height:min(400px,65dvh)!important;overflow-y:auto!important;overscroll-behavior:contain!important;
+ padding:6px!important;border:1px solid var(--office-ui-line)!important;
+ border-radius:13px!important;background:var(--office-ui-surface)!important;
+ box-shadow:0 16px 42px rgba(0,0,0,.23)!important}
+.actions>nav :is(a,button){display:flex!important;align-items:center!important;justify-content:flex-start!important;
+ gap:11px!important;width:100%!important;min-width:0!important;max-width:100%!important;
+ height:auto!important;min-height:41px!important;padding:8px 10px!important;
+ border:0!important;border-radius:9px!important;
+ color:var(--office-ui-ink)!important;background:transparent!important;
+ font-size:12px!important;text-align:left!important;text-decoration:none!important}
+.actions>nav :is(a,button) svg{flex:none!important;width:17px!important;height:17px!important;color:var(--office-ui-muted)!important}
+.actions>nav :is(a,button) span{display:block!important;flex:1!important;min-width:0!important;overflow-wrap:anywhere!important}
+.actions>nav :is(a,button):is(:hover,:focus-visible){background:var(--office-ui-surface-alt)!important;color:var(--office-ui-accent)!important}
+.details{position:absolute;top:34px;right:0;z-index:6;display:grid;gap:5px;
+ width:min(230px,calc(100vw - 28px));padding:12px;border:1px solid var(--office-ui-line);
+ border-radius:12px;background:var(--office-ui-surface);color:var(--office-ui-ink);
+ box-shadow:0 18px 48px rgba(0,0,0,.2)}
+.details strong{font-size:12px}.details span,.details time{font-size:11px;color:var(--office-ui-muted)}
+.details small{font-size:10px;color:var(--office-ui-muted);line-height:1.45}
+@media(hover:none){.actions .menuTrigger:focus-visible{opacity:1;pointer-events:auto}}
+
+.details button{justify-self:start;min-height:35px;padding:7px 10px;border:1px solid var(--office-ui-line);
+ border-radius:8px;background:var(--office-ui-surface-alt);color:var(--office-ui-accent);font:inherit;font-size:11px;cursor:pointer}

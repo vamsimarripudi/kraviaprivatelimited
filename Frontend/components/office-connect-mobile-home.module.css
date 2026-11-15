@@ -444,3 +444,9 @@
 @media(prefers-reduced-motion:reduce){
   .track,.thumb{transition:none}
 }
+
+@media(max-width:767px){
+.roleTabs{display:flex;gap:6px;align-items:center;padding:7px 16px 10px;max-width:100%;overflow-x:auto;background:#1d1e20;scrollbar-width:none}
+.roleTabs button{flex:none;display:inline-flex;align-items:center;justify-content:center;min-height:39px;padding:8px 14px;border:1px solid #3d4653;border-radius:99px;background:#272a30;color:#bec8d7;font:inherit;font-size:12px;font-weight:620;cursor:pointer}
+.roleTabs button[data-active="true"]{background:#214b8b;color:#fff;border-color:#346ec3}
+}
