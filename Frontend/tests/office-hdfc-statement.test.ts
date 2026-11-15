@@ -54,7 +54,7 @@ describe("Office HDFC manual statement integration",()=>{
  });
  it("exposes the HDFC endpoints on existing first-party Office FastAPI",()=>{
   expect(main).toContain("build_hdfc_statement_router");
-  expect(backend).toContain('router.post("/statement/preview")');
-  expect(backend).toContain('router.post("/statement/confirm")');
+  expect(backend).toContain('router.post("/statement/preview", include_in_schema=False)');
+  expect(backend).toContain('router.post("/statement/confirm", include_in_schema=False)');
  });
 });
