@@ -17,7 +17,8 @@ describe("Connect event stream client and secure fallback",()=>{
   expect(component).toContain("setMessages([]);setMessageScope(null)");
  });
  it("does not advertise presence based on connection creation alone",()=>{
-  expect(component).toContain('live==="live"?"Live"');
+  expect(component).not.toContain('chat-status-indicator');
+  expect(component).not.toContain("WifiOff size");
   expect(component).toContain("data-chat-thread-header");
   expect(hook).toContain("4500");
   expect(hook).toContain('source.addEventListener("ready"');

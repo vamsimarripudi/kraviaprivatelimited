@@ -38,7 +38,7 @@ describe("KRAVIA immediate delegated authority and reauthentication", () => {
     expect(handover).toContain('t.to_owner_user_id === data.actor.user_id');
     expect(handover).toContain('t.status === "PENDING"');
     expect(handover).toContain("setReauthRequired(noPending");
-    expect(handover).toContain("All incoming department transfers accepted");
+    expect(handover).toContain("Department access updated");
     expect(handover).toContain('fetch("/api/office-auth/sign-out"');
     expect(handover).toContain('router.replace("/office/login")');
     expect(handover).toContain("router.refresh()");

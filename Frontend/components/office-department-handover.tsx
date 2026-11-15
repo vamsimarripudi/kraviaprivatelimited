@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRightLeft, Check, CircleAlert, LoaderCircle, ShieldCheck, X } from "lucide-react";
 import styles from "./office-department-handover.module.css";
+import {OfficeActionState} from "./office-action-state";
 
 type Department = { code: string; label: string };
 type Person = { user_id: string; display_name?: string | null };
@@ -92,12 +93,14 @@ export function OfficeDepartmentHandover({ mode = "manage" }: { mode?: "manage" 
     setBusy(true); setError(""); setNotice("");
     try {
       await api(body);
-      await refresh();
-      // Accepting a department changes the authority matrix; refresh the server
-      // layout to rebuild the sidebar from effective grants without a new login.
-      if (body.action === "ACCEPT") router.refresh();
+      // The authoritative mutation is complete; refreshing a read-only list
+      // must never turn a successful transfer into a false failure message.
       setSelected(undefined); setRecipient(""); setReason("");
       setNotice(success);
+      try { await refresh(); }
+      catch { setError("Transfer recorded. Refresh the ownership list to see the latest state."); }
+      // Acceptance changes the effective authority matrix and navigation.
+      if (body.action === "ACCEPT") router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to complete handover");
     } finally { setBusy(false); }
@@ -107,72 +110,121 @@ export function OfficeDepartmentHandover({ mode = "manage" }: { mode?: "manage" 
     if (!selected || !recipient || reason.trim().length < 12) return;
     void transact({ action: "PROPOSE", department: selected.code, recipient, reason }, "Handover proposed. No access has changed until the recipient accepts.");
   }
-  if (!data) return <section className={styles.shell}><h2>Department ownership</h2><p>{error || "Loading permanent authority records…"}</p></section>;
+  useEffect(() => {
+    if(!selected)return;
+    const onEscape=(event:KeyboardEvent)=>{
+      if(event.key==="Escape"&&!busy)setSelected(undefined);
+    };
+    window.addEventListener("keydown",onEscape);
+    return()=>window.removeEventListener("keydown",onEscape);
+  },[selected,busy]);
 
-  const named = (id?: string | null) => data.people.find((p) => p.user_id === id)?.display_name || (id === data.actor.user_id ? "You" : "Assigned employee");
-  // Recipient mode is personal self-service, not an access-administration console.
-  // Only transfers addressed to this signed-in person can be shown or accepted.
-  const incoming = data.transfers.filter(item => item.to_owner_user_id === data.actor.user_id);
-  const visibleTransfers = mode === "recipient" ? incoming : data.transfers;
-  const departments = mode === "recipient"
-    ? data.departments.filter(dept => incoming.some(item => item.department_code === dept.code))
-    : data.departments;
-  const pendingCount = incoming.filter(item => item.status === "PENDING").length;
-  return <section className={styles.shell}>
-    <header>
-      <span className={styles.eyebrow}>{mode === "recipient" ? "PERSONAL INBOX · VERIFIED RECIPIENT" : "PERMANENT DEPARTMENT AUTHORITY"}</span>
-      <h2>{mode === "recipient" ? "My department transfers" : "Transfer responsibility, not passwords"}</h2>
-      <p>{mode === "recipient"
-        ? `You have ${pendingCount} department transfer${pendingCount === 1 ? "" : "s"} awaiting your decision. Review each department and accept only responsibilities you are authorized and prepared to take over. Acceptance immediately changes the department's operational authority.`
-        : "Each handover requires recipient acceptance. The former owner retains read access but loses departmental write and approval capabilities. No temporary grants are created."}</p>
+  if (!data) return <section className={styles.shell} aria-label="Department ownership">
+    <h2>Department ownership</h2>
+    {error?<><OfficeActionState kind="error" label={error} compact/>
+      <button type="button" className={styles.retry} onClick={()=>{setError("");void refresh().catch(e=>setError(e instanceof Error?e.message:"Unable to load departments"));}}>Retry</button></>:
+      <p className={styles.loading}>Loading departments…</p>}
+  </section>;
+
+  const named=(id?:string|null)=>data.people.find(person=>person.user_id===id)?.display_name||
+    (id===data.actor.user_id?"You":"Assigned employee");
+  // The recipient sees only handovers explicitly addressed to their own identity.
+  const incoming=data.transfers.filter(t=>t.to_owner_user_id===data.actor.user_id);
+  const visibleTransfers=mode==="recipient"?incoming:data.transfers;
+  const departments=mode==="recipient"
+    ?data.departments.filter(dept=>incoming.some(t=>t.department_code===dept.code))
+    :data.departments;
+  const pendingCount=incoming.filter(t=>t.status==="PENDING").length;
+  return <section className={styles.shell} aria-label="Department ownership">
+    <header className={styles.heading}>
+      <div><span className={styles.eyebrow}>KRAVIA OFFICE · ADMINISTRATION</span>
+        <h2>{mode==="recipient"?"My transfers":"Department ownership"}</h2>
+        <p>{mode==="recipient"?`${pendingCount} transfer${pendingCount===1?"":"s"} awaiting your review`:
+          "Assign department responsibility. Recipient acceptance is required."}</p>
+      </div>
     </header>
-    {notice ? <p className={styles.notice}><ShieldCheck size={17}/>{notice}</p> : null}
-    {error ? <p className={styles.error}><CircleAlert size={17}/>{error}</p> : null}
-    {mode === "recipient" && reauthRequired && pendingCount === 0 ? <div role="status" className={styles.reauth}>
-      <div><ShieldCheck size={20} aria-hidden="true"/><span>
-        <strong>All incoming department transfers accepted</strong>
-        <small>Your accepted ownership is now effective in the backend. Sign out and sign in again to reload your updated role authority, Finance navigation and other department permissions.</small>
+    {notice?<OfficeActionState kind="success" label={notice} compact/>:null}
+    {error&&!selected?<OfficeActionState kind="error" label={error} compact/>:null}
+    {mode==="recipient"&&reauthRequired&&pendingCount===0?<div role="status" className={styles.reauth}>
+      <div><ShieldCheck size={19} aria-hidden="true"/><span>
+        <strong>Department access updated</strong>
+        <small>Sign out and sign back in to refresh your current access.</small>
       </span></div>
-      <button type="button" disabled={busy} onClick={() => void signOutForHandover()}>
+      <button type="button" disabled={busy} onClick={()=>void signOutForHandover()}>
         Sign out to refresh access
       </button>
-    </div> : null}
-    {departments.length ? <div className={styles.grid}>{departments.map((dept) => {
-      const record = data.ownership.find((item) => item.department_code === dept.code);
-      const pending = visibleTransfers.find((item) => item.department_code === dept.code && item.status === "PENDING");
-      const accepted = visibleTransfers.find((item) => item.department_code === dept.code && item.status === "ACCEPTED");
-      const currentOwner = record?.owner_user_id;
-      const canPropose = mode === "manage" && ((!record && data.actor.founder) || currentOwner === data.actor.user_id);
-      const canAccept = pending?.to_owner_user_id === data.actor.user_id;
-      const canCancel = mode === "manage" && pending && (pending.from_owner_user_id === data.actor.user_id || canAccept);
-      return <article key={dept.code}>
-        <div className={styles.row}><strong>{dept.label}</strong><small>{record ? "v" + record.version : "Founder authority"}</small></div>
-        <p>Owner: {currentOwner ? named(currentOwner) : "Founder (not yet delegated)"}</p>
-        {pending ? <p className={styles.pending}><ArrowRightLeft size={15}/>From {named(pending.from_owner_user_id)} · Awaiting {named(pending.to_owner_user_id)} to accept</p> : null}
-        {pending && mode === "recipient" ? <p>Reason: {pending.reason}</p> : null}
-        {accepted && mode === "recipient" && !pending ? <p><ShieldCheck size={15}/> Transfer accepted. Your current access remains subject to separate permission and appointment rules.</p> : null}
-        <div className={styles.actions}>
-          {canPropose && !pending ? <button type="button" onClick={() => setSelected(dept)} disabled={busy}><ArrowRightLeft size={16}/>Transfer</button> : null}
-          {pending && canAccept ? <button type="button" disabled={busy} onClick={() => {
-            if (window.confirm(`Accept permanent ownership of ${dept.label}? The former owner will lose departmental write/approval authority. Confirm only if you understand the transfer responsibilities.`)) {
-              void transact({ action: "ACCEPT", transfer_id: pending.id }, "Ownership accepted. Previous owner's departmental write access is revoked.");
-            }
-          }}><Check size={16}/>Review & accept</button> : null}
-          {pending && canCancel ? <button type="button" disabled={busy} onClick={() => void transact({ action: "CANCEL", transfer_id: pending.id }, "Handover cancelled with no permission change.")}><X size={16}/>Cancel</button> : null}
-        </div>
-      </article>;
-    })}</div> : <p className={styles.empty}>{mode === "recipient"
-      ? "No department transfers are assigned to your identity. New incoming transfers will appear here automatically."
-      : "No departments assigned. Pending handovers will be listed here when directed to you."}</p>}
-    {selected && mode === "manage" ? <form className={styles.form} onSubmit={propose}>
-      <h3>Transfer {selected.label}</h3>
-      <p>The recipient must sign into their own account and accept. This will permanently remove your write access to this department.</p>
-      <label>New owner<select required value={recipient} onChange={(e) => setRecipient(e.target.value)} disabled={busy}>
-        <option value="">Select active team member</option>
-        {data.people.filter((p) => p.user_id !== data.actor.user_id).map((p) => <option key={p.user_id} value={p.user_id}>{p.display_name || p.user_id}</option>)}
-      </select></label>
-      <label>Reason for transfer<textarea required minLength={12} maxLength={1000} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Responsibilities and authority being transferred" disabled={busy}/></label>
-      <div className={styles.actions}><button type="submit" disabled={busy || !recipient || reason.trim().length < 12}>{busy ? <LoaderCircle size={16}/> : <Check size={16}/>}Propose transfer</button><button type="button" onClick={() => setSelected(undefined)} disabled={busy}>Cancel</button></div>
-    </form> : null}
+    </div>:null}
+    {departments.length?<div className={styles.tableWrap} role="region" aria-label="Department ownership table">
+      <table className={styles.table}>
+        <thead><tr><th scope="col">Department</th><th scope="col">Current owner</th>
+          <th scope="col">Status</th><th scope="col" className={styles.last}>Action</th></tr></thead>
+        <tbody>{departments.map(dept=>{
+          const record=data.ownership.find(item=>item.department_code===dept.code);
+          const pending=visibleTransfers.find(t=>t.department_code===dept.code&&t.status==="PENDING");
+          const accepted=visibleTransfers.find(t=>t.department_code===dept.code&&t.status==="ACCEPTED");
+          const owner=record?.owner_user_id;
+          const canPropose=mode==="manage"&&((!record&&data.actor.founder)||owner===data.actor.user_id);
+          const canAccept=pending?.to_owner_user_id===data.actor.user_id;
+          const canCancel=mode==="manage"&&pending&&
+            (pending.from_owner_user_id===data.actor.user_id||canAccept);
+          return <tr key={dept.code}>
+            <th scope="row"><strong>{dept.label}</strong><small>{record?"Revision "+record.version:"Founder authority"}</small></th>
+            <td>{owner?named(owner):"Founder (not delegated)"}</td>
+            <td><span className={styles.status} data-pending={Boolean(pending)}>
+                {pending?"Awaiting "+named(pending.to_owner_user_id):"Active"}
+              </span>
+              {pending&&mode==="recipient"?<small className={styles.reason}>Reason: {pending.reason}</small>:null}
+              {accepted&&mode==="recipient"&&!pending?<small className={styles.reason}>Accepted. Subject to existing role permissions.</small>:null}
+            </td>
+            <td className={styles.last}><div className={styles.actions}>
+              {canPropose&&!pending?<button type="button" disabled={busy} onClick={()=>{setSelected(dept);setNotice("");setError("");}}>
+                <ArrowRightLeft size={15}/>Transfer</button>:null}
+              {pending&&canAccept?<button type="button" disabled={busy}
+                onClick={()=>{
+                  if(window.confirm(`Accept ownership of ${dept.label}? This changes departmental write and approval rights.`))
+                    void transact({action:"ACCEPT",transfer_id:pending.id},
+                      "Ownership accepted. The former owner's departmental write access has been revoked.");
+                }}><Check size={15}/>Review &amp; accept</button>:null}
+              {pending&&canCancel?<button type="button" className={styles.secondary}
+                disabled={busy} onClick={()=>void transact({action:"CANCEL",transfer_id:pending.id},
+                  "Transfer cancelled. Access was unchanged.")}><X size={15}/>Cancel</button>:null}
+              {!canPropose&&!canAccept&&!canCancel?<span className={styles.dash}>—</span>:null}
+            </div></td>
+          </tr>;
+        })}</tbody>
+      </table>
+    </div>:<div className={styles.empty}>
+      <OfficeActionState kind="not-found" label={mode==="recipient"?"No incoming transfers.":"No departments available."}/>
+    </div>}
+    {selected&&mode==="manage"?<div className={styles.backdrop} role="presentation"
+      onMouseDown={()=>{if(!busy)setSelected(undefined);}}>
+      <form className={styles.dialog} role="dialog" aria-modal="true"
+        aria-labelledby="office-transfer-title" aria-describedby="office-transfer-summary"
+        onSubmit={propose} onMouseDown={event=>event.stopPropagation()}>
+        <header><div><span className={styles.eyebrow}>HANDOVER REQUEST</span>
+          <h3 id="office-transfer-title">Transfer {selected.label}</h3></div>
+          <button type="button" className={styles.close} onClick={()=>setSelected(undefined)}
+            disabled={busy} aria-label="Close transfer"><X size={18}/></button></header>
+        <p id="office-transfer-summary" className={styles.warning}>
+          <CircleAlert size={16}/>Permanent transfer requires the recipient&apos;s acceptance.
+          No access changes when this request is submitted.
+        </p>
+        {error?<OfficeActionState kind="error" label={error} compact/>:null}
+        <label>New owner<select required autoFocus value={recipient}
+          onChange={event=>setRecipient(event.target.value)} disabled={busy}>
+          <option value="">Select active team member</option>
+          {data.people.filter(person=>person.user_id!==data.actor.user_id).map(person=>
+            <option key={person.user_id} value={person.user_id}>{person.display_name||person.user_id}</option>)}
+        </select></label>
+        <label>Reason for transfer<textarea required minLength={12} maxLength={1000}
+          value={reason} onChange={event=>setReason(event.target.value)}
+          placeholder="What responsibility is being handed over?" disabled={busy}/></label>
+        <footer><button type="button" className={styles.secondary} onClick={()=>setSelected(undefined)}
+          disabled={busy}>Cancel</button>
+          <button type="submit" disabled={busy||!recipient||reason.trim().length<12}>
+            {busy?<LoaderCircle size={16} className={styles.spin}/>:<ArrowRightLeft size={16}/>}
+            Request transfer</button></footer>
+      </form>
+    </div>:null}
   </section>;
 }

@@ -554,3 +554,43 @@
    grid-template-columns:minmax(0,1fr)!important;
  }
 }
+
+/* Unified responsive Office tokens: the final cascade for specific legacy cards. */
+.kravia-office .office-v2.office-modern .office-main
+ [class*="office-it-service_hero"],
+.kravia-office .office-v2.office-modern .office-main
+ [class*="office-it-service_metrics"] > article,
+.kravia-office .office-v2.office-modern .office-main
+ [class*="office-it-service_card"],
+.kravia-office .office-v2.office-modern .office-main
+ [aria-label="K-Vault overview"] [class*="office-vault-overview_metrics"] > article {
+ background:var(--office-ui-surface)!important;color:var(--office-ui-ink)!important;
+ border-color:var(--office-ui-line)!important;box-shadow:none!important;
+}
+.kravia-office .office-v2.office-modern .office-main
+ [class*="office-it-service_metrics"] > article{background:var(--office-ui-surface-alt)!important}
+.kravia-office .office-v2.office-modern .office-main
+ [class*="office-it-service_metrics"] > article :is(b,span),
+.kravia-office .office-v2.office-modern .office-main
+ [aria-label="K-Vault overview"] [class*="office-vault-overview_metrics"] :is(h2,strong,small){
+ color:var(--office-ui-ink)!important;
+}
+.kravia-office .office-v2.office-modern .office-main
+ [aria-label="K-Vault overview"] [class*="office-vault-overview_metrics"] :is(h2,small){
+ color:var(--office-ui-muted)!important;
+}
+/* Nested chat search must not inherit global input chrome (double outlines). */
+.kravia-office .office-v2.office-modern .office-main [data-chat-list]
+ label[class*="office-connect-chat-list_search"] input{
+ background:transparent!important;border:0!important;box-shadow:none!important;
+ outline:0!important;padding:0!important;min-height:33px!important;
+}
+.kravia-office .office-v2.office-modern .office-main [data-chat-list]
+ label[class*="office-connect-chat-list_search"]{min-width:0!important;max-width:100%!important;
+ background:var(--office-ui-surface-alt)!important;color:var(--office-ui-ink)!important;
+ border-color:var(--office-ui-line)!important}
+/* Tokens are also used by vertically scrolling, tabbed workspaces. */
+.kravia-office .office-v2.office-modern .office-main
+ :where([class*="office-it-service_list"],[class*="office-vault-overview_columns"]){
+ min-width:0!important;max-width:100%!important;box-sizing:border-box!important;
+}

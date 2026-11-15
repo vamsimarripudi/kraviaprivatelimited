@@ -80,7 +80,7 @@ describe("KRAVIA 2026-11-15 unified visual and secured communications repair",()
   expect(connected).toContain("sentAt={message.created_at}");
   expect(actions).toContain('aria-label="Message actions"');
   expect(actions).toContain("<span>Message details</span>");
-  expect(actions).toContain("Delivery and read receipts are not inferred.");
+  expect(actions).toContain("Delivery ticks appear beside your messages once confirmed.");
   expect(actions).toContain('data-chat-action-menu="true"');
   expect(connected).toContain('data-chat-day-divider="true"');
   expect(connected).toContain('data-chat-message-line="true"');

@@ -107,3 +107,21 @@
 .messageLine{display:block;min-width:0;font-size:13px;line-height:1.45;overflow-wrap:anywhere;white-space:pre-wrap;color:var(--office-ui-ink)}
 .messageLine>span{font-weight:450}
 .messageLine time{display:inline-block;white-space:nowrap;margin-left:9px;font-size:10px;line-height:1.2;color:var(--office-ui-muted);vertical-align:baseline;font-variant-numeric:tabular-nums}
+
+/* Compact, scroll-isolated realtime conversation. Scroll stays accessible. */
+.timeline,.selectedFiles,.groupPeople{scrollbar-width:none!important;-ms-overflow-style:none}
+.timeline::-webkit-scrollbar,.selectedFiles::-webkit-scrollbar,.groupPeople::-webkit-scrollbar{display:none}
+.message{padding:9px 11px!important;max-width:min(78%,580px);border-radius:13px!important}
+.message>strong{display:block;margin-bottom:3px;font-size:11px!important}
+.messageLine{display:inline;line-height:1.42}
+.receipt{display:inline-flex;align-items:center;vertical-align:middle;margin-left:4px;color:var(--office-ui-muted)}
+.receipt[data-state="read"]{color:#23b56d}
+.receipt[data-state="delivered"]{color:var(--office-ui-muted)}
+.sendingMark{font-size:10px;color:var(--office-ui-muted);margin-left:6px}
+.typingNotice{min-height:33px!important;gap:5px!important;padding:5px 14px!important}
+.typingNotice::before{display:none!important}
+.typingDots{display:inline-flex;align-items:flex-end;gap:3px;min-width:23px}
+.typingDots i{height:5px;width:5px;border-radius:50%;background:var(--office-ui-accent);animation:officeTyping 1s infinite alternate ease-in-out}
+.typingDots i:nth-child(2){animation-delay:.18s}.typingDots i:nth-child(3){animation-delay:.36s}
+@keyframes officeTyping{from{opacity:.35;transform:translateY(0)}to{opacity:1;transform:translateY(-4px)}}
+@media(prefers-reduced-motion:reduce){.typingDots i{animation:none}}

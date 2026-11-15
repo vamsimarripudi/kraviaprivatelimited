@@ -30,13 +30,13 @@ describe("KRAVIA employee department-transfer inbox", () => {
 
   it("filters the recipient view by authenticated user identity and excludes proposal/cancel forms", () => {
     expect(panel).toContain('mode = "manage"');
-    expect(panel).toContain('item.to_owner_user_id === data.actor.user_id');
-    expect(panel).toContain('mode === "recipient" ? incoming : data.transfers');
-    expect(panel).toContain('const canPropose = mode === "manage"');
-    expect(panel).toContain('const canCancel = mode === "manage"');
-    expect(panel).toContain('selected && mode === "manage"');
+    expect(panel).toContain('t.to_owner_user_id===data.actor.user_id');
+    expect(panel).toContain('mode==="recipient"?incoming:data.transfers');
+    expect(panel).toContain('const canPropose=mode==="manage"');
+    expect(panel).toContain('const canCancel=mode==="manage"');
+    expect(panel).toContain('selected&&mode==="manage"');
     expect(panel).toContain('window.confirm');
-    expect(panel).toContain('transfer_id: pending.id');
+    expect(panel).toContain('transfer_id:pending.id');
     expect(panel).toContain('if (body.action === "ACCEPT") router.refresh()');
   });
 

@@ -11,3 +11,32 @@
 .actions button,.toolbar button{border-radius:10px!important;transition:transform 140ms ease}.actions button:hover,.toolbar button:hover{transform:translateY(-1px)}
 @media(max-width:620px){.card:hover,.profile:hover,.person:hover,.asset:hover,.device:hover,.metrics article:hover,.actions button:hover,.toolbar button:hover{transform:none}}
 @media(prefers-reduced-motion:reduce){.card,.profile,.person,.asset,.device,.metrics article,.actions button,.toolbar button{transition:none}}
+
+/* Office 5.0 neutral design tokens override the legacy green / translucent skin. */
+.shell{gap:12px!important;min-width:0;color:var(--office-ui-ink)!important}
+.hero{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important;gap:16px!important;min-width:0;padding:16px!important;background:var(--office-ui-surface)!important;color:var(--office-ui-ink)!important;border:1px solid var(--office-ui-line)!important;border-radius:13px!important;box-shadow:none!important}
+.hero>div{min-width:0}.hero p{color:var(--office-ui-accent)!important;font-size:10px!important;letter-spacing:.09em}
+.hero h2{font-size:clamp(18px,2vw,23px)!important;line-height:1.25!important;margin:4px 0!important}
+.disclaimer{margin-top:8px;color:var(--office-ui-muted);font-size:11px}
+.disclaimer summary{cursor:pointer;display:list-item;width:max-content;max-width:100%;font-weight:600}
+.disclaimer p{max-width:70ch;margin:6px 0!important;color:var(--office-ui-muted)!important;font-size:11px!important;line-height:1.5}
+.metrics{display:flex!important;gap:8px!important;flex-wrap:wrap;align-items:stretch}
+.metrics article{min-width:92px!important;min-height:66px!important;padding:9px 10px!important;border:1px solid var(--office-ui-line)!important;border-radius:11px!important;background:var(--office-ui-surface-alt)!important;color:var(--office-ui-ink)!important;box-shadow:none!important;backdrop-filter:none!important}
+.metrics b{font-size:19px!important;color:var(--office-ui-ink)!important}.metrics span{font-size:10px!important;color:var(--office-ui-muted)!important}
+.panel,.card,.profile,.person,.asset,.device,.list,.tableWrap,.metric{background:var(--office-ui-surface)!important;color:var(--office-ui-ink)!important;border-color:var(--office-ui-line)!important;box-shadow:none!important;backdrop-filter:none!important}
+.card{padding:13px!important;gap:8px!important;border-radius:12px!important}
+.card h3{font-size:14px!important}.card code,.card span{color:var(--office-ui-muted)!important}
+.toolbar,.filters,.controls{padding:0!important;background:transparent!important;border-radius:0!important}
+.toolbar button,.card button,.dialog button{border:1px solid var(--office-ui-line)!important;background:var(--office-ui-surface-alt)!important;color:var(--office-ui-ink)!important}
+.toolbar button[data-active="true"]{background:var(--office-ui-selected)!important;color:var(--office-ui-ink)!important;border-color:var(--office-ui-accent)!important}
+.tableWrap th{background:var(--office-ui-surface-alt)!important;color:var(--office-ui-muted)!important}
+.dialog,.drawer,.modal,.detail{background:var(--office-ui-surface)!important;color:var(--office-ui-ink)!important;border-color:var(--office-ui-line)!important;backdrop-filter:none!important}
+.dialog label,.dialog input,.dialog select,.dialog textarea{color:var(--office-ui-ink)!important}
+.dialog input,.dialog select,.dialog textarea{background:var(--office-ui-control)!important;border-color:var(--office-ui-line)!important}
+.dialog footer button[type="submit"]{background:var(--office-ui-accent)!important;color:#fff!important;border-color:var(--office-ui-accent)!important}
+.notice{background:var(--office-ui-surface-alt)!important;color:var(--office-ui-ink)!important}
+.error{background:var(--office-ui-surface-alt)!important;color:var(--office-ui-danger)!important}
+.empty,.state{background:var(--office-ui-surface)!important;border:1px dashed var(--office-ui-line)!important;color:var(--office-ui-muted)!important;min-height:70px!important}
+.card:hover,.metrics article:hover{transform:none!important;box-shadow:none!important}
+@media(max-width:960px){.hero{grid-template-columns:1fr!important}.metrics{width:100%}.metrics article{flex:1}}
+@media(max-width:520px){.metrics{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))}.metrics article{min-width:0!important}}

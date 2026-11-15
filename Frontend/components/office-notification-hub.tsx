@@ -14,7 +14,7 @@ import styles from "./office-notification-hub.module.css";
 
 type Center={unread:number;notifications:OfficeNotice[]};
 type StateMessage={type:"refetch";user:string};
-const POLL_MS=14000;
+const POLL_MS=8000;
 function toastDelay(item:OfficeNotice){
   return item.priority==="CRITICAL"?0:item.priority==="HIGH"?10000:7000;
 }
@@ -42,6 +42,23 @@ export function OfficeNotificationHub(){
   const bc=useRef<BroadcastChannel|null>(null);
   const triggerRef=useRef<HTMLDivElement>(null);
   const flyoutRef=useRef<HTMLDivElement>(null);
+
+  // A live signed-in Office browser acknowledges delivery independently of
+  // which workspace is open. This never marks private messages as read.
+  useEffect(()=>{
+    let active=true;
+    const pump=()=>{
+      if(!active)return;
+      void fetch("/api/office-chat/delivery/pump",{method:"POST",credentials:"same-origin",
+        cache:"no-store"}).catch(()=>{/* Optional inbox transport never blocks Office. */});
+    };
+    pump();
+    const interval=window.setInterval(pump,9000);
+    const onVisibility=()=>{if(document.visibilityState==="visible")pump();};
+    document.addEventListener("visibilitychange",onVisibility);
+    return()=>{active=false;window.clearInterval(interval);
+      document.removeEventListener("visibilitychange",onVisibility);};
+  },[]);
 
   useEffect(()=>{prefRef.current=pref;},[pref]);
   useEffect(()=>{
@@ -89,6 +106,12 @@ export function OfficeNotificationHub(){
       const fresh=next.notifications.filter(item=>item.status==="UNREAD"&&!old.has(item.id));
       for(const notice of fresh.reverse()){
         const cat=notificationCategory(notice.kind);
+        // Connect already shows this conversation's messages and unread counts.
+        // Suppress redundant floating toasts while the user is looking at Connect;
+        // the notification remains in the durable Office inbox.
+        const openRoute=new URL(safeNotificationHref(notice.target_path),window.location.origin).pathname;
+        if(cat==="chat"&&openRoute===window.location.pathname
+           &&document.visibilityState==="visible"&&document.hasFocus())continue;
         const selected=prefRef.current;
         if(!selected.categories[cat])continue;
         const critical=notice.priority==="CRITICAL";
@@ -151,7 +174,8 @@ export function OfficeNotificationHub(){
     let stream:EventSource|null=null;
     const start=()=>{
       stream?.close();stream=null;
-      if(document.visibilityState!=="visible")return;
+      // Authorized event transport continues when Office is in a background tab;
+      // it carries only invalidation signals, never private message contents.
       stream=new EventSource("/api/office-notifications/events",{withCredentials:true});
       stream.addEventListener("change",()=>void refresh());
       stream.addEventListener("unavailable",()=>stream?.close());

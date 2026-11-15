@@ -3,12 +3,13 @@
 import {useEffect,useMemo,useState} from "react";
 import Link from "next/link";
 import {
-  ArrowRight,Check,ChevronRight,MessageCircle,MessagesSquare,
+  ArrowRight,ChevronRight,MessagesSquare,
   Plus,RefreshCw,Search,UsersRound,
 } from "lucide-react";
 import type {OfficeInboxLiveState} from "@/lib/office/use-office-chat-inbox-live";
 import {useOfficeWorkspace} from "@/components/office-workspace-context";
 import {OfficeConnectRoleInbox,type RoleInboxKind} from "@/components/office-connect-role-inbox";
+import {OfficeActionState} from "@/components/office-action-state";
 import styles from "./office-connect-chat-list.module.css";
 
 type Conversation={
@@ -120,16 +121,18 @@ export function OfficeConnectChatList({
     </div>
     <div className={styles.chatList} role="region" aria-label="Your conversations" aria-live="polite">
       {loading?<p className={styles.state} role="status">Loading your private chats…</p>:null}
-      {error?<div className={styles.state} role="alert"><p>{error}</p>
+      {error?<div className={styles.state}>
+        <OfficeActionState kind="error" label={error} compact/>
         <button type="button" onClick={onRefresh}><RefreshCw size={15}/>Retry</button>
       </div>:null}
       {!loading&&!error&&filter==="unread"&&unreadState!=="ready"?
-        <div className={styles.state} role="status">Unread status is unavailable.
+        <div className={styles.state}>
+          <OfficeActionState kind="error" label="Unread status is unavailable." compact/>
           <button type="button" onClick={onRefresh}><RefreshCw size={15}/>Retry</button>
         </div>:null}
       {!loading&&!error&&canShow&&shown.length===0?<div className={styles.empty}>
-        <MessageCircle size={27} aria-hidden="true"/>
-        <strong>{filter==="unread"?"No unread chats":query?"No matching chats":"No chats to show"}</strong>
+        <OfficeActionState kind="not-found" compact
+          label={filter==="unread"?"No unread chats":query?"No matching chats":"No chats to show"}/>
         {filter==="all"&&!query?<Link href="/office/chat/directory">Start a conversation <ArrowRight size={15}/></Link>:null}
       </div>:null}
       {!loading&&!error&&canShow?shown.map(item=>{
@@ -152,9 +155,8 @@ export function OfficeConnectChatList({
       }):null}
     </div>
     </>:<OfficeConnectRoleInbox kind={workspaceMode}/>}
-    <div className={styles.foot}><span data-state={liveState} aria-hidden="true"><Check size={14}/></span>
-      <small>{liveState==="live"?"Live private messaging":liveState==="restricted"?
-        "Chat access changed":"Secure refresh enabled"}</small>
+    <div className={styles.foot}>
+      <small>{liveState==="restricted"?"Chat access changed":"My conversations"}</small>
       <button type="button" aria-label="Refresh conversations" title="Refresh"
         onClick={onRefresh}><RefreshCw size={17} aria-hidden="true"/></button>
     </div>
@@ -165,9 +167,9 @@ export function OfficeConnectWelcome(){
   return <div className={styles.welcome} data-chat-welcome>
     <div className={styles.welcomeArtwork}><MessagesSquare size={48} strokeWidth={1.5} aria-hidden="true"/></div>
     <span className={styles.welcomeKicker}>KRAVIA CONNECT</span>
-    <h2>Messages that move work forward.</h2>
-    <p>Choose a conversation from My Chats, or start a private message with a colleague.</p>
+    <h2>Your conversations</h2>
+    <p>Select a chat or start a message.</p>
     <Link href="/office/chat/directory">New message <ArrowRight size={17}/></Link>
-    <small>Company conversations remain private to authorized participants.</small>
+    <small></small>
   </div>;
 }

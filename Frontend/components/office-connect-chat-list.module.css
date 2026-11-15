@@ -43,3 +43,28 @@
 .workspaces{display:flex;gap:5px;align-items:center;padding:6px 14px 9px;border-top:1px solid var(--office-ui-line);overflow-x:auto}
 .workspaces button{display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;flex:none;min-height:33px;padding:6px 11px;border:1px solid var(--office-ui-line);border-radius:999px;background:var(--office-ui-surface);color:var(--office-ui-muted);font:inherit;font-size:11px;cursor:pointer}
 .workspaces button[data-active="true"]{background:#1a4d96;color:#fff;border-color:#3974c6}
+
+/* Top-aligned compact inbox, theme tokens and scroll isolation. */
+.sidebar{align-items:stretch}
+.head{min-height:58px!important;padding:9px 14px 8px!important;flex-shrink:0}
+.head h2{font-size:16px!important;margin-top:2px!important}
+.kicker{font-size:9px!important}
+.actions a{width:34px!important;height:34px!important;min-height:34px!important;min-width:34px!important}
+.workspaces{padding:5px 11px 7px!important;border-top:0!important;scrollbar-width:none}
+.workspaces button{border-radius:9px!important;min-height:32px!important}
+.workspaces button[data-active="true"]{background:var(--office-ui-selected)!important;color:var(--office-ui-ink)!important;border-color:var(--office-ui-accent)!important}
+.searchWrap{padding:3px 11px 7px!important;flex-shrink:0}
+.search{min-height:36px!important;padding:0 9px!important;gap:7px!important}
+.search input{height:34px!important;min-height:34px!important;border:0!important;background:transparent!important;box-shadow:none!important;padding:0!important;font-size:12px!important}
+.searchWrap>a{width:36px;height:36px;min-height:36px;min-width:36px}
+.filters{padding:0 11px 9px!important;gap:4px!important;flex-shrink:0}
+.filters button{min-height:29px;padding:4px 9px;border-radius:8px}
+.filters button[data-active="true"]{color:var(--office-ui-ink)!important;background:var(--office-ui-selected)!important;border-color:var(--office-ui-accent)!important}
+.chatList{flex:1 1 auto;min-height:0!important;overflow-y:auto!important;overflow-x:hidden;scrollbar-width:none!important;-ms-overflow-style:none}
+.chatList::-webkit-scrollbar,.filters::-webkit-scrollbar,.workspaces::-webkit-scrollbar{display:none}
+.chat{min-height:61px!important;padding:8px 12px!important}
+.avatar{width:38px!important;height:38px!important;min-width:38px!important}
+.foot{min-height:37px!important;padding:4px 10px!important;margin-top:auto}
+.welcomeArtwork{height:76px;width:76px;border-radius:20px;margin-bottom:2px}
+.welcome h2{font-size:20px!important}
+.welcome>small:empty{display:none}
