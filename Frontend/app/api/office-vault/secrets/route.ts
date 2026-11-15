@@ -11,7 +11,8 @@ const uuid=z.string().uuid();
 function failure(error:unknown){
  const status=error instanceof SecretLockerError?error.status:503;
  return NextResponse.json({detail:status===404?"Document unavailable":
-  error instanceof SecretLockerError?error.message:"Secret locker unavailable"},
+  error instanceof SecretLockerError?error.message:"Secret locker unavailable",
+   code:error instanceof SecretLockerError?error.code:undefined},
   {status,headers});
 }
 export async function GET(){
