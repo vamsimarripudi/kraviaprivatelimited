@@ -154,7 +154,7 @@ export function OfficeDepartmentHandover({ mode = "manage" }: { mode?: "manage" 
         Sign out to refresh access
       </button>
     </div>:null}
-    {departments.length?<div className={styles.tableWrap} role="region" aria-label="Department ownership table" tabIndex={0}>
+    {departments.length?<div className={styles.tableWrap} role="region" aria-label="Department ownership table">
       <table className={styles.table}>
         <thead><tr><th scope="col">Department</th><th scope="col">Current owner</th>
           <th scope="col">Status</th><th scope="col" className={styles.last}>Action</th></tr></thead>
@@ -206,7 +206,7 @@ export function OfficeDepartmentHandover({ mode = "manage" }: { mode?: "manage" 
           <button type="button" className={styles.close} onClick={()=>setSelected(undefined)}
             disabled={busy} aria-label="Close transfer"><X size={18}/></button></header>
         <p id="office-transfer-summary" className={styles.warning}>
-          <CircleAlert size={16}/>Permanent transfer requires the recipient's acceptance.
+          <CircleAlert size={16}/>Permanent transfer requires the recipient&apos;s acceptance.
           No access changes when this request is submitted.
         </p>
         {error?<OfficeActionState kind="error" label={error} compact/>:null}

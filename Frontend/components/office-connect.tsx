@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowLeft, MessageSquareText, RefreshCw, Search, Send, Paperclip, Pin, UsersRound, Smile, Image, Video, FileText, FileImage, BookMarked, Plus, X, Check, CheckCheck } from "lucide-react";
 import styles from "./office-connect.module.css";
@@ -121,7 +121,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
       setMessages([]);setMessageScope(null);setTypingPeople([]);setReloadCount(count=>count+1);},
     ()=>setTypingRefresh(value=>value+1));
   const selected = conversations.find(row => row.id === activeId);
-  const visibleMessages=messageScope===activeId?messages:[];
+  const visibleMessages=useMemo(()=>messageScope===activeId?messages:[],[messageScope,activeId,messages]);
   const mentionSuggestions=mentionTerm===null?[]:members.filter(person=>
     person.display_name.toLocaleLowerCase().includes(mentionTerm.toLocaleLowerCase())).slice(0,8);
   useEffect(()=>{
