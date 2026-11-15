@@ -10,7 +10,7 @@ describe("Connect transient typing UI",()=>{
  it("never transmits draft text to the presence service",()=>{
   expect(source).toContain("body:JSON.stringify({typing:isTyping})");
   expect(source).not.toContain("JSON.stringify({typing:isTyping,draft})");
-  expect(source).toContain("now-lastTypingSignal.current<3500");
+  expect(source).toContain("now-lastTypingSignal.current<1600");
  });
  it("never blocks a valid send on optional typing failures",()=>{
   expect(source).toContain("Presence is optional and never blocks message delivery");

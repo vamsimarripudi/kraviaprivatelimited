@@ -130,7 +130,7 @@ export function OfficeConnectMessageActions({id,body,own,pinned=false,canPin=fal
       <span>Timestamp unavailable</span>}
     <span>{own?"Sent by you":"Received in this conversation"}</span>
     <span>{editedAt?"Edited message":"Original text"} · {pinned?"Pinned":"Not pinned"}</span>
-    <small>Delivery and read receipts are not inferred.</small>
+    <small>Delivery ticks appear beside your messages once confirmed.</small>
     <button type="button" onClick={()=>setInfoOpen(false)}>Back to actions</button>
   </section>:null}
   {reactionsExpanded?<div className={styles.reactions} role="group" aria-label="Message reactions">
