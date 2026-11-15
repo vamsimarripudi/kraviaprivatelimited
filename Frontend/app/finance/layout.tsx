@@ -8,6 +8,7 @@ import "../office/office-auth-responsive.css";
 import "../office/office-mobile-contrast.css";
 import "../office/office-surface-integrity.css";
 import "../office/office-experience-5.css";
+import "../office/office-experience-6.css";
 import { OfficeAppearanceRoot } from "@/components/office-appearance-root";
 
 export const metadata: Metadata = {

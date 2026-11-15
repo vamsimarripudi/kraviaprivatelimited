@@ -255,11 +255,16 @@ function WorkspaceDashboard({ workspace, section, identity, permissions }: { wor
       <section className="office-briefing office-briefing-compact" aria-labelledby="office-briefing-title">
         <div>
           <p className="eyebrow">{new Intl.DateTimeFormat("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" }).format(new Date())}</p>
-          <h2 id="office-briefing-title">{greetingLabel}, {firstName}.</h2>
-          <p>One focused place for your assigned work, priorities, attendance and decisions.</p>
+          <h2 id="office-briefing-title">My work</h2>
+          <p>{greetingLabel}, {firstName}. Review assigned work, priorities and decisions.</p>
         </div>
         <div className="office-briefing-actions"><OfficeNavLink href="/office/my-role">My profile <ArrowRight size={15}/></OfficeNavLink><OfficeNavLink href="/office/worktime">Earnings & payslips <ArrowRight size={15}/></OfficeNavLink></div>
       </section>
+      <nav className="office6-quick-actions" aria-label="Priority workspace shortcuts">
+        {capabilityCanAccessSection("office", "tasks", identity.roles, permissions) ? <OfficeNavLink href="/office/tasks"><ClipboardCheck size={18}/>Company inbox <ArrowRight size={16}/></OfficeNavLink> : null}
+        {capabilityCanAccessSection("office", "approvals", identity.roles, permissions) ? <OfficeNavLink href="/office/approvals"><ShieldCheck size={18}/>Approvals <ArrowRight size={16}/></OfficeNavLink> : null}
+        {capabilityCanAccessSection("office", "calendar", identity.roles, permissions) ? <OfficeNavLink href="/office/calendar"><CalendarDays size={18}/>Calendar <ArrowRight size={16}/></OfficeNavLink> : null}
+      </nav>
       <OfficeWorkHub identity={identity} mode="dashboard" />
       <details className="office-dashboard-extras">
         <summary>More work context <span>Company inbox · Recent activity</span></summary>

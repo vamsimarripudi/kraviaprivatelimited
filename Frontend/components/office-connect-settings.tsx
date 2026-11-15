@@ -17,7 +17,7 @@ const fields:{key:keyof ConnectPrefs;title:string;help:string}[]=[
  {key:"share_read_receipts",title:"Read receipt sharing consent",help:"Records preference only. Colleagues cannot access your cursor from this screen."},
  {key:"reduce_motion",title:"Reduce interface motion",help:"Saved to the current Office identity, and applied on this device immediately."},
 ];
-export function OfficeConnectSettings(){
+export function OfficeConnectSettings({ embedded = false }: { embedded?: boolean } = {}){
  const [preferences,setPreferences]=useState<ConnectPreferences>({showUnread:true,showMentions:true});
  const [theme,setTheme]=useState<Theme>("light");
  const [ready,setReady]=useState(false);
@@ -77,9 +77,9 @@ export function OfficeConnectSettings(){
   }catch(e){setError(e instanceof Error?e.message:"Settings were not saved");}
   finally{setSaving(false);}
  }
- return <section className={styles.shell} aria-label="Connect personal preferences">
-  <Link href="/office/chat" className={styles.back}><ArrowLeft size={16} aria-hidden="true"/>Connect</Link>
-  <header><p className={styles.eyebrow}>KRAVIA CONNECT · PERSONAL CONTROLS</p>
+ return <section className={styles.shell} data-embedded={embedded} aria-label="Connect personal preferences">
+  <Link href="/office/chat" className={styles.back} hidden={embedded}><ArrowLeft size={16} aria-hidden="true"/>Connect</Link>
+  <header hidden={embedded}><p className={styles.eyebrow}>KRAVIA CONNECT · PERSONAL CONTROLS</p>
    <h1>Preferences</h1><p>Identity-backed notification consent and device-local presentation. Company access, delivery and approval policies remain separate.</p>
   </header>
   {error?<p className={styles.notice} role="alert">{error}
@@ -97,7 +97,7 @@ export function OfficeConnectSettings(){
       <small>Mentions remain accessible even when the shortcut is hidden.</small></span>
       <input type="checkbox" checked={preferences.showMentions}
         onChange={event=>updatePreference("showMentions",event.target.checked)}/></label>
-     <div className={styles.options} role="group" aria-label="Workspace colour theme">
+     <div className={styles.options} hidden={embedded} role="group" aria-label="Workspace colour theme">
       <button type="button" aria-pressed={theme==="light"} data-selected={theme==="light"}
        onClick={()=>updateTheme("light")}><Sun size={18}/>Light</button>
       <button type="button" aria-pressed={theme==="dark"} data-selected={theme==="dark"}

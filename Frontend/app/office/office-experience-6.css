@@ -1,0 +1,152 @@
+
+/* Office 6.0: shared layout contract for the approved Workspace V1 + Settings V2.
+   Presentation only; authentication, record permissions, business actions and Connect data are untouched. */
+.kravia-office .office-v2.office-modern.office-floating-rail {
+  --office5-rail:64px;
+  --office5-context:216px;
+  --office5-gap:12px;
+  --office5-outer:12px;
+}
+.kravia-office .office-v2.office-modern.office-floating-rail > .office-mega-aside,
+.kravia-office .office-v2.office-modern.office-floating-rail > .office-main {
+  min-width:0!important;
+}
+.kravia-office .office-v2.office-modern.office-floating-rail .office-icon-rail,
+.kravia-office .office-v2.office-modern.office-floating-rail .office-mega-panel {
+  border-radius:12px!important;
+  box-shadow:0 4px 18px rgba(18,31,54,.055)!important;
+}
+.kravia-office .office-v2.office-modern.office-floating-rail .office-icon-rail{padding:9px 7px!important}
+.kravia-office .office-v2.office-modern.office-floating-rail .office-mega-panel{background:var(--office-ui-surface-alt)!important}
+.kravia-office .office-v2.office-modern.office-floating-rail .office-menu-heading{
+  min-height:56px!important;padding:11px 12px!important;
+}
+.kravia-office .office-v2.office-modern.office-floating-rail .office-mega-link-list a{
+  min-height:40px!important;padding:9px 10px!important;border-radius:8px!important;font-size:12px!important;
+}
+.kravia-office .office-v2.office-modern.office-floating-rail .office-menu-heading strong{font-size:13px!important}
+.kravia-office .office-v2.office-modern.office-floating-rail .office-rail-category{min-height:46px!important;border-radius:9px!important}
+.kravia-office .office-v2.office-modern.office-floating-rail .office-sidebar-footer{
+  align-items:center;justify-content:end;gap:5px;padding-top:8px;
+}
+.kravia-office .office-v2.office-modern.office-floating-rail .office-sidebar-footer :is(a,button,.workspace-signout){
+  width:44px!important;height:44px!important;min-height:44px!important;border-radius:9px!important;
+}
+.kravia-office .office-v2.office-modern.office-floating-rail > .office-main{
+  border-radius:12px!important;box-shadow:none!important;padding-bottom:20px!important;
+}
+.kravia-office .office-v2.office-modern.office-floating-rail .office-topbar-compact{
+  height:56px!important;min-height:56px!important;padding:8px 24px!important;border-radius:12px 12px 0 0!important;
+}
+.kravia-office .office-v2.office-modern.office-floating-rail .office-main>section:not(.office-topbar){
+  margin-inline:24px!important;
+}
+.kravia-office .office-modern .office-breadcrumbs{font-size:12px}
+.kravia-office .office-modern .office-more-card{border-radius:12px!important}
+.kravia-office .office-modern .office-topbar-tools{display:flex;align-items:center;gap:9px}
+.kravia-office .office-modern .office-topbar-tools :is(button,a){min-height:36px}
+.kravia-office .office-modern .office-topbar-tools [class*="office-command-palette_trigger"]{
+  min-height:36px!important;max-width:220px;border-radius:8px!important;
+}
+.kravia-office .office-modern .office-compact-notice{margin:7px 24px 0!important}
+.kravia-office .office-modern .office-compact-notice p{font-size:12px!important}
+.kravia-office .office-modern .office-briefing-compact{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:18px 0!important;margin-top:0!important;min-height:0!important;
+  border:0!important;box-shadow:none!important;background:transparent!important;
+}
+.kravia-office .office-modern .office-briefing-compact h2{font-size:24px!important;margin:2px 0 6px!important}
+.kravia-office .office-modern .office-briefing-compact p{font-size:13px!important;margin:0}
+.kravia-office .office-modern .office-briefing-actions{display:flex;flex-wrap:wrap;gap:8px}
+.kravia-office .office-modern .office-dashboard-extras{border-radius:12px!important;margin-top:14px}
+.kravia-office .office-modern .office6-quick-actions{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 16px;
+}
+.kravia-office .office-modern .office6-quick-actions a{
+  display:flex;align-items:center;justify-content:space-between;gap:9px;
+  padding:14px 16px;min-height:60px;box-sizing:border-box;
+  color:var(--office-ui-ink);text-decoration:none;font-size:13px;font-weight:680;
+  border:1px solid var(--office-ui-line);border-radius:12px;background:var(--office-ui-surface);
+}
+.kravia-office .office-modern .office6-quick-actions a svg{width:18px;height:18px;color:var(--office-ui-accent);flex:none}
+.kravia-office .office-modern .office6-quick-actions a:hover{border-color:var(--office-ui-accent)}
+.kravia-office .office-modern:not([data-chat-conversation="true"]) .office-main :where(
+  [class*="_card__"],[class*="_panel__"],[class*="_tableWrap__"],[class*="_toolbar__"]
+){border-radius:12px!important;box-shadow:none!important;min-width:0}
+.kravia-office .office-modern .office-main :where(table){border-collapse:separate;border-spacing:0}
+.kravia-office .office-modern .office-main :where(.office-dashboard-quick-links){gap:12px!important}
+.kravia-office .office-modern .office-main :where(input,select,textarea){max-width:100%}
+.kravia-office .office-modern[data-density="compact"] .office-main :where(
+  [class*="_card__"],[class*="_panel__"]
+){padding:12px!important}
+.kravia-office .office-modern[data-density="compact"] .office-main :where(
+  [class*="_device__"],[class*="_row__"],[class*="_session__"]
+){padding-block:9px!important}
+.kravia-office .office-modern[data-density="compact"] .office-main :where(
+  [class*="_grid__"],[class*="_columns__"]
+){gap:10px!important}
+.kravia-office .office-modern .office-main [data-settings-scope]{margin:0 auto 24px!important}
+.kravia-office .office-modern .office-main [data-settings-scope] [class*="office-settings-hub_themeSwitch"] button[aria-pressed="true"]{
+  background:#10151e!important;color:#fff!important;border:0!important;box-shadow:none!important;
+}
+.kravia-office .office-modern[data-ui-theme="dark"] .office-main [data-settings-scope] [class*="office-settings-hub_themeSwitch"] button[aria-pressed="true"]{
+  background:#fff!important;color:#050609!important;
+}
+.kravia-office .office-modern .office-main [data-settings-scope] [class*="office-settings-hub_navItems"] button[data-active="true"]{
+  background:var(--office-ui-selected)!important;color:var(--office-ui-ink)!important;border:0!important;box-shadow:inset 3px 0 var(--office-ui-accent)!important;
+}
+.kravia-office .office-modern .office-main [data-settings-scope] [class*="office-settings-hub_subnav"] button[data-active="true"]{
+  background:var(--office-ui-surface)!important;color:var(--office-ui-accent)!important;border:1px solid var(--office-ui-line)!important;box-shadow:none!important;
+}
+/* Modal surfaces remain centered for consequential decisions. */
+.kravia-office .office-v2.office-modern .office-main :where([role="alertdialog"],dialog[open]){
+  max-width:min(560px,calc(100dvw - 32px));max-height:calc(100dvh - 40px);overflow-y:auto;
+}
+@media(min-width:901px) and (max-width:1279px){
+  .kravia-office .office-v2.office-modern.office-floating-rail{
+    --office5-rail:60px;--office5-context:190px;--office5-gap:10px;--office5-outer:12px;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail .office-topbar-compact{
+    height:54px!important;min-height:54px!important;padding:8px 20px!important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail .office-main>section:not(.office-topbar){margin-inline:20px!important}
+  .kravia-office .office-modern .office-compact-notice{margin-inline:20px!important}
+}
+@media(min-width:768px) and (max-width:900px){
+  .kravia-office .office-v2.office-modern.office-floating-rail{
+    --office5-rail:60px;--office5-outer:12px;grid-template-columns:60px minmax(0,1fr)!important;gap:12px!important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail > .office-mega-aside{
+    width:60px!important;grid-template-columns:60px 0!important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail .office-mega-panel{display:none!important}
+  .kravia-office .office-v2.office-modern.office-floating-rail .office-topbar-compact{
+    height:54px!important;min-height:54px!important;padding:7px 16px!important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail .office-main>section:not(.office-topbar){margin-inline:16px!important}
+  .kravia-office .office-modern .office6-quick-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:767px){
+  .kravia-office .office-v2.office-modern.office-floating-rail{padding:0!important}
+  .kravia-office .office-v2.office-modern.office-floating-rail .office-topbar-compact{
+    height:54px!important;min-height:54px!important;padding:7px 16px!important;border-radius:0!important;
+  }
+  .kravia-office .office-v2.office-modern.office-floating-rail .office-main>section:not(.office-topbar){margin-inline:16px!important}
+  .kravia-office .office-modern .office-compact-notice{margin:5px 16px 0!important}
+  .kravia-office .office-modern .office-briefing-compact{padding:14px 0!important;flex-wrap:wrap}
+  .kravia-office .office-modern .office-briefing-compact h2{font-size:22px!important}
+  .kravia-office .office-modern .office6-quick-actions{grid-template-columns:1fr;gap:8px}
+  .kravia-office .office-modern .office6-quick-actions a{min-height:48px;padding:10px 12px}
+  .kravia-office .office-modern .office-topbar-tools [class*="office-command-palette_trigger"]{
+    padding:7px!important;width:36px!important;min-width:36px!important;
+  }
+  .kravia-office .office-modern .office-topbar-tools [class*="office-command-palette_trigger"] :is(span,kbd){display:none!important}
+  .kravia-office .office-modern .office-main [data-settings-scope]{margin-bottom:14px!important}
+  .kravia-office .office-modern .office-main :where([class*="_tableWrap__"]){max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain}
+  .kravia-office .office5-mobile-dock{left:12px;right:12px;bottom:max(8px,env(safe-area-inset-bottom,0px));border-radius:14px!important}
+}
+@media(prefers-reduced-motion:reduce){
+  .kravia-office .office-v2.office-modern.office-floating-rail :where(button,a,input,textarea){
+    scroll-behavior:auto!important;transition:none!important;
+  }
+}

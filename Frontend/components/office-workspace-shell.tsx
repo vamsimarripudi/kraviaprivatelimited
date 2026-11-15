@@ -92,6 +92,8 @@ const founderNavigation = new Set([
 type Entry = [string, WorkspaceSection];
 type Theme = "light" | "dark";
 const themeKey = "kravia.office.appearance";
+const densityKey = "kravia.office.density";
+const sidebarKey = "kravia.office.sidebar.expanded";
 function sectionEntries(workspace: WorkspaceKind): Entry[] {
   return Object.entries(workspace === "finance" ? financeSections : officeSections) as Entry[];
 }
@@ -128,6 +130,7 @@ export function OfficeWorkspaceShell({
   const pathname = usePathname();
   const [mobileNav, setMobileNav] = useState(false);
   const [megaExpanded, setMegaExpanded] = useState(true);
+  const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
   const [pickedCategory, setPickedCategory] = useState<string | null>(null);
   const [pickedSubgroup, setPickedSubgroup] = useState<string | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -228,7 +231,7 @@ export function OfficeWorkspaceShell({
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (event.key === "Escape") { setMobileNav(false); setMoreOpen(false); }
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") setMoreOpen(true);
+      // The command palette owns Ctrl/Cmd+K; do not also open the overflow menu.
     };
     document.addEventListener("keydown",handler);
     return () => document.removeEventListener("keydown",handler);
@@ -253,10 +256,39 @@ export function OfficeWorkspaceShell({
   const settingsHref = workspace === "finance" ? "/office/settings" : definition.basePath + "/settings";
   const canOpenSettings = workspace === "office" || canSwitch;
 
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      try {
+        setDensity(window.localStorage.getItem(densityKey) === "compact" ? "compact" : "comfortable");
+        setMegaExpanded(window.localStorage.getItem(sidebarKey) !== "closed");
+      } catch { /* Personal display preferences are optional. */ }
+    });
+    const onDensity = (event: Event) => {
+      const next = (event as CustomEvent<"comfortable" | "compact">).detail;
+      if (next === "comfortable" || next === "compact") setDensity(next);
+    };
+    const onSidebar = (event: Event) => {
+      const next = (event as CustomEvent<boolean>).detail;
+      if (typeof next === "boolean") setMegaExpanded(next);
+    };
+    window.addEventListener("kravia-office-density-change", onDensity);
+    window.addEventListener("kravia-office-sidebar-change", onSidebar);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("kravia-office-density-change", onDensity);
+      window.removeEventListener("kravia-office-sidebar-change", onSidebar);
+    };
+  }, []);
+  function changeSidebar(next: boolean) {
+    setMegaExpanded(next);
+    try { window.localStorage.setItem(sidebarKey, next ? "open" : "closed"); } catch {}
+    window.dispatchEvent(new CustomEvent("kravia-office-sidebar-change", { detail: next }));
+  }
+
   const navId = workspace + "-workspace-mega-navigation";
   return <OfficeWorkspaceProvider identity={identity} permissions={permissions}>
     <main className={"office office-v2 office-v4 office-modern office-floating-rail workspace-shell workspace-" + workspace}
-      data-ui-theme={theme} data-menu-expanded={megaExpanded} data-chat-conversation={isChatConversation}>
+      data-ui-theme={theme} data-density={density} data-menu-expanded={megaExpanded} data-chat-conversation={isChatConversation}>
       <OfficeAmbientField variant="workspace" />
       <a className="office-skip-link" href="#office-main-content">Skip to main content</a>
       <OfficePrefetchRoutes hrefs={prefetchedRoutes}/>
@@ -274,8 +306,8 @@ export function OfficeWorkspaceShell({
               title={name} aria-label={name} aria-expanded={selectedCategory === name && megaExpanded}
               data-active={selectedCategory === name}
               onClick={() => {
-                if (selectedCategory === name && megaExpanded) setMegaExpanded(false);
-                else { setPickedCategory(name); setPickedSubgroup(null); setMegaExpanded(true); }
+                if (selectedCategory === name && megaExpanded) changeSidebar(false);
+                else { setPickedCategory(name); setPickedSubgroup(null); changeSidebar(true); }
               }}>
               <CategoryIcon name={name}/><span>{name}</span>
             </button>)}
@@ -302,7 +334,7 @@ export function OfficeWorkspaceShell({
               <strong>{selectedCategory}</strong></div>
             <button type="button" aria-label={megaExpanded ? "Collapse menu" : "Expand menu"}
               title={megaExpanded ? "Collapse menu" : "Expand menu"}
-              onClick={() => setMegaExpanded(v => !v)}>
+              onClick={() => changeSidebar(!megaExpanded)}>
               {megaExpanded ? <PanelLeftClose size={17}/> : <PanelLeftOpen size={17}/>}
             </button>
             <button className="office-mobile-close" type="button" aria-label="Close menu"
@@ -361,7 +393,7 @@ export function OfficeWorkspaceShell({
           <button type="button" className="office-mobile-trigger"
             aria-controls={navId} aria-expanded={mobileNav}
             aria-label={mobileNav ? "Close Office menu" : "Open Office menu"}
-            onClick={() => { setMegaExpanded(true); setMobileNav(v => !v); }}>
+            onClick={() => { changeSidebar(true); setMobileNav(v => !v); }}>
             {mobileNav ? <X size={18}/> : <Menu size={18}/>}
           </button>
           <nav className="office-breadcrumbs" aria-label="Breadcrumb">
@@ -372,6 +404,7 @@ export function OfficeWorkspaceShell({
             <strong aria-current="page">{activePageTitle}</strong>
           </nav>
           <div className="office-topbar-tools">
+            <OfficeCommandPalette commands={commands}/>
             <OfficeIstClock/>
             {workspace === "office" && identity.roles.some(role => role === "OWNER" || role === "DIRECTOR") ?
               <OfficeIntelligencePeek key={pathname}/> : null}
@@ -387,7 +420,7 @@ export function OfficeWorkspaceShell({
                 <button type="button" onClick={() => setMoreOpen(false)}
                   aria-label="Close workspace tools"><X size={16}/></button></div>
               <OfficePresenceControl/>
-              <OfficeCommandPalette commands={commands}/>
+              
               <IdentityCard identity={identity}/>
               <div className="office-more-shortcuts">
                 {canOpenSettings ? <OfficeNavLink href={settingsHref}><Cog size={15}/>Settings</OfficeNavLink> : null}
@@ -419,7 +452,7 @@ export function OfficeWorkspaceShell({
         <OfficeNavLink href={definition.basePath + "/dashboard"}><LayoutDashboard size={18} aria-hidden="true"/><span>Home</span></OfficeNavLink>
         {workspace === "office" ? <OfficeNavLink href="/office/chat"><MessageSquareText size={18} aria-hidden="true"/><span>Connect</span></OfficeNavLink> : null}
         {vaultEntry ? <OfficeNavLink href="/office/k-vault"><Vault size={18} aria-hidden="true"/><span>Vault</span></OfficeNavLink> : null}
-        <button type="button" onClick={() => { setMegaExpanded(true); setMobileNav(true); }} aria-label="Open more navigation"><Menu size={18} aria-hidden="true"/><span>More</span></button>
+        <button type="button" onClick={() => { changeSidebar(true); setMobileNav(true); }} aria-label="Open more navigation"><Menu size={18} aria-hidden="true"/><span>More</span></button>
       </nav>
     </main>
   </OfficeWorkspaceProvider>;

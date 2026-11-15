@@ -55,7 +55,7 @@ function dateTime(value?: string | null) {
   return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
 
-export function OfficeSecuritySettings({ identity }: { identity: OfficeIdentity }) {
+export function OfficeSecuritySettings({ identity, view = "all" }: { identity: OfficeIdentity; view?: "all" | "devices" | "sessions" | "password" | "authenticator" }) {
   const [devices, setDevices] = useState<Device[]>();
   const [sessions, setSessions] = useState<AuthSession[]>();
   const [activations, setActivations] = useState<AuthenticatorActivation[]>();
@@ -197,8 +197,8 @@ export function OfficeSecuritySettings({ identity }: { identity: OfficeIdentity 
   const currentDevice = devices?.find((device) => device.current);
   const currentSession = sessions?.find((session) => session.current);
 
-  return <div className={styles.shell}>
-    <section className={styles.hero}>
+  return <div className={styles.shell} data-compact={view !== "all"}>
+    <section className={styles.hero} hidden={view !== "all"}>
       <div><p>IDENTITY SECURITY</p><h2>Session, MFA and trusted-device control.</h2><span>{identity.email ?? "Verified Office identity"} · {identity.roles.join(" · ")} · {identity.aal.toUpperCase()}</span></div>
       <div className={styles.posture} data-ready={Boolean(currentDevice)}><ShieldCheck /><div><b>{currentDevice ? "Trusted browser" : "AAL2 verified"}</b><small>{currentDevice ? currentDevice.device_label : "Bind an approved company-managed device before strict device enforcement is enabled."}</small></div></div>
     </section>
@@ -207,7 +207,7 @@ export function OfficeSecuritySettings({ identity }: { identity: OfficeIdentity 
     {notice ? <div className={styles.notice}><ShieldCheck />{notice}</div> : null}
 
     <div className={styles.grid}>
-      <section className={styles.panel}>
+      <section className={styles.panel} hidden={view !== "all" && view !== "devices"}>
         <header><div><p>TRUSTED DEVICES</p><h3>Registered company devices</h3></div><MonitorSmartphone /></header>
         {!devices ? <div className={styles.loading}><LoaderCircle className="spin" /> Loading devices…</div> : devices.length === 0 ? <div className={styles.empty}>No device has been registered for this identity. An Office access administrator must register and approve a company-managed device first.</div> : <div className={styles.rows}>{devices.map((device) => {
           const eligible = device.trust_state === "TRUSTED" && device.company_managed && !device.revoked_at;
@@ -219,7 +219,7 @@ export function OfficeSecuritySettings({ identity }: { identity: OfficeIdentity 
         })}</div>}
       </section>
 
-      <section className={styles.panel}>
+      <section className={styles.panel} hidden={view !== "all" && view !== "sessions"}>
         <header><div><p>AUTHENTICATION LEDGER</p><h3>Recent Office sessions</h3></div><ShieldCheck /></header>
         {!sessions ? <div className={styles.loading}><LoaderCircle className="spin" /> Loading sessions…</div> : sessions.length === 0 ? <div className={styles.empty}>No first-party Office sessions are available.</div> : <div className={styles.sessionList}>{sessions.map((session) => <article key={session.id} className={styles.session} data-current={session.current}>
           <div>
@@ -232,7 +232,7 @@ export function OfficeSecuritySettings({ identity }: { identity: OfficeIdentity 
         </article>)}</div>}
       </section>
 
-      <section className={styles.panel}>
+      <section className={styles.panel} hidden={view !== "all" && view !== "authenticator"}>
         <header><div><p>AUTHENTICATOR ACTIVATIONS</p><h3>Approve a new phone</h3></div><ShieldCheck /></header>
         {!activations ? <div className={styles.loading}><LoaderCircle className="spin" /> Loading activation requests…</div> : activations.length === 0 ? <div className={styles.empty}>No Authenticator phones are waiting for approval.</div> : <div className={styles.rows}>{activations.map((activation) => <article key={activation.id} className={styles.device}>
           <div className={styles.deviceIcon}><ShieldCheck /></div>
@@ -242,7 +242,7 @@ export function OfficeSecuritySettings({ identity }: { identity: OfficeIdentity 
       </section>
     </div>
 
-    <section className={styles.passwordPanel}>
+    <section className={styles.passwordPanel} hidden={view !== "all" && view !== "password"}>
       <header><div><p>PASSWORD SECURITY</p><h3>Change your KRAVIA Office password</h3></div><KeyRound /></header>
       <form className={styles.passwordForm} onSubmit={changePassword}>
         <label>Current password<input type="password" autoComplete="current-password" required maxLength={256} value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} disabled={passwordBusy} /></label>
@@ -253,7 +253,7 @@ export function OfficeSecuritySettings({ identity }: { identity: OfficeIdentity 
       <small>Changing your password keeps this verified session active and revokes every other active Office session.</small>
     </section>
 
-    <section className={styles.policy}>
+    <section className={styles.policy} hidden={view !== "all"}>
       <ShieldCheck /><div><b>Security boundary</b><p>AAL2 proves the user completed MFA. Trusted-device binding separately proves that this browser possesses a secret bound to an administrator-approved, company-managed device. Authentication presence, device trust and business permissions remain independent controls.</p><small>Current session: {currentSession ? `${currentSession.aal.toUpperCase()} · KRAVIA first-party` : "session evidence unavailable"}</small></div>
     </section>
   </div>;

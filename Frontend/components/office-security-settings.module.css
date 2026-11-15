@@ -33,3 +33,27 @@
 .device,.session,.policy{transition:border-color 150ms ease,box-shadow 150ms ease}.device:hover,.session:hover,.policy:hover{border-color:rgba(37,95,73,.16)!important;box-shadow:0 14px 32px rgba(10,29,19,.055)!important}
 .deviceAction button,.actions button{border-radius:10px!important;transition:transform 140ms ease}.deviceAction button:hover,.actions button:hover{transform:translateY(-1px)}
 @media(max-width:620px){.deviceAction button:hover,.actions button:hover{transform:none}}@media(prefers-reduced-motion:reduce){.device,.session,.policy,.deviceAction button,.actions button{transition:none}}
+
+/* Approved Settings V2: focused security subpages preserve all first-party security mutations. */
+.shell[data-compact="true"]{margin:0!important;gap:14px!important}
+.shell[data-compact="true"] .grid{grid-template-columns:1fr!important;gap:0!important}
+.shell[data-compact="true"] .panel,.shell[data-compact="true"] .passwordPanel{
+  border-radius:12px!important;background:var(--office-ui-surface)!important;
+  box-shadow:none!important;border:1px solid var(--office-ui-line)!important;
+}
+.shell[data-compact="true"] .panel>header{background:var(--office-ui-surface-alt)!important;padding:14px 16px!important}
+.shell[data-compact="true"] .device,.shell[data-compact="true"] .session{padding:13px 16px!important}
+.shell[data-compact="true"] .deviceIcon{background:var(--office-ui-surface-alt)!important;color:var(--office-ui-accent)!important}
+.shell[data-compact="true"] :is(.deviceCopy small,.session small,.passwordPanel small,.empty){
+  font-size:12px!important;color:var(--office-ui-muted)!important;
+}
+.shell[data-compact="true"] .deviceCopy b,.shell[data-compact="true"] .session b{font-size:13px!important}
+.shell[data-compact="true"] .deviceCopy span,.shell[data-compact="true"] .session span{font-size:12px!important}
+.shell[data-compact="true"] .deviceAction button,.shell[data-compact="true"] .sessionAction{min-height:44px!important;font-size:12px!important}
+.shell[data-compact="true"] .passwordPanel{gap:12px!important;padding:16px!important}
+.shell[data-compact="true"] .passwordForm label{font-size:12px!important}
+.shell[data-compact="true"] .passwordForm input{font-size:14px!important}
+.shell[data-compact="true"] .passwordForm button{min-height:44px!important;font-size:12px!important}
+.shell[data-compact="true"] :is(.error,.notice){font-size:12px!important}
+.shell [hidden]{display:none!important}
+@media(max-width:767px){.shell[data-compact="true"]{margin:0!important}.shell[data-compact="true"] .deviceAction{padding-left:0!important}}

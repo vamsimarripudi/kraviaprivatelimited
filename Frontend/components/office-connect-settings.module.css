@@ -26,3 +26,13 @@
 .serverForm>button{min-height:44px;width:max-content;max-width:100%;border:1px solid transparent;border-radius:10px;background:var(--office-ui-accent);padding:10px 15px;color:#fff;font-weight:700;cursor:pointer}
 .serverForm>button:disabled{opacity:.65;cursor:wait}
 .notice button{min-height:44px;border:1px solid var(--office-ui-line);background:var(--office-ui-surface);border-radius:10px;padding:9px;color:var(--office-ui-ink);cursor:pointer}
+
+/* Shared settings form embedded in the Office Settings navigation. */
+.shell[data-embedded="true"]{margin:0!important;padding:0!important;gap:12px!important;max-width:none}
+.shell[data-embedded="true"] .columns{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.shell[data-embedded="true"] .card{padding:16px!important;border-radius:12px!important;box-shadow:none!important}
+.shell[data-embedded="true"] .switch{border-radius:8px!important;min-height:56px!important}
+.shell[data-embedded="true"] .switch small{font-size:12px!important}
+.shell[data-embedded="true"] :is(.back,.options,[hidden]){display:none!important}
+@media(max-width:1000px){.shell[data-embedded="true"] .columns{grid-template-columns:1fr}}
+@media(max-width:767px){.shell[data-embedded="true"] .card{padding:13px!important}}
