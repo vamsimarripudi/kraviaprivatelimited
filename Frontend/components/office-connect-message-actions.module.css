@@ -89,3 +89,74 @@
 
 .details button{justify-self:start;min-height:35px;padding:7px 10px;border:1px solid var(--office-ui-line);
  border-radius:8px;background:var(--office-ui-surface-alt);color:var(--office-ui-accent);font:inherit;font-size:11px;cursor:pointer}
+
+/* Menu lives in document.body, not inside overflow-scrolling message bubbles. */
+.floating{
+ position:fixed;z-index:4000;box-sizing:border-box;
+ top:12px;left:12px;width:min(280px,calc(100vw - 24px));
+ max-width:calc(100vw - 24px);max-height:min(74dvh,520px);
+ overflow-y:auto;overscroll-behavior:contain;
+ padding:8px;border:1px solid var(--office-ui-line);
+ border-radius:14px;background:var(--office-ui-surface);color:var(--office-ui-ink);
+ box-shadow:0 18px 48px rgba(0,0,0,.35);
+ scrollbar-width:none;-webkit-overflow-scrolling:touch;
+}
+.floating::-webkit-scrollbar{display:none}
+.floating[data-ui-theme="dark"]{
+ --office-ui-surface:#111319;--office-ui-surface-alt:#1b1e27;
+ --office-ui-control:#171a22;--office-ui-ink:#f7f8fb;
+ --office-ui-muted:#c2c6d0;--office-ui-line:#353945;
+ --office-ui-accent:#4f8fff;--office-ui-danger:#ff6574;
+}
+.floating[data-ui-theme="light"]{
+ --office-ui-surface:#fff;--office-ui-surface-alt:#f2f4f8;
+ --office-ui-control:#fff;--office-ui-ink:#171b25;
+ --office-ui-muted:#5c6574;--office-ui-line:#d9dfe9;
+ --office-ui-accent:#1559ce;--office-ui-danger:#cc293b;
+}
+.floatingNav{display:grid;grid-template-columns:1fr;gap:2px;min-width:0;margin:0;padding:0}
+.floatingNav :is(button,a){
+ display:flex!important;align-items:center!important;justify-content:flex-start!important;
+ gap:10px!important;width:100%!important;min-width:0!important;height:auto!important;
+ min-height:41px!important;padding:8px 10px!important;box-sizing:border-box!important;
+ border:0!important;border-radius:9px!important;
+ background:transparent!important;color:var(--office-ui-ink)!important;
+ font-size:12px!important;font-weight:500;text-decoration:none;cursor:pointer;text-align:left;
+}
+.floatingNav :is(button,a) svg{width:17px;height:17px;flex:none;color:var(--office-ui-muted)}
+.floatingNav :is(button,a) span{display:block;min-width:0;flex:1}
+.floatingNav :is(button,a):hover,.floatingNav :is(button,a):focus-visible{
+ background:var(--office-ui-surface-alt)!important;color:var(--office-ui-accent)!important;
+}
+.floating :is(.details,.form,.history,.confirm,.reactions){
+ position:relative!important;top:auto!important;right:auto!important;left:auto!important;
+ width:100%!important;max-width:100%!important;box-sizing:border-box!important;
+ background:var(--office-ui-surface)!important;color:var(--office-ui-ink)!important;
+ margin:7px 0 0!important;padding:9px!important;
+ border:1px solid var(--office-ui-line)!important;border-radius:10px!important;
+ box-shadow:none!important;overflow-wrap:anywhere;overflow-y:auto;max-height:50dvh;
+}
+.floating .form{display:grid;gap:9px}
+.floating .form label{display:grid;gap:5px;color:var(--office-ui-ink)}
+.floating .form :is(textarea,input,select){width:100%;min-width:0;box-sizing:border-box;
+ padding:9px;border:1px solid var(--office-ui-line);border-radius:8px;
+ background:var(--office-ui-control);color:var(--office-ui-ink)}
+.floating .form :is(button,a),.floating :is(.history,.details,.confirm) button{
+ min-height:37px;padding:7px 10px;border-radius:8px;border:1px solid var(--office-ui-line);
+ color:var(--office-ui-ink);background:var(--office-ui-surface-alt);font-size:12px;
+}
+.floating .confirm{display:grid;gap:8px}
+.floatingNotice{font-size:12px;line-height:1.45;padding:8px 10px;margin:7px 0 0;
+ border:1px solid var(--office-ui-line);border-radius:9px;
+ background:var(--office-ui-surface-alt);color:var(--office-ui-ink)}
+.floating :is(button,a):focus-visible{outline:2px solid var(--office-ui-accent);outline-offset:2px}
+@media(max-width:767px){
+ .floating{width:min(350px,calc(100vw - 24px));max-height:calc(100dvh - 110px);
+  padding:8px;border-radius:14px}
+ .floatingNav :is(button,a){min-height:42px!important;font-size:13px!important}
+ .floating .form :is(textarea,input,select){font-size:16px}
+}
+@media(hover:none){
+ .actions .menuTrigger{opacity:.9!important;pointer-events:auto!important;width:30px;height:30px}
+ .actions:not([data-open="true"]) .menuTrigger{opacity:.9!important;pointer-events:auto!important}
+}
