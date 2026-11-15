@@ -1,7 +1,7 @@
 import {readFileSync} from "node:fs";
 import {describe,it,expect} from "vitest";
 const read=(p:string)=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
-const sql=read("../../Database/supabase/migrations/20261115190229_office_chat_delivery_receipts.sql");
+const sql=read("../Database/supabase/migrations/20261115190229_office_chat_delivery_receipts.sql");
 const server=read("lib/office/chat-server.ts");
 const api=read("app/api/office-chat/conversations/[id]/deliver/route.ts");
 const connect=read("components/office-connect.tsx");
