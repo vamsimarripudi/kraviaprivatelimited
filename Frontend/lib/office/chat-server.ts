@@ -1,4 +1,5 @@
 import "server-only";
+import {after} from "next/server";
 import {dispatchOfficeChatMessage} from "@/lib/office/notification-dispatch-server";
 
 import { requireOfficeActor, OfficePermissionError } from "@/lib/office/permission-engine";
@@ -149,7 +150,7 @@ export async function getOfficeChatMessages(conversationId: string,before?:ChatH
   if (people.error) throw internalFailure("Message author context is unavailable");
   const names = new Map((people.data ?? []).map(row => [String(row.user_id), String(row.display_name ?? "Employee")]));
   const ids=rows.map(row=>String(row.id));
-  const [fileResult,pinResult,reactionResult]=await Promise.all([
+  const [fileResult,pinResult,reactionResult,memberResult,readResult,deliveryResult]=await Promise.all([
    ids.length?current.admin.from("office_chat_attachment_objects")
     .select("id,message_id,original_filename,detected_mime_type,byte_size")
     .in("message_id",ids).eq("conversation_id",conversationId).eq("status","CLEAN")
@@ -160,8 +161,15 @@ export async function getOfficeChatMessages(conversationId: string,before?:ChatH
    ids.length?current.admin.rpc("office_chat_reaction_snapshot",{
     p_actor:current.identity.userId,p_conversation:conversationId,p_messages:ids,
    }):Promise.resolve({data:[],error:null}),
+   current.admin.from("office_chat_memberships").select("user_id").eq("conversation_id",conversationId)
+     .eq("status","ACTIVE").limit(150),
+   current.admin.from("office_chat_read_cursors").select("user_id,last_read_at")
+     .eq("conversation_id",conversationId).limit(150),
+   ids.length?current.admin.from("office_chat_message_deliveries").select("message_id,recipient_user_id")
+     .eq("conversation_id",conversationId).in("message_id",ids).limit(15000)
+     :Promise.resolve({data:[],error:null}),
   ]);
-  if(fileResult.error||pinResult.error||reactionResult.error)throw internalFailure("Message history is unavailable");
+  if(fileResult.error||pinResult.error||reactionResult.error||memberResult.error||readResult.error||deliveryResult.error)throw internalFailure("Message history is unavailable");
   const reactionByMessage=new Map<string,{emoji:string;count:number;mine:boolean}[]>();
   for(const reaction of reactionResult.data??[]){
    const id=String(reaction.message_id);
@@ -171,6 +179,19 @@ export async function getOfficeChatMessages(conversationId: string,before?:ChatH
    }]);
   }
   const pinned=new Set((pinResult.data??[]).map(pin=>String(pin.message_id)));
+  const recipients=(memberResult.data??[]).map(member=>String(member.user_id))
+    .filter(id=>id!==current.identity.userId);
+  const readTimes=new Map((readResult.data??[]).map(row=>[String(row.user_id),Date.parse(row.last_read_at)]));
+  const delivered=new Set((deliveryResult.data??[]).map(row=>
+    String(row.message_id)+":"+String(row.recipient_user_id)));
+  // All active recipients must acknowledge a group message before double ticks.
+  function receipt(messageId:string,senderId:string,createdAt:string) {
+    if(senderId!==current.identity.userId||recipients.length===0)return "sent";
+    const at=Date.parse(createdAt);
+    if(recipients.every(id=>(readTimes.get(id)??0)>=at))return "read";
+    if(recipients.every(id=>delivered.has(messageId+":"+id)))return "delivered";
+    return "sent";
+  }
   return { actor_user_id: current.identity.userId,
     older_cursor:olderCursor,
     can_pin:conversation.kind!=="GROUP"||conversation.created_by===current.identity.userId,
@@ -178,6 +199,7 @@ export async function getOfficeChatMessages(conversationId: string,before?:ChatH
       id: row.id, sender_user_id: row.sender_user_id,
       sender_name: names.get(String(row.sender_user_id)) ?? "Employee",
       body: row.body, created_at: row.created_at, edited_at: row.edited_at,
+      delivery_status:receipt(String(row.id),String(row.sender_user_id),row.created_at),
       pinned:pinned.has(String(row.id)),
       reactions:reactionByMessage.get(String(row.id))??[],
       attachments:(fileResult.data??[]).filter(file=>file.message_id===row.id).map(file=>({id:file.id,name:file.original_filename,mime:file.detected_mime_type,size:file.byte_size})),
@@ -198,8 +220,21 @@ export async function sendOfficeChatMessage(conversationId: string, body: string
   if (result.error || typeof result.data !== "string") {
     throw new OfficeChatError(503, "The message was not confirmed. Retry safely using the same draft.");
   }
-  await dispatchOfficeChatMessage(current.admin,conversationId,result.data,current.identity.userId,mentions).catch(()=>{});
+  // Persisted-message confirmation is immediate; alert fanout is best effort.
+  after(async()=>{await dispatchOfficeChatMessage(current.admin,conversationId,result.data,current.identity.userId,mentions)
+    .catch(()=>{});});
   return { message_id: result.data };
+}
+
+export async function markOfficeChatDelivered(conversationId:string,messageIds:readonly string[]) {
+  const current=await actor();
+  await ownMembership(current,conversationId);
+  if(messageIds.length<1||messageIds.length>100)throw new OfficeChatError(400,"Invalid delivery batch");
+  const {data,error}=await current.admin.rpc("office_chat_ack_delivery",{
+    p_actor:current.identity.userId,p_conversation:conversationId,p_message_ids:[...messageIds],
+  });
+  if(error||typeof data!=="number")throw internalFailure("Delivery acknowledgement unavailable");
+  return {acknowledged:data};
 }
 
 export async function markOfficeChatRead(conversationId: string) {
