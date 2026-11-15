@@ -1,5 +1,6 @@
 "use client";
-import {useState,type FormEvent} from "react";
+import {useState,useEffect,useLayoutEffect,useRef,type FormEvent} from "react";
+import {createPortal} from "react-dom";
 import Link from "next/link";
 import {Bookmark,CornerDownRight,Edit3,Flag,History,Pin,PinOff,Trash2,SmilePlus,MoreHorizontal} from "lucide-react";
 import styles from "./office-connect-message-actions.module.css";
@@ -33,6 +34,70 @@ export function OfficeConnectMessageActions({id,body,own,pinned=false,canPin=fal
  const [reportCategory,setReportCategory]=useState("CODE_OF_CONDUCT");
  const [reportSeverity,setReportSeverity]=useState("MEDIUM");
  const [reportDetail,setReportDetail]=useState("");
+ const anchorRef=useRef<HTMLButtonElement>(null);
+ const floatingRef=useRef<HTMLElement>(null);
+ const expanded=isOpen||infoOpen||editing||remove||historyOpen||reportOpen||reactionsExpanded||Boolean(notice);
+ // Portalling detaches action sheets from the clipped message timeline.
+ // Measure the actual trigger; account for narrow/mobile visual viewports.
+ useLayoutEffect(()=>{
+  if(!expanded)return;
+  const place=()=>{
+   const trigger=anchorRef.current,panel=floatingRef.current;
+   if(!trigger||!panel)return;
+   const anchor=trigger.getBoundingClientRect();
+   const viewport=window.visualViewport;
+   const vw=viewport?.width??window.innerWidth;
+   const vh=viewport?.height??window.innerHeight;
+   const insetLeft=viewport?.offsetLeft??0;
+   const insetTop=viewport?.offsetTop??0;
+   const width=panel.offsetWidth,height=panel.offsetHeight;
+   const mobile=vw<=767;
+   const horizontal=mobile?(vw-width)/2:(own?anchor.right-width:anchor.left);
+   const left=Math.max(insetLeft+12,Math.min(horizontal+insetLeft,vw-width+insetLeft-12));
+   let top=mobile?vh-height-78:anchor.bottom+7;
+   if(!mobile&&top+height>vh-12)top=anchor.top-height-7;
+   top=Math.max(insetTop+12,Math.min(top+insetTop,vh-height+insetTop-12));
+   panel.style.left=Math.round(left)+"px";
+   panel.style.top=Math.round(top)+"px";
+  };
+  place();
+  const frame=window.requestAnimationFrame(place);
+  window.addEventListener("resize",place);
+  window.addEventListener("scroll",place,true);
+  window.visualViewport?.addEventListener("resize",place);
+  return()=>{
+   window.cancelAnimationFrame(frame);
+   window.removeEventListener("resize",place);
+   window.removeEventListener("scroll",place,true);
+   window.visualViewport?.removeEventListener("resize",place);
+  };
+ },[expanded,own,isOpen,infoOpen,editing,remove,historyOpen,reportOpen,reactionsExpanded,notice]);
+ useEffect(()=>{
+  if(!expanded)return;
+  const dismiss=()=>{
+   if(isOpen){if(onToggleMenu)onToggleMenu();else setLocalMenuOpen(false);}
+   setInfoOpen(false);setEditing(false);setRemove(false);
+   setHistoryOpen(false);setReportOpen(false);setReactionsExpanded(false);
+   setNotice("");
+  };
+  const outside=(event:PointerEvent)=>{
+   const node=event.target as Node;
+   if(anchorRef.current?.contains(node)||floatingRef.current?.contains(node))return;
+   dismiss();
+  };
+  const keyboard=(event:KeyboardEvent)=>{
+   if(event.key==="Escape"){event.preventDefault();dismiss();anchorRef.current?.focus();}
+  };
+  document.addEventListener("pointerdown",outside);
+  document.addEventListener("keydown",keyboard);
+  return()=>{document.removeEventListener("pointerdown",outside);
+   document.removeEventListener("keydown",keyboard);};
+ },[expanded,isOpen,onToggleMenu]);
+ async function copyText(){
+  try{await navigator.clipboard.writeText(body);setNotice("Message copied");}
+  catch{setNotice("Clipboard unavailable. Use your browser's copy command.");}
+ }
+
  async function save(){
   setBusy(true);setNotice("");
   try{await mutation("/api/office-chat/saved","POST",{message_id:id,save:true});
@@ -98,15 +163,23 @@ export function OfficeConnectMessageActions({id,body,own,pinned=false,canPin=fal
   finally{setBusy(false)}
  }
  return <div className={styles.actions} data-chat-message-actions="true" data-open={isOpen}>
-  <button className={styles.menuTrigger} data-chat-action-trigger="true" type="button" title="Message actions"
+  <button ref={anchorRef} className={styles.menuTrigger} data-chat-action-trigger="true" type="button" title="Message actions"
     aria-label="Message actions" aria-expanded={isOpen} aria-controls={"office-message-actions-"+id}
     onClick={toggleMenu}><MoreHorizontal size={17}/></button>
-  {isOpen?<nav data-chat-action-menu="true" id={"office-message-actions-"+id} aria-label="Message actions">
+  {expanded&&typeof document!=="undefined"?createPortal(
+   <section ref={floatingRef} className={styles.floating} data-chat-action-popover="true"
+    data-ui-theme={anchorRef.current?.closest("[data-ui-theme]")?.getAttribute("data-ui-theme")==="light"?"light":"dark"}
+    role="dialog" aria-label="Message options">
+  {isOpen?<nav className={styles.floatingNav} data-chat-action-menu="true"
+   id={"office-message-actions-"+id} aria-label="Message actions">
    <button type="button" aria-label="Message information" title="Message information"
      aria-expanded={infoOpen} onClick={()=>setInfoOpen(v=>!v)}>
      <History size={16}/><span>Message details</span>
    </button>
    <Link href={"/office/chat/threads/"+id} aria-label="Reply in thread" title="Reply in thread"><CornerDownRight size={16}/><span>Reply in thread</span></Link>
+   <button type="button" aria-label="Copy message text" title="Copy" onClick={()=>void copyText()}>
+     <Bookmark size={16}/><span>Copy text</span>
+   </button>
    <button type="button" aria-label="Save message" title="Save" disabled={busy}
      onClick={()=>void save()}><Bookmark size={16}/><span>Save message</span></button>
    {canPin?<button type="button" aria-label={pinned?"Unpin message":"Pin message"} title={pinned?"Unpin":"Pin"}
@@ -185,6 +258,7 @@ export function OfficeConnectMessageActions({id,body,own,pinned=false,canPin=fal
     <div><button type="button" disabled={busy} onClick={()=>setRemove(false)}>Cancel</button>
      <button type="button" disabled={busy} onClick={()=>void del()}>{busy?"Removing…":"Confirm removal"}</button></div>
   </div>:null}
-  {notice?<p role="status">{notice}</p>:null}
+  {notice?<p role="status" className={styles.floatingNotice}>{notice}</p>:null}
+   </section>,document.body):null}
  </div>;
 }
