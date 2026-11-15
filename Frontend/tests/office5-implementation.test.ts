@@ -33,11 +33,11 @@ describe("KRAVIA Office 5.0 source-backed implementation guardrails", () => {
  it("does not leak old department channels through saved messages, mentions or search",()=>{
    const server = read("lib/office/chat-server.ts");
    const migration = read("../Database/supabase/migrations/20261114150006_office_chat_department_channels.sql");
-   const component = read("components/office-connect.tsx");
+   const component = read("components/office-connect-chat-list.tsx");
    expect(server).toContain("const effectiveDepartments=new Set");
    expect(server).toContain('row.kind!=="DEPARTMENT"||effectiveDepartments.has');
    expect(server).toContain('row.kind!=="DEPARTMENT"||assignedDepartments.has');
-   expect(component).toContain('"/office/chat/channels/" + encodeURIComponent(item.department_code.toLowerCase())');
+   expect(component).toContain('"/office/chat/channels/"+encodeURIComponent(item.department_code.toLowerCase())');
    expect(migration).toContain("office_chat_department_message_guard");
  });
  it("enforces same origin on every new communication mutation",()=>{
