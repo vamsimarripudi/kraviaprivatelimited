@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowLeft, MessageSquareText, RefreshCw, Search, Send, Paperclip, Pin, UsersRound, Smile, Image, Video, FileText, FileImage, BookMarked, Plus, X, Wifi, WifiOff } from "lucide-react";
+import { ArrowLeft, MessageSquareText, RefreshCw, Search, Send, Paperclip, Pin, UsersRound, Smile, Image, Video, FileText, FileImage, BookMarked, Plus, X, Check, CheckCheck } from "lucide-react";
 import styles from "./office-connect.module.css";
 import { OfficeConnectMessageActions } from "@/components/office-connect-message-actions";
 import { OfficeConnectChatList, OfficeConnectWelcome } from "@/components/office-connect-chat-list";
@@ -15,7 +15,7 @@ import {useOfficeChatLive} from "@/lib/office/use-office-chat-live";
 import {useOfficeChatInboxLive} from "@/lib/office/use-office-chat-inbox-live";
 
 type Conversation = { id: string; kind: string; title: string; department_code?: string | null; updated_at: string };
-type Message = { id: string; sender_user_id: string; sender_name: string; body: string; created_at: string; edited_at?: string | null; pinned?:boolean;
+type Message = { id: string; sender_user_id: string; sender_name: string; body: string; created_at: string; edited_at?: string | null; pinned?:boolean; delivery_status?:"sent"|"delivered"|"read";
  reactions?:{emoji:string;count:number;mine:boolean}[];
  attachments?: {id:string;name:string;mime:string;size:number}[] };
 type SelectedFile={id?:string;key:string;name:string;status:Office5FileStatus;message?:string};
@@ -92,6 +92,8 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
   const [typingPeople,setTypingPeople]=useState<Member[]>([]);
   const [typingRefresh,setTypingRefresh]=useState(0);
   const lastTypingSignal=useRef(0);
+  const deliveredIds=useRef<Set<string>>(new Set());
+  const lastReadMessage=useRef("");
   const [mentionTerm,setMentionTerm] = useState<string|null>(null);
   const [mentionIndex,setMentionIndex] = useState(0);
   const [composerTool,setComposerTool] = useState<ComposerTool>(null);
@@ -110,7 +112,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
     setConversations([]);setActor("");setMessages([]);setMessageScope(null);
     setListError("Office membership was revoked. Sign in again to restore authorized access.");
   });
-  const live=useOfficeChatLive(activeId,
+  useOfficeChatLive(activeId,
     ()=>setReloadCount(count=>count+1),
     ()=>{setMessageError("Conversation access has changed. Reload after authorization is restored.");
       setMessages([]);setMessageScope(null);setTypingPeople([]);setReloadCount(count=>count+1);},
@@ -251,8 +253,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
         setCanPin(response.can_pin===true);
         setActor(response.actor_user_id);
         setMessageError("");
-        void fetch("/api/office-chat/conversations/"+encodeURIComponent(activeId)+
-         "/messages",{method:"PATCH",credentials:"same-origin"});
+         // Read only when the conversation is actually focused.
       }catch(error){
         if(live&&conversationRef.current===activeId){
           setMessages([]);setMessageScope(null);setOlderCursor(null);
@@ -286,14 +287,49 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
       }catch{if(!controller.signal.aborted)setTypingPeople([]);}
     };
     void refreshTyping();
-    const interval=window.setInterval(()=>void refreshTyping(),5000);
+    const interval=window.setInterval(()=>{if(document.visibilityState==="visible")void refreshTyping();},1700);
     return()=>{controller.abort();window.clearInterval(interval);};
   },[activeId,typingRefresh]);
+
+  useEffect(()=>{
+    if(!activeId||!actor||messageScope!==activeId||!visibleMessages.length||messageError)return;
+    const ids=visibleMessages.filter(m=>m.sender_user_id!==actor&&!deliveredIds.current.has(m.id))
+      .map(m=>m.id).slice(0,100);
+    if(!ids.length)return;
+    let active=true;
+    void fetch("/api/office-chat/conversations/"+encodeURIComponent(activeId)+"/deliver",{
+      method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({message_ids:ids}),
+    }).then(response=>{if(!response.ok)throw Error("Delivery unavailable");
+      if(active)ids.forEach(id=>deliveredIds.current.add(id));
+    }).catch(()=>{/* Retry on a subsequent authorized refresh. */});
+    return()=>{active=false;};
+  },[activeId,actor,messageScope,visibleMessages,messageError]);
+
+  useEffect(()=>{
+    if(!activeId||!actor||messageScope!==activeId||messageError)return;
+    const latest=[...visibleMessages].reverse().find(m=>m.sender_user_id!==actor);
+    if(!latest)return;
+    const key=activeId+":"+latest.id;
+    const acknowledge=()=>{
+      if(document.visibilityState!=="visible"||!document.hasFocus()||lastReadMessage.current===key)return;
+      lastReadMessage.current=key;
+      void fetch("/api/office-chat/conversations/"+encodeURIComponent(activeId)+"/messages",{
+        method:"PATCH",credentials:"same-origin",
+      }).then(response=>{if(!response.ok)throw Error("Read unavailable");})
+        .catch(()=>{if(lastReadMessage.current===key)lastReadMessage.current="";});
+    };
+    acknowledge();
+    window.addEventListener("focus",acknowledge);
+    document.addEventListener("visibilitychange",acknowledge);
+    return()=>{window.removeEventListener("focus",acknowledge);
+      document.removeEventListener("visibilitychange",acknowledge);};
+  },[activeId,actor,messageScope,visibleMessages,messageError]);
 
   function signalTyping(isTyping:boolean){
     if(!activeId||messageError)return;
     const now=Date.now();
-    if(isTyping&&now-lastTypingSignal.current<3500)return;
+    if(isTyping&&now-lastTypingSignal.current<1600)return;
     lastTypingSignal.current=isTyping?now:0;
     void fetch("/api/office-chat/conversations/"+encodeURIComponent(activeId)+"/typing",{
       method:"POST",credentials:"same-origin",keepalive:true,
@@ -436,10 +472,6 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
              <Link href="/office/chat" className={styles.back} aria-label="Back to conversations" title="All conversations">
                <ArrowLeft size={17} aria-hidden="true"/></Link>
              <strong>{selected?.title??"Private conversation"}</strong>
-             <span className="chat-status-indicator" data-state={live} aria-label={live==="restricted"?"Access revoked":live==="live"?"Realtime updates connected":"Private backup refresh available"} title={live==="live"?"Live · encrypted transport":"Private connection with refresh fallback"}>
-               {live==="restricted"?<WifiOff size={15}/>:<Wifi size={15}/>}
-               {live==="restricted"?"Access changed":live==="live"?"Live":"Private refresh"}
-             </span>
              <button type="button" aria-label="Conversation members" title="Members" aria-expanded={memberPanel} aria-controls="office-connect-members"
               onClick={()=>setMemberPanel(open=>!open)}><UsersRound size={17} aria-hidden="true"/></button></div>
           {memberPanel?<OfficeConnectMembers key={activeId} conversationId={activeId} onChanged={()=>setReloadCount(n=>n+1)}/>:null}
@@ -471,6 +503,13 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
               <div className={styles.messageLine} data-chat-message-line="true">
                <span>{message.body}</span>
                <time dateTime={message.created_at}>{messageTime(message.created_at)}</time>
+                {message.sender_user_id===actor?<span className={styles.receipt}
+                  data-state={message.delivery_status??"sent"} role="img"
+                  aria-label={message.delivery_status==="read"?"Read by all":
+                    message.delivery_status==="delivered"?"Delivered to all":"Sent"}>
+                  {message.delivery_status==="delivered"||message.delivery_status==="read"?
+                    <CheckCheck size={14}/>:<Check size={14}/>}
+                </span>:null}
               </div>
               {message.attachments?.length?<div className={styles.messageFiles} data-chat-message-files="true" aria-label="Scanned shared attachments">
                 {message.attachments.map(file=><div key={file.id} className="chat-inline-media">
@@ -498,12 +537,17 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
              </article>
             </Fragment>)}
             {pendingMessage?<article className={styles.message} data-own="true" data-chat-pending="true">
-              <strong>You · sending…</strong><p>{pendingMessage.body}</p>
+              <strong>You</strong><div className={styles.messageLine}>
+                <span>{pendingMessage.body}</span>
+                <time dateTime={pendingMessage.created_at}>{messageTime(pendingMessage.created_at)}</time>
+                <span className={styles.sendingMark} aria-label="Sending">Sending…</span>
+              </div>
             </article>:null}
           </div>
           {typingPeople.length?<p className={styles.typingNotice} role="status" aria-live="polite">
-            {typingPeople.slice(0,2).map(p=>p.display_name).join(", ")}
-            {typingPeople.length===1?" is typing…":" are typing…"}
+            <span>{typingPeople.slice(0,2).map(p=>p.display_name).join(", ")}
+              {typingPeople.length===1?" is typing":" are typing"}</span>
+            <span className={styles.typingDots} aria-hidden="true"><i/><i/><i/></span>
           </p>:null}
           <form className={styles.composer} data-chat-composer onSubmit={send}>
             <label htmlFor="office-chat-message" className="chat-sr-only">Message to verified conversation members</label>
