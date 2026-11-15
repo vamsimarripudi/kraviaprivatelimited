@@ -976,8 +976,12 @@ def list_bank_accounts(db: Session=Depends(get_db), ctx=Depends(require_roles("O
 
 @app.post("/api/v1/banking/accounts", status_code=201)
 def create_bank_account(payload: BankAccountCreate, db: Session=Depends(get_db), ctx=Depends(require_roles("OWNER","DIRECTOR","FINANCE"))):
-    if len(payload.masked_account)<4: raise HTTPException(422,"Store only a masked account reference with at least last four digits")
-    row=BankAccount(id=uid("BANK"),legal_entity_id=ENTITY_ID,bank_name=payload.bank_name,account_name=payload.account_name,masked_account=payload.masked_account,ifsc=payload.ifsc,purpose=payload.purpose,status="ACTIVE")
+    # Never persist full bank account numbers, even when callers bypass the UI.
+    digits="".join(ch for ch in payload.masked_account if ch.isdigit())
+    if len(digits)!=4 or not any(ch in payload.masked_account for ch in "Xx*•#"):
+        raise HTTPException(422,"Store only a masked account reference with at least last four digits")
+    masked_account="••••"+digits
+    row=BankAccount(id=uid("BANK"),legal_entity_id=ENTITY_ID,bank_name=payload.bank_name,account_name=payload.account_name,masked_account=masked_account,ifsc=payload.ifsc,purpose=payload.purpose,status="ACTIVE")
     db.add(row); audit(db,ctx["actor"],ctx["role"],"bank.account.registered","bank_account",row.id,{"bank_name":row.bank_name,"masked_account":row.masked_account},"SENSITIVE"); db.commit(); return {"id":row.id,"bank_name":row.bank_name,"account_name":row.account_name,"masked_account":row.masked_account,"ifsc":row.ifsc,"purpose":row.purpose,"status":row.status}
 
 @app.post("/api/v1/banking/transactions", status_code=201)
