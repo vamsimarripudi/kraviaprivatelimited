@@ -14,7 +14,7 @@ import styles from "./office-notification-hub.module.css";
 
 type Center={unread:number;notifications:OfficeNotice[]};
 type StateMessage={type:"refetch";user:string};
-const POLL_MS=14000;
+const POLL_MS=8000;
 function toastDelay(item:OfficeNotice){
   return item.priority==="CRITICAL"?0:item.priority==="HIGH"?10000:7000;
 }
@@ -89,6 +89,11 @@ export function OfficeNotificationHub(){
       const fresh=next.notifications.filter(item=>item.status==="UNREAD"&&!old.has(item.id));
       for(const notice of fresh.reverse()){
         const cat=notificationCategory(notice.kind);
+        // Connect already shows this conversation's messages and unread counts.
+        // Suppress redundant floating toasts while the user is looking at Connect;
+        // the notification remains in the durable Office inbox.
+        if(cat==="chat"&&window.location.pathname.startsWith("/office/chat")
+           &&document.visibilityState==="visible"&&document.hasFocus())continue;
         const selected=prefRef.current;
         if(!selected.categories[cat])continue;
         const critical=notice.priority==="CRITICAL";

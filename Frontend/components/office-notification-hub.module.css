@@ -82,3 +82,18 @@
     right:12px!important;left:12px!important;width:auto!important;
     max-width:none!important;max-height:min(76dvh,590px)!important}
 }
+
+/* Floating notifications match the active Office theme even in a body portal. */
+:global(body:has(.office-v2[data-ui-theme="dark"])) .toast{
+ background:#171c25!important;color:#f4f6fa!important;border-color:#363d4b!important;
+ box-shadow:0 22px 64px rgba(0,0,0,.5)!important
+}
+:global(body:has(.office-v2[data-ui-theme="dark"])) .toastIcon{
+ background:#24334b!important;color:#91b8f8!important
+}
+:global(body:has(.office-v2[data-ui-theme="dark"])) .toastBody strong{color:#f4f6fa!important}
+:global(body:has(.office-v2[data-ui-theme="dark"])) .toastBody p{color:#c5cfdd!important}
+:global(body:has(.office-v2[data-ui-theme="dark"])) .toastBody small{color:#aab7c9!important}
+:global(body:has(.office-v2[data-ui-theme="dark"])) .toastBody a{color:#8fb7ff!important}
+:global(body:has(.office-v2[data-ui-theme="dark"])) .toastClose{color:#c4cbd6!important}
+.toastLayer{pointer-events:none}.toast{pointer-events:auto;min-width:0!important;overflow-wrap:anywhere}
