@@ -12,6 +12,7 @@ const contentSecurityPolicy = [
   `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}`,
   "font-src 'self' data:",
   "connect-src 'self' https://*.supabase.co",
+  "frame-src 'self' https://lottie.host",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
