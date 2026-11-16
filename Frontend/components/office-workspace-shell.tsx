@@ -98,7 +98,7 @@ const iconBySlug: Record<string, typeof LayoutDashboard> = {
 // view, not an invitation to execute every other department's operations.
 // Backend permissions still control every API operation and can be delegated.
 const founderNavigation = new Set([
-  "dashboard", "my-role", "my-transfers", "notifications", "tasks", "calendar", "requests",
+  "dashboard", "my-role", "my-transfers", "notifications", "tasks", "calendar", "requests", "device-recovery",
   "approvals", "worktime", "manager", "department-ownership", "role-packages",
   "decisions", "strategy", "intelligence", "products", "portfolio", "engineering",
   "documents",

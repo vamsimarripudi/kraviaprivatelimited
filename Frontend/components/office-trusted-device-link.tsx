@@ -43,6 +43,11 @@ export function OfficeTrustedDeviceLink(){
    .finally(()=>{if(live)setLoading(false);});
   return()=>{live=false;};
  },[]);
+ useEffect(()=>{
+   const onApproved=()=>{void refresh().catch(error=>setError(error instanceof Error?error.message:"Device refresh unavailable"));};
+   window.addEventListener("kravia-office-device-recovery-approved",onApproved);
+   return()=>window.removeEventListener("kravia-office-device-recovery-approved",onApproved);
+ },[refresh]);
  const mutate=async(method:"POST"|"DELETE",id?:string)=>{
   setBusy(true);setError("");setNotice("");
   try{
@@ -55,7 +60,7 @@ export function OfficeTrustedDeviceLink(){
   finally{setBusy(false);}
  };
  const mine=items.filter(device=>device.device_kind==="LAPTOP"&&
-  (device.trust_state==="PENDING"||device.trust_state==="TRUSTED"));
+  ["PENDING","TRUSTED","REVOKED"].includes(device.trust_state));
  const current=items.find(d=>d.current);
  return <section className={styles.panel} aria-label="My company laptop enrollment" data-company-laptop-enrollment>
   <header className={styles.heading}>
@@ -78,10 +83,10 @@ export function OfficeTrustedDeviceLink(){
    const approved=device.trust_state==="TRUSTED"&&device.company_managed&&!device.revoked_at;
    return <div className={styles.device} key={device.id}>
     <div><strong>{device.device_label}</strong>
-     <span>{device.platform||"Platform unverified"} · {device.current?"Bound in this browser":approved?"Awaiting browser binding":"Awaiting security verification"}</span>
+     <span>{device.platform||"Platform unverified"} · {device.current?"Bound in this browser":approved?"Awaiting browser binding":device.trust_state==="REVOKED"?"Security hold — independent review required":"Awaiting security verification"}</span>
     </div>
     <span className={styles.state} data-approved={approved}>
-     {device.current?"Bound":approved?"Approved":"Pending"}
+     {device.current?"Bound":approved?"Approved":device.trust_state==="REVOKED"?"Revoked":"Pending"}
     </span>
     {approved&&!device.current&&desktop?<button className={styles.bind} type="button"
        disabled={busy} onClick={()=>void mutate("POST",device.id)}>
@@ -91,6 +96,8 @@ export function OfficeTrustedDeviceLink(){
   })}
   {current?<button className={styles.unbind} type="button" disabled={busy}
     onClick={()=>void mutate("DELETE")}><Unlink2 size={15} aria-hidden="true"/> Unbind this browser</button>:null}
+  {mine.some(device=>device.trust_state==="REVOKED")?
+    <p role="status" className={styles.error}>A revoked laptop cannot be bound. Follow the Independent Founder Device Review below and request a second-person approval.</p>:null}
   <p className={styles.helper}>
    Company approval requires verified disk encryption, screen lock, security protection,
    firewall and patch checks. Binding requires your signed-in, two-factor-verified

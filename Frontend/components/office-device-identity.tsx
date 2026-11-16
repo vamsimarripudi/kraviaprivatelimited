@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, CircleAlert, Laptop, LoaderCircle, Plus, RefreshCw, ShieldCheck, X } from "lucide-react";
 import styles from "./office-device-identity.module.css";
 import {OfficeTrustedDeviceLink} from "@/components/office-trusted-device-link";
+import {OfficeFounderDeviceRecovery} from "@/components/office-founder-device-recovery";
 
 type Capabilities = {
   company_cards: boolean; own_card: boolean; posture_read: boolean; physical_read: boolean;
@@ -15,7 +16,7 @@ type Device = { id: string; user_id: string; device_label: string; device_kind: 
 type Posture = { id: number; device_id: string; checked_at: string; os_version?: string | null; encryption_enabled?: boolean | null; screen_lock_enabled?: boolean | null; security_agent_healthy?: boolean | null; patch_current?: boolean | null; firewall_enabled?: boolean | null; compromise_detected: boolean; compliance_status: string; source: string };
 type Zone = { id: string; zone_code: string; name: string; classification: string; description?: string | null; active: boolean };
 type Grant = { id: string; user_id: string; zone_id: string; credential_id?: string | null; effective_from: string; effective_to?: string | null; status: string; reason: string };
-type Payload = { actor: { user_id: string }; capabilities: Capabilities; identities: Identity[]; credentials: Credential[]; devices: Device[]; postures: Posture[]; zones: Zone[]; grants: Grant[]; disclaimer: string };
+type Payload = { actor: { user_id: string; roles?: string[] }; capabilities: Capabilities; identities: Identity[]; credentials: Credential[]; devices: Device[]; postures: Posture[]; zones: Zone[]; grants: Grant[]; disclaimer: string };
 type View = "identity" | "devices" | "access";
 type Modal =
   | { kind: "ISSUE" }
@@ -82,6 +83,10 @@ export function OfficeDeviceIdentity() {
         return;
       }
       if (modal.kind === "POSTURE") {
+        if (draft.status === "COMPLIANT" &&
+            (draft.compromise === "YES" || ["encryption","screen_lock","security_agent","patch_current","firewall"].some(field=>draft[field]!=="YES"))) {
+          throw new Error("COMPLIANT requires all security controls verified and compromise set to NO");
+        }
         await api({
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -123,7 +128,9 @@ export function OfficeDeviceIdentity() {
   if (!data) return <section className={styles.state}><LoaderCircle className={styles.spin} /><div><h2>Loading identity & devices</h2><p>Resolving credential, device and physical-access authority.</p></div></section>;
 
   const activeCredentials = data.credentials.filter((row) => row.status === "ACTIVE").length;
-  const compliantDevices = data.devices.filter((row) => latestPosture.get(row.id)?.compliance_status === "COMPLIANT").length;
+  const compliantDevices = data.devices.filter((row) =>
+    row.trust_state==="TRUSTED" && latestPosture.get(row.id)?.compliance_status === "COMPLIANT" &&
+    latestPosture.get(row.id)?.compromise_detected===false).length;
   const activeGrants = data.grants.filter((row) => row.status === "ACTIVE").length;
 
   return <section className={styles.shell}>
@@ -149,12 +156,12 @@ export function OfficeDeviceIdentity() {
       {data.capabilities.card_manage && row.status === "ACTIVE" ? <div className={styles.actions}><button type="button" onClick={() => { setDraft({ reason: "" }); setModal({ kind: "REVOKE_CREDENTIAL", credential: row }); }}>Revoke</button></div> : null}
     </article>)}{!data.credentials.length ? <div className={styles.empty}>No credential exists in your authorised scope.</div> : null}</div> : null}
 
-    {view === "devices" ? <><OfficeTrustedDeviceLink/><div className={styles.grid}>{data.devices.map((row) => {
+    {view === "devices" ? <><OfficeTrustedDeviceLink/><OfficeFounderDeviceRecovery onApproved={()=>void reload()}/><div className={styles.grid}>{data.devices.map((row) => {
       const posture = latestPosture.get(row.id);
       return <article className={styles.card} key={row.id}>
-        <header><div><small>{row.device_kind}</small><h3>{row.device_label}</h3><span>{people.get(row.user_id)?.display_name || "Assigned identity"} · {row.platform || "Unknown platform"}</span></div><em className={styles.badge} data-status={posture?.compliance_status || row.trust_state}>{posture?.compliance_status || row.trust_state}</em></header>
-        <div className={styles.kv}><span>Company managed<b>{row.company_managed ? "Yes" : "No"}</b></span><span>Last seen<b>{date(row.last_seen_at)}</b></span><span>Encryption<b>{yn(posture?.encryption_enabled)}</b></span><span>Security agent<b>{yn(posture?.security_agent_healthy)}</b></span><span>Patch current<b>{yn(posture?.patch_current)}</b></span><span>Compromise<b>{yn(posture?.compromise_detected)}</b></span></div>
-        {data.capabilities.posture_manage ? <div className={styles.actions}><button type="button" onClick={() => { setDraft({ status: posture?.compliance_status || "UNKNOWN", source: "MANUAL_ATTESTATION", os_version: posture?.os_version || "", encryption: posture?.encryption_enabled ? "YES" : "NO", screen_lock: posture?.screen_lock_enabled ? "YES" : "NO", security_agent: posture?.security_agent_healthy ? "YES" : "NO", patch_current: posture?.patch_current ? "YES" : "NO", firewall: posture?.firewall_enabled ? "YES" : "NO", compromise: posture?.compromise_detected ? "YES" : "NO" }); setModal({ kind: "POSTURE", device: row }); }}><Laptop /> Record posture</button></div> : null}
+        <header><div><small>{row.device_kind}</small><h3>{row.device_label}</h3><span>{people.get(row.user_id)?.display_name || "Assigned identity"} · {row.platform || "Unknown platform"}</span></div><em className={styles.badge} data-status={row.trust_state}>{row.trust_state}</em></header>
+        <div className={styles.kv}><span>Company managed<b>{row.company_managed ? "Yes" : "No"}</b></span><span>Last seen<b>{date(row.last_seen_at)}</b></span><span>Encryption<b>{yn(posture?.encryption_enabled)}</b></span><span>Security agent<b>{yn(posture?.security_agent_healthy)}</b></span><span>Patch current<b>{yn(posture?.patch_current)}</b></span><span>Compromise<b>{yn(posture?.compromise_detected)}</b></span><span>Posture<b>{posture?.compliance_status||"Not verified"}</b></span></div>
+        {data.capabilities.posture_manage && !data.actor.roles?.includes("OWNER") ? <div className={styles.actions}><button type="button" onClick={() => { setDraft({ status: "UNKNOWN", source: "MANUAL_ATTESTATION", os_version: posture?.os_version || "", encryption: "NO", screen_lock: "NO", security_agent: "NO", patch_current: "NO", firewall: "NO", compromise: "NO" }); setModal({ kind: "POSTURE", device: row }); }}><Laptop /> Record posture</button></div> : null}
       </article>;
     })}{!data.devices.length ? <div className={styles.empty}>No registered devices in your authorised scope.</div> : null}</div></> : null}
 
@@ -167,7 +174,7 @@ export function OfficeDeviceIdentity() {
     {modal ? <div className={styles.backdrop} role="presentation" onMouseDown={() => !busy && setModal(undefined)}><form className={styles.dialog} onSubmit={submit} onMouseDown={(event) => event.stopPropagation()}>
       <header><div><small>CONTROLLED ACTION</small><h3>{modal.kind.replaceAll("_", " ")}</h3></div><button type="button" onClick={() => setModal(undefined)} aria-label="Close"><X /></button></header>
       {modal.kind === "ISSUE" ? <><label>Identity<select required value={draft.user_id || ""} onChange={(e) => setDraft({ ...draft, user_id: e.target.value })}><option value="">Select identity</option>{data.identities.filter((p) => p.status === "ACTIVE").map((p) => <option key={p.user_id} value={p.user_id}>{p.display_name || p.user_id} · {p.job_title || "Office identity"}</option>)}</select></label><div className={styles.two}><label>Credential<select value={draft.kind || "DIGITAL_ID"} onChange={(e) => setDraft({ ...draft, kind: e.target.value })}><option>DIGITAL_ID</option><option>NFC_CARD</option></select></label><label>Expiry<input type="datetime-local" value={draft.expires_at || ""} onChange={(e) => setDraft({ ...draft, expires_at: e.target.value })} /></label></div></>
-      : modal.kind === "POSTURE" ? <><label>OS version<input value={draft.os_version || ""} onChange={(e) => setDraft({ ...draft, os_version: e.target.value })} /></label><div className={styles.two}><label>Status<select value={draft.status || "UNKNOWN"} onChange={(e) => setDraft({ ...draft, status: e.target.value })}>{["COMPLIANT","DEGRADED","NON_COMPLIANT","UNKNOWN"].map((v) => <option key={v}>{v}</option>)}</select></label><label>Source<select value={draft.source || "MANUAL_ATTESTATION"} onChange={(e) => setDraft({ ...draft, source: e.target.value })}>{["MANUAL_ATTESTATION","MDM","EDR","KRAVIA_OFFICE","OTHER"].map((v) => <option key={v}>{v}</option>)}</select></label></div>{["encryption","screen_lock","security_agent","patch_current","firewall","compromise"].map((field) => <label key={field}>{field.replaceAll("_"," ")}<select value={draft[field] || "NO"} onChange={(e) => setDraft({ ...draft, [field]: e.target.value })}><option>YES</option><option>NO</option></select></label>)}</>
+      : modal.kind === "POSTURE" ? <><p>Only choose COMPLIANT when every check is confirmed YES and compromise is NO.</p><label>OS version<input value={draft.os_version || ""} onChange={(e) => setDraft({ ...draft, os_version: e.target.value })} /></label><div className={styles.two}><label>Status<select value={draft.status || "UNKNOWN"} onChange={(e) => setDraft({ ...draft, status: e.target.value })}>{["COMPLIANT","DEGRADED","NON_COMPLIANT","UNKNOWN"].map((v) => <option key={v}>{v}</option>)}</select></label><label>Source<select value={draft.source || "MANUAL_ATTESTATION"} onChange={(e) => setDraft({ ...draft, source: e.target.value })}>{["MANUAL_ATTESTATION","MDM","EDR","KRAVIA_OFFICE","OTHER"].map((v) => <option key={v}>{v}</option>)}</select></label></div>{["encryption","screen_lock","security_agent","patch_current","firewall","compromise"].map((field) => <label key={field}>{field.replaceAll("_"," ")}<select value={draft[field] || "NO"} onChange={(e) => setDraft({ ...draft, [field]: e.target.value })}><option>YES</option><option>NO</option></select></label>)}</>
       : modal.kind === "ZONE" ? <><div className={styles.two}><label>Code<input required value={draft.code || ""} onChange={(e) => setDraft({ ...draft, code: e.target.value.toUpperCase() })} /></label><label>Classification<select value={draft.classification || "INTERNAL"} onChange={(e) => setDraft({ ...draft, classification: e.target.value })}>{["PUBLIC","INTERNAL","CONFIDENTIAL","RESTRICTED","CRITICAL"].map((v) => <option key={v}>{v}</option>)}</select></label></div><label>Name<input required value={draft.name || ""} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></label><label>Description<textarea value={draft.description || ""} onChange={(e) => setDraft({ ...draft, description: e.target.value })} /></label></>
       : modal.kind === "GRANT" ? <><label>Identity<select required value={draft.user_id || ""} onChange={(e) => setDraft({ ...draft, user_id: e.target.value, credential_id: "" })}><option value="">Select identity</option>{data.identities.filter((p) => p.status === "ACTIVE").map((p) => <option key={p.user_id} value={p.user_id}>{p.display_name || p.user_id}</option>)}</select></label><label>Zone<select required value={draft.zone_id || ""} onChange={(e) => setDraft({ ...draft, zone_id: e.target.value })}><option value="">Select zone</option>{data.zones.filter((z) => z.active).map((z) => <option key={z.id} value={z.id}>{z.zone_code} · {z.name}</option>)}</select></label><label>Credential<select value={draft.credential_id || ""} onChange={(e) => setDraft({ ...draft, credential_id: e.target.value })}><option value="">No linked card</option>{data.credentials.filter((c) => c.user_id === draft.user_id && c.status === "ACTIVE").map((c) => <option key={c.id} value={c.id}>{c.credential_code} · {c.credential_kind}</option>)}</select></label><label>Access expiry<input type="datetime-local" value={draft.effective_to || ""} onChange={(e) => setDraft({ ...draft, effective_to: e.target.value })} /></label><label>Reason<textarea required minLength={3} maxLength={500} value={draft.reason || ""} onChange={(e) => setDraft({ ...draft, reason: e.target.value })} /></label></>
       : <label>Reason<textarea required minLength={3} maxLength={500} value={draft.reason || ""} onChange={(e) => setDraft({ ...draft, reason: e.target.value })} /></label>}

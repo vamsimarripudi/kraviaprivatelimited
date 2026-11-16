@@ -10,7 +10,8 @@ describe("Founder laptop onboarding preserves actual device trust",()=>{
  it("shows only the current authorized user's records and never approves devices via UI",()=>{
   expect(panel).toContain('fetch("/api/office-auth/device"');
   expect(panel).toContain('device.trust_state==="TRUSTED"&&device.company_managed&&!device.revoked_at');
-  expect(panel).toContain('device.trust_state==="PENDING"');
+  expect(panel).toContain('["PENDING","TRUSTED","REVOKED"].includes(device.trust_state)');
+  expect(panel).toContain('device.trust_state==="REVOKED"?"Revoked":"Pending"');
   expect(panel).toContain('method==="POST"');
   expect(panel).toContain('device_id:deviceId');
   expect(panel).toContain('Awaiting security verification');

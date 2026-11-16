@@ -1,0 +1,47 @@
+name: KRAVIA Founder device independent recovery SQL
+on:
+  pull_request:
+    paths:
+      - "Database/supabase/migrations/20261116215500_founder_device_independent_review.sql"
+      - "Database/supabase/tests/founder_device_recovery_*.sql"
+      - ".github/workflows/office-founder-device-recovery-sql.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  founder-device-recovery:
+    name: Independent two-person review, no bypass - PostgreSQL 17
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-ci-only
+          POSTGRES_DB: founder_device_recovery
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d founder_device_recovery"
+          --health-interval 4s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+      - name: Test review, approval, revoked-state, replay, and audit on fake devices only
+        shell: bash
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGDATABASE: founder_device_recovery
+          PGPASSWORD: synthetic-ci-only
+        run: |
+          set -euo pipefail
+          psql -X --set ON_ERROR_STOP=1 --file Database/supabase/tests/founder_device_recovery_fixture.sql
+          psql -X --set ON_ERROR_STOP=1 --single-transaction --file Database/supabase/migrations/20261116215500_founder_device_independent_review.sql
+          psql -X --set ON_ERROR_STOP=1 --single-transaction --file Database/supabase/migrations/20261116215500_founder_device_independent_review.sql
+          result="$(psql -X --set ON_ERROR_STOP=1 --tuples-only --no-align --file Database/supabase/tests/founder_device_recovery_smoke.sql)"
+          printf '%s\n' "$result"
+          test "$(printf '%s\n' "$result" | tail -n 1)" = "FOUNDER_TWO_PERSON_DEVICE_RECOVERY_VERIFIED"
