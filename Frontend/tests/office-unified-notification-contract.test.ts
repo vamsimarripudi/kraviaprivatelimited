@@ -47,7 +47,9 @@ describe("Office notification event wiring and enterprise privacy",()=>{
     expect(api).toContain("officeMutationIsSameOrigin");
     expect(api).toContain("z.object(");
     expect(channel).toContain("getOfficeNotificationCenter");
-    expect(shell).toContain("<OfficeNotificationHub/>");
+    expect(shell).toContain("<OfficeNotificationHub hideTrigger/>");
+    expect(shell).toContain('openTopbarTool("notifications")');
+    expect(frontend).toContain('"kravia-office-open-notifications"');
     expect(center).toContain("safeNotificationHref");
   });
   it("offers all approved original audio tone profiles",()=>{
