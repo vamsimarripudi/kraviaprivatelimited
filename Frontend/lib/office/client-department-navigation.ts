@@ -18,7 +18,7 @@ export const OFFICE_DEPARTMENT_LABELS: Readonly<Record<string,string>>={
 
 export const OFFICE_PERSONAL_SECTIONS=new Set([
  "dashboard","my-role","my-transfers","info","notifications","tasks",
- "calendar","requests","approvals","manager","worktime","emergency",
+ "calendar","requests","approvals","manager","worktime","emergency","device-recovery",
  "development","travel","it","knowledge","ethics","settings",
 ]);
 
