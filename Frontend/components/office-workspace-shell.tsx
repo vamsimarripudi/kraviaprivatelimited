@@ -154,6 +154,7 @@ export function OfficeWorkspaceShell({
   const [theme, setTheme] = useState<Theme>("light");
   const [manualOutstanding, setManualOutstanding] = useState<number|null>(null);
   const [departmentLoad,setDepartmentLoad]=useState<"loading"|"ready"|"error">("loading");
+  const [loadedActor,setLoadedActor]=useState<string|null>(null);
   const [assignedCodes,setAssignedCodes]=useState<string[]>([]);
   const [selectedDepartmentCode,setSelectedDepartmentCode]=useState<string|null>(null);
   const [departmentRevision,setDepartmentRevision]=useState(0);
@@ -178,7 +179,7 @@ export function OfficeWorkspaceShell({
 
   const currentRouteDepartment=workspace==="office"?officeDepartmentForSection(section):null;
   const primaryDepartment=(identity.department??"").toUpperCase();
-  const activeDepartment=departmentLoad==="ready"
+  const activeDepartment=departmentLoad==="ready"&&loadedActor===identity.userId
     ? (currentRouteDepartment&&assignedCodes.includes(currentRouteDepartment)
       ? currentRouteDepartment
       : selectedDepartmentCode&&assignedCodes.includes(selectedDepartmentCode)
@@ -240,10 +241,12 @@ export function OfficeWorkspaceShell({
       if(controller.signal.aborted)return;
       const next=officeAssignedDepartmentCodes(snapshot,identity.userId,identity.department);
       setAssignedCodes(next);
+      setLoadedActor(identity.userId);
       setDepartmentLoad("ready");
     }).catch(()=>{
       if(controller.signal.aborted)return;
       setAssignedCodes([]);
+      setLoadedActor(null);
       setDepartmentLoad("error");
     });
     return()=>controller.abort();
@@ -381,6 +384,8 @@ export function OfficeWorkspaceShell({
   }
 
   const navId = workspace + "-workspace-mega-navigation";
+  const departmentReady=departmentLoad==="ready"&&loadedActor===identity.userId;
+  const currentDepartments=departmentReady?assignedCodes:[];
   return <OfficeWorkspaceProvider identity={identity} permissions={permissions}>
     <main className={"office office-v2 office-v4 office-modern office-floating-rail workspace-shell workspace-" + workspace}
       data-ui-theme={theme} data-density={density} data-menu-expanded={megaExpanded} data-chat-conversation={isChatConversation}
@@ -448,7 +453,20 @@ export function OfficeWorkspaceShell({
             <button className="office-mobile-close" type="button" aria-label="Close menu"
               onClick={() => setMobileNav(false)}><X size={18}/></button>
           </div>
-          <nav id={navId} className="office-category-links" aria-label={definition.label + " navigation"}>
+          {workspace==="office"?<div className="office-client-department-picker" data-office-client-departments>
+             <span>ASSIGNED DEPARTMENT</span>
+             {!departmentReady&&departmentLoad!=="error"?<small role="status">Loading assignment…</small>:
+             departmentLoad==="error"?<button type="button"
+               onClick={()=>{setDepartmentLoad("loading");setDepartmentRevision(v=>v+1);}}>
+               Department list unavailable · Retry
+             </button>:
+             currentDepartments.length>1?<select aria-label="Switch assigned department"
+               value={activeDepartment??""} onChange={event=>switchActiveDepartment(event.target.value)}>
+               {currentDepartments.map(code=><option key={code} value={code}>{officeDepartmentLabel(code)}</option>)}
+             </select>:
+             <strong>{activeDepartment?officeDepartmentLabel(activeDepartment):"Personal workspace"}</strong>}
+           </div>:null}
+           <nav id={navId} className="office-category-links" aria-label={definition.label + " navigation"}>
             {subgroups.map(group => <details className="office-mega-subgroup" key={selectedCategory + ":" + group}
               open={expandedSubgroup === group}>
               <summary onClick={(event) => {
@@ -568,7 +586,20 @@ export function OfficeWorkspaceShell({
             Raise a Finance request <ChevronRight size={15} aria-hidden="true"/>
           </OfficeNavLink>
         </aside> : null}
-        {children}
+        {blockedClientSection?<div className="office-client-department-state" role="status"
+           data-office-client-department-guard>
+           <ShieldCheck size={24} aria-hidden="true"/>
+           <strong>{departmentLoad==="error"?"Department assignment unavailable":
+             !departmentReady?"Loading assigned workspace":"Not in your active department"}</strong>
+           <p>{departmentLoad==="error"?
+             "Refresh department assignments to restore your navigation.":
+             !departmentReady?"Checking the departments assigned to your Office account.":
+             "Switch to an assigned department or open My Work. This screen is not part of your selected workspace."}</p>
+           {departmentLoad==="error"?<button type="button"
+             onClick={()=>{setDepartmentLoad("loading");setDepartmentRevision(v=>v+1);}}>
+             Retry department list
+           </button>:<OfficeNavLink href="/office/dashboard">My Work</OfficeNavLink>}
+         </div>:children}
       </section>
       <nav className="office5-mobile-dock" aria-label="Office mobile navigation">
         <OfficeNavLink href={definition.basePath + "/dashboard"}><LayoutDashboard size={18} aria-hidden="true"/><span>Home</span></OfficeNavLink>
