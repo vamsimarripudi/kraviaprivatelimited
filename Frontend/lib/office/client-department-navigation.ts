@@ -174,6 +174,8 @@ export const officeSectionDepartments:Record<string,readonly string[]>={
 export function isOfficePersonalSection(slug:string){return personal.has(slug);}
 export function clientOfficeSectionCategory(slug:string,assignedDepartments:readonly string[],founder:boolean):string|null{
  if(personal.has(slug))return "My work";
+ if((slug==="department-ownership"||slug==="role-packages")&&assignedDepartments.length>0)
+  return founder?"Company Control":"My work";
  if(founder&&companyControl.has(slug))return "Company Control";
  const codes=officeSectionDepartments[slug];
  if(!codes)return null;
