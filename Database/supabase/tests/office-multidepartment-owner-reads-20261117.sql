@@ -10,6 +10,7 @@ returns text language sql stable as $$
    when p.code='finance.bank.read' then 'FINANCE'
    when p.code='people.sensitive.read' then 'PEOPLE'
    when p.module='FINANCE' then 'FINANCE'
+   when p.code in ('resilience.read','ai.tool.read') then 'NOT_SECURITY' -- overwritten by actual migration
    when p.module='PEOPLE' then 'PEOPLE'
    when p.module='PORTFOLIO' or p.module='MASTER_DATA' then 'PRODUCT'
    when p.module='STRATEGY' then 'EXECUTIVE'
@@ -43,6 +44,10 @@ insert into public.office_permission_catalog(code,module,action,active,owner_byp
  ('compliance.rules.read','COMPLIANCE','READ_RULES',true,true,false),
  ('operations.asset.read','OPERATIONS','READ_ASSET',true,true,false),
  ('facilities.room.read','FACILITIES','READ_ROOMS',true,true,false),
+ ('legal.obligation.read','LEGAL','READ_OBLIGATION',true,true,false),
+ ('resilience.read','RESILIENCE','READ',true,true,false),
+ ('ai.tool.read','AI_GOVERNANCE','READ_TOOL',true,true,false),
+ ('ai.tool.review','AI_GOVERNANCE','REVIEW_TOOL',true,true,true),
  ('facilities.manage','FACILITIES','MANAGE_FACILITIES',true,true,true),
  ('operations.bank.read','OPERATIONS','READ',true,true,false),
  ('finance.customer.read','FINANCE','READ',true,true,false),
@@ -68,6 +73,9 @@ begin
    'compliance.rules.read',
    'operations.asset.read',
    'facilities.room.read',
+   'legal.obligation.read',
+   'resilience.read',
+   'ai.tool.read',
    'security.overview.read'
  ] loop
   if public.office_department_permission_verdict(multi,perm)<>'DEPARTMENT_OWNER' then
@@ -86,12 +94,17 @@ begin
    'people.sensitive.read',
    'finance.bank.read',
    'customer.trust.sensitive.read',
-   'customer.trust.hidden.read'
+   'customer.trust.hidden.read',
+   'ai.tool.review'
  ] loop
   if public.office_department_permission_verdict(multi,perm)<>'DEFAULT' then
     raise exception 'Sensitive, unrelated or non-bypass read elevated: %',perm;
   end if;
  end loop;
+ if public.office_department_for_permission('resilience.read')<>'SECURITY'
+ or public.office_department_for_permission('ai.tool.read')<>'SECURITY' then
+   raise exception 'Security baseline resilience/AI reads not mapped';
+ end if;
  if public.office_department_for_permission('facilities.room.read')<>'OPERATIONS' then
    raise exception 'Facilities permission map still points to unassigned Administration';
  end if;
