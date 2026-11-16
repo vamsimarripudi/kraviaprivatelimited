@@ -44,8 +44,11 @@ async function actor() {
   }
 }
 
-async function permission(permissionCode: string): Promise<Authority> {
-  const currentActor = await actor();
+async function permission(
+  permissionCode: string,
+  verifiedActor?: Awaited<ReturnType<typeof actor>>,
+): Promise<Authority> {
+  const currentActor = verifiedActor ?? await actor();
   const candidates: OfficeResourceScope[] = [
     ...(currentActor.identity.department ? [{ type: "DEPARTMENT" as const, key: currentActor.identity.department }] : []),
     { type: "OWN", ownerUserId: currentActor.identity.userId },
@@ -92,7 +95,8 @@ async function writableCase(id: string) {
 }
 
 export async function getOfficeSupportOverview() {
-  const read = await permission("support.case.read");
+  const verifiedActor = await actor();
+  const read = await permission("support.case.read", verifiedActor);
   let casesQuery = read.admin.from("office_support_cases").select("id,case_code,customer_id,product_id,subject,description,category,source,priority,status,owner_user_id,created_by,resolution,due_at,resolved_at,closed_at,created_at,updated_at").order("updated_at", { ascending: false }).limit(400);
   casesQuery = applyOwnerScope(casesQuery, read.ownerIds);
   const { data: cases, error: casesError } = await casesQuery;
@@ -114,10 +118,18 @@ export async function getOfficeSupportOverview() {
   ]);
   if (eventsResult.error || customersResult.error || productsResult.error || ownersResult.error) throw new OfficeSupportError(503, "Support reference data is temporarily unavailable");
 
-  let canManage = false;
-  let canRefund = false;
-  try { await permission("support.case.manage"); canManage = true; } catch (error) { if (!(error instanceof OfficeSupportError && error.status === 403)) throw error; }
-  try { await permission("customer.refund.request"); canRefund = true; } catch (error) { if (!(error instanceof OfficeSupportError && error.status === 403)) throw error; }
+  // Reuse the authenticated actor and check independent capabilities together.
+  // A denied permission returns false; backend failures still surface as errors.
+  const [canManage,canRefund] = await Promise.all([
+    permission("support.case.manage",verifiedActor).then(()=>true).catch(error=>{
+      if(error instanceof OfficeSupportError && error.status===403)return false;
+      throw error;
+    }),
+    permission("customer.refund.request",verifiedActor).then(()=>true).catch(error=>{
+      if(error instanceof OfficeSupportError && error.status===403)return false;
+      throw error;
+    }),
+  ]);
 
   const eventsByCase = new Map<string, unknown[]>();
   for (const event of eventsResult.data ?? []) {
