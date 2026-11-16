@@ -18,6 +18,7 @@ type SupportCase = {
 type Payload = {
   actor: { user_id: string }; scope: { type?: string | null; key?: string | null }; can_manage: boolean; can_request_refund: boolean;
   owners: Person[]; customers: Customer[]; products: Product[]; cases: SupportCase[]; disclaimer: string;
+  reference_status?: "READY" | "DEGRADED";
 };
 
 type Modal = { kind: "CREATE" } | { kind: "TRANSITION"; supportCase: SupportCase } | { kind: "REFUND"; supportCase: SupportCase };
@@ -86,6 +87,9 @@ export function OfficeSupportOperations() {
     <header className={styles.hero}><div><p>SUPPORT OPERATIONS</p><h2>Customer cases with controlled remedies.</h2><span>{data.disclaimer}</span></div><div className={styles.metrics}><article><b>{openCount}</b><span>open cases</span></article><article><b>{urgent}</b><span>urgent</span></article>{data.can_manage ? <button type="button" onClick={openCreate}><Plus /> New case</button> : null}</div></header>
     <OfficePublicIntakeInbox queue="GENERAL" />
     <div className={styles.toolbar}><label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search case, status or priority" /></label><span>{data.scope.type || "OWNER"}{data.scope.key ? ` · ${data.scope.key}` : ""} scope</span></div>
+    {data.reference_status==="DEGRADED" ? <p role="status" className={styles.error}>
+      <CircleAlert size={16}/> Some customer or product labels are unavailable. Your authorised support cases remain accessible; retry reference data later.
+    </p> : null}
     {notice ? <div className={styles.notice}><ShieldCheck />{notice}<button type="button" onClick={() => setNotice(undefined)} aria-label="Dismiss"><X /></button></div> : null}
     {error ? <div className={styles.error}><CircleAlert />{error}</div> : null}
     <div className={styles.cases}>{visibleCases.map((item) => <article key={item.id} className={styles.case}>
