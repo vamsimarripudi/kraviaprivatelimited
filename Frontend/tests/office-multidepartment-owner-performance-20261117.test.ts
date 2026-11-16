@@ -96,7 +96,12 @@ describe("KRAVIA multi-department navigation, real workflows and fast read model
   for(const code of ["ADMINISTRATION","AUDIT","IT","TAX"]){
     expect(OFFICE_DEPARTMENT_SECTIONS[code]).toEqual([]);
   }
-  for(const module of all)expect(module in officeSections,module).toBe(true);
+  for(const module of all){
+    expect(module in officeSections,module).toBe(true);
+    const hasRoleSpecificRequirements=requiredCapabilities("office",module).length>0;
+    const isPersonalUtility=capabilityCanAccessSection("office",module,["MEMBER"],[]);
+    expect(hasRoleSpecificRequirements||isPersonalUtility,"Missing navigation authorization: "+module).toBe(true);
+  }
  });
  it("allows current owners only explicit low-risk department reads, preserving denial and device checks",()=>{
   for(const code of [
