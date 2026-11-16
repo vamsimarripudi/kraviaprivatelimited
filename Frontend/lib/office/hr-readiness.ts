@@ -36,9 +36,11 @@ export type HrReadinessAction = {
   detail: string;
   href: "/office/people" | "/office/my-role" | "/office/worktime" |
     "/office/payroll" | "/office/approvals" | "/office/devices" |
-    "/office/notifications" | "/office/governance" | "/office/recruitment";
+    "/office/notifications" | "/office/settings" | "/office/governance" | "/office/recruitment" |
+    "/office/people#hr-employee-intake" | "/office/people#hr-attendance-import";
   action: string;
   requiresHumanEvidence?: boolean;
+  ownerOnly?: boolean;
 };
 
 export type HrReadinessSnapshot = {
@@ -65,7 +67,7 @@ export function deriveHrReadiness(metrics: HrReadinessMetrics): HrReadinessActio
   if (metrics.activeMissingStartDates > 0) add({
     id: "start-dates", priority: "P0", title: "Correct verified employment commencement",
     detail: String(metrics.activeMissingStartDates) + " active employment record(s) lack a start date. Use authentic acceptance/joining evidence; do not backdate.",
-    href: "/office/people", action: "Open employee verification",
+    href: "/office/people#hr-employee-intake", action: "Open employee verification",
   });
   if (metrics.pendingWorktimeReviews > 0) add({
     id: "worktime-review", priority: "P0", title: "Independently review recorded worktime",
@@ -80,7 +82,7 @@ export function deriveHrReadiness(metrics: HrReadinessMetrics): HrReadinessActio
   if (metrics.activeEmployees > 0 && metrics.verifiedBankAccounts === 0) add({
     id: "bank-verification", priority: "P0", title: "Verify employee payment destinations",
     detail: "No employee bank verification is recorded in the private intake ledger. Finance must verify encrypted bank details against authorized evidence before payment.",
-    href: "/office/people", action: "Open restricted intake",
+    href: "/office/people#hr-employee-intake", action: "Open restricted intake",
   });
   if (metrics.activeEmployees > 0 && metrics.approvedCompensationVersions === 0) add({
     id: "salary-versions", priority: "P0", title: "Activate only approved salary versions",
@@ -110,23 +112,23 @@ export function deriveHrReadiness(metrics: HrReadinessMetrics): HrReadinessActio
     id: "intake", priority: "P1", title: "Finish verified employee onboarding",
     detail: String(metrics.verifiedIntakes) + " verified intake record(s) for " +
       String(metrics.activeEmployees) + " active employment record(s). Complete privacy, documents, signatures and independent verification.",
-    href: "/office/people", action: "Review employee intake",
+    href: "/office/people#hr-employee-intake", action: "Review employee intake",
   });
   if (metrics.draftIntakes > 0) add({
     id: "intake-drafts", priority: "P1", title: "Resolve incomplete onboarding drafts",
     detail: String(metrics.draftIntakes) + " employee intake draft(s) await completion. The employee must submit their own accurate details.",
-    href: "/office/my-role", action: "View personal onboarding",
+    href: "/office/people#hr-employee-intake", action: "Review onboarding status",
   });
   if (metrics.activeEmployees > metrics.issuedEmployeeIds) add({
     id: "employee-ids", priority: "P1", title: "Issue immutable employee identifiers",
     detail: String(metrics.issuedEmployeeIds) + " permanent ID(s) issued for " + String(metrics.activeEmployees) +
       " active employment record(s). Issuance must wait for appointment, HR and bank verification gates.",
-    href: "/office/people", action: "Review ID issuance",
+    href: "/office/people#hr-employee-intake", action: "Review ID issuance",
   });
   if (metrics.historicImportBatches === 0) add({
     id: "attendance-history", priority: "P1", title: "Reconcile historical attendance",
     detail: "No attendance-workbook import batch is recorded. Compare original August–October 2026 books with existing sessions and stage only supported evidence.",
-    href: "/office/people", action: "Open workbook reconciliation",
+    href: "/office/people#hr-attendance-import", action: "Open workbook reconciliation",
     requiresHumanEvidence: true,
   });
   if (metrics.pendingLeaveRequests > 0) add({
@@ -142,8 +144,8 @@ export function deriveHrReadiness(metrics: HrReadinessMetrics): HrReadinessActio
   if (!metrics.employeeIdMailEnabled || (metrics.sourceReadyMailEvents > 0 && metrics.enabledMailEvents === 0)) add({
     id: "employee-mail", priority: "P1", title: "Approve controlled employee notifications",
     detail: "Employee-ID delivery or lifecycle event policies are disabled. Test provider acknowledgements and approve only required events; do not enable all events blindly.",
-    href: "/office/notifications", action: "Review delivery policy",
-    requiresHumanEvidence: true,
+    href: "/office/settings", action: "Review Owner delivery controls",
+    requiresHumanEvidence: true, ownerOnly: true,
   });
   if (metrics.plannedEmployees > 0) add({
     id: "planned-employment", priority: "P2", title: "Review planned employee appointments",
