@@ -3,17 +3,17 @@ import { readFileSync } from "node:fs";
 import { deriveHrReadiness, type HrReadinessMetrics } from "../lib/office/hr-readiness";
 
 const metrics = (overrides: Partial<HrReadinessMetrics> = {}): HrReadinessMetrics => ({
-  activeEmployees: 2,
-  plannedEmployees: 1,
-  activeMissingStartDates: 2,
-  draftIntakes: 1,
+  activeEmployees: 4,
+  plannedEmployees: 2,
+  activeMissingStartDates: 3,
+  draftIntakes: 2,
   verifiedIntakes: 0,
   verifiedBankAccounts: 0,
   issuedEmployeeIds: 0,
-  attendanceSessions: 15,
-  openAttendanceSessions: 2,
+  attendanceSessions: 19,
+  openAttendanceSessions: 1,
   overdueOpenSessions: 0,
-  pendingWorktimeReviews: 7,
+  pendingWorktimeReviews: 5,
   pendingLeaveRequests: 0,
   historicImportBatches: 0,
   approvedCompensationVersions: 0,
@@ -22,7 +22,7 @@ const metrics = (overrides: Partial<HrReadinessMetrics> = {}): HrReadinessMetric
   payrollPeriods: 0,
   issuedPayslips: 0,
   trustedManagedDevices: 0,
-  sourceReadyMailEvents: 81,
+  sourceReadyMailEvents: 12,
   enabledMailEvents: 0,
   employeeIdMailEnabled: false,
   ...overrides,
@@ -87,7 +87,7 @@ describe("HR operational readiness uses evidence rather than assumed payroll ent
       historicImportBatches: 1,
       approvedCompensationVersions: 2, approvedPayrollRules: 2,
       approvedWorktimePolicies: 2, trustedManagedDevices: 2,
-      employeeIdMailEnabled: true, enabledMailEvents: 81,
+      employeeIdMailEnabled: true, sourceReadyMailEvents: 12, enabledMailEvents: 12,
     })).map(item => item.id);
     expect(ids).toContain("authority");
     expect(ids).toContain("three-actor-payroll");
