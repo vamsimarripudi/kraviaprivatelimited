@@ -13,7 +13,7 @@ describe("Private Connect typing indicators",()=>{
  it("never includes former, absent or stale members in recipients",()=>{
   expect(source).toContain("getOfficeChatMembers(conversationId)");
   expect(source).toContain('users.has(String(row.user_id))');
-  expect(source).toContain('new Date(now.getTime()-10000)');
+  expect(source).toContain('new Date(now.getTime()-4500)');
  });
  it("uses same-origin, private route and separate presence events",()=>{
   expect(endpoint).toContain("officeMutationIsSameOrigin(request)");
