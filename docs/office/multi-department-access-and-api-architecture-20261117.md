@@ -64,6 +64,7 @@ a separate departmental code SUPPORT; Customer Success is CUSTOMER_SUCCESS.
   explicit department change events invalidate immediately. All business API
   reads remain no-store and permission-scoped.
 - Secretarial Registrations now has an explicit capability mapping instead of being hidden even after authorization. Facilities permission ownership is aligned with its existing Operations page (previously mapped to unassigned Administration); sensitive visitor/facilities actions still require their normal managed-device and independent approval checks.
+- Legal Contracts receives only the existing low-risk legal.obligation.read baseline, and Security's Resilience/AI consoles receive only resilience.read and ai.tool.read. All sensitive Security/AI reviews and mutation permissions remain separate; a company-managed device is still required where configured.
 - Customer Success has an actual customer-only Trust Center workspace, while
   Sales retains customer master; the customer view does not return vendor
   assurance details or financial operations.
