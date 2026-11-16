@@ -87,7 +87,17 @@ Implemented improvements:
    permission outcomes concurrently (no permission shortcut).
 5. Support-case overview reuses the authenticated actor and resolves optional
    case-management and refund-request capability flags concurrently.
-6. FastAPI maintains one shared PostgreSQL rate-limit mutation per request,
+6. Customer Support loads only customer/product names linked to authorised cases
+   through bounded, server-side queries against the canonical PostgreSQL tables;
+   the case workflow stays usable if optional labels are unavailable.
+7. Trust Center uses the same canonical PostgreSQL customer/vendor tables after
+   confirming its distinct permission and company-device boundary. No browser
+   receives service-role credentials and no unrelated Sales-master permission is
+   inferred from Customer Success ownership.
+8. Current department owners must satisfy managed-device controls for sensitive
+   permissions even when the global device-enforcement rollout flag is unset.
+   The rendered capability list and the API decision use identical restrictions.
+9. FastAPI maintains one shared PostgreSQL rate-limit mutation per request,
    with server-selected risk classes and secret-free slow-request logging.
 
 ## Rate limiting and defense in depth
@@ -140,6 +150,8 @@ correlation IDs and circuit-breaker policies. Do not claim these as built.
 - [x] Multi-owned department routes and dedicated Customer Success flow in code.
 - [x] Scoped read-only Postgres migration and synthetic authority equivalence CI.
 - [x] Parallelised authorization checks in code, no client token caching.
+- [x] Removed redundant Railway lookup hop for allowed customer/vendor/product references.
+- [x] Enforced trusted company device on newly owned sensitive permissions even before rollout flag is enabled.
 - [x] Three-tier shared FastAPI rate limiter with synthetic 429 tests.
 - [ ] All GitHub quality and database CI pass for exact release commit.
 - [ ] Apply reviewed migration on correct production Supabase project.
