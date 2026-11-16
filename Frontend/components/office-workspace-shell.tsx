@@ -159,6 +159,7 @@ export function OfficeWorkspaceShell({
   const [assignedCodes,setAssignedCodes]=useState<string[]>([]);
   const [selectedDepartmentCode,setSelectedDepartmentCode]=useState<string|null>(null);
   const [departmentRevision,setDepartmentRevision]=useState(0);
+  const departmentLastFetchRef=useRef(0);
   const moreRef = useRef<HTMLDivElement>(null);
   const definition = workspaceDefinitions[workspace];
   const sections = workspace === "finance" ? financeSections : officeSections;
@@ -236,6 +237,7 @@ export function OfficeWorkspaceShell({
   useEffect(()=>{
     if(workspace!=="office")return;
     const controller=new AbortController();
+    departmentLastFetchRef.current=Date.now();
     void fetch("/api/office-departments?view=navigation",{
       credentials:"same-origin",cache:"no-store",signal:controller.signal,
     }).then(async response=>{
@@ -256,12 +258,21 @@ export function OfficeWorkspaceShell({
   },[workspace,identity.userId,identity.department,departmentRevision]);
   useEffect(()=>{
     if(workspace!=="office")return;
-    const refresh=()=>setDepartmentRevision(v=>v+1);
-    window.addEventListener("focus",refresh);
-    window.addEventListener("kravia-office-departments-changed",refresh);
+    // Focus often fires repeatedly during modal/navigation transitions.
+    // Limit navigation-only refetches; explicit ownership changes still
+    // invalidate immediately and backend record permissions never cache.
+    const onFocus=()=>{
+      if(Date.now()-departmentLastFetchRef.current>=30_000) {
+        departmentLastFetchRef.current=Date.now();
+        setDepartmentRevision(v=>v+1);
+      }
+    };
+    const onChange=()=>setDepartmentRevision(v=>v+1);
+    window.addEventListener("focus",onFocus);
+    window.addEventListener("kravia-office-departments-changed",onChange);
     return()=>{
-      window.removeEventListener("focus",refresh);
-      window.removeEventListener("kravia-office-departments-changed",refresh);
+      window.removeEventListener("focus",onFocus);
+      window.removeEventListener("kravia-office-departments-changed",onChange);
     };
   },[workspace]);
   useEffect(() => {
