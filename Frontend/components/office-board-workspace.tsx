@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { CalendarDays, CheckCircle2, CircleAlert, FileLock2, Gavel, ListChecks, LoaderCircle, Plus, ScrollText, ShieldCheck, UserCheck, UsersRound, X } from "lucide-react";
@@ -38,6 +39,7 @@ export function OfficeBoardWorkspace() {
   const [busy, setBusy] = useState(false);
 
   async function reload(message?: string) { const next = await api<Payload>(); setData(next); if (message) setNotice(message); }
+  useOfficeLiveRefresh(()=>reload(),{paused:Boolean(busy)||Boolean(modal),intervalMs:45000});
   useEffect(() => { let alive = true; void api<Payload>().then((next) => { if (alive) { setData(next); setSelectedId((current) => current || next.meetings[0]?.id); } }).catch((caught: unknown) => { if (alive) setError(caught instanceof Error ? caught.message : "Board workspace unavailable"); }); return () => { alive = false; }; }, []);
 
   const people = useMemo(() => new Map((data?.people ?? []).map((person) => [person.user_id, person])), [data?.people]);

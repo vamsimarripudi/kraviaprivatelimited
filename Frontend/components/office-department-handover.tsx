@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -46,6 +47,7 @@ export function OfficeDepartmentHandover({ mode = "manage" }: { mode?: "manage" 
     setData(fresh);
     return fresh;
   }, []);
+  useOfficeLiveRefresh(()=>refresh(),{paused:busy||Boolean(selected),intervalMs:45000});
   useEffect(() => {
     if (mode !== "recipient" || !data) return;
     const incoming = data.transfers.filter(t => t.to_owner_user_id === data.actor.user_id);

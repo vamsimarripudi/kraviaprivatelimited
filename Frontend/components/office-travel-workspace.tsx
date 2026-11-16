@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, CircleAlert, LoaderCircle, Plus, RefreshCw, ShieldCheck, X } from "lucide-react";
@@ -29,7 +30,8 @@ function day(value?:string|null){if(!value)return "—";const d=new Date(value+"
 export function OfficeTravelWorkspace(){
  const[data,setData]=useState<Payload>();const[tab,setTab]=useState<"trips"|"claims">("trips");const[modal,setModal]=useState<Modal>();const[draft,setDraft]=useState<Record<string,string>>({currency:"INR"});const[busy,setBusy]=useState(false);const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();
  async function reload(message?:string){const next=await api<Payload>();setData(next);if(message)setNotice(message)}
- useEffect(()=>{let alive=true;void api<Payload>().then(v=>{if(alive)setData(v)}).catch((e:unknown)=>{if(alive)setError(e instanceof Error?e.message:"Unable to load Travel")});return()=>{alive=false}},[]);
+ useOfficeLiveRefresh(()=>reload(),{paused:Boolean(busy)||Boolean(modal),intervalMs:60000});
+  useEffect(()=>{let alive=true;void api<Payload>().then(v=>{if(alive)setData(v)}).catch((e:unknown)=>{if(alive)setError(e instanceof Error?e.message:"Unable to load Travel")});return()=>{alive=false}},[]);
  const people=useMemo(()=>new Map((data?.people??[]).map(p=>[p.user_id,p])),[data?.people]);
  const trips=useMemo(()=>new Map((data?.travels??[]).map(t=>[t.id,t])),[data?.travels]);
 

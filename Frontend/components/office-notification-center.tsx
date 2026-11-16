@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -41,6 +42,7 @@ export function OfficeNotificationCenter() {
     setData(next);
   }
 
+  useOfficeLiveRefresh(()=>reload(),{paused:Boolean(busy),intervalMs:45000});
   useEffect(() => {
     let alive = true;
     void json<Center>("/api/office-notifications").then((next) => { if (alive) setData(next); }).catch((caught: unknown) => {

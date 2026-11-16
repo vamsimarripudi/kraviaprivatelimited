@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, CircleAlert, Coins, LoaderCircle, Plus, RefreshCw, ShieldCheck, WalletCards, X } from "lucide-react";
@@ -41,6 +42,7 @@ function budgetNext(row:Budget,review:boolean){if(row.status==="DRAFT")return ["
 export function OfficeBudgetWorkspace(){
  const[data,setData]=useState<Payload>();const[view,setView]=useState<View>("budgets");const[modal,setModal]=useState<Modal>();const[draft,setDraft]=useState<Record<string,string>>({});const[busy,setBusy]=useState(false);const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();
  async function reload(message?:string){const next=await api<Payload>();setData(next);if(message)setNotice(message)}
+  useOfficeLiveRefresh(()=>reload(),{paused:busy||Boolean(modal),intervalMs:45000});
  useEffect(()=>{let alive=true;void api<Payload>().then(next=>{if(alive)setData(next)}).catch((caught:unknown)=>{if(alive)setError(caught instanceof Error?caught.message:"Unable to load budgets")});return()=>{alive=false}},[]);
  const budgets=useMemo(()=>new Map((data?.budgets??[]).map(row=>[row.id,row])),[data?.budgets]);
  const commitmentsByBudget=useMemo(()=>{const map=new Map<string,Commitment[]>();for(const row of data?.commitments??[]){const list=map.get(row.budget_id)||[];list.push(row);map.set(row.budget_id,list)}return map},[data?.commitments]);

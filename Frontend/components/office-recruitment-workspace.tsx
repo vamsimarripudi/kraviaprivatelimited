@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 import {
   BriefcaseBusiness, CalendarDays, CheckCircle2, CircleAlert, FileCheck2, LoaderCircle,
   Plus, RefreshCw, Send, ShieldCheck, Upload, UserPlus, Users, X,
@@ -82,6 +83,7 @@ export function OfficeRecruitmentWorkspace() {
     setData(next);
     if (message) setNotice(message);
   }
+  useOfficeLiveRefresh(()=>reload(),{paused:busy||Boolean(modal),intervalMs:45000});
   useEffect(() => {
     let alive = true;
     void api<Payload>().then((next) => { if (alive) setData(next); }).catch((caught: unknown) => { if (alive) setError(caught instanceof Error ? caught.message : "Unable to load recruitment workspace"); });

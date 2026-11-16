@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { useCallback, useEffect, useState } from "react";
 import { Activity, BadgeCheck, CircleAlert, Gauge, LoaderCircle, RefreshCw, ShieldCheck, Siren } from "lucide-react";
@@ -97,6 +98,7 @@ export function OfficeOperationsMonitoring({ canEvaluate }: { canEvaluate: boole
     }
   }, []);
 
+  useOfficeLiveRefresh(async()=>{setData(await fetchSnapshot());},{paused:Boolean(busy),intervalMs:120000});
   useEffect(() => {
     let active = true;
     void fetchSnapshot()

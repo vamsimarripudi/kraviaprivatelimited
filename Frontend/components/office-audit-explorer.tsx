@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { useEffect, useMemo, useState } from "react";
 import { BadgeCheck, CircleAlert, Fingerprint, LoaderCircle, RefreshCw, Search, ShieldCheck } from "lucide-react";
@@ -25,7 +26,8 @@ function shortHash(value?:string|null){return value?value.slice(0,16)+"…":"—
 export function OfficeAuditExplorer(){
  const[office,setOffice]=useState<OfficePayload>();const[runtime,setRuntime]=useState<RuntimeEvent[]>([]);const[retention,setRetention]=useState<Retention>();const[chain,setChain]=useState<Chain>();const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();const[busy,setBusy]=useState(false);const[query,setQuery]=useState("");const[source,setSource]=useState<"ALL"|"OFFICE"|"RUNTIME">("ALL");
  async function load(){setError(undefined);const[o,r,ret]=await Promise.all([json<OfficePayload>("/api/office-audit-explorer"),json<RuntimeEvent[]>("/api/office-runtime/audit"),json<Retention>("/api/office-runtime/audit/retention")]);setOffice(o);setRuntime(r);setRetention(ret)}
- useEffect(()=>{let active=true;void Promise.all([json<OfficePayload>("/api/office-audit-explorer"),json<RuntimeEvent[]>("/api/office-runtime/audit"),json<Retention>("/api/office-runtime/audit/retention")]).then(([o,r,ret])=>{if(active){setOffice(o);setRuntime(r);setRetention(ret)}}).catch(caught=>{if(active)setError(caught instanceof Error?caught.message:"Unable to load audit trail")});return()=>{active=false}},[]);
+ useOfficeLiveRefresh(()=>load(),{paused:Boolean(busy),intervalMs:120000});
+  useEffect(()=>{let active=true;void Promise.all([json<OfficePayload>("/api/office-audit-explorer"),json<RuntimeEvent[]>("/api/office-runtime/audit"),json<Retention>("/api/office-runtime/audit/retention")]).then(([o,r,ret])=>{if(active){setOffice(o);setRuntime(r);setRetention(ret)}}).catch(caught=>{if(active)setError(caught instanceof Error?caught.message:"Unable to load audit trail")});return()=>{active=false}},[]);
  const people=useMemo(()=>new Map((office?.people??[]).map(p=>[p.user_id,p])),[office?.people]);
  const rows=useMemo<AuditRow[]>(()=>{
   const a:AuditRow[]=(office?.events??[]).map(e=>({id:"office:"+String(e.id),source:"OFFICE",occurred_at:e.created_at,actor:e.actor_id?(people.get(e.actor_id)?.display_name||people.get(e.actor_id)?.job_title||e.actor_id):"System",role:people.get(e.actor_id||"")?.primary_department||"OFFICE",action:e.action,entity:e.entity_type+(e.entity_id?" · "+e.entity_id:""),severity:"CONTROL",detail:e.context||{}}));

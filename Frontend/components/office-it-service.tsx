@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 import { CircleAlert, Laptop, LifeBuoy, LoaderCircle, Plus, RefreshCw, ShieldCheck, X } from "lucide-react";
 import styles from "./office-it-service.module.css";
 import {OfficeActionState} from "./office-action-state";
@@ -21,6 +22,7 @@ function money(value?:number|null,currency?:string|null){if(value==null)return "
 export function OfficeItService(){
  const[data,setData]=useState<Payload>();const[view,setView]=useState<View>("tickets");const[modal,setModal]=useState<Modal>();const[draft,setDraft]=useState<Record<string,string>>({});const[busy,setBusy]=useState(false);const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();
  async function reload(message?:string){const next=await api<Payload>();setData(next);if(message)setNotice(message)}
+ useOfficeLiveRefresh(()=>reload(),{paused:busy||Boolean(modal),intervalMs:45000});
  useEffect(()=>{let alive=true;void api<Payload>().then(next=>{if(alive)setData(next)}).catch((caught:unknown)=>{if(alive)setError(caught instanceof Error?caught.message:"Unable to load IT service desk")});return()=>{alive=false}},[]);
  const people=useMemo(()=>new Map((data?.identities??[]).map(row=>[row.user_id,row])),[data?.identities]);
  const devices=useMemo(()=>new Map((data?.devices??[]).map(row=>[row.id,row])),[data?.devices]);

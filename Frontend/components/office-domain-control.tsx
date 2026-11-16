@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, CircleAlert, Globe2, KeyRound, LoaderCircle, Plus, RefreshCw, ShieldCheck, X } from "lucide-react";
@@ -39,7 +40,8 @@ function shortHash(value?:string|null){return value?value.slice(0,10)+"…"+valu
 export function OfficeDomainControl(){
  const[data,setData]=useState<Payload>();const[view,setView]=useState<View>("domains");const[modal,setModal]=useState<Modal>();const[draft,setDraft]=useState<Record<string,string>>({});const[busy,setBusy]=useState(false);const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();
  async function reload(message?:string){const next=await api<Payload>();setData(next);if(message)setNotice(message)}
- useEffect(()=>{let alive=true;void api<Payload>().then(next=>{if(alive)setData(next)}).catch((caught:unknown)=>{if(alive)setError(caught instanceof Error?caught.message:"Unable to load domain controls")});return()=>{alive=false}},[]);
+ useOfficeLiveRefresh(()=>reload(),{paused:Boolean(busy)||Boolean(modal),intervalMs:60000});
+  useEffect(()=>{let alive=true;void api<Payload>().then(next=>{if(alive)setData(next)}).catch((caught:unknown)=>{if(alive)setError(caught instanceof Error?caught.message:"Unable to load domain controls")});return()=>{alive=false}},[]);
  const domains=useMemo(()=>new Map((data?.domains??[]).map(row=>[row.id,row])),[data?.domains]);
  const people=useMemo(()=>new Map((data?.people??[]).map(row=>[row.user_id,row])),[data?.people]);
  const services=useMemo(()=>new Map((data?.services??[]).map(row=>[row.id,row])),[data?.services]);

@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, CircleAlert, Laptop, LoaderCircle, Plus, RefreshCw, ShieldCheck, X } from "lucide-react";
@@ -53,6 +54,7 @@ export function OfficeDeviceIdentity() {
     setData(next);
     if (message) setNotice(message);
   }
+  useOfficeLiveRefresh(()=>reload(),{paused:Boolean(busy)||Boolean(modal),intervalMs:60000});
   useEffect(() => {
     let alive = true;
     void api<Payload>().then((next) => { if (alive) setData(next); }).catch((caught: unknown) => { if (alive) setError(caught instanceof Error ? caught.message : "Unable to load identity/device controls"); });

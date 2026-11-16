@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ExternalLink, LoaderCircle, Plus, ShieldCheck, ToggleLeft, ToggleRight } from "lucide-react";
@@ -32,6 +33,7 @@ export function OfficeEmbedRegistry() {
     setSelected((current) => current && next.embeds.some((embed) => embed.code === current) ? current : next.embeds.find((embed) => embed.status === "ACTIVE")?.code);
   }
 
+  useOfficeLiveRefresh(()=>reload(),{paused:Boolean(busy),intervalMs:90000});
   useEffect(() => { let active = true; void json<State>("/api/office-embeds").then((next) => { if (active) { setState(next); setSelected(next.embeds.find((embed) => embed.status === "ACTIVE")?.code); } }).catch((caught: unknown) => { if (active) setError(caught instanceof Error ? caught.message : "Unable to load embedded workspaces"); }); return () => { active = false; }; }, []);
 
   const current = state?.embeds.find((embed) => embed.code === selected && embed.status === "ACTIVE");

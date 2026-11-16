@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ArrowDownToLine, ArrowUpFromLine, CircleAlert, FileCheck2, LoaderCircle, Plus, ShieldCheck, X } from "lucide-react";
@@ -28,6 +29,7 @@ export function OfficeDataMovement() {
   const [busy, setBusy] = useState(false);
 
   async function reload(message?: string) { const next = await api<Payload>(); setData(next); if (message) setNotice(message); }
+  useOfficeLiveRefresh(()=>reload(),{paused:Boolean(busy)||Boolean(kind),intervalMs:45000});
   useEffect(() => { let alive = true; void api<Payload>().then((next) => { if (alive) setData(next); }).catch((caught: unknown) => { if (alive) setError(caught instanceof Error ? caught.message : "Unable to load data movement" ); }); return () => { alive = false; }; }, []);
   const scopes = useMemo(() => kind === "EXPORT" ? data?.export_scopes ?? [] : kind === "IMPORT" ? data?.import_scopes ?? [] : [], [data?.export_scopes, data?.import_scopes, kind]);
 

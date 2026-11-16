@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { CircleAlert, Headphones, LoaderCircle, Plus, RotateCcw, Search, ShieldCheck, X } from "lucide-react";
@@ -40,6 +41,7 @@ export function OfficeSupportOperations() {
   const [draft, setDraft] = useState<Record<string, string>>({});
 
   async function reload(message?: string) { const next = await api<Payload>(); setData(next); if (message) setNotice(message); }
+  useOfficeLiveRefresh(()=>reload(),{paused:busy||Boolean(modal),intervalMs:45000});
   useEffect(() => { let alive = true; void api<Payload>().then((next) => { if (alive) setData(next); }).catch((caught: unknown) => { if (alive) setError(caught instanceof Error ? caught.message : "Unable to load support operations"); }); return () => { alive = false; }; }, []);
 
   const customers = useMemo(() => new Map((data?.customers ?? []).map((item) => [item.id, item])), [data?.customers]);

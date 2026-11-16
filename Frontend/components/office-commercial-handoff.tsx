@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -77,6 +78,7 @@ export function OfficeCommercialHandoff() {
     setNotice(message);
   }
 
+  useOfficeLiveRefresh(()=>reload(),{paused:Boolean(busy),intervalMs:45000});
   useEffect(() => {
     let alive = true;
     void api<Payload>().then((next) => { if (alive) setData(next); }).catch((caught: unknown) => { if (alive) setError(caught instanceof Error ? caught.message : "Unable to load commercial handoff"); });

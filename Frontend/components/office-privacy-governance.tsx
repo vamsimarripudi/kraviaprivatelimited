@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { CircleAlert, DatabaseZap, FileClock, LoaderCircle, LockKeyhole, Plus, Search, ShieldCheck, X } from "lucide-react";
@@ -33,6 +34,7 @@ export function OfficePrivacyGovernance() {
   const [busy, setBusy] = useState(false);
 
   async function reload(message?: string) { const next = await api<Payload>(); setData(next); if (message) setNotice(message); }
+  useOfficeLiveRefresh(()=>reload(),{paused:Boolean(busy)||Boolean(modal),intervalMs:60000});
   useEffect(() => { let alive = true; void api<Payload>().then((next) => { if (alive) setData(next); }).catch((caught: unknown) => { if (alive) setError(caught instanceof Error ? caught.message : "Unable to load privacy governance"); }); return () => { alive = false; }; }, []);
   const ownerMap = useMemo(() => new Map((data?.owners ?? []).map((owner) => [owner.user_id, owner])), [data?.owners]);
   const filtered = useMemo(() => { const n = query.trim().toLowerCase(); if (!n) return data?.cases ?? []; return (data?.cases ?? []).filter((item) => `${item.case_code} ${item.title} ${item.case_type} ${item.subject_type} ${item.status} ${item.jurisdiction}`.toLowerCase().includes(n)); }, [data?.cases, query]);

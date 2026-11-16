@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, BanknoteArrowDown, Building2, CircleAlert, Landmark, LoaderCircle, RefreshCw, SearchCheck, ShieldCheck, X } from "lucide-react";
@@ -123,6 +124,7 @@ export function OfficeBankingWorkspace({
     }
   }, [applyRecords, fetchRecords]);
 
+  useOfficeLiveRefresh(async()=>{applyRecords(await fetchRecords());},{paused:Boolean(busy)||Boolean(dialog),intervalMs:90000});
   useEffect(() => {
     let active = true;
     void fetchRecords()

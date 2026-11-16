@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -426,6 +427,7 @@ export function OfficeGstTaxWorkspace({
     }
   }, [applyRecords, fetchRecords]);
 
+  useOfficeLiveRefresh(async()=>{applyRecords(await fetchRecords());},{paused:false,intervalMs:180000});
   useEffect(() => {
     const controller = new AbortController();
     let active = true;

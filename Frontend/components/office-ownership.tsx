@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, CircleAlert, FileCheck2, LoaderCircle, RefreshCw, Scale, ShieldCheck, UserRoundCog, UsersRound, X } from "lucide-react";
@@ -30,7 +31,8 @@ export function OfficeOwnershipWorkspace({canStage,canDecide,canPost}:{canStage:
  const fetchRecords=useCallback(()=>Promise.all([runtime<OwnershipSummary>("ownership/summary"),runtime<LedgerRow[]>("ownership/ledger"),runtime<ShareChange[]>("ownership/share-changes"),runtime<ShareTransfer[]>("ownership/transfers"),runtime<Shareholder[]>("ownership/shareholders"),runtime<ShareClass[]>("ownership/share-classes"),runtime<Approval[]>("approvals")]),[]);
  const apply=useCallback(([s,l,c,t,h,cl,a]:[OwnershipSummary,LedgerRow[],ShareChange[],ShareTransfer[],Shareholder[],ShareClass[],Approval[]])=>{setSummary(s);setLedger(l);setChanges(c);setTransfers(t);setHolders(h);setClasses(cl);setApprovals(a)},[]);
  const load=useCallback(async()=>{setLoading(true);setError(undefined);try{apply(await fetchRecords())}catch(caught){setError(caught instanceof Error?caught.message:"Unable to load ownership records")}finally{setLoading(false)}},[apply,fetchRecords]);
- useEffect(()=>{let active=true;void fetchRecords().then(records=>{if(active)apply(records)}).catch(caught=>{if(active)setError(caught instanceof Error?caught.message:"Unable to load ownership records")}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[apply,fetchRecords]);
+ useOfficeLiveRefresh(async()=>{apply(await fetchRecords());},{paused:Boolean(busy)||Boolean(dialog),intervalMs:120000});
+  useEffect(()=>{let active=true;void fetchRecords().then(records=>{if(active)apply(records)}).catch(caught=>{if(active)setError(caught instanceof Error?caught.message:"Unable to load ownership records")}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[apply,fetchRecords]);
 
  const holderMap=useMemo(()=>new Map(holders.map(h=>[h.id,h])),[holders]);const classMap=useMemo(()=>new Map(classes.map(c=>[c.id,c])),[classes]);const approvalMap=useMemo(()=>new Map(approvals.filter(a=>["SHARE_CHANGE_POST","SHARE_TRANSFER_POST"].includes(a.action_type)).map(a=>[a.entity_type+":"+a.entity_id,a])),[approvals]);
 

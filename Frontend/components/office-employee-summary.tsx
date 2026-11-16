@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -73,6 +74,7 @@ export function OfficeEmployeeSummary() {
     setRefreshing(false);
   }, []);
 
+  useOfficeLiveRefresh(()=>refresh(),{paused:refreshing,intervalMs:120000});
   useEffect(() => {
     const controller = new AbortController();
     const frame = window.requestAnimationFrame(() => void refresh(controller.signal));

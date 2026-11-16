@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, CircleAlert, Flag, GitBranch, LoaderCircle, Plus, RefreshCw, ShieldCheck, UsersRound, X } from "lucide-react";
@@ -58,6 +59,7 @@ function milestoneNext(row:Milestone){
 export function OfficePortfolioWorkspace(){
  const[data,setData]=useState<Payload>();const[view,setView]=useState<View>("projects");const[modal,setModal]=useState<Modal>();const[draft,setDraft]=useState<Record<string,string>>({});const[busy,setBusy]=useState(false);const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();
  async function reload(message?:string){const next=await api<Payload>();setData(next);if(message)setNotice(message)}
+  useOfficeLiveRefresh(()=>reload(),{paused:busy||Boolean(modal),intervalMs:45000});
  useEffect(()=>{let alive=true;void api<Payload>().then(next=>{if(alive)setData(next)}).catch((caught:unknown)=>{if(alive)setError(caught instanceof Error?caught.message:"Unable to load portfolio")});return()=>{alive=false}},[]);
  const people=useMemo(()=>new Map((data?.people??[]).map(row=>[row.user_id,row])),[data?.people]);
  const products=useMemo(()=>new Map((data?.products??[]).map(row=>[row.id,row])),[data?.products]);

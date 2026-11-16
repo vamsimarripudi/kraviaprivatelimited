@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -33,6 +34,7 @@ export function OfficeActivityTimeline() {
   const [payload, setPayload] = useState<Payload>();
   const [error, setError] = useState<string>();
 
+  useOfficeLiveRefresh(async()=>{setPayload(await load());},{intervalMs:90000});
   useEffect(() => {
     let alive = true;
     void load().then((next) => { if (alive) setPayload(next); }).catch((caught: unknown) => { if (alive) setError(caught instanceof Error ? caught.message : "Unable to load Office activity"); });

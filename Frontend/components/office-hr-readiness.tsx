@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
@@ -46,6 +47,7 @@ export function OfficeHrReadiness() {
     }
   }, []);
 
+  useOfficeLiveRefresh(()=>reload(),{intervalMs:90000});
   useEffect(() => {
     const controller = new AbortController();
     void reload(controller.signal);

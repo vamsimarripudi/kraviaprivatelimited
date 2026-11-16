@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, CircleAlert, KeyRound, LoaderCircle, PackageCheck, Plus, RefreshCw, ShieldCheck, X } from "lucide-react";
@@ -25,7 +26,8 @@ function toIso(v?:string){if(!v)return undefined;const d=new Date(v);return Numb
 export function OfficeSecureCustody(){
  const[data,setData]=useState<Payload>();const[view,setView]=useState<View>("items");const[modal,setModal]=useState<Modal>();const[draft,setDraft]=useState<Record<string,string>>({});const[busy,setBusy]=useState(false);const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();
  async function reload(message?:string){const next=await api<Payload>();setData(next);if(message)setNotice(message)}
- useEffect(()=>{let alive=true;void api<Payload>().then(n=>{if(alive)setData(n)}).catch((e:unknown)=>{if(alive)setError(e instanceof Error?e.message:"Unable to load secure custody")});return()=>{alive=false}},[]);
+ useOfficeLiveRefresh(()=>reload(),{paused:Boolean(busy)||Boolean(modal),intervalMs:60000});
+  useEffect(()=>{let alive=true;void api<Payload>().then(n=>{if(alive)setData(n)}).catch((e:unknown)=>{if(alive)setError(e instanceof Error?e.message:"Unable to load secure custody")});return()=>{alive=false}},[]);
  const people=useMemo(()=>new Map((data?.people??[]).map(p=>[p.user_id,p])),[data?.people]);
  const assets=useMemo(()=>new Map((data?.assets??[]).map(a=>[a.id,a])),[data?.assets]);
  const items=useMemo(()=>new Map((data?.items??[]).map(i=>[i.id,i])),[data?.items]);

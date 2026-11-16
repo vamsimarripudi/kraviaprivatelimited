@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, CircleAlert, FileOutput, FileText, Layers3, LoaderCircle, Plus, RefreshCw, ShieldCheck, Stamp, X } from "lucide-react";
@@ -43,6 +44,7 @@ export function OfficeDocumentStudio() {
   const [busy, setBusy] = useState(false);
 
   async function reload(message?: string) { const next = await api<Payload>(); setData(next); if (message) setNotice(message); }
+  useOfficeLiveRefresh(()=>reload(),{paused:busy||Boolean(modal),intervalMs:60000});
   useEffect(() => { let alive = true; void api<Payload>().then((next) => { if (alive) setData(next); }).catch((caught: unknown) => { if (alive) setError(caught instanceof Error ? caught.message : "Unable to load Document Studio"); }); return () => { alive = false; }; }, []);
   const templates = useMemo(() => new Map((data?.templates ?? []).map((row) => [row.id, row])), [data?.templates]);
   const identities = useMemo(() => new Map((data?.identities ?? []).map((row) => [row.user_id, row])), [data?.identities]);

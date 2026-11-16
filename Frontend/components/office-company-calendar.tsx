@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, LoaderCircle, Plus, ShieldCheck, X } from "lucide-react";
@@ -89,6 +90,7 @@ export function OfficeCompanyCalendar() {
     setAnchor((current) => current || monthKey(next.generated_at));
   }
 
+  useOfficeLiveRefresh(()=>reload(),{paused:Boolean(busy)||newOpen,intervalMs:45000});
   useEffect(() => {
     let alive = true;
     void json<CalendarData>("/api/office-calendar").then((next) => {

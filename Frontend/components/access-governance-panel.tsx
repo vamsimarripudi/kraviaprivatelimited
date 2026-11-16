@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
@@ -64,6 +65,7 @@ export function AccessGovernancePanel({ identity }: { identity: OfficeIdentity }
   const [lastInviteUrl, setLastInviteUrl] = useState<string>();
   const [copiedInvite, setCopiedInvite] = useState(false);
 
+  useOfficeLiveRefresh(()=>reload(),{paused:pending,intervalMs:90000});
   useEffect(() => {
     let mounted = true;
     void json<AccessState>("/api/office-access/users")

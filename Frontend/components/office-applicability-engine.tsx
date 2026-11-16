@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BookOpenCheck, CircleAlert, FileCheck2, FlaskConical, LoaderCircle, Plus, Scale, ShieldCheck, X } from "lucide-react";
@@ -44,6 +45,7 @@ export function OfficeApplicabilityEngine() {
   const rules = useMemo(() => new Map((data?.rules ?? []).map((rule) => [rule.rule_code, rule])), [data?.rules]);
 
   async function reload(message?: string) { const next = await api<Payload>(); setData(next); if (message) setNotice(message); }
+  useOfficeLiveRefresh(()=>reload(),{paused:Boolean(busy)||Boolean(modal),intervalMs:45000});
   useEffect(() => { let alive = true; void api<Payload>().then((next) => { if (alive) setData(next); }).catch((caught: unknown) => { if (alive) setError(caught instanceof Error ? caught.message : "Applicability engine unavailable"); }); return () => { alive = false; }; }, []);
   function open(kind: string, context: Omit<Modal,"kind"> = {}, defaults: Record<string,string> = {}) { setDraft(defaults); setModal({ kind, ...context }); }
   async function mutate(body: Record<string, unknown>, message: string) { setBusy(true); setError(undefined); try { await api(body); await reload(message); setModal(undefined); setDraft({}); } catch (caught) { setError(caught instanceof Error ? caught.message : "Applicability update failed"); } finally { setBusy(false); } }

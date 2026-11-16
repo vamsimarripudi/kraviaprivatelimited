@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { useEffect, useState } from "react";
 import { CircleAlert, CircleCheck, LoaderCircle, ShieldAlert, ShieldCheck } from "lucide-react";
@@ -18,6 +19,7 @@ function dateTime(value: string) { const d = new Date(value); return Number.isNa
 export function OfficeReadiness() {
   const [data, setData] = useState<Payload>();
   const [error, setError] = useState<string>();
+  useOfficeLiveRefresh(async()=>{setData(await load());},{intervalMs:90000});
   useEffect(() => { let alive = true; void load().then((next) => { if (alive) setData(next); }).catch((caught: unknown) => { if (alive) setError(caught instanceof Error ? caught.message : "Readiness unavailable"); }); return () => { alive = false; }; }, []);
   if (error) return <section className={styles.state}><CircleAlert /><div><h2>Readiness unavailable</h2><p>{error}</p></div></section>;
   if (!data) return <section className={styles.state}><LoaderCircle className={styles.spin} /><div><h2>Building readiness evidence</h2><p>Reading canonical controls without inventing a score.</p></div></section>;

@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -63,6 +64,7 @@ export function OfficeIntelligenceBrief({ compact = false }: { compact?: boolean
   const [brief, setBrief] = useState<Brief>();
   const [error, setError] = useState<string>();
 
+  useOfficeLiveRefresh(async()=>{setBrief(await load());},{intervalMs:90000});
   useEffect(() => {
     let alive = true;
     void load().then((next) => { if (alive) setBrief(next); }).catch((caught: unknown) => {

@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Check, ChevronRight, Laptop, LoaderCircle, Search, ShieldCheck, SlidersHorizontal, UserCog, UsersRound, X } from "lucide-react";
@@ -49,6 +50,7 @@ export function WorkforceAdministrationPanel({ identity }: { identity: OfficeIde
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState<string>();
 
+  useOfficeLiveRefresh(()=>reload(),{paused:pending,intervalMs:90000});
   useEffect(() => {
     let alive = true;
     void json<State>().then((data) => { if (alive) setState(data); }).catch((caught: unknown) => { if (alive) setError(caught instanceof Error ? caught.message : "Unable to load workforce administration"); });

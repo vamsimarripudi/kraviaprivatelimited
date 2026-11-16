@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Boxes, CheckCircle2, CircleAlert, FileCheck2, LoaderCircle, Plus, ReceiptText, RefreshCw, ShoppingCart, X } from "lucide-react";
@@ -52,6 +53,7 @@ export function OfficeProcurementControl() {
   const [view, setView] = useState<"requests" | "renewals">("requests");
 
   async function reload(message?: string) { const next = await api<Payload>(); setData(next); if (message) setNotice(message); }
+  useOfficeLiveRefresh(()=>reload(),{paused:Boolean(busy)||Boolean(modal),intervalMs:60000});
   useEffect(() => { let alive = true; void api<Payload>().then((next) => { if (alive) setData(next); }).catch((caught: unknown) => { if (alive) setError(caught instanceof Error ? caught.message : "Unable to load procurement"); }); return () => { alive = false; }; }, []);
 
   const people = useMemo(() => new Map((data?.people ?? []).map((person) => [person.user_id, person])), [data?.people]);

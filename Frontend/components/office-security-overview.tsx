@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { useEffect, useMemo, useState } from "react";
 import { CircleAlert, Fingerprint, KeyRound, Laptop, LoaderCircle, Search, ShieldAlert, ShieldCheck, Users } from "lucide-react";
@@ -27,6 +28,7 @@ export function OfficeSecurityOverview() {
   const [error, setError] = useState<string>();
   const [view, setView] = useState<"sessions" | "devices" | "incidents" | "events">("sessions");
   const [query, setQuery] = useState("");
+  useOfficeLiveRefresh(async()=>{setData(await load());},{intervalMs:90000});
   useEffect(() => { let alive = true; void load().then((next) => { if (alive) setData(next); }).catch((caught: unknown) => { if (alive) setError(caught instanceof Error ? caught.message : "Security overview unavailable"); }); return () => { alive = false; }; }, []);
   const people = useMemo(() => new Map((data?.people ?? []).map((person) => [person.user_id, person])), [data?.people]);
   const needle = query.trim().toLowerCase();

@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
@@ -27,7 +28,8 @@ export function OfficeExpensesWorkspace({canCreate,canDecide,canApplyApproval}:{
  const fetchRecords=useCallback(()=>Promise.all([runtime<Expense[]>("finance/expenses"),runtime<FundingPolicy[]>("finance/funding-policies"),runtime<Vendor[]>("vendors"),runtime<Approval[]>("approvals")]),[]);
  const applyRecords=useCallback(([e,p,v,a]:[Expense[],FundingPolicy[],Vendor[],Approval[]])=>{setExpenses(e);setPolicies(p);setVendors(v);setApprovals(a)},[]);
  const load=useCallback(async()=>{setLoading(true);setError(undefined);try{applyRecords(await fetchRecords())}catch(caught){setError(caught instanceof Error?caught.message:"Unable to load expenses")}finally{setLoading(false)}},[applyRecords,fetchRecords]);
- useEffect(()=>{let active=true;void fetchRecords().then(records=>{if(active)applyRecords(records)}).catch(caught=>{if(active)setError(caught instanceof Error?caught.message:"Unable to load expenses")}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[applyRecords,fetchRecords]);
+ useOfficeLiveRefresh(async()=>{applyRecords(await fetchRecords());},{paused:Boolean(busy)||Boolean(dialog),intervalMs:90000});
+  useEffect(()=>{let active=true;void fetchRecords().then(records=>{if(active)applyRecords(records)}).catch(caught=>{if(active)setError(caught instanceof Error?caught.message:"Unable to load expenses")}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[applyRecords,fetchRecords]);
 
  const vendorMap=useMemo(()=>new Map(vendors.map(v=>[v.id,v])),[vendors]);
  const policyMap=useMemo(()=>new Map(policies.map(p=>[p.id,p])),[policies]);

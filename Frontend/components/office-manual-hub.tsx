@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -77,6 +78,7 @@ export function OfficeManualHub(){
     }catch(e){setError(e instanceof Error?e.message:"Manual is unavailable");}
     finally{setLoading(false);}
   },[]);
+  useOfficeLiveRefresh(()=>load(),{paused:busy||Boolean(opened),intervalMs:90000});
   useEffect(()=>{void load();},[load]);
 
   async function mutate(action:"OPEN"|"ACKNOWLEDGE",key:string){

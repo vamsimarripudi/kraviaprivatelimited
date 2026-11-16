@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, CircleAlert, ClipboardCheck, FileCheck2, LoaderCircle, Plus, RefreshCw, ShieldCheck, X } from "lucide-react";
@@ -36,7 +37,8 @@ function capaNext(c:Capa,review:boolean){if(c.status==="DRAFT")return ["IN_PROGR
 export function OfficeQualityWorkspace(){
  const[data,setData]=useState<Payload>();const[view,setView]=useState<View>("processes");const[modal,setModal]=useState<Modal>();const[draft,setDraft]=useState<Record<string,string>>({});const[busy,setBusy]=useState(false);const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();
  async function reload(message?:string){const next=await api<Payload>();setData(next);if(message)setNotice(message)}
- useEffect(()=>{let alive=true;void api<Payload>().then(n=>{if(alive)setData(n)}).catch((e:unknown)=>{if(alive)setError(e instanceof Error?e.message:"Unable to load Quality")});return()=>{alive=false}},[]);
+ useOfficeLiveRefresh(()=>reload(),{paused:Boolean(busy)||Boolean(modal),intervalMs:60000});
+  useEffect(()=>{let alive=true;void api<Payload>().then(n=>{if(alive)setData(n)}).catch((e:unknown)=>{if(alive)setError(e instanceof Error?e.message:"Unable to load Quality")});return()=>{alive=false}},[]);
  const people=useMemo(()=>new Map((data?.people??[]).map(p=>[p.user_id,p])),[data?.people]);
  const processMap=useMemo(()=>new Map((data?.processes??[]).map(p=>[p.id,p])),[data?.processes]);
  const ncMap=useMemo(()=>new Map((data?.nonconformances??[]).map(n=>[n.id,n])),[data?.nonconformances]);

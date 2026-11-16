@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, CircleAlert, HeartPulse, LoaderCircle, Plus, RefreshCw, ShieldCheck, X } from "lucide-react";
@@ -26,7 +27,8 @@ function claimNext(row:Claim){if(row.status==="SUBMITTED")return ["UNDER_REVIEW"
 export function OfficeResilienceWorkspace({mode="full"}:{mode?:"full"|"insurance"}){
  const[data,setData]=useState<Payload>();const[view,setView]=useState<View>(mode==="insurance"?"insurance":"incidents");const[modal,setModal]=useState<Modal>();const[draft,setDraft]=useState<Record<string,string>>({});const[busy,setBusy]=useState(false);const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();
  async function reload(message?:string){const next=await api<Payload>();setData(next);if(message)setNotice(message)}
- useEffect(()=>{let alive=true;void api<Payload>().then(n=>{if(alive)setData(n)}).catch((e:unknown)=>{if(alive)setError(e instanceof Error?e.message:"Unable to load resilience records")});return()=>{alive=false}},[]);
+ useOfficeLiveRefresh(()=>reload(),{paused:Boolean(busy)||Boolean(modal),intervalMs:60000});
+  useEffect(()=>{let alive=true;void api<Payload>().then(n=>{if(alive)setData(n)}).catch((e:unknown)=>{if(alive)setError(e instanceof Error?e.message:"Unable to load resilience records")});return()=>{alive=false}},[]);
  const people=useMemo(()=>new Map((data?.people??[]).map(p=>[p.user_id,p])),[data?.people]);
  const sites=useMemo(()=>new Map((data?.sites??[]).map(s=>[s.id,s])),[data?.sites]);
  const plans=useMemo(()=>new Map((data?.plans??[]).map(p=>[p.id,p])),[data?.plans]);

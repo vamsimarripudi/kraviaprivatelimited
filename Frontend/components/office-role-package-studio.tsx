@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BookOpen, BriefcaseBusiness, CalendarDays, CheckCheck, CircleAlert,
@@ -100,6 +101,7 @@ export function OfficeRolePackageStudio({ view = "admin" }: { view?: "admin" | "
   const [evidence, setEvidence] = useState<Record<string, string>>({});
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
 
+  useOfficeLiveRefresh(()=>reload(),{paused:busy||createOpen||Boolean(selected),intervalMs:60000});
   useEffect(() => {
     let alive = true;
     void api<State>().then(data => { if (alive) setState(data); })

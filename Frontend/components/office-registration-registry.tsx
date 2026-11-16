@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, CircleAlert, FileCheck2, Landmark, LoaderCircle, RefreshCw, ShieldCheck, X } from "lucide-react";
@@ -22,7 +23,8 @@ function label(value:string){return value.replaceAll("_"," ").toLowerCase().repl
 
 export function OfficeRegistrationRegistry(){
  const[data,setData]=useState<Payload>();const[modal,setModal]=useState<Modal>();const[draft,setDraft]=useState<Draft>({});const[busy,setBusy]=useState(false);const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();
- useEffect(()=>{let active=true;void api<Payload>().then(next=>{if(active)setData(next)}).catch(caught=>{if(active)setError(caught instanceof Error?caught.message:"Unable to load registrations")});return()=>{active=false}},[]);
+ useOfficeLiveRefresh(()=>reload(),{paused:Boolean(busy)||Boolean(modal),intervalMs:60000});
+  useEffect(()=>{let active=true;void api<Payload>().then(next=>{if(active)setData(next)}).catch(caught=>{if(active)setError(caught instanceof Error?caught.message:"Unable to load registrations")});return()=>{active=false}},[]);
  const people=useMemo(()=>new Map((data?.people??[]).map(p=>[p.user_id,p])),[data?.people]);
  const events=useMemo(()=>{const map=new Map<string,Event[]>();for(const event of data?.events??[]){const rows=map.get(event.registration_id)??[];rows.push(event);map.set(event.registration_id,rows)}return map},[data?.events]);
  async function reload(message?:string){const next=await api<Payload>();setData(next);if(message)setNotice(message)}

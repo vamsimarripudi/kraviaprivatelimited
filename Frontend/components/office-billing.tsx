@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, CircleAlert, FilePlus2, LoaderCircle, RefreshCw, ReceiptIndianRupee, X } from "lucide-react";
@@ -24,7 +25,8 @@ export function OfficeBillingWorkspace({canCreateInvoice,canRecordReceipt}:{canC
  const[invoices,setInvoices]=useState<Invoice[]>([]);const[customers,setCustomers]=useState<Customer[]>([]);const[products,setProducts]=useState<Product[]>([]);const[taxProfiles,setTaxProfiles]=useState<ProductTaxProfile[]>([]);const[loading,setLoading]=useState(true);const[modal,setModal]=useState<Modal>();const[draft,setDraft]=useState<Record<string,string>>({});const[busy,setBusy]=useState(false);const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();
  const fetchRecords=useCallback(()=>Promise.all([runtime<Invoice[]>("invoices"),runtime<Customer[]>("customers"),runtime<Product[]>("products"),runtime<ProductTaxProfile[]>("tax/gst/product-profiles")]),[]);
  const load=useCallback(async()=>{setLoading(true);setError(undefined);try{const [i,c,p,t]=await fetchRecords();setInvoices(i);setCustomers(c);setProducts(p);setTaxProfiles(t)}catch(caught){setError(caught instanceof Error?caught.message:"Unable to load billing records")}finally{setLoading(false)}},[fetchRecords]);
- useEffect(()=>{let active=true;void fetchRecords().then(([i,c,p,t])=>{if(!active)return;setInvoices(i);setCustomers(c);setProducts(p);setTaxProfiles(t)}).catch(caught=>{if(active)setError(caught instanceof Error?caught.message:"Unable to load billing records")}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[fetchRecords]);
+ useOfficeLiveRefresh(async()=>{const [i,c,p,t]=await fetchRecords();setInvoices(i);setCustomers(c);setProducts(p);setTaxProfiles(t);},{paused:Boolean(busy)||Boolean(modal),intervalMs:90000});
+  useEffect(()=>{let active=true;void fetchRecords().then(([i,c,p,t])=>{if(!active)return;setInvoices(i);setCustomers(c);setProducts(p);setTaxProfiles(t)}).catch(caught=>{if(active)setError(caught instanceof Error?caught.message:"Unable to load billing records")}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[fetchRecords]);
  const customerMap=useMemo(()=>new Map(customers.map(c=>[c.id,c])),[customers]);const productMap=useMemo(()=>new Map(products.map(p=>[p.id,p])),[products]);const taxProfileMap=useMemo(()=>new Map(taxProfiles.map(profile=>[profile.product_id,profile])),[taxProfiles]);const selectedTaxProfile=taxProfileMap.get(draft.product_id||"");
 
  async function submit(event:FormEvent<HTMLFormElement>){event.preventDefault();if(!modal)return;setBusy(true);setError(undefined);try{

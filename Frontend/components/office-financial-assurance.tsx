@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
@@ -39,7 +40,8 @@ export function OfficeFinancialAssurance({
  },[mode]);
  const apply=useCallback(([o,i,d,a]:[ComplianceObligation[],Inspection[],DocumentRow[],AuditEvent[]])=>{setObligations(o);setInspections(i);setDocuments(d);setAuditEvents(a)},[]);
  const load=useCallback(async()=>{setLoading(true);setError(undefined);try{apply(await fetchRecords())}catch(caught){setError(caught instanceof Error?caught.message:"Unable to load assurance records")}finally{setLoading(false)}},[apply,fetchRecords]);
- useEffect(()=>{let active=true;void fetchRecords().then(records=>{if(active)apply(records)}).catch(caught=>{if(active)setError(caught instanceof Error?caught.message:"Unable to load assurance records")}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[apply,fetchRecords]);
+ useOfficeLiveRefresh(async()=>{apply(await fetchRecords());},{paused:Boolean(busy)||Boolean(dialog),intervalMs:120000});
+  useEffect(()=>{let active=true;void fetchRecords().then(records=>{if(active)apply(records)}).catch(caught=>{if(active)setError(caught instanceof Error?caught.message:"Unable to load assurance records")}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[apply,fetchRecords]);
 
  const lockedDocs=useMemo(()=>documents.filter(d=>d.locked&&Boolean(d.sha256)),[documents]);
  const openObligations=obligations.filter(o=>!["CLOSED","NOT_APPLICABLE"].includes(o.status));

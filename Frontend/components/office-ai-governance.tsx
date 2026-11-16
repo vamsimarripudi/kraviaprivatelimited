@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, Bot, CircleAlert, FileKey2, LoaderCircle, Plus, RefreshCw, ShieldCheck, X } from "lucide-react";
@@ -35,7 +36,8 @@ function toolNext(tool:Tool,review:boolean){if(tool.status==="DRAFT")return ["SU
 export function OfficeAiGovernance(){
  const[data,setData]=useState<Payload>();const[view,setView]=useState<View>("tools");const[modal,setModal]=useState<Modal>();const[draft,setDraft]=useState<Record<string,string>>({});const[busy,setBusy]=useState(false);const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();
  async function reload(message?:string){const next=await api<Payload>();setData(next);if(message)setNotice(message)}
- useEffect(()=>{let alive=true;void api<Payload>().then(next=>{if(alive)setData(next)}).catch((caught:unknown)=>{if(alive)setError(caught instanceof Error?caught.message:"Unable to load AI Governance")});return()=>{alive=false}},[]);
+ useOfficeLiveRefresh(()=>reload(),{paused:Boolean(busy)||Boolean(modal),intervalMs:45000});
+  useEffect(()=>{let alive=true;void api<Payload>().then(next=>{if(alive)setData(next)}).catch((caught:unknown)=>{if(alive)setError(caught instanceof Error?caught.message:"Unable to load AI Governance")});return()=>{alive=false}},[]);
  const tools=useMemo(()=>new Map((data?.tools??[]).map(row=>[row.id,row])),[data?.tools]);
  const people=useMemo(()=>new Map((data?.people??[]).map(row=>[row.user_id,row])),[data?.people]);
 

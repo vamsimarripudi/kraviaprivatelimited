@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, CircleAlert, LoaderCircle, LockKeyhole, MessageSquareMore, Plus, RefreshCw, ShieldCheck, X } from "lucide-react";
@@ -19,7 +20,8 @@ function investigatorNext(row:Case){if(row.status==="SUBMITTED"||row.status==="T
 export function OfficeEthicsChannel(){
  const[data,setData]=useState<Payload>();const[view,setView]=useState<View>("mine");const[modal,setModal]=useState<Modal>();const[draft,setDraft]=useState<Record<string,string>>({});const[busy,setBusy]=useState(false);const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();
  async function reload(message?:string){const next=await api<Payload>();setData(next);if(message)setNotice(message)}
- useEffect(()=>{let alive=true;void api<Payload>().then(n=>{if(alive)setData(n)}).catch((e:unknown)=>{if(alive)setError(e instanceof Error?e.message:"Unable to load Ethics channel")});return()=>{alive=false}},[]);
+ useOfficeLiveRefresh(()=>reload(),{paused:Boolean(busy)||Boolean(modal),intervalMs:60000});
+  useEffect(()=>{let alive=true;void api<Payload>().then(n=>{if(alive)setData(n)}).catch((e:unknown)=>{if(alive)setError(e instanceof Error?e.message:"Unable to load Ethics channel")});return()=>{alive=false}},[]);
  const investigatorNames=useMemo(()=>new Map((data?.investigators??[]).map(i=>[i.user_id,i.display_name||i.user_id])),[data?.investigators]);
 
  async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();if(!modal)return;setBusy(true);setError(undefined);try{

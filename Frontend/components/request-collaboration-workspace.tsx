@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AtSign, LoaderCircle, MessageSquareText, Send, ShieldCheck } from "lucide-react";
@@ -31,6 +32,19 @@ export function RequestCollaborationWorkspace() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
 
+  useOfficeLiveRefresh(async()=>{
+     const overview=await json<Overview>("/api/office-work/overview");
+     const rows=[...overview.requests,...overview.team_requests,
+       ...overview.approvals.map(item=>item.request).filter((item):item is WorkRequest=>Boolean(item))];
+     const unique=Array.from(new Map(rows.map(row=>[row.id,row])).values());
+     setRequests(unique);
+     setSelected(current=>current??unique[0]?.id);
+     if(selected){
+       const result=await json<CommentResponse>(
+         "/api/office-work/comments?request_id="+encodeURIComponent(selected));
+       setComments(result.comments);
+     }
+    },{paused:busy||body.trim().length>0,intervalMs:30000});
   useEffect(() => {
     let active = true;
     void json<Overview>("/api/office-work/overview").then((overview) => {

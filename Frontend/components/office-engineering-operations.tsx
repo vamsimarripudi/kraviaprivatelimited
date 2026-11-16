@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, CalendarClock, CircleAlert, LoaderCircle, Plus, RefreshCw, RotateCcw, ShieldCheck, Siren, X } from "lucide-react";
@@ -33,7 +34,8 @@ function toIso(value?:string){if(!value)return undefined;const d=new Date(value)
 export function OfficeEngineeringOperations(){
  const[data,setData]=useState<Payload>();const[view,setView]=useState<View>("oncall");const[modal,setModal]=useState<Modal>();const[draft,setDraft]=useState<Record<string,string>>({});const[busy,setBusy]=useState(false);const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();
  async function reload(message?:string){const next=await api<Payload>();setData(next);if(message)setNotice(message)}
- useEffect(()=>{let alive=true;void api<Payload>().then(next=>{if(alive)setData(next)}).catch((caught:unknown)=>{if(alive)setError(caught instanceof Error?caught.message:"Unable to load engineering operations")});return()=>{alive=false}},[]);
+ useOfficeLiveRefresh(()=>reload(),{paused:Boolean(busy)||Boolean(modal),intervalMs:45000});
+  useEffect(()=>{let alive=true;void api<Payload>().then(next=>{if(alive)setData(next)}).catch((caught:unknown)=>{if(alive)setError(caught instanceof Error?caught.message:"Unable to load engineering operations")});return()=>{alive=false}},[]);
  const services=useMemo(()=>new Map((data?.services??[]).map(row=>[row.service.id,row])),[data?.services]);
  const people=useMemo(()=>new Map((data?.people??[]).map(row=>[row.user_id,row])),[data?.people]);
  const canOncallManage=Boolean(data?.services.some(row=>row.permissions.oncall_manage));

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 import {
   AlertTriangle,
   ArrowRight,
@@ -102,8 +103,9 @@ export function OfficeWorkHub({ identity, mode }: { identity: OfficeIdentity; mo
   async function reload(message?: string) {
     const data = await json<Overview>("/api/office-work/overview");
     setOverview(data);
-    setNotice(message);
+    if(message)setNotice(message);
   }
+  useOfficeLiveRefresh(()=>reload(),{paused:busy||newOpen||Boolean(decision)||Boolean(detail),intervalMs:45000});
 
   const filteredRequests = useMemo(() => {
     const rows = mode === "manager" ? overview?.team_requests ?? [] : overview?.requests ?? [];

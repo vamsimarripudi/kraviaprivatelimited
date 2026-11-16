@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
@@ -80,6 +81,7 @@ export function OfficeEngineeringControlCenter() {
     setNotice(message);
   }
 
+  useOfficeLiveRefresh(()=>reload(),{paused:Boolean(busy)||Boolean(create)||Boolean(selectedIncident),intervalMs:60000});
   useEffect(() => {
     let alive = true;
     void json<ControlData>("/api/office-engineering").then((next) => { if (alive) setData(next); }).catch((caught: unknown) => {

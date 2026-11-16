@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, CircleAlert, LoaderCircle, Plus, RefreshCw, ShieldCheck, X } from "lucide-react";
@@ -57,6 +58,7 @@ export function OfficeControlRegister(){
   const[notice,setNotice]=useState<string>();
 
   async function reload(message?:string){const next=await api<Payload>();setData(next);if(message)setNotice(message)}
+  useOfficeLiveRefresh(()=>reload(),{paused:Boolean(busy)||Boolean(modal),intervalMs:45000});
   useEffect(()=>{let alive=true;void api<Payload>().then(next=>{if(alive)setData(next)}).catch((caught:unknown)=>{if(alive)setError(caught instanceof Error?caught.message:"Unable to load enterprise controls")});return()=>{alive=false}},[]);
   const people=useMemo(()=>new Map((data?.people??[]).map(row=>[row.user_id,row])),[data?.people]);
   const actions=useMemo(()=>{const map=new Map<string,RiskAction[]>();for(const row of data?.risk_actions??[]){const list=map.get(row.risk_id)||[];list.push(row);map.set(row.risk_id,list)}return map},[data?.risk_actions]);
