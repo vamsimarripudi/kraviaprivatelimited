@@ -129,14 +129,17 @@ function sectionEntries(workspace: WorkspaceKind) {
 }
 
 export function InternalWorkspaceScreen({ workspace, section }: Props) {
-  const { identity, permissions } = useOfficeWorkspace();
+  const { identity, permissions, visibleSections, departmentNavigationStatus, departmentNavigationError } = useOfficeWorkspace();
   const definition = workspaceDefinitions[workspace];
   const sections = workspace === "finance" ? financeSections : officeSections;
   const item = (sections as Record<string, WorkspaceSection>)[section];
   const permitted = item
     ? roleCanAccessSection(item, identity.roles) &&
-      capabilityCanAccessSection(workspace, String(section), identity.roles, permissions)
+      capabilityCanAccessSection(workspace, String(section), identity.roles, permissions) &&
+      (workspace!=="office" || visibleSections.includes(String(section)))
     : false;
+  const waitingForClientDepartments=workspace==="office" &&
+    departmentNavigationStatus==="loading" && !visibleSections.includes(String(section));
 
   return (
     <>
@@ -223,12 +226,19 @@ export function InternalWorkspaceScreen({ workspace, section }: Props) {
           : section === "dashboard" ? <WorkspaceDashboard workspace={workspace} section={section} identity={identity} permissions={permissions} />
           : <WorkspaceModule workspace={workspace} section={section} item={item} />}
         </>
+      ) : waitingForClientDepartments ? (
+        <section className="office-denied" role="status" aria-live="polite">
+          <div><p className="eyebrow">CHECKING DEPARTMENT ASSIGNMENTS</p>
+            <h2>Loading your authorized workspace</h2>
+            <p>Checking your current department membership before opening this section.</p></div>
+        </section>
       ) : (
         <section className="office-denied">
           <TriangleAlert />
           <div>
             <p className="eyebrow">ACCESS RESTRICTED</p>
             <h2>This module is not assigned to your current authority.</h2>
+            <p>{departmentNavigationError??"The section is not part of your assigned departments or permitted actions."}</p>
             <p>Direct URLs never bypass KRAVIA record and action authorization.</p>
             <OfficeNavLink className="text-link" href={`${definition.basePath}/dashboard`}>
               Return to overview <ArrowRight />
@@ -241,8 +251,12 @@ export function InternalWorkspaceScreen({ workspace, section }: Props) {
 }
 
 function WorkspaceDashboard({ workspace, section, identity, permissions }: { workspace: WorkspaceKind; section: OfficeSection | FinanceSection; identity: OfficeIdentity; permissions: readonly string[] }) {
+  const {visibleSections}=useOfficeWorkspace();
   const sections = sectionEntries(workspace)
-    .filter(([slug, sectionItem]) => slug !== "dashboard" && roleCanAccessSection(sectionItem, identity.roles) && capabilityCanAccessSection(workspace, slug, identity.roles, permissions))
+    .filter(([slug, sectionItem]) => slug !== "dashboard" &&
+      (workspace!=="office" || visibleSections.includes(slug)) &&
+      roleCanAccessSection(sectionItem, identity.roles) &&
+      capabilityCanAccessSection(workspace, slug, identity.roles, permissions))
     .slice(0, 9);
   const basePath = workspaceDefinitions[workspace].basePath;
   const runtime = runtimeModuleSpec(workspace, section);
