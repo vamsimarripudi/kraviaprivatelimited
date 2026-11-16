@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, CircleAlert, Laptop, LoaderCircle, Plus, RefreshCw, ShieldCheck, X } from "lucide-react";
 import styles from "./office-device-identity.module.css";
+import {OfficeTrustedDeviceLink} from "@/components/office-trusted-device-link";
 
 type Capabilities = {
   company_cards: boolean; own_card: boolean; posture_read: boolean; physical_read: boolean;
@@ -39,7 +40,7 @@ function yn(value?: boolean | null) { return value === true ? "Yes" : value === 
 
 export function OfficeDeviceIdentity() {
   const [data, setData] = useState<Payload>();
-  const [view, setView] = useState<View>("identity");
+  const [view, setView] = useState<View>("devices");
   const [modal, setModal] = useState<Modal>();
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -148,14 +149,14 @@ export function OfficeDeviceIdentity() {
       {data.capabilities.card_manage && row.status === "ACTIVE" ? <div className={styles.actions}><button type="button" onClick={() => { setDraft({ reason: "" }); setModal({ kind: "REVOKE_CREDENTIAL", credential: row }); }}>Revoke</button></div> : null}
     </article>)}{!data.credentials.length ? <div className={styles.empty}>No credential exists in your authorised scope.</div> : null}</div> : null}
 
-    {view === "devices" ? <div className={styles.grid}>{data.devices.map((row) => {
+    {view === "devices" ? <><OfficeTrustedDeviceLink/><div className={styles.grid}>{data.devices.map((row) => {
       const posture = latestPosture.get(row.id);
       return <article className={styles.card} key={row.id}>
         <header><div><small>{row.device_kind}</small><h3>{row.device_label}</h3><span>{people.get(row.user_id)?.display_name || "Assigned identity"} · {row.platform || "Unknown platform"}</span></div><em className={styles.badge} data-status={posture?.compliance_status || row.trust_state}>{posture?.compliance_status || row.trust_state}</em></header>
         <div className={styles.kv}><span>Company managed<b>{row.company_managed ? "Yes" : "No"}</b></span><span>Last seen<b>{date(row.last_seen_at)}</b></span><span>Encryption<b>{yn(posture?.encryption_enabled)}</b></span><span>Security agent<b>{yn(posture?.security_agent_healthy)}</b></span><span>Patch current<b>{yn(posture?.patch_current)}</b></span><span>Compromise<b>{yn(posture?.compromise_detected)}</b></span></div>
         {data.capabilities.posture_manage ? <div className={styles.actions}><button type="button" onClick={() => { setDraft({ status: posture?.compliance_status || "UNKNOWN", source: "MANUAL_ATTESTATION", os_version: posture?.os_version || "", encryption: posture?.encryption_enabled ? "YES" : "NO", screen_lock: posture?.screen_lock_enabled ? "YES" : "NO", security_agent: posture?.security_agent_healthy ? "YES" : "NO", patch_current: posture?.patch_current ? "YES" : "NO", firewall: posture?.firewall_enabled ? "YES" : "NO", compromise: posture?.compromise_detected ? "YES" : "NO" }); setModal({ kind: "POSTURE", device: row }); }}><Laptop /> Record posture</button></div> : null}
       </article>;
-    })}{!data.devices.length ? <div className={styles.empty}>No registered devices in your authorised scope.</div> : null}</div> : null}
+    })}{!data.devices.length ? <div className={styles.empty}>No registered devices in your authorised scope.</div> : null}</div></> : null}
 
     {view === "access" ? <div className={styles.grid}>{data.grants.map((row) => <article className={styles.card} key={row.id}>
       <header><div><small>{zones.get(row.zone_id)?.zone_code || "ZONE"}</small><h3>{zones.get(row.zone_id)?.name || "Physical access zone"}</h3><span>{people.get(row.user_id)?.display_name || row.user_id}</span></div><em className={styles.badge} data-status={row.status}>{row.status}</em></header>
