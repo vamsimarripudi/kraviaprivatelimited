@@ -53,24 +53,30 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
     }
     ({ admin, identity } = actor);
   }
-  const catalog = await admin
-    .from("office_permission_catalog")
-    .select("code,active,owner_bypass,high_risk,requires_managed_device")
-    .eq("active", true)
-    .order("code", { ascending: true });
-  if (catalog.error) throw new OfficeCapabilityError(503, "Authorization catalog is temporarily unavailable");
-  // The Founder continues to see transferred departments, but their write
-  // permissions must disappear from the action capability snapshot.
-  const [departmentDeltaResult, globalDeniesResult, formerOwnerResult] = await Promise.all([
+  // These reads have no data dependencies. Start them together instead
+  // of incurring three sequential network round trips per Office navigation.
+  // All authority continues to come from the database (no cached permissions).
+  const [
+    catalog, departmentDeltaResult, globalDeniesResult, formerOwnerResult,
+    profilesResult, overridesResult,
+  ] = await Promise.all([
+    admin.from("office_permission_catalog")
+      .select("code,active,owner_bypass,high_risk,requires_managed_device")
+      .eq("active", true).order("code", { ascending: true }),
     admin.rpc("office_department_capability_changes", { p_actor: identity.userId }),
     admin.from("office_user_permission_overrides")
       .select("permission_code,expires_at")
-      .eq("user_id", identity.userId)
-      .eq("effect", "DENY")
-      .eq("scope_type", "COMPANY"),
+      .eq("user_id", identity.userId).eq("effect", "DENY").eq("scope_type", "COMPANY"),
     admin.from("office_department_former_owners")
       .select("department_code").eq("user_id",identity.userId),
+    admin.from("office_user_access_profiles")
+      .select("profile_code,scope_type,scope_key,status,expires_at,effective_from")
+      .eq("user_id", identity.userId).eq("status", "ACTIVE"),
+    admin.from("office_user_permission_overrides")
+      .select("permission_code,effect,scope_type,scope_key,expires_at")
+      .eq("user_id", identity.userId),
   ]);
+  if (catalog.error) throw new OfficeCapabilityError(503, "Authorization catalog is temporarily unavailable");
   if (departmentDeltaResult.error || globalDeniesResult.error || formerOwnerResult.error || !departmentDeltaResult.data ||
       typeof departmentDeltaResult.data !== "object" || Array.isArray(departmentDeltaResult.data)) {
     throw new OfficeCapabilityError(503, "Department capability authority is unavailable");
@@ -110,17 +116,6 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
     })
     .map((row) => String(row.code)));
 
-  const [profilesResult, overridesResult] = await Promise.all([
-    admin
-      .from("office_user_access_profiles")
-      .select("profile_code,scope_type,scope_key,status,expires_at,effective_from")
-      .eq("user_id", identity.userId)
-      .eq("status", "ACTIVE"),
-    admin
-      .from("office_user_permission_overrides")
-      .select("permission_code,effect,scope_type,scope_key,expires_at")
-      .eq("user_id", identity.userId),
-  ]);
   if (profilesResult.error || overridesResult.error) throw new OfficeCapabilityError(503, "Authorization assignments are temporarily unavailable");
 
   const profiles = (profilesResult.data ?? []).filter((row) => officeAccessProfileIsEffective(row));
