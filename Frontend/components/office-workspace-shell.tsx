@@ -50,7 +50,7 @@ const officeCategoryBySlug: Record<string, string> = {
   development:"People",worktime:"People",
   engineering:"Engineering",products:"Engineering",portfolio:"Engineering",
   ai:"Engineering",integrations:"Engineering",quality:"Engineering",
-  customers:"Commercial",crm:"Commercial",support:"Commercial",
+  customers:"Commercial",crm:"Commercial","customer-success":"Commercial",support:"Commercial",
   vendors:"Operations",assets:"Operations",it:"Operations",
   facilities:"Operations",travel:"Operations",cards:"Operations",
   payroll:"Finance",budget:"Finance",
@@ -186,19 +186,26 @@ export function OfficeWorkspaceShell({
         ? selectedDepartmentCode
         : assignedCodes.includes(primaryDepartment)?primaryDepartment:assignedCodes[0]??null)
     : null;
+  // Use all *currently assigned* department codes, not just the single active
+  // department selector. A six-department owner must see all six navigation
+  // categories, while every API still enforces its own effective authority.
+  const visibleDepartments=departmentLoad==="ready"&&loadedActor===identity.userId?assignedCodes:[];
   const entries=allowedEntries.filter(([slug]) =>
-    workspace!=="office"||officeClientSectionVisible(slug,activeDepartment?[activeDepartment]:[],isFounder));
+    workspace!=="office"||officeClientSectionVisible(slug,visibleDepartments,isFounder));
   const categoryForEntry=(slug:string,value:WorkspaceSection) =>
     workspace==="office"?officeClientCategoryForSection(slug,isFounder):categoryOf(workspace,slug,value);
   const categories=(() => {
     const order=workspace==="office"
-      ? ["My work",...(activeDepartment?[officeDepartmentLabel(activeDepartment)]:[]),
+      ? ["My work",...visibleDepartments.map(officeDepartmentLabel),
          "Connect","K-Vault","Company control",...categoryOrder]
       : financeOrder;
     const labels=entries.map(([slug,value])=>categoryForEntry(slug,value));
     if(workspace==="office"){
       labels.push("My work","Connect");
-      if(activeDepartment)labels.push(officeDepartmentLabel(activeDepartment));
+      for (const code of visibleDepartments) {
+        const hasPages=entries.some(([slug])=>officeDepartmentForSection(slug)===code);
+        if(hasPages)labels.push(officeDepartmentLabel(code));
+      }
     }
     if(vaultEntry)labels.push("K-Vault");
     return [...new Set(labels)].sort((a,b)=>{
@@ -229,7 +236,7 @@ export function OfficeWorkspaceShell({
   useEffect(()=>{
     if(workspace!=="office")return;
     const controller=new AbortController();
-    void fetch("/api/office-departments",{
+    void fetch("/api/office-departments?view=navigation",{
       credentials:"same-origin",cache:"no-store",signal:controller.signal,
     }).then(async response=>{
       if(!response.ok)throw new Error("Department assignments unavailable");
