@@ -106,11 +106,14 @@ describe("KRAVIA multi-department navigation, real workflows and fast read model
  it("allows current owners only explicit low-risk department reads, preserving denial and device checks",()=>{
   for(const code of [
     "support.case.read","customer.trust.read","secretarial.board.read",
-    "registration.read","compliance.rules.read","operations.asset.read","facilities.room.read","security.overview.read"
+    "registration.read","compliance.rules.read","operations.asset.read","facilities.room.read",
+    "legal.obligation.read","resilience.read","ai.tool.read","security.overview.read"
   ])expect(migration).toContain("'"+code+"'");
   expect(migration).toContain("p.high_risk=false");
   expect(migration).toContain("p.owner_bypass is distinct from false");
   expect(migration).toContain("current_owner=p_actor");
+  expect(migration).toContain("when p.code in ('resilience.read','ai.tool.read') then 'SECURITY'");
+  expect(migration).toContain("when p.module='FACILITIES' then 'OPERATIONS'");
   expect(migration).toContain("where i.user_id=p_actor and i.status='ACTIVE'");
   expect(migration).not.toContain("'finance.bank.read'");
   expect(migration).not.toContain("'people.sensitive.read'");
