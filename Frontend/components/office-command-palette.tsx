@@ -14,7 +14,7 @@ type SearchResult = {
   href: string;
 };
 
-export function OfficeCommandPalette({ commands }: { commands: OfficeNavigationCommand[] }) {
+export function OfficeCommandPalette({ commands, hideTrigger = false }: { commands: OfficeNavigationCommand[]; hideTrigger?: boolean }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [remote, setRemote] = useState<SearchResult[]>([]);
@@ -37,6 +37,12 @@ export function OfficeCommandPalette({ commands }: { commands: OfficeNavigationC
     : [];
   const searchFailed = normalizedQuery.length >= 2 && failedFor === normalizedQuery;
   const waitingForRemote = normalizedQuery.length >= 2 && remoteFor !== normalizedQuery && !searchFailed;
+
+  useEffect(() => {
+    const openFromOverflow = () => setOpen(true);
+    window.addEventListener("kravia-office-open-search", openFromOverflow);
+    return () => window.removeEventListener("kravia-office-open-search", openFromOverflow);
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -151,9 +157,9 @@ export function OfficeCommandPalette({ commands }: { commands: OfficeNavigationC
   }
 
   return <>
-    <button ref={triggerRef} type="button" className={styles.trigger} data-office-global-search onClick={() => setOpen(true)} aria-label="Open KRAVIA Office search and command palette" aria-haspopup="dialog" aria-expanded={open} aria-controls="office-command-palette">
+    {!hideTrigger ? <button ref={triggerRef} type="button" className={styles.trigger} data-office-global-search onClick={() => setOpen(true)} aria-label="Open KRAVIA Office search and command palette" aria-haspopup="dialog" aria-expanded={open} aria-controls="office-command-palette">
       <Search aria-hidden="true" /><span>Search</span><kbd><Command aria-hidden="true" />K</kbd>
-    </button>
+    </button> : null}
     {open ? <div className={styles.backdrop} data-office-search-overlay role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
       <section ref={dialogRef} id="office-command-palette" className={styles.dialog} data-office-search-dialog role="dialog" aria-modal="true" aria-label="KRAVIA Office command palette">
         <div className={styles.inputRow} data-office-search-input-row>
