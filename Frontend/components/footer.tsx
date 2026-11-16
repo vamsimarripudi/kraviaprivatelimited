@@ -66,7 +66,6 @@ const legalLinks = [
 
 export async function Footer() {
   const [profile, recognitions] = await Promise.all([getPublicCompanyProfile(), getPublicCorporateRegistrations()]);
-  const startupIndiaRecognition = recognitions.find((recognition) => recognition.authority === "Startup India");
   return (
     <footer className={styles.root} data-nav-theme="dark">
       <div className={styles.container}>
@@ -137,41 +136,22 @@ export async function Footer() {
             <p className={styles.note}>Recognition, registration and program membership identify the company only. They do not endorse KRAVIA products or services.</p>
           </div>
           <div className={styles.inceptionMember}>
-            <p className={styles.inceptionLabel}>Recognitions &amp; memberships</p>
-            <div className={styles.programBadgeRow}>
-              {startupIndiaRecognition ? (
-                <a
-                  className={styles.startupIndiaBadge}
-                  href={startupIndiaRecognition.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={`Verify KRAVIA's Startup India DPIIT recognition ${startupIndiaRecognition.reference} (opens in a new tab)`}
-                >
-                  <BadgeCheck className={styles.startupBadgeIcon} aria-hidden="true" />
-                  <span className={styles.startupBadgeText}>
-                    <strong>Startup India</strong>
-                    <span>{startupIndiaRecognition.title}</span>
-                    <code>{startupIndiaRecognition.reference}</code>
-                  </span>
-                  <ExternalLink className={styles.startupBadgeExternal} aria-hidden="true" />
-                </a>
-              ) : null}
-              <a
-                className={styles.inceptionBadge}
-                href="https://www.nvidia.com/en-in/startups/"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="KRAVIA is a member of the NVIDIA Inception program (opens in a new tab)"
-              >
-                <Image
-                  src="/brand/partners/nvidia-inception-member-rgb.svg"
-                  width={501}
-                  height={217}
-                  alt="NVIDIA Inception Program member badge"
-                  unoptimized
-                />
-              </a>
-            </div>
+            <p className={styles.inceptionLabel}>Program membership</p>
+            <a
+              className={styles.inceptionBadge}
+              href="https://www.nvidia.com/en-in/startups/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="KRAVIA is a member of the NVIDIA Inception program (opens in a new tab)"
+            >
+              <Image
+                src="/brand/partners/nvidia-inception-member-rgb.svg"
+                width={501}
+                height={217}
+                alt="NVIDIA Inception Program member badge"
+                unoptimized
+              />
+            </a>
             <p className={styles.inceptionCaption}>KRAVIA PRIVATE LIMITED is a member of NVIDIA Inception.</p>
           </div>
         </section>
