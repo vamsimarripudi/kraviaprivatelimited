@@ -1,7 +1,7 @@
 import "server-only";
 import {dispatchOfficeSupportNotice} from "@/lib/office/notification-dispatch-server";
 
-import { readOfficeRuntimeResult } from "@/lib/office/runtime-read-server";
+
 
 import {
   OfficePermissionError,
@@ -106,17 +106,36 @@ export async function getOfficeSupportOverview() {
   const customerIds = Array.from(new Set(rows.map((row) => row.customer_id).filter(Boolean) as string[]));
   const productIds = Array.from(new Set(rows.map((row) => row.product_id).filter(Boolean) as string[]));
 
+  // Linked labels are sourced from the same canonical database, not via
+  // a second Railway authentication and network hop. Queries are bounded
+  // to customer/product IDs already attached to authorised cases.
+  async function referenceRows(table: "customers" | "products", columns: string, ids: string[]) {
+    if (!ids.length) return {data: [] as Array<Record<string,unknown>>, error: null as {message:string}|null};
+    const chunks=Array.from({length:Math.ceil(ids.length/60)},(_,index)=>ids.slice(index*60,(index+1)*60));
+    const results=await Promise.all(chunks.map(batch=>
+      read.admin.from(table).select(columns).in("id",batch)));
+    const failure=results.find(item=>item.error)?.error;
+    return {
+      data: failure ? [] as Array<Record<string,unknown>> :
+        results.flatMap(item=>(item.data??[]) as Array<Record<string,unknown>>),
+      error: failure ? {message:"Canonical reference records unavailable"} : null,
+    };
+  }
   const [eventsResult, customersResult, productsResult, ownersResult] = await Promise.all([
     ids.length ? read.admin.from("office_support_case_events").select("id,case_id,actor_user_id,event_type,previous_status,new_status,note,created_at").in("case_id", ids).order("created_at", { ascending: false }).limit(1000) : Promise.resolve({ data: [], error: null }),
-    customerIds.length ? readOfficeRuntimeResult<Array<Record<string,unknown>>>("customers").then((result)=>({...result,data:(result.data??[]).filter((row)=>customerIds.includes(String(row.id)))})) : Promise.resolve({ data: [] as Array<Record<string,unknown>>, error: null }),
-    productIds.length ? readOfficeRuntimeResult<Array<Record<string,unknown>>>("products").then((result)=>({...result,data:(result.data??[]).filter((row)=>productIds.includes(String(row.id)))})) : Promise.resolve({ data: [] as Array<Record<string,unknown>>, error: null }),
+    referenceRows("customers","id,display_name,legal_name",customerIds),
+    referenceRows("products","id,code,name",productIds),
     (() => {
       let query = read.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").eq("status", "ACTIVE").order("display_name");
       if (read.ownerIds) query = query.in("user_id", read.ownerIds.length ? read.ownerIds : [read.identity.userId]);
       return query;
     })(),
   ]);
-  if (eventsResult.error || customersResult.error || productsResult.error || ownersResult.error) throw new OfficeSupportError(503, "Support reference data is temporarily unavailable");
+  // A temporary reference-catalog problem must not hide genuine support
+  // cases or prevent audited case transitions. No substitute data is created.
+  if (eventsResult.error || ownersResult.error)
+    throw new OfficeSupportError(503, "Support case history or assigned owners temporarily unavailable");
+  const referenceStatus = customersResult.error || productsResult.error ? "DEGRADED" : "READY";
 
   // Reuse the authenticated actor and check independent capabilities together.
   // A denied permission returns false; backend failures still surface as errors.
@@ -144,6 +163,7 @@ export async function getOfficeSupportOverview() {
     scope: { source: read.decision.source ?? null, type: read.decision.scopeType ?? null, key: read.decision.scopeKey ?? null },
     can_manage: canManage,
     can_request_refund: canRefund,
+    reference_status: referenceStatus,
     owners: ownersResult.data ?? [],
     customers: customersResult.data ?? [],
     products: productsResult.data ?? [],
