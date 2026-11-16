@@ -10,9 +10,27 @@ const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("CANCEL"), transfer_id: uuid }),
 ]);
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const { admin, identity } = await requireOfficeActor();
+    // Sidebar fast path: no transfer history and no employee directory.
+    // Fail closed to the authenticated actor's actual ownership records.
+    if (new URL(request.url).searchParams.get("view") === "navigation") {
+      const [departments, ownership] = await Promise.all([
+        admin.from("office_department_catalog").select("code,label").eq("active", true).order("label"),
+        admin.from("office_department_ownership").select("department_code,owner_user_id")
+          .eq("owner_user_id",identity.userId),
+      ]);
+      if (departments.error || ownership.error) throw new Error("Navigation scope unavailable");
+      const owned = new Set((ownership.data ?? []).map(row => row.department_code));
+      const primary = (identity.department ?? "").toUpperCase();
+      const visible = (departments.data ?? []).filter(row => owned.has(row.code) || row.code === primary);
+      return NextResponse.json({
+        actor: { user_id:identity.userId },
+        departments:visible,
+        ownership:ownership.data ?? [],
+      }, { headers: { "Cache-Control":"private, no-store", "Vary":"Cookie" } });
+    }
     const [departments, ownership, transfers, people] = await Promise.all([
       admin.from("office_department_catalog").select("code,label,active").eq("active", true).order("label"),
       admin.from("office_department_ownership").select("department_code,owner_user_id,previous_owner_user_id,version,updated_at"),
