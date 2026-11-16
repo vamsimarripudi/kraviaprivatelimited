@@ -14,7 +14,7 @@ describe("KRAVIA Office client-only live real workflows",()=>{
   for(const n of active){
    const source=read("components/"+n+".tsx");
    expect(source,n).toContain("useOfficeLiveRefresh");
-   expect(/fetch\(|officeQuery\(|officeMutation\(/.test(source),n).toBe(true);
+   expect(source,n).toMatch(/\/api\/office-[a-z0-9/-]+/i);
   }
  });
  it("relies on the existing authenticated notification stream for invalidation",()=>{
