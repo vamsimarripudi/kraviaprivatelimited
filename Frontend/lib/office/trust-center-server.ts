@@ -19,33 +19,52 @@ async function actor():Promise<Actor>{
     throw error;
   }
 }
-async function can(current:Actor,code:string){
-  const device=await currentOfficeTrustedDeviceId(current.admin,current.identity.userId);
+async function can(current:Actor,code:string,deviceId?:string|null){
+  const device=deviceId===undefined
+    ? await currentOfficeTrustedDeviceId(current.admin,current.identity.userId)
+    : deviceId;
   return (await resolveOfficePermission(current.admin,current.identity,code,{type:"COMPANY"},device)).allowed;
 }
 function fail(error:{message?:string}|null,message:string){if(error)throw new OfficeTrustError(503,error.message||message)}
 
-export async function getTrustCenter(){
+export async function getTrustCenter(view:"all"|"customer"="all"){
   const current=await actor();
+  // One authenticated device lookup rather than six serial round-trips.
+  // Permission evaluation remains independent on every endpoint/operation.
+  const device=await currentOfficeTrustedDeviceId(current.admin,current.identity.userId);
+  const [vendorRead,vendorManage,vendorReview,customerRead,customerManage,customerReview]=
+    await Promise.all([
+      view==="all"?can(current,"vendor.assurance.read",device):false,
+      view==="all"?can(current,"vendor.assurance.manage",device):false,
+      view==="all"?can(current,"vendor.assurance.review",device):false,
+      can(current,"customer.trust.read",device),
+      can(current,"customer.trust.manage",device),
+      can(current,"customer.trust.review",device),
+    ]);
   const capabilities={
-    vendor_read:await can(current,"vendor.assurance.read"),
-    vendor_manage:await can(current,"vendor.assurance.manage"),
-    vendor_review:await can(current,"vendor.assurance.review"),
-    customer_read:await can(current,"customer.trust.read"),
-    customer_manage:await can(current,"customer.trust.manage"),
-    customer_review:await can(current,"customer.trust.review"),
+    vendor_read:vendorRead,
+    vendor_manage:vendorManage,
+    vendor_review:vendorReview,
+    customer_read:customerRead,
+    customer_manage:customerManage,
+    customer_review:customerReview,
   };
   if(!Object.values(capabilities).some(Boolean))throw new OfficeTrustError(403,"Trust Center is not assigned to your current authority");
 
   const [vendors,assessments,customers,requests,people]=await Promise.all([
     capabilities.vendor_read
-      ? readOfficeRuntimeResult<Array<Record<string,unknown>>>("vendors").then((result)=>({...result,data:(result.data??[]).slice(0,500).sort((a,b)=>String(a.legal_name||"").localeCompare(String(b.legal_name||"")))}))
+      ? readOfficeRuntimeResult<Array<Record<string,unknown>>>("vendors").then((result)=>({...result,data:(result.data??[]).slice(0,500).map(row=>({
+            id:row.id,legal_name:row.legal_name,category:row.category,status:row.status,risk:row.risk,
+          })).sort((a,b)=>String(a.legal_name||"").localeCompare(String(b.legal_name||"")))}))
       : Promise.resolve({data:[] as Array<Record<string,unknown>>,error:null}),
     capabilities.vendor_read
       ? current.admin.from("office_vendor_assessments").select("id,assessment_code,vendor_id,assessment_type,scope_summary,risk_level,evidence_reference,remediation_summary,owner_user_id,status,expires_on,created_by,reviewed_by,reviewed_at,review_note,created_at,updated_at").order("created_at",{ascending:false}).limit(1500)
       : Promise.resolve({data:[],error:null}),
     capabilities.customer_read
-      ? readOfficeRuntimeResult<Array<Record<string,unknown>>>("customers").then((result)=>({...result,data:(result.data??[]).slice(0,500).sort((a,b)=>String(a.display_name||"").localeCompare(String(b.display_name||"")))}))
+      ? readOfficeRuntimeResult<Array<Record<string,unknown>>>("customers").then((result)=>({...result,data:(result.data??[]).slice(0,500).map(row=>({
+            id:row.id,legal_name:row.legal_name,display_name:row.display_name,country:row.country,
+            email:row.email,status:row.status,
+          })).sort((a,b)=>String(a.display_name||"").localeCompare(String(b.display_name||"")))}))
       : Promise.resolve({data:[] as Array<Record<string,unknown>>,error:null}),
     capabilities.customer_read
       ? current.admin.from("office_customer_trust_requests").select("id,trust_code,customer_id,request_type,title,request_summary,owner_user_id,due_at,status,response_reference,evidence_reference,sent_reference,created_by,reviewed_by,reviewed_at,review_note,sent_at,closed_at,created_at,updated_at").order("created_at",{ascending:false}).limit(2000)
