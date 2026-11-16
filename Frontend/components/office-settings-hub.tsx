@@ -158,7 +158,7 @@ export function OfficeSettingsHub({ identity }: { identity: OfficeIdentity }) {
     </div>
     <div className={styles.layout}>
       <nav className={styles.navigation} aria-label="Settings sections">
-        <label className={styles.search}><Search size={15} aria-hidden="true"/>
+        <label className={styles.search} data-office-settings-search><Search size={15} aria-hidden="true"/>
           <input type="search" value={query} onChange={event => setQuery(event.target.value)}
             placeholder="Find settings" aria-label="Find settings sections"/></label>
         <div className={styles.navItems}>{filtered.map(item => {

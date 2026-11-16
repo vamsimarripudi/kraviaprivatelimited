@@ -101,9 +101,9 @@ export function OfficeConnectChatList({
     </div>:null}
     {workspaceMode==="chats"?<>
     <div className={styles.searchWrap}>
-      <label className={styles.search}>
+      <label className={styles.search} data-office-chat-search>
         <Search size={18} aria-hidden="true"/>
-        <input type="search" value={query} onChange={event=>setQuery(event.target.value)}
+        <input type="search" data-office-search-input value={query} onChange={event=>setQuery(event.target.value)}
           placeholder="Search chats" aria-label="Search your chats"/>
       </label>
       <Link href="/office/chat/search" title="Search message history" aria-label="Search message history">
