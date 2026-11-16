@@ -1,0 +1,217 @@
+/* KRAVIA Office / Finance topbar-only refinement, November 2026.
+ * Deliberately leaves department assignments, role enforcement, side rail
+ * and unrelated workspace surfaces intact. */
+.kravia-office .office-modern {
+  --topbar-panel:#ffffff;
+  --topbar-ink:#172235;
+  --topbar-muted:#586579;
+  --topbar-line:#dfe4ed;
+  --topbar-soft:#f5f7fb;
+  --topbar-accent:#2f64c7;
+  --topbar-shadow:0 24px 70px rgba(18,29,48,.18);
+}
+.kravia-office .office-modern[data-ui-theme="dark"]{
+  --topbar-panel:#13171e;
+  --topbar-ink:#f0f3f9;
+  --topbar-muted:#a9b4c6;
+  --topbar-line:#353d4b;
+  --topbar-soft:#1e2530;
+  --topbar-accent:#8eb6ff;
+  --topbar-shadow:0 26px 75px rgba(0,0,0,.45);
+}
+.kravia-office .office-v2.office-modern .office-topbar-compact{
+  min-width:0!important;
+  background:var(--topbar-panel)!important;
+  color:var(--topbar-ink)!important;
+  border-bottom:1px solid var(--topbar-line)!important;
+}
+.kravia-office .office-modern .office-breadcrumbs{
+  flex:1 1 auto!important;min-width:0!important;
+  overflow:hidden;white-space:nowrap;min-height:0;
+}
+.kravia-office .office-modern .office-breadcrumbs a,
+.kravia-office .office-modern .office-breadcrumbs>span{
+  color:var(--topbar-muted)!important;
+}
+.kravia-office .office-modern .office-breadcrumbs>strong{
+  flex:0 1 auto;min-width:0!important;max-width:100%;
+  color:var(--topbar-ink)!important;text-overflow:ellipsis;
+}
+.kravia-office .office-modern .office-topbar-tools{
+  display:flex!important;align-items:center;justify-content:flex-end;
+  flex:0 0 auto;gap:7px;min-width:0;
+}
+.kravia-office .office-modern [data-office-topbar-calendar-trigger]{
+  min-height:38px;max-width:100%;background:transparent!important;
+  color:var(--topbar-ink)!important;
+}
+.kravia-office .office-modern [data-office-topbar-calendar-trigger] :is(time,span){
+  color:inherit;
+}
+.kravia-office .office-modern [data-office-topbar-calendar-trigger] [class*="separator"]{
+  color:var(--topbar-muted)!important;
+}
+.kravia-office .office-modern .office-more-button,
+.kravia-office .office-modern .office-mobile-trigger{
+  flex:none;border:1px solid var(--topbar-line)!important;
+  color:var(--topbar-ink)!important;
+  background:transparent!important;
+  transition:border-color .14s ease,background .14s ease;
+}
+.kravia-office .office-modern .office-more-button:hover,
+.kravia-office .office-modern .office-mobile-trigger:hover,
+.kravia-office .office-modern .office-more-button[aria-expanded="true"]{
+  border-color:var(--topbar-accent)!important;
+  background:var(--topbar-soft)!important;
+  color:var(--topbar-ink)!important;
+}
+.kravia-office .office-modern .office-more-wrapper{isolation:isolate;z-index:82}
+.kravia-office .office-modern .office-more-card{
+  right:0!important;top:calc(100% + 10px)!important;
+  display:flex!important;flex-direction:column!important;gap:10px!important;
+  box-sizing:border-box;width:min(340px,calc(100vw - 24px))!important;
+  min-width:0;max-height:min(75dvh,620px);overflow-y:auto;
+  padding:14px!important;border:1px solid var(--topbar-line)!important;
+  border-radius:16px!important;background:var(--topbar-panel)!important;
+  color:var(--topbar-ink)!important;box-shadow:var(--topbar-shadow)!important;
+  overscroll-behavior:contain;
+}
+.kravia-office .office-modern .office-more-heading{
+  align-items:flex-start;padding:0 0 9px;border-bottom:1px solid var(--topbar-line);
+}
+.kravia-office .office-modern .office-more-heading>div{
+  display:grid;gap:2px;min-width:0;
+}
+.kravia-office .office-modern .office-more-heading strong{
+  color:var(--topbar-ink)!important;font-size:14px;font-weight:750;
+}
+.kravia-office .office-modern .office-more-heading span{
+  color:var(--topbar-muted)!important;font-size:10px;
+}
+.kravia-office .office-modern .office-more-heading button{
+  display:grid;place-items:center;width:30px;height:30px;
+  padding:0;border:0!important;border-radius:8px;
+  color:var(--topbar-muted)!important;background:transparent!important;
+}
+.kravia-office .office-modern .office-more-heading button:hover{
+  color:var(--topbar-ink)!important;background:transparent!important;
+}
+.kravia-office .office-modern .office-more-actions{
+  display:grid;grid-template-columns:minmax(0,1fr);gap:3px;
+}
+.kravia-office .office-modern .office-more-actions :is(button,a){
+  display:flex;align-items:center;justify-content:flex-start;gap:11px;
+  box-sizing:border-box;width:100%;min-height:43px;max-width:100%;
+  padding:9px 10px!important;border:1px solid transparent!important;
+  border-radius:10px;background:transparent!important;
+  color:var(--topbar-ink)!important;cursor:pointer;
+  text-align:left;text-decoration:none;font-size:12px;font-weight:650;
+  transition:background .14s ease,border-color .14s ease;
+}
+.kravia-office .office-modern .office-more-actions :is(button,a):hover{
+  background:var(--topbar-soft)!important;
+  border-color:var(--topbar-line)!important;
+}
+.kravia-office .office-modern .office-more-actions :is(button,a)>svg{
+  width:17px;height:17px;flex:none;color:var(--topbar-muted);
+}
+.kravia-office .office-modern .office-more-actions :is(button,a)>span{
+  flex:1;min-width:0;white-space:normal;
+}
+.kravia-office .office-modern .office-more-actions kbd{
+  flex:none;border:1px solid var(--topbar-line);border-radius:6px;
+  padding:3px 5px;color:var(--topbar-muted);
+  font-family:inherit;font-size:10px;
+}
+.kravia-office .office-modern .office-more-section-label{
+  margin-top:2px;padding:2px 3px;
+  color:var(--topbar-muted)!important;
+  font-size:9px;font-weight:760;letter-spacing:.11em;
+}
+.kravia-office .office-modern .office-more-card [data-office-presence-control="true"]{
+  min-width:0;max-width:100%;
+}
+.kravia-office .office-modern .office-more-card [data-office-presence-trigger="true"]{
+  width:100%;min-width:0;max-width:100%;box-sizing:border-box;
+}
+.kravia-office .office-modern .office-more-account{
+  display:grid;gap:9px;margin-top:2px;padding-top:12px;
+  border-top:1px solid var(--topbar-line);
+}
+.kravia-office .office-modern .office-more-account .office-compact-identity{
+  min-width:0;padding:9px 10px;border:1px solid var(--topbar-line);
+  border-radius:10px;background:var(--topbar-soft);
+}
+.kravia-office .office-modern .office-more-account .office-compact-identity :is(strong,small){
+  color:var(--topbar-ink)!important;overflow-wrap:anywhere;
+}
+.kravia-office .office-modern .office-more-account .office-compact-identity small{
+  color:var(--topbar-muted)!important;
+}
+.kravia-office .office-modern .office-more-account .workspace-signout{
+  display:flex;align-items:center;justify-content:flex-start;
+  gap:10px;width:100%;min-height:42px;padding:9px 10px!important;
+  border:1px solid var(--topbar-line)!important;border-radius:10px;
+  background:transparent!important;color:var(--topbar-ink)!important;
+  font-size:12px;font-weight:650;cursor:pointer;
+}
+.kravia-office .office-modern .office-more-account .workspace-signout svg{
+  width:17px;height:17px;flex:none;
+}
+.kravia-office .office-modern .office-more-account .workspace-signout:hover{
+  background:var(--topbar-soft)!important;
+}
+.kravia-office .office-modern .office-more-card :is(button,a):focus-visible,
+.kravia-office .office-modern .office-more-button:focus-visible{
+  outline:2px solid var(--topbar-accent)!important;outline-offset:2px;
+}
+/* Search and notifications remain mounted but render no header button.
+ * The command palette and notification flyout retain their original behavior. */
+.kravia-office .office-modern .office-topbar-utility-host{
+  position:absolute;inset:0 auto auto 0;z-index:100;
+  width:0;height:0;overflow:visible;
+}
+.kravia-office .office-modern .office-topbar-utility-host [data-office-overflow-intelligence="true"]{
+  position:fixed;top:70px;right:clamp(12px,2vw,26px);
+  width:0;height:0;overflow:visible;z-index:1500;pointer-events:none;
+}
+.kravia-office .office-modern .office-topbar-utility-host [data-office-overflow-intelligence="true"]>section{
+  top:0;pointer-events:auto;
+}
+@media(max-width:900px){
+  .kravia-office .office-modern .office-more-card{
+    max-height:min(70dvh,560px);
+  }
+}
+@media(max-width:620px){
+  .kravia-office .office-modern .office-topbar-tools{gap:5px}
+  .kravia-office .office-v2.office-modern .office-topbar-compact{gap:6px!important}
+  .kravia-office .office-modern .office-more-button,
+  .kravia-office .office-modern .office-mobile-trigger{
+    width:36px!important;min-width:36px!important;height:36px!important;
+  }
+  .kravia-office .office-modern [data-office-topbar-calendar-trigger]{
+    padding:6px 5px!important;
+  }
+  .kravia-office .office-modern .office-ist-clock{font-size:10px!important;gap:3px!important}
+  .kravia-office .office-modern .office-more-card{
+    width:min(340px,calc(100vw - 20px))!important;
+    right:-2px!important;padding:12px!important;
+  }
+  .kravia-office .office-modern .office-breadcrumbs{gap:4px!important}
+  .kravia-office .office-modern .office-breadcrumbs>strong{
+    max-width:min(36vw,190px)!important;
+  }
+  .kravia-office .office-modern .office-topbar-utility-host [data-office-overflow-intelligence="true"]>section{
+    top:calc(64px + env(safe-area-inset-top,0px));right:12px;left:12px;
+    width:auto;max-height:calc(100dvh - 90px);
+  }
+}
+@media(max-width:390px){
+  .kravia-office .office-modern .office-more-card{right:-2px!important}
+  .kravia-office .office-modern .office-breadcrumbs>strong{max-width:27vw!important}
+}
+@media(prefers-reduced-motion:reduce){
+  .kravia-office .office-modern .office-more-actions :is(button,a),
+  .kravia-office .office-modern .office-more-button{transition:none}
+}
