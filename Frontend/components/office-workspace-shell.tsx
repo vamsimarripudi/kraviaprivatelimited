@@ -186,9 +186,8 @@ export function OfficeWorkspaceShell({
         ? selectedDepartmentCode
         : assignedCodes.includes(primaryDepartment)?primaryDepartment:assignedCodes[0]??null)
     : null;
-  const visibleCodes=activeDepartment?[activeDepartment]:[];
   const entries=useMemo(() => allowedEntries.filter(([slug]) =>
-    workspace!=="office"||officeClientSectionVisible(slug,visibleCodes,isFounder)),
+    workspace!=="office"||officeClientSectionVisible(slug,activeDepartment?[activeDepartment]:[],isFounder)),
     [workspace,allowedEntries,activeDepartment,isFounder]);
   const categoryForEntry=useCallback((slug:string,value:WorkspaceSection) =>
     workspace==="office"?officeClientCategoryForSection(slug,isFounder):categoryOf(workspace,slug,value),
