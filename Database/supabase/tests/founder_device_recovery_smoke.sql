@@ -4,7 +4,7 @@ declare review_id uuid; owner_id uuid:='00000000-0000-0000-0000-000000000001';
  reviewer_id uuid:='00000000-0000-0000-0000-000000000002';
  admin_id uuid:='00000000-0000-0000-0000-000000000003';
  v_device uuid:='00000000-0000-0000-0000-000000000011';
- status text; count_approved integer; security_note text;
+ v_device_state text; count_approved integer; security_note text;
 begin
  security_note:='Independent Defender scan and BitLocker/Firewall/Updates verified on actual laptop';
  -- The historic contradictory review survives but new inconsistent COMPLIANT does not.
@@ -43,8 +43,8 @@ begin
    reviewer_id,v_device,'Windows 11',true,true,true,true,true,false,true,
    'Company management record DEMO-000001',security_note);
  if review_id is null then raise exception 'Director review not recorded'; end if;
- select trust_state into status from public.office_device_registry where id=v_device;
- if status<>'REVOKED' then raise exception 'Security review wrongly un-revoked the laptop'; end if;
+ select trust_state into v_device_state from public.office_device_registry where id=v_device;
+ if v_device_state<>'REVOKED' then raise exception 'Security review wrongly un-revoked the laptop'; end if;
  -- Reviewer can never be their own final approver.
  begin
   perform public.office_approve_founder_device(reviewer_id,review_id,
