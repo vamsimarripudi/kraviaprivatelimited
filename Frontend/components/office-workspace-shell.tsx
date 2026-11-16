@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowRightLeft, BookOpen, BriefcaseBusiness, Building2, CalendarDays, ChevronDown, ChevronRight,
@@ -21,6 +21,10 @@ import { OfficeWorkspaceProvider } from "@/components/office-workspace-context";
 import { OfficeAmbientField } from "@/components/office-experience-ambient";
 import delegatedStyles from "./office-delegation-banner.module.css";
 import type { OfficeIdentity } from "@/lib/office/auth-server";
+import {officeAssignedDepartmentCodes,officeClientSectionVisible,
+ officeClientCategoryForSection,officeDepartmentForSection,officeDepartmentLabel,
+ type OfficeDepartmentOwnershipSnapshot,
+} from "@/lib/office/client-department-navigation";
 import {
   capabilityCanAccessSection, navigationCommands,
 } from "@/lib/office/workspace-capabilities";
@@ -149,6 +153,10 @@ export function OfficeWorkspaceShell({
   const [moreOpen, setMoreOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>("light");
   const [manualOutstanding, setManualOutstanding] = useState<number|null>(null);
+  const [departmentLoad,setDepartmentLoad]=useState<"loading"|"ready"|"error">("loading");
+  const [assignedCodes,setAssignedCodes]=useState<string[]>([]);
+  const [selectedDepartmentCode,setSelectedDepartmentCode]=useState<string|null>(null);
+  const [departmentRevision,setDepartmentRevision]=useState(0);
   const moreRef = useRef<HTMLDivElement>(null);
   const definition = workspaceDefinitions[workspace];
   const sections = workspace === "finance" ? financeSections : officeSections;
@@ -160,24 +168,51 @@ export function OfficeWorkspaceShell({
   // Do not infer K-Vault entry from Finance, Director, Admin or document capabilities.
   const vaultEntry = workspace === "office" && permissions.includes("vault.entry");
 
-  const entries = useMemo(() => sectionEntries(workspace).filter(([slug,value]) =>
+  // Client-side navigation only. Existing APIs enforce record permissions.
+  const isFounder=identity.roles.includes("OWNER");
+  const allowedEntries=useMemo(() => sectionEntries(workspace).filter(([slug,value]) =>
     roleCanAccessSection(value, identity.roles) &&
     capabilityCanAccessSection(workspace, slug, identity.roles, permissions) &&
     (workspace !== "office" || !identity.roles.includes("OWNER") || founderNavigation.has(slug))),
     [workspace, identity.roles, permissions]);
-  const categories = useMemo(() => {
-    const order = workspace === "office" ? categoryOrder : financeOrder;
-    const labels = entries.map(([slug,value]) => categoryOf(workspace,slug,value));
-    if (workspace === "office") labels.push("Connect");
-    if (vaultEntry) labels.push("K-Vault");
-    return [...new Set(labels)].sort((a,b) => {
-      const rank = (label:string) => order.includes(label) ? order.indexOf(label) : label === "Connect" ? 1 : 2;
+
+  const currentRouteDepartment=workspace==="office"?officeDepartmentForSection(section):null;
+  const primaryDepartment=(identity.department??"").toUpperCase();
+  const activeDepartment=departmentLoad==="ready"
+    ? (currentRouteDepartment&&assignedCodes.includes(currentRouteDepartment)
+      ? currentRouteDepartment
+      : selectedDepartmentCode&&assignedCodes.includes(selectedDepartmentCode)
+        ? selectedDepartmentCode
+        : assignedCodes.includes(primaryDepartment)?primaryDepartment:assignedCodes[0]??null)
+    : null;
+  const visibleCodes=activeDepartment?[activeDepartment]:[];
+  const entries=useMemo(() => allowedEntries.filter(([slug]) =>
+    workspace!=="office"||officeClientSectionVisible(slug,visibleCodes,isFounder)),
+    [workspace,allowedEntries,activeDepartment,isFounder]);
+  const categoryForEntry=useCallback((slug:string,value:WorkspaceSection) =>
+    workspace==="office"?officeClientCategoryForSection(slug,isFounder):categoryOf(workspace,slug,value),
+    [workspace,isFounder]);
+  const categories=useMemo(() => {
+    const order=workspace==="office"
+      ? ["My work",...(activeDepartment?[officeDepartmentLabel(activeDepartment)]:[]),
+         "Connect","K-Vault","Company control",...categoryOrder]
+      : financeOrder;
+    const labels=entries.map(([slug,value])=>categoryForEntry(slug,value));
+    if(workspace==="office"){
+      labels.push("My work","Connect");
+      if(activeDepartment)labels.push(officeDepartmentLabel(activeDepartment));
+    }
+    if(vaultEntry)labels.push("K-Vault");
+    return [...new Set(labels)].sort((a,b)=>{
+      const rank=(label:string)=>order.includes(label)?order.indexOf(label):order.length;
       return rank(a)-rank(b);
     });
-  }, [entries, workspace, vaultEntry]);
-  const currentCategory = isConnect ? "Connect" : isVault ? "K-Vault" : item ? categoryOf(workspace, section, item) : categories[0];
-  const selectedCategory = pickedCategory && categories.includes(pickedCategory) ? pickedCategory : currentCategory;
-  const links = entries.filter(([slug,value]) => categoryOf(workspace,slug,value) === selectedCategory);
+  },[entries,workspace,vaultEntry,activeDepartment,categoryForEntry]);
+  const currentCategory=isConnect?"Connect":isVault?"K-Vault":
+    item?categoryForEntry(section,item):"My work";
+  const selectedCategory=pickedCategory&&categories.includes(pickedCategory)?pickedCategory:
+    categories.includes(currentCategory)?currentCategory:"My work";
+  const links=entries.filter(([slug,value])=>categoryForEntry(slug,value)===selectedCategory);
   const subgroups = [...new Set(links.map(([,value]) => value.group))];
   const currentSubgroup = selectedCategory === currentCategory && item ? item.group : subgroups[0];
   const expandedSubgroup = pickedSubgroup ?? currentSubgroup;
@@ -191,8 +226,38 @@ export function OfficeWorkspaceShell({
   const canSwitch = roleCanAccessWorkspace(switchWorkspace,identity.roles)
     && roleCanAccessSection(switchDashboard,identity.roles)
     && capabilityCanAccessSection(switchWorkspace,"dashboard",identity.roles,permissions)
-    && !(workspace === "office" && switchWorkspace === "finance" && financeDelegated);
+    && !(workspace === "office" && switchWorkspace === "finance" && financeDelegated)
+    && (workspace!=="office"||(departmentLoad==="ready"&&assignedCodes.includes("FINANCE")));
 
+  useEffect(()=>{
+    if(workspace!=="office")return;
+    const controller=new AbortController();
+    void fetch("/api/office-departments",{
+      credentials:"same-origin",cache:"no-store",signal:controller.signal,
+    }).then(async response=>{
+      if(!response.ok)throw new Error("Department assignments unavailable");
+      const snapshot=await response.json() as OfficeDepartmentOwnershipSnapshot;
+      if(controller.signal.aborted)return;
+      const next=officeAssignedDepartmentCodes(snapshot,identity.userId,identity.department);
+      setAssignedCodes(next);
+      setDepartmentLoad("ready");
+    }).catch(()=>{
+      if(controller.signal.aborted)return;
+      setAssignedCodes([]);
+      setDepartmentLoad("error");
+    });
+    return()=>controller.abort();
+  },[workspace,identity.userId,identity.department,departmentRevision]);
+  useEffect(()=>{
+    if(workspace!=="office")return;
+    const refresh=()=>setDepartmentRevision(v=>v+1);
+    window.addEventListener("focus",refresh);
+    window.addEventListener("kravia-office-departments-changed",refresh);
+    return()=>{
+      window.removeEventListener("focus",refresh);
+      window.removeEventListener("kravia-office-departments-changed",refresh);
+    };
+  },[workspace]);
   useEffect(() => {
     let current = true;
     const sync = async () => {
@@ -270,6 +335,18 @@ export function OfficeWorkspaceShell({
     window.dispatchEvent(new CustomEvent("kravia-office-theme-change", { detail: next }));
   }
 
+  function switchActiveDepartment(next:string){
+    if(!assignedCodes.includes(next)||departmentLoad!=="ready")return;
+    setSelectedDepartmentCode(next);
+    setPickedCategory(officeDepartmentLabel(next));
+    setPickedSubgroup(null);
+    setMobileNav(false);
+    const first=allowedEntries.find(([slug])=>officeDepartmentForSection(slug)===next);
+    if(first)router.push("/office/"+first[0]);
+    else router.push("/office/dashboard");
+  }
+  const blockedClientSection=workspace==="office"&&Boolean(item)&&
+    !entries.some(([slug])=>slug===section);
   const activePageTitle = isConnect ? "My Chats" : isVault ? "K-Vault" : item?.title ?? section;
   const settingsHref = workspace === "finance" ? "/office/settings" : definition.basePath + "/settings";
   const canOpenSettings = workspace === "office" || canSwitch;
