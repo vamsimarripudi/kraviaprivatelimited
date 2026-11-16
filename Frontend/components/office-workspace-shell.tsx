@@ -162,7 +162,7 @@ export function OfficeWorkspaceShell({
   const isChatConversation = isConnect && /^\/office\/chat\/(?:dm|groups|channels|threads)\//.test(pathname);
   // Do not infer K-Vault entry from Finance, Director, Admin or document capabilities.
   const vaultEntry = workspace === "office" && permissions.includes("vault.entry");
-  const assigned = useOfficeClientDepartments(identity.userId,identity.department);
+  const assigned = useOfficeClientDepartments(identity.userId,identity.department,workspace==="office");
   const isFounder = identity.roles.includes("OWNER");
   const categoryFor = (slug:string,value:WorkspaceSection)=>
     workspace==="office"?
