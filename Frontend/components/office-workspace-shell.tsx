@@ -30,7 +30,7 @@ import {
 } from "@/lib/office/workspaces";
 
 const iconByCategory = {
-  "My work": LayoutDashboard, Connect: MessageSquareText, "K-Vault": Vault, People: Users, Engineering: GitBranch,
+  "My work": LayoutDashboard, Connect: MessageSquareText, "K-Vault": Vault, HR: Users, People: Users, Engineering: GitBranch,
   Commercial: BriefcaseBusiness, Operations: Building2, Finance: Landmark,
   Governance: Scale, Administration: ShieldCheck, Overview: LayoutDashboard,
   Revenue: Wallet, Treasury: Landmark, Tax: FileText, Books: FileText,
@@ -40,7 +40,8 @@ const iconByCategory = {
 const officeCategoryBySlug: Record<string, string> = {
   dashboard:"My work", "my-role":"My work", "my-transfers":"My work", info:"My work", notifications:"My work",
   tasks:"My work",calendar:"My work",requests:"My work",approvals:"My work",
-  manager:"People",recruitment:"People",people:"People",emergency:"People",
+  // HR operations are a visible department, not hidden among personal people tools.
+  manager:"People",recruitment:"HR",people:"HR",emergency:"People",
   development:"People",worktime:"People",
   engineering:"Engineering",products:"Engineering",portfolio:"Engineering",
   ai:"Engineering",integrations:"Engineering",quality:"Engineering",
@@ -59,13 +60,13 @@ const officeCategoryBySlug: Record<string, string> = {
   settings:"Administration",
 };
 const categoryOrder = [
-  "My work","People","Engineering","Commercial","Operations",
+  "My work","HR","People","Engineering","Commercial","Operations",
   "Finance","Governance","Administration",
 ];
 // Short visible category labels only on narrow mobile rails; the full names remain
 // available through each button's aria-label and in the contextual navigation.
 const mobileCategoryLabels: Record<string, string> = {
-  "My work": "Work", People: "People", Connect: "Chat",
+  "My work": "Work", HR: "HR", People: "People", Connect: "Chat",
   Engineering: "Build", "K-Vault": "Vault", Commercial: "Sales",
   Operations: "Ops", Finance: "Finance", Governance: "Govern",
   Administration: "Admin", Overview: "Home", Revenue: "Revenue",
@@ -388,6 +389,19 @@ export function OfficeWorkspaceShell({
                 })}
               </div>
             </details>)}
+            {workspace === "office" && selectedCategory === "HR" ? <>
+              {identity.roles.includes("HR") && !entries.some(([slug])=>slug==="people") ?
+                <p className="office-hr-nav-note" role="status">
+                  Employee records unavailable in this session. Check device approval and permissions.
+                </p> : null}
+              {entries.some(([slug])=>slug==="payroll"||slug==="development") ?
+                <div className="office-mega-link-list" data-office-hr-shortcuts>
+                  {entries.some(([slug])=>slug==="payroll") ?
+                    <OfficeNavLink href="/office/payroll"><Wallet size={16}/>Payroll OS</OfficeNavLink> : null}
+                  {entries.some(([slug])=>slug==="development") ?
+                    <OfficeNavLink href="/office/development"><Users size={16}/>People development</OfficeNavLink> : null}
+                </div> : null}
+            </> : null}
             {workspace === "office" && selectedCategory === "Connect" ?
               <div className="office-mega-link-list" data-office5-quick-links>
                 <OfficeNavLink href="/office/chat"><MessageSquareText size={16}/>My Chats</OfficeNavLink>

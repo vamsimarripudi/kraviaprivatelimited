@@ -109,11 +109,12 @@ export function navigationCommands(
   entries: Array<[string, { title: string; group: string; description: string }]>,
 ): OfficeNavigationCommand[] {
   const base = workspace === "finance" ? "/finance" : "/office";
+  const hrAliases=new Set(["people","recruitment","manager","development","payroll","worktime"]);
   return entries.map(([slug, section]) => ({
     id: `${workspace}:${slug}`,
     label: section.title,
     group: section.group,
     href: `${base}/${slug}`,
-    keywords: `${section.title} ${section.group} ${section.description}`.toLowerCase(),
+    keywords: `${section.title} ${section.group} ${section.description}${workspace==="office"&&hrAliases.has(slug)?" HR human resources employee workforce":""}`.toLowerCase(),
   }));
 }

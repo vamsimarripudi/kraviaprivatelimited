@@ -449,3 +449,11 @@
   .kravia-office .office-modern .office-topbar-compact .office-breadcrumbs{max-width:28vw}
   .kravia-office .office-modern .office-ist-clock-zone{font-size:8px}
 }
+
+/* HR navigation clarity: show device/access guidance without exposing records. */
+.kravia-office .office-modern .office-hr-nav-note{
+ margin:6px 10px!important;padding:9px 10px!important;
+ border:1px solid var(--office-ui-line)!important;border-radius:9px;
+ background:var(--office-ui-surface-alt)!important;color:var(--office-ui-muted)!important;
+ font-size:11px!important;line-height:1.45!important;
+}
