@@ -13,6 +13,20 @@
   -webkit-backdrop-filter: none;
 }
 
+/* Careers has a light page surface even on iOS Dark Mode. The sticky header
+   must be opaque enough to mask hero text passing underneath while scrolling. */
+.root.careers,
+.root.careers.onDark {
+  --nav-foreground: #071e45;
+  --nav-border: rgba(7, 30, 69, .17);
+  --nav-hover: rgba(7, 30, 69, .07);
+  background: rgba(248, 250, 255, .97);
+  border-bottom: 1px solid rgba(7, 30, 69, .13);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+.careers.onDark .logo { filter: none; }
+
 .root.onDark {
   --nav-foreground: #f8fafc;
   --nav-border: rgba(226, 237, 255, .22);

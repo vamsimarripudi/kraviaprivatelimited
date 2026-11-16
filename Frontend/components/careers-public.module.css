@@ -1,4 +1,4 @@
-.shell{--ink:#18263f;--muted:#617089;--line:#d8e0ec;--panel:#fff;--accent:#263f74;color:var(--ink);padding-top:20px;padding-bottom:64px}
+.shell{--ink:#18263f;--muted:#52627b;--line:#d8e0ec;--panel:#fff;--accent:#263f74;color:var(--ink);color-scheme:light;padding-top:20px;padding-bottom:64px}
 .topline{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:24px}
 .kicker{color:#6452a7;font-weight:800;font-size:10px;letter-spacing:.13em;text-transform:uppercase;margin:0 0 8px}
 .heading{font-size:clamp(23px,3vw,40px);line-height:1.15;letter-spacing:-.035em;margin:0 0 11px;color:var(--ink)}
@@ -25,7 +25,7 @@
 .form{display:grid;gap:15px;max-width:750px;background:#fff;border:1px solid var(--line);border-radius:17px;padding:clamp(17px,3vw,30px)}
 .form h2{margin:0;font-size:19px}
 .form label{display:grid;gap:6px;font-size:12px;font-weight:700;color:#26334e}
-.form input,.form textarea,.form select{width:100%;border:1px solid #bdc9dc;border-radius:9px;padding:11px;font:inherit;font-size:13px;color:var(--ink);background:#fff}
+.form input,.form textarea,.form select{width:100%;border:1px solid #aab9d0;border-radius:9px;padding:11px;font:inherit;font-size:13px;color:var(--ink);background:#fff;opacity:1}
 .form textarea{resize:vertical;line-height:1.6}
 .form small,.form .explain{color:var(--muted);font-size:11px;line-height:1.6}
 .form .check{display:flex;gap:9px;align-items:start;line-height:1.5}
@@ -39,4 +39,12 @@
 .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:7px}
 .minor{font-size:10px;color:var(--muted);line-height:1.6}
 @media(max-width:650px){.shell{padding-top:12px}.toolbar{display:grid}.grid{grid-template-columns:minmax(0,1fr)}.form{padding:16px}.actions{display:grid}.actions>*{width:100%}}
-@media(prefers-color-scheme:dark){.shell{--ink:#e8eeff;--muted:#abb9d8;--line:#34405e;--panel:#17233b;--accent:#435caa}.card,.form,.detail{background:var(--panel)}.state,.task{background:#142039}.toolbar input,.toolbar select,.form input,.form textarea{background:#15213a;color:var(--ink);border-color:#4a5676}.buttonAlt{background:#1b2d4d;color:#dfe8ff}.pill{background:#263656;color:#e0e8ff}.error{background:#3a2433;color:#ffb6c5;border-color:#79455a}.notice{background:#25345d;color:#dbe5ff;border-color:#526b9c}}
+/* The public website has a light editorial surface even when iOS uses Dark Mode.
+   Keep Careers text, cards, labels and native input controls on one coherent palette.
+   Introduce a dark palette only when the entire public site supports an explicit theme. */
+
+
+/* Explicit focus and native input placeholders for Safari dark system preferences. */
+.shell :is(input, textarea, select)::placeholder{color:#63728a;opacity:1}
+.shell :is(input, textarea, select):focus-visible,.shell :is(button,a):focus-visible{outline:2px solid #3755a6;outline-offset:3px}
+.shell :is(.heading,.lead,.card h2,.card h3,.form h2,.state h2){opacity:1}

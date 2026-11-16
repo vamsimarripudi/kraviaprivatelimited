@@ -37,9 +37,10 @@ export function SiteNav() {
     if (header.current) return observeNavigationSurface(header.current, setOverDarkSurface);
   }, [pathname]);
 
+  const isCareers = pathname === "/careers" || pathname.startsWith("/careers/");
   const isCurrent = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
-  return <header ref={header} className={`nav-wrap ${styles.root} ${overDarkSurface ? styles.onDark : ""}`}>
+  return <header ref={header} className={`nav-wrap ${styles.root} ${isCareers ? styles.careers : ""} ${overDarkSurface && !isCareers ? styles.onDark : ""}`}>
     <a className="skip-link" href="#main-content">Skip to content</a>
     <nav className={styles.navigation} aria-label="Main navigation">
       <Link href="/" className={`${styles.island} ${styles.brand}`} aria-label="Kravia Private Limited home">
@@ -49,9 +50,9 @@ export function SiteNav() {
         <GooeyNav
           items={gooeyItems}
           activeIndex={navItems.findIndex(([, href]) => isCurrent(href))}
-          theme={overDarkSurface ? "dark" : "light"}
-          color={overDarkSurface ? "#a7d9e6" : "#071e45"}
-          activeTextColor={overDarkSurface ? "#06101e" : "#f8fafc"}
+          theme={overDarkSurface && !isCareers ? "dark" : "light"}
+          color={overDarkSurface && !isCareers ? "#a7d9e6" : "#071e45"}
+          activeTextColor={overDarkSurface && !isCareers ? "#06101e" : "#f8fafc"}
           size="sm"
           frame={false}
           animationTime={500}
