@@ -4,22 +4,25 @@ const read=(p:string)=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
 const shell=read("components/office-workspace-shell.tsx");
 const palette=read("components/office-command-palette.tsx");
 const handover=read("components/office-department-handover.tsx");
+const ownRoute=read("app/api/office-my-departments/route.ts");
 const css=read("app/office/office-client-departments.css");
 const layout=read("app/office/layout.tsx");
 describe("Client-only KRAVIA assigned-department workspace UI",()=>{
- it("uses an existing first-party ownership endpoint without new backend code",()=>{
-  expect(shell).toContain('fetch("/api/office-departments"');
+ it("uses a lightweight authenticated own-department endpoint while retaining handover separately",()=>{
+  expect(shell).toContain('fetch("/api/office-my-departments"');
+  expect(ownRoute).toContain("requireOfficeActor()");
+  expect(ownRoute).not.toContain("office_department_transfer_requests");
   expect(shell).toContain('officeAssignedDepartmentCodes(snapshot,identity.userId,identity.department)');
   expect(shell).toContain('loadedActor===identity.userId');
   expect(shell).toContain('departmentLoad==="ready"');
-  expect(shell).toContain('officeClientSectionVisible(slug,activeDepartment?[activeDepartment]:[],isFounder)');
+  expect(shell).toContain('officeClientSectionVisible(slug,visibleDepartments,isFounder)');
  });
  it("does not expose unrelated operational sections while permissions load or fail",()=>{
   expect(shell).toContain('setAssignedCodes([])');
   expect(shell).toContain('setDepartmentLoad("error")');
   expect(shell).toContain('blockedClientSection');
   expect(shell).toContain('data-office-client-department-guard');
-  expect(shell).toContain('Not in your active department');
+  expect(shell).toContain('Additional department access required');
  });
  it("provides a working department selector and refresh on accepted handover",()=>{
   expect(shell).toContain('data-office-client-departments');
