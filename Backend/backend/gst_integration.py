@@ -55,6 +55,11 @@ IRIS_GET_IRN_PATH = "/eicore/v1.03/Invoice/irn/{irn}"
 IRIS_GET_IRN_BY_DOC_PATH = "/eicore/v1.03/Invoice/irnbydocdetails"
 IRIS_HEALTH_PATH = "/eivital/v1.04/heartbeat/ping"
 
+# Company release gate: KRAVIA's current tax scope excludes GST e-invoicing.
+# No environment variable or provider credentials alone can enable IRN operations.
+# Releasing IRN generation requires a separately approved, tested code change.
+GST_EINVOICE_RELEASED_BY_COMPANY = False
+
 OFFICIAL_DOCS = {
     "core": "https://einvoice6.gst.gov.in/content/core-apis-wiki/",
     "credentials": "https://einvoice6.gst.gov.in/content/kb/api-credentials/",
@@ -651,9 +656,10 @@ def build_gst_integration_router(
             "environment": config.environment,
             "base_host": host,
             "core_configured": not missing_core,
-            "einvoice_enabled": config.einvoice_enabled,
+            "einvoice_enabled": bool(GST_EINVOICE_RELEASED_BY_COMPANY and config.einvoice_enabled),
+            "company_policy": "EINVOICING_DEFERRED",
             "invoice_identity_configured": not missing_invoice,
-            "ready_for_live_irn": bool(config.einvoice_enabled and not missing_core and not missing_invoice),
+            "ready_for_live_irn": bool(GST_EINVOICE_RELEASED_BY_COMPANY and config.einvoice_enabled and not missing_core and not missing_invoice),
             "missing_configuration": missing_core + missing_invoice,
             "gstin_masked": (config.gstin[:2] + "*" * 10 + config.gstin[-3:]) if len(config.gstin) == 15 else None,
             "last_gstin_verification": {
@@ -766,6 +772,8 @@ def build_gst_integration_router(
 
     @router.post("/einvoice/{invoice_id}/generate")
     def generate_irn(invoice_id: str, db: Session = Depends(get_db), ctx=Depends(require_roles("OWNER", "FINANCE", "CA"))):
+        if not GST_EINVOICE_RELEASED_BY_COMPANY:
+            raise HTTPException(409, "KRAVIA company policy currently defers GST e-invoicing")
         config = IrisConfig.from_env()
         if not config.einvoice_enabled:
             raise HTTPException(409, "GST e-invoice generation is disabled until eligibility and provider access are approved")
@@ -843,6 +851,8 @@ def build_gst_integration_router(
 
     @router.post("/einvoice/{invoice_id}/cancel")
     def cancel_irn(invoice_id: str, payload: CancelIrnRequest, db: Session = Depends(get_db), ctx=Depends(require_roles("OWNER", "CA"))):
+        if not GST_EINVOICE_RELEASED_BY_COMPANY:
+            raise HTTPException(409, "KRAVIA company policy currently defers GST e-invoicing")
         config = IrisConfig.from_env()
         if not config.einvoice_enabled:
             raise HTTPException(409, "GST e-invoice operations are disabled")

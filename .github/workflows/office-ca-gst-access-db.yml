@@ -1,0 +1,49 @@
+name: KRAVIA CA GST operational access SQL
+on:
+  pull_request:
+    paths:
+      - "Database/supabase/migrations/20261115163001_ca_gst_operational_access.sql"
+      - "Database/supabase/tests/ca-gst-operational-access-*.sql"
+      - ".github/workflows/office-ca-gst-access-db.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ca-gst-sql:
+    name: CA GST profile grants on isolated PostgreSQL 17
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: kravia_ca_gst_ci
+          POSTGRES_PASSWORD: ca-gst-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kravia_ca_gst_ci"
+          --health-interval 3s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Rehearse CA-only GST grants and idempotency without real identities
+        shell: bash
+        env:
+          PGPASSWORD: ca-gst-ci-only
+          PGHOST: 127.0.0.1
+          PGUSER: postgres
+          PGDATABASE: kravia_ca_gst_ci
+        run: |
+          set -euo pipefail
+          psql -X --set ON_ERROR_STOP=1 --file Database/supabase/tests/ca-gst-operational-access-fixture.sql
+          psql -X --set ON_ERROR_STOP=1 --single-transaction --file Database/supabase/migrations/20261115163001_ca_gst_operational_access.sql
+          # Reapplying the migration must be safe.
+          psql -X --set ON_ERROR_STOP=1 --single-transaction --file Database/supabase/migrations/20261115163001_ca_gst_operational_access.sql
+          result="$(psql -X --set ON_ERROR_STOP=1 --tuples-only --no-align --file Database/supabase/tests/ca-gst-operational-access-smoke.sql)"
+          printf "%s\n" "$result"
+          test "$(printf '%s\n' "$result" | tail -n 1)" = "CA_GST_OPERATIONAL_PROFILE_VERIFIED"

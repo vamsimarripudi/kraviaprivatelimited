@@ -253,7 +253,10 @@ type WorkingTotals = {
   invoiceCount: number;
 };
 
-type ViewKey = "overview" | "sales" | "purchases" | "returns" | "settings";
+type ViewKey = "overview" | "sales" | "purchases" | "returns" | "changes" | "settings";
+// KRAVIA is not operating an e-invoicing workflow. A separate statutory,
+// provider and CA-approved release is required before any IRN UI is exposed.
+const EINVOICE_UI_ENABLED = false;
 
 async function runtime<T>(path: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch("/api/office-runtime/" + path, {
@@ -502,6 +505,7 @@ export function OfficeGstTaxWorkspace({
     { key: "sales", label: "Sales", count: working.invoiceCount },
     { key: "purchases", label: "Purchases", count: purchaseSummary?.invoice_count || 0 },
     { key: "returns", label: "Returns", count: returnWorkings.length },
+    { key: "changes", label: "Registration changes" },
     { key: "settings", label: "Settings" },
   ];
 
@@ -509,8 +513,8 @@ export function OfficeGstTaxWorkspace({
     <header className={styles.topbar}>
       <div className={styles.titleBlock}>
         <p>FINANCE / GST</p>
-        <h2>GST Control Center</h2>
-        <span>Sales tax, e-invoice, inward reconciliation and return preparation in one controlled workspace.</span>
+        <h2>GST Filing & Compliance</h2>
+        <span>Return filing records, registration amendments, notices, payments and purchase reconciliation. E-invoicing is not enabled.</span>
       </div>
       <div className={styles.topActions}>
         <span className={styles.readiness} data-ready={configuration?.ready_for_production_invoicing}>
@@ -560,8 +564,8 @@ export function OfficeGstTaxWorkspace({
               <em data-state={registrationActive ? "ok" : "warn"}>{registrationActive ? "ACTIVE" : "VERIFY"}</em>
             </article>
             <article>
-              <div><b>e-Invoice / IRP</b><small>{connector?.ready_for_live_irn ? "IRN operations available" : connector?.core_configured ? "Connected but gated" : "Provider credentials not configured"}</small></div>
-              <em data-state={connector?.ready_for_live_irn ? "ok" : "warn"}>{connector?.ready_for_live_irn ? "READY" : "GATED"}</em>
+              <div><b>Registration amendments</b><small>Check draft REG-14 amendments, ARN evidence and notices on the official GST portal.</small></div>
+              <button type="button" onClick={() => setView("changes")}>Review changes</button>
             </article>
             <article>
               <div><b>Purchase data</b><small>{vasStatus?.data_api_configured ? "IRIS inward-data connector ready" : "VAS/Data API credentials not configured"}</small></div>
@@ -604,7 +608,7 @@ export function OfficeGstTaxWorkspace({
       {view === "sales" ? <div className={styles.viewStack}>
         <section className={styles.sectionCard}>
           <div className={styles.sectionTitle}>
-            <div><p>SALES REGISTER</p><h3>Issued invoices and e-invoice state</h3></div>
+            <div><p>SALES REGISTER</p><h3>Issued invoices and taxable supply records</h3></div>
             <label className={styles.periodControl}>Period<select value={period} onChange={(event) => setPeriod(event.target.value)}>
               <option value="ALL">All issued invoices</option>
               {periods.map((item) => <option key={item} value={item}>{monthLabel(item)}</option>)}
@@ -617,14 +621,14 @@ export function OfficeGstTaxWorkspace({
           </div>
           <div className={styles.tableWrap}>
             <table className={styles.salesTable}>
-              <thead><tr><th>Invoice</th><th>Customer</th><th>Product</th><th>Taxable</th><th>GST</th><th>Total</th><th>IRN</th></tr></thead>
+              <thead><tr><th>Invoice</th><th>Customer</th><th>Product</th><th>Taxable</th><th>GST</th><th>Total</th>{EINVOICE_UI_ENABLED ? <th>IRN</th> : null}</tr></thead>
               <tbody>
                 {visibleInvoices.map((invoice) => {
                   const customer = customerMap.get(invoice.customer_id);
                   const product = productMap.get(invoice.product_id);
                   const einvoice = einvoiceMap.get(invoice.id);
                   const buyerReady = Boolean(customer?.gstin && customer?.billing_address && customer?.billing_locality && customer?.billing_pincode);
-                  const canGenerate = Boolean(canPrepare && connector?.ready_for_live_irn && buyerReady && (!einvoice || einvoice.status === "FAILED"));
+                  const canGenerate = Boolean(EINVOICE_UI_ENABLED && canPrepare && connector?.ready_for_live_irn && buyerReady && (!einvoice || einvoice.status === "FAILED"));
                   const cancelDraft = cancelDrafts[invoice.id] || { reason: "1", remarks: "" };
                   return <tr key={invoice.id}>
                     <td><strong>{invoice.invoice_no}</strong><small>{date(invoice.issued_at)}</small></td>
@@ -633,7 +637,7 @@ export function OfficeGstTaxWorkspace({
                     <td>{money(invoice.net_taxable, invoice.currency)}</td>
                     <td><strong>{money(Number(invoice.cgst || 0) + Number(invoice.sgst || 0) + Number(invoice.igst || 0), invoice.currency)}</strong><small>{gstText(invoice)}</small></td>
                     <td><strong>{money(invoice.total, invoice.currency)}</strong><small>{invoice.status}</small></td>
-                    <td className={styles.irnCell}>
+                    {EINVOICE_UI_ENABLED ? <td className={styles.irnCell}>
                       <em data-state={einvoice?.status === "GENERATED" ? "ok" : einvoice?.status === "FAILED" ? "error" : "neutral"}>{einvoice?.status || "NOT GENERATED"}</em>
                       {einvoice?.irn ? <small title={einvoice.irn}>IRN {einvoice.irn.slice(0, 14)}…</small> : null}
                       {einvoice?.ack_no ? <small>Ack {einvoice.ack_no}</small> : null}
@@ -661,10 +665,10 @@ export function OfficeGstTaxWorkspace({
                           () => "IRN cancelled for " + invoice.invoice_no + ".",
                         )}>{actionBusy === "cancel-" + invoice.id ? <LoaderCircle className={styles.spin} /> : <CircleAlert />} Confirm cancellation</button>
                       </details> : null}
-                    </td>
+                    </td> : null}
                   </tr>;
                 })}
-                {!visibleInvoices.length ? <tr><td colSpan={7}><div className={styles.empty}>No issued invoices in this period.</div></td></tr> : null}
+                {!visibleInvoices.length ? <tr><td colSpan={EINVOICE_UI_ENABLED ? 7 : 6}><div className={styles.empty}>No issued invoices in this period.</div></td></tr> : null}
               </tbody>
             </table>
           </div>
@@ -756,7 +760,7 @@ export function OfficeGstTaxWorkspace({
             <button type="button" disabled={!canPrepare || !returnPeriod || Boolean(actionBusy)} onClick={() => void providerAction("build-gstr1", "tax/gst/returns/build", { form_type: "GSTR1", period: returnPeriod }, () => "GSTR-1 working rebuilt from canonical sales.")}>{actionBusy === "build-gstr1" ? <LoaderCircle className={styles.spin} /> : <FileCheck2 />} Build GSTR-1</button>
             <button type="button" disabled={!canPrepare || !returnPeriod || Boolean(actionBusy)} onClick={() => void providerAction("build-gstr3b", "tax/gst/returns/build", { form_type: "GSTR3B", period: returnPeriod }, () => "GSTR-3B working rebuilt. Inward GST remains observational pending ITC review.")}>{actionBusy === "build-gstr3b" ? <LoaderCircle className={styles.spin} /> : <FileCheck2 />} Build GSTR-3B</button>
           </div>
-          <p className={styles.helper}>Routine filing stays inside Kravia Office: CA review → GSP save/submit → authorized-signatory EVC → ARN verification. GST Portal passwords are never stored.</p>
+          <p className={styles.helper}>Prepare and review returns in KRAVIA Office. File on the official GST portal, or through a separately approved GSP connection when activated. Record the genuine filing ARN and evidence; no filing is inferred. GST Portal passwords are never stored.</p>
           <div className={styles.tableWrap}>
             <table className={styles.returnTable}>
               <thead><tr><th>Form</th><th>Period</th><th>Status</th><th>CA / ITC review</th><th>Provider / ARN</th><th>Actions</th></tr></thead>
@@ -855,6 +859,39 @@ export function OfficeGstTaxWorkspace({
         </section>
       </div> : null}
 
+      {view === "changes" ? <div className={styles.viewStack}>
+        <section className={styles.settingsIntro}>
+          <div><p>REGISTRATION · CHANGE CONTROL</p><h3>Registration amendments and GST notices</h3></div>
+          <span>GSTN remains the authoritative register. KRAVIA Office does not submit REG-14 amendments or claim approval automatically.</span>
+        </section>
+        <details className={styles.settingsBlock} open>
+          <summary><span>Core and non-core registration changes</span><em>PORTAL REVIEW</em></summary>
+          <p className={styles.helper}>Review <b>My Saved Applications</b> on the official GST portal. A saved draft is not a submitted amendment. Check the portal expiry date and retain the submitted ARN and amended registration certificate only when issued.</p>
+          <div className={styles.detailGrid}>
+            <span><b>Core fields</b><small>Legal name, principal business address and other core amendments require the applicable tax-officer review.</small></span>
+            <span><b>Non-core fields</b><small>Authorised signatories, bank details and applicable non-core registration particulars are filed on the GST portal.</small></span>
+            <span><b>Source of truth</b><small>GST Portal registration details, status, notice/order and ARN.</small></span>
+            <span><b>Company records</b><small>Keep application, acknowledgement, change reason and supporting documents in permission-controlled records.</small></span>
+          </div>
+          <div className={styles.settingsActions}>
+            <a href="https://www.gst.gov.in/" target="_blank" rel="noopener noreferrer">Open official GST portal</a>
+          </div>
+        </details>
+        <details className={styles.settingsBlock}>
+          <summary><span>Returns, payments and GSTN notices</span><em>VERIFY EACH PERIOD</em></summary>
+          <p className={styles.helper}>Maintain a period-wise control record for GSTR-1, GSTR-3B, genuine filing ARNs, return copies, electronic cash/credit/liability ledgers, payment challans and replies to GST notices. An absence of Office data does not mean the GST portal return is unfiled.</p>
+          <div className={styles.detailGrid}>
+            <span><b>Return frequency</b><small>Verify monthly or QRMP selection for the specific quarter on GSTN. QRMP returns are quarterly but monthly tax-payment obligations can continue.</small></span>
+            <span><b>Notices</b><small>Check Services → User Services → View Notices and Orders. Preserve notice, response, order and closure evidence.</small></span>
+            <span><b>Purchase/ITC</b><small>Review GSTR-2B against supplier invoices and bank evidence with the CA before claiming ITC.</small></span>
+            <span><b>E-invoicing</b><small>Not enabled by company policy. Statutory applicability must be reassessed with the CA if circumstances change.</small></span>
+          </div>
+          <div className={styles.settingsActions}>
+            <button type="button" onClick={() => setView("returns")}>Open GST return register</button>
+          </div>
+        </details>
+      </div> : null}
+
       {view === "settings" ? <div className={styles.viewStack}>
         <section className={styles.settingsIntro}>
           <div><p>ADVANCED CONFIGURATION</p><h3>Tax setup and provider diagnostics</h3></div>
@@ -886,7 +923,7 @@ export function OfficeGstTaxWorkspace({
           {gspStatus?.missing_configuration?.length ? <p className={styles.helper}>Missing backend configuration: {gspStatus.missing_configuration.join(", ")}</p> : null}
         </details>
 
-        <details className={styles.settingsBlock}>
+        {EINVOICE_UI_ENABLED ? <details className={styles.settingsBlock}>
           <summary><span>IRIS IRP connector</span><em data-state={connector?.ready_for_live_irn ? "ok" : "warn"}>{connector?.ready_for_live_irn ? "IRN READY" : connector?.core_configured ? "GATED" : "NOT CONFIGURED"}</em></summary>
           <div className={styles.detailGrid}>
             <span><b>Provider</b><small>{connector?.provider || "IRIS_IRP"}</small></span>
@@ -902,7 +939,7 @@ export function OfficeGstTaxWorkspace({
             </button>
           </div>
           {connector?.missing_configuration?.length ? <p className={styles.helper}>Missing: {connector.missing_configuration.join(", ")}. No credential value is exposed or stored in the browser.</p> : <p className={styles.helper}>{connector?.secret_storage}</p>}
-        </details>
+        </details> : null}
 
         <details className={styles.settingsBlock}>
           <summary><span>Product tax profiles</span><em>{taxProfiles.length}</em></summary>

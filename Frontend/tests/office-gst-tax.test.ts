@@ -38,9 +38,9 @@ describe("KRAVIA Finance GST working register",()=>{
   });
 
   it("uses focused views instead of rendering every GST subsystem in one long screen",()=>{
-    expect(component).toContain('type ViewKey = "overview" | "sales" | "purchases" | "returns" | "settings"');
+    expect(component).toContain('type ViewKey = "overview" | "sales" | "purchases" | "returns" | "changes" | "settings"');
     expect(component).toContain('aria-label="GST workspace views"');
-    expect(component).toContain('GST Control Center');
+    expect(component).toContain('GST Filing & Compliance');
     expect(component).toContain('Technical details are kept under Settings.');
     expect(component).toContain('ADVANCED CONFIGURATION');
   });
