@@ -1,0 +1,45 @@
+name: Connect attachment send-boundary SQL
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Database/supabase/migrations/202611160002_office_chat_linked_attachment_event_guard.sql"
+      - "Database/supabase/tests/office_chat_attachment_linked_events_security.sql"
+      - ".github/workflows/office-connect-attachment-privacy.yml"
+  pull_request:
+    paths:
+      - "Database/supabase/migrations/202611160002_office_chat_linked_attachment_event_guard.sql"
+      - "Database/supabase/tests/office_chat_attachment_linked_events_security.sql"
+      - ".github/workflows/office-connect-attachment-privacy.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  attachment-events:
+    name: Private draft attachment event isolation
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: connect_attachment_events
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-connect-attachments
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d connect_attachment_events"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Exercise unlinked draft isolation and committed event emission
+        run: |
+          docker run --rm --network host \
+            --volume "$PWD:/repo:ro" --workdir /repo \
+            --env PGPASSWORD=ci-connect-attachments postgres:17 \
+            psql -h 127.0.0.1 -U postgres -d connect_attachment_events \
+            -X -v ON_ERROR_STOP=1 \
+            -f Database/supabase/tests/office_chat_attachment_linked_events_security.sql

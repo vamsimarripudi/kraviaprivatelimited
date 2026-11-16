@@ -6,34 +6,10 @@ type ConversationPresence={members:MemberPresence[];as_of:string};
 /** Chat-only device leases, never workforce attendance or payroll evidence. */
 export function useOfficeChatOnline(conversationId:string|undefined,revision:number){
  const [snapshot,setSnapshot]=useState<{id:string;members:MemberPresence[]}|null>(null);
- const device=useRef<string|null>(null);
+ // Presence leases run once for every authorized Office workspace tab.
+ // This hook subscribes only to currently authorized conversation visibility.
  const refreshRef=useRef<()=>void>(()=>{});
  const previousConversation=useRef<string|undefined>(undefined);
- useEffect(()=>{
-  if(!device.current)device.current=window.crypto.randomUUID();
-  const deviceId=device.current;
-  const pulse=(online:boolean)=>{
-   void fetch("/api/office-chat/presence",{
-    method:"POST",credentials:"same-origin",cache:"no-store",keepalive:true,
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({device_id:deviceId,online}),
-   }).catch(()=>{/* Expiring lease handles network loss. */});
-  };
-  const visibility=()=>pulse(document.visibilityState==="visible");
-  const frame=requestAnimationFrame(visibility);
-  const heartbeat=window.setInterval(()=>{
-   if(document.visibilityState==="visible")pulse(true);
-  },22000);
-  const leaving=()=>pulse(false);
-  document.addEventListener("visibilitychange",visibility);
-  window.addEventListener("pagehide",leaving);
-  return()=>{
-   window.cancelAnimationFrame(frame);window.clearInterval(heartbeat);
-   document.removeEventListener("visibilitychange",visibility);
-   window.removeEventListener("pagehide",leaving);
-   pulse(false);
-  };
- },[]);
  useEffect(()=>{
   if(!conversationId){
    refreshRef.current=()=>{};

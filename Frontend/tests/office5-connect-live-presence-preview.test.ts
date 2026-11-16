@@ -6,6 +6,8 @@ const server=local("lib/office/chat-online-server.ts");
 const pulse=local("app/api/office-chat/presence/route.ts");
 const roster=local("app/api/office-chat/conversations/[id]/presence/route.ts");
 const client=local("lib/office/use-office-chat-online.ts");
+const tab=local("components/office-chat-online-heartbeat.tsx");
+const shell=local("components/office-workspace-shell.tsx");
 const chat=local("components/office-connect.tsx");
 const modal=local("components/office-connect-attachment-preview.tsx");
 const attachment=local("lib/office/chat-attachment-server.ts");
@@ -44,11 +46,13 @@ describe("KRAVIA Connect real-time presence & private pre-send media",()=>{
   expect(server).toContain("office_chat_presence_set_privacy");
  });
  it("renews and closes each tab lease without using continuous heartbeat in the message path",()=>{
-  expect(client).toContain("window.crypto.randomUUID()");
-  expect(client).toContain("visibilitychange");
-  expect(client).toContain("pagehide");
-  expect(client).toContain("setInterval");
-  expect(client).toContain("pulse(false)");
+  expect(tab).toContain("window.crypto.randomUUID()");
+  expect(tab).toContain("visibilitychange");
+  expect(tab).toContain("pagehide");
+  expect(tab).toContain("setInterval");
+  expect(tab).toContain("pulse(false)");
+  expect(shell).toContain("<OfficeChatOnlineHeartbeat/>");
+  expect(client).toContain("previousConversation.current=conversationId");
  });
  it("adds a sender-only, accessible floating attachment preview",()=>{
   expect(chat).toContain("setFilePreviewOpen(true)");

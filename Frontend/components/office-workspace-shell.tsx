@@ -11,6 +11,7 @@ import {
 import { BrandLogo } from "@/components/brand-logo";
 import { OfficeNavLink } from "@/components/office-nav-link";
 import { OfficePrefetchRoutes } from "@/components/office-prefetch-routes";
+import { OfficeChatOnlineHeartbeat } from "@/components/office-chat-online-heartbeat";
 import { OfficePresenceControl } from "@/components/office-presence-control";
 import { OfficeCommandPalette } from "@/components/office-command-palette";
 import { OfficeNotificationHub } from "@/components/office-notification-hub";
@@ -388,6 +389,7 @@ export function OfficeWorkspaceShell({
       <OfficeAmbientField variant="workspace" />
       <a className="office-skip-link" href="#office-main-content">Skip to main content</a>
       <OfficePrefetchRoutes hrefs={prefetchedRoutes}/>
+      <OfficeChatOnlineHeartbeat/>
       <button className="office-mobile-backdrop" type="button" aria-label="Close navigation"
         data-open={mobileNav} onClick={() => setMobileNav(false)}/>
       <aside className="office-mega-aside" data-mobile-open={mobileNav} data-menu-expanded={megaExpanded}>
