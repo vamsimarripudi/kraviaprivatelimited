@@ -1,0 +1,41 @@
+.shell{color:var(--foreground,#1b2841);background:var(--surface,#fff);border:1px solid color-mix(in srgb,currentColor 12%,transparent);border-radius:18px;padding:clamp(12px,2vw,20px);margin:12px 0 16px;display:grid;gap:14px;min-width:0}
+.head{display:flex;justify-content:space-between;align-items:start;gap:14px;flex-wrap:wrap}
+.head h2{font-size:clamp(17px,2vw,23px);line-height:1.2;margin:6px 0}
+.head p{font-size:12px;line-height:1.55;opacity:.72;max-width:660px;margin:0}
+.head .eyebrow{font-size:10px;font-weight:800;letter-spacing:.1em;color:#6b63bd;display:flex;align-items:center;gap:7px;opacity:1}
+.head button,.controls button,.form button,.error button{display:inline-flex;gap:6px;align-items:center;justify-content:center;border:1px solid #a5b2d4;background:transparent;color:inherit;border-radius:9px;min-height:35px;padding:7px 11px;font-size:11px;font-weight:700;cursor:pointer}
+.head button:focus-visible,.controls button:focus-visible,.form button:focus-visible,.tabs button:focus-visible{outline:2px solid #6b63bd;outline-offset:2px}
+.head button:disabled,.controls button:disabled,.form button:disabled{opacity:.55;cursor:not-allowed}
+.tabs{display:flex;gap:5px;border-bottom:1px solid color-mix(in srgb,currentColor 14%,transparent);overflow:auto}
+.tabs button{color:inherit;background:transparent;border:0;border-bottom:2px solid transparent;padding:8px 12px;display:flex;gap:7px;font-size:11px;cursor:pointer;white-space:nowrap}
+.tabs button[data-active="true"]{border-bottom-color:#7773cf;font-weight:800}
+.tabs span{font-size:10px;padding:1px 5px;border-radius:5px;background:color-mix(in srgb,currentColor 8%,transparent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(310px,100%),1fr));gap:10px}
+.card{display:grid;align-content:start;gap:8px;min-width:0;padding:14px;background:color-mix(in srgb,currentColor 3%,transparent);border:1px solid color-mix(in srgb,currentColor 13%,transparent);border-radius:13px}
+.card h3{font-size:15px;line-height:1.3;margin:0;letter-spacing:-.01em}
+.card p{font-size:12px;line-height:1.5;opacity:.85;margin:0;overflow-wrap:anywhere}
+.card .small{font-size:11px;opacity:.68}
+.card small{font-size:10px;opacity:.67;line-height:1.45}
+.card code{font-size:10px;max-width:80%;overflow-wrap:anywhere;color:#625cb5}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.status{font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border-radius:6px;padding:4px 6px;background:color-mix(in srgb,#6864b8 12%,transparent);color:#6962c2}
+.controls{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.controls button{font-size:10px;min-height:33px}
+.controls a{font-size:10px;font-weight:700;color:#645fc1;text-decoration:underline;text-underline-offset:2px}
+.controls span{font-size:10px;opacity:.6}
+.form{display:grid;gap:12px;padding:14px;border:1px solid color-mix(in srgb,#736fd2 30%,transparent);border-radius:13px}
+.form h3{margin:0;font-size:14px}
+.form label{display:grid;gap:5px;font-size:11px;font-weight:700}
+.form textarea,.form input{width:100%;min-width:0;background:transparent;color:inherit;border:1px solid color-mix(in srgb,currentColor 25%,transparent);border-radius:8px;padding:9px 11px;font:inherit;font-size:12px}
+.form textarea{resize:vertical;line-height:1.6}
+.form p{font-size:11px;opacity:.75;line-height:1.5;margin:0}
+.form .primary{background:#283f79;color:#fff;border-color:#283f79;justify-self:start}
+.foot{font-size:11px;line-height:1.6;opacity:.7;margin:2px 0}
+.state,.empty{font-size:12px;opacity:.7;padding:18px;display:flex;align-items:center;gap:8px;line-height:1.5}
+.error,.notice{display:flex;align-items:center;gap:10px;border-radius:9px;padding:12px;font-size:11px}
+.error{border:1px solid #a93955;color:#b63b54;background:color-mix(in srgb,#f9e1e5 60%,transparent)}
+.notice{border:1px solid #a4afd1;color:#5d65b0;background:color-mix(in srgb,#dfe6ff 40%,transparent)}
+.spin{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:650px){.shell{padding:11px}.grid{grid-template-columns:minmax(0,1fr)}.head{display:grid}.tabs button{padding:8px}}
+@media(prefers-reduced-motion:reduce){.spin{animation:none}}

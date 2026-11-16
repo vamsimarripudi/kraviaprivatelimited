@@ -8,6 +8,7 @@ import {
   Plus, RefreshCw, Send, ShieldCheck, Upload, UserPlus, Users, X,
 } from "lucide-react";
 import styles from "./office-recruitment-workspace.module.css";
+import { OfficeCareersPublishing } from "@/components/office-careers-publishing";
 
 type Capabilities = {
   read_requisitions: boolean; manage_requisitions: boolean; manage_candidates: boolean; manage_interviews: boolean;
@@ -172,6 +173,8 @@ export function OfficeRecruitmentWorkspace() {
       <div className={styles.metrics}><article><b>{openRoles}</b><span>open roles</span></article><article><b>{pipeline}</b><span>active candidates</span></article><article><b>{pendingOffers}</b><span>offer actions</span></article></div>
     </header>
 
+    {data.capabilities.manage_candidates ? <OfficeCareersPublishing /> : null}
+
     <div className={styles.toolbar}>
       <div className={styles.tabs}>{(["requisitions","candidates","interviews","offers"] as View[]).map((item) => <button key={item} type="button" data-active={view === item} onClick={() => setView(item)}>{label(item)}</button>)}</div>
       <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search hiring records" />
@@ -210,7 +213,7 @@ export function OfficeRecruitmentWorkspace() {
     {view === "offers" ? <div className={styles.grid}>{data.offers.map((item) => <article key={item.id} className={styles.card}>
       <header><div><code>{item.offer_code}</code><h3>{candidates.get(item.candidate_id)?.full_name || item.position_code}</h3><span>{item.position_code} · joins {item.joining_date}</span></div><em data-status={item.status}>{label(item.status)}</em></header>
       <dl><div><dt>Annual CTC</dt><dd>{money(item.annual_ctc_minor,item.currency)}</dd></div><div><dt>Monthly gross</dt><dd>{money(item.monthly_gross_minor,item.currency)}</dd></div><div><dt>Manager</dt><dd>{person(item.reporting_manager_user_id)}</dd></div></dl>
-      <footer>{data.capabilities.prepare_offer && item.status === "DRAFT" ? <button type="button" onClick={() => action({ action: "SUBMIT_OFFER", offer_id: item.id }, "Offer routed for independent approval.")}><Send /> Submit</button> : null}{item.approval_request_id ? <button type="button" onClick={() => action({ action: "SYNC_OFFER", offer_id: item.id }, "Offer approval status synchronized.")}><RefreshCw /> Sync</button> : null}{data.capabilities.prepare_offer && item.status === "APPROVED" && !item.offer_document_instance_id ? <button type="button" onClick={() => action({ action: "CREATE_OFFER_DOCUMENT", offer_id: item.id }, "Offer document instance created from the published HR_OFFER template and approved offer snapshot.")}><FileCheck2 /> Generate letter</button> : null}{item.offer_document_instance_id ? <Link href="/office/documents"><FileCheck2 /> Document Studio</Link> : null}{data.capabilities.manage_onboarding && ["DOCUMENT_READY","OFFERED"].includes(item.status) ? <button type="button" onClick={() => { setDraft({}); setModal({ kind: "ACCEPT", offer: item }); }}><CheckCircle2 /> Record acceptance</button> : null}</footer>
+      <footer>{data.capabilities.prepare_offer && item.status === "DRAFT" ? <button type="button" onClick={() => action({ action: "SUBMIT_OFFER", offer_id: item.id }, "Offer routed for independent approval.")}><Send /> Submit</button> : null}{item.approval_request_id ? <button type="button" onClick={() => action({ action: "SYNC_OFFER", offer_id: item.id }, "Offer approval status synchronized.")}><RefreshCw /> Sync</button> : null}{data.capabilities.prepare_offer && item.status === "APPROVED" && !item.offer_document_instance_id ? <button type="button" onClick={() => action({ action: "CREATE_OFFER_DOCUMENT", offer_id: item.id }, "Offer document instance created from the published HR_OFFER template and approved offer snapshot.")}><FileCheck2 /> Generate letter</button> : null}{item.offer_document_instance_id ? <Link href="/office/documents"><FileCheck2 /> Document Studio</Link> : null}{data.capabilities.manage_onboarding && candidates.get(item.candidate_id)?.source_channel!=="PUBLIC_CAREERS" && ["DOCUMENT_READY","OFFERED"].includes(item.status) ? <button type="button" onClick={() => { setDraft({}); setModal({ kind: "ACCEPT", offer: item }); }}><CheckCircle2 /> Record acceptance</button> : null}</footer>
     </article>)}{!data.offers.length ? <div className={styles.empty}><BriefcaseBusiness /><b>No offer proposals</b><span>Offers are created only after a candidate reaches Selected.</span></div> : null}</div> : null}
 
     {modal ? <div className={styles.backdrop} data-office-recruitment-backdrop="true" role="presentation" onMouseDown={() => !busy && setModal(undefined)}><form className={styles.dialog} data-office-recruitment-dialog="true" role="dialog" aria-modal="true" aria-label="Recruitment workflow form" onSubmit={submit} onMouseDown={(e) => e.stopPropagation()}>

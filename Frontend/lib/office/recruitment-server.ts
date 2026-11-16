@@ -202,6 +202,7 @@ export async function syncHiringRequisition(requisitionId: string) {
 
 export async function createCandidate(input: { requisitionId: string; name: string; email: string; phone?: string; location?: string; sourceChannel?: string; sourceReference?: string }) {
   const current = await permission("hiring.candidate.manage");
+  if (input.sourceChannel?.trim().toUpperCase() === "PUBLIC_CAREERS") throw new OfficeRecruitmentError(409, "Public candidate provenance requires verified Careers application and governed adoption");
   const { data, error } = await current.admin.rpc("office_candidate_create", {
     p_actor: current.identity.userId, p_requisition: input.requisitionId, p_name: input.name, p_email: input.email,
     p_phone: input.phone?.trim() || null, p_location: input.location?.trim() || null,
@@ -213,6 +214,12 @@ export async function createCandidate(input: { requisitionId: string; name: stri
 
 export async function transitionCandidate(input: { candidateId: string; status: string; note?: string }) {
   const current = await permission("hiring.candidate.manage");
+  if (["ACCEPTED","ONBOARDING","HIRED"].includes(input.status)) {
+    const candidate=await current.admin.from("office_candidates").select("source_channel").eq("id",input.candidateId).maybeSingle();
+    if(candidate.error||!candidate.data)throw new OfficeRecruitmentError(404,"Candidate record unavailable");
+    if(candidate.data.source_channel==="PUBLIC_CAREERS")
+      throw new OfficeRecruitmentError(409,"Public applicants require signed-offer and verified employee handoff; direct stage elevation is prohibited");
+  }
   const { data, error } = await current.admin.rpc("office_candidate_transition", { p_actor: current.identity.userId, p_candidate: input.candidateId, p_status: input.status, p_note: input.note?.trim() || null });
   if (error || typeof data !== "string") throw new OfficeRecruitmentError(400, error?.message ?? "Unable to update candidate");
   return { status: data };
@@ -511,6 +518,12 @@ export async function attachOfferDocument(input: { offerId: string; documentInst
 
 export async function markOfferAccepted(input: { offerId: string; evidenceReference: string }) {
   const current = await permission("hiring.onboarding.manage");
+  const offer=await current.admin.from("office_offer_proposals").select("candidate_id").eq("id",input.offerId).maybeSingle();
+  if(offer.error||!offer.data)throw new OfficeRecruitmentError(404,"Offer not found");
+  const candidate=await current.admin.from("office_candidates").select("source_channel").eq("id",offer.data.candidate_id).maybeSingle();
+  if(candidate.error||!candidate.data)throw new OfficeRecruitmentError(404,"Candidate not found");
+  if(candidate.data.source_channel==="PUBLIC_CAREERS")
+    throw new OfficeRecruitmentError(409,"Public Careers offers require candidate acknowledgement, verified signed document and controlled HR handoff");
   const { data, error } = await current.admin.rpc("office_offer_mark_accepted", { p_actor: current.identity.userId, p_offer: input.offerId, p_evidence_reference: input.evidenceReference });
   if (error || typeof data !== "string") throw new OfficeRecruitmentError(400, error?.message ?? "Unable to record offer acceptance");
   return { pre_onboarding_request_id: data };
