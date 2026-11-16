@@ -8,6 +8,11 @@ const ui=read("components/office-founder-device-recovery.tsx");
 const parent=read("components/office-device-identity.tsx");
 const binder=read("components/office-trusted-device-link.tsx");
 const binding=read("lib/office/device-binding-server.ts");
+const sections=read("lib/office/workspaces.ts");
+const capabilities=read("lib/office/workspace-capabilities.ts");
+const nav=read("lib/office/client-department-navigation.ts");
+const renderer=read("components/internal-workspace-screen.tsx");
+const shell=read("components/office-workspace-shell.tsx");
 
 describe("Founder device independent security recovery, two-person authorization",()=>{
  it("retains revoked state until independent Director/Admin review and a distinct second approver",()=>{
@@ -63,6 +68,16 @@ describe("Founder device independent security recovery, two-person authorization
   expect(ui).toContain("no_compromise");
   expect(ui).toContain("management_evidence");
   expect(ui).toContain("The reviewer cannot approve the same review");
+ });
+ it("gives only authenticated Founder, Director and Admin a reachable review workspace even without department assignments",()=>{
+  expect(sections).toContain('"device-recovery": { title: "Founder device verification"');
+  expect(sections).toContain('roles: ["OWNER","DIRECTOR","ADMIN"]');
+  expect(capabilities).toContain('"device-recovery"');
+  expect(nav).toContain('"device-recovery"');
+  expect(shell).toContain('"device-recovery"');
+  expect(renderer).toContain('section === "device-recovery" ? <OfficeFounderDeviceRecovery />');
+  expect(server).toContain('if (!staff && !owner)');
+  expect(server).toContain("Founder device recovery is not in your assigned scope");
  });
  it("shows REVOKED accurately and never binds an unapproved browser",()=>{
   expect(binder).toContain('"REVOKED"');
