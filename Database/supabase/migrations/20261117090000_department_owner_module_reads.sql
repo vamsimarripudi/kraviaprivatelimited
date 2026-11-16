@@ -3,6 +3,57 @@
 -- Company Secretary (CS) is SECRETARIAL, never Customer Support.
 -- Managed-device checks, explicit DENY overrides, and maker-checker still
 -- execute in the existing Office permission engine after this verdict.
+-- Keep the ownership permission map aligned with the actual Office sections.
+-- Facilities is an Operations workspace (the previous ADMINISTRATION mapping
+-- accidentally denied Operations owners). Every mutation still retains the
+-- managed-device, role and independent-approval checks of its domain API.
+create or replace function public.office_department_for_permission(p_permission text)
+returns text language sql stable security definer set search_path = '' as $function$
+  select case
+    when p.code in ('document.finance.create') then 'FINANCE'
+    when p.code in ('document.hr.create') then 'PEOPLE'
+    when p.code in ('document.legal.create') then 'LEGAL'
+    when p.code in ('document.sales.create') then 'SALES'
+    when p.code in ('document.operations.create') then 'OPERATIONS'
+    when p.code in ('document.secretarial.create') then 'SECRETARIAL'
+    when p.code in ('master.customer.create','master.customer.read') then 'SALES'
+    when p.code in ('master.product.create','master.product.read') then 'PRODUCT'
+    when p.module in ('FINANCE','PAYROLL','INSURANCE') then 'FINANCE'
+    when p.module='ENGINEERING' then 'ENGINEERING'
+    when p.module='INFRASTRUCTURE' then 'DEVOPS'
+    when p.module in ('HIRING','PEOPLE','TRAVEL') then 'PEOPLE'
+    when p.module='SALES' then 'SALES'
+    when p.module='OPERATIONS' then 'OPERATIONS'
+    when p.module='FACILITIES' then 'OPERATIONS'
+    when p.module='PROCUREMENT' then 'PROCUREMENT'
+    when p.module in ('PRODUCT','PORTFOLIO') then 'PRODUCT'
+    when p.module='QUALITY' then 'QUALITY'
+    when p.module='SUPPORT' then 'SUPPORT'
+    when p.module='CUSTOMER_TRUST' then 'CUSTOMER_SUCCESS'
+    when p.module='SECURITY' then 'SECURITY'
+    when p.module in ('IT','IDENTITY') then 'IT'
+    when p.module in ('LEGAL','PRIVACY','COMPLIANCE','ETHICS') then 'LEGAL'
+    when p.module='SECRETARIAL' or p.module='REGISTRATIONS' then 'SECRETARIAL'
+    when p.module='TAX' then 'TAX'
+    when p.module in ('AUDIT','ASSURANCE') then 'AUDIT'
+    when p.module in ('GOVERNANCE','STRATEGY') then 'EXECUTIVE'
+    when p.module in ('ADMIN','KNOWLEDGE') then 'ADMINISTRATION'
+    else null end
+  from public.office_permission_catalog p
+  where p.code=p_permission and p.active=true;
+$function$;
+revoke execute on function public.office_department_for_permission(text)
+ from public,anon,authenticated;
+grant execute on function public.office_department_for_permission(text)
+ to service_role;
+do $grant_permission_map$
+begin
+ if exists(select 1 from pg_roles where rolname='kravia_office_backend') then
+   grant execute on function public.office_department_for_permission(text) to kravia_office_backend;
+ end if;
+end;
+$grant_permission_map$;
+
 create or replace function public.office_department_permission_verdict(
  p_actor uuid,p_permission text
 ) returns text language plpgsql stable security definer set search_path = '' as $function$
@@ -39,6 +90,7 @@ begin
         'registration.read',
         'compliance.rules.read',
         'operations.asset.read',
+        'facilities.room.read',
         'security.overview.read'
        )
    ) into baseline_read_allowed;
