@@ -34,7 +34,7 @@
  background:var(--office-ui-surface-alt);color:var(--office-ui-ink);
 }
 .inputRow>svg{width:18px;height:18px;flex:none;color:var(--office-ui-muted)}
-.inputRow:focus-within{box-shadow:inset 0 -2px var(--office-ui-accent)}
+.inputRow:focus-within{box-shadow:inset 0 -2px var(--office-ui-accent),0 0 0 3px var(--office-ui-ring)}
 .inputRow input{
  display:block;width:100%;min-width:0;min-height:38px;
  padding:7px 0!important;border:0!important;border-radius:0!important;
