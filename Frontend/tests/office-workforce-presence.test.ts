@@ -70,7 +70,13 @@ describe("KRAVIA Office workforce presence and attendance", () => {
     expect(presenceControl).toContain('ref={triggerRef}');
     expect(presenceControl).toContain("triggerRef.current?.focus()");
     expect(presenceControl).toContain('createPortal(<dialog');
-    expect(presenceControl).toContain('document.querySelector<HTMLElement>(".kravia-office .office-modern .office-main")');
+    expect(presenceControl).toContain("setPortalTarget(document.body)");
+    expect(presenceControl).toContain("new MutationObserver(syncTheme)");
+    expect(presenceControl).toContain('style={panelTheme}');
+    expect(presenceControl).not.toContain('document.querySelector<HTMLElement>(".kravia-office .office-modern .office-main")');
+    const globalModalCss = readFileSync(new URL("../app/office/office-surface-integrity.css", import.meta.url), "utf8");
+    expect(globalModalCss).not.toContain("transform: translate(-50%, -50%) !important;");
+    expect(modalCss).toContain("transform: none !important;");
     expect(presenceControl).toContain('onCancel={(event)');
     expect(presenceControl).not.toContain('return <details className={styles.control}>');
     expect(modalCss).toContain("position: fixed !important");
