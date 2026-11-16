@@ -1,0 +1,51 @@
+/* Scoped Founder recovery workflow; no global access/role styles are altered. */
+.panel{display:grid;gap:13px;padding:16px;border:1px solid var(--office-ui-line,#d6dce5);border-radius:16px;background:var(--office-ui-surface,#fff);color:var(--office-ui-ink,inherit);font-size:12px}
+.heading{display:flex;align-items:center;gap:11px;min-width:0}
+.symbol{display:grid;place-items:center;width:38px;height:38px;flex:none;border:1px solid var(--office-ui-line,#d6dce5);border-radius:11px;color:var(--office-ui-accent,#3b64bb)}
+.heading>div:nth-child(2){flex:1;min-width:0}
+.heading span,.dialog header small{color:var(--office-ui-muted,#69768b);font-size:10px;letter-spacing:.08em;font-weight:740}
+.heading h3{margin:3px 0!important;color:var(--office-ui-ink,inherit);font-size:16px!important;font-weight:730}
+.heading p,.hint{margin:2px 0 0!important;color:var(--office-ui-muted,#69768b)!important;font-size:11px!important;line-height:1.55}
+.panel button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;border:1px solid var(--office-ui-line,#d6dce5);border-radius:9px;padding:7px 11px;color:var(--office-ui-ink,inherit);background:transparent;cursor:pointer;font:inherit;font-size:11.5px}
+.panel button:hover:not(:disabled){background:var(--office-ui-surface-alt,#f3f6fa)}
+.panel button:disabled{opacity:.55;cursor:not-allowed}
+.panel button:focus-visible,.dialog input:focus-visible,.dialog textarea:focus-visible{outline:2px solid var(--office-ui-accent,#3b64bb);outline-offset:2px}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.steps span{display:flex;align-items:center;gap:7px;padding:9px 10px;border:1px solid var(--office-ui-line,#d6dce5);border-radius:10px;background:var(--office-ui-surface-alt,#f5f6f8);color:var(--office-ui-muted,#69768b);font-size:11px;line-height:1.4}
+.steps svg{flex:none}
+.device{display:grid;gap:10px;padding:13px;border:1px solid var(--office-ui-line,#d6dce5);border-radius:12px}
+.deviceHead{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.deviceHead strong{font-size:13px;color:var(--office-ui-ink,inherit)}
+.deviceHead p{margin:4px 0 0;font-size:11px;color:var(--office-ui-muted,#69768b)}
+.badge{font-style:normal;flex:none;border:1px solid var(--office-ui-line,#d6dce5);border-radius:999px;padding:5px 8px;font-size:10px;font-weight:720;letter-spacing:.035em}
+.badge[data-state="REVOKED"]{color:#bd4343;border-color:rgba(197,65,65,.4)}
+.badge[data-state="TRUSTED"]{color:var(--office-ui-accent,#3b64bb)}
+.details{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.details>div{display:grid;gap:5px;padding:9px;border:1px solid var(--office-ui-line,#d6dce5);border-radius:9px;min-width:0}
+.details small{font-size:10px;color:var(--office-ui-muted,#69768b)}
+.details strong{font-size:11px;overflow-wrap:anywhere;font-weight:650}
+.hold{display:flex;align-items:flex-start;gap:7px;margin:0;padding:10px;border:1px solid rgba(198,72,72,.29);border-radius:10px;background:rgba(198,72,72,.055);color:var(--office-ui-ink,inherit);font-size:11px;line-height:1.55}
+.hold svg{flex:none}
+.next{margin:0;padding:10px;border:1px solid var(--office-ui-line,#d6dce5);border-radius:10px;font-size:11px;line-height:1.5;color:var(--office-ui-ink,inherit)}
+.actions{display:flex;flex-wrap:wrap;gap:7px}
+.actions button{font-weight:680}
+.error,.notice{display:flex;align-items:center;gap:8px;margin:0;padding:10px;border-radius:9px;font-size:11px;line-height:1.4}
+.error{color:#b83636;background:rgba(199,64,64,.07);border:1px solid rgba(199,64,64,.24)}
+.notice{color:var(--office-ui-ink,inherit);background:var(--office-ui-surface-alt,#f5f6f8);border:1px solid var(--office-ui-line,#d6dce5)}
+.backdrop{position:fixed;inset:0;z-index:2000;display:grid;place-items:center;padding:14px;background:rgba(7,11,20,.7);backdrop-filter:blur(9px)}
+.dialog{width:min(570px,100%);max-height:calc(100dvh - 28px);overflow:auto;overscroll-behavior:contain;display:grid;gap:13px;padding:19px;border:1px solid var(--office-ui-line,#d6dce5);border-radius:16px;background:var(--office-ui-surface,#fff);color:var(--office-ui-ink,inherit);box-shadow:0 25px 70px rgba(0,0,0,.3)}
+.dialog header{display:flex;justify-content:space-between;align-items:start;gap:10px}
+.dialog header h3{margin:5px 0 0!important;font-size:17px!important;color:var(--office-ui-ink,inherit)}
+.dialog header button{flex:none;min-width:34px;height:34px;padding:0!important;border:none!important;background:transparent!important}
+.dialog label{display:grid;gap:6px;color:var(--office-ui-ink,inherit);font-size:11.5px;font-weight:630}
+.dialog input:not([type="checkbox"]),.dialog textarea{box-sizing:border-box;width:100%;min-width:0;padding:9px 10px;border:1px solid var(--office-ui-line,#d6dce5);border-radius:9px;background:var(--office-ui-control,var(--office-ui-surface,#fff));color:var(--office-ui-ink,inherit);font:inherit;font-size:12px}
+.dialog textarea{resize:vertical;min-height:76px}
+.checks{display:grid;gap:7px;margin:0;padding:12px;border:1px solid var(--office-ui-line,#d6dce5);border-radius:10px}
+.checks legend{padding:0 5px;font-size:11px;font-weight:700}
+.checks label{display:flex;align-items:start;gap:9px;min-height:26px;font-size:11px;font-weight:500}
+.checks input{flex:none;margin:2px 0 0;width:15px;height:15px;accent-color:var(--office-ui-accent,#3b64bb)}
+.dialog footer{display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--office-ui-line,#d6dce5);padding-top:11px}
+.panel .primary{background:var(--office-ui-accent,#3b64bb);color:#fff;border-color:var(--office-ui-accent,#3b64bb);font-weight:690}
+.panel .primary:hover:not(:disabled){filter:brightness(1.09);background:var(--office-ui-accent,#3b64bb)}
+@media(max-width:650px){.panel{padding:12px}.steps{grid-template-columns:1fr}.details{grid-template-columns:repeat(2,minmax(0,1fr))}.heading{flex-wrap:wrap}.heading button{margin-left:auto}.backdrop{padding:7px}.dialog{padding:13px;max-height:calc(100dvh - 14px)}}
+@media(prefers-reduced-motion:reduce){.panel button{transition:none}}
