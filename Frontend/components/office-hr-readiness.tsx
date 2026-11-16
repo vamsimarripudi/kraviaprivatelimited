@@ -149,6 +149,6 @@ export function OfficeHrReadiness() {
           <p className={styles.tiny}>{snapshot.notice}</p>
         </section>
       </div>
-    </>}
+    </> : null}
   </section>;
 }
