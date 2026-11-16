@@ -128,6 +128,20 @@ export async function bindCurrentOfficeDevice(
   if (aal !== "aal2") throw new Error("AAL2 verification is required to bind a device");
   await requireCurrentDeviceActor(userId, accessToken);
   const admin = serviceClient();
+  // A laptop record must be linked from an actual desktop-class browser.
+  // This is a basic safeguard against accidental mobile binding, not hardware
+  // attestation: physical device identity still requires the approval workflow.
+  const {data:registered,error:registryError}=await admin.from("office_device_registry")
+    .select("device_kind,platform,trust_state,company_managed,revoked_at")
+    .eq("id",deviceId).eq("user_id",userId).maybeSingle();
+  if(registryError||!registered)throw new Error("Registered Office device is unavailable");
+  if(registered.trust_state!=="TRUSTED"||registered.company_managed!==true||registered.revoked_at)
+    throw new Error("Company security approval is required before device binding");
+  const userAgent=request.headers.get("user-agent")??"";
+  const mobileHint=request.headers.get("sec-ch-ua-mobile")==="?1";
+  if(["LAPTOP","DESKTOP"].includes(registered.device_kind)&&
+    (mobileHint||/Android|iPhone|iPad|Mobile/i.test(userAgent)))
+    throw new Error("Complete laptop binding from its own desktop browser");
   const token = randomBytes(32).toString("base64url");
   const metadata = requestMetadata(request);
   const { data, error } = await admin.rpc("office_bind_trusted_device", {
