@@ -26,7 +26,15 @@ export function OfficeCommandPalette({ commands }: { commands: OfficeNavigationC
   const dialogRef = useRef<HTMLElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const normalizedQuery = query.trim();
-  const visibleRemote = normalizedQuery.length >= 2 && remoteFor === normalizedQuery ? remote : [];
+  // Only display record results from modules visible in the selected client
+  // workspace. Backend API authorization remains the real data boundary.
+  const visibleRemote = normalizedQuery.length >= 2 && remoteFor === normalizedQuery
+    ? remote.filter(result=>{
+      const pathname=result.href.split(/[?#]/,1)[0];
+      return commands.some(command=>pathname===command.href||
+        pathname.startsWith(command.href+"/"));
+    })
+    : [];
   const searchFailed = normalizedQuery.length >= 2 && failedFor === normalizedQuery;
   const waitingForRemote = normalizedQuery.length >= 2 && remoteFor !== normalizedQuery && !searchFailed;
 

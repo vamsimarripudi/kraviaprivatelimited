@@ -101,6 +101,8 @@ export function OfficeDepartmentHandover({ mode = "manage" }: { mode?: "manage" 
       catch { setError("Transfer recorded. Refresh the ownership list to see the latest state."); }
       // Acceptance changes the effective authority matrix and navigation.
       if (body.action === "ACCEPT") router.refresh();
+      if (body.action === "ACCEPT")
+        window.dispatchEvent(new Event("kravia-office-departments-changed"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to complete handover");
     } finally { setBusy(false); }

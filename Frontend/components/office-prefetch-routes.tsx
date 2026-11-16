@@ -6,9 +6,13 @@ import { useEffect } from "react";
 export function OfficePrefetchRoutes({ hrefs }: { hrefs: readonly string[] }) {
   const router = useRouter();
 
+  // React recomputes the small client-side navigation list on each render.
+  // Only prefetch when the actual set of permitted paths changes, not when
+  // a new array instance carries the same paths.
+  const hrefKey=Array.from(new Set(hrefs)).join("|");
   useEffect(() => {
     let cancelled = false;
-    const unique = Array.from(new Set(hrefs)).slice(0, 8);
+    const unique = hrefKey.split("|").filter(Boolean).slice(0, 8);
     const warm = () => {
       if (cancelled) return;
       unique.forEach((href, index) => {
@@ -36,7 +40,7 @@ export function OfficePrefetchRoutes({ hrefs }: { hrefs: readonly string[] }) {
       cancelled = true;
       window.clearTimeout(id);
     };
-  }, [hrefs, router]);
+  }, [hrefKey, router]);
 
   return null;
 }
