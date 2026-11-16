@@ -462,7 +462,7 @@ export function OfficeWorkspaceShell({
               onClick={() => setMobileNav(false)}><X size={18}/></button>
           </div>
           {workspace==="office"?<div className="office-client-department-picker" data-office-client-departments>
-             <span>FOCUS DEPARTMENT · ALL ASSIGNED ARE AVAILABLE</span>
+             <span>MY ASSIGNED DEPARTMENTS</span>
              {!departmentReady&&departmentLoad!=="error"?<small role="status">Loading assignment…</small>:
              departmentLoad==="error"?<button type="button"
                onClick={()=>{setDepartmentLoad("loading");setDepartmentRevision(v=>v+1);}}>
@@ -619,11 +619,11 @@ export function OfficeWorkspaceShell({
            data-office-client-department-guard>
            <ShieldCheck size={24} aria-hidden="true"/>
            <strong>{departmentLoad==="error"?"Department assignment unavailable":
-             !departmentReady?"Loading assigned workspace":"Not in your active department"}</strong>
+             !departmentReady?"Loading assigned workspace":"Additional department access required"}</strong>
            <p>{departmentLoad==="error"?
              "Refresh department assignments to restore your navigation.":
              !departmentReady?"Checking the departments assigned to your Office account.":
-             "Switch to an assigned department or open My Work. This screen is not part of your selected workspace."}</p>
+             "This section needs a matching permission and, for restricted actions, an approved company device. Your other assigned departments remain available."}</p>
            {departmentLoad==="error"?<button type="button"
              onClick={()=>{setDepartmentLoad("loading");setDepartmentRevision(v=>v+1);}}>
              Retry department list
