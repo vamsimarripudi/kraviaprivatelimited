@@ -98,7 +98,9 @@ describe("KRAVIA Office scoped multi-department owner access",()=>{
     expect(trust).toContain('const decisions=await Promise.all(codes.map(code=>');
     expect(support).toContain('permission("support.case.read", verifiedActor)');
     expect(support).toContain('const [canManage,canRefund] = await Promise.all([');
-    expect(support).toContain('read.admin.from(table).select(columns).in("id",batch)');
+    expect(support).toContain('read.admin.from("customers")');
+    expect(support).toContain('read.admin.from("products")');
+    expect(support).toContain('.in("id",batch)');
     expect(support).toContain('reference_status: referenceStatus');
     expect(support).not.toContain('readOfficeRuntimeResult');
     expect(trust).toContain('current.admin.from("customers")');
