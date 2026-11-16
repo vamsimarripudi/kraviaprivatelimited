@@ -27,13 +27,23 @@ function fail(error:{message?:string}|null,message:string){if(error)throw new Of
 
 export async function getTrustCenter(){
   const current=await actor();
+  // Resolve the user's trusted binding once, then check all six independent
+  // permissions concurrently. Each verdict still comes from the database,
+  // including current owner, explicit denies and device requirements.
+  const device=await currentOfficeTrustedDeviceId(current.admin,current.identity.userId);
+  const codes=[
+    "vendor.assurance.read","vendor.assurance.manage","vendor.assurance.review",
+    "customer.trust.read","customer.trust.manage","customer.trust.review",
+  ] as const;
+  const decisions=await Promise.all(codes.map(code=>
+    resolveOfficePermission(current.admin,current.identity,code,{type:"COMPANY"},device)));
   const capabilities={
-    vendor_read:await can(current,"vendor.assurance.read"),
-    vendor_manage:await can(current,"vendor.assurance.manage"),
-    vendor_review:await can(current,"vendor.assurance.review"),
-    customer_read:await can(current,"customer.trust.read"),
-    customer_manage:await can(current,"customer.trust.manage"),
-    customer_review:await can(current,"customer.trust.review"),
+    vendor_read:decisions[0].allowed,
+    vendor_manage:decisions[1].allowed,
+    vendor_review:decisions[2].allowed,
+    customer_read:decisions[3].allowed,
+    customer_manage:decisions[4].allowed,
+    customer_review:decisions[5].allowed,
   };
   if(!Object.values(capabilities).some(Boolean))throw new OfficeTrustError(403,"Trust Center is not assigned to your current authority");
 
