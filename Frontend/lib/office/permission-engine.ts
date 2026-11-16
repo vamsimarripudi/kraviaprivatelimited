@@ -170,7 +170,12 @@ async function enforceDevice(
   decision: OfficePermissionDecision,
   deviceId?: string | null,
 ): Promise<OfficePermissionDecision> {
-  const enforced = process.env.OFFICE_DEVICE_ENFORCEMENT?.toLowerCase() === "true";
+  // Current department ownership is powerful and newly exposes some scoped
+  // reads. Never let a missing global rollout flag waive the approved device
+  // requirement for an owner's high-risk or device-restricted permission.
+  const enforced = process.env.OFFICE_DEVICE_ENFORCEMENT?.toLowerCase() === "true" ||
+    (decision.source === "DEPARTMENT_OWNER" &&
+      (permission.high_risk || permission.requires_managed_device));
   if (!enforced || (!permission.high_risk && !permission.requires_managed_device)) {
     return { ...decision, highRisk: permission.high_risk, requiresManagedDevice: permission.requires_managed_device };
   }
