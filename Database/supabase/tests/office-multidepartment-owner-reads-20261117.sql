@@ -18,6 +18,7 @@ returns text language sql stable as $$
    when p.module='CUSTOMER_TRUST' then 'CUSTOMER_SUCCESS'
    when p.module='SECRETARIAL' or p.module='REGISTRATIONS' then 'SECRETARIAL'
    when p.module='OPERATIONS' then 'OPERATIONS'
+   when p.module='FACILITIES' then 'ADMINISTRATION' -- historical wrong mapping overwritten by the tested migration
    when p.module='COMPLIANCE' then 'LEGAL'
    else null end
  from public.office_permission_catalog p where p.code=p_permission and p.active;
@@ -41,6 +42,8 @@ insert into public.office_permission_catalog(code,module,action,active,owner_byp
  ('registration.read','REGISTRATIONS','READ',true,true,false),
  ('compliance.rules.read','COMPLIANCE','READ_RULES',true,true,false),
  ('operations.asset.read','OPERATIONS','READ_ASSET',true,true,false),
+ ('facilities.room.read','FACILITIES','READ_ROOMS',true,true,false),
+ ('facilities.manage','FACILITIES','MANAGE_FACILITIES',true,true,true),
  ('operations.bank.read','OPERATIONS','READ',true,true,false),
  ('finance.customer.read','FINANCE','READ',true,true,false),
  ('customer.trust.sensitive.read','CUSTOMER_TRUST','READ',true,true,true),
@@ -64,6 +67,7 @@ begin
    'registration.read',
    'compliance.rules.read',
    'operations.asset.read',
+   'facilities.room.read',
    'security.overview.read'
  ] loop
   if public.office_department_permission_verdict(multi,perm)<>'DEPARTMENT_OWNER' then
@@ -88,9 +92,17 @@ begin
     raise exception 'Sensitive, unrelated or non-bypass read elevated: %',perm;
   end if;
  end loop;
+ if public.office_department_for_permission('facilities.room.read')<>'OPERATIONS' then
+   raise exception 'Facilities permission map still points to unassigned Administration';
+ end if;
  if public.office_department_permission_verdict(multi,'customer.trust.manage')<>'DEPARTMENT_OWNER'
-    or public.office_department_permission_verdict(multi,'secretarial.board.manage')<>'DEPARTMENT_OWNER' then
+    or public.office_department_permission_verdict(multi,'secretarial.board.manage')<>'DEPARTMENT_OWNER'
+    or public.office_department_permission_verdict(multi,'facilities.manage')<>'DEPARTMENT_OWNER' then
    raise exception 'Existing owner write gates were accidentally removed';
+ end if;
+ if has_function_privilege('anon','public.office_department_for_permission(text)','EXECUTE')
+ or has_function_privilege('authenticated','public.office_department_for_permission(text)','EXECUTE') then
+   raise exception 'Supporting department permission map exposed to clients';
  end if;
  if has_function_privilege('anon','public.office_department_permission_verdict(uuid,text)','EXECUTE')
  or has_function_privilege('authenticated','public.office_department_permission_verdict(uuid,text)','EXECUTE') then
