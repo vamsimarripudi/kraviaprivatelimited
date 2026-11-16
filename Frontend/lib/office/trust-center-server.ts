@@ -53,7 +53,7 @@ export async function getTrustCenter(view:"all"|"customer"="all"){
 
   const [vendors,assessments,customers,requests,people]=await Promise.all([
     capabilities.vendor_read
-      ? readOfficeRuntimeResult<Array<Record<string,unknown>>>("vendors").then((result)=>({...result,data:(result.data??[]).slice(0,500).map(row=>({
+      ? readOfficeRuntimeResult<Array<Record<string,unknown>>>("vendors",{timeoutMs:6500}).then((result)=>({...result,data:(result.data??[]).slice(0,500).map(row=>({
             id:row.id,legal_name:row.legal_name,category:row.category,status:row.status,risk:row.risk,
           })).sort((a,b)=>String(a.legal_name||"").localeCompare(String(b.legal_name||"")))}))
       : Promise.resolve({data:[] as Array<Record<string,unknown>>,error:null}),
@@ -61,7 +61,7 @@ export async function getTrustCenter(view:"all"|"customer"="all"){
       ? current.admin.from("office_vendor_assessments").select("id,assessment_code,vendor_id,assessment_type,scope_summary,risk_level,evidence_reference,remediation_summary,owner_user_id,status,expires_on,created_by,reviewed_by,reviewed_at,review_note,created_at,updated_at").order("created_at",{ascending:false}).limit(1500)
       : Promise.resolve({data:[],error:null}),
     capabilities.customer_read
-      ? readOfficeRuntimeResult<Array<Record<string,unknown>>>("customers").then((result)=>({...result,data:(result.data??[]).slice(0,500).map(row=>({
+      ? readOfficeRuntimeResult<Array<Record<string,unknown>>>("customers",{timeoutMs:6500}).then((result)=>({...result,data:(result.data??[]).slice(0,500).map(row=>({
             id:row.id,legal_name:row.legal_name,display_name:row.display_name,country:row.country,
             email:row.email,status:row.status,
           })).sort((a,b)=>String(a.display_name||"").localeCompare(String(b.display_name||"")))}))
@@ -73,7 +73,11 @@ export async function getTrustCenter(view:"all"|"customer"="all"){
       ? current.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").eq("status","ACTIVE").order("display_name")
       : Promise.resolve({data:[],error:null}),
   ]);
-  for(const result of [vendors,assessments,customers,requests,people])fail(result.error,"Trust Center records are temporarily unavailable");
+  for(const result of [assessments,requests,people])fail(result.error,"Trust Center case records are temporarily unavailable");
+  const reference_warnings = [
+    ...(vendors.error ? ["Vendor reference directory temporarily unavailable"] : []),
+    ...(customers.error ? ["Customer reference directory temporarily unavailable"] : []),
+  ];
 
   return {
     actor:{user_id:current.identity.userId,roles:current.identity.roles,department:current.identity.department||null},
@@ -82,6 +86,7 @@ export async function getTrustCenter(view:"all"|"customer"="all"){
     vendor_assessments:assessments.data||[],
     customers:customers.data||[],
     customer_trust_requests:requests.data||[],
+    reference_warnings,
     people:people.data||[],
     disclaimer:"Trust Center records evidence, review state and external references. It does not fabricate certifications, pen-test outcomes, DPA acceptance, security posture, or delivery. Canonical vendors/customers remain owned by their existing systems.",
   };
