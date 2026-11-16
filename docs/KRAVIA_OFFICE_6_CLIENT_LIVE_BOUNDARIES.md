@@ -1,40 +1,32 @@
-# KRAVIA Office 6 — Client-only live workspace contract
+# KRAVIA Office: Client-side live work
 
-## Scope
-- No new server endpoints, database migrations, service roles, or credential changes.
-- The React shell derives assigned departments using the existing authorized
-  `GET /api/office-departments` response plus the identity's server-provided primary department.
-- Only active ownership and existing section capability permissions can produce department tabs.
-- A team member without ownership of a second department cannot be inferred to
-  hold a second job assignment unless that assignment is exposed by the existing first-party API.
-  Future multi-department staff membership needs an authorized data contract—not localStorage.
+Builds on the client-side assigned-department navigation already merged into
+`main`. No new server routes, database migrations, secrets or role grants.
 
-## Operating UI
-- The sidebar is a department switcher, not a catalog of all company departments.
-- Personal work remains visible; unassigned modules are omitted from sidebar,
-  global navigation search, prefetch and dashboard shortcuts.
-- Company Control is deliberately separated from operations and only shown for
-  a Founder with the necessary existing capabilities.
-- The frontend also suppresses unassigned client content on direct route visits,
-  but the backend's existing API and database enforcement is the security boundary.
+## Real workflows now equipped with visible-only revalidation
+Work Hub; Recruitment; Payroll; IT Service; People Development; Budget;
+Asset Lifecycle; Physical Office; Contracts; Portfolio; Customer Support;
+Strategy; Knowledge Hub; Workforce Lifecycle; CRM; Company Inbox;
+Attendance and Worktime; Organization Chart; Finance Command Center.
 
-## Live-data approach
-- Reuse the existing first-party notification SSE change events for invalidation.
-- Revalidate the **active mounted module only**, never all 56 modules per interval.
-- A 45-second visible-tab fallback handles changes that do not send notifications.
-- Focus and tab visibility cause an opportunistic recheck; in-flight refreshes dedupe.
-- Pause revalidation during active form dialogs or mutations; never clear drafts.
-- Existing domain APIs remain authoritative; no generated fake records or placeholder values.
-- The first integrated live modules: Work Hub, Recruitment, Payroll and IT Service.
-- The department directory itself rechecks every 30 seconds while visible, plus on
-  ownership acceptance and browser focus.
-- Realtime push freshness is not guaranteed for every business table: other modules
-  require individual subscription/refresh integration or an authorized event feed.
+Every module already has an authenticated first-party GET source and its
+existing authorized action workflows. On an authorized notification
+invalidation event, each mounted module fetches its own current records.
+Fallback: every 45 seconds for most modules, every 60 seconds for org chart,
+and 90 seconds for the costlier finance command center, only in visible tabs.
 
-## Expansion and acceptance criteria
-For each remaining domain module, verify a real GET source and working write
-actions, scoped access, controlled retry, loading/empty states, visible-only polling,
-audit events and notifications. Do not mark a section complete because its route renders.
+- No fake records, decorative buttons or generated transaction results.
+- No polling of unmounted departments or broad API fan-out.
+- Suspend auto-refresh while an edit dialog or mutation is active.
+- Backend permission checks and database row/record policy remain authoritative.
+- Notification SSE carries only invalidation signals, never protected data.
+- A section is not considered operational simply because its route exists.
+- Only these 19 modules have been integrated with the shared live hook; other
+  modules still need individual source/transaction/notification QA.
 
-Do not weaken existing per-record / device / maker-checker authorization to
-make a client-side-only navigation feature seem fully secure.
+## Future scalability
+For eventual high-volume use, replace interval fallbacks with a multiplexed
+authenticated per-domain change feed; retain ETags, backoff, deduplication,
+tenant and department scopes, and active-view subscription ownership.
+Client-only change detection without a server event source cannot guarantee
+instant updates for every database table.
