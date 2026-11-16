@@ -182,6 +182,7 @@ export function InternalWorkspaceScreen({ workspace, section }: Props) {
           : section === "payroll" ? <OfficePayrollConsole />
           : section === "budget" ? <OfficeBudgetWorkspace />
           : workspace === "office" && section === "assets" ? <OfficeAssetLifecycle />
+          : workspace === "office" && section === "device-recovery" ? <OfficeFounderDeviceRecovery />
           : workspace === "office" && section === "devices" ? <OfficeDeviceIdentity />
           : workspace === "office" && section === "it" ? <OfficeItService />
           : workspace === "office" && section === "facilities" ? <OfficePhysicalOffice />
