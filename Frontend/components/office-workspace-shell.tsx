@@ -576,7 +576,7 @@ export function OfficeWorkspaceShell({
                 <OfficePresenceControl/>
                 <div className="office-more-section-label">PREFERENCES</div>
                 <div className="office-more-actions">
-                  {canOpenSettings ? <OfficeNavLink href={settingsHref} onClick={() => setMoreOpen(false)}>
+                  {canOpenSettings ? <OfficeNavLink href={settingsHref}>
                     <Cog size={17} aria-hidden="true"/><span>Settings</span>
                   </OfficeNavLink> : null}
                   <button type="button" onClick={() => { switchTheme(); setMoreOpen(false); }}>
