@@ -16,7 +16,8 @@ type Condition =
   | { kind: "lt"; column: string; value: string }
   | { kind: "lte"; column: string; value: string }
   | { kind: "null"; column: string }
-  | { kind: "not-null"; column: string };
+  | { kind: "not-null"; column: string }
+  | { kind: "in"; column: string; values: string[] };
 
 async function countRows(admin: SupabaseClient, table: string, conditions: Condition[] = []): Promise<number> {
   // Counts only. No personally identifiable, banking, attendance interval or
@@ -27,6 +28,7 @@ async function countRows(admin: SupabaseClient, table: string, conditions: Condi
     else if (condition.kind === "lt") query = query.lt(condition.column, condition.value);
     else if (condition.kind === "lte") query = query.lte(condition.column, condition.value);
     else if (condition.kind === "null") query = query.is(condition.column, null);
+    else if (condition.kind === "in") query = query.in(condition.column, condition.values);
     else query = query.not(condition.column, "is", null);
   }
   const result = await query;
@@ -44,6 +46,51 @@ function todayInIst(now = new Date()): string {
   return part("year") + "-" + part("month") + "-" + part("day");
 }
 
+
+type EmploymentReference = { employment_id: string; identity_user_id: string | null; start_date: string | null };
+
+/** Page internally: Supabase's configured max-rows must not truncate salary coverage. */
+async function currentActiveEmployment(admin: SupabaseClient): Promise<EmploymentReference[]> {
+  const rows: EmploymentReference[] = [];
+  for (let offset = 0; offset < 100000; offset += 500) {
+    const { data, error } = await admin.from("office_employment_registry")
+      .select("employment_id,identity_user_id,start_date")
+      .eq("status", "ACTIVE").order("employment_id").range(offset, offset + 499);
+    if (error || !data) throw new HrReadinessError(503, "Active employment register is unavailable");
+    rows.push(...(data as EmploymentReference[]));
+    if (data.length < 500) return rows;
+  }
+  throw new HrReadinessError(503, "HR register exceeds safe completeness limit");
+}
+
+/** Count *distinct active employees*, never obsolete versions or planned employees. */
+async function currentActiveCoverage(
+  admin: SupabaseClient, table: string, column: string, activeIds: string[],
+  today: string, hasEndDate: boolean,
+): Promise<number> {
+  if (activeIds.length === 0) return 0;
+  const covered = new Set<string>();
+  // Chunk filters and page results. All returned identifiers remain server-side.
+  for (let i = 0; i < activeIds.length; i += 100) {
+    const batch = activeIds.slice(i, i + 100);
+    for (let offset = 0; offset < 100000; offset += 500) {
+      let query = admin.from(table).select(column).in(column, batch)
+        .eq("status", "APPROVED").lte("effective_from", today)
+        .order(column).range(offset, offset + 499);
+      if (hasEndDate) query = query.or("effective_to.is.null,effective_to.gte." + today);
+      const { data, error } = await query;
+      if (error || !data) throw new HrReadinessError(503, "Approved HR policy coverage is unavailable");
+      for (const row of data as Array<Record<string, unknown>>) {
+        const id = row[column];
+        if (typeof id === "string" && batch.includes(id)) covered.add(id);
+      }
+      if (data.length < 500) break;
+      if (offset >= 99500) throw new HrReadinessError(503, "HR coverage exceeds safe completeness limit");
+    }
+  }
+  return covered.size;
+}
+
 export async function getOfficeHrReadiness(): Promise<HrReadinessSnapshot> {
   const { admin, identity } = await requireOfficeActor();
   if (!identity.roles.some(role => role === "OWNER" || role === "DIRECTOR" || role === "HR")) {
@@ -59,23 +106,34 @@ export async function getOfficeHrReadiness(): Promise<HrReadinessSnapshot> {
   if (!canReadPeople) throw new OfficePermissionError(403, "Company-wide HR read authority is required");
   const today = todayInIst();
 
+  const activeRefs = await currentActiveEmployment(admin);
+  const activeEmployees = activeRefs.length;
+  const activeMissingStartDates = activeRefs.filter(row => !row.start_date).length;
+  const activeEmploymentIds = activeRefs.map(row => row.employment_id);
+  const activeUserIds = [...new Set(activeRefs.map(row => row.identity_user_id).filter((id): id is string => Boolean(id)))];
+
   const [
-    activeEmployees, plannedEmployees, activeMissingStartDates,
-    draftIntakes, verifiedIntakes, verifiedBankAccounts, issuedEmployeeIds,
-    attendanceSessions, openAttendanceSessions, overdueOpenSessions,
-    pendingWorktimeReviews, pendingLeaveRequests, historicImportBatches,
-    sourceReadyMailEvents, enabledMailEvents, employeeIdMailPolicies,
+    plannedEmployees, draftIntakes, verifiedIntakes, verifiedBankAccounts, issuedEmployeeIds,
+    attendanceSessions, openAttendanceSessions, overdueOpenSessions, pendingWorktimeReviews,
+    pendingLeaveRequests, historicImportBatches, sourceReadyMailEvents,
+    enabledMailEvents, employeeIdMailPolicies,
   ] = await Promise.all([
-    countRows(admin, "office_employment_registry", [{ kind: "eq", column: "status", value: "ACTIVE" }]),
     countRows(admin, "office_employment_registry", [{ kind: "eq", column: "status", value: "PLANNED" }]),
-    countRows(admin, "office_employment_registry", [{ kind: "eq", column: "status", value: "ACTIVE" }, { kind: "null", column: "start_date" }]),
     countRows(admin, "office_employee_intake_profiles", [{ kind: "eq", column: "status", value: "DRAFT" }]),
-    countRows(admin, "office_employee_intake_profiles", [{ kind: "eq", column: "status", value: "VERIFIED" }]),
-    countRows(admin, "office_employee_intake_profiles", [{ kind: "not-null", column: "bank_verified_at" }]),
-    countRows(admin, "office_employee_reference_ids"),
+    activeUserIds.length ? countRows(admin, "office_employee_intake_profiles", [
+      { kind: "eq", column: "status", value: "VERIFIED" }, { kind: "in", column: "employee_user_id", values: activeUserIds },
+    ]) : Promise.resolve(0),
+    activeUserIds.length ? countRows(admin, "office_employee_intake_profiles", [
+      { kind: "not-null", column: "bank_verified_at" }, { kind: "in", column: "employee_user_id", values: activeUserIds },
+    ]) : Promise.resolve(0),
+    activeUserIds.length ? countRows(admin, "office_employee_reference_ids", [
+      { kind: "in", column: "employee_user_id", values: activeUserIds },
+    ]) : Promise.resolve(0),
     countRows(admin, "office_attendance_sessions"),
     countRows(admin, "office_attendance_sessions", [{ kind: "eq", column: "status", value: "OPEN" }]),
-    countRows(admin, "office_attendance_sessions", [{ kind: "eq", column: "status", value: "OPEN" }, { kind: "lt", column: "work_date", value: today }]),
+    countRows(admin, "office_attendance_sessions", [
+      { kind: "eq", column: "status", value: "OPEN" }, { kind: "lt", column: "work_date", value: today },
+    ]),
     countRows(admin, "office_worktime_review_cases", [{ kind: "eq", column: "status", value: "PENDING" }]),
     countRows(admin, "office_hr_leave_requests", [{ kind: "eq", column: "status", value: "PENDING" }]),
     countRows(admin, "office_hr_attendance_import_batches"),
@@ -85,25 +143,24 @@ export async function getOfficeHrReadiness(): Promise<HrReadinessSnapshot> {
       { kind: "eq", column: "key", value: "EMPLOYEE_ID_ISSUED" },
       { kind: "eq", column: "enabled", value: true },
       { kind: "not-null", column: "approved_at" },
+      { kind: "lte", column: "effective_from", value: new Date().toISOString() },
     ]),
   ]);
 
-  // Different HR scopes must not be promoted by this dashboard. Null means
-  // restricted/unverified rather than a fabricated 'zero' readiness indicator.
+  // Null means restricted/unverified, not an invented zero. Bank details and
+  // source employment identifiers are never serialized into the response.
   const [approvedCompensationVersions, approvedPayrollRules, approvedWorktimePolicies, payrollPeriods, issuedPayslips, trustedManagedDevices] =
     await Promise.all([
-      canReadCompensation ? countRows(admin, "office_compensation_versions", [
-        { kind: "eq", column: "status", value: "APPROVED" },
-        { kind: "lte", column: "effective_from", value: today },
-      ]) : Promise.resolve(null),
+      canReadCompensation ? currentActiveCoverage(
+        admin, "office_compensation_versions", "employment_id", activeEmploymentIds, today, true,
+      ) : Promise.resolve(null),
       canReadRules ? countRows(admin, "office_payroll_rule_versions", [
         { kind: "eq", column: "status", value: "APPROVED" },
         { kind: "lte", column: "effective_from", value: today },
       ]) : Promise.resolve(null),
-      canReadRules ? countRows(admin, "office_worktime_policy_versions", [
-        { kind: "eq", column: "status", value: "APPROVED" },
-        { kind: "lte", column: "effective_from", value: today },
-      ]) : Promise.resolve(null),
+      canReadRules ? currentActiveCoverage(
+        admin, "office_worktime_policy_versions", "employee_user_id", activeUserIds, today, false,
+      ) : Promise.resolve(null),
       canReadRun ? countRows(admin, "office_payroll_periods") : Promise.resolve(null),
       canReadRun ? countRows(admin, "office_salary_payslip_issues") : Promise.resolve(null),
       canReadDevices || canApproveDevices ? countRows(admin, "office_device_registry", [
