@@ -46,6 +46,20 @@ describe("HR operational readiness uses evidence rather than assumed payroll ent
     expect(tasks[tasks.length - 1].priority).toBe("P2");
   });
 
+  it("keeps partial active-employee coverage blocked even with approved records", () => {
+    const tasks = deriveHrReadiness(metrics({
+      activeEmployees: 4, activeMissingStartDates: 0,
+      verifiedBankAccounts: 3, approvedCompensationVersions: 3,
+      approvedWorktimePolicies: 2, approvedPayrollRules: 1,
+    }));
+    const blockers = tasks.filter(item => item.priority === "P0");
+    expect(blockers.map(item => item.id)).toContain("bank-verification");
+    expect(blockers.map(item => item.id)).toContain("salary-versions");
+    expect(blockers.map(item => item.id)).toContain("ot-policy");
+    expect(blockers.find(item => item.id === "salary-versions")?.detail).toContain("1 active");
+    expect(blockers.find(item => item.id === "ot-policy")?.detail).toContain("2 active");
+  });
+
   it("never treats current-day open sessions as overdue work", () => {
     expect(deriveHrReadiness(metrics({ openAttendanceSessions: 2, overdueOpenSessions: 0 }))
       .some(item => item.id === "stale-sessions")).toBe(false);
@@ -103,6 +117,9 @@ describe("HR operational readiness uses evidence rather than assumed payroll ent
     expect(server).toContain('can("people.basic.read")');
     expect(server).toContain("Company-wide HR read authority is required");
     expect(server).toContain('head: true');
+    expect(server).toContain("currentActiveEmployment");
+    expect(server).toContain("currentActiveCoverage");
+    expect(server).toContain('"effective_to.is.null,effective_to.gte."');
     expect(server).not.toContain("bank_account_ciphertext");
     expect(server).not.toContain("monthly_gross_minor");
     expect(route).toContain("private, no-store");
