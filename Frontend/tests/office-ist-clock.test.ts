@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 const clock = readFileSync(new URL("../components/office-ist-clock.tsx",import.meta.url),"utf8");
 const shell = readFileSync(new URL("../components/office-workspace-shell.tsx",import.meta.url),"utf8");
+const calendar = readFileSync(new URL("../components/office-topbar-calendar.tsx",import.meta.url),"utf8");
 const css = readFileSync(new URL("../app/office/office-shell-next.css",import.meta.url),"utf8");
 const config = readFileSync(new URL("../next.config.ts",import.meta.url),"utf8");
 
@@ -17,7 +18,9 @@ describe("Office IST clock stays inside the existing compact top bar",()=>{
     expect(clock).not.toMatch(/Date\(202[0-9]/);
   });
   it("uses time, date and IST on desktop and mobile without changing toolbar height",()=>{
-    expect(shell).toContain("<OfficeIstClock/>");
+    expect(shell).toContain("<OfficeTopbarCalendar");
+    expect(calendar).toContain("<OfficeIstClock />");
+    expect(calendar).toContain('data-office-topbar-calendar-trigger');
     expect(shell).toContain('office-topbar office-topbar-compact');
     expect(css).toContain(".office-ist-clock-date-small");
     expect(css).toContain(".office-ist-clock-seconds{display:none}");
