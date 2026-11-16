@@ -9,17 +9,19 @@ import { OfficeActionState } from "@/components/office-action-state";
 import { OfficeConnectChatList, OfficeConnectWelcome } from "@/components/office-connect-chat-list";
 import { OfficeConnectMobileHome } from "@/components/office-connect-mobile-home";
 import { OfficeConnectMembers } from "@/components/office-connect-members";
-import { Office5FileCard, type Office5FileStatus } from "@/components/office5-primitives";
+import { Office5FileCard } from "@/components/office5-primitives";
 import { useOfficeWorkspace } from "@/components/office-workspace-context";
 import {mergeChatHistory,type ChatHistoryCursor} from "@/lib/office/chat-history";
 import {useOfficeChatLive} from "@/lib/office/use-office-chat-live";
 import {useOfficeChatInboxLive} from "@/lib/office/use-office-chat-inbox-live";
+import {useOfficeChatOnline} from "@/lib/office/use-office-chat-online";
+import {OfficeConnectAttachmentPreview,type ConnectDraftFile} from "@/components/office-connect-attachment-preview";
 
 type Conversation = { id: string; kind: string; title: string; department_code?: string | null; updated_at: string };
 type Message = { id: string; sender_user_id: string; sender_name: string; body: string; created_at: string; edited_at?: string | null; pinned?:boolean; delivery_status?:"sent"|"delivered"|"read";
  reactions?:{emoji:string;count:number;mine:boolean}[];
  attachments?: {id:string;name:string;mime:string;size:number}[] };
-type SelectedFile={id?:string;key:string;name:string;status:Office5FileStatus;message?:string};
+type SelectedFile=ConnectDraftFile;
 type ListResponse = { actor_user_id: string; conversations: Conversation[] };
 type Member={user_id:string;display_name:string};
 type MessageResponse = { actor_user_id: string; can_pin:boolean; messages: Message[];older_cursor:ChatHistoryCursor|null };
@@ -36,6 +38,17 @@ function messageDay(date:string){
  const parsed=new Date(date);
  return Number.isNaN(parsed.valueOf())?"Unknown date":
  new Intl.DateTimeFormat("en-IN",{timeZone:"Asia/Kolkata",day:"numeric",month:"short",year:"numeric"}).format(parsed);
+}
+function lastSeenLabel(value:string|null|undefined){
+ if(!value)return "Offline or last seen hidden";
+ const d=new Date(value);
+ if(Number.isNaN(d.valueOf()))return "Last seen unavailable";
+ const date=(v:Date)=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).format(v);
+ const today=date(new Date()),yesterday=date(new Date(Date.now()-86400000)),day=date(d);
+ const time=new Intl.DateTimeFormat("en-IN",{timeZone:"Asia/Kolkata",hour:"numeric",minute:"2-digit",hour12:true}).format(d);
+ if(day===today)return "Last seen today at "+time;
+ if(day===yesterday)return "Last seen yesterday at "+time;
+ return "Last seen "+messageDay(value)+" at "+time;
 }
 function messageTime(date:string){
  const parsed=new Date(date);
@@ -87,6 +100,15 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
   const [sendStatus, setSendStatus] = useState("");
   const [selectedFiles,setSelectedFiles] = useState<SelectedFile[]>([]);
   const [fileLoading,setFileLoading] = useState(false);
+  const [filePreviewOpen,setFilePreviewOpen]=useState(false);
+  const uploadsInFlight=useRef(0);
+  const cancelledFileKeys=useRef<Set<string>>(new Set());
+  const localPreviewUrls=useRef<Set<string>>(new Set());
+  const composerForm=useRef<HTMLFormElement|null>(null);
+  useEffect(()=>{
+   const urls=localPreviewUrls.current;
+   return()=>{urls.forEach(url=>URL.revokeObjectURL(url));urls.clear();};
+  },[]);
   const [members,setMembers] = useState<Member[]>([]);
   const [memberPanel,setMemberPanel]=useState(false);
   const [pickedMentions,setPickedMentions] = useState<string[]>([]);
@@ -120,7 +142,14 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
     ()=>{setMessageError("Conversation access has changed. Reload after authorization is restored.");
       setMessages([]);setMessageScope(null);setTypingPeople([]);setReloadCount(count=>count+1);},
     ()=>setTypingRefresh(value=>value+1));
+  const conversationPresence=useOfficeChatOnline(activeId,typingRefresh);
+  const otherMember=members.find(person=>person.user_id!==actor);
+  const theirPresence=conversationPresence.find(member=>member.user_id===otherMember?.user_id);
+  const onlineCount=conversationPresence.filter(member=>member.user_id!==actor&&member.online).length;
   const selected = conversations.find(row => row.id === activeId);
+  const presenceCaption=selected?.kind==="DM"?
+    (theirPresence?.online?"Online":lastSeenLabel(theirPresence?.last_seen_at)):
+    (onlineCount>0?onlineCount+" member"+(onlineCount===1?"":"s")+" online":"No members currently visible online");
   const visibleMessages=useMemo(()=>messageScope===activeId?messages:[],[messageScope,activeId,messages]);
   const mentionSuggestions=mentionTerm===null?[]:members.filter(person=>
     person.display_name.toLocaleLowerCase().includes(mentionTerm.toLocaleLowerCase())).slice(0,8);
@@ -238,6 +267,18 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
       setMessages([]);setMessageScope(null);setOlderCursor(null);
       setOlderError("");setMessageError("");setMessageLoading(true);
       setMemberPanel(false);setMembers([]);setPickedMentions([]);
+      setFilePreviewOpen(false);
+      setSelectedFiles(existing=>{
+       for(const file of existing){
+        cancelledFileKeys.current.add(file.key);
+        if(file.previewUrl){URL.revokeObjectURL(file.previewUrl);localPreviewUrls.current.delete(file.previewUrl);}
+        if(file.id)void fetch("/api/office-chat/attachments/"+file.id,{
+         method:"DELETE",credentials:"same-origin",keepalive:true,
+        }).catch(()=>{/* Unlinked file remains private. */});
+       }
+       return [];
+      });
+      setDraft("");
     }
     const load=async()=>{
       if(inFlight)return;
@@ -373,12 +414,35 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
     }finally{setOlderLoading(false);}
   }
 
+  function removeSelectedFile(key:string){
+    const file=selectedFiles.find(f=>f.key===key);
+    if(!file)return;
+    cancelledFileKeys.current.add(key);
+    if(file.previewUrl){URL.revokeObjectURL(file.previewUrl);localPreviewUrls.current.delete(file.previewUrl);}
+    if(file.id)void fetch("/api/office-chat/attachments/"+file.id,{
+      method:"DELETE",credentials:"same-origin",keepalive:true,
+    }).catch(()=>{/* Unlinked draft stays private. */});
+    setSelectedFiles(items=>items.filter(f=>f.key!==key));
+    if(selectedFiles.length===1)setFilePreviewOpen(false);
+  }
+  function moveSelectedFile(key:string,direction:-1|1){
+    setSelectedFiles(items=>{
+      const i=items.findIndex(f=>f.key===key),j=i+direction;
+      if(i<0||j<0||j>=items.length)return items;
+      const next=[...items];[next[i],next[j]]=[next[j],next[i]];
+      return next;
+    });
+  }
   async function uploadFile(file:File) {
     if(!activeId||selectedFiles.length>=5)return;
     const key=window.crypto.randomUUID();
-    const entry:SelectedFile={key,name:file.name,status:"selected"};
-    setSelectedFiles(prev=>[...prev,entry]);
     const nativeType=file.type.toLowerCase();
+    const mayPreview=/^(image\/|video\/)/.test(nativeType)||nativeType==="application/pdf";
+    const previewUrl=mayPreview?URL.createObjectURL(file):undefined;
+    if(previewUrl)localPreviewUrls.current.add(previewUrl);
+    const entry:SelectedFile={key,name:file.name,status:"selected",mime:nativeType,size:file.size,previewUrl};
+    setSelectedFiles(prev=>[...prev,entry]);
+    setFilePreviewOpen(true);
     if(!chatExtendedMediaReady&&!liveScannerTypes.has(nativeType)&&
       !/\.(pdf|jpe?g|png|webp)$/i.test(file.name)){
       setSelectedFiles(prev=>prev.map(f=>f.key===key?{...f,status:"blocked",
@@ -389,7 +453,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
       setSelectedFiles(prev=>prev.map(f=>f.key===key?{...f,status:"blocked",message:"Files must be 1 byte–4 MiB for this secure transfer endpoint"}:f));
       return;
     }
-    setComposerTool(null);setFileLoading(true);
+    setComposerTool(null);uploadsInFlight.current+=1;setFileLoading(true);
     setSelectedFiles(prev=>prev.map(f=>f.key===key?{...f,status:"uploading"}:f));
     try{
       const form=new FormData();
@@ -400,6 +464,12 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
       });
       const body=await response.json().catch(()=>({})) as {attachment_id?:string;status?:string;detail?:string};
       if(!response.ok)throw new Error(body.detail??"Private file upload not confirmed");
+       if(cancelledFileKeys.current.has(key)){
+         if(body.attachment_id)void fetch("/api/office-chat/attachments/"+body.attachment_id,{
+          method:"DELETE",credentials:"same-origin",keepalive:true,
+         }).catch(()=>{/* Upload completed after cancellation; never linked. */});
+         return;
+       }
       setSelectedFiles(prev=>prev.map(f=>f.key===key?{
         ...f,id:body.attachment_id,status:body.status==="CLEAN"?"available":"unknown",
         message:body.status==="CLEAN"?"Malware scanner confirmed clean":body.detail??"Scan pending; download blocked",
@@ -408,7 +478,10 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
       setSelectedFiles(prev=>prev.map(f=>f.key===key?{
         ...f,status:"failed",message:e instanceof Error?e.message:"Upload failed",
       }:f));
-    }finally{setFileLoading(false);}
+     }finally{
+      uploadsInFlight.current=Math.max(0,uploadsInFlight.current-1);
+      setFileLoading(uploadsInFlight.current>0);
+    }
   }
 
   async function retryAttachment(id:string){
@@ -451,6 +524,10 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
         ...previous,{id:confirmed.message_id,sender_user_id:actor,
           sender_name:"You",body,created_at:new Date().toISOString()}]);
       setDraft("");
+      selectedFiles.forEach(file=>{
+       if(file.previewUrl){URL.revokeObjectURL(file.previewUrl);localPreviewUrls.current.delete(file.previewUrl);}
+      });
+      setFilePreviewOpen(false);
       if(typingIdleTimer.current)clearTimeout(typingIdleTimer.current);
       signalTyping(false);setPickedMentions([]);setSelectedFiles([]);
       setSendStatus("Sent");setReloadCount(v=>v+1);
@@ -487,7 +564,11 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
           <div className={styles.threadHeader} data-chat-thread-header>
              <Link href="/office/chat" className={styles.back} aria-label="Back to conversations" title="All conversations">
                <ArrowLeft size={17} aria-hidden="true"/></Link>
-             <strong>{selected?.title??"Private conversation"}</strong>
+             <div className={styles.conversationIdentity}>
+               <strong>{selected?.title??"Private conversation"}</strong>
+               <small data-online={selected?.kind==="DM"&&theirPresence?.online===true}
+                aria-label={"Presence: "+presenceCaption}>{presenceCaption}</small>
+             </div>
              <button type="button" aria-label="Conversation members" title="Members" aria-expanded={memberPanel} aria-controls="office-connect-members"
               onClick={()=>setMemberPanel(open=>!open)}><UsersRound size={17} aria-hidden="true"/></button></div>
           {memberPanel?<OfficeConnectMembers key={activeId} conversationId={activeId} onChanged={()=>setReloadCount(n=>n+1)}/>:null}
@@ -565,7 +646,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
               {typingPeople.length===1?" is typing":" are typing"}</span>
             <span className={styles.typingDots} aria-hidden="true"><i/><i/><i/></span>
           </p>:null}
-          <form className={styles.composer} data-chat-composer onSubmit={send}>
+          <form ref={composerForm} className={styles.composer} data-chat-composer onSubmit={send}>
             <label htmlFor="office-chat-message" className="chat-sr-only">Message to verified conversation members</label>
             {mentionTerm!==null?<div className="chat-mention-menu" role="listbox" id="office-chat-mentions" aria-label="Mention group members">
               {mentionSuggestions.length?mentionSuggestions.map((person,index)=>
@@ -658,7 +739,7 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
             <input className="chat-file-input" ref={filePicker} type="file" aria-label="Choose a scanned file"
               accept={chatExtendedMediaReady?".pdf,.txt,.docx,.xlsx,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm":
                 ".pdf,.jpg,.jpeg,.png,.webp"}
-              onChange={e=>{const file=e.target.files?.[0];e.target.value="";if(file)void uploadFile(file);}}/>
+              multiple onChange={e=>{const files=Array.from(e.target.files??[]).slice(0,Math.max(0,5-selectedFiles.length));e.target.value="";files.forEach(file=>void uploadFile(file));}}/>
             <input className="chat-file-input" ref={imagePicker} type="file" aria-label="Choose an image"
               accept={chatExtendedMediaReady?"image/jpeg,image/png,image/webp,image/gif":
                 "image/jpeg,image/png,image/webp"} 
@@ -672,8 +753,12 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
             {selectedFiles.length?<div className="chat-file-queue" aria-label="Attachment scan status">
               {selectedFiles.map(file=><Office5FileCard key={file.key} name={file.name} status={file.status}
                 reason={file.message} onRetry={file.id?()=>void retryAttachment(file.id!):undefined}
-                onCancel={()=>setSelectedFiles(prev=>prev.filter(f=>f.key!==file.key))}/>)}
+                onCancel={()=>removeSelectedFile(file.key)}/>)}
             </div>:null}
+            {selectedFiles.length?<button type="button" className={styles.previewTrigger}
+              onClick={()=>setFilePreviewOpen(true)} disabled={submitting}>
+              Review {selectedFiles.length} attachment{selectedFiles.length===1?"":"s"} before sending
+            </button>:null}
             <div className="chat-composer-foot">
               <span>{sendStatus||"Enter to send · Shift+Enter for a new line"}</span>
               <span>Private message · not an approval</span>
@@ -682,5 +767,12 @@ export function OfficeConnect({ initialConversationId }: { initialConversationId
         </>}
       </section>
     </div>
+    <OfficeConnectAttachmentPreview open={!!activeId&&filePreviewOpen}
+      files={selectedFiles} caption={draft} busy={submitting||fileLoading}
+      onCaption={value=>updateDraft(value,value.length)}
+      onRemove={removeSelectedFile} onMove={moveSelectedFile}
+      onRetry={id=>void retryAttachment(id)}
+      onClose={()=>setFilePreviewOpen(false)}
+      onSend={()=>composerForm.current?.requestSubmit()}/>
   </section>;
 }

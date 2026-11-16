@@ -93,7 +93,7 @@ type AttachmentRow={
  quarantine_path:string;released_path:string|null;status:string;
 };
 async function recordEvent(admin:Awaited<ReturnType<typeof requireOfficeChatConversation>>["admin"],input:{
- id:string;actor:string;kind:"QUARANTINED"|"SCAN_CLEAN"|"SCAN_BLOCKED"|"SCAN_UNKNOWN"|"LINKED"|"DOWNLOADED"
+ id:string;actor:string;kind:"QUARANTINED"|"SCAN_CLEAN"|"SCAN_BLOCKED"|"SCAN_UNKNOWN"|"LINKED"|"DOWNLOADED"|"DISCARDED"
 }){
  const {error}=await admin.from("office_chat_attachment_events").insert({
   attachment_id:input.id,actor_user_id:input.actor,event_type:input.kind
@@ -222,4 +222,30 @@ export async function downloadOfficeChatAttachment(id:string){
   throw new OfficeChatAttachmentError(500,"Attachment integrity verification failed");
  await recordEvent(current.admin,{id,actor:current.identity.userId,kind:"DOWNLOADED"});
  return {bytes,mime:attachment.detected_mime_type,filename:attachment.original_filename};
+}
+
+/** Cancel a private, unlinked draft. Never delete content linked to a sent message. */
+export async function discardOfficeChatDraftAttachment(id:string){
+ const {current,attachment}=await fetchOwn(id);
+ if(attachment.uploader_user_id!==current.identity.userId||attachment.message_id)
+  throw new OfficeChatAttachmentError(404,"Draft attachment unavailable");
+ if(attachment.status==="CANCELLED")return {discarded:true};
+ const updated=await current.admin.from("office_chat_attachment_objects")
+  .update({status:"CANCELLED"})
+  .eq("id",id).eq("uploader_user_id",current.identity.userId)
+  .is("message_id",null)
+  .in("status",["QUARANTINED","SCANNING","CLEAN","FAILED"])
+  .select("id").maybeSingle();
+ if(updated.error||!updated.data)
+  throw new OfficeChatAttachmentError(409,"Draft changed before cancellation");
+ await recordEvent(current.admin,{id,actor:current.identity.userId,kind:"DISCARDED"});
+ const results=await Promise.all([
+  current.admin.storage.from(quarantine).remove([attachment.quarantine_path]),
+  attachment.released_path
+   ?current.admin.storage.from(released).remove([attachment.released_path])
+   :Promise.resolve({error:null}),
+ ]);
+ if(results.some(result=>result.error))
+  throw new OfficeChatAttachmentError(503,"Draft revoked; private storage cleanup requires reconciliation");
+ return {discarded:true};
 }

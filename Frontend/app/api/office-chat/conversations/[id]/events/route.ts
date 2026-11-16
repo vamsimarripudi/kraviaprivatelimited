@@ -11,7 +11,7 @@ const headers={"Cache-Control":"private, no-store","X-Content-Type-Options":"nos
 const uuid=z.string().uuid();
 const MAX_EVENTS_PER_BATCH=40;
 const STREAM_MS=24000;
-const PULSE_MS=2300;
+const PULSE_MS=700;
 const encoder=new TextEncoder();
 const cursor=/^(?:0|[1-9]\d{0,17})$/;
 function event(kind:string,payload:Record<string,string>,id?:string){

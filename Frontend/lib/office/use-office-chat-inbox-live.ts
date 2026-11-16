@@ -20,7 +20,7 @@ export function useOfficeChatInboxLive(onChange:()=>void,onRevoked?:()=>void):Of
    next.addEventListener("change",()=>{
     if(!active||document.visibilityState!=="visible")return;
     if(debounce)clearTimeout(debounce);
-    debounce=setTimeout(()=>{if(active)callback.current();},240);
+    debounce=setTimeout(()=>{if(active)callback.current();},110);
    });
    next.addEventListener("access-revoked",()=>{
     blocked=true;next.close();setState("restricted");revoked.current?.();callback.current();

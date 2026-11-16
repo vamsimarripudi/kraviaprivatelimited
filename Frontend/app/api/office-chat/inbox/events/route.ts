@@ -5,7 +5,7 @@ export const runtime="nodejs";
 export const dynamic="force-dynamic";
 export const maxDuration=30;
 const headers={"Cache-Control":"private, no-store","X-Content-Type-Options":"nosniff"} as const;
-const MAX_BATCH=40,STREAM_MS=24000,PULSE_MS=3600;
+const MAX_BATCH=40,STREAM_MS=24000,PULSE_MS=1800;
 const encoder=new TextEncoder(),cursor=/^(?:0|[1-9]\d{0,17})$/;
 const event=(name:string,payload:{kind:string},id?:string)=>
  (id?"id: "+id+"\n":"")+"event: "+name+"\n"+

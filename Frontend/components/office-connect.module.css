@@ -125,3 +125,11 @@
 .typingDots i:nth-child(2){animation-delay:.18s}.typingDots i:nth-child(3){animation-delay:.36s}
 @keyframes officeTyping{from{opacity:.35;transform:translateY(0)}to{opacity:1;transform:translateY(-4px)}}
 @media(prefers-reduced-motion:reduce){.typingDots i{animation:none}}
+
+/* Presence is a separate chat signal; it never represents payroll attendance. */
+.conversationIdentity{min-width:0;flex:1;display:grid;gap:3px;align-items:center}
+.conversationIdentity strong{font-size:13px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.conversationIdentity small{font-size:11px;line-height:1.4;color:var(--office-ui-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.conversationIdentity small[data-online="true"]{color:#357bb7}
+.previewTrigger{display:inline-flex!important;justify-content:flex-start!important;width:max-content;max-width:100%;gap:7px;align-items:center;min-height:34px!important;padding:7px 10px!important;border:1px solid var(--office-ui-line)!important;border-radius:9px!important;background:var(--office-ui-surface-alt)!important;color:var(--office-ui-ink)!important;font-size:11px!important;font-weight:650!important}
+@media(max-width:767px){.conversationIdentity{max-width:calc(100vw - 170px)}}

@@ -36,3 +36,7 @@
 .shell[data-embedded="true"] :is(.back,.options,[hidden]){display:none!important}
 @media(max-width:1000px){.shell[data-embedded="true"] .columns{grid-template-columns:1fr}}
 @media(max-width:767px){.shell[data-embedded="true"] .card{padding:13px!important}}
+
+.selectLabel{display:grid;gap:8px;font-size:12px;font-weight:680;color:var(--office-ui-ink)}
+.selectLabel select{width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--office-ui-line);background:var(--office-ui-surface-alt);color:inherit;border-radius:10px;font:inherit;cursor:pointer}
+.privacyHelp{color:var(--office-ui-muted);font-size:11px;line-height:1.6;margin:0}

@@ -9,6 +9,11 @@ import styles from "./office-connect-settings.module.css";
 const themeKey="kravia.office.appearance";
 type Theme="light"|"dark";
 type ServerAnswer={scope:"OWN";preferences:ConnectPrefs;updated_at:string|null;detail?:string};
+type PresencePreferences={
+ last_seen_visibility:"COWORKERS"|"CONVERSATIONS"|"NOBODY";
+ online_visibility:"COWORKERS"|"SAME_AS_LAST_SEEN";
+};
+type PresenceAnswer={scope:"OWN";preferences:PresencePreferences;detail?:string};
 const fields:{key:keyof ConnectPrefs;title:string;help:string}[]=[
  {key:"notify_direct",title:"Direct messages",help:"Your preferred direct-message notification setting; delivery requires the approved notifier."},
  {key:"notify_mentions",title:"Mentions",help:"Your preferred mention notification setting; delivery requires the approved notifier."},
@@ -27,6 +32,40 @@ export function OfficeConnectSettings({ embedded = false }: { embedded?: boolean
  const [refresh,setRefresh]=useState(0);
  const [error,setError]=useState("");
  const [notice,setNotice]=useState("");
+ const [presence,setPresence]=useState<PresencePreferences|null>(null);
+ const [presenceLoading,setPresenceLoading]=useState(true);
+ const [presenceSaving,setPresenceSaving]=useState(false);
+ const [presenceNotice,setPresenceNotice]=useState("");
+ const [presenceError,setPresenceError]=useState("");
+ useEffect(()=>{
+  let active=true;
+  void fetch("/api/office-chat/presence",{cache:"no-store",credentials:"same-origin"})
+   .then(async r=>{
+    const body=await r.json().catch(()=>({})) as PresenceAnswer;
+    if(!r.ok||body.scope!=="OWN"||!body.preferences)
+     throw Error(body.detail||"Presence settings unavailable");
+    return body.preferences;
+   }).then(p=>{if(active)setPresence(p);})
+   .catch(e=>{if(active)setPresenceError(e instanceof Error?e.message:"Presence settings unavailable");})
+   .finally(()=>{if(active)setPresenceLoading(false);});
+  return()=>{active=false;};
+ },[]);
+ async function savePresence(event:FormEvent<HTMLFormElement>){
+  event.preventDefault();if(!presence||presenceSaving)return;
+  setPresenceSaving(true);setPresenceNotice("");setPresenceError("");
+  try{
+   const response=await fetch("/api/office-chat/presence",{
+    method:"PUT",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(presence),
+   });
+   const body=await response.json().catch(()=>({})) as PresenceAnswer;
+   if(!response.ok||body.scope!=="OWN"||!body.preferences)
+    throw Error(body.detail||"Privacy update was not confirmed");
+   setPresence(body.preferences);
+   setPresenceNotice("Online and last-seen visibility saved to your verified Office identity.");
+  }catch(e){setPresenceError(e instanceof Error?e.message:"Presence privacy was not saved");}
+  finally{setPresenceSaving(false);}
+ }
  useEffect(()=>{
   const frame=window.requestAnimationFrame(()=>{
    setPreferences(readConnectPreferences());
@@ -115,6 +154,36 @@ export function OfficeConnectSettings({ embedded = false }: { embedded?: boolean
         onChange={event=>setServer(current=>current?{...current,[field.key]:event.target.checked}:current)}/>
       </label>)}
       <button type="submit" disabled={saving}>{saving?"Saving…":"Save verified preferences"}</button>
+    </form>:null}
+   </section>
+   <section className={styles.card} aria-labelledby="connect-presence-heading">
+    <h2 id="connect-presence-heading"><Eye size={19}/> Online and last seen</h2>
+    <p>These settings control what authorized conversation members can see.
+     Chat activity never determines attendance, overtime or payroll.</p>
+    {presenceLoading?<p role="status">Checking verified presence privacy…</p>:null}
+    {presenceError?<p role="alert" className={styles.notice}>{presenceError}</p>:null}
+    {presenceNotice?<p role="status" className={styles.notice}>{presenceNotice}</p>:null}
+    {presence?<form className={styles.serverForm} onSubmit={savePresence}>
+      <label className={styles.selectLabel}>Who can see my last seen?
+       <select disabled={presenceSaving} value={presence.last_seen_visibility}
+        onChange={e=>setPresence(p=>p?{...p,last_seen_visibility:e.target.value as PresencePreferences["last_seen_visibility"]}:p)}>
+        <option value="COWORKERS">Authorized coworkers</option>
+        <option value="CONVERSATIONS">My authorized conversations</option>
+        <option value="NOBODY">Nobody</option>
+       </select>
+      </label>
+      <label className={styles.selectLabel}>Who can see when I am online?
+       <select disabled={presenceSaving} value={presence.online_visibility}
+        onChange={e=>setPresence(p=>p?{...p,online_visibility:e.target.value as PresencePreferences["online_visibility"]}:p)}>
+        <option value="SAME_AS_LAST_SEEN">Same as last seen</option>
+        <option value="COWORKERS">Authorized coworkers</option>
+       </select>
+      </label>
+      <p className={styles.privacyHelp}>Online means an active chat session, not that a message was read.
+       Last-seen timestamps may be approximate after an abrupt disconnection.</p>
+      <button type="submit" disabled={presenceSaving}>
+       {presenceSaving?"Saving privacy…":"Save online & last seen"}
+      </button>
     </form>:null}
    </section>
    <section className={styles.card} aria-labelledby="connect-policy-heading">

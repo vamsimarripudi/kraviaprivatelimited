@@ -46,7 +46,7 @@ export function useOfficeChatLive(
    source.addEventListener("change",()=>{
     if(!active||document.visibilityState!=="visible")return;
     if(debounce)clearTimeout(debounce);
-    debounce=setTimeout(()=>{if(active)changeRef.current();},200);
+    debounce=setTimeout(()=>{if(active)changeRef.current();},85);
    });
    source.addEventListener("presence",()=>{
     if(active&&document.visibilityState==="visible")presenceRef.current?.();

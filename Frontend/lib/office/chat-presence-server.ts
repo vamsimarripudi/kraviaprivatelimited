@@ -9,7 +9,7 @@ export async function getOfficeChatTyping(conversationId:string){
   .select("user_id,last_signal")
   .eq("conversation_id",conversationId)
   .eq("is_typing",true)
-  .gt("last_signal",new Date(now.getTime()-10000).toISOString())
+  .gt("last_signal",new Date(now.getTime()-4500).toISOString())
   .order("last_signal",{ascending:false}).limit(80);
  if(error)throw new OfficeChatError(503,"Private presence temporarily unavailable");
  return {typing:(data??[]).filter(row=>row.user_id!==current.identity.userId&&
