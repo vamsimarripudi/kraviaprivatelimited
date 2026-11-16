@@ -31,8 +31,8 @@ describe("HR discoverability without permission elevation",()=>{
   }
  });
  it("only shows related sensitive HR links when they already exist in allowed entries",()=>{
-  expect(shell).toContain('entries.some(([slug])=>slug==="payroll")');
-  expect(shell).toContain('entries.some(([slug])=>slug==="development")');
+  expect(shell).toContain('entries.some(([slug,value])=>slug==="payroll"&&categoryFor(slug,value)===selectedCategory)');
+  expect(shell).toContain('entries.some(([slug,value])=>slug==="development"&&categoryFor(slug,value)===selectedCategory)');
   expect(shell).toContain('!entries.some(([slug])=>slug==="people")');
   expect(shell).toContain("Check device approval and permissions");
   expect(shell).toContain('role="status"');
