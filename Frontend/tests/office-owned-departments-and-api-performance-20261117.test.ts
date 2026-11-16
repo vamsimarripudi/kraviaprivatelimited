@@ -59,6 +59,10 @@ describe("KRAVIA Office scoped multi-department owner access",()=>{
     expect(capabilityCanAccessSection("office","payroll",["ADMIN"],["customer.trust.read"])).toBe(false);
     expect(snapshot).toContain("managedDeviceValid");
     expect(snapshot).toContain('currentOfficeTrustedDeviceId(admin,identity.userId)');
+    expect(snapshot).toContain('ownedDeviceRequired');
+    expect(snapshot).toContain('const requiresDevice=deviceEnforced||');
+    expect(perms).toContain('decision.source === "DEPARTMENT_OWNER"');
+    expect(perms).toContain('permission.high_risk || permission.requires_managed_device');
   });
   it("keeps all assigned categories in the sidebar; focus never restricts modules",()=>{
     expect(shell).toContain('fetch("/api/office-my-departments"');
@@ -94,5 +98,11 @@ describe("KRAVIA Office scoped multi-department owner access",()=>{
     expect(trust).toContain('const decisions=await Promise.all(codes.map(code=>');
     expect(support).toContain('permission("support.case.read", verifiedActor)');
     expect(support).toContain('const [canManage,canRefund] = await Promise.all([');
+    expect(support).toContain('read.admin.from(table).select(columns).in("id",batch)');
+    expect(support).toContain('reference_status: referenceStatus');
+    expect(support).not.toContain('readOfficeRuntimeResult');
+    expect(trust).toContain('current.admin.from("customers")');
+    expect(trust).toContain('current.admin.from("vendors")');
+    expect(trust).not.toContain('readOfficeRuntimeResult');
   });
 });
