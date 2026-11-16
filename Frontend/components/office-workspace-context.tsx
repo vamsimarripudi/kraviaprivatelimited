@@ -6,6 +6,10 @@ import type { OfficeIdentity } from "@/lib/office/auth-server";
 type OfficeWorkspaceContextValue = {
   identity: OfficeIdentity;
   permissions: readonly string[];
+  /** Client-side presentation filter; real authorization remains on the API. */
+  visibleSections: readonly string[];
+  departmentNavigationStatus: "loading" | "ready" | "unavailable";
+  departmentNavigationError: string | null;
 };
 
 const OfficeWorkspaceContext = createContext<OfficeWorkspaceContextValue | null>(null);
@@ -13,10 +17,14 @@ const OfficeWorkspaceContext = createContext<OfficeWorkspaceContextValue | null>
 export function OfficeWorkspaceProvider({
   identity,
   permissions,
+  visibleSections,
+  departmentNavigationStatus,
+  departmentNavigationError,
   children,
 }: OfficeWorkspaceContextValue & { children: React.ReactNode }) {
   return (
-    <OfficeWorkspaceContext.Provider value={{ identity, permissions }}>
+    <OfficeWorkspaceContext.Provider value={{ identity, permissions, visibleSections,
+        departmentNavigationStatus, departmentNavigationError }}>
       {children}
     </OfficeWorkspaceContext.Provider>
   );
