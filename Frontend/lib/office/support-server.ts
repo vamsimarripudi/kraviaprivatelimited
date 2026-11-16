@@ -44,8 +44,13 @@ async function actor() {
   }
 }
 
-async function permission(permissionCode: string): Promise<Authority> {
-  const currentActor = await actor();
+async function permission(
+  permissionCode: string,
+  existingActor?: Awaited<ReturnType<typeof actor>>,
+): Promise<Authority> {
+  // GET overview checks read, write and refund rights without revalidating
+  // the same AAL2 session three times in one HTTP request.
+  const currentActor = existingActor ?? await actor();
   const candidates: OfficeResourceScope[] = [
     ...(currentActor.identity.department ? [{ type: "DEPARTMENT" as const, key: currentActor.identity.department }] : []),
     { type: "OWN", ownerUserId: currentActor.identity.userId },
@@ -112,12 +117,26 @@ export async function getOfficeSupportOverview() {
       return query;
     })(),
   ]);
-  if (eventsResult.error || customersResult.error || productsResult.error || ownersResult.error) throw new OfficeSupportError(503, "Support reference data is temporarily unavailable");
-
-  let canManage = false;
-  let canRefund = false;
-  try { await permission("support.case.manage"); canManage = true; } catch (error) { if (!(error instanceof OfficeSupportError && error.status === 403)) throw error; }
-  try { await permission("customer.refund.request"); canRefund = true; } catch (error) { if (!(error instanceof OfficeSupportError && error.status === 403)) throw error; }
+  if (eventsResult.error || ownersResult.error)
+    throw new OfficeSupportError(503, "Core support records are temporarily unavailable");
+  // External product/customer metadata is supplementary. Its Railway outage
+  // must not break authenticated case updates, while no unavailable names are
+  // fabricated and no source error is silently called a successful read.
+  const referenceWarnings = [
+    ...(customersResult.error ? ["Customer directory temporarily unavailable"] : []),
+    ...(productsResult.error ? ["Product directory temporarily unavailable"] : []),
+  ];
+  async function granted(code: string) {
+    try { await permission(code, read); return true; }
+    catch (error) {
+      if (error instanceof OfficeSupportError && error.status === 403) return false;
+      throw error;
+    }
+  }
+  const [canManage,canRefund] = await Promise.all([
+    granted("support.case.manage"),
+    granted("customer.refund.request"),
+  ]);
 
   const eventsByCase = new Map<string, unknown[]>();
   for (const event of eventsResult.data ?? []) {
@@ -133,8 +152,13 @@ export async function getOfficeSupportOverview() {
     can_manage: canManage,
     can_request_refund: canRefund,
     owners: ownersResult.data ?? [],
-    customers: customersResult.data ?? [],
-    products: productsResult.data ?? [],
+    customers: (customersResult.data ?? []).map((row) => ({
+      id:row.id,display_name:row.display_name,legal_name:row.legal_name,status:row.status,
+    })),
+    products: (productsResult.data ?? []).map((row) => ({
+      id:row.id,code:row.code,name:row.name,category:row.category,status:row.status,
+    })),
+    reference_warnings: referenceWarnings,
     cases: rows.map((row) => ({ ...row, events: eventsByCase.get(String(row.id)) ?? [] })),
     disclaimer: "Support resolution and refund authority are separate. A support case can request a refund workflow but cannot execute money movement.",
   };
