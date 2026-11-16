@@ -97,7 +97,7 @@ export function OfficeHrReadiness() {
         <article><CalendarClock size={17} aria-hidden="true"/><span>Attendance sessions</span><strong>{m.attendanceSessions}</strong><small>{m.openAttendanceSessions} currently open</small></article>
         <article><ClipboardCheck size={17} aria-hidden="true"/><span>Pending time reviews</span><strong>{m.pendingWorktimeReviews}</strong><small>Independent decisions needed</small></article>
         <article><FileCheck2 size={17} aria-hidden="true"/><span>Verified intake</span><strong>{m.verifiedIntakes}</strong><small>{m.draftIntakes} draft(s)</small></article>
-        <article><Wallet size={17} aria-hidden="true"/><span>Approved salary versions</span><strong>{readCount(m.approvedCompensationVersions)}</strong><small>Presently effective only</small></article>
+        <article><Wallet size={17} aria-hidden="true"/><span>Staff with approved salary</span><strong>{readCount(m.approvedCompensationVersions)}</strong><small>Of {m.activeEmployees} active; effective today</small></article>
       </div>
 
       <div className={styles.summary} role="status">
