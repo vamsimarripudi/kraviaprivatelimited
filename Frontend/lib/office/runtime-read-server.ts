@@ -35,7 +35,11 @@ function normalizedPath(path: string) {
   return segments.map(encodeURIComponent).join("/");
 }
 
-export async function readOfficeRuntime<T>(path: string): Promise<T> {
+export type OfficeRuntimeReadOptions = { timeoutMs?: number };
+
+export async function readOfficeRuntime<T>(
+  path: string, options: OfficeRuntimeReadOptions = {},
+): Promise<T> {
   const normalized = normalizedPath(path);
   if (!normalized) throw new OfficeRuntimeReadError(404, "Office runtime read path is not permitted");
 
@@ -62,7 +66,9 @@ export async function readOfficeRuntime<T>(path: string): Promise<T> {
       },
       cache: "no-store",
       redirect: "manual",
-      signal: AbortSignal.timeout(25_000),
+      // Bounded per-domain deadline. Optional reference lookups may choose a
+      // shorter budget without changing primary account or financial reads.
+      signal: AbortSignal.timeout(Math.min(25_000, Math.max(1_000, options.timeoutMs ?? 25_000))),
     });
   } catch {
     throw new OfficeRuntimeReadError(502, "KRAVIA Office runtime is unavailable");
@@ -82,12 +88,14 @@ export async function readOfficeRuntime<T>(path: string): Promise<T> {
   return body as T;
 }
 
-export async function readOfficeRuntimeResult<T>(path: string): Promise<{
+export async function readOfficeRuntimeResult<T>(
+  path: string, options: OfficeRuntimeReadOptions = {},
+): Promise<{
   data: T | null;
   error: { message: string; status: number } | null;
 }> {
   try {
-    return { data: await readOfficeRuntime<T>(path), error: null };
+    return { data: await readOfficeRuntime<T>(path, options), error: null };
   } catch (error) {
     if (error instanceof OfficeRuntimeReadError) {
       return { data: null, error: { message: error.message, status: error.status } };
