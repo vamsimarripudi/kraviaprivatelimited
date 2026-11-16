@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -33,6 +34,7 @@ export function OfficeFinanceCommandCenter(){
  const fetchRecords=useCallback((signal?:AbortSignal)=>Promise.all([runtime<CommandCenter>("command-center",signal),runtime<GstSummary>("tax/gst/summary",signal),runtime<TrialBalance>("accounting/trial-balance",signal),runtime<FinanceReadiness>("finance/readiness",signal),runtime<PeriodLock[]>("accounting/period-locks",signal),runtime<PaymentInstruction[]>("finance/payment-instructions",signal),runtime<Expense[]>("finance/expenses",signal),runtime<BankTransaction[]>("banking/transactions",signal)]),[]);
  const apply=useCallback(([c,g,t,r,l,p,e,b]:[CommandCenter,GstSummary,TrialBalance,FinanceReadiness,PeriodLock[],PaymentInstruction[],Expense[],BankTransaction[]])=>{setData(c);setGst(g);setTrial(t);setReadiness(r);setLocks(l);setPayments(p);setExpenses(e);setBank(b)},[]);
  const load=useCallback(async()=>{setLoading(true);setError(undefined);try{apply(await fetchRecords())}catch(caught){setError(caught instanceof Error?caught.message:"Unable to load finance command center")}finally{setLoading(false)}},[apply,fetchRecords]);
+ useOfficeLiveRefresh(async()=>{apply(await fetchRecords());},{paused:loading,intervalMs:90000});
  useEffect(()=>{const controller=new AbortController();let active=true;void fetchRecords(controller.signal).then(records=>{if(active)apply(records)}).catch(caught=>{if(active&&!(caught instanceof DOMException&&caught.name==="AbortError"))setError(caught instanceof Error?caught.message:"Unable to load finance command center")}).finally(()=>{if(active)setLoading(false)});return()=>{active=false;controller.abort()}},[apply,fetchRecords]);
 
  const outputGst=Number(gst?.cgst||0)+Number(gst?.sgst||0)+Number(gst?.igst||0);

@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, CircleAlert, Laptop2, LoaderCircle, Plus, RefreshCw, ShieldCheck, Wrench, X } from "lucide-react";
@@ -38,6 +39,7 @@ function nextActions(life:Life){
 export function OfficeAssetLifecycle(){
  const[data,setData]=useState<Payload>();const[modal,setModal]=useState<Modal>();const[draft,setDraft]=useState<Record<string,string>>({});const[busy,setBusy]=useState(false);const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();
  async function reload(message?:string){const next=await api<Payload>();setData(next);if(message)setNotice(message)}
+  useOfficeLiveRefresh(()=>reload(),{paused:busy||Boolean(modal),intervalMs:45000});
  useEffect(()=>{let alive=true;void api<Payload>().then(next=>{if(alive)setData(next)}).catch((caught:unknown)=>{if(alive)setError(caught instanceof Error?caught.message:"Unable to load assets")});return()=>{alive=false}},[]);
  const lifeMap=useMemo(()=>new Map((data?.lifecycle??[]).map(row=>[row.asset_id,row])),[data?.lifecycle]);
  const people=useMemo(()=>new Map((data?.people??[]).map(row=>[row.user_id,row])),[data?.people]);

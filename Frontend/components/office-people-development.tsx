@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, CircleAlert, GraduationCap, LoaderCircle, Plus, RefreshCw, ShieldCheck, X } from "lucide-react";
@@ -27,6 +28,7 @@ function goalList(goals:unknown){return Array.isArray(goals)?goals.map(String):[
 export function OfficePeopleDevelopment(){
  const[data,setData]=useState<Payload>();const[view,setView]=useState<View>("skills");const[modal,setModal]=useState<Modal>();const[draft,setDraft]=useState<Record<string,string>>({});const[busy,setBusy]=useState(false);const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();
  async function reload(message?:string){const next=await api<Payload>();setData(next);if(message)setNotice(message)}
+  useOfficeLiveRefresh(()=>reload(),{paused:busy||Boolean(modal),intervalMs:45000});
  useEffect(()=>{let alive=true;void api<Payload>().then(next=>{if(alive)setData(next)}).catch((caught:unknown)=>{if(alive)setError(caught instanceof Error?caught.message:"Unable to load People Development")});return()=>{alive=false}},[]);
  const people=useMemo(()=>new Map((data?.people??[]).map(row=>[row.user_id,row])),[data?.people]);
  const training=useMemo(()=>new Map((data?.training_catalog??[]).map(row=>[row.id,row])),[data?.training_catalog]);

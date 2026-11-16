@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ArrowRight, Building2, CircleDollarSign, LoaderCircle, MessageSquareText, Plus, Search, ShieldCheck, Target, X } from "lucide-react";
@@ -78,9 +79,10 @@ export function OfficeCrmWorkspace() {
   async function reload(message?: string) {
     const next = await json<CrmData>("/api/office-crm");
     setData(next);
-    setNotice(message);
+    if(message)setNotice(message);
   }
 
+  useOfficeLiveRefresh(()=>reload(),{paused:busy||Boolean(create)||Boolean(selectedLead)||Boolean(selectedOpportunity)||Boolean(stageDraft)||Boolean(leadStageDraft)||Boolean(activityDraft),intervalMs:45000});
   useEffect(() => {
     let alive = true;
     void json<CrmData>("/api/office-crm").then((next) => { if (alive) setData(next); }).catch((caught: unknown) => {

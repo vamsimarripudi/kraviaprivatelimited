@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
@@ -71,9 +72,10 @@ export function OfficeCompanyInbox({ compact = false }: { compact?: boolean }) {
   async function reload(message?: string) {
     const next = await json<Inbox>("/api/office-tasks");
     setData(next);
-    setNotice(message);
+    if(message)setNotice(message);
   }
 
+  useOfficeLiveRefresh(()=>reload(),{paused:Boolean(busy)||newOpen||Boolean(blocking)||compact,intervalMs:45000});
   useEffect(() => {
     let alive = true;
     void json<Inbox>("/api/office-tasks").then((next) => { if (alive) setData(next); }).catch((caught: unknown) => {
