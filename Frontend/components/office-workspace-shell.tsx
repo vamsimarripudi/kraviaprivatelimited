@@ -89,7 +89,7 @@ const iconBySlug: Record<string, typeof LayoutDashboard> = {
   manager:Users,people:Users,recruitment:Users,development:Users,
   emergency:ShieldCheck,worktime:CalendarDays,payroll:Wallet,budget:Wallet,
   engineering:GitBranch,products:Folders,portfolio:Folders,crm:BriefcaseBusiness,
-  customers:Building2,vendors:BriefcaseBusiness,contracts:FileText,
+  customers:Building2,"customer-success":Users,vendors:BriefcaseBusiness,contracts:FileText,
   documents:FileText,governance:Scale,compliance:Scale,settings:Settings,
   access:ShieldCheck,"role-packages":Users,"department-ownership":ShieldCheck,
 };
