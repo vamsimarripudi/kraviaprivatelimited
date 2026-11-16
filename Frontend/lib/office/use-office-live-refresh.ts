@@ -3,7 +3,8 @@ import {useEffect,useRef} from "react";
 /** Revalidate only the mounted, visible module via its existing authorized API.
  * Avoid polling all departments and never overwrite an active form/dialog. */
 export function useOfficeLiveRefresh(reload:()=>Promise<unknown>,opts:{paused?:boolean;intervalMs?:number}={}){
- const fn=useRef(reload);fn.current=reload;
+ const fn=useRef(reload);
+ useEffect(()=>{fn.current=reload;},[reload]);
  const busy=useRef(false);
  const paused=Boolean(opts.paused),delay=Math.max(15000,opts.intervalMs??45000);
  useEffect(()=>{
