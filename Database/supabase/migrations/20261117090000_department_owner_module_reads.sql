@@ -18,6 +18,9 @@ returns text language sql stable security definer set search_path = '' as $funct
     when p.code in ('document.secretarial.create') then 'SECRETARIAL'
     when p.code in ('master.customer.create','master.customer.read') then 'SALES'
     when p.code in ('master.product.create','master.product.read') then 'PRODUCT'
+    -- Security-owned resilience and AI consoles expose only these baseline
+    -- reads; all sensitive reviews/mutations still require explicit authority.
+    when p.code in ('resilience.read','ai.tool.read') then 'SECURITY'
     when p.module in ('FINANCE','PAYROLL','INSURANCE') then 'FINANCE'
     when p.module='ENGINEERING' then 'ENGINEERING'
     when p.module='INFRASTRUCTURE' then 'DEVOPS'
@@ -91,6 +94,9 @@ begin
         'compliance.rules.read',
         'operations.asset.read',
         'facilities.room.read',
+        'legal.obligation.read',
+        'resilience.read',
+        'ai.tool.read',
         'security.overview.read'
        )
    ) into baseline_read_allowed;
