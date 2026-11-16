@@ -157,7 +157,7 @@ export function InternalWorkspaceScreen({ workspace, section }: Props) {
           : workspace === "office" && section === "crm" ? <><OfficeCrmWorkspace /><OfficeCommercialHandoff /></>
           : workspace === "office" && section === "contracts" ? <OfficeContractWorkspace />
           : workspace === "office" && section === "products" ? <OfficeMasterData kind="products" canCreate={identity.roles.includes("OWNER") && permissions.includes("master.product.create")} />
-          : workspace === "office" && section === "customer-success" ? <OfficeTrustCenter />
+          : workspace === "office" && section === "customer-success" ? <OfficeTrustCenter initialView="customers" />
           : section === "customers" ? <OfficeMasterData kind="customers" canCreate={(identity.roles.includes("OWNER") || identity.roles.includes("FINANCE")) && permissions.includes("master.customer.create")} />
           : workspace === "office" && section === "engineering" ? <><OfficeEngineeringControlCenter /><OfficeEngineeringOperations /></>
           : workspace === "office" && section === "portfolio" ? <OfficePortfolioWorkspace />
