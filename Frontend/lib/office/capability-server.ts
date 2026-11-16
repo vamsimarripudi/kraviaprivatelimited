@@ -96,8 +96,10 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
   // If managed-device enforcement is enabled, fail closed on revoked, absent
   // or non-managed device bindings for every high-risk catalog entry.
   const deviceEnforced=process.env.OFFICE_DEVICE_ENFORCEMENT?.toLowerCase()==="true";
+  const ownedDeviceRequired=(catalog.data??[]).some(row=>owned.has(String(row.code))&&
+    (row.high_risk||row.requires_managed_device));
   let managedDeviceValid=false;
-  if(deviceEnforced){
+  if(deviceEnforced||ownedDeviceRequired){
     const deviceId=await currentOfficeTrustedDeviceId(admin,identity.userId);
     if(deviceId){
       const device=await admin.from("office_device_registry")
@@ -111,8 +113,10 @@ export async function getOfficeCapabilitySnapshot(identityOverride?: OfficeIdent
   const activeCodes = new Set((catalog.data ?? [])
     .filter(row=>{
       const code=String(row.code);
+      const requiresDevice=deviceEnforced||
+        (owned.has(code)&&(row.high_risk||row.requires_managed_device));
       return !denied.has(code)&&
-        (!deviceEnforced || (!row.high_risk&&!row.requires_managed_device) || managedDeviceValid);
+        (!requiresDevice || (!row.high_risk&&!row.requires_managed_device) || managedDeviceValid);
     })
     .map((row) => String(row.code)));
 
