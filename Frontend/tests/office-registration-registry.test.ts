@@ -13,7 +13,7 @@ describe("KRAVIA company registration registry",()=>{
   expect(screen).toContain("OfficeRegistrationRegistry");
   expect(screen).toContain('section === "registrations" ? <OfficeRegistrationRegistry');
   expect(component).toContain('/api/office-registrations');
-  expect(capabilities).not.toContain('"office:registrations"');
+  expect(capabilities).toContain('"office:registrations": ["registration.read", "registration.manage", "registration.review"]');
  });
  it("stores only masked identifier suffixes",()=>{
   expect(server).toContain('return "••••"+suffix');
