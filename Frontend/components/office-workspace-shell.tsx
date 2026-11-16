@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowRightLeft, BookOpen, BriefcaseBusiness, Building2, CalendarDays, ChevronDown, ChevronRight,
@@ -171,11 +171,10 @@ export function OfficeWorkspaceShell({
 
   // Client-side navigation only. Existing APIs enforce record permissions.
   const isFounder=identity.roles.includes("OWNER");
-  const allowedEntries=useMemo(() => sectionEntries(workspace).filter(([slug,value]) =>
+  const allowedEntries=sectionEntries(workspace).filter(([slug,value]) =>
     roleCanAccessSection(value, identity.roles) &&
     capabilityCanAccessSection(workspace, slug, identity.roles, permissions) &&
-    (workspace !== "office" || !identity.roles.includes("OWNER") || founderNavigation.has(slug))),
-    [workspace, identity.roles, permissions]);
+    (workspace !== "office" || !identity.roles.includes("OWNER") || founderNavigation.has(slug)));
 
   const currentRouteDepartment=workspace==="office"?officeDepartmentForSection(section):null;
   const primaryDepartment=(identity.department??"").toUpperCase();
@@ -186,13 +185,11 @@ export function OfficeWorkspaceShell({
         ? selectedDepartmentCode
         : assignedCodes.includes(primaryDepartment)?primaryDepartment:assignedCodes[0]??null)
     : null;
-  const entries=useMemo(() => allowedEntries.filter(([slug]) =>
-    workspace!=="office"||officeClientSectionVisible(slug,activeDepartment?[activeDepartment]:[],isFounder)),
-    [workspace,allowedEntries,activeDepartment,isFounder]);
-  const categoryForEntry=useCallback((slug:string,value:WorkspaceSection) =>
-    workspace==="office"?officeClientCategoryForSection(slug,isFounder):categoryOf(workspace,slug,value),
-    [workspace,isFounder]);
-  const categories=useMemo(() => {
+  const entries=allowedEntries.filter(([slug]) =>
+    workspace!=="office"||officeClientSectionVisible(slug,activeDepartment?[activeDepartment]:[],isFounder));
+  const categoryForEntry=(slug:string,value:WorkspaceSection) =>
+    workspace==="office"?officeClientCategoryForSection(slug,isFounder):categoryOf(workspace,slug,value);
+  const categories=(() => {
     const order=workspace==="office"
       ? ["My work",...(activeDepartment?[officeDepartmentLabel(activeDepartment)]:[]),
          "Connect","K-Vault","Company control",...categoryOrder]
@@ -207,7 +204,7 @@ export function OfficeWorkspaceShell({
       const rank=(label:string)=>order.includes(label)?order.indexOf(label):order.length;
       return rank(a)-rank(b);
     });
-  },[entries,workspace,vaultEntry,activeDepartment,categoryForEntry]);
+  })();
   const currentCategory=isConnect?"Connect":isVault?"K-Vault":
     item?categoryForEntry(section,item):"My work";
   const selectedCategory=pickedCategory&&categories.includes(pickedCategory)?pickedCategory:
@@ -216,9 +213,8 @@ export function OfficeWorkspaceShell({
   const subgroups = [...new Set(links.map(([,value]) => value.group))];
   const currentSubgroup = selectedCategory === currentCategory && item ? item.group : subgroups[0];
   const expandedSubgroup = pickedSubgroup ?? currentSubgroup;
-  const commands = useMemo(() => navigationCommands(workspace,entries), [entries,workspace]);
-  const prefetchedRoutes = useMemo(() => entries.map(([slug]) => definition.basePath + "/" + slug),
-    [entries,definition.basePath]);
+  const commands = navigationCommands(workspace,entries);
+  const prefetchedRoutes = entries.map(([slug]) => definition.basePath + "/" + slug);
 
   const financeDelegated = identity.roles.includes("OWNER") && delegatedDepartments.includes("FINANCE");
   const switchWorkspace: WorkspaceKind = workspace === "office" ? "finance" : "office";
