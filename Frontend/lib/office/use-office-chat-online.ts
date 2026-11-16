@@ -75,5 +75,5 @@ export function useOfficeChatOnline(conversationId:string|undefined,revision:num
  useEffect(()=>{
   if(revision>0&&conversationId)refreshRef.current();
  },[conversationId,revision]);
- return snapshot?.id===conversationId?snapshot.members:[];
+ return snapshot && snapshot.id===conversationId ? snapshot.members : [];
 }
