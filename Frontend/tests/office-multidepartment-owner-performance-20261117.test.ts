@@ -38,7 +38,7 @@ describe("KRAVIA multi-department navigation, real workflows and fast read model
   expect(codes).toEqual([...assigned].sort((a,b)=>OFFICE_DEPARTMENT_LABELS[a].localeCompare(OFFICE_DEPARTMENT_LABELS[b])));
   expect(officeAssignedDepartmentCodes(snapshot,other,"FINANCE")).toEqual([]);
   for(const code of assigned)expect(codes).toContain(code);
-  for(const slug of ["support","customer-success","governance","registrations","compliance","assets","security"]){
+  for(const slug of ["support","customer-success","governance","registrations","compliance","assets","facilities","security"]){
     expect(officeClientSectionVisible(slug,codes,false),slug).toBe(true);
   }
   for(const slug of ["customers","payroll","people","crm","recruitment"]){
@@ -53,6 +53,8 @@ describe("KRAVIA multi-department navigation, real workflows and fast read model
   expect(officeDepartmentForSection("customers")).toBe("SALES");
   expect(officeSections["customer-success"].roles).toContain("ADMIN");
   expect(requiredCapabilities("office","customer-success")).toContain("customer.trust.read");
+  expect(requiredCapabilities("office","registrations")).toContain("registration.read");
+  expect(capabilityCanAccessSection("office","registrations",roles,["registration.read"])).toBe(true);
   expect(capabilityCanAccessSection("office","customer-success",roles,permissions)).toBe(true);
   expect(capabilityCanAccessSection("office","support",roles,permissions)).toBe(true);
   expect(capabilityCanAccessSection("office","customers",roles,permissions)).toBe(false);
@@ -99,7 +101,7 @@ describe("KRAVIA multi-department navigation, real workflows and fast read model
  it("allows current owners only explicit low-risk department reads, preserving denial and device checks",()=>{
   for(const code of [
     "support.case.read","customer.trust.read","secretarial.board.read",
-    "registration.read","compliance.rules.read","operations.asset.read","security.overview.read"
+    "registration.read","compliance.rules.read","operations.asset.read","facilities.room.read","security.overview.read"
   ])expect(migration).toContain("'"+code+"'");
   expect(migration).toContain("p.high_risk=false");
   expect(migration).toContain("p.owner_bypass is distinct from false");
