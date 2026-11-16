@@ -52,8 +52,9 @@ export function OfficeHrReadiness() {
     return () => controller.abort();
   }, [reload]);
 
-  function canNavigate(href: HrReadinessAction["href"]) {
-    const slug = href.split("/")[2] as keyof typeof officeSections;
+  function canNavigate(action: HrReadinessAction) {
+    if (action.ownerOnly && !identity.roles.includes("OWNER")) return false;
+    const slug = action.href.split("/")[2]?.split("#")[0] as keyof typeof officeSections;
     const section = officeSections[slug];
     return Boolean(section && roleCanAccessSection(section, identity.roles)
       && capabilityCanAccessSection("office", slug, identity.roles, permissions));
@@ -120,8 +121,12 @@ export function OfficeHrReadiness() {
           </div>
           <h4>{item.title}</h4>
           <p>{item.detail}</p>
-          {canNavigate(item.href) ?
-            <Link href={item.href} className={styles.actionLink}>{item.action}<ArrowRight size={14} aria-hidden="true"/></Link> :
+          {canNavigate(item) ?
+            <Link href={item.href} className={styles.actionLink} onClick={() => {
+              const targetId = item.href.split("#")[1];
+              const target = targetId ? document.getElementById(targetId) : null;
+              if (target instanceof HTMLDetailsElement) target.open = true;
+            }}>{item.action}<ArrowRight size={14} aria-hidden="true"/></Link> :
             <span className={styles.restricted}>Requires separately assigned module access</span>}
         </article>)}
       </div>
