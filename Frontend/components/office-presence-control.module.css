@@ -21,7 +21,9 @@
 .dot[data-status="DND"] { background: #cb3445; box-shadow: 0 0 0 3px #cb344526; }
 .panel {
   box-sizing: border-box; position: fixed !important;
-  inset: 0 !important; margin: auto !important;
+  inset: 0 !important; margin: auto !important; transform: none !important;
+  font-family: var(--font-sans, Inter, "Segoe UI", Arial, sans-serif);
+  font-size: 14px; line-height: 1.5;
   width: min(440px, calc(100dvw - 28px)); max-width: calc(100dvw - 28px);
   max-height: min(620px, calc(100dvh - 32px)); min-height: 0 !important;
   padding: 18px; border: 1px solid var(--office-ui-line, #d9dfe9);

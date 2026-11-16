@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, Clock3, LoaderCircle, MoreHorizontal, X } from "lucide-react";
 import Link from "next/link";
@@ -80,16 +80,42 @@ export function OfficePresenceControl() {
   const menuRef = useRef<HTMLDetailsElement>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+  const [panelTheme, setPanelTheme] = useState<CSSProperties>({});
 
-  // Native dialogs escape stacking contexts, but transformed sticky ancestors
-  // can still shift their fixed containing block on mobile browsers.
-  // Mount directly under Office main, outside the overflow-hidden header.
+  // Mount the native modal under <body>, outside transformed/translated Office
+  // grid ancestors. On iOS browsers a modal portaled to .office-main can be
+  // centered relative to an off-screen workspace instead of the viewport.
+  // Preserve the Office theme explicitly because <body> is outside its scope.
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      const target = document.querySelector<HTMLElement>(".kravia-office .office-modern .office-main");
-      if (target) setPortalTarget(target);
-    });
-    return () => window.cancelAnimationFrame(frame);
+    setPortalTarget(document.body);
+    const office = triggerRef.current?.closest<HTMLElement>(".office-modern");
+    if (!office) return;
+    let pendingFrame: number | undefined;
+    const syncTheme = () => {
+      if (pendingFrame !== undefined) window.cancelAnimationFrame(pendingFrame);
+      pendingFrame = window.requestAnimationFrame(() => {
+        const computed = window.getComputedStyle(office);
+        const values = {
+          colorScheme: office.dataset.uiTheme === "dark" ? "dark" : "light",
+        } as CSSProperties & Record<string, string>;
+        for (const name of [
+          "--office-ui-surface", "--office-ui-surface-alt",
+          "--office-ui-control", "--office-ui-ink", "--office-ui-muted",
+          "--office-ui-line", "--office-ui-accent", "--office-ui-danger",
+        ]) {
+          const value = computed.getPropertyValue(name).trim();
+          if (value) values[name] = value;
+        }
+        setPanelTheme(values);
+      });
+    };
+    const themeObserver = new MutationObserver(syncTheme);
+    themeObserver.observe(office, { attributes: true, attributeFilter: ["data-ui-theme"] });
+    syncTheme();
+    return () => {
+      themeObserver.disconnect();
+      if (pendingFrame !== undefined) window.cancelAnimationFrame(pendingFrame);
+    };
   }, []);
 
   function openDialog() {
@@ -230,6 +256,7 @@ export function OfficePresenceControl() {
       id="office-presence-dialog"
       ref={dialogRef}
       className={styles.panel}
+      style={panelTheme}
       data-office-presence-dialog="true"
       aria-labelledby="office-presence-heading"
       aria-modal="true"
