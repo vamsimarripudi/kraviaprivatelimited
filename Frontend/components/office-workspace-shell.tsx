@@ -7,6 +7,7 @@ import {
   ClipboardCheck, Cog, FileText, Folders, GitBranch, Landmark,
   LayoutDashboard, Menu, MessageSquareText, Moon, MoreHorizontal, PanelLeftClose, Search, Bell, BrainCircuit,
   PanelLeftOpen, Scale, Settings, ShieldCheck, Sun, Users, Vault, Wallet, X,
+  Headphones, HeartHandshake, ScrollText, ShieldAlert, Gavel, Cpu, Wrench, BadgeCheck,
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { OfficeNavLink } from "@/components/office-nav-link";
@@ -40,6 +41,13 @@ const iconByCategory = {
   Governance: Scale, Administration: ShieldCheck, Overview: LayoutDashboard,
   Revenue: Wallet, Treasury: Landmark, Tax: FileText, Books: FileText,
   Payables: ClipboardCheck, Evidence: ShieldCheck,
+  "Customer Support": Headphones, "Customer Success": HeartHandshake,
+  Secretarial: ScrollText, Legal: Scale, Security: ShieldAlert,
+  Marketing: BriefcaseBusiness, Sales: BriefcaseBusiness,
+  Product: Folders, "Quality Engineering": BadgeCheck,
+  "Platform / DevOps": Cpu, IT: Wrench, Procurement: BriefcaseBusiness,
+  Administration: Settings, Audit: Gavel,
+  "Tax & GST": FileText, Executive: Building2, "Quality": BadgeCheck,
 } as const;
 
 const officeCategoryBySlug: Record<string, string> = {
