@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useState } from "react";
 import { CalendarClock, CheckCircle2, CircleAlert, FileDown, LoaderCircle, ShieldCheck, Timer, Wallet, X } from "lucide-react";
@@ -79,6 +80,7 @@ export function OfficeWorktimeConsole() {
   const [mode, setMode] = useState<"CORRECTION" | "EDIT_PENDING" | "AUTO" | "POLICY" | "IMPORT" | "LEAVE" | "LEAVE_DECISION" | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
 
+  useOfficeLiveRefresh(async()=>{const next=await request<Snapshot>(undefined,month,employee||undefined);setData(next);}, {paused:busy||mode!==null,intervalMs:45000});
   useEffect(() => {
     let active = true;
     void request<Snapshot>(undefined, month, employee || undefined).then(payload => {

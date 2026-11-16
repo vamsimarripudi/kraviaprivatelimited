@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, BookOpenText, CircleAlert, FileCheck2, LoaderCircle, Megaphone, Plus, RefreshCw, ShieldCheck, X } from "lucide-react";
@@ -23,6 +24,7 @@ function date(v?:string|null){if(!v)return "—";const d=new Date(v.length===10?
 export function OfficeKnowledgeHub(){
  const[data,setData]=useState<Payload>();const[view,setView]=useState<View>("policies");const[modal,setModal]=useState<Modal>();const[draft,setDraft]=useState<Record<string,string>>({});const[busy,setBusy]=useState(false);const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();const[query,setQuery]=useState("");
  async function reload(message?:string){const next=await api<Payload>();setData(next);if(message)setNotice(message)}
+  useOfficeLiveRefresh(()=>reload(),{paused:busy||Boolean(modal),intervalMs:45000});
  useEffect(()=>{let alive=true;void api<Payload>().then(n=>{if(alive)setData(n)}).catch((e:unknown)=>{if(alive)setError(e instanceof Error?e.message:"Unable to load Knowledge Hub")});return()=>{alive=false}},[]);
  const people=useMemo(()=>new Map((data?.people??[]).map(p=>[p.user_id,p])),[data?.people]);
  const policyVersions=useMemo(()=>{const map=new Map<string,PolicyVersion[]>();for(const v of data?.policy_versions??[]){const a=map.get(v.policy_id)||[];a.push(v);map.set(v.policy_id,a)}return map},[data?.policy_versions]);

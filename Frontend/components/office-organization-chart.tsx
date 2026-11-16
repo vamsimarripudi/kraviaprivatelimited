@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Building2, LoaderCircle, UsersRound } from "lucide-react";
@@ -29,6 +30,7 @@ export function OfficeOrganizationChart() {
   const [error, setError] = useState<string>();
   const [query, setQuery] = useState("");
 
+  useOfficeLiveRefresh(async()=>{const next=await load();setState(next);},{intervalMs:60000});
   useEffect(() => {
     let active = true;
     void load().then((data) => { if (active) setState(data); }).catch((caught: unknown) => { if (active) setError(caught instanceof Error ? caught.message : "Unable to load organization"); });

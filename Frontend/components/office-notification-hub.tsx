@@ -177,7 +177,7 @@ export function OfficeNotificationHub(){
       // Authorized event transport continues when Office is in a background tab;
       // it carries only invalidation signals, never private message contents.
       stream=new EventSource("/api/office-notifications/events",{withCredentials:true});
-      stream.addEventListener("change",()=>void refresh());
+      stream.addEventListener("change",()=>{window.dispatchEvent(new Event("kravia-office-live-change"));void refresh();});
       stream.addEventListener("unavailable",()=>stream?.close());
     };
     const frame=requestAnimationFrame(start);

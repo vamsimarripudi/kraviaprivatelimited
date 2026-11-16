@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ArrowRight, CircleAlert, LoaderCircle, LogIn, LogOut, ShieldCheck, UserRoundCheck, UsersRound, X } from "lucide-react";
@@ -83,6 +84,7 @@ export function OfficeWorkforceLifecycle() {
     if (message) setNotice(message);
   }
 
+  useOfficeLiveRefresh(()=>reload(),{paused:busy||Boolean(action),intervalMs:45000});
   useEffect(() => {
     let alive = true;
     void api<Payload>().then((next) => { if (alive) setData(next); }).catch((caught: unknown) => {

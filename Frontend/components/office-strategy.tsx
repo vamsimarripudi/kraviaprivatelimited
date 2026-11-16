@@ -1,4 +1,5 @@
 "use client";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, CircleAlert, Flag, LoaderCircle, Plus, RefreshCw, ShieldCheck, Target, X } from "lucide-react";
@@ -32,6 +33,7 @@ function measurement(k:KeyResult){const current=k.current_value==null?"—":Stri
 export function OfficeStrategyWorkspace(){
  const[data,setData]=useState<Payload>();const[selected,setSelected]=useState<string>();const[modal,setModal]=useState<Modal>();const[draft,setDraft]=useState<Record<string,string>>({});const[busy,setBusy]=useState(false);const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();
  async function reload(message?:string){const next=await api<Payload>();setData(next);setSelected(current=>current&&next.cycles.some(c=>c.id===current)?current:next.cycles[0]?.id);if(message)setNotice(message)}
+  useOfficeLiveRefresh(()=>reload(),{paused:busy||Boolean(modal),intervalMs:45000});
  useEffect(()=>{let alive=true;void api<Payload>().then(n=>{if(alive){setData(n);setSelected(n.cycles[0]?.id)}}).catch((e:unknown)=>{if(alive)setError(e instanceof Error?e.message:"Unable to load Strategy")});return()=>{alive=false}},[]);
  const people=useMemo(()=>new Map((data?.people??[]).map(p=>[p.user_id,p])),[data?.people]);
  const cycle=data?.cycles.find(c=>c.id===selected);
