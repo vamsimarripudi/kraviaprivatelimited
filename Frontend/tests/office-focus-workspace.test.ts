@@ -16,8 +16,10 @@ describe("KRAVIA compact personalised Office workspace", () => {
     expect(server).toContain("unavailable_metrics");
   });
 
-  it("places a real executive-only intelligence panel beside three-dot tools", () => {
-    expect(shell).toContain("<OfficeIntelligencePeek key={pathname}/>");
+  it("keeps real executive-only intelligence behind the three-dot menu", () => {
+    expect(shell).toContain("<OfficeIntelligencePeek key={pathname} hideTrigger/>");
+    expect(shell).toContain('openTopbarTool("intelligence")');
+    expect(peek).toContain('"kravia-office-open-intelligence"');
     expect(shell).toContain('role === "OWNER" || role === "DIRECTOR"');
     expect(shell).toContain("office-topbar-tools");
     expect(peek).toContain('fetch("/api/office-intelligence"');
