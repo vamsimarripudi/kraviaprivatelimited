@@ -15,17 +15,10 @@ A green CI run verifies code behavior only. HR must not be labelled operationall
 6. Existing HR Excel import and employee intake remain governed and unchanged. The new action links open their actual existing in-page evidence desks.
 7. Tests to prevent unsafe completion claims and authorization regressions.
 
-## Live evidence snapshot at review
-The values below are a point-in-time observation, NOT test fixtures to seed into production:
-- Employment: 2 ACTIVE, 1 PLANNED; both ACTIVE records are missing \`start_date\`.
-- Attendance: 15 sessions, 13 CLOSED, 2 OPEN on 16 November 2026. Zero old OPEN sessions at the snapshot.
-- Worktime: 7 PENDING review cases; first recorded workdate 12 November.
-- Compensation and policy: no active compensation versions, no worktime policy versions, no approved payroll rule versions.
-- Intake: one DRAFT; zero verified bank records; zero permanent employee reference IDs; no signed onboarding proofs recorded in the connected Office intake workflow.
-- Payroll: no issued payslips, calculated payroll results, payment batches or bank settlement confirmations.
-- Notifications: 81 source-ready lifecycle event policies, zero enabled; the employee-ID-issued mail policy is disabled/unapproved.
-- Access: one effective HR_MANAGER access profile; one employee record remains PLANNED; no TRUSTED company-managed device entries in the governed registry.
-These counts must be refreshed before any payroll release; a legacy login device approval is distinct from company-managed device trust.
+## Confidential production evidence (do NOT commit raw snapshots)
+Current workforce and workflow status must be retrieved only from the authenticated \`/office/people\` HR Control Center by a permitted employee. Do not publish exact staff headcounts, private onboarding status, compensation, attendance exceptions, mail queue contents, device records or employee identity in this public repository. Screenshots and test fixtures must use **clearly synthetic** data.
+
+The readiness endpoint retrieves **aggregate-only** information from private Office tables; it never shares direct employee identities or wage/bank data. Its counts require AAL2, company-wide HR authority and separately scoped permissions for sensitive payroll/device metrics. Restricted/unavailable counts remain \`null\`, never a fabricated zero.
 
 ## P0 — Must complete with authentic human evidence
 | Gate | Custodian | Required action | Acceptance evidence |
