@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import {useOfficeLiveRefresh} from "@/lib/office/use-office-live-refresh";
 import { Banknote, Calculator, CheckCircle2, CircleAlert, FileClock, Landmark, LoaderCircle, Plus, RefreshCw, Scale, ShieldCheck, Users, X } from "lucide-react";
 import styles from "./office-payroll-console.module.css";
 import { parseRoleCompensationSplit } from "@/lib/office/salary-components";
@@ -48,6 +49,7 @@ export function OfficePayrollConsole() {
   const [busy, setBusy] = useState(false);
 
   async function reload(message?: string) { const next = await api<Payload>(); setData(next); if (message) setNotice(message); }
+  useOfficeLiveRefresh(()=>reload(),{paused:busy||Boolean(modal),intervalMs:45000});
   useEffect(() => { let alive = true; void api<Payload>().then((next) => { if (alive) setData(next); }).catch((caught: unknown) => { if (alive) setError(caught instanceof Error ? caught.message : "Unable to load payroll"); }); return () => { alive = false; }; }, []);
 
   const identityMap = useMemo(() => new Map((data?.identities ?? []).map((row) => [row.user_id, row])), [data?.identities]);
