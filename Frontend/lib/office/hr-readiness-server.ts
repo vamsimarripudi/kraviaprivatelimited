@@ -80,7 +80,7 @@ async function currentActiveCoverage(
       if (hasEndDate) query = query.or("effective_to.is.null,effective_to.gte." + today);
       const { data, error } = await query;
       if (error || !data) throw new HrReadinessError(503, "Approved HR policy coverage is unavailable");
-      for (const row of data as Array<Record<string, unknown>>) {
+      for (const row of data as unknown as Array<Record<string, unknown>>) {
         const id = row[column];
         if (typeof id === "string" && batch.includes(id)) covered.add(id);
       }
