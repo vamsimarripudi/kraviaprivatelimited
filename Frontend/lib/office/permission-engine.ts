@@ -71,32 +71,37 @@ export async function resolveOfficePermission(
   resource: OfficeResourceScope = { type: "COMPANY" },
   deviceId?: string | null,
 ): Promise<OfficePermissionDecision> {
-  const permissionResult = await admin.from("office_permission_catalog").select("code,high_risk,requires_managed_device,active,owner_bypass").eq("code", permissionCode).maybeSingle();
-  if (permissionResult.error || !permissionResult.data || permissionResult.data.active !== true) {
+  // Catalogue, ownership and explicit denies are independent reads. Resolve
+  // them concurrently but never cache an authorization result across requests.
+  const [permissionResult, ownershipResult, overrideResult] = await Promise.all([
+    admin.from("office_permission_catalog")
+      .select("code,high_risk,requires_managed_device,active,owner_bypass")
+      .eq("code", permissionCode).maybeSingle(),
+    admin.rpc("office_department_permission_verdict", {
+      p_actor: identity.userId,
+      p_permission: permissionCode,
+    }),
+    admin.from("office_user_permission_overrides")
+      .select("permission_code,effect,scope_type,scope_key,expires_at")
+      .eq("user_id", identity.userId).eq("permission_code", permissionCode),
+  ]);
+  if (permissionResult.error || !permissionResult.data || permissionResult.data.active !== true)
     return { allowed: false, permission: permissionCode, reason: "Permission is not active" };
-  }
 
-  // Check permanent department ownership BEFORE the legacy OWNER bypass.
-  // A former Owner cannot restore write authority via a COMPANY access profile.
-  const { data: verdict, error: ownershipError } = await admin.rpc("office_department_permission_verdict", {
-    p_actor: identity.userId,
-    p_permission: permissionCode,
-  });
-  if (ownershipError || !["DEFAULT", "DEPARTMENT_OWNER", "DENY"].includes(String(verdict))) {
+  const { data: verdict, error: ownershipError } = ownershipResult;
+  if (ownershipError || !["DEFAULT", "DEPARTMENT_OWNER", "DENY"].includes(String(verdict)))
     return { allowed: false, permission: permissionCode, reason: "Department ownership authority is unavailable" };
-  }
-  if (verdict === "DENY") {
+  if (verdict === "DENY")
     return { allowed: false, permission: permissionCode, source: "DEPARTMENT_DENY", reason: "Department write authority was transferred to its current owner" };
-  }
 
-  const { data: overrides, error: overrideError } = await admin.from("office_user_permission_overrides")
-    .select("permission_code,effect,scope_type,scope_key,expires_at")
-    .eq("user_id", identity.userId)
-    .eq("permission_code", permissionCode);
-  if (overrideError) {
+  const { data: overrides, error: overrideError } = overrideResult;
+  if (overrideError)
     return { allowed: false, permission: permissionCode, reason: "Authorization authority is unavailable" };
-  }
-  const deny = (overrides ?? []).find((row) => row.effect === "DENY" && active(row.expires_at) && scopeMatches(row.scope_type as OfficeScopeType, row.scope_key, resource, identity.userId));
+  // A COMPANY-wide explicit deny must apply regardless of which OWN, TEAM or
+  // DEPARTMENT candidate the caller supplies. Otherwise resource probing can
+  // defeat the denial shown in the capability snapshot.
+  const deny = (overrides ?? []).find((row) => row.effect === "DENY" && active(row.expires_at) &&
+    (row.scope_type === "COMPANY" || scopeMatches(row.scope_type as OfficeScopeType, row.scope_key, resource, identity.userId)));
   if (deny) {
     return { allowed: false, permission: permissionCode, source: "OVERRIDE_DENY", scopeType: deny.scope_type as OfficeScopeType, scopeKey: deny.scope_key, reason: "Explicit permission deny" };
   }
