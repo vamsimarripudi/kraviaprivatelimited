@@ -17,7 +17,7 @@ type SupportCase = {
 };
 type Payload = {
   actor: { user_id: string }; scope: { type?: string | null; key?: string | null }; can_manage: boolean; can_request_refund: boolean;
-  owners: Person[]; customers: Customer[]; products: Product[]; cases: SupportCase[]; disclaimer: string;
+  owners: Person[]; customers: Customer[]; products: Product[]; cases: SupportCase[]; reference_warnings?:string[]; disclaimer: string;
 };
 
 type Modal = { kind: "CREATE" } | { kind: "TRANSITION"; supportCase: SupportCase } | { kind: "REFUND"; supportCase: SupportCase };
@@ -36,6 +36,7 @@ export function OfficeSupportOperations() {
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const [query, setQuery] = useState("");
+  const [showIntake,setShowIntake]=useState(false);
   const [modal, setModal] = useState<Modal>();
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -84,10 +85,17 @@ export function OfficeSupportOperations() {
   const urgent = data.cases.filter((item) => item.priority === "URGENT" && item.status !== "CLOSED").length;
   return <section className={styles.shell}>
     <header className={styles.hero}><div><p>SUPPORT OPERATIONS</p><h2>Customer cases with controlled remedies.</h2><span>{data.disclaimer}</span></div><div className={styles.metrics}><article><b>{openCount}</b><span>open cases</span></article><article><b>{urgent}</b><span>urgent</span></article>{data.can_manage ? <button type="button" onClick={openCreate}><Plus /> New case</button> : null}</div></header>
-    <OfficePublicIntakeInbox queue="GENERAL" />
+    <div className={styles.toolbar}><button type="button" aria-expanded={showIntake}
+      aria-controls="office-support-public-intake" onClick={()=>setShowIntake(open=>!open)}>
+      <Headphones size={16}/> {showIntake?"Hide public intake":"Open public intake"}
+    </button></div>
+    {showIntake?<div id="office-support-public-intake"><OfficePublicIntakeInbox queue="GENERAL" /></div>:null}
     <div className={styles.toolbar}><label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search case, status or priority" /></label><span>{data.scope.type || "OWNER"}{data.scope.key ? ` · ${data.scope.key}` : ""} scope</span></div>
     {notice ? <div className={styles.notice}><ShieldCheck />{notice}<button type="button" onClick={() => setNotice(undefined)} aria-label="Dismiss"><X /></button></div> : null}
     {error ? <div className={styles.error}><CircleAlert />{error}</div> : null}
+    {data.reference_warnings?.length?<div role="status" className={styles.warning}>
+      <CircleAlert size={16}/>{data.reference_warnings.join(" · ")}. Cases remain available; customer/product names may be missing.
+    </div>:null}
     <div className={styles.cases}>{visibleCases.map((item) => <article key={item.id} className={styles.case}>
       <header><div><code>{item.case_code}</code><h3>{item.subject}</h3><span>{item.customer_id ? customers.get(item.customer_id)?.display_name || customers.get(item.customer_id)?.legal_name || "Customer" : "Internal / unlinked"}{item.product_id ? ` · ${products.get(item.product_id)?.name || "Product"}` : ""}</span></div><div><b data-priority={item.priority}>{label(item.priority)}</b><em data-status={item.status}>{label(item.status)}</em></div></header>
       <p>{item.description}</p><footer><span>Owner: {owners.get(item.owner_user_id)?.display_name || owners.get(item.owner_user_id)?.job_title || "Assigned user"}</span><span>{item.category} · {item.source}</span><div>{data.can_manage && item.status !== "CLOSED" ? <button type="button" onClick={() => openTransition(item)}><RotateCcw /> Update</button> : null}{data.can_request_refund && item.customer_id && item.status !== "CLOSED" ? <button type="button" onClick={() => openRefund(item)}><ShieldCheck /> Refund request</button> : null}</div></footer>
