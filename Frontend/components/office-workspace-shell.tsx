@@ -33,7 +33,14 @@ import {
 } from "@/lib/office/workspaces";
 
 const iconByCategory = {
-  "My work": LayoutDashboard, Connect: MessageSquareText, "K-Vault": Vault, HR: Users, People: Users, Engineering: GitBranch,
+  "My work": LayoutDashboard, Connect: MessageSquareText, "K-Vault": Vault,
+  "Company Control": ShieldCheck, Executive: ShieldCheck, "People & HR": Users,
+  HR: Users, People: Users, Engineering: GitBranch, Product: Folders,
+  Legal: Scale, Secretarial: Scale, "Platform / DevOps": GitBranch,
+  IT: Cog, "Customer Support": Users, "Customer Success": Users,
+  "Quality Engineering": ShieldCheck, Procurement: BriefcaseBusiness,
+  Sales: BriefcaseBusiness, Marketing: BriefcaseBusiness, Security: ShieldCheck,
+  "Tax & GST": FileText, Audit: ClipboardCheck,
   Commercial: BriefcaseBusiness, Operations: Building2, Finance: Landmark,
   Governance: Scale, Administration: ShieldCheck, Overview: LayoutDashboard,
   Revenue: Wallet, Treasury: Landmark, Tax: FileText, Books: FileText,
@@ -185,7 +192,7 @@ export function OfficeWorkspaceShell({
     if(vaultEntry)labels.push("K-Vault");
     const order=workspace==="finance"?financeOrder:
       ["My work",...assigned.codes.map(code=>officeDepartmentLabels[code]).filter(Boolean),
-        "Company Control","Connect","K-Vault"];
+        "Company Control","Connect","K-Vault",...categoryOrder];
     return [...new Set(labels)].sort((a,b)=>{
       const aa=order.indexOf(a),bb=order.indexOf(b);
       return (aa<0?99:aa)-(bb<0?99:bb)||a.localeCompare(b);
@@ -199,8 +206,12 @@ export function OfficeWorkspaceShell({
   const currentSubgroup = selectedCategory === currentCategory && item ? item.group : subgroups[0];
   const expandedSubgroup = pickedSubgroup ?? currentSubgroup;
   const commands = useMemo(() => navigationCommands(workspace,entries), [entries,workspace]);
-  const prefetchedRoutes = useMemo(() => entries.map(([slug]) => definition.basePath + "/" + slug),
-    [entries,definition.basePath]);
+  const prefetchedRoutes = useMemo(() => entries.filter(([slug,value])=>
+    (workspace==="office"?
+       clientOfficeSectionCategory(slug,assigned.codes,isFounder):categoryOf(workspace,slug,value))===selectedCategory
+       || (workspace==="office"&&isOfficePersonalSection(slug)))
+    .slice(0,8).map(([slug])=>definition.basePath+"/"+slug),
+    [entries,selectedCategory,workspace,assigned.codes,isFounder,definition.basePath]);
 
   const financeDelegated = identity.roles.includes("OWNER") && delegatedDepartments.includes("FINANCE");
   const switchWorkspace: WorkspaceKind = workspace === "office" ? "finance" : "office";
