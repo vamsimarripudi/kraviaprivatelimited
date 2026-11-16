@@ -6,7 +6,7 @@ import {
   ArrowRightLeft, BookOpen, BriefcaseBusiness, Building2, CalendarDays, ChevronDown, ChevronRight,
   ClipboardCheck, Cog, FileText, Folders, GitBranch, Landmark,
   LayoutDashboard, Menu, MessageSquareText, Moon, MoreHorizontal, PanelLeftClose,
-  PanelLeftOpen, Scale, Settings, ShieldCheck, Sun, Users, Vault, Wallet, X,
+  PanelLeftOpen, RefreshCw, Scale, Settings, ShieldCheck, Sun, Users, Vault, Wallet, X,
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { OfficeNavLink } from "@/components/office-nav-link";
@@ -20,6 +20,9 @@ import { WorkspaceSignOutButton } from "@/components/workspace-sign-out-button";
 import { OfficeWorkspaceProvider } from "@/components/office-workspace-context";
 import { OfficeAmbientField } from "@/components/office-experience-ambient";
 import delegatedStyles from "./office-delegation-banner.module.css";
+import {clientOfficeSectionCategory,officeDepartmentLabels,isOfficePersonalSection}
+ from "@/lib/office/client-department-navigation";
+import {useOfficeClientDepartments} from "@/lib/office/use-office-client-departments";
 import type { OfficeIdentity } from "@/lib/office/auth-server";
 import {
   capabilityCanAccessSection, navigationCommands,
@@ -159,25 +162,39 @@ export function OfficeWorkspaceShell({
   const isChatConversation = isConnect && /^\/office\/chat\/(?:dm|groups|channels|threads)\//.test(pathname);
   // Do not infer K-Vault entry from Finance, Director, Admin or document capabilities.
   const vaultEntry = workspace === "office" && permissions.includes("vault.entry");
+  const assigned = useOfficeClientDepartments(identity.userId,identity.department);
+  const isFounder = identity.roles.includes("OWNER");
+  const categoryFor = (slug:string,value:WorkspaceSection)=>
+    workspace==="office"?
+      clientOfficeSectionCategory(slug,assigned.codes,isFounder):
+      categoryOf(workspace,slug,value);
 
   const entries = useMemo(() => sectionEntries(workspace).filter(([slug,value]) =>
     roleCanAccessSection(value, identity.roles) &&
     capabilityCanAccessSection(workspace, slug, identity.roles, permissions) &&
-    (workspace !== "office" || !identity.roles.includes("OWNER") || founderNavigation.has(slug))),
-    [workspace, identity.roles, permissions]);
+    (workspace !== "office" ||
+      (isOfficePersonalSection(slug) ||
+        (assigned.status==="ready"&&clientOfficeSectionCategory(slug,assigned.codes,isFounder)!==null))) &&
+    (workspace !== "office" || !isFounder || founderNavigation.has(slug))),
+    [workspace, identity.roles, permissions, assigned.status, assigned.codes, isFounder]);
   const categories = useMemo(() => {
-    const order = workspace === "office" ? categoryOrder : financeOrder;
-    const labels = entries.map(([slug,value]) => categoryOf(workspace,slug,value));
-    if (workspace === "office") labels.push("Connect");
-    if (vaultEntry) labels.push("K-Vault");
-    return [...new Set(labels)].sort((a,b) => {
-      const rank = (label:string) => order.includes(label) ? order.indexOf(label) : label === "Connect" ? 1 : 2;
-      return rank(a)-rank(b);
+    const labels=entries.map(([slug,value])=>workspace==="office"?
+      clientOfficeSectionCategory(slug,assigned.codes,isFounder):categoryOf(workspace,slug,value))
+      .filter((category):category is string=>Boolean(category));
+    if(workspace==="office")labels.push("Connect");
+    if(vaultEntry)labels.push("K-Vault");
+    const order=workspace==="finance"?financeOrder:
+      ["My work",...assigned.codes.map(code=>officeDepartmentLabels[code]).filter(Boolean),
+        "Company Control","Connect","K-Vault"];
+    return [...new Set(labels)].sort((a,b)=>{
+      const aa=order.indexOf(a),bb=order.indexOf(b);
+      return (aa<0?99:aa)-(bb<0?99:bb)||a.localeCompare(b);
     });
-  }, [entries, workspace, vaultEntry]);
-  const currentCategory = isConnect ? "Connect" : isVault ? "K-Vault" : item ? categoryOf(workspace, section, item) : categories[0];
-  const selectedCategory = pickedCategory && categories.includes(pickedCategory) ? pickedCategory : currentCategory;
-  const links = entries.filter(([slug,value]) => categoryOf(workspace,slug,value) === selectedCategory);
+  },[entries,workspace,assigned.codes,isFounder,vaultEntry]);
+  const currentCategory=isConnect?"Connect":isVault?"K-Vault":
+    item?categoryFor(section,item)??"My work":categories[0]??"My work";
+  const selectedCategory=pickedCategory&&categories.includes(pickedCategory)?pickedCategory:currentCategory;
+  const links=entries.filter(([slug,value])=>categoryFor(slug,value)===selectedCategory);
   const subgroups = [...new Set(links.map(([,value]) => value.group))];
   const currentSubgroup = selectedCategory === currentCategory && item ? item.group : subgroups[0];
   const expandedSubgroup = pickedSubgroup ?? currentSubgroup;
@@ -191,7 +208,8 @@ export function OfficeWorkspaceShell({
   const canSwitch = roleCanAccessWorkspace(switchWorkspace,identity.roles)
     && roleCanAccessSection(switchDashboard,identity.roles)
     && capabilityCanAccessSection(switchWorkspace,"dashboard",identity.roles,permissions)
-    && !(workspace === "office" && switchWorkspace === "finance" && financeDelegated);
+    && !(workspace === "office" && switchWorkspace === "finance" && financeDelegated)
+    && (workspace!=="office" || (assigned.status==="ready" && assigned.codes.includes("FINANCE")));
 
   useEffect(() => {
     let current = true;
@@ -304,7 +322,10 @@ export function OfficeWorkspaceShell({
   }
 
   const navId = workspace + "-workspace-mega-navigation";
-  return <OfficeWorkspaceProvider identity={identity} permissions={permissions}>
+  return <OfficeWorkspaceProvider identity={identity} permissions={permissions}
+    visibleSections={entries.map(([slug])=>slug)}
+    departmentNavigationStatus={assigned.status}
+    departmentNavigationError={assigned.error}>
     <main className={"office office-v2 office-v4 office-modern office-floating-rail workspace-shell workspace-" + workspace}
       data-ui-theme={theme} data-density={density} data-menu-expanded={megaExpanded} data-chat-conversation={isChatConversation}
       data-connect-home={workspace === "office" && pathname === "/office/chat"}>
@@ -362,7 +383,14 @@ export function OfficeWorkspaceShell({
         <div className="office-mega-panel">
           <div className="office-menu-heading">
             <div><small>{workspace === "finance" ? "FINANCE" : "KRAVIA OFFICE"}</small>
-              <strong>{selectedCategory}</strong></div>
+              <strong>{selectedCategory}</strong>
+              {workspace==="office"?<small data-office-dept-sync-state={assigned.status}>
+                {assigned.status==="ready"?"Assigned departments synced":
+                 assigned.status==="loading"?"Checking assignments":assigned.error??"Sync unavailable"}
+              </small>:null}</div>
+            {workspace==="office"?<button type="button" onClick={()=>void assigned.refresh()}
+                aria-label="Refresh assigned departments" title="Refresh assigned departments">
+              <RefreshCw size={16} aria-hidden="true"/></button>:null}
             <button type="button" aria-label={megaExpanded ? "Collapse menu" : "Expand menu"}
               title={megaExpanded ? "Collapse menu" : "Expand menu"}
               onClick={() => changeSidebar(!megaExpanded)}>
@@ -389,16 +417,16 @@ export function OfficeWorkspaceShell({
                 })}
               </div>
             </details>)}
-            {workspace === "office" && selectedCategory === "HR" ? <>
+            {workspace === "office" && selectedCategory === "People & HR" ? <>
               {identity.roles.includes("HR") && !entries.some(([slug])=>slug==="people") ?
                 <p className="office-hr-nav-note" role="status">
                   Employee records unavailable in this session. Check device approval and permissions.
                 </p> : null}
-              {entries.some(([slug])=>slug==="payroll"||slug==="development") ?
+              {entries.some(([slug,value])=>(slug==="payroll"||slug==="development")&&categoryFor(slug,value)===selectedCategory) ?
                 <div className="office-mega-link-list" data-office-hr-shortcuts>
-                  {entries.some(([slug])=>slug==="payroll") ?
+                  {entries.some(([slug,value])=>slug==="payroll"&&categoryFor(slug,value)===selectedCategory) ?
                     <OfficeNavLink href="/office/payroll"><Wallet size={16}/>Payroll OS</OfficeNavLink> : null}
-                  {entries.some(([slug])=>slug==="development") ?
+                  {entries.some(([slug,value])=>slug==="development"&&categoryFor(slug,value)===selectedCategory) ?
                     <OfficeNavLink href="/office/development"><Users size={16}/>People development</OfficeNavLink> : null}
                 </div> : null}
             </> : null}
@@ -417,7 +445,7 @@ export function OfficeWorkspaceShell({
                 <OfficeNavLink href="/office/k-vault/requests"><ShieldCheck size={16}/>Access requests</OfficeNavLink>
               </div> : null}
             {workspace === "office" && identity.roles.includes("OWNER") &&
-              selectedCategory === "Administration" ?
+              selectedCategory === "Company Control" ?
               <details className="office-mega-subgroup" open={expandedSubgroup === "Public content"}>
                 <summary onClick={(event) => {
                   event.preventDefault();
