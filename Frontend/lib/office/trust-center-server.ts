@@ -49,6 +49,9 @@ export async function getTrustCenter(view:"all"|"customer"="all"){
     customer_manage:customerManage,
     customer_review:customerReview,
   };
+  if(view==="customer" && !capabilities.customer_read) {
+    throw new OfficeTrustError(403,"Customer Success read requires the assigned department and a trusted company device when device enforcement is enabled");
+  }
   if(!Object.values(capabilities).some(Boolean))throw new OfficeTrustError(403,"Trust Center is not assigned to your current authority");
 
   const [vendors,assessments,customers,requests,people]=await Promise.all([
