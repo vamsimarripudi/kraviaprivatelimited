@@ -475,6 +475,13 @@ export function OfficeWorkspaceShell({
              <strong>{activeDepartment?officeDepartmentLabel(activeDepartment):"Personal workspace"}</strong>}
            </div>:null}
            <nav id={navId} className="office-category-links" aria-label={definition.label + " navigation"}>
+            {workspace==="office"&&links.length===0&&visibleDepartments.some(code=>officeDepartmentLabel(code)===selectedCategory)?
+              <div className="office-owned-department-verification" role="status">
+                <ShieldCheck size={19} aria-hidden="true"/>
+                <strong>Department assigned</strong>
+                <p>This department belongs to your workspace. Its restricted tools require the appropriate permission and, where mandated, an approved company device.</p>
+                <OfficeNavLink href="/office/my-role">Review my access</OfficeNavLink>
+              </div>:null}
             {subgroups.map(group => <details className="office-mega-subgroup" key={selectedCategory + ":" + group}
               open={expandedSubgroup === group}>
               <summary onClick={(event) => {
