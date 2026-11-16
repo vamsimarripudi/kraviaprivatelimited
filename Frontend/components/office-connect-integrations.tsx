@@ -12,7 +12,8 @@ type Lifecycle={policies:LifecyclePolicy[];total:number;enabled:number;source_re
 type Employee={kind:string;enabled:boolean;approved_at:string|null;effective_from:string|null;
  count_by_status?:Record<string,number|null>;note:string;detail?:string};
 type Status<T>={status:"ok";data:T}|{status:"denied"|"unavailable";detail:string};
-type View={lifecycle:Status<Lifecycle>;employee:Status<Employee>};
+type Brevo={provider:string;operation:string;key_configured:boolean;sender_address_configured:boolean;sender_domain_matches:boolean;sender_name_configured:boolean;network_probe_requested:boolean;provider_authenticated:boolean;sender_active:boolean;domain_verified:boolean;domain_authenticated:boolean;provider_configuration_verified:boolean;mailbox_delivery_verified:boolean;failure_codes:string[]};
+type View={lifecycle:Status<Lifecycle>;employee:Status<Employee>;brevo:Status<Brevo>};
 async function inspect<T>(path:string,signal:AbortSignal):Promise<Status<T>>{
  try{
   const response=await fetch(path,{cache:"no-store",credentials:"same-origin",signal});
@@ -32,6 +33,7 @@ export function OfficeConnectIntegrations(){
  const [view,setView]=useState<View|null>(null);
  const [error,setError]=useState("");
  const [loading,setLoading]=useState(true);
+ const [checkingBrevo,setCheckingBrevo]=useState(false);
  const [refresh,setRefresh]=useState(0);
  const [query,setQuery]=useState("");
  const [owner,setOwner]=useState("ALL");
@@ -40,8 +42,9 @@ export function OfficeConnectIntegrations(){
   void Promise.all([
     inspect<Lifecycle>("/api/office-lifecycle-mail-policy",controller.signal),
     inspect<Employee>("/api/office-employee-mail-policy",controller.signal),
-  ]).then(([lifecycle,employee])=>{
-    if(!controller.signal.aborted){setView({lifecycle,employee});setError("");}
+    inspect<Brevo>("/api/office-runtime/integrations/brevo/readiness",controller.signal),
+  ]).then(([lifecycle,employee,brevo])=>{
+    if(!controller.signal.aborted){setView({lifecycle,employee,brevo});setError("");}
   }).catch(()=>{
     if(!controller.signal.aborted){setView(null);setError("Policy snapshot unavailable");}
   }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
@@ -49,6 +52,15 @@ export function OfficeConnectIntegrations(){
  },[refresh]);
  const policies=useMemo(()=>view?.lifecycle.status==="ok"?view.lifecycle.data.policies:[],[view]);
  const owners=useMemo(()=>["ALL",...new Set(policies.map(p=>p.delivery_owner))],[policies]);
+ async function verifyBrevo(){
+  setCheckingBrevo(true);
+  try{
+   const state=await inspect<Brevo>("/api/office-runtime/integrations/brevo/readiness?probe=true",new AbortController().signal);
+   setView(old=>old?{...old,brevo:state}:old);
+  }catch{
+   setError("Brevo read-only verification was interrupted");
+  }finally{setCheckingBrevo(false);}
+ }
  const visible=useMemo(()=>policies.filter(p=>{
   const needle=query.trim().toLowerCase();
   if(owner!=="ALL"&&p.delivery_owner!==owner)return false;
@@ -82,6 +94,25 @@ export function OfficeConnectIntegrations(){
          <span key={status}>{status==="SENT"?"Provider accepted":status.toLowerCase()}: <strong>{count(view.employee.status==="ok"?view.employee.data.count_by_status?.[status]:null)}</strong></span>)}
        </div></>:<p role="status" className={styles.blocked}><LockKeyhole size={16}/>{view.employee.detail}</p>}
      <Link href="/office/settings">Review employee mail policy <ArrowRight size={16}/></Link>
+    </section>
+    <section><h2><ShieldCheck size={18}/>Brevo sender verification</h2>
+      {view.brevo.status==="ok"?<>
+        <p>{view.brevo.data.provider_configuration_verified
+          ?"Brevo authenticated; KRAVIA sender active and domain verified. No email was sent."
+          :view.brevo.data.network_probe_requested
+            ?"Brevo account/sender/domain verification requires attention."
+            :"Provider setup has not yet been verified with Brevo."}</p>
+        <div className={styles.states}>
+          <span>API key present: <strong>{view.brevo.data.key_configured?"Yes":"No"}</strong></span>
+          <span>Sender active: <strong>{view.brevo.data.sender_active?"Verified":"Unverified"}</strong></span>
+          <span>Domain authenticated: <strong>{view.brevo.data.domain_authenticated?"Verified":"Unverified"}</strong></span>
+          <span>Inbox delivered: <strong>Not confirmed by this check</strong></span>
+        </div>
+        {view.brevo.data.failure_codes.length?<p className={styles.blocked}>Checks: {view.brevo.data.failure_codes.join(", ")}</p>:null}
+        <button type="button" disabled={checkingBrevo||!view.brevo.data.key_configured} onClick={()=>void verifyBrevo()}>
+          <RefreshCw size={16}/>{checkingBrevo?"Checking Brevo…":"Verify sender & domain"}
+        </button>
+      </>:<p role="status" className={styles.blocked}><LockKeyhole size={16}/>{view.brevo.detail}</p>}
     </section></div>
     {view.lifecycle.status==="ok"?<section className={styles.catalog}>
      <header><h2>Governed lifecycle event register</h2><span>{visible.length} of {policies.length} source records</span></header>

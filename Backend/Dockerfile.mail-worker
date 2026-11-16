@@ -1,0 +1,15 @@
+# Dedicated Brevo dispatch: no public HTTP domain and no ClamAV dependency.
+FROM python:3.13-slim
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PATH="/opt/venv/bin:$PATH"
+WORKDIR /app
+COPY backend/requirements.txt /app/backend/requirements.txt
+RUN python -m venv /opt/venv \
+    && /opt/venv/bin/pip install --no-cache-dir -r /app/backend/requirements.txt
+COPY backend /app/backend
+RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin kravia \
+    && chown -R kravia:kravia /app /opt/venv
+USER kravia
+CMD ["/opt/venv/bin/python","-m","backend.mail_worker"]
