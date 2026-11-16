@@ -27,7 +27,7 @@ function soundFor(item:OfficeNotice,pref:OfficeNotificationPreferences){
   }catch{ /* Muting is safer than failing a notification. */ }
 }
 
-export function OfficeNotificationHub(){
+export function OfficeNotificationHub({hideTrigger=false}:{hideTrigger?:boolean}={}){
   const {identity}=useOfficeWorkspace();
   const [data,setData]=useState<Center|null>(null);
   const [pref,setPref]=useState<OfficeNotificationPreferences>(defaultNotificationPreferences);
@@ -210,6 +210,12 @@ export function OfficeNotificationHub(){
   }
 
   useEffect(()=>{
+    const openFromOverflow=()=>{setOpen(true);void refresh();};
+    window.addEventListener("kravia-office-open-notifications",openFromOverflow);
+    return()=>window.removeEventListener("kravia-office-open-notifications",openFromOverflow);
+  },[refresh]);
+
+  useEffect(()=>{
     if(!open)return;
     const closeOutside=(event:PointerEvent)=>{
       if(event.target instanceof Node
@@ -223,13 +229,13 @@ export function OfficeNotificationHub(){
   const unread=data?.unread??0;
   const inbox=data?.notifications.slice(0,12)??[];
   return <div className={styles.wrapper} ref={triggerRef}>
-    <button type="button" className={styles.trigger} title="Notifications"
+    {!hideTrigger?<button type="button" className={styles.trigger} title="Notifications"
       aria-label={"Open Office notifications"+(unread?" ("+unread+" unread)":"")}
       aria-expanded={open} aria-haspopup="dialog"
       onClick={()=>{setOpen(v=>!v);void refresh();}}>
       <Bell size={19} aria-hidden="true"/>
       {unread>0?<span className={styles.count}>{unread>99?"99+":unread}</span>:null}
-    </button>
+    </button>:null}
     {open && portal ? createPortal(<div className={styles.flyout} ref={flyoutRef} role="dialog" aria-label="Office notification inbox">
       <header><span><BellRing size={16}/>Notifications</span>
         <Link href="/office/notifications" onClick={()=>setOpen(false)}>View all <ArrowUpRight size={14}/></Link>

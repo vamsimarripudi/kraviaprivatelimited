@@ -16,7 +16,7 @@ type Brief = {
 
 /** Explicitly opened, read-only executive preview. It performs no background
  * polling and never grants access to non-executive Office identities. */
-export function OfficeIntelligencePeek() {
+export function OfficeIntelligencePeek({ hideTrigger = false }: { hideTrigger?: boolean } = {}) {
   const [open, setOpen] = useState(false);
   const [brief, setBrief] = useState<Brief>();
   const [error, setError] = useState<string>();
@@ -40,6 +40,12 @@ export function OfficeIntelligencePeek() {
   }, []);
 
   useEffect(() => {
+    const openFromOverflow = () => setOpen(true);
+    window.addEventListener("kravia-office-open-intelligence", openFromOverflow);
+    return () => window.removeEventListener("kravia-office-open-intelligence", openFromOverflow);
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
     const controller = new AbortController();
     void refresh(controller.signal);
@@ -56,10 +62,10 @@ export function OfficeIntelligencePeek() {
     };
   }, [open, refresh]);
 
-  return <div className={styles.root} ref={root}>
-    <button className={styles.trigger} type="button" aria-label="Company intelligence"
+  return <div className={styles.root} ref={root} data-office-overflow-intelligence={hideTrigger}>
+    {!hideTrigger ? <button className={styles.trigger} type="button" aria-label="Company intelligence"
       title="Company intelligence" aria-expanded={open} aria-controls="office-intelligence-peek"
-      onClick={() => setOpen(v => !v)}><BrainCircuit size={20} aria-hidden="true"/></button>
+      onClick={() => setOpen(v => !v)}><BrainCircuit size={20} aria-hidden="true"/></button> : null}
     {open ? <section className={styles.card} id="office-intelligence-peek" aria-label="Company intelligence">
       <header className={styles.heading}>
         <div><strong>Company intelligence</strong><small>Verified sources · read-only</small></div>

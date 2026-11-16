@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowRightLeft, BookOpen, BriefcaseBusiness, Building2, CalendarDays, ChevronDown, ChevronRight,
   ClipboardCheck, Cog, FileText, Folders, GitBranch, Landmark,
-  LayoutDashboard, Menu, MessageSquareText, Moon, MoreHorizontal, PanelLeftClose,
+  LayoutDashboard, Menu, MessageSquareText, Moon, MoreHorizontal, PanelLeftClose, Search, Bell, BrainCircuit,
   PanelLeftOpen, Scale, Settings, ShieldCheck, Sun, Users, Vault, Wallet, X,
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
@@ -16,7 +16,7 @@ import { OfficePresenceControl } from "@/components/office-presence-control";
 import { OfficeCommandPalette } from "@/components/office-command-palette";
 import { OfficeNotificationHub } from "@/components/office-notification-hub";
 import { OfficeIntelligencePeek } from "@/components/office-intelligence-peek";
-import { OfficeIstClock } from "@/components/office-ist-clock";
+import { OfficeTopbarCalendar } from "@/components/office-topbar-calendar";
 import { WorkspaceSignOutButton } from "@/components/workspace-sign-out-button";
 import { OfficeWorkspaceProvider } from "@/components/office-workspace-context";
 import { OfficeAmbientField } from "@/components/office-experience-ambient";
@@ -327,6 +327,13 @@ export function OfficeWorkspaceShell({
     return () => window.removeEventListener("kravia-office-open-navigation", openMobileNavigation);
   }, []);
 
+  function openTopbarTool(tool: "search" | "notifications" | "intelligence") {
+    // Keep the existing privileged utility components mounted outside the
+    // compact topbar. Only a deliberate overflow action opens their UI.
+    setMoreOpen(false);
+    window.dispatchEvent(new Event("kravia-office-open-" + tool));
+  }
+
   function switchTheme() {
     const next: Theme = theme === "dark" ? "light" : "dark";
     setTheme(next);
@@ -539,37 +546,58 @@ export function OfficeWorkspaceShell({
             <ChevronRight size={14} aria-hidden="true"/>
             <strong aria-current="page">{activePageTitle}</strong>
           </nav>
-          <div className="office-topbar-tools">
-            <OfficeCommandPalette commands={commands}/>
-            <OfficeNotificationHub/>
-            <OfficeIstClock/>
-            {workspace === "office" && identity.roles.some(role => role === "OWNER" || role === "DIRECTOR") ?
-              <OfficeIntelligencePeek key={pathname}/> : null}
-          <div className="office-more-wrapper" ref={moreRef}>
-            <button type="button" className="office-more-button"
-              aria-label="More workspace tools" aria-expanded={moreOpen}
-              aria-controls="office-more-menu" title="Workspace tools"
-              onClick={() => setMoreOpen(v => !v)}>
-              <MoreHorizontal size={21} aria-hidden="true"/>
-            </button>
-            <div id="office-more-menu" className="office-more-card" data-open={moreOpen} aria-hidden={!moreOpen}>
-              <div className="office-more-heading"><strong>Workspace tools</strong>
-                <button type="button" onClick={() => setMoreOpen(false)}
-                  aria-label="Close workspace tools"><X size={16}/></button></div>
-              <OfficePresenceControl/>
-              
-              <IdentityCard identity={identity}/>
-              <div className="office-more-shortcuts">
-                {canOpenSettings ? <OfficeNavLink href={settingsHref}><Cog size={15}/>Settings</OfficeNavLink> : null}
-                <button type="button" onClick={switchTheme}>
-                  {theme === "dark" ? <Sun size={15}/> : <Moon size={15}/>}
-                  {theme === "dark" ? "Light theme" : "Dark theme"}
-                </button>
+          <div className="office-topbar-tools" data-office-topbar-minimal>
+            <OfficeTopbarCalendar workspace={workspace} theme={theme} onOpen={() => setMoreOpen(false)}/>
+            <div className="office-more-wrapper" ref={moreRef}>
+              <button type="button" className="office-more-button"
+                aria-label="More workspace tools" aria-expanded={moreOpen}
+                aria-haspopup="menu" aria-controls="office-more-menu" title="Workspace tools"
+                onClick={() => setMoreOpen(value => !value)}>
+                <MoreHorizontal size={21} aria-hidden="true"/>
+              </button>
+              <div id="office-more-menu" className="office-more-card" data-open={moreOpen} aria-hidden={!moreOpen}>
+                <div className="office-more-heading"><div><strong>Workspace tools</strong><span>Quick access</span></div>
+                  <button type="button" onClick={() => setMoreOpen(false)}
+                    aria-label="Close workspace tools"><X size={17} aria-hidden="true"/></button>
+                </div>
+                <div className="office-more-actions" role="group" aria-label="Workspace utilities">
+                  <button type="button" onClick={() => openTopbarTool("search")}>
+                    <Search size={17} aria-hidden="true"/><span>Search workspace</span><kbd>Ctrl K</kbd>
+                  </button>
+                  <button type="button" onClick={() => openTopbarTool("notifications")}>
+                    <Bell size={17} aria-hidden="true"/><span>Notifications</span>
+                  </button>
+                  {workspace === "office" && identity.roles.some(role => role === "OWNER" || role === "DIRECTOR") ?
+                    <button type="button" onClick={() => openTopbarTool("intelligence")}>
+                      <BrainCircuit size={17} aria-hidden="true"/><span>Company intelligence</span>
+                    </button> : null}
+                </div>
+                <div className="office-more-section-label">MY WORK STATUS</div>
+                <OfficePresenceControl/>
+                <div className="office-more-section-label">PREFERENCES</div>
+                <div className="office-more-actions">
+                  {canOpenSettings ? <OfficeNavLink href={settingsHref}>
+                    <Cog size={17} aria-hidden="true"/><span>Settings</span>
+                  </OfficeNavLink> : null}
+                  <button type="button" onClick={() => { switchTheme(); setMoreOpen(false); }}>
+                    {theme === "dark" ? <Sun size={17} aria-hidden="true"/> : <Moon size={17} aria-hidden="true"/>}
+                    <span>{theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}</span>
+                  </button>
+                </div>
+                <div className="office-more-account">
+                  <IdentityCard identity={identity}/>
+                  <WorkspaceSignOutButton workspace={workspace}/>
+                </div>
               </div>
             </div>
           </div>
-          </div>
         </header>
+        <div className="office-topbar-utility-host" data-office-topbar-utilities>
+          <OfficeCommandPalette commands={commands} hideTrigger/>
+          <OfficeNotificationHub hideTrigger/>
+          {workspace === "office" && identity.roles.some(role => role === "OWNER" || role === "DIRECTOR") ?
+            <OfficeIntelligencePeek key={pathname} hideTrigger/> : null}
+        </div>
         {item ? <div className="office-notice office-compact-notice" title={item.description}>
           <ShieldCheck size={14} aria-hidden="true"/>
           <p>{item.description}</p>
