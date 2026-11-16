@@ -19,11 +19,16 @@ export function OfficeCommandPalette({ commands }: { commands: OfficeNavigationC
   const [query, setQuery] = useState("");
   const [remote, setRemote] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [remoteFor,setRemoteFor]=useState("");
+  const [failedFor,setFailedFor]=useState("");
+  const [searchRevision,setSearchRevision]=useState(0);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const normalizedQuery = query.trim();
-  const visibleRemote = normalizedQuery.length >= 2 ? remote : [];
+  const visibleRemote = normalizedQuery.length >= 2 && remoteFor === normalizedQuery ? remote : [];
+  const searchFailed = normalizedQuery.length >= 2 && failedFor === normalizedQuery;
+  const waitingForRemote = normalizedQuery.length >= 2 && remoteFor !== normalizedQuery && !searchFailed;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -32,6 +37,7 @@ export function OfficeCommandPalette({ commands }: { commands: OfficeNavigationC
         setOpen((value) => !value);
       } else if (event.key === "Escape") {
         setOpen(false);
+        setQuery("");setRemote([]);setRemoteFor("");setFailedFor("");
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -98,9 +104,9 @@ export function OfficeCommandPalette({ commands }: { commands: OfficeNavigationC
         });
         const body = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(typeof body.detail === "string" ? body.detail : "Search unavailable");
-        setRemote(Array.isArray(body.results) ? body.results : []);
+        if(!controller.signal.aborted){setRemote(Array.isArray(body.results) ? body.results : []);setRemoteFor(normalized);setFailedFor("");}
       } catch {
-        if (!controller.signal.aborted) setRemote([]);
+        if(!controller.signal.aborted){setRemote([]);setRemoteFor(normalized);setFailedFor(normalized);}
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
@@ -109,7 +115,7 @@ export function OfficeCommandPalette({ commands }: { commands: OfficeNavigationC
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [open, query]);
+  }, [open, query, searchRevision]);
 
   const local = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -119,7 +125,9 @@ export function OfficeCommandPalette({ commands }: { commands: OfficeNavigationC
 
   function updateQuery(next: string) {
     setQuery(next);
+    setFailedFor("");
     if (next.trim().length < 2) {
+      setRemoteFor("");
       setRemote([]);
       setLoading(false);
     }
@@ -129,25 +137,28 @@ export function OfficeCommandPalette({ commands }: { commands: OfficeNavigationC
     setOpen(false);
     setQuery("");
     setRemote([]);
+    setRemoteFor("");
+    setFailedFor("");
     setLoading(false);
   }
 
   return <>
-    <button ref={triggerRef} type="button" className={styles.trigger} onClick={() => setOpen(true)} aria-label="Open KRAVIA Office search and command palette" aria-haspopup="dialog" aria-expanded={open} aria-controls="office-command-palette">
+    <button ref={triggerRef} type="button" className={styles.trigger} data-office-global-search onClick={() => setOpen(true)} aria-label="Open KRAVIA Office search and command palette" aria-haspopup="dialog" aria-expanded={open} aria-controls="office-command-palette">
       <Search aria-hidden="true" /><span>Search</span><kbd><Command aria-hidden="true" />K</kbd>
     </button>
-    {open ? <div className={styles.backdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
-      <section ref={dialogRef} id="office-command-palette" className={styles.dialog} role="dialog" aria-modal="true" aria-label="KRAVIA Office command palette">
-        <div className={styles.inputRow}>
+    {open ? <div className={styles.backdrop} data-office-search-overlay role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
+      <section ref={dialogRef} id="office-command-palette" className={styles.dialog} data-office-search-dialog role="dialog" aria-modal="true" aria-label="KRAVIA Office command palette">
+        <div className={styles.inputRow} data-office-search-input-row>
           <Search aria-hidden="true" />
-          <input ref={inputRef} value={query} onChange={(event) => updateQuery(event.target.value)} placeholder="Search work, CRM, engineering or open a module…" aria-label="Search KRAVIA Office" />
+          <input ref={inputRef} type="search" autoComplete="off" spellCheck={false} data-office-search-input value={query} onChange={(event) => updateQuery(event.target.value)} placeholder="Search modules and records…" aria-label="Search KRAVIA Office" />
           {loading && normalizedQuery.length >= 2 ? <LoaderCircle className={styles.spin} aria-label="Searching" /> : null}
           <button type="button" onClick={close} aria-label="Close command palette"><X aria-hidden="true" /></button>
         </div>
         <div className={styles.results} aria-live="polite" aria-busy={loading}>
           {local.length ? <div className={styles.group}><p>Available modules</p>{local.map((command) => <Link href={command.href} key={command.id} onClick={close}><span><b>{command.label}</b><small>{command.group}</small></span><ArrowUpRight aria-hidden="true" /></Link>)}</div> : null}
           {visibleRemote.length ? <div className={styles.group}><p>Canonical records</p>{visibleRemote.map((result) => <Link href={result.href} key={result.id} onClick={close}><span><b>{result.label}</b><small>{result.kind} · {result.meta}</small></span><ArrowUpRight aria-hidden="true" /></Link>)}</div> : null}
-          {!local.length && !visibleRemote.length && !(loading && normalizedQuery.length >= 2) ? <div className={styles.empty}><Search aria-hidden="true" /><b>No visible result</b><span>Search only returns records and modules within your current Office authority.</span></div> : null}
+          {searchFailed ? <div className={styles.searchError} role="status"><span>Record search is unavailable. You can still open your modules.</span><button type="button" onClick={()=>{setRemoteFor("");setFailedFor("");setSearchRevision(v=>v+1);}}>Retry</button></div> : null}
+          {!local.length && !visibleRemote.length && !searchFailed && !waitingForRemote && !loading ? <div className={styles.empty}><Search aria-hidden="true" /><b>No visible result</b><span>Search only returns records and modules within your current Office authority.</span></div> : null}
         </div>
         <footer><span>Navigation is capability-filtered. Every record read and mutation remains server-authorized.</span><kbd>ESC</kbd></footer>
       </section>

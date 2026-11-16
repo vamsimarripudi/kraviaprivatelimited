@@ -14,6 +14,7 @@ import "./office-connect-mobile-reference.css";
 import "./office-mobile-repair-20261115.css";
 import "./office-layout-stability-chat-first-20261115.css";
 import "./office-enterprise-contrast-and-boundaries-20261115.css";
+import "./office-search-theme-20261116.css";
 import { OfficeAppearanceRoot } from "@/components/office-appearance-root";
 
 export const metadata: Metadata = {
