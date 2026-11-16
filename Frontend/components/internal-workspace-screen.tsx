@@ -61,6 +61,7 @@ const OfficeControlRegister = dynamic(() => import("@/components/office-control-
 const OfficeDataMovement = dynamic(() => import("@/components/office-data-movement").then((module) => module.OfficeDataMovement), { loading: ModuleLoading });
 const OfficeDocumentStudio = dynamic(() => import("@/components/office-document-studio").then((module) => module.OfficeDocumentStudio), { loading: ModuleLoading });
 const OfficeDeviceIdentity = dynamic(() => import("@/components/office-device-identity").then((module) => module.OfficeDeviceIdentity), { loading: ModuleLoading });
+const OfficeFounderDeviceRecovery = dynamic(() => import("@/components/office-founder-device-recovery").then((module) => module.OfficeFounderDeviceRecovery), { loading: ModuleLoading });
 const OfficeDomainControl = dynamic(() => import("@/components/office-domain-control").then((module) => module.OfficeDomainControl), { loading: ModuleLoading });
 const OfficeEngineeringControlCenter = dynamic(() => import("@/components/office-engineering-control-center").then((module) => module.OfficeEngineeringControlCenter), { loading: ModuleLoading });
 const OfficeEngineeringOperations = dynamic(() => import("@/components/office-engineering-operations").then((module) => module.OfficeEngineeringOperations), { loading: ModuleLoading });
