@@ -21,8 +21,9 @@ type Modal=
  |{kind:"TRUST_SEND";trust:TrustRequest}
  |{kind:"TRUST_CLOSE";trust:TrustRequest};
 
-async function api<T>(options?:RequestInit):Promise<T>{
- const response=await fetch("/api/office-trust-center",{...options,cache:"no-store",credentials:"same-origin"});
+async function api<T>(options?:RequestInit,view:"all"|"customer"="all"):Promise<T>{
+ const endpoint=!options?.method||options.method==="GET"?"/api/office-trust-center?view="+view:"/api/office-trust-center";
+ const response=await fetch(endpoint,{...options,cache:"no-store",credentials:"same-origin"});
  const body=await response.json().catch(()=>({}));
  if(!response.ok)throw new Error(typeof body.detail==="string"?body.detail:"Trust Center request failed");
  return body as T;
@@ -41,10 +42,10 @@ function trustPrepareNext(row:TrustRequest){
  return [];
 }
 
-export function OfficeTrustCenter(){
- const[data,setData]=useState<Payload>();const[view,setView]=useState<View>("vendors");const[modal,setModal]=useState<Modal>();const[draft,setDraft]=useState<Record<string,string>>({});const[busy,setBusy]=useState(false);const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();
- async function reload(message?:string){const next=await api<Payload>();setData(next);if(message)setNotice(message)}
- useEffect(()=>{let alive=true;void api<Payload>().then(next=>{if(alive)setData(next)}).catch((caught:unknown)=>{if(alive)setError(caught instanceof Error?caught.message:"Unable to load Trust Center")});return()=>{alive=false}},[]);
+export function OfficeTrustCenter({mode="all"}:{mode?:"all"|"customer"}={}){
+ const[data,setData]=useState<Payload>();const[view,setView]=useState<View>(mode==="customer"?"customers":"vendors");const[modal,setModal]=useState<Modal>();const[draft,setDraft]=useState<Record<string,string>>({});const[busy,setBusy]=useState(false);const[error,setError]=useState<string>();const[notice,setNotice]=useState<string>();
+ async function reload(message?:string){const next=await api<Payload>(undefined,mode);setData(next);if(message)setNotice(message)}
+ useEffect(()=>{let alive=true;void api<Payload>(undefined,mode).then(next=>{if(alive){setData(next);setView(mode==="customer"?"customers":next.capabilities.vendor_read?"vendors":"customers")}}).catch((caught:unknown)=>{if(alive)setError(caught instanceof Error?caught.message:"Unable to load Trust Center")});return()=>{alive=false}},[mode]);
  const vendorMap=useMemo(()=>new Map((data?.vendors??[]).map(v=>[v.id,v])),[data?.vendors]);
  const customerMap=useMemo(()=>new Map((data?.customers??[]).map(v=>[v.id,v])),[data?.customers]);
  const people=useMemo(()=>new Map((data?.people??[]).map(v=>[v.user_id,v])),[data?.people]);
@@ -68,7 +69,7 @@ export function OfficeTrustCenter(){
  const openTrust=data.customer_trust_requests.filter(t=>!["CLOSED","REJECTED","CANCELLED"].includes(t.status)).length;
 
  return <section className={styles.shell}>
-  <header className={styles.hero}><div><p>VENDOR ASSURANCE · CUSTOMER TRUST</p><h2>Keep due diligence and customer security evidence inside KRAVIA.</h2><span>{data.disclaimer}</span></div><div className={styles.metrics}><article><b>{pendingAssess}</b><span>vendor reviews waiting</span></article><article><b>{trustReview}</b><span>trust reviews waiting</span></article><article><b>{openTrust}</b><span>open customer requests</span></article></div></header>
+  <header className={styles.hero}><div><p>{mode==="customer"?"CUSTOMER SUCCESS · ASSURANCE":"VENDOR ASSURANCE · CUSTOMER TRUST"}</p><h2>{mode==="customer"?"Customer trust requests, evidence and review.":"Keep due diligence and customer security evidence inside KRAVIA."}</h2><span>{data.disclaimer}</span></div><div className={styles.metrics}><article><b>{pendingAssess}</b><span>vendor reviews waiting</span></article><article><b>{trustReview}</b><span>trust reviews waiting</span></article><article><b>{openTrust}</b><span>open customer requests</span></article></div></header>
   <div className={styles.toolbar}>{data.capabilities.vendor_read?<button type="button" data-active={view==="vendors"} onClick={()=>setView("vendors")}>Vendor assurance</button>:null}{data.capabilities.customer_read?<button type="button" data-active={view==="customers"} onClick={()=>setView("customers")}>Customer trust</button>:null}<button type="button" onClick={()=>void reload()}><RefreshCw/>Refresh</button>{view==="vendors"&&data.capabilities.vendor_manage&&data.vendors.length?<button type="button" onClick={()=>{setDraft({assessment_type:"SECURITY",risk_level:"MEDIUM"});setModal({kind:"ASSESS"})}}><Plus/>New assessment</button>:null}{view==="customers"&&data.capabilities.customer_manage&&data.customers.length?<button type="button" onClick={()=>{setDraft({request_type:"SECURITY_QUESTIONNAIRE"});setModal({kind:"TRUST"})}}><Plus/>New trust request</button>:null}</div>
   {notice?<div className={styles.notice}><BadgeCheck/>{notice}</div>:null}{error?<div className={styles.error}><CircleAlert/>{error}</div>:null}
 
