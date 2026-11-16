@@ -262,16 +262,18 @@ def _oidc_mfa_guard(request: Request, app_env: str):
 
 
 def configure_security(app) -> None:
+    app_env = os.getenv("APP_ENV", "development").lower()
     requests = int(os.getenv("OFFICE_MUTATION_RATE_LIMIT", "120"))
-    auth_requests = int(os.getenv("OFFICE_AUTH_MUTATION_RATE_LIMIT", "24"))
-    sensitive_requests = int(os.getenv("OFFICE_SENSITIVE_MUTATION_RATE_LIMIT", "40"))
+    auth_requests = int(os.getenv("OFFICE_AUTH_MUTATION_RATE_LIMIT",
+                                  "24" if app_env == "production" else str(requests)))
+    sensitive_requests = int(os.getenv("OFFICE_SENSITIVE_MUTATION_RATE_LIMIT",
+                                       "40" if app_env == "production" else str(requests)))
     slow_request_ms = max(100, int(os.getenv("OFFICE_SLOW_REQUEST_LOG_MS", "900")))
     window = int(os.getenv("OFFICE_RATE_LIMIT_WINDOW_SECONDS", "60"))
     if min(requests, auth_requests, sensitive_requests, window) < 1:
         raise RuntimeError("Office rate limits must be positive")
     allowed_hosts = _csv_env("OFFICE_ALLOWED_HOSTS")
     allowed_origins = _allowed_origins()
-    app_env = os.getenv("APP_ENV", "development").lower()
     rate_limit_mode = os.getenv(
         "OFFICE_RATE_LIMIT_MODE",
         "database" if app_env == "production" else "local",
