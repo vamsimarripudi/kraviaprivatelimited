@@ -1,0 +1,209 @@
+/* The final search cascade for Office and Finance.
+   Search inputs must use the *current* workspace tokens, not legacy white
+   button chrome, green-tinted dialogs, or a second outlined input inside a
+   focused wrapper. The source tokens live on [data-ui-theme]. */
+.kravia-office .office-v2.office-modern .office-topbar-tools
+ [data-office-global-search]{
+ background:var(--office-ui-control)!important;
+ color:var(--office-ui-ink)!important;
+ border:1px solid var(--office-ui-line)!important;
+ box-shadow:none!important;
+ max-width:min(220px,35vw);
+}
+.kravia-office .office-v2.office-modern .office-topbar-tools
+ [data-office-global-search]:hover{
+ background:var(--office-ui-surface-alt)!important;
+ border-color:var(--office-ui-accent)!important;
+}
+.kravia-office .office-v2.office-modern .office-topbar-tools
+ [data-office-global-search] :is(span,svg){
+ color:var(--office-ui-ink)!important;
+}
+.kravia-office .office-v2.office-modern .office-topbar-tools
+ [data-office-global-search] kbd{
+ background:var(--office-ui-surface-alt)!important;
+ border:1px solid var(--office-ui-line)!important;
+ color:var(--office-ui-muted)!important;
+}
+.kravia-office .office-v2.office-modern .office-topbar-tools
+ [data-office-global-search] kbd svg{
+ color:var(--office-ui-muted)!important;
+}
+/* Command palette is nested in the authenticated Office shell. */
+.kravia-office .office-v2.office-modern [data-office-search-dialog]{
+ background:var(--office-ui-surface)!important;
+ color:var(--office-ui-ink)!important;
+ border-color:var(--office-ui-line)!important;
+ color-scheme:inherit!important;
+}
+.kravia-office .office-v2.office-modern [data-office-search-input-row]{
+ background:var(--office-ui-surface-alt)!important;
+ border-color:var(--office-ui-line)!important;
+ color:var(--office-ui-ink)!important;
+}
+.kravia-office .office-v2.office-modern [data-office-search-input-row]
+ input[data-office-search-input]{
+ display:block!important;min-width:0!important;width:100%!important;
+ min-height:40px!important;border:0!important;border-radius:0!important;
+ padding:7px 0!important;outline:0!important;box-shadow:none!important;
+ background:transparent!important;color:var(--office-ui-ink)!important;
+ caret-color:var(--office-ui-accent)!important;
+ -webkit-appearance:none;appearance:none;
+ color-scheme:inherit;
+}
+.kravia-office .office-v2.office-modern [data-office-search-input-row]
+ input[data-office-search-input]::placeholder{
+ color:var(--office-ui-muted)!important;opacity:1!important;
+}
+.kravia-office .office-v2.office-modern [data-office-search-input-row]:focus-within{
+ box-shadow:inset 0 -2px var(--office-ui-accent)!important;
+}
+/* Inset the focus indication on the *outer* search field.
+   Desktop chat, Settings and native dropdown/combobox use one border. */
+.kravia-office .office-v2.office-modern .office-main
+ :is([data-office-chat-search],[data-office-settings-search],
+     .enterprise-combobox-popover > label):has(input){
+ background:var(--office-ui-surface-alt)!important;
+ color:var(--office-ui-ink)!important;
+ border:1px solid var(--office-ui-line)!important;
+ box-shadow:none!important;
+ min-width:0;max-width:100%;
+}
+.kravia-office .office-v2.office-modern .office-main
+ :is([data-office-chat-search],[data-office-settings-search],
+     .enterprise-combobox-popover > label):focus-within{
+ border-color:var(--office-ui-accent)!important;
+ box-shadow:0 0 0 3px var(--office-ui-ring)!important;
+}
+.kravia-office .office-v2.office-modern .office-main
+ :is([data-office-chat-search],[data-office-settings-search],
+     .enterprise-combobox-popover > label) input{
+ display:block!important;min-width:0!important;
+ background:transparent!important;color:var(--office-ui-ink)!important;
+ border:0!important;border-radius:0!important;outline:0!important;
+ box-shadow:none!important;caret-color:var(--office-ui-accent);
+ color-scheme:inherit;
+}
+.kravia-office .office-v2.office-modern .office-main
+ :is([data-office-chat-search],[data-office-settings-search],
+     .enterprise-combobox-popover > label) input:focus-visible{
+ outline:0!important;box-shadow:none!important;
+}
+.kravia-office .office-v2.office-modern .office-main
+ :is([data-office-chat-search],[data-office-settings-search],
+     .enterprise-combobox-popover > label) input::placeholder{
+ color:var(--office-ui-muted)!important;opacity:1!important;
+}
+/* Explicitly style the other scoped search fields (case, vault, directory)
+   without overriding their category-specific layout or authorization. */
+.kravia-office .office-v2.office-modern .office-main input[type="search"]{
+ color-scheme:inherit;accent-color:var(--office-ui-accent);caret-color:var(--office-ui-accent);
+}
+.kravia-office .office-v2.office-modern .office-main input[type="search"]::placeholder{
+ color:var(--office-ui-muted)!important;opacity:1!important;
+}
+/* The Connect mobile reference was previously always black even in light mode.
+   Use the user's actual theme for the header/search, list and dock as a set,
+   so the search control never clashes with a fixed-color container. */
+@media(max-width:767px){
+ .kravia-office .office-v2.office-modern .office-main
+ :is([data-office-chat-search],[data-office-settings-search],
+     .enterprise-combobox-popover > label) input[type="search"]{font-size:16px!important}
+ .kravia-office .office-v2.office-modern[data-ui-theme="light"]
+ [data-connect-mobile-home]{
+  --chat-canvas:var(--office-ui-canvas);
+  --chat-surface:var(--office-ui-surface);
+  --chat-subtle:var(--office-ui-surface-alt);
+  --chat-line:var(--office-ui-line);
+  --chat-text:var(--office-ui-ink);
+  --chat-muted:var(--office-ui-muted);
+  --chat-accent:var(--office-ui-accent);
+  background:var(--office-ui-canvas)!important;
+  color:var(--office-ui-ink)!important;
+ }
+ .kravia-office .office-v2.office-modern[data-ui-theme="light"]
+ [data-connect-mobile-header]{
+  background:var(--office-ui-surface)!important;
+  color:var(--office-ui-ink)!important;
+  border:1px solid var(--office-ui-line)!important;
+ }
+ .kravia-office .office-v2.office-modern[data-ui-theme="light"]
+ [data-connect-mobile-header] :is(a,button,svg,span){
+  color:var(--office-ui-ink)!important;
+ }
+ .kravia-office .office-v2.office-modern[data-ui-theme="light"]
+ [data-connect-mobile-filters]{
+  background:var(--office-ui-surface)!important;color:var(--office-ui-ink)!important;
+ }
+ .kravia-office .office-v2.office-modern[data-ui-theme="light"]
+ [data-connect-mobile-filters] :is(h1,label,span,svg){
+  color:var(--office-ui-ink)!important;
+ }
+ .kravia-office .office-v2.office-modern[data-ui-theme="light"]
+ [data-connect-mobile-filters] a{
+  background:var(--office-ui-surface-alt)!important;color:var(--office-ui-ink)!important;
+  border-color:var(--office-ui-line)!important;
+ }
+ .kravia-office .office-v2.office-modern[data-ui-theme="light"]
+ [data-connect-unread-toggle] span:nth-of-type(2){
+  background:var(--office-ui-line)!important;
+ }
+ .kravia-office .office-v2.office-modern[data-ui-theme="light"]
+ [data-connect-unread-toggle] input:checked+span:nth-of-type(2){
+  background:var(--office-ui-accent)!important;
+ }
+ .kravia-office .office-v2.office-modern[data-ui-theme="light"]
+ [data-connect-mobile-tabs]{
+  background:var(--office-ui-canvas)!important;
+ }
+ .kravia-office .office-v2.office-modern[data-ui-theme="light"]
+ [data-connect-mobile-tabs] button{
+  background:var(--office-ui-surface)!important;color:var(--office-ui-ink)!important;
+  border-color:var(--office-ui-line)!important;
+ }
+ .kravia-office .office-v2.office-modern[data-ui-theme="light"]
+ [data-connect-mobile-tabs] button[data-active="true"]{
+  background:var(--office-ui-selected)!important;color:var(--office-ui-ink)!important;
+  border-color:var(--office-ui-accent)!important;
+ }
+ .kravia-office .office-v2.office-modern[data-ui-theme="light"]
+ [data-connect-mobile-home] [class*="mobile-home_conversationText"] strong{
+  color:var(--office-ui-ink)!important;
+ }
+ .kravia-office .office-v2.office-modern[data-ui-theme="light"]
+ [data-connect-mobile-home] [class*="mobile-home_conversationText"] small{
+  color:var(--office-ui-muted)!important;
+ }
+ .kravia-office .office-v2.office-modern[data-ui-theme="light"]
+ [data-connect-mobile-home] [class*="mobile-home_emptyState"] h2{
+  color:var(--office-ui-ink)!important;
+ }
+ .kravia-office .office-v2.office-modern[data-ui-theme="light"]
+ [data-connect-mobile-dock] [class*="mobile-home_bottomPill"]{
+  background:var(--office-ui-surface)!important;
+  border-color:var(--office-ui-line)!important;
+ }
+ .kravia-office .office-v2.office-modern[data-ui-theme="light"]
+ [data-connect-mobile-dock] [class*="mobile-home_bottomPill"] :is(a,button){
+  color:var(--office-ui-muted)!important;
+ }
+ .kravia-office .office-v2.office-modern[data-ui-theme="light"]
+ [data-connect-mobile-dock] [class*="mobile-home_bottomPill"] [data-active="true"]{
+  background:var(--office-ui-selected)!important;color:var(--office-ui-accent)!important;
+ }
+ .kravia-office .office-v2.office-modern[data-ui-theme="light"]
+ [data-connect-mobile-dock] [class*="mobile-home_toolsMenu"]{
+  background:var(--office-ui-surface)!important;color:var(--office-ui-ink)!important;
+  border-color:var(--office-ui-line)!important;
+ }
+ .kravia-office .office-v2.office-modern[data-ui-theme="light"]
+ [data-connect-mobile-dock] [class*="mobile-home_toolsMenu"] :is(a,button,strong){
+  color:var(--office-ui-ink)!important;
+ }
+}
+@media(prefers-reduced-motion:reduce){
+ .kravia-office .office-v2.office-modern [data-office-search-dialog] *,
+ .kravia-office .office-v2.office-modern [data-office-global-search]{
+  animation:none!important;transition:none!important;
+ }
+}
