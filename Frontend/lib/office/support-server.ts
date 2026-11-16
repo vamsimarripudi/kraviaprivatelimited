@@ -109,8 +109,8 @@ export async function getOfficeSupportOverview() {
 
   const [eventsResult, customersResult, productsResult, ownersResult] = await Promise.all([
     ids.length ? read.admin.from("office_support_case_events").select("id,case_id,actor_user_id,event_type,previous_status,new_status,note,created_at").in("case_id", ids).order("created_at", { ascending: false }).limit(1000) : Promise.resolve({ data: [], error: null }),
-    customerIds.length ? readOfficeRuntimeResult<Array<Record<string,unknown>>>("customers").then((result)=>({...result,data:(result.data??[]).filter((row)=>customerIds.includes(String(row.id)))})) : Promise.resolve({ data: [] as Array<Record<string,unknown>>, error: null }),
-    productIds.length ? readOfficeRuntimeResult<Array<Record<string,unknown>>>("products").then((result)=>({...result,data:(result.data??[]).filter((row)=>productIds.includes(String(row.id)))})) : Promise.resolve({ data: [] as Array<Record<string,unknown>>, error: null }),
+    customerIds.length ? readOfficeRuntimeResult<Array<Record<string,unknown>>>("customers",{timeoutMs:5500}).then((result)=>({...result,data:(result.data??[]).filter((row)=>customerIds.includes(String(row.id)))})) : Promise.resolve({ data: [] as Array<Record<string,unknown>>, error: null }),
+    productIds.length ? readOfficeRuntimeResult<Array<Record<string,unknown>>>("products",{timeoutMs:5500}).then((result)=>({...result,data:(result.data??[]).filter((row)=>productIds.includes(String(row.id)))})) : Promise.resolve({ data: [] as Array<Record<string,unknown>>, error: null }),
     (() => {
       let query = read.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").eq("status", "ACTIVE").order("display_name");
       if (read.ownerIds) query = query.in("user_id", read.ownerIds.length ? read.ownerIds : [read.identity.userId]);
