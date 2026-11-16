@@ -79,14 +79,14 @@ export function deriveHrReadiness(metrics: HrReadinessMetrics): HrReadinessActio
     detail: String(metrics.overdueOpenSessions) + " open session(s) are dated before today in IST. Close only using factual check-out or correction evidence.",
     href: "/office/worktime", action: "Check session exceptions",
   });
-  if (metrics.activeEmployees > 0 && metrics.verifiedBankAccounts === 0) add({
+  if (metrics.activeEmployees > metrics.verifiedBankAccounts) add({
     id: "bank-verification", priority: "P0", title: "Verify employee payment destinations",
-    detail: "No employee bank verification is recorded in the private intake ledger. Finance must verify encrypted bank details against authorized evidence before payment.",
+    detail: String(metrics.activeEmployees - metrics.verifiedBankAccounts) + " active employee(s) lack independent bank verification. Finance must review private evidence before payment.",
     href: "/office/people#hr-employee-intake", action: "Open restricted intake",
   });
-  if (metrics.activeEmployees > 0 && metrics.approvedCompensationVersions === 0) add({
+  if (metrics.activeEmployees > 0 && metrics.approvedCompensationVersions !== null && metrics.approvedCompensationVersions < metrics.activeEmployees) add({
     id: "salary-versions", priority: "P0", title: "Activate only approved salary versions",
-    detail: "No presently effective, approved compensation version was found. Enter packages from signed source documents and use the existing independent approval workflow.",
+    detail: String(metrics.activeEmployees - (metrics.approvedCompensationVersions ?? 0)) + " active employment record(s) lack a currently effective approved salary. Expired, planned and duplicate versions do not count.",
     href: "/office/payroll", action: "Open compensation controls",
   });
   if (metrics.activeEmployees > 0 && metrics.approvedPayrollRules === 0) add({
@@ -95,9 +95,9 @@ export function deriveHrReadiness(metrics: HrReadinessMetrics): HrReadinessActio
     href: "/office/payroll", action: "Review payroll rules",
     requiresHumanEvidence: true,
   });
-  if (metrics.activeEmployees > 0 && metrics.approvedWorktimePolicies === 0) add({
+  if (metrics.activeEmployees > 0 && metrics.approvedWorktimePolicies !== null && metrics.approvedWorktimePolicies < metrics.activeEmployees) add({
     id: "ot-policy", priority: "P0", title: "Authorize employee-specific overtime policy",
-    detail: "No currently effective, approved OT policy was found. Proposed 2x/3x/night premiums are not wage entitlements without valid employee eligibility and dated authority.",
+    detail: String(metrics.activeEmployees - (metrics.approvedWorktimePolicies ?? 0)) + " active employee(s) lack currently effective, separately approved worktime policy. Contractual OT requires eligibility and dated authority.",
     href: "/office/worktime", action: "Review OT authority",
     requiresHumanEvidence: true,
   });
