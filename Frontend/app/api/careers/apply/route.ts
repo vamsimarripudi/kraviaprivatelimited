@@ -30,14 +30,15 @@ export async function POST(request: Request) {
         .map(key=>[key,key==="communication"?(data.has(key)?"yes":"no"):String(data.get(key)||"")])
     ));
     if (!parsed.success) return NextResponse.json({detail:"Please check the application fields and privacy acknowledgement"},{status:400});
-    const resume=data.get("resume");
-    if (resume && !(resume instanceof File)) return NextResponse.json({detail:"Unsupported resume"},{status:400});
+    const uploaded=data.get("resume");
+    if (uploaded && !(uploaded instanceof File)) return NextResponse.json({detail:"Unsupported resume"},{status:400});
+    const resume:File|null=uploaded instanceof File?uploaded:null;
     const value=parsed.data;
     const result=await submitCareerApplication({
       jobSlug:value.job_slug,fullName:value.full_name,email:value.email,
       phone:value.phone,location:value.location,note:value.note,
       privacyAccepted:true,communicationRequested:value.communication==="yes",
-      honeypot:value.website,resume:resume||null,
+      honeypot:value.website,resume,
     },request);
     return NextResponse.json({accepted:result.accepted,reference:result.reference||null,message:"If eligible, a verification email has been requested. Check your inbox and spam folder."},{
       status:202,headers:{"Cache-Control":"private, no-store","Referrer-Policy":"no-referrer"}

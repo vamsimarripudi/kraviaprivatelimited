@@ -83,6 +83,7 @@ async function recordMail(admin: CareerAdmin, application: Applicant, kind: Care
     .insert({ application_id:application.id,event_type:kind,recipient_email:application.email,status:"PENDING" })
     .select("id").single();
   assertDatabase(created.error,"Unable to retain communication audit event");
+  if (!created.data?.id) throw new CareerError(503,"Communication audit reference is unavailable");
   const result=await sendCareerNotice({
     kind,name:application.full_name,email:application.email,reference:application.application_code,token,
   });
