@@ -42,7 +42,7 @@ a separate departmental code SUPPORT; Customer Success is CUSTOMER_SUCCESS.
 2. The permanent-department ownership verdict granted write permissions to
    department heads but its safe-read whitelist omitted important reads:
    support.case.read, customer.trust.read, secretarial.board.read,
-   registration.read, compliance.rules.read, operations.asset.read and
+   registration.read, compliance.rules.read, operations.asset.read, facilities.room.read and
    security.overview.read. A workspace with write but no read fails before
    showing the actual cases or documents.
 3. Jaya's active first-party account had roles ADMIN, CS, LEGAL and
@@ -63,6 +63,7 @@ a separate departmental code SUPPORT; Customer Success is CUSTOMER_SUCCESS.
 - A 30-second floor applies to incidental tab-focus navigation refresh only;
   explicit department change events invalidate immediately. All business API
   reads remain no-store and permission-scoped.
+- Secretarial Registrations now has an explicit capability mapping instead of being hidden even after authorization. Facilities permission ownership is aligned with its existing Operations page (previously mapped to unassigned Administration); sensitive visitor/facilities actions still require their normal managed-device and independent approval checks.
 - Customer Success has an actual customer-only Trust Center workspace, while
   Sales retains customer master; the customer view does not return vendor
   assurance details or financial operations.
