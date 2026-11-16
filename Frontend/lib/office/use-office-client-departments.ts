@@ -5,7 +5,7 @@ type Data={actor?:{user_id:string};departments?:Array<{code:string;active?:boole
 type State={status:"loading"|"ready"|"unavailable";codes:string[];lastCheckedAt:number|null;error:string|null};
 const RECHECK_MS=30000;
 /** Uses the existing authorized Office endpoint; never grants access. */
-export function useOfficeClientDepartments(userId:string,primaryDepartment?:string|null){
+export function useOfficeClientDepartments(userId:string,primaryDepartment?:string|null,enabled=true){
  const [state,setState]=useState<State>({status:"loading",codes:[],lastCheckedAt:null,error:null});
  const inFlight=useRef(false);
  const refresh=useCallback(async(signal?:AbortSignal)=>{
@@ -30,6 +30,7 @@ export function useOfficeClientDepartments(userId:string,primaryDepartment?:stri
   }finally{inFlight.current=false;}
  },[userId,primaryDepartment]);
  useEffect(()=>{
+  if(!enabled)return;
   const controller=new AbortController();
   void refresh(controller.signal);
   const sync=()=>{if(document.visibilityState==="visible")void refresh(controller.signal);};
@@ -41,6 +42,6 @@ export function useOfficeClientDepartments(userId:string,primaryDepartment?:stri
    document.removeEventListener("visibilitychange",sync);window.removeEventListener("focus",sync);
    window.removeEventListener("kravia-office-departments-changed",sync);
   };
- },[refresh]);
+ },[refresh,enabled]);
  return {...state,refresh:()=>refresh()};
 }
