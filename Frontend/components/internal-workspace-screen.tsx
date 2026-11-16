@@ -205,6 +205,7 @@ export function InternalWorkspaceScreen({ workspace, section }: Props) {
           : workspace === "office" && section === "data" ? <OfficeDataMovement />
           : workspace === "office" && section === "privacy" ? <OfficePrivacyGovernance />
           : workspace === "office" && section === "quality" ? <OfficeQualityWorkspace />
+          : workspace === "office" && section === "customer-success" ? <OfficeTrustCenter mode="customer" />
           : workspace === "office" && section === "trust" ? <OfficeTrustCenter />
           : workspace === "office" && section === "ethics" ? <OfficeEthicsChannel />
           : workspace === "finance" && section === "ethics" ? <OfficeEthicsChannel />
