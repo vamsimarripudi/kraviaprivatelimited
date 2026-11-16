@@ -46,7 +46,7 @@ const iconByCategory = {
   Marketing: BriefcaseBusiness, Sales: BriefcaseBusiness,
   Product: Folders, "Quality Engineering": BadgeCheck,
   "Platform / DevOps": Cpu, IT: Wrench, Procurement: BriefcaseBusiness,
-  Administration: Settings, Audit: Gavel,
+  Audit: Gavel,
   "Tax & GST": FileText, Executive: Building2, "Quality": BadgeCheck,
 } as const;
 
