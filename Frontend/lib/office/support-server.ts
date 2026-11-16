@@ -109,22 +109,36 @@ export async function getOfficeSupportOverview() {
   // Linked labels are sourced from the same canonical database, not via
   // a second Railway authentication and network hop. Queries are bounded
   // to customer/product IDs already attached to authorised cases.
-  async function referenceRows(table: "customers" | "products", columns: string, ids: string[]) {
-    if (!ids.length) return {data: [] as Array<Record<string,unknown>>, error: null as {message:string}|null};
+  async function referenceRows(table: "customers" | "products", ids: string[]) {
+    const empty=[] as Array<Record<string,unknown>>;
+    if (!ids.length) return {data:empty,error:null as {message:string}|null};
     const chunks=Array.from({length:Math.ceil(ids.length/60)},(_,index)=>ids.slice(index*60,(index+1)*60));
-    const results=await Promise.all(chunks.map(batch=>
-      read.admin.from(table).select(columns).in("id",batch)));
+    const results=await Promise.all(chunks.map(async batch=>{
+      if(table==="customers"){
+        const response=await read.admin.from("customers")
+          .select("id,display_name,legal_name").in("id",batch);
+        const data:Array<Record<string,unknown>>=(response.data??[]).map(row=>({
+          id:row.id,display_name:row.display_name,legal_name:row.legal_name,
+        }));
+        return {data,error:response.error};
+      }
+      const response=await read.admin.from("products")
+        .select("id,code,name").in("id",batch);
+      const data:Array<Record<string,unknown>>=(response.data??[]).map(row=>({
+        id:row.id,code:row.code,name:row.name,
+      }));
+      return {data,error:response.error};
+    }));
     const failure=results.find(item=>item.error)?.error;
     return {
-      data: failure ? [] as Array<Record<string,unknown>> :
-        results.flatMap(item=>(item.data??[]) as Array<Record<string,unknown>>),
-      error: failure ? {message:"Canonical reference records unavailable"} : null,
+      data:failure?empty:results.flatMap(item=>item.data),
+      error:failure?{message:"Canonical reference records unavailable"}:null,
     };
   }
   const [eventsResult, customersResult, productsResult, ownersResult] = await Promise.all([
     ids.length ? read.admin.from("office_support_case_events").select("id,case_id,actor_user_id,event_type,previous_status,new_status,note,created_at").in("case_id", ids).order("created_at", { ascending: false }).limit(1000) : Promise.resolve({ data: [], error: null }),
-    referenceRows("customers","id,display_name,legal_name",customerIds),
-    referenceRows("products","id,code,name",productIds),
+    referenceRows("customers",customerIds),
+    referenceRows("products",productIds),
     (() => {
       let query = read.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").eq("status", "ACTIVE").order("display_name");
       if (read.ownerIds) query = query.in("user_id", read.ownerIds.length ? read.ownerIds : [read.identity.userId]);
