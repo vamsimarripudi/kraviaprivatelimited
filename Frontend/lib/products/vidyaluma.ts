@@ -43,8 +43,8 @@ export const vidyaLumaProduct = {
     },
   ],
   development: {
-    reviewedOn: "2026-11-18",
-    reviewedLabel: "18 November 2026",
+    reviewedOn: "2026-11-19",
+    reviewedLabel: "19 November 2026",
     intro: "This dated record describes VidyaLuma product engineering. A feature appearing here does not mean it is deployed, enabled for a school or included in every subscription. Official product and plan pages remain the source for current availability.",
     workstreams: [
       {
@@ -91,6 +91,12 @@ export const vidyaLumaProduct = {
       },
     ],
     recentUpdates: [
+      {
+        date: "2026-11-19",
+        title: "VidyaLuma Connect — communication foundation",
+        stage: "Development update",
+        summary: "An audited, school-controlled messaging foundation has web/mobile surfaces and a permission-aware service in code. Deployment, privacy-policy approval and device verification remain release gates.",
+      },
       {
         date: "2026-11-18",
         title: "Search and AI discovery",

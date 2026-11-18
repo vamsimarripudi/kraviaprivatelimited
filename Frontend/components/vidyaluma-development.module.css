@@ -18,3 +18,7 @@
 .updateList h4 { margin: .85rem 0 .4rem; font-family: var(--serif); font-size: 1.45rem; font-weight: 500; letter-spacing: -.035em; }
 @media (max-width: 960px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .card { min-height: 20rem; } }
 @media (max-width: 620px) { .grid, .updates { grid-template-columns: 1fr; } .card { min-height: 0; padding: 1.4rem; } .card h3 { margin-top: 1.65rem; } .card ul { margin-top: 0; } .updates { gap: 1.8rem; } }
+
+.noteLink { margin-left:auto; display:inline-flex; align-items:center; gap:.3rem; color:var(--ink); border-bottom:1px solid var(--ink); padding-bottom:.2rem; font:600 .72rem/1.5 var(--sans); letter-spacing:0; }
+.noteLink:focus-visible { outline:2px solid var(--gold); outline-offset:4px; }
+@media(max-width:620px) { .noteLink { margin-left:0; } }
