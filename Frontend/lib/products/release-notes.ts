@@ -6,6 +6,8 @@ export type ProductReleaseNote = {
   slug: string;
   product: "VidyaLuma" | "Nice Role" | "YUKTA" | "VORIO";
   publishedOn: string;
+  sourceReviewedOn: string;
+  releaseVerified: boolean;
   type: "Development" | "Improvement" | "Beta" | "General availability" | "Fix" | "Retirement";
   title: string;
   summary: string;
@@ -23,6 +25,8 @@ export const productReleaseNotes: readonly ProductReleaseNote[] = [
     slug: "vidyaluma-connect-development",
     product: "VidyaLuma",
     publishedOn: "2026-11-19",
+    sourceReviewedOn: "2026-11-19",
+    releaseVerified: false,
     type: "Development",
     title: "Introducing the VidyaLuma Connect development programme",
     summary: "VidyaLuma Connect is a school-controlled communication workspace being developed for authorised school teams. It brings direct conversations, relevant groups, messages and governed school updates into the same operational context as the rest of VidyaLuma.",

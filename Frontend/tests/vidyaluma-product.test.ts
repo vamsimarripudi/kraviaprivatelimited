@@ -45,11 +45,12 @@ describe("VidyaLuma public product record", () => {
 
   it("presents a dated development record with accurate code-versus-release boundaries", () => {
     const development = vidyaLumaProduct.development;
-    expect(development.reviewedOn).toBe("2026-11-18");
+    expect(development.reviewedOn).toBe("2026-11-19");
     expect(development.workstreams).toHaveLength(6);
     expect(development.workstreams.map((item) => item.title)).toContain("Academic intelligence and reports");
     expect(development.workstreams.map((item) => item.title)).toContain("Analytics and observability");
-    expect(development.recentUpdates).toHaveLength(3);
+    expect(development.recentUpdates).toHaveLength(4);
+    expect(development.recentUpdates[0].title).toContain("VidyaLuma Connect");
     expect(development.workstreams.some((item) => item.stage === "frontend")).toBe(true);
     expect(JSON.stringify(development).toLowerCase()).toContain("vsip");
     expect(development.intro).toContain("does not mean it is deployed");
@@ -60,6 +61,8 @@ describe("VidyaLuma public product record", () => {
     expect(page).toContain("development.recentUpdates.map");
     expect(page).toContain("development.workstreams.map");
     expect(page).toContain("08 / FAQ");
+    expect(page).toContain("/products/release-notes#vidyaluma-connect-development");
+    expect(page).toContain("displayDevelopmentDate(update.date)");
   });
 
   it("does not rely on fabricated commercial, performance, or certification claims", () => {

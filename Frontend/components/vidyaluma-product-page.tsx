@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { ArrowDownRight, ArrowUpRight, BrainCircuit, Building2, LockKeyhole, Network, ShieldCheck, UsersRound, Workflow } from "lucide-react";
 import { Accordion } from "@/components/ui";
 import { ProductAnalytics, ProductTrackedLink } from "@/components/product-interactions";
@@ -8,6 +9,9 @@ import { VidyaLumaMarketChart } from "@/components/vidyaluma-market-chart";
 
 const contactHref = "/contact?product=vidyaluma#enquiry-form";
 const platformIcons = [Building2, BrainCircuit, UsersRound, Workflow] as const;
+function displayDevelopmentDate(value: string) {
+  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(value + "T00:00:00Z"));
+}
 
 export function VidyaLumaProductPage() {
   return <main id="main-content" className="vidyaluma-page">
@@ -21,6 +25,7 @@ export function VidyaLumaProductPage() {
           <p className="vidyaluma-lede">{vidyaLumaProduct.hero.intro}</p>
           <div className="vidyaluma-actions">
             <ProductTrackedLink event="vidyaluma_cta_clicked" product="vidyaluma" href={vidyaLumaProduct.website} external className="button button-dark">Visit VidyaLuma <ArrowUpRight aria-hidden="true" /></ProductTrackedLink>
+            <Link href="/products/release-notes#vidyaluma-connect-development" className="text-link">Release notes <ArrowUpRight aria-hidden="true" /></Link>
             <ProductTrackedLink event="vidyaluma_enquiry_started" product="vidyaluma" href={contactHref} className="text-link">Talk to Kravia <ArrowDownRight aria-hidden="true" /></ProductTrackedLink>
           </div>
         </div>
@@ -67,6 +72,7 @@ export function VidyaLumaProductPage() {
         <div className={developmentStyles.snapshot}>
           <span>Engineering progress snapshot</span>
           <time dateTime={vidyaLumaProduct.development.reviewedOn}>{vidyaLumaProduct.development.reviewedLabel}</time>
+          <Link className={developmentStyles.noteLink} href="/products/release-notes#vidyaluma-connect-development">Read the VidyaLuma Connect update <ArrowUpRight size={15} aria-hidden="true" /></Link>
         </div>
         <div className={developmentStyles.grid}>
           {vidyaLumaProduct.development.workstreams.map((workstream, index) => (
@@ -83,7 +89,7 @@ export function VidyaLumaProductPage() {
           <ol className={developmentStyles.updateList}>
             {vidyaLumaProduct.development.recentUpdates.map((update) => (
               <li key={update.title}>
-                <div className={developmentStyles.updateMeta}><time dateTime={update.date}>{vidyaLumaProduct.development.reviewedLabel}</time><span>{update.stage}</span></div>
+                <div className={developmentStyles.updateMeta}><time dateTime={update.date}>{displayDevelopmentDate(update.date)}</time><span>{update.stage}</span></div>
                 <h4>{update.title}</h4><p>{update.summary}</p>
               </li>
             ))}
