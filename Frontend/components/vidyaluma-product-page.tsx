@@ -3,6 +3,7 @@ import { ArrowDownRight, ArrowUpRight, BrainCircuit, Building2, LockKeyhole, Net
 import { Accordion } from "@/components/ui";
 import { ProductAnalytics, ProductTrackedLink } from "@/components/product-interactions";
 import { vidyaLumaProduct } from "@/lib/products/vidyaluma";
+import developmentStyles from "@/components/vidyaluma-development.module.css";
 import { VidyaLumaMarketChart } from "@/components/vidyaluma-market-chart";
 
 const contactHref = "/contact?product=vidyaluma#enquiry-form";
@@ -57,22 +58,56 @@ export function VidyaLumaProductPage() {
       </div>
     </section>
 
+    <section className={"vidyaluma-section " + developmentStyles.section} aria-labelledby="vidyaluma-development-title">
+      <div className="shell">
+        <header className="vidyaluma-section-head">
+          <div><p className="eyebrow">04 / PRODUCT DEVELOPMENT DETAILS</p><h2 id="vidyaluma-development-title">VidyaLuma product <em>development.</em></h2></div>
+          <p>{vidyaLumaProduct.development.intro}</p>
+        </header>
+        <div className={developmentStyles.snapshot}>
+          <span>Engineering progress snapshot</span>
+          <time dateTime={vidyaLumaProduct.development.reviewedOn}>{vidyaLumaProduct.development.reviewedLabel}</time>
+        </div>
+        <div className={developmentStyles.grid}>
+          {vidyaLumaProduct.development.workstreams.map((workstream, index) => (
+            <article key={workstream.title} className={developmentStyles.card}>
+              <div className={developmentStyles.cardMeta}><span>0{index + 1} / DEVELOPMENT TRACK</span><span className={developmentStyles.stage} data-stage={workstream.stage}>{workstream.stageLabel}</span></div>
+              <h3>{workstream.title}</h3>
+              <p>{workstream.summary}</p>
+              <ul>{workstream.focus.map((item) => <li key={item}>{item}</li>)}</ul>
+            </article>
+          ))}
+        </div>
+        <div className={developmentStyles.updates}>
+          <div><p className="eyebrow">LATEST ENGINEERING UPDATES</p><h3>Recent development <em>milestones.</em></h3><p>Repository milestones are engineering evidence, not confirmation of production deployment or school-wide availability.</p></div>
+          <ol className={developmentStyles.updateList}>
+            {vidyaLumaProduct.development.recentUpdates.map((update) => (
+              <li key={update.title}>
+                <div className={developmentStyles.updateMeta}><time dateTime={update.date}>{vidyaLumaProduct.development.reviewedLabel}</time><span>{update.stage}</span></div>
+                <h4>{update.title}</h4><p>{update.summary}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
+    </section>
+
     <section className="vidyaluma-section shell vidyaluma-approach" aria-labelledby="vidyaluma-approach-title">
-      <header className="vidyaluma-section-head"><div><p className="eyebrow">04 / PLATFORM APPROACH</p><h2 id="vidyaluma-approach-title">Built for responsible school <em>operations.</em></h2></div><p>The platform is designed for school owners, principals, administrators, teachers, students and authorised family report recipients. Every role should see only the information and actions appropriate to its school context.</p></header>
+      <header className="vidyaluma-section-head"><div><p className="eyebrow">05 / PLATFORM APPROACH</p><h2 id="vidyaluma-approach-title">Built for responsible school <em>operations.</em></h2></div><p>The platform is designed for school owners, principals, administrators, teachers, students and authorised family report recipients. Every role should see only the information and actions appropriate to its school context.</p></header>
       <div className="vidyaluma-principle-grid">{vidyaLumaProduct.platformPrinciples.map(([title, copy], index) => <article key={title}><span>0{index + 1}</span><h3>{title}</h3><p>{copy}</p></article>)}</div>
     </section>
 
     <section className="vidyaluma-section vidyaluma-intelligence" aria-labelledby="vidyaluma-intelligence-title">
-      <div className="shell vidyaluma-intelligence-grid"><BrainCircuit aria-hidden="true" /><div><p className="eyebrow">05 / AI-ASSISTED INTELLIGENCE</p><h2 id="vidyaluma-intelligence-title">Intelligence with <em>human judgement intact.</em></h2><p>The published teacher workflow includes scanning corrected answer sheets, confirming student identity and linking the pages to academic records. AI-assisted observations support report preparation, but an authorised educator must review and approve reports before release.</p><p>Academic reports are not medical or psychological diagnoses. Automation must not replace classroom judgement, school approvals or appropriate human accountability.</p></div></div>
+      <div className="shell vidyaluma-intelligence-grid"><BrainCircuit aria-hidden="true" /><div><p className="eyebrow">06 / AI-ASSISTED INTELLIGENCE</p><h2 id="vidyaluma-intelligence-title">Intelligence with <em>human judgement intact.</em></h2><p>The published teacher workflow includes scanning corrected answer sheets, confirming student identity and linking the pages to academic records. AI-assisted observations support report preparation, but an authorised educator must review and approve reports before release.</p><p>Academic reports are not medical or psychological diagnoses. Automation must not replace classroom judgement, school approvals or appropriate human accountability.</p></div></div>
     </section>
 
     <section className="vidyaluma-section shell vidyaluma-trust" aria-labelledby="vidyaluma-trust-title">
-      <header className="vidyaluma-section-head"><div><p className="eyebrow">06 / GOVERNED FOUNDATION</p><h2 id="vidyaluma-trust-title">A product architecture that keeps the school context <em>in view.</em></h2></div></header>
+      <header className="vidyaluma-section-head"><div><p className="eyebrow">07 / GOVERNED FOUNDATION</p><h2 id="vidyaluma-trust-title">A product architecture that keeps the school context <em>in view.</em></h2></div></header>
       <div className="vidyaluma-trust-grid"><article><LockKeyhole aria-hidden="true" /><h3>Access with context</h3><p>School-scoped roles separate leadership, administration, teaching and student work. Parents receive only approved report access, not unrestricted school accounts.</p></article><article><ShieldCheck aria-hidden="true" /><h3>Workflows with accountability</h3><p>Attendance exceptions, examination records, staff actions and report approvals are designed to remain traceable to the appropriate school authority.</p></article><article><Network aria-hidden="true" /><h3>Reporting with continuity</h3><p>School-authorised reports can be shared through restricted links with controls such as expiry and view or download permissions, where enabled.</p></article></div>
     </section>
 
     <section className="vidyaluma-interest"><div className="shell vidyaluma-interest-inner"><div><p className="eyebrow">VIDYALUMA / BY KRAVIA</p><h2>Explore the product, or start a <em>considered conversation.</em></h2><p>VidyaLuma is an independent product brand developed by KRAVIA PRIVATE LIMITED. Schools can explore published subscription plans and request a guided walkthrough; enrolment and payment follow verified onboarding steps.</p></div><div><ProductTrackedLink event="vidyaluma_cta_clicked" product="vidyaluma" href={vidyaLumaProduct.website} external className="button button-light">Visit VidyaLuma <ArrowUpRight aria-hidden="true" /></ProductTrackedLink><ProductTrackedLink event="vidyaluma_enquiry_started" product="vidyaluma" href={contactHref} className="text-link inverse-link">Product enquiry <ArrowUpRight aria-hidden="true" /></ProductTrackedLink></div></div></section>
 
-    <section className="vidyaluma-section shell vidyaluma-faq" aria-labelledby="vidyaluma-faq-title"><header className="vidyaluma-section-head"><div><p className="eyebrow">07 / FAQ</p><h2 id="vidyaluma-faq-title">Practical answers for schools.</h2></div></header><Accordion label="VidyaLuma frequently asked questions" entries={vidyaLumaProduct.faqs.map(([title, content]) => ({ title, content: <p>{content}</p> }))} /></section>
+    <section className="vidyaluma-section shell vidyaluma-faq" aria-labelledby="vidyaluma-faq-title"><header className="vidyaluma-section-head"><div><p className="eyebrow">08 / FAQ</p><h2 id="vidyaluma-faq-title">Practical answers for schools.</h2></div></header><Accordion label="VidyaLuma frequently asked questions" entries={vidyaLumaProduct.faqs.map(([title, content]) => ({ title, content: <p>{content}</p> }))} /></section>
   </main>;
 }
