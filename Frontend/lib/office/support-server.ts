@@ -1,5 +1,7 @@
 import "server-only";
 import {dispatchOfficeSupportNotice} from "@/lib/office/notification-dispatch-server";
+import { readOfficeRuntimeResult } from "@/lib/office/runtime-read-server";
+import { currentOfficeTrustedDeviceId } from "@/lib/office/device-binding-server";
 
 
 
@@ -47,8 +49,13 @@ async function actor() {
 async function permission(
   permissionCode: string,
   verifiedActor?: Awaited<ReturnType<typeof actor>>,
+  verifiedDeviceId?: string | null,
 ): Promise<Authority> {
   const currentActor = verifiedActor ?? await actor();
+  // Resolve a bound first-party device on both overview and write paths.
+  const deviceId = verifiedDeviceId === undefined
+    ? await currentOfficeTrustedDeviceId(currentActor.admin,currentActor.identity.userId)
+    : verifiedDeviceId;
   const candidates: OfficeResourceScope[] = [
     ...(currentActor.identity.department ? [{ type: "DEPARTMENT" as const, key: currentActor.identity.department }] : []),
     { type: "OWN", ownerUserId: currentActor.identity.userId },
@@ -56,7 +63,7 @@ async function permission(
   ];
   let decision: OfficePermissionDecision | undefined;
   for (const resource of candidates) {
-    const current = await resolveOfficePermission(currentActor.admin, currentActor.identity, permissionCode, resource);
+    const current = await resolveOfficePermission(currentActor.admin, currentActor.identity, permissionCode, resource, deviceId);
     if (current.allowed) { decision = current; break; }
     decision = current;
   }
@@ -96,7 +103,8 @@ async function writableCase(id: string) {
 
 export async function getOfficeSupportOverview() {
   const verifiedActor = await actor();
-  const read = await permission("support.case.read", verifiedActor);
+  const verifiedDeviceId = await currentOfficeTrustedDeviceId(verifiedActor.admin,verifiedActor.identity.userId);
+  const read = await permission("support.case.read", verifiedActor, verifiedDeviceId);
   let casesQuery = read.admin.from("office_support_cases").select("id,case_code,customer_id,product_id,subject,description,category,source,priority,status,owner_user_id,created_by,resolution,due_at,resolved_at,closed_at,created_at,updated_at").order("updated_at", { ascending: false }).limit(400);
   casesQuery = applyOwnerScope(casesQuery, read.ownerIds);
   const { data: cases, error: casesError } = await casesQuery;
@@ -106,33 +114,17 @@ export async function getOfficeSupportOverview() {
   const customerIds = Array.from(new Set(rows.map((row) => row.customer_id).filter(Boolean) as string[]));
   const productIds = Array.from(new Set(rows.map((row) => row.product_id).filter(Boolean) as string[]));
 
-  // Linked labels are sourced from the same canonical database, not via
-  // a second Railway authentication and network hop. Queries are bounded
-  // to customer/product IDs already attached to authorised cases.
+  // FastAPI owns canonical customer/product masters. The authenticated Office
+  // runtime read is bounded and its results are filtered to IDs already tied
+  // to this actor's authorized Support cases. Fail with an honest degraded
+  // reference state rather than bypassing the backend data ownership boundary.
   async function referenceRows(table: "customers" | "products", ids: string[]) {
     const empty=[] as Array<Record<string,unknown>>;
     if (!ids.length) return {data:empty,error:null as {message:string}|null};
-    const chunks=Array.from({length:Math.ceil(ids.length/60)},(_,index)=>ids.slice(index*60,(index+1)*60));
-    const results=await Promise.all(chunks.map(async batch=>{
-      if(table==="customers"){
-        const response=await read.admin.from("customers")
-          .select("id,display_name,legal_name").in("id",batch);
-        const data:Array<Record<string,unknown>>=(response.data??[]).map(row=>({
-          id:row.id,display_name:row.display_name,legal_name:row.legal_name,
-        }));
-        return {data,error:response.error};
-      }
-      const response=await read.admin.from("products")
-        .select("id,code,name").in("id",batch);
-      const data:Array<Record<string,unknown>>=(response.data??[]).map(row=>({
-        id:row.id,code:row.code,name:row.name,
-      }));
-      return {data,error:response.error};
-    }));
-    const failure=results.find(item=>item.error)?.error;
+    const result=await readOfficeRuntimeResult<Array<Record<string,unknown>>>(table,{timeoutMs:6000});
     return {
-      data:failure?empty:results.flatMap(item=>item.data),
-      error:failure?{message:"Canonical reference records unavailable"}:null,
+      data:(result.data??[]).filter(row=>ids.includes(String(row.id))),
+      error:result.error,
     };
   }
   const [eventsResult, customersResult, productsResult, ownersResult] = await Promise.all([
@@ -154,11 +146,11 @@ export async function getOfficeSupportOverview() {
   // Reuse the authenticated actor and check independent capabilities together.
   // A denied permission returns false; backend failures still surface as errors.
   const [canManage,canRefund] = await Promise.all([
-    permission("support.case.manage",verifiedActor).then(()=>true).catch(error=>{
+    permission("support.case.manage",verifiedActor,verifiedDeviceId).then(()=>true).catch(error=>{
       if(error instanceof OfficeSupportError && error.status===403)return false;
       throw error;
     }),
-    permission("customer.refund.request",verifiedActor).then(()=>true).catch(error=>{
+    permission("customer.refund.request",verifiedActor,verifiedDeviceId).then(()=>true).catch(error=>{
       if(error instanceof OfficeSupportError && error.status===403)return false;
       throw error;
     }),
