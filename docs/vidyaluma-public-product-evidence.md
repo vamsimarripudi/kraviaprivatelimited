@@ -25,3 +25,11 @@ Purpose: keep KRAVIA's public VidyaLuma descriptions grounded in the first-party
 - `/products/vidyaluma`: full product story, role-aware workflows, approval boundaries, live public evidence links, FAQs.
 - `/company/startup-profile`: proprietary ownership, product model, independently inspectable public URLs.
 - SEO/structured data: no inflated feature, performance, or commercial claims.
+
+## Development snapshot — 2026-11-18 (IST)
+- Source: first-party VidyaLuma engineering repository, main at 9a69f585e4eb876b88975d3faac1534226a2c894 on 2026-11-18. This is an internal evidence reference, not a public link to the private repository.
+- Engineering updates supported by the 2026-11-18 commit history: search rendering and canonicalisation, safe IndexNow automation, AI discovery and company attribution, five-category Internal Admin Intelligence navigation, frontend analytics validation and capacity scenarios.
+- The source explicitly separates frontend implementation and test coverage from backend services, production delivery, third-party provider activation and school-specific feature entitlements. No deployed telemetry is inferred from merged frontend work.
+- Product-development tracks cover school operations, academic reporting, onboarding, administration, analytics and unified mobile workspaces described by the product's first-party technical overview.
+- This KRAVIA page is a dated engineering snapshot, not a continuously synchronised roadmap. Changes to development phase or availability require source and release-evidence review.
+- Do not publish private code URLs, secrets, test credentials, school/student identities or unverifiable commercial or compliance claims. The official VidyaLuma product, plan and trust pages remain authoritative for school-facing availability.

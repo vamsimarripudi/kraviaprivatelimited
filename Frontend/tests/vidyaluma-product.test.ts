@@ -43,6 +43,25 @@ describe("VidyaLuma public product record", () => {
     expect(page).not.toContain("Student names from production");
   });
 
+  it("presents a dated development record with accurate code-versus-release boundaries", () => {
+    const development = vidyaLumaProduct.development;
+    expect(development.reviewedOn).toBe("2026-11-18");
+    expect(development.workstreams).toHaveLength(6);
+    expect(development.workstreams.map((item) => item.title)).toContain("Academic intelligence and reports");
+    expect(development.workstreams.map((item) => item.title)).toContain("Analytics and observability");
+    expect(development.recentUpdates).toHaveLength(3);
+    expect(development.workstreams.some((item) => item.stage === "frontend")).toBe(true);
+    expect(JSON.stringify(development).toLowerCase()).toContain("vsip");
+    expect(development.intro).toContain("does not mean it is deployed");
+
+    const page = readFileSync(resolve(process.cwd(), "components/vidyaluma-product-page.tsx"), "utf8");
+    expect(page).toContain("04 / PRODUCT DEVELOPMENT DETAILS");
+    expect(page).toContain('id="vidyaluma-development-title"');
+    expect(page).toContain("development.recentUpdates.map");
+    expect(page).toContain("development.workstreams.map");
+    expect(page).toContain("08 / FAQ");
+  });
+
   it("does not rely on fabricated commercial, performance, or certification claims", () => {
     const publicCopy = JSON.stringify(vidyaLumaProduct).toLowerCase();
     expect(publicCopy).not.toContain("trusted by");
