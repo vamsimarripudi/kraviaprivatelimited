@@ -7,6 +7,7 @@ import {
   ClipboardCheck, Cog, FileText, Folders, GitBranch, Landmark,
   LayoutDashboard, Menu, MessageSquareText, Moon, MoreHorizontal, PanelLeftClose, Search, Bell, BrainCircuit,
   PanelLeftOpen, Scale, Settings, ShieldCheck, Sun, Users, Vault, Wallet, X,
+  Headphones, HeartHandshake, ScrollText, ShieldAlert, Gavel, Cpu, Wrench, BadgeCheck,
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { OfficeNavLink } from "@/components/office-nav-link";
@@ -40,6 +41,13 @@ const iconByCategory = {
   Governance: Scale, Administration: ShieldCheck, Overview: LayoutDashboard,
   Revenue: Wallet, Treasury: Landmark, Tax: FileText, Books: FileText,
   Payables: ClipboardCheck, Evidence: ShieldCheck,
+  "Customer Support": Headphones, "Customer Success": HeartHandshake,
+  Secretarial: ScrollText, Legal: Scale, Security: ShieldAlert,
+  Marketing: BriefcaseBusiness, Sales: BriefcaseBusiness,
+  Product: Folders, "Quality Engineering": BadgeCheck,
+  "Platform / DevOps": Cpu, IT: Wrench, Procurement: BriefcaseBusiness,
+  Audit: Gavel,
+  "Tax & GST": FileText, Executive: Building2, "Quality": BadgeCheck,
 } as const;
 
 const officeCategoryBySlug: Record<string, string> = {
@@ -50,7 +58,7 @@ const officeCategoryBySlug: Record<string, string> = {
   development:"People",worktime:"People",
   engineering:"Engineering",products:"Engineering",portfolio:"Engineering",
   ai:"Engineering",integrations:"Engineering",quality:"Engineering",
-  customers:"Commercial",crm:"Commercial",support:"Commercial",
+  customers:"Commercial",crm:"Commercial","customer-success":"Commercial",support:"Commercial",
   vendors:"Operations",assets:"Operations",it:"Operations",
   facilities:"Operations",travel:"Operations",cards:"Operations",
   payroll:"Finance",budget:"Finance",
@@ -89,7 +97,7 @@ const iconBySlug: Record<string, typeof LayoutDashboard> = {
   manager:Users,people:Users,recruitment:Users,development:Users,
   emergency:ShieldCheck,worktime:CalendarDays,payroll:Wallet,budget:Wallet,
   engineering:GitBranch,products:Folders,portfolio:Folders,crm:BriefcaseBusiness,
-  customers:Building2,vendors:BriefcaseBusiness,contracts:FileText,
+  customers:Building2,"customer-success":Users,vendors:BriefcaseBusiness,contracts:FileText,
   documents:FileText,governance:Scale,compliance:Scale,settings:Settings,
   access:ShieldCheck,"role-packages":Users,"department-ownership":ShieldCheck,
 };
@@ -159,6 +167,7 @@ export function OfficeWorkspaceShell({
   const [assignedCodes,setAssignedCodes]=useState<string[]>([]);
   const [selectedDepartmentCode,setSelectedDepartmentCode]=useState<string|null>(null);
   const [departmentRevision,setDepartmentRevision]=useState(0);
+  const departmentLastFetchRef=useRef(0);
   const moreRef = useRef<HTMLDivElement>(null);
   const definition = workspaceDefinitions[workspace];
   const sections = workspace === "finance" ? financeSections : officeSections;
@@ -186,19 +195,26 @@ export function OfficeWorkspaceShell({
         ? selectedDepartmentCode
         : assignedCodes.includes(primaryDepartment)?primaryDepartment:assignedCodes[0]??null)
     : null;
+  // Use all *currently assigned* department codes, not just the single active
+  // department selector. A six-department owner must see all six navigation
+  // categories, while every API still enforces its own effective authority.
+  const visibleDepartments=departmentLoad==="ready"&&loadedActor===identity.userId?assignedCodes:[];
   const entries=allowedEntries.filter(([slug]) =>
-    workspace!=="office"||officeClientSectionVisible(slug,activeDepartment?[activeDepartment]:[],isFounder));
+    workspace!=="office"||officeClientSectionVisible(slug,visibleDepartments,isFounder));
   const categoryForEntry=(slug:string,value:WorkspaceSection) =>
     workspace==="office"?officeClientCategoryForSection(slug,isFounder):categoryOf(workspace,slug,value);
   const categories=(() => {
     const order=workspace==="office"
-      ? ["My work",...(activeDepartment?[officeDepartmentLabel(activeDepartment)]:[]),
+      ? ["My work",...visibleDepartments.map(officeDepartmentLabel),
          "Connect","K-Vault","Company control",...categoryOrder]
       : financeOrder;
     const labels=entries.map(([slug,value])=>categoryForEntry(slug,value));
     if(workspace==="office"){
       labels.push("My work","Connect");
-      if(activeDepartment)labels.push(officeDepartmentLabel(activeDepartment));
+      for (const code of visibleDepartments) {
+        const hasPages=entries.some(([slug])=>officeDepartmentForSection(slug)===code);
+        if(hasPages)labels.push(officeDepartmentLabel(code));
+      }
     }
     if(vaultEntry)labels.push("K-Vault");
     return [...new Set(labels)].sort((a,b)=>{
@@ -229,7 +245,8 @@ export function OfficeWorkspaceShell({
   useEffect(()=>{
     if(workspace!=="office")return;
     const controller=new AbortController();
-    void fetch("/api/office-departments",{
+    departmentLastFetchRef.current=Date.now();
+    void fetch("/api/office-departments?view=navigation",{
       credentials:"same-origin",cache:"no-store",signal:controller.signal,
     }).then(async response=>{
       if(!response.ok)throw new Error("Department assignments unavailable");
@@ -249,12 +266,21 @@ export function OfficeWorkspaceShell({
   },[workspace,identity.userId,identity.department,departmentRevision]);
   useEffect(()=>{
     if(workspace!=="office")return;
-    const refresh=()=>setDepartmentRevision(v=>v+1);
-    window.addEventListener("focus",refresh);
-    window.addEventListener("kravia-office-departments-changed",refresh);
+    // Focus often fires repeatedly during modal/navigation transitions.
+    // Limit navigation-only refetches; explicit ownership changes still
+    // invalidate immediately and backend record permissions never cache.
+    const onFocus=()=>{
+      if(Date.now()-departmentLastFetchRef.current>=30_000) {
+        departmentLastFetchRef.current=Date.now();
+        setDepartmentRevision(v=>v+1);
+      }
+    };
+    const onChange=()=>setDepartmentRevision(v=>v+1);
+    window.addEventListener("focus",onFocus);
+    window.addEventListener("kravia-office-departments-changed",onChange);
     return()=>{
-      window.removeEventListener("focus",refresh);
-      window.removeEventListener("kravia-office-departments-changed",refresh);
+      window.removeEventListener("focus",onFocus);
+      window.removeEventListener("kravia-office-departments-changed",onChange);
     };
   },[workspace]);
   useEffect(() => {

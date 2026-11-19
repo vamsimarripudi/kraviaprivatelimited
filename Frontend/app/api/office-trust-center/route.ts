@@ -29,7 +29,11 @@ function failure(error:unknown){
  const status=error instanceof OfficeTrustError?error.status:500;
  return NextResponse.json({detail:error instanceof Error?error.message:"Trust Center operation failed"},{status,headers:{"Cache-Control":"no-store"}});
 }
-export async function GET(){try{return NextResponse.json(await getTrustCenter(),{headers:{"Cache-Control":"no-store"}})}catch(error){return failure(error)}}
+export async function GET(request:Request){
+ const view=new URL(request.url).searchParams.get("view")==="customer"?"customer":"all";
+ try{return NextResponse.json(await getTrustCenter(view),{headers:{"Cache-Control":"private, no-store"}})}
+ catch(error){return failure(error)}
+}
 export async function POST(request:Request){
  if(!officeMutationIsSameOrigin(request))return NextResponse.json({detail:"Cross-origin Trust Center mutation is not allowed"},{status:403});
  const parsed=schema.safeParse(await request.json().catch(()=>null));

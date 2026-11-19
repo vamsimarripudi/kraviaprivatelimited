@@ -26,8 +26,8 @@ describe("KRAVIA Trust Center",()=>{
  it("validates canonical vendors/customers without taking ownership of their master records",()=>{
   expect(migration).toContain("Canonical vendor not found");
   expect(migration).toContain("Canonical customer not found");
-  expect(server).toContain('readOfficeRuntimeResult<Array<Record<string,unknown>>>("vendors")');
-  expect(server).toContain('readOfficeRuntimeResult<Array<Record<string,unknown>>>("customers")');
+  expect(server).toContain('readOfficeRuntimeResult<Array<Record<string,unknown>>>("vendors",{timeoutMs:6500})');
+  expect(server).toContain('readOfficeRuntimeResult<Array<Record<string,unknown>>>("customers",{timeoutMs:6500})');
   expect(server).not.toContain('from("vendors")');
   expect(server).not.toContain('from("customers")');
  });

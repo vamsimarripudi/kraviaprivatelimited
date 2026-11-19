@@ -7,12 +7,12 @@ const handover=read("components/office-department-handover.tsx");
 const css=read("app/office/office-client-departments.css");
 const layout=read("app/office/layout.tsx");
 describe("Client-only KRAVIA assigned-department workspace UI",()=>{
- it("uses an existing first-party ownership endpoint without new backend code",()=>{
-  expect(shell).toContain('fetch("/api/office-departments"');
+ it("uses an actor-scoped lightweight ownership endpoint without unrelated directory reads",()=>{
+  expect(shell).toContain('fetch("/api/office-departments?view=navigation"');
   expect(shell).toContain('officeAssignedDepartmentCodes(snapshot,identity.userId,identity.department)');
   expect(shell).toContain('loadedActor===identity.userId');
   expect(shell).toContain('departmentLoad==="ready"');
-  expect(shell).toContain('officeClientSectionVisible(slug,activeDepartment?[activeDepartment]:[],isFounder)');
+  expect(shell).toContain('officeClientSectionVisible(slug,visibleDepartments,isFounder)');
  });
  it("does not expose unrelated operational sections while permissions load or fail",()=>{
   expect(shell).toContain('setAssignedCodes([])');
@@ -26,7 +26,8 @@ describe("Client-only KRAVIA assigned-department workspace UI",()=>{
   expect(shell).toContain('onChange={event=>switchActiveDepartment(event.target.value)}');
   expect(shell).toContain('router.push("/office/"+first[0])');
   expect(handover).toContain('window.dispatchEvent(new Event("kravia-office-departments-changed"))');
-  expect(shell).toContain('window.addEventListener("focus",refresh)');
+  expect(shell).toContain('window.addEventListener("focus",onFocus)');
+  expect(shell).toContain('window.addEventListener("kravia-office-departments-changed",onChange)');
  });
  it("only displays search records in visible modules",()=>{
   expect(palette).toContain('remote.filter(result=>');
