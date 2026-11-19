@@ -186,19 +186,23 @@ export function OfficeWorkspaceShell({
         ? selectedDepartmentCode
         : assignedCodes.includes(primaryDepartment)?primaryDepartment:assignedCodes[0]??null)
     : null;
+  // Department picker controls focus only. Every owned/assigned department
+  // stays visible; effective capabilities and backend record authorization
+  // continue to decide which actual links and actions are usable.
+  const visibleDepartments=departmentLoad==="ready"&&loadedActor===identity.userId?assignedCodes:[];
   const entries=allowedEntries.filter(([slug]) =>
-    workspace!=="office"||officeClientSectionVisible(slug,activeDepartment?[activeDepartment]:[],isFounder));
+    workspace!=="office"||officeClientSectionVisible(slug,visibleDepartments,isFounder));
   const categoryForEntry=(slug:string,value:WorkspaceSection) =>
     workspace==="office"?officeClientCategoryForSection(slug,isFounder):categoryOf(workspace,slug,value);
   const categories=(() => {
     const order=workspace==="office"
-      ? ["My work",...(activeDepartment?[officeDepartmentLabel(activeDepartment)]:[]),
+      ? ["My work",...visibleDepartments.map(officeDepartmentLabel),
          "Connect","K-Vault","Company control",...categoryOrder]
       : financeOrder;
     const labels=entries.map(([slug,value])=>categoryForEntry(slug,value));
     if(workspace==="office"){
       labels.push("My work","Connect");
-      if(activeDepartment)labels.push(officeDepartmentLabel(activeDepartment));
+      for(const code of visibleDepartments)labels.push(officeDepartmentLabel(code));
     }
     if(vaultEntry)labels.push("K-Vault");
     return [...new Set(labels)].sort((a,b)=>{
@@ -229,7 +233,7 @@ export function OfficeWorkspaceShell({
   useEffect(()=>{
     if(workspace!=="office")return;
     const controller=new AbortController();
-    void fetch("/api/office-departments",{
+    void fetch("/api/office-my-departments",{
       credentials:"same-origin",cache:"no-store",signal:controller.signal,
     }).then(async response=>{
       if(!response.ok)throw new Error("Department assignments unavailable");
@@ -458,19 +462,26 @@ export function OfficeWorkspaceShell({
               onClick={() => setMobileNav(false)}><X size={18}/></button>
           </div>
           {workspace==="office"?<div className="office-client-department-picker" data-office-client-departments>
-             <span>ASSIGNED DEPARTMENT</span>
+             <span>MY ASSIGNED DEPARTMENTS</span>
              {!departmentReady&&departmentLoad!=="error"?<small role="status">Loading assignment…</small>:
              departmentLoad==="error"?<button type="button"
                onClick={()=>{setDepartmentLoad("loading");setDepartmentRevision(v=>v+1);}}>
                Department list unavailable · Retry
              </button>:
-             currentDepartments.length>1?<select aria-label="Switch assigned department"
+             currentDepartments.length>1?<select aria-label="Focus assigned department"
                value={activeDepartment??""} onChange={event=>switchActiveDepartment(event.target.value)}>
                {currentDepartments.map(code=><option key={code} value={code}>{officeDepartmentLabel(code)}</option>)}
              </select>:
              <strong>{activeDepartment?officeDepartmentLabel(activeDepartment):"Personal workspace"}</strong>}
            </div>:null}
            <nav id={navId} className="office-category-links" aria-label={definition.label + " navigation"}>
+            {workspace==="office"&&links.length===0&&visibleDepartments.some(code=>officeDepartmentLabel(code)===selectedCategory)?
+              <div className="office-owned-department-verification" role="status">
+                <ShieldCheck size={19} aria-hidden="true"/>
+                <strong>Department assigned</strong>
+                <p>This department belongs to your workspace. Its restricted tools require the appropriate permission and, where mandated, an approved company device.</p>
+                <OfficeNavLink href="/office/my-role">Review my access</OfficeNavLink>
+              </div>:null}
             {subgroups.map(group => <details className="office-mega-subgroup" key={selectedCategory + ":" + group}
               open={expandedSubgroup === group}>
               <summary onClick={(event) => {
@@ -615,11 +626,11 @@ export function OfficeWorkspaceShell({
            data-office-client-department-guard>
            <ShieldCheck size={24} aria-hidden="true"/>
            <strong>{departmentLoad==="error"?"Department assignment unavailable":
-             !departmentReady?"Loading assigned workspace":"Not in your active department"}</strong>
+             !departmentReady?"Loading assigned workspace":"Additional department access required"}</strong>
            <p>{departmentLoad==="error"?
              "Refresh department assignments to restore your navigation.":
              !departmentReady?"Checking the departments assigned to your Office account.":
-             "Switch to an assigned department or open My Work. This screen is not part of your selected workspace."}</p>
+             "This section needs a matching permission and, for restricted actions, an approved company device. Your other assigned departments remain available."}</p>
            {departmentLoad==="error"?<button type="button"
              onClick={()=>{setDepartmentLoad("loading");setDepartmentRevision(v=>v+1);}}>
              Retry department list

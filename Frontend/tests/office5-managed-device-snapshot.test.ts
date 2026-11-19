@@ -9,11 +9,16 @@ describe("Office 5.0 managed-device parity",()=>{
   expect(snapshot).toContain('device.data?.trust_state==="TRUSTED"');
   expect(snapshot).toContain('device.data?.company_managed===true');
   expect(snapshot).toContain('!device.data?.revoked_at');
-  expect(snapshot).toContain('(!deviceEnforced || (!row.high_risk&&!row.requires_managed_device) || managedDeviceValid)');
+  expect(snapshot).toContain("const ownedDeviceRequired=");
+  expect(snapshot).toContain("if(deviceEnforced||ownedDeviceRequired)");
+  expect(snapshot).toContain("const requiresDevice=deviceEnforced||");
+  expect(snapshot).toContain("(!requiresDevice || (!row.high_risk&&!row.requires_managed_device) || managedDeviceValid)");
  });
  it("matches managed-device condition used by canonical action gate",()=>{
   expect(engine).toContain("const enforced = process.env.OFFICE_DEVICE_ENFORCEMENT?.toLowerCase() === \"true\"");
   expect(engine).toContain('data.trust_state !== "TRUSTED"');
   expect(engine).toContain("data.company_managed !== true");
+  expect(engine).toContain('decision.source === "DEPARTMENT_OWNER"');
+  expect(engine).toContain("permission.high_risk || permission.requires_managed_device");
  });
 });

@@ -1,7 +1,9 @@
 import "server-only";
 import {dispatchOfficeSupportNotice} from "@/lib/office/notification-dispatch-server";
-
 import { readOfficeRuntimeResult } from "@/lib/office/runtime-read-server";
+import { currentOfficeTrustedDeviceId } from "@/lib/office/device-binding-server";
+
+
 
 import {
   OfficePermissionError,
@@ -44,8 +46,16 @@ async function actor() {
   }
 }
 
-async function permission(permissionCode: string): Promise<Authority> {
-  const currentActor = await actor();
+async function permission(
+  permissionCode: string,
+  verifiedActor?: Awaited<ReturnType<typeof actor>>,
+  verifiedDeviceId?: string | null,
+): Promise<Authority> {
+  const currentActor = verifiedActor ?? await actor();
+  // Resolve a bound first-party device on both overview and write paths.
+  const deviceId = verifiedDeviceId === undefined
+    ? await currentOfficeTrustedDeviceId(currentActor.admin,currentActor.identity.userId)
+    : verifiedDeviceId;
   const candidates: OfficeResourceScope[] = [
     ...(currentActor.identity.department ? [{ type: "DEPARTMENT" as const, key: currentActor.identity.department }] : []),
     { type: "OWN", ownerUserId: currentActor.identity.userId },
@@ -53,7 +63,7 @@ async function permission(permissionCode: string): Promise<Authority> {
   ];
   let decision: OfficePermissionDecision | undefined;
   for (const resource of candidates) {
-    const current = await resolveOfficePermission(currentActor.admin, currentActor.identity, permissionCode, resource);
+    const current = await resolveOfficePermission(currentActor.admin, currentActor.identity, permissionCode, resource, deviceId);
     if (current.allowed) { decision = current; break; }
     decision = current;
   }
@@ -92,7 +102,9 @@ async function writableCase(id: string) {
 }
 
 export async function getOfficeSupportOverview() {
-  const read = await permission("support.case.read");
+  const verifiedActor = await actor();
+  const verifiedDeviceId = await currentOfficeTrustedDeviceId(verifiedActor.admin,verifiedActor.identity.userId);
+  const read = await permission("support.case.read", verifiedActor, verifiedDeviceId);
   let casesQuery = read.admin.from("office_support_cases").select("id,case_code,customer_id,product_id,subject,description,category,source,priority,status,owner_user_id,created_by,resolution,due_at,resolved_at,closed_at,created_at,updated_at").order("updated_at", { ascending: false }).limit(400);
   casesQuery = applyOwnerScope(casesQuery, read.ownerIds);
   const { data: cases, error: casesError } = await casesQuery;
@@ -102,22 +114,47 @@ export async function getOfficeSupportOverview() {
   const customerIds = Array.from(new Set(rows.map((row) => row.customer_id).filter(Boolean) as string[]));
   const productIds = Array.from(new Set(rows.map((row) => row.product_id).filter(Boolean) as string[]));
 
+  // FastAPI owns canonical customer/product masters. The authenticated Office
+  // runtime read is bounded and its results are filtered to IDs already tied
+  // to this actor's authorized Support cases. Fail with an honest degraded
+  // reference state rather than bypassing the backend data ownership boundary.
+  async function referenceRows(table: "customers" | "products", ids: string[]) {
+    const empty=[] as Array<Record<string,unknown>>;
+    if (!ids.length) return {data:empty,error:null as {message:string}|null};
+    const result=await readOfficeRuntimeResult<Array<Record<string,unknown>>>(table,{timeoutMs:6000});
+    return {
+      data:(result.data??[]).filter(row=>ids.includes(String(row.id))),
+      error:result.error,
+    };
+  }
   const [eventsResult, customersResult, productsResult, ownersResult] = await Promise.all([
     ids.length ? read.admin.from("office_support_case_events").select("id,case_id,actor_user_id,event_type,previous_status,new_status,note,created_at").in("case_id", ids).order("created_at", { ascending: false }).limit(1000) : Promise.resolve({ data: [], error: null }),
-    customerIds.length ? readOfficeRuntimeResult<Array<Record<string,unknown>>>("customers").then((result)=>({...result,data:(result.data??[]).filter((row)=>customerIds.includes(String(row.id)))})) : Promise.resolve({ data: [] as Array<Record<string,unknown>>, error: null }),
-    productIds.length ? readOfficeRuntimeResult<Array<Record<string,unknown>>>("products").then((result)=>({...result,data:(result.data??[]).filter((row)=>productIds.includes(String(row.id)))})) : Promise.resolve({ data: [] as Array<Record<string,unknown>>, error: null }),
+    referenceRows("customers",customerIds),
+    referenceRows("products",productIds),
     (() => {
       let query = read.admin.from("office_identity_users").select("user_id,display_name,job_title,primary_department,status").eq("status", "ACTIVE").order("display_name");
       if (read.ownerIds) query = query.in("user_id", read.ownerIds.length ? read.ownerIds : [read.identity.userId]);
       return query;
     })(),
   ]);
-  if (eventsResult.error || customersResult.error || productsResult.error || ownersResult.error) throw new OfficeSupportError(503, "Support reference data is temporarily unavailable");
+  // A temporary reference-catalog problem must not hide genuine support
+  // cases or prevent audited case transitions. No substitute data is created.
+  if (eventsResult.error || ownersResult.error)
+    throw new OfficeSupportError(503, "Support case history or assigned owners temporarily unavailable");
+  const referenceStatus = customersResult.error || productsResult.error ? "DEGRADED" : "READY";
 
-  let canManage = false;
-  let canRefund = false;
-  try { await permission("support.case.manage"); canManage = true; } catch (error) { if (!(error instanceof OfficeSupportError && error.status === 403)) throw error; }
-  try { await permission("customer.refund.request"); canRefund = true; } catch (error) { if (!(error instanceof OfficeSupportError && error.status === 403)) throw error; }
+  // Reuse the authenticated actor and check independent capabilities together.
+  // A denied permission returns false; backend failures still surface as errors.
+  const [canManage,canRefund] = await Promise.all([
+    permission("support.case.manage",verifiedActor,verifiedDeviceId).then(()=>true).catch(error=>{
+      if(error instanceof OfficeSupportError && error.status===403)return false;
+      throw error;
+    }),
+    permission("customer.refund.request",verifiedActor,verifiedDeviceId).then(()=>true).catch(error=>{
+      if(error instanceof OfficeSupportError && error.status===403)return false;
+      throw error;
+    }),
+  ]);
 
   const eventsByCase = new Map<string, unknown[]>();
   for (const event of eventsResult.data ?? []) {
@@ -132,6 +169,7 @@ export async function getOfficeSupportOverview() {
     scope: { source: read.decision.source ?? null, type: read.decision.scopeType ?? null, key: read.decision.scopeKey ?? null },
     can_manage: canManage,
     can_request_refund: canRefund,
+    reference_status: referenceStatus,
     owners: ownersResult.data ?? [],
     customers: customersResult.data ?? [],
     products: productsResult.data ?? [],

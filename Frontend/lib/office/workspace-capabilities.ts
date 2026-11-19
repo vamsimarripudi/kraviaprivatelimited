@@ -22,6 +22,7 @@ const requirements: Record<string, readonly string[]> = {
   "office:crm": ["sales.crm.read", "sales.crm.write"],
   "office:engineering": ["engineering.infrastructure.read", "engineering.repo.read", "engineering.issue.manage", "engineering.oncall.read", "engineering.oncall.manage", "engineering.maintenance.read", "engineering.maintenance.manage", "engineering.maintenance.approve", "engineering.maintenance.verify"],
   "office:products": ["master.product.read", "master.product.create", "product.roadmap.read", "product.roadmap.write", "product.release.request", "product.release.approve"],
+  "office:customer-success": ["customer.trust.read", "customer.trust.manage", "customer.trust.review"],
   "office:customers": ["master.customer.read", "master.customer.create"],
   "office:portfolio": ["portfolio.read", "portfolio.member.read", "portfolio.manage", "portfolio.review", "portfolio.milestone.manage", "portfolio.team.manage"],
   "office:recruitment": ["hiring.requisition.read", "hiring.requisition.manage", "hiring.candidate.manage", "hiring.interview.manage", "hiring.offer.prepare", "hiring.offer.review", "hiring.onboarding.manage"],

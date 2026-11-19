@@ -457,3 +457,23 @@
  background:var(--office-ui-surface-alt)!important;color:var(--office-ui-muted)!important;
  font-size:11px!important;line-height:1.45!important;
 }
+
+
+/* Scoped, truthful status for an owned department awaiting device/permission
+   authorisation. Nothing about this element elevates its API capabilities. */
+.kravia-office .office-owned-department-verification {
+  display:grid;gap:9px;align-content:start;max-width:100%;margin:9px 6px;
+  padding:16px 14px;border:1px solid var(--off-next-line,#d5dce5);
+  border-radius:12px;background:var(--off-next-panel,#fff);
+  color:var(--off-next-ink,inherit);font-size:12px;
+}
+.kravia-office .office-owned-department-verification strong{font-size:12px;font-weight:730}
+.kravia-office .office-owned-department-verification p{
+  color:var(--off-next-muted,#6b7482);font-size:11px;line-height:1.55;margin:0;
+}
+.kravia-office .office-owned-department-verification a{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:max-content;max-width:100%;min-height:34px;padding:7px 11px;
+  border:1px solid var(--off-next-line,#d5dce5);border-radius:9px;
+  background:transparent;color:inherit;text-decoration:none;
+}

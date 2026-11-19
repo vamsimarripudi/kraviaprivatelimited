@@ -5,6 +5,8 @@
  *
  * Never show unrelated operational departments merely because an account
  * carries an executive/administrator role or a permission from a profile.
+ * Multiple owned departments must remain reachable at once. The focus picker
+ * only changes the selected context; it does not narrow the navigation ACL.
  */
 
 export const OFFICE_DEPARTMENT_LABELS: Readonly<Record<string,string>>={
@@ -36,7 +38,7 @@ export const OFFICE_DEPARTMENT_SECTIONS:Readonly<Record<string,readonly string[]
  SECRETARIAL:["governance","registrations","compliance","documents","custody"],
  ADMINISTRATION:[],
  AUDIT:[],
- CUSTOMER_SUCCESS:["customers"],
+ CUSTOMER_SUCCESS:["customer-success"],
  DEVOPS:["integrations","domains"],
  ENGINEERING:["engineering"],
  IT:[],

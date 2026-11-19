@@ -1,0 +1,51 @@
+name: Office owned departments and permission batch
+on:
+  pull_request:
+    paths:
+      - "Database/supabase/migrations/20261117002000_department_owner_read_and_capability_batch.sql"
+      - "Database/supabase/tests/department_owner_scope_performance_*.sql"
+      - ".github/workflows/office-department-owner-scope-performance.yml"
+  push:
+    branches: [main]
+    paths:
+      - "Database/supabase/migrations/20261117002000_department_owner_read_and_capability_batch.sql"
+      - "Database/supabase/tests/department_owner_scope_performance_*.sql"
+permissions:
+  contents: read
+jobs:
+  validate:
+    name: PostgreSQL 17 scoped owner reads and batched authorization
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: isolated-synthetic-ci
+          POSTGRES_DB: office_owner_scope
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d office_owner_scope"
+          --health-interval 4s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate synthetic department ownership, permission denials and SQL batch
+        shell: bash
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGDATABASE: office_owner_scope
+          PGPASSWORD: isolated-synthetic-ci
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f Database/supabase/tests/department_owner_scope_performance_fixture.sql
+          psql -X -v ON_ERROR_STOP=1 -1 -f Database/supabase/migrations/20261117002000_department_owner_read_and_capability_batch.sql
+          psql -X -v ON_ERROR_STOP=1 -1 -f Database/supabase/migrations/20261117002000_department_owner_read_and_capability_batch.sql
+          result="$(psql -X -v ON_ERROR_STOP=1 -At -f Database/supabase/tests/department_owner_scope_performance_smoke.sql)"
+          printf '%s\n' "$result"
+          test "$(printf '%s\n' "$result" | tail -n 1)" = "DEPARTMENT_OWNER_SCOPE_BATCHED_VERIFIED"
