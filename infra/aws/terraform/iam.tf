@@ -86,7 +86,9 @@ resource "aws_iam_role_policy" "importer" {
 }
 
 resource "aws_iam_role" "github_deploy" {
-  count = local.github_oidc_arn == null ? 0 : 1
+  # Keep the instance count plan-time known. The provider ARN is unknown when
+  # this stack creates the account-level OIDC provider in the same apply.
+  count = (var.create_github_oidc_provider || var.github_oidc_provider_arn != null) ? 1 : 0
   name  = "${var.name}-${var.environment}-github-deploy"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -105,7 +107,7 @@ resource "aws_iam_role" "github_deploy" {
 }
 
 resource "aws_iam_role_policy" "github_deploy" {
-  count = local.github_oidc_arn == null ? 0 : 1
+  count = (var.create_github_oidc_provider || var.github_oidc_provider_arn != null) ? 1 : 0
   name  = "${var.name}-${var.environment}-github-ssm"
   role  = aws_iam_role.github_deploy[0].id
   policy = jsonencode({
