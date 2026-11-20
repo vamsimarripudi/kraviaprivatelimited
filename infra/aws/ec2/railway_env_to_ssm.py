@@ -110,6 +110,31 @@ def input_is_valid(value: str) -> bool:
     return bool(value) and "\x00" not in value and "\r" not in value and "\n" not in value and len(value.encode("utf-8")) <= 4096 and "${{" not in value
 
 
+def classify_inputs(names: list[str], source: dict[str, str]) -> tuple[list[tuple[str, str]], list[str], list[str], list[str]]:
+    """Classify Railway values without returning their contents in diagnostics.
+
+    Empty values are intentionally skipped: an empty optional GST setting must not
+    become a blank AWS parameter, while malformed non-empty values remain a hard
+    stop so the import cannot silently truncate or reinterpret a secret.
+    """
+    ready: list[tuple[str, str]] = []
+    empty: list[str] = []
+    invalid: list[str] = []
+    missing: list[str] = []
+    for name in names:
+        if name not in source:
+            missing.append(name)
+            continue
+        value = source[name]
+        if value == "":
+            empty.append(name)
+        elif input_is_valid(value):
+            ready.append((name, value))
+        else:
+            invalid.append(name)
+    return ready, empty, invalid, missing
+
+
 def check_target(session, expected_account: str, region: str) -> None:
     if not KMS_KEY:
         raise RuntimeError("KRAVIA_AWS_KMS_KEY_ID is required; provision and verify a Hyderabad KMS key first")
@@ -141,10 +166,10 @@ def main() -> int:
     if args.apply and not (args.expected_account and re.fullmatch(r"\d{12}", args.expected_account)):
         parser.error("--expected-account is required for --apply")
     names = selected_names(args.service, args.include_review)
-    ready = [(name, os.environ[name]) for name in names if name in os.environ and input_is_valid(os.environ[name])]
-    invalid = [name for name in names if name in os.environ and not input_is_valid(os.environ[name])]
-    missing = [name for name in names if name not in os.environ]
-    print(f"Source {args.service}: {len(names)} selected; {len(ready)} ready; {len(invalid)} invalid/oversize; {len(missing)} missing")
+    ready, empty, invalid, missing = classify_inputs(names, os.environ)
+    print(f"Source {args.service}: {len(names)} selected; {len(ready)} ready; {len(empty)} empty/skipped; {len(invalid)} invalid/oversize; {len(missing)} missing")
+    for name in empty:
+        print("SKIP empty (no AWS parameter created):", parameter_name(name))
     for name in invalid:
         print("REVIEW invalid/multiline/oversize/unresolved:", parameter_name(name))
     for name in missing:
@@ -153,7 +178,7 @@ def main() -> int:
         print("DRY RUN: no AWS writes. Railway variables have not been printed or saved.")
         return 0 if not invalid else 2
     if invalid or missing:
-        print("No writes. Resolve invalid or missing selected values first.", file=sys.stderr)
+        print("No writes. Resolve invalid or missing selected values first; empty values remain intentionally skipped.", file=sys.stderr)
         return 2
     try:
         import boto3

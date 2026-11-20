@@ -38,6 +38,16 @@ class RailwayMigrationTests(unittest.TestCase):
                 self.assertFalse(module.input_is_valid(value))
         self.assertTrue(module.input_is_valid("value$with=punctuation"))
 
+    def test_empty_values_are_skipped_but_malformed_values_block(self):
+        ready, empty, invalid, missing = module.classify_inputs(
+            ["GOOD", "EMPTY", "BAD", "MISSING"],
+            {"GOOD": "safe", "EMPTY": "", "BAD": "bad\nvalue"},
+        )
+        self.assertEqual(ready, [("GOOD", "safe")])
+        self.assertEqual(empty, ["EMPTY"])
+        self.assertEqual(invalid, ["BAD"])
+        self.assertEqual(missing, ["MISSING"])
+
 
 if __name__ == "__main__":
     unittest.main()

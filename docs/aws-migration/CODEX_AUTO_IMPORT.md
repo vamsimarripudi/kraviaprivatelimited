@@ -12,7 +12,7 @@ Add KRAVIA's production API/worker variables from Railway to AWS Systems Manager
 - Verify region `ap-south-2` has been enabled (opt-in) and AWS identity `508563139312` is a dedicated non-root provisioning role/profile. Do not use root to create resources.
 - Authenticate Railway CLI through `railway login` and AWS CLI through the correct SSO/profile. Verify AWS account ID; avoid permanent access keys.
 - Install Railway CLI and Python `boto3`; do not print values or enable verbose/debug logging.
-- Authorized AWS operator needs `ssm:GetParameter`, `ssm:PutParameter`, `kms:DescribeKey`, `kms:Encrypt`, `kms:Decrypt`, `sts:GetCallerIdentity`; KMS key policy must permit use.
+- The provisioning identity must only assume the dedicated `kravia-prod-ssm-importer` role for writes. The importer role is scoped to `/kravia/prod/*` and the Hyderabad KMS key; the provisioning identity itself must not receive direct SSM write or KMS encrypt/decrypt permissions. Verify `sts:AssumeRole` is limited to `arn:aws:iam::508563139312:role/kravia-prod-ssm-importer`, and the importer role has `ssm:GetParameter`, `ssm:PutParameter`, `kms:DescribeKey`, `kms:Encrypt`, `kms:Decrypt`, and `sts:GetCallerIdentity`.
 - Work from the repository and link `railway link --project 8746e560-db2a-4834-80c5-54db0e6e013e --environment production` in a private working directory. `railway run --no-local` injects resolved source environment values at runtime without writing a plaintext export file.
 
 ## Exact Codex instruction
@@ -27,7 +27,14 @@ railway link --project 8746e560-db2a-4834-80c5-54db0e6e013e --environment produc
 python3 -m pip install boto3
 aws configure list-profiles
 aws sts get-caller-identity --profile kravia-provisioning
-# Set AWS_PROFILE=kravia-provisioning and KRAVIA_AWS_KMS_KEY_ID=<new Hyderabad KMS key ARN> in your secure execution environment.
+# Configure a temporary role profile that assumes the scoped importer role from the
+# non-root provisioning profile; never use root or the provisioning profile itself
+# for parameter writes.
+aws configure set profile.kravia-ssm-importer.source_profile kravia-provisioning
+aws configure set profile.kravia-ssm-importer.role_arn arn:aws:iam::508563139312:role/kravia-prod-ssm-importer
+# Set AWS_PROFILE=kravia-ssm-importer and KRAVIA_AWS_KMS_KEY_ID=<new Hyderabad KMS key ARN>
+# in the secure execution environment. Keep AWS_PROFILE=kravia-provisioning only for
+# read-only discovery and Terraform provisioning.
 # Do not assume the old Mumbai key exists in Hyderabad.
 
 # Dry-runs (never print secret values):
