@@ -1,9 +1,5 @@
 data "aws_caller_identity" "current" {}
 
-data "aws_kms_key" "kravia" {
-  key_id = var.kms_key_id
-}
-
 data "aws_iam_policy" "ssm_core" {
   arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
@@ -18,6 +14,13 @@ data "aws_iam_openid_connect_provider" "github" {
   arn   = var.github_oidc_provider_arn
 }
 
+resource "aws_iam_openid_connect_provider" "github" {
+  count           = var.create_github_oidc_provider ? 1 : 0
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = [var.github_oidc_thumbprint]
+}
+
 locals {
   managed_network = var.network_mode == "managed"
   vpc_id          = local.managed_network ? aws_vpc.this[0].id : var.existing_vpc_id
@@ -27,6 +30,7 @@ locals {
   instance_arn    = local.instance_id == null ? null : "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/${local.instance_id}"
   parameter_arn   = "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/kravia/${var.environment}/*"
   log_group_arn   = "arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:log-group:/kravia/${var.environment}/ec2:*"
+  github_oidc_arn = var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : try(data.aws_iam_openid_connect_provider.github[0].arn, null)
 }
 
 resource "terraform_data" "configuration_guard" {
@@ -49,12 +53,16 @@ resource "terraform_data" "configuration_guard" {
       error_message = "Existing network mode requires existing_vpc_id, two public subnet IDs and one private subnet ID."
     }
     precondition {
+      condition     = var.create_kms_key || var.kms_key_id != null
+      error_message = "Either create_kms_key=true or a reviewed existing kms_key_id is required."
+    }
+    precondition {
       condition     = !var.create_ec2 || (var.ami_id != null && var.network_mode == "managed")
       error_message = "New EC2 creation requires a pinned ami_id and managed network mode."
     }
     precondition {
-      condition     = var.github_oidc_provider_arn != null
-      error_message = "Supply the existing GitHub OIDC provider ARN; this stack does not silently create a broad trust provider."
+      condition     = local.github_oidc_arn != null && (!var.create_github_oidc_provider || var.github_oidc_thumbprint != null)
+      error_message = "Supply an existing GitHub OIDC provider ARN, or explicitly provide a reviewed thumbprint to create one."
     }
     precondition {
       condition     = var.importer_principal_arn != null
@@ -180,7 +188,7 @@ resource "aws_security_group" "ec2" {
 resource "aws_network_interface_sg_attachment" "existing" {
   count                = var.existing_instance_id != null && var.manage_existing_instance ? 1 : 0
   security_group_id    = aws_security_group.ec2.id
-  network_interface_id = data.aws_instance.existing[0].primary_network_interface_id
+  network_interface_id = data.aws_instance.existing[0].network_interface_id
 }
 
 resource "aws_lb" "api" {

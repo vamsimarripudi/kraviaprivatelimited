@@ -119,13 +119,37 @@ variable "key_name" {
 }
 
 variable "kms_key_id" {
-  description = "Existing customer-managed symmetric KMS key; it is referenced, never replaced."
+  description = "Existing customer-managed symmetric KMS key to reuse. Leave null to create a new Hyderabad key."
   type        = string
-  default     = "0d7820e2-bd32-48e4-8246-f0082aeebc04"
+  default     = null
+}
+
+variable "create_kms_key" {
+  description = "Create a new customer-managed symmetric KMS key in Hyderabad when no existing key is supplied."
+  type        = bool
+  default     = true
+}
+
+variable "kms_key_alias" {
+  description = "Alias for a newly created KRAVIA SSM KMS key."
+  type        = string
+  default     = "alias/kravia-prod-ssm"
 }
 
 variable "github_oidc_provider_arn" {
   description = "Existing GitHub Actions OIDC provider ARN."
+  type        = string
+  default     = null
+}
+
+variable "create_github_oidc_provider" {
+  description = "Create the account-level GitHub Actions OIDC provider when no existing provider ARN is supplied."
+  type        = bool
+  default     = false
+}
+
+variable "github_oidc_thumbprint" {
+  description = "Current SHA-1 thumbprint for token.actions.githubusercontent.com, reviewed out-of-band before provider creation."
   type        = string
   default     = null
 }
@@ -145,6 +169,18 @@ variable "certificate_arn" {
   description = "Existing ACM certificate ARN for the HTTPS ALB listener."
   type        = string
   default     = null
+}
+
+variable "create_acm_certificate" {
+  description = "Request an ACM DNS-validated certificate for the API hostname; validation and ALB attachment remain separate gates."
+  type        = bool
+  default     = false
+}
+
+variable "acm_domain_name" {
+  description = "Public API hostname for a newly requested ACM certificate."
+  type        = string
+  default     = "api.kraviaprivatelimited.com"
 }
 
 variable "budget_email" {

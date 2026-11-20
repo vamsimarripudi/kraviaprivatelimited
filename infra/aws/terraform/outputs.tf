@@ -15,7 +15,7 @@ output "instance_id" {
 }
 
 output "kms_key_arn" {
-  value = data.aws_kms_key.kravia.arn
+  value = local.kms_key_arn
 }
 
 output "ec2_role_name" {

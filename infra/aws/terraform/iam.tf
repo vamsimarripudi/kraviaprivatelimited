@@ -29,7 +29,7 @@ resource "aws_iam_role_policy" "ec2_runtime" {
       {
         Effect   = "Allow"
         Action   = ["kms:Decrypt"]
-        Resource = data.aws_kms_key.kravia.arn
+        Resource = local.kms_key_arn
         Condition = {
           StringEquals = { "kms:ViaService" = "ssm.${var.region}.amazonaws.com" }
         }
@@ -46,12 +46,6 @@ resource "aws_iam_role_policy" "ec2_runtime" {
 resource "aws_iam_instance_profile" "ec2" {
   name = "${var.name}-${var.environment}-ec2"
   role = aws_iam_role.ec2.name
-}
-
-resource "aws_iam_instance_profile_association" "existing" {
-  count                = var.existing_instance_id != null && var.manage_existing_instance ? 1 : 0
-  instance_id          = var.existing_instance_id
-  iam_instance_profile = aws_iam_instance_profile.ec2.name
 }
 
 resource "aws_iam_role" "importer" {
@@ -80,7 +74,7 @@ resource "aws_iam_role_policy" "importer" {
       {
         Effect   = "Allow"
         Action   = ["kms:DescribeKey", "kms:Encrypt", "kms:Decrypt"]
-        Resource = data.aws_kms_key.kravia.arn
+        Resource = local.kms_key_arn
       },
       {
         Effect   = "Allow"
@@ -92,13 +86,13 @@ resource "aws_iam_role_policy" "importer" {
 }
 
 resource "aws_iam_role" "github_deploy" {
-  count = var.github_oidc_provider_arn == null ? 0 : 1
+  count = local.github_oidc_arn == null ? 0 : 1
   name  = "${var.name}-${var.environment}-github-deploy"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
       Effect    = "Allow"
-      Principal = { Federated = data.aws_iam_openid_connect_provider.github[0].arn }
+      Principal = { Federated = local.github_oidc_arn }
       Action    = "sts:AssumeRoleWithWebIdentity"
       Condition = {
         StringEquals = {
@@ -111,7 +105,7 @@ resource "aws_iam_role" "github_deploy" {
 }
 
 resource "aws_iam_role_policy" "github_deploy" {
-  count = var.github_oidc_provider_arn == null ? 0 : 1
+  count = local.github_oidc_arn == null ? 0 : 1
   name  = "${var.name}-${var.environment}-github-ssm"
   role  = aws_iam_role.github_deploy[0].id
   policy = jsonencode({
@@ -123,9 +117,9 @@ resource "aws_iam_role_policy" "github_deploy" {
         Resource = "arn:aws:ssm:${var.region}::document/AWS-RunShellScript"
       },
       {
-        Effect   = "Allow"
-        Action   = ["ssm:SendCommand"]
-        Resource = compact([local.instance_arn])
+        Effect    = "Allow"
+        Action    = ["ssm:SendCommand"]
+        Resource  = compact([local.instance_arn])
         Condition = { StringEquals = { "aws:ResourceTag/Project" = "kravia" } }
       },
       {

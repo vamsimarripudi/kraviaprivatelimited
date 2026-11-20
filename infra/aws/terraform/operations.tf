@@ -36,7 +36,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_unhealthy" {
 
 resource "aws_backup_vault" "kravia" {
   name        = "${var.name}-${var.environment}-backup"
-  kms_key_arn = data.aws_kms_key.kravia.arn
+  kms_key_arn = local.kms_key_arn
 }
 
 resource "aws_backup_plan" "kravia" {
