@@ -6,6 +6,7 @@ import { ArticleShareLinks } from "@/components/social-links";
 import { siteUrl } from "@/lib/site";
 import { publicCorporateEmails } from "@/lib/corporate/public-email-directory";
 import { nvidiaInceptionMembership, nvidiaInceptionNewsroomRecord } from "@/lib/corporate/program-memberships";
+import { kraviaNextChapterNewsroomRecord } from "@/lib/corporate/next-chapter-news";
 import { relatedContent } from "@/lib/content/relationships";
 import { publicContentPath } from "@/lib/content/seo";
 import type { PublicContentRecord } from "@/lib/content/types";
@@ -50,6 +51,19 @@ export function PublicContentArticle({ article, allArticles }: { article: Public
   const shareable = ["NEWS", "PRESS_RELEASE", "ENGINEERING_ARTICLE", "RESEARCH"].includes(article.type);
   return <article className="article-shell shell">
     <header className="article-header"><p className="eyebrow">{typeLabel(article.type)}</p><h1>{article.title}</h1>{article.summary && <p className="article-summary">{article.summary}</p>}<div className="article-meta"><span>{publicationLabel(article)}</span><span>{article.authorName ? `By ${article.authorName}` : "KRAVIA PRIVATE LIMITED"}</span>{article.updatedAt && article.publishedAt && article.updatedAt !== article.publishedAt && <span>Updated {dateLabel(article.updatedAt)}</span>}<CopyLinkButton label="Copy link" /></div></header>
+    {article.type === "NEWS" && article.slug === kraviaNextChapterNewsroomRecord.slug && (
+      <figure className="article-kravia-identity" style={{ margin: "0 0 2.25rem" }}>
+        <Image
+          src="/brand/kravia-enterprise-v2.svg"
+          width={180}
+          height={180}
+          alt="KRAVIA PRIVATE LIMITED — official company logo"
+          unoptimized
+          style={{ display: "block", width: "min(180px, 40vw)", height: "auto" }}
+        />
+        <figcaption>Official KRAVIA company update · Building technology with purpose.</figcaption>
+      </figure>
+    )}
     {article.type === "NEWS" && article.slug === nvidiaInceptionNewsroomRecord.slug && (
       <figure className="article-inception-badge">
         <Image src={nvidiaInceptionMembership.badge} width={501} height={217} alt="Official NVIDIA Inception Program member badge" unoptimized />
