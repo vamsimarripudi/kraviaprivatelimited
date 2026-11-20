@@ -1,0 +1,62 @@
+name: kravia-office
+
+# Initial EC2 migration: ALB terminates TLS; allow EC2 port 8000 only from ALB SG.
+services:
+  clamav:
+    image: clamav/clamav:1.5.4-debian
+    restart: unless-stopped
+    networks: [internal]
+    volumes:
+      - clamav-signatures:/var/lib/clamav
+    mem_reservation: 1g
+
+  api:
+    build:
+      context: ../../../Backend
+      dockerfile: Dockerfile.api
+    restart: unless-stopped
+    env_file:
+      - path: /etc/kravia/api.env
+        format: raw
+    ports:
+      - "8000:8000"
+    depends_on: [clamav]
+    volumes:
+      - /var/lib/kravia/private-vault:/app/runtime/private-vault
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/live',timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  worker:
+    build:
+      context: ../../../Backend
+      dockerfile: Dockerfile.worker
+    restart: unless-stopped
+    env_file:
+      - path: /etc/kravia/worker.env
+        format: raw
+    depends_on: [clamav]
+    volumes:
+      - /var/lib/kravia/private-vault:/app/runtime/private-vault
+    networks: [internal]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  clamav-signatures:
+
+networks:
+  internal:
+    driver: bridge
