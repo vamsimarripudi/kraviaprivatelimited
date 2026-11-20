@@ -29,7 +29,7 @@ git merge-base --is-ancestor "$SHA" origin/main || {
 git checkout --detach --force "$SHA" --quiet
 # Backup, compatibility and staging checks are required before approving
 # the production GitHub Environment that authorizes this operation.
-python3 infra/aws/ec2/ssm_to_env.py --region ap-south-1
+python3 infra/aws/ec2/ssm_to_env.py --region ap-south-2
 COMPOSE=(docker compose -f infra/aws/ec2/compose.yaml)
 "${COMPOSE[@]}" version >/dev/null
 "${COMPOSE[@]}" build api worker

@@ -21,7 +21,7 @@ jobs:
       - name: Assume a scoped AWS role through GitHub OIDC
         uses: aws-actions/configure-aws-credentials@v6.3.0
         with:
-          aws-region: ap-south-1
+          aws-region: ap-south-2
           role-to-assume: ${{ vars.KRAVIA_AWS_DEPLOY_ROLE_ARN }}
           role-session-name: KraviaEC2Deploy
       - name: Deploy immutable commit through SSM Run Command

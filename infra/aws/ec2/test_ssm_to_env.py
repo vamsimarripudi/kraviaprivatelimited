@@ -24,7 +24,7 @@ class ParameterStoreTests(unittest.TestCase):
         ]}
         with patch.object(module.subprocess, "run") as run:
             run.return_value.stdout = json.dumps(payload)
-            loaded = module.read_scope("/kravia/prod", "shared", "ap-south-1")
+            loaded = module.read_scope("/kravia/prod", "shared", "ap-south-2")
         self.assertEqual(loaded["OFFICE_AUTH_SIGNING_SECRET"], "x=abc$test")
         self.assertEqual(len(loaded), 2)
         self.assertIn("--with-decryption", run.call_args.args[0])
@@ -36,7 +36,7 @@ class ParameterStoreTests(unittest.TestCase):
                 with patch.object(module.subprocess, "run") as run:
                     run.return_value.stdout = json.dumps(payload)
                     with self.assertRaises(ValueError):
-                        module.read_scope("/kravia/prod", "api", "ap-south-1")
+                        module.read_scope("/kravia/prod", "api", "ap-south-2")
 
     def test_rejects_multiline_and_nul(self):
         for value in ("one\ntwo", "one\rtwo", "one\x00two"):
@@ -45,7 +45,7 @@ class ParameterStoreTests(unittest.TestCase):
                 with patch.object(module.subprocess, "run") as run:
                     run.return_value.stdout = json.dumps(payload)
                     with self.assertRaises(ValueError):
-                        module.read_scope("/kravia/prod", "api", "ap-south-1")
+                        module.read_scope("/kravia/prod", "api", "ap-south-2")
 
     def test_write_is_private_and_preserves_dollar(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -58,7 +58,7 @@ class ParameterStoreTests(unittest.TestCase):
     def test_aws_access_failure_propagates(self):
         with patch.object(module.subprocess, "run", side_effect=module.subprocess.CalledProcessError(1, ["aws"])):
             with self.assertRaises(module.subprocess.CalledProcessError):
-                module.read_scope("/kravia/prod", "api", "ap-south-1")
+                module.read_scope("/kravia/prod", "api", "ap-south-2")
 
 
 if __name__ == "__main__":

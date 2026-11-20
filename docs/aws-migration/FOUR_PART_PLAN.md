@@ -1,10 +1,12 @@
 # KRAVIA — AWS EC2 migration: four parts
 
+**Decision: Hyderabad (`ap-south-2`), AWS account `508563139312` — replaces Mumbai, subject to opt-in Region enablement. Create new KMS key in Hyderabad; earlier Mumbai KMS ID is NOT available in Hyderabad. IAM account-wide, KMS/SSM/EC2/ACM regional. AWS root authentication is read-only discovery only, NOT authorized to provision.**
+
 **State: scaffold only. AWS resources, secret migration, EC2 runtime and production cutover are NOT complete.**
 Source: vamsimarripudi/kraviaprivatelimited. Keep Next.js frontend on Vercel, databases on current provider and Railway as fallback until the first AWS backend cutover passes.
 
 ## 1. Setup
-- Prepare AWS ap-south-1 account with MFA, CloudTrail, AWS Budgets, CloudWatch, encrypted EBS/backup, a staging environment and controlled IAM roles.
+- Prepare AWS ap-south-2 account with MFA, CloudTrail, AWS Budgets, CloudWatch, encrypted EBS/backup, a staging environment and controlled IAM roles.
 - Create VPC/SG, EC2 Amazon Linux 2023, ALB TLS/ACM for api.kraviaprivatelimited.com. EC2 port 8000 accepts connections ONLY from ALB SG; disable public port 22. Manage EC2 with Systems Manager.
 - Install AWS CLI v2, SSM Agent, Docker Engine, Docker Compose >=2.30, Git and Python 3. Verify account, region, permissions and CloudWatch log destinations before deploying.
 - On EC2, clone repo to /opt/kravia/repo, install infra/aws/ec2/deploy.sh as root-owned /opt/kravia/deploy.sh (0700), make /etc/kravia (0700) and /var/lib/kravia/private-vault owned by uid/gid 10001 on encrypted EBS.

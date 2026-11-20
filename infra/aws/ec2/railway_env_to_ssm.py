@@ -82,8 +82,8 @@ KRAVIA_STORAGE_BROKER_KEY_C KRAVIA_STORAGE_BROKER_PRIVATE_KEY
 KRAVIA_STORAGE_BROKER_PRIVATE_KEY_B64 OFFICE_AUTH_BOOTSTRAP_SECRET
 OFFICE_AUTH_BREAK_GLASS_SECRET OFFICE_AUTH_SIGNING_SECRET SUPABASE_POOLER_USER""".split())
 
-KMS_KEY = "0d7820e2-bd32-48e4-8246-f0082aeebc04"
-REGION = "ap-south-1"
+KMS_KEY = os.environ.get("KRAVIA_AWS_KMS_KEY_ID", "").strip()
+REGION = "ap-south-2"
 NAME = re.compile(r"^[A-Z][A-Z0-9_]*$")
 
 
@@ -110,7 +110,11 @@ def input_is_valid(value: str) -> bool:
 
 
 def check_target(session, expected_account: str) -> None:
+    if not KMS_KEY:
+        raise RuntimeError("KRAVIA_AWS_KMS_KEY_ID is required; provision and verify a Hyderabad KMS key first")
     identity = session.client("sts").get_caller_identity()
+    if identity.get("Arn", "").endswith(":root"):
+        raise RuntimeError("AWS root identity is prohibited for Parameter Store writes")
     if identity["Account"] != expected_account:
         raise RuntimeError("AWS account mismatch; stopped before writing")
     key = session.client("kms", region_name=REGION).describe_key(KeyId=KMS_KEY)["KeyMetadata"]

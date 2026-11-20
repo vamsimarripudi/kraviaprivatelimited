@@ -59,7 +59,7 @@ def write_env(path: Path, values: dict[str, str]) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--region", default="ap-south-1")
+    parser.add_argument("--region", default="ap-south-2")
     parser.add_argument("--root", default="/kravia/prod")
     parser.add_argument("--destination", default="/etc/kravia")
     arguments = parser.parse_args()
