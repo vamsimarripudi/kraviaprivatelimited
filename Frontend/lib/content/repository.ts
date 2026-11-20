@@ -3,6 +3,7 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { publishedLegalPolicyRecords } from "@/lib/legal/published-policy-pack";
 import { nvidiaInceptionNewsroomRecord } from "@/lib/corporate/program-memberships";
+import { awsActivateNewsroomRecord } from "@/lib/corporate/aws-activate-award";
 import { publicContentPath } from "./seo";
 import type { ContentStatus, PublicContentRecord, PublicContentType } from "./types";
 
@@ -19,7 +20,7 @@ function withOwnerApprovedPublicReleases(records: readonly PublicContentRecord[]
   // company owner. Ordinary drafts still require the governed review workflow.
   const fallback: PublicContentRecord[] = [
     ...(type && type !== "POLICY" ? [] : publishedLegalPolicyRecords),
-    ...(type && type !== "NEWS" ? [] : [nvidiaInceptionNewsroomRecord]),
+    ...(type && type !== "NEWS" ? [] : [nvidiaInceptionNewsroomRecord, awsActivateNewsroomRecord]),
   ];
   const byPath = new Map(fallback.map((record) => [publicContentPath(record), record]));
   // A later governed public snapshot supersedes the static release for the

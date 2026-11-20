@@ -6,6 +6,7 @@ import { ArticleShareLinks } from "@/components/social-links";
 import { siteUrl } from "@/lib/site";
 import { publicCorporateEmails } from "@/lib/corporate/public-email-directory";
 import { nvidiaInceptionMembership, nvidiaInceptionNewsroomRecord } from "@/lib/corporate/program-memberships";
+import { awsActivateAward, awsActivateNewsroomRecord } from "@/lib/corporate/aws-activate-award";
 import { relatedContent } from "@/lib/content/relationships";
 import { publicContentPath } from "@/lib/content/seo";
 import type { PublicContentRecord } from "@/lib/content/types";
@@ -21,7 +22,7 @@ function paragraphs(body: unknown) {
 export function NewsroomLanding({ articles }: { articles: readonly PublicContentRecord[] }) {
   const [featured, ...latest] = articles;
   return <section className="newsroom-shell shell">
-    {featured ? <article className="newsroom-feature"><p className="eyebrow">FEATURED · {typeLabel(featured.type)}</p><h2>{featured.title}</h2><p>{featured.summary}</p><Link href={publicContentPath(featured)} className="text-link">Read the update <ArrowUpRight /></Link></article> : <div className="newsroom-empty"><FileText /><div><p className="eyebrow">OFFICIAL KRAVIA NEWSROOM</p><h2>Updates will appear here when they are ready.</h2><p>Kravia publishes company, product, engineering, research and press material only after it has been reviewed and approved.</p></div></div>}
+    {featured ? <article className="newsroom-feature"><p className="eyebrow">FEATURED · {typeLabel(featured.type)}</p><h2>{featured.title}</h2><p>{featured.summary}</p>{featured.slug === awsActivateNewsroomRecord.slug && <Image src={awsActivateAward.artwork} alt="KRAVIA AWS Activate award announcement artwork" width={1536} height={864} unoptimized style={{ display: "block", width: "100%", height: "auto", marginBlock: "1.25rem", borderRadius: "12px" }} />}<Link href={publicContentPath(featured)} className="text-link">Read the update <ArrowUpRight /></Link></article> : <div className="newsroom-empty"><FileText /><div><p className="eyebrow">OFFICIAL KRAVIA NEWSROOM</p><h2>Updates will appear here when they are ready.</h2><p>Kravia publishes company, product, engineering, research and press material only after it has been reviewed and approved.</p></div></div>}
     {latest.length > 0 && <div className="newsroom-list" aria-label="Latest updates">{latest.map((article) => <article key={article.id}><p className="eyebrow">{typeLabel(article.type)} · {dateLabel(article.publishedAt)}</p><h2><Link href={publicContentPath(article)}>{article.title}</Link></h2><p>{article.summary}</p><Link href={publicContentPath(article)} aria-label={`Read ${article.title}`}><ArrowUpRight /></Link></article>)}</div>}
     <p>Press and media enquiries: <a href={`mailto:${publicCorporateEmails.press}`}>{publicCorporateEmails.press}</a>.</p>
   </section>;
@@ -50,6 +51,19 @@ export function PublicContentArticle({ article, allArticles }: { article: Public
   const shareable = ["NEWS", "PRESS_RELEASE", "ENGINEERING_ARTICLE", "RESEARCH"].includes(article.type);
   return <article className="article-shell shell">
     <header className="article-header"><p className="eyebrow">{typeLabel(article.type)}</p><h1>{article.title}</h1>{article.summary && <p className="article-summary">{article.summary}</p>}<div className="article-meta"><span>{publicationLabel(article)}</span><span>{article.authorName ? `By ${article.authorName}` : "KRAVIA PRIVATE LIMITED"}</span>{article.updatedAt && article.publishedAt && article.updatedAt !== article.publishedAt && <span>Updated {dateLabel(article.updatedAt)}</span>}<CopyLinkButton label="Copy link" /></div></header>
+    {article.type === "NEWS" && article.slug === awsActivateNewsroomRecord.slug && (
+      <figure className="article-award-visual" style={{ margin: "0 0 2.25rem" }}>
+        <Image
+          src={awsActivateAward.artwork}
+          width={1536}
+          height={864}
+          alt="Approved KRAVIA PRIVATE LIMITED and AWS Activate milestone artwork announcing USD 10,000 in cloud credits, valid through 30 November 2028"
+          unoptimized
+          style={{ display: "block", width: "100%", height: "auto", borderRadius: "12px" }}
+        />
+        <figcaption>USD 10,000 in promotional AWS Activate cloud credits, not cash funding or an AWS investment, sponsorship, endorsement or commercial partnership.</figcaption>
+      </figure>
+    )}
     {article.type === "NEWS" && article.slug === nvidiaInceptionNewsroomRecord.slug && (
       <figure className="article-inception-badge">
         <Image src={nvidiaInceptionMembership.badge} width={501} height={217} alt="Official NVIDIA Inception Program member badge" unoptimized />
