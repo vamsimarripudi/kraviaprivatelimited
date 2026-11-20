@@ -84,6 +84,7 @@ OFFICE_AUTH_BREAK_GLASS_SECRET OFFICE_AUTH_SIGNING_SECRET SUPABASE_POOLER_USER""
 
 KMS_KEY = os.environ.get("KRAVIA_AWS_KMS_KEY_ID", "").strip()
 REGION = "ap-south-2"
+DEFAULT_REGION = "ap-south-2"
 NAME = re.compile(r"^[A-Z][A-Z0-9_]*$")
 
 
@@ -109,7 +110,7 @@ def input_is_valid(value: str) -> bool:
     return bool(value) and "\x00" not in value and "\r" not in value and "\n" not in value and len(value.encode("utf-8")) <= 4096 and "${{" not in value
 
 
-def check_target(session, expected_account: str) -> None:
+def check_target(session, expected_account: str, region: str) -> None:
     if not KMS_KEY:
         raise RuntimeError("KRAVIA_AWS_KMS_KEY_ID is required; provision and verify a Hyderabad KMS key first")
     identity = session.client("sts").get_caller_identity()
@@ -117,13 +118,13 @@ def check_target(session, expected_account: str) -> None:
         raise RuntimeError("AWS root identity is prohibited for Parameter Store writes")
     if identity["Account"] != expected_account:
         raise RuntimeError("AWS account mismatch; stopped before writing")
-    key = session.client("kms", region_name=REGION).describe_key(KeyId=KMS_KEY)["KeyMetadata"]
+    key = session.client("kms", region_name=region).describe_key(KeyId=KMS_KEY)["KeyMetadata"]
     if (
         key.get("KeyManager") != "CUSTOMER"
         or key.get("KeyState") != "Enabled"
         or key.get("KeyUsage") != "ENCRYPT_DECRYPT"
         or key.get("KeySpec") != "SYMMETRIC_DEFAULT"
-        or not key.get("Arn", "").startswith(f"arn:aws:kms:{REGION}:{expected_account}:")
+        or not key.get("Arn", "").startswith(f"arn:aws:kms:{region}:{expected_account}:")
     ):
         raise RuntimeError("KMS key is not an enabled customer-managed symmetric key in target account/region")
 
@@ -132,6 +133,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--service", choices=("api", "worker"), required=True)
     parser.add_argument("--expected-account", help="12-digit AWS account; mandatory for --apply")
+    parser.add_argument("--region", default=DEFAULT_REGION, help="AWS region (Hyderabad: ap-south-2)")
     parser.add_argument("--include-review", action="store_true", help="Requires separate policy review of legacy/regulatory switches")
     parser.add_argument("--apply", action="store_true", help="Write non-existing parameters to AWS")
     args = parser.parse_args()
@@ -158,9 +160,9 @@ def main() -> int:
         from botocore.exceptions import ClientError
     except ImportError:
         parser.error("Install boto3 privately: python -m pip install boto3")
-    session = boto3.Session(region_name=REGION)
-    check_target(session, args.expected_account)
-    ssm = session.client("ssm", region_name=REGION)
+    session = boto3.Session(region_name=args.region)
+    check_target(session, args.expected_account, args.region)
+    ssm = session.client("ssm", region_name=args.region)
     errors = 0
     for name, value in ready:
         path = parameter_name(name)

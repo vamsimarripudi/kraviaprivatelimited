@@ -22,25 +22,35 @@ REQUIRED = {
 
 
 def read_scope(root: str, scope: str, region: str) -> dict[str, str]:
-    result = subprocess.run(
-        ["aws", "ssm", "get-parameters-by-path", "--path", f"{root}/{scope}",
-         "--recursive", "--with-decryption", "--region", region, "--output", "json"],
-        check=True, capture_output=True, text=True,
-    )
     values: dict[str, str] = {}
-    prefix = f"{root}/{scope}/"
-    for item in json.loads(result.stdout).get("Parameters", []):
-        path = item["Name"]
-        if not path.startswith(prefix) or "/" in path[len(prefix):]:
-            raise ValueError("Unexpected nested SSM parameter path")
-        name = path[len(prefix):]
-        if not NAME.fullmatch(name):
-            raise ValueError(f"Invalid parameter name: {name!r}")
-        value = item["Value"]
-        if any(character in value for character in ("\x00", "\r", "\n")):
-            raise ValueError(f"Multiline parameter {name}: use base64 or approved file adapter")
-        values[name] = value
-    return values
+    next_token: str | None = None
+    while True:
+        command = [
+            "aws", "ssm", "get-parameters-by-path", "--path", f"{root}/{scope}",
+            "--recursive", "--with-decryption", "--region", region,
+            "--output", "json", "--max-results", "10",
+        ]
+        if next_token:
+            command.extend(["--next-token", next_token])
+        result = subprocess.run(command, check=True, capture_output=True, text=True)
+        payload = json.loads(result.stdout)
+        for item in payload.get("Parameters", []):
+            path = item["Name"]
+            prefix = f"{root}/{scope}/"
+            if not path.startswith(prefix) or "/" in path[len(prefix):]:
+                raise ValueError("Unexpected nested SSM parameter path")
+            name = path[len(prefix):]
+            if not NAME.fullmatch(name):
+                raise ValueError(f"Invalid parameter name: {name!r}")
+            value = item["Value"]
+            if any(character in value for character in ("\x00", "\r", "\n")):
+                raise ValueError(f"Multiline parameter {name}: use base64 or approved file adapter")
+            if name in values and values[name] != value:
+                raise ValueError(f"Duplicate parameter with conflicting values: {name}")
+            values[name] = value
+        next_token = payload.get("NextToken")
+        if not next_token:
+            return values
 
 
 def write_env(path: Path, values: dict[str, str]) -> None:

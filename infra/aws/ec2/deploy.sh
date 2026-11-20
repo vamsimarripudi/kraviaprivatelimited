@@ -20,6 +20,11 @@ if [[ ! -d "$ROOT/.git" ]]; then
   exit 1
 fi
 cd "$ROOT"
+PREVIOUS_SHA="$(git rev-parse HEAD)"
+if [[ -n "$(git status --porcelain)" ]]; then
+  echo 'Refusing deployment from a dirty host checkout' >&2
+  exit 1
+fi
 git fetch origin main --quiet
 git cat-file -e "${SHA}^{commit}"
 git merge-base --is-ancestor "$SHA" origin/main || {
@@ -27,6 +32,9 @@ git merge-base --is-ancestor "$SHA" origin/main || {
   exit 1
 }
 git checkout --detach --force "$SHA" --quiet
+test "$(stat -c '%a' /etc/kravia)" = "700"
+test "$(stat -c '%a' /etc/kravia/api.env)" = "600"
+test "$(stat -c '%a' /etc/kravia/worker.env)" = "600"
 # Backup, compatibility and staging checks are required before approving
 # the production GitHub Environment that authorizes this operation.
 python3 infra/aws/ec2/ssm_to_env.py --region ap-south-2
@@ -40,7 +48,7 @@ COMPOSE=(docker compose -f infra/aws/ec2/compose.yaml)
 
 for attempt in $(seq 1 30); do
   if curl --fail --silent --show-error http://127.0.0.1:8000/health/live >/dev/null 2>&1; then
-    echo "EC2 health passed for $SHA"
+    echo "EC2 health passed for $SHA (previous $PREVIOUS_SHA)"
     exit 0
   fi
   sleep 2

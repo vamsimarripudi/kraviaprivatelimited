@@ -52,13 +52,24 @@ class ParameterStoreTests(unittest.TestCase):
             path = Path(directory) / "private" / "api.env"
             module.write_env(path, {"TOKEN": "abc$xyz", "FLAG": "enabled"})
             self.assertEqual(path.read_text(), "FLAG=enabled\nTOKEN=abc$xyz\n")
-            self.assertEqual(os.stat(path).st_mode & 0o777, 0o600)
-            self.assertEqual(os.stat(path.parent).st_mode & 0o777, 0o700)
+            if os.name != "nt":
+                self.assertEqual(os.stat(path).st_mode & 0o777, 0o600)
+                self.assertEqual(os.stat(path.parent).st_mode & 0o777, 0o700)
 
     def test_aws_access_failure_propagates(self):
         with patch.object(module.subprocess, "run", side_effect=module.subprocess.CalledProcessError(1, ["aws"])):
             with self.assertRaises(module.subprocess.CalledProcessError):
                 module.read_scope("/kravia/prod", "api", "ap-south-2")
+
+    def test_paginates_parameter_store(self):
+        first = {"Parameters": [{"Name": "/kravia/prod/shared/APP_ENV", "Value": "production"}], "NextToken": "next"}
+        second = {"Parameters": [{"Name": "/kravia/prod/shared/DATABASE_EXECUTION_ROLE", "Value": "runtime"}]}
+        with patch.object(module.subprocess, "run") as run:
+            run.side_effect = [type("Result", (), {"stdout": json.dumps(first)})(), type("Result", (), {"stdout": json.dumps(second)})()]
+            loaded = module.read_scope("/kravia/prod", "shared", "ap-south-2")
+        self.assertEqual(loaded, {"APP_ENV": "production", "DATABASE_EXECUTION_ROLE": "runtime"})
+        self.assertEqual(run.call_count, 2)
+        self.assertIn("--next-token", run.call_args_list[1].args[0])
 
 
 if __name__ == "__main__":
