@@ -7,6 +7,7 @@ MFA boundary are enforced before business routes execute.
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
 import threading
 import time
@@ -37,6 +38,25 @@ PUBLIC_INTAKE_DELIVERY_PATHS = frozenset({
 # The backend root is intentionally a public, metadata-only status page. Legacy
 # browser application entry points still require an authenticated Office session.
 BROWSER_ENTRY_PATHS = {"/index.html", "/finance.html"}
+logger = logging.getLogger(__name__)
+
+
+def mutation_rate_tier(path: str) -> str:
+    """Classify a request without trusting any client-supplied role or header.
+
+    Tier limits are distinct shared database windows, never a second DB query
+    on the request. Webhooks retain their existing verified delivery boundary.
+    """
+    if path.startswith(AUTH_API_PREFIX) or path.startswith("/api/v1/identity/"):
+        return "auth"
+    if (path.startswith("/api/v1/finance/")
+        or path.startswith("/api/v1/ownership/")
+        or path.startswith("/api/v1/gst/")
+        or path.startswith("/api/v1/tax/")
+        or path.startswith("/api/v1/compliance/")):
+        return "sensitive"
+    return "standard"
+
 
 
 class FixedWindowRateLimiter:
@@ -242,11 +262,18 @@ def _oidc_mfa_guard(request: Request, app_env: str):
 
 
 def configure_security(app) -> None:
+    app_env = os.getenv("APP_ENV", "development").lower()
     requests = int(os.getenv("OFFICE_MUTATION_RATE_LIMIT", "120"))
+    auth_requests = int(os.getenv("OFFICE_AUTH_MUTATION_RATE_LIMIT",
+                                  "24" if app_env == "production" else str(requests)))
+    sensitive_requests = int(os.getenv("OFFICE_SENSITIVE_MUTATION_RATE_LIMIT",
+                                       "40" if app_env == "production" else str(requests)))
+    slow_request_ms = max(100, int(os.getenv("OFFICE_SLOW_REQUEST_LOG_MS", "900")))
     window = int(os.getenv("OFFICE_RATE_LIMIT_WINDOW_SECONDS", "60"))
+    if min(requests, auth_requests, sensitive_requests, window) < 1:
+        raise RuntimeError("Office rate limits must be positive")
     allowed_hosts = _csv_env("OFFICE_ALLOWED_HOSTS")
     allowed_origins = _allowed_origins()
-    app_env = os.getenv("APP_ENV", "development").lower()
     rate_limit_mode = os.getenv(
         "OFFICE_RATE_LIMIT_MODE",
         "database" if app_env == "production" else "local",
@@ -259,12 +286,18 @@ def configure_security(app) -> None:
         raise RuntimeError("OFFICE_RATE_LIMIT_MODE must be local or database")
     if require_shared and rate_limit_mode != "database":
         raise RuntimeError("Production shared rate limiting is required")
-    local_limiter = FixedWindowRateLimiter(requests=requests, window_seconds=window)
-    shared_limiter = DatabaseFixedWindowRateLimiter(requests=requests, window_seconds=window) if rate_limit_mode == "database" else None
-    # The local limiter is process-scoped by design. Keep its reference on the
-    # ASGI application so an isolated development/test app lifecycle can clear
-    # only in-memory state; no HTTP route exposes this object.
-    app.state.office_local_rate_limiter = local_limiter
+    tier_budgets = {"standard": requests, "auth": auth_requests, "sensitive": sensitive_requests}
+    local_limiters = {
+        tier: FixedWindowRateLimiter(requests=budget, window_seconds=window)
+        for tier, budget in tier_budgets.items()
+    }
+    shared_limiters = {
+        tier: DatabaseFixedWindowRateLimiter(requests=budget, window_seconds=window)
+        for tier, budget in tier_budgets.items()
+    } if rate_limit_mode == "database" else {}
+    # Compatibility with isolated tests and development lifecycle reset.
+    app.state.office_local_rate_limiter = local_limiters["standard"]
+    app.state.office_local_rate_limiters = local_limiters
 
     @app.middleware("http")
     async def office_security(request: Request, call_next):
@@ -291,14 +324,18 @@ def configure_security(app) -> None:
 
         remaining = None
         rate_limit_source = None
+        rate_limit_tier = None
         if mutation and request.url.path.startswith("/api/") and not provider_webhook:
-            key = _identity_key(request)
+            rate_limit_tier = mutation_rate_tier(request.url.path)
+            # One shared counter per peer+identity+tier, regardless of API path.
+            # The tier prefix is server-derived, not an attacker-controlled header.
+            key = rate_limit_tier + "|" + _identity_key(request)
             try:
-                if shared_limiter is not None:
-                    allowed, remaining, retry_after = shared_limiter.allow(key)
+                if shared_limiters:
+                    allowed, remaining, retry_after = shared_limiters[rate_limit_tier].allow(key)
                     rate_limit_source = "database"
                 else:
-                    allowed, remaining, retry_after = local_limiter.allow(key)
+                    allowed, remaining, retry_after = local_limiters[rate_limit_tier].allow(key)
                     rate_limit_source = "local"
             except SharedRateLimitUnavailable:
                 if require_shared:
@@ -306,12 +343,14 @@ def configure_security(app) -> None:
                     response.headers["Retry-After"] = "5"
                     _set_security_headers(response, app_env)
                     return response
-                allowed, remaining, retry_after = local_limiter.allow(key)
+                allowed, remaining, retry_after = local_limiters[rate_limit_tier].allow(key)
                 rate_limit_source = "local-fallback"
             if not allowed:
                 response = JSONResponse({"detail": "Office mutation rate limit exceeded"}, status_code=429)
                 response.headers["Retry-After"] = str(retry_after)
                 response.headers["X-RateLimit-Source"] = rate_limit_source
+                response.headers["X-RateLimit-Tier"] = rate_limit_tier
+                response.headers["X-RateLimit-Limit"] = str(tier_budgets[rate_limit_tier])
                 _set_security_headers(response, app_env)
                 return response
 
@@ -319,10 +358,16 @@ def configure_security(app) -> None:
         _set_security_headers(response, app_env)
         elapsed_ms = (time.perf_counter() - request_started) * 1000
         response.headers["Server-Timing"] = f"app;dur={elapsed_ms:.1f}"
-        if remaining is not None:
-            response.headers["X-RateLimit-Limit"] = str(requests)
+        if elapsed_ms >= slow_request_ms:
+            logger.warning(
+                "office_slow_request method=%s status=%d tier=%s duration_ms=%.1f",
+                request.method, response.status_code, rate_limit_tier or "read", elapsed_ms,
+            )
+        if remaining is not None and rate_limit_tier is not None:
+            response.headers["X-RateLimit-Limit"] = str(tier_budgets[rate_limit_tier])
             response.headers["X-RateLimit-Remaining"] = str(remaining)
             response.headers["X-RateLimit-Source"] = rate_limit_source or "unknown"
+            response.headers["X-RateLimit-Tier"] = rate_limit_tier
         return response
 
 

@@ -7,7 +7,7 @@ from backend.database import Base
 # The shared limiter deliberately uses SQL rather than an ORM repository, so its
 # table is otherwise not imported as a side effect of this focused test module.
 from backend import models as _models  # noqa: F401
-from backend.security_controls import DatabaseFixedWindowRateLimiter, FixedWindowRateLimiter, configure_security
+from backend.security_controls import DatabaseFixedWindowRateLimiter, FixedWindowRateLimiter, configure_security, mutation_rate_tier
 
 
 def test_fixed_window_rate_limiter_is_deterministic():
@@ -124,3 +124,59 @@ def test_local_mode_emits_rate_limit_source_header(monkeypatch):
         response = client.post("/api/mutate", headers={"X-Office-Actor": "Header Tester"})
         assert response.status_code == 200
         assert response.headers["x-ratelimit-source"] == "local"
+
+
+def test_mutation_rate_tiers_are_server_derived_and_separate(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.setenv("OFFICE_RATE_LIMIT_MODE", "local")
+    monkeypatch.setenv("OFFICE_REQUIRE_SHARED_RATE_LIMIT", "false")
+    monkeypatch.setenv("OFFICE_MUTATION_RATE_LIMIT", "4")
+    monkeypatch.setenv("OFFICE_AUTH_MUTATION_RATE_LIMIT", "1")
+    monkeypatch.setenv("OFFICE_SENSITIVE_MUTATION_RATE_LIMIT", "1")
+    monkeypatch.setenv("OFFICE_RATE_LIMIT_WINDOW_SECONDS", "60")
+    assert mutation_rate_tier("/api/v1/auth/sign-in") == "auth"
+    assert mutation_rate_tier("/api/v1/identity/verify") == "auth"
+    assert mutation_rate_tier("/api/v1/finance/payments") == "sensitive"
+    assert mutation_rate_tier("/api/v1/tax/returns") == "sensitive"
+    assert mutation_rate_tier("/api/v1/products") == "standard"
+
+    local = FastAPI()
+    @local.post("/api/v1/auth/sign-in")
+    def auth():
+        return {"ok": True}
+    @local.post("/api/v1/finance/payments")
+    def finance():
+        return {"ok": True}
+    @local.post("/api/v1/products")
+    def products():
+        return {"ok": True}
+    configure_security(local)
+    with TestClient(local) as client:
+        first = client.post("/api/v1/auth/sign-in")
+        second = client.post("/api/v1/auth/sign-in")
+        assert first.status_code == 200
+        assert second.status_code == 429
+        assert first.headers["x-ratelimit-limit"] == "1"
+        assert first.headers["x-ratelimit-tier"] == "auth"
+        assert second.headers["x-ratelimit-tier"] == "auth"
+        assert int(second.headers["retry-after"]) > 0
+        regulated = client.post("/api/v1/finance/payments")
+        assert regulated.status_code == 200
+        assert regulated.headers["x-ratelimit-tier"] == "sensitive"
+        assert client.post("/api/v1/finance/payments").status_code == 429
+        for _ in range(4):
+            normal = client.post("/api/v1/products")
+            assert normal.status_code == 200
+        assert normal.headers["x-ratelimit-limit"] == "4"
+        assert normal.headers["x-ratelimit-tier"] == "standard"
+        assert "app;dur=" in normal.headers["server-timing"]
+        assert client.post("/api/v1/products").status_code == 429
+
+
+def test_mutation_rate_limit_values_fail_closed_when_invalid(monkeypatch):
+    monkeypatch.setenv("OFFICE_AUTH_MUTATION_RATE_LIMIT", "0")
+    try:
+        configure_security(FastAPI())
+        assert False, "zero authentication budget must not start"
+    except RuntimeError as error:
+        assert "must be positive" in str(error)
