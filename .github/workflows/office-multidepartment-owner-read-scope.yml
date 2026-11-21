@@ -1,0 +1,51 @@
+name: Office six-department owner and read-scope security
+on:
+  pull_request:
+    paths:
+      - "Database/supabase/migrations/20261117090000_department_owner_module_reads.sql"
+      - "Database/supabase/tests/office-multidepartment-owner-reads-20261117.sql"
+      - "Database/supabase/tests/department-handover-access-sync.sql"
+      - ".github/workflows/office-multidepartment-owner-read-scope.yml"
+  push:
+    branches: [main]
+    paths:
+      - "Database/supabase/migrations/20261117090000_department_owner_module_reads.sql"
+      - "Database/supabase/tests/office-multidepartment-owner-reads-20261117.sql"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  six-department-scopes:
+    runs-on: ubuntu-latest
+    name: PostgreSQL 17 least-privilege owner read contracts
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: jaya_department_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: isolated-department-ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d jaya_department_test"
+          --health-interval 4s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate read scopes and denial for unrelated roles with isolated identities
+        shell: bash
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGDATABASE: jaya_department_test
+          PGPASSWORD: isolated-department-ci
+        run: |
+          set -euo pipefail
+          result="$(psql -X --set ON_ERROR_STOP=1 --tuples-only --no-align \
+            --file Database/supabase/tests/office-multidepartment-owner-reads-20261117.sql)"
+          printf '%s\n' "$result"
+          test "$(printf '%s\n' "$result" | tail -n 1)" = "SIX_DEPARTMENT_OWNER_READ_SCOPE_VERIFIED"
