@@ -29,6 +29,11 @@ Database/supabase/.temp/
 # Local tool caches
 .agents/**/__pycache__/
 
+# Terraform local plugins and state
+**/.terraform/
+*.tfstate
+*.tfstate.*
+
 # Browser verification artifacts and isolated profiles
 /artifacts/
 .neon
